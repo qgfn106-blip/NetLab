@@ -1,0 +1,156 @@
+{
+  "format": "netlab-project",
+  "version": 5,
+  "app": "netlab 2.1.0",
+  "name": "RC 充电示例",
+  "created": "2026-10-28T19:29:41+0800",
+  "modified": "2026-10-28T19:29:41+0800",
+  "networks": [
+    {
+      "id": "1565855f215a",
+      "name": "网络 1",
+      "scene": {
+        "mode": "circuit",
+        "integration": "trapezoidal",
+        "nodes": [
+          {
+            "id": "c00000000001",
+            "name": "src",
+            "kind": "node",
+            "params": {},
+            "data": {},
+            "position": {
+              "x": -330.0,
+              "y": 0.0
+            },
+            "size": {}
+          },
+          {
+            "id": "c00000000002",
+            "name": "mid",
+            "kind": "node",
+            "params": {},
+            "data": {},
+            "position": {
+              "x": -40.0,
+              "y": 0.0
+            },
+            "size": {}
+          },
+          {
+            "id": "c00000000003",
+            "name": "gnd",
+            "kind": "ground",
+            "params": {},
+            "data": {},
+            "position": {
+              "x": 170.0,
+              "y": 190.0
+            },
+            "size": {}
+          }
+        ],
+        "edges": [
+          {
+            "id": "d00000000001",
+            "name": "V1",
+            "source": "c00000000001",
+            "target": "c00000000003",
+            "kind": "vsource",
+            "source_pin": "",
+            "target_pin": "",
+            "source_port": "",
+            "target_port": "",
+            "params": {
+              "wave": "step",
+              "offset": 0.0,
+              "amplitude": 5.0,
+              "frequency": 10.0,
+              "phase": 0.0,
+              "duty": 0.5,
+              "delay": 0.0
+            },
+            "delay": false,
+            "enabled": true,
+            "route": "auto",
+            "waypoints": [],
+            "anchors": {},
+            "layout": {}
+          },
+          {
+            "id": "d00000000002",
+            "name": "R1",
+            "source": "c00000000001",
+            "target": "c00000000002",
+            "kind": "resistor",
+            "source_pin": "",
+            "target_pin": "",
+            "source_port": "",
+            "target_port": "",
+            "params": {
+              "R": 1000.0
+            },
+            "delay": false,
+            "enabled": true,
+            "route": "auto",
+            "waypoints": [],
+            "anchors": {},
+            "layout": {}
+          },
+          {
+            "id": "d00000000003",
+            "name": "C1",
+            "source": "c00000000002",
+            "target": "c00000000003",
+            "kind": "capacitor",
+            "source_pin": "",
+            "target_pin": "",
+            "source_port": "",
+            "target_port": "",
+            "params": {
+              "C": 1e-06,
+              "v0": 0.0
+            },
+            "delay": false,
+            "enabled": true,
+            "route": "auto",
+            "waypoints": [],
+            "anchors": {},
+            "layout": {}
+          }
+        ]
+      },
+      "sim": {
+        "fps": 30,
+        "dt": 0.002,
+        "steps_per_frame": 1,
+        "t_step": 0.0,
+        "lock_dt": false,
+        "sample_every": 1,
+        "realtime": true,
+        "step_timeout_ms": 0.0,
+        "reltol": 1e-09,
+        "vntol": 1e-06,
+        "abstol": 1e-06,
+        "max_iter": 60,
+        "gmin": 0.001,
+        "gmin_steps": 10,
+        "src_steps": 10,
+        "residual_tol": 0.0,
+        "residual_safety_tol": 1e-08,
+        "scaling": true,
+        "pivot_tol": 1e-14,
+        "breakpoints": true,
+        "sparse": "auto",
+        "sparse_threshold": 200
+      }
+    }
+  ],
+  "current": "1565855f215a",
+  "fem": {},
+  "ui": {},
+  "blocks": [],
+  "extensions": [],
+  "metadata": {},
+  "checksum": "60f078ee2e58f294036589a8888431930790e33466eb19e17110f4959973b800"
+}

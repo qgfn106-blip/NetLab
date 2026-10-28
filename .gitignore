@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 测试与缓存
+.pytest_cache/
+.pytest_tmp/
+.coverage
+htmlcov/
+
+# 运行期临时文件
+*.tmp.json
+*.log
+
+# 对外发布时排除的内容
+MyProject/
+netlab/tests/
+netlab/tools/
+netlab/docs/
+
+# 共享库与扩展：只保留目录骨架，个人数据不入库
+library/*
+!library/.gitkeep
+extensions/*
+!extensions/.gitkeep
+
+# 操作系统杂项
+.DS_Store
+Thumbs.db
+desktop.ini

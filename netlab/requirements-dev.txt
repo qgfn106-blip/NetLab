@@ -1,0 +1,5 @@
+-r requirements.txt
+
+# 仅开发/测试需要，运行应用不必安装
+pytest>=8.0,<9.0
+httpx>=0.27,<1.0

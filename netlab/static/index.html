@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RHINE LAB · NETLAB</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f3f0e8'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23111111' stroke-width='1.4'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%23a8541f'/%3E%3Cpath d='M16 3v5M16 24v5M3 16h5M24 16h5' stroke='%23111111'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/static/style.css?v=3.8.13" />
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <span></span><i></i>
+      </div>
+      <div class="brand-text">
+        <h1>RHINE LAB <em>NETLAB</em></h1>
+        <p>SYNTHESIZE INFORMATION · ANALYSIS OS</p>
+      </div>
+    </div>
+
+    <div id="workspaceSwitch" class="workspace-switch" role="tablist" aria-label="工作区">
+      <button type="button" data-workspace="network" class="active">TOPOLOGY</button>
+      <button type="button" data-workspace="fem">FIELD · FEM</button>
+    </div>
+
+    <div id="modePill" class="mode-pill">信号流</div>
+
+    <div class="transport">
+      <button id="btnRun" class="btn primary" title="运行 / 暂停（空格）">
+        <span id="runIcon">▶</span><span id="runLabel">运行</span>
+      </button>
+      <button id="btnStep" class="btn" title="单步（S）">单步</button>
+      <button id="btnReset" class="btn" title="重置状态与时间">重置</button>
+    </div>
+
+    <div class="readouts">
+      <div class="readout"><span>t</span><b id="simTime">0.000</b><i>s</i></div>
+      <div class="readout"><span>fps</span><b id="simFps">0</b></div>
+      <div class="readout"><span>step</span><b id="simSteps">0</b></div>
+    </div>
+
+    <div class="top-timeline" id="topTimelineWrap" title="时间轴：拖动查看历史帧（只读回放），双击回到实时">
+      <input id="topTimeline" type="range" min="0" max="0" value="0" step="1" aria-label="时间轴">
+      <span id="topTimelineTime">t 0.000 s</span>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="session-meta"><i></i><span id="sessionClock">LOCAL SESSION</span></div>
+    <button id="btnHelp" class="btn ghost" title="快捷键与操作说明">帮助</button>
+    <button id="btnPanel" class="btn ghost" title="收起 / 展开右侧面板">面板</button>
+    <button id="btnExit" class="btn ghost exit" title="关闭服务进程并释放端口">退出</button>
+  </header>
+
+  <nav id="menubar" class="menubar" aria-label="主菜单">
+    <div id="menuItems" class="menu-items" role="menubar"></div>
+    <div id="infoBar" class="info-bar" aria-live="polite">
+      <span data-info="project">未命名工程</span><i>·</i>
+      <span data-info="network">网络 1</span><i>·</i>
+      <span data-info="mode">信号流</span><i>·</i>
+      <span data-info="time">t 0.000 s</span><i>·</i>
+      <span data-info="steps">step 0</span>
+      <span data-info="run" class="run-state">停止</span>
+    </div>
+  </nav>
+
+  <main>
+    <aside id="networks" class="networks" aria-label="网络列表">
+      <header class="networks-head">
+        <strong>网络</strong>
+        <button id="btnNetCollapse" class="icon-btn" title="收起 / 展开网络栏" aria-label="收起或展开网络栏">⟨</button>
+      </header>
+      <div id="networkList" class="network-list" role="listbox" aria-label="工程内的网络"></div>
+      <footer class="networks-foot">
+        <button id="btnNetAdd" class="btn tiny" title="新建网络">新建</button>
+        <button id="btnNetRename" class="btn tiny" title="重命名当前网络">改名</button>
+        <button id="btnNetDelete" class="btn tiny danger" title="删除当前网络">删除</button>
+      </footer>
+      <div id="netResize" class="net-resize" title="拖动调整网络栏宽度"></div>
+    </aside>
+
+    <aside id="toolbar" aria-label="工具栏">
+      <button id="btnAdd" class="tool accent"><span class="tool-icon">＋</span><span>节点</span></button>
+      <button id="btnLayout" class="tool"><span class="tool-icon">⌗</span><span>布局</span></button>
+      <button id="btnFit" class="tool"><span class="tool-icon">⤢</span><span>适配</span></button>
+      <div class="tool-sep"></div>
+      <button id="btnZoomIn" class="tool slim" title="放大">＋</button>
+      <button id="btnZoomOut" class="tool slim" title="缩小">－</button>
+      <div class="spacer"></div>
+      <button id="btnClear" class="tool danger"><span class="tool-icon">⌫</span><span>清空</span></button>
+    </aside>
+
+    <section id="stage" aria-label="网络画布">
+      <canvas id="graph"></canvas>
+
+      <div id="femStage" class="hidden" aria-label="二维有限元场">
+        <canvas id="femCanvas"></canvas>
+        <div id="femHud" class="fem-hud">
+          <span>FIELD / Q4 FEM</span>
+          <b id="femHudProbe">悬停读取节点温度</b>
+        </div>
+      </div>
+
+      <div id="stageHint" class="stage-hint">
+        拖拽圆形节点 · 从右侧端口拖出连接 · 双击编辑 · 滚轮缩放
+      </div>
+      <div id="errorBanner" class="error-banner hidden"></div>
+      <div id="zoomBadge" class="zoom-badge">100%</div>
+      <div id="addMenu" class="popup hidden" role="menu"></div>
+      <div id="linkMenu" class="popup hidden" role="menu"></div>
+    </section>
+
+    <aside id="panel" aria-label="侧边面板">
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="inspect" role="tab">检查器</button>
+        <button class="tab" data-tab="node-fn" role="tab" title="节点函数：公式、源码与参数">节点函数</button>
+        <button class="tab" data-tab="edge-fn" role="tab" title="连接函数：传递公式、源码与参数">连接函数</button>
+        <button class="tab" data-tab="ext" role="tab" title="Python 自定义扩展">扩展</button>
+        <button class="tab" data-tab="blocks" role="tab" title="模块库：封装、实例化与版本">模块</button>
+        <button class="tab" data-tab="analysis" role="tab" title="分析（旁路）：指标/频谱/周期/数学形式/CSV">分析</button>
+        <button class="tab" data-tab="chart" role="tab">信号</button>
+        <button class="tab" data-tab="vector" role="tab">相图</button>
+        <button class="tab" data-tab="scene" role="tab">工程</button>
+        <button class="tab" data-tab="fem" role="tab">场</button>
+      </nav>
+      <div class="panel-body">
+        <section id="tab-inspect" class="tab-pane active"></section>
+        <section id="tab-spec" class="tab-pane"></section>
+        <section id="tab-ext" class="tab-pane"></section>
+        <section id="tab-blocks" class="tab-pane"></section>
+        <section id="tab-analysis" class="tab-pane"></section>
+
+        <section id="tab-chart" class="tab-pane">
+          <div class="chart-toolbar">
+            <label class="inline-field">
+              <span>时间窗</span>
+              <input id="chartWindow" type="number" min="0.1" max="120" step="0.5" value="5" />
+              <em>s</em>
+            </label>
+            <label class="inline-field chart-replay-field">
+              <span>回放</span>
+              <input id="chartTimeline" type="range" min="0" max="0" step="1" value="0" />
+              <em id="chartReplayTime">—</em>
+            </label>
+            <button id="btnPrecompute" class="btn tiny">预计算 0→T…</button>
+            <button id="btnReplay" class="btn tiny">▶ 回放</button>
+            <label class="inline-field">
+              <input id="chartLoop" type="checkbox" />
+              <span>循环</span>
+            </label>
+            <button id="btnLive" class="btn tiny">回到实时</button>
+            <button id="btnResolve" class="btn tiny" disabled>重新求解</button>
+            <button id="btnClearChart" class="btn tiny">清空轨迹</button>
+            <span id="chartStatus" class="chart-status"></span>
+          </div>
+          <div class="signal-search">
+            <input id="signalSearch" type="search" placeholder="筛选信号，例如 voltage / x / u" />
+          </div>
+          <div id="signalList" class="signal-list" aria-label="可选信号"></div>
+          <div class="chart-wrap"><canvas id="chart"></canvas></div>
+          <div id="legend" class="legend"></div>
+        </section>
+
+        <section id="tab-vector" class="tab-pane">
+          <div class="vector-toolbar">
+            <label class="inline-field">
+              <span>矢量节点</span>
+              <select id="vectorNode"></select>
+            </label>
+            <label class="inline-field">
+              <span>轨迹长度</span>
+              <input id="vectorTrail" type="number" min="20" max="1200" step="20" value="900" />
+              <em>帧</em>
+            </label>
+          </div>
+          <div class="phase-wrap"><canvas id="phase"></canvas></div>
+          <div id="phaseReadout" class="phase-readout">运行仿真后显示二维轨迹。</div>
+          <p class="help">相图读取节点数据中的 <code>x / y</code> 或 <code>vx / vy</code>。矢量模式下，非线性振子会直接产生这些字段。</p>
+        </section>
+
+        <section id="tab-scene" class="tab-pane"></section>
+
+        <section id="tab-fem" class="tab-pane">
+          <div id="femPanel"></div>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <footer id="statusbar">
+    <span id="statusMode">信号流</span>
+    <span id="statusEngine">—</span>
+    <span id="statusHint">就绪</span>
+    <span id="statusCursor">x —  y —</span>
+    <span id="statusToggles" class="status-toggles">
+      <button class="status-toggle active" id="stGrid" title="显示/隐藏栅格">栅格</button>
+      <button class="status-toggle active" id="stSnap" title="吸附到网格（Alt 临时暂停）">吸附</button>
+      <button class="status-toggle active" id="stSnapMark" title="拖动时高亮最近吸附点">捕捉点</button>
+      <button class="status-toggle active" id="stOrtho" title="电路连线强制正交">正交</button>
+      <button class="status-toggle" id="stNodeStyle" title="节点样式：空心圆 / 实心点 / 方框">节点·圆</button>
+      <button class="status-toggle" id="stDrawing" title="图纸模式：隐藏栅格/端口，加图框标题栏">图纸</button>
+    </span>
+    <span class="spacer"></span>
+    <span id="statusLimits">节点 0 / 400</span>
+  </footer>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card" id="modalCard"></div>
+  </div>
+
+  <script src="/static/app.js?v=3.8.13"></script>
+</body>
+</html>

@@ -58,12 +58,6 @@ python -m netlab.desktop
 
 更完整的安装方式（含**完全离线安装**、局域网共享、防火墙设置）见 [INSTALL.md](INSTALL.md)。
 
-## 浏览器内演示（无需安装）
-
-在线版：<https://qgfn106-blip.github.io/NetLab/> —— 页面用 Pyodide（CPython 编译到 WebAssembly）在浏览器里直接加载 `web/netlab.zip` 中的求解器，跑一个 R–C 低通并绘图，全程没有后端服务器。首次打开需下载约 20 MB Pyodide 运行时（较慢），之后走浏览器缓存。
-
-本地预览同一页面：`python -m http.server 8010 --directory web`。
-
 ## 目录结构
 
 ```
@@ -75,7 +69,6 @@ python -m netlab.desktop
 │  ├─ requirements.txt    运行依赖
 │  └─ requirements-desktop.txt
 ├─ docs/assets/           README 截图
-├─ web/                   浏览器内演示（Pyodide + GitHub Pages）
 ├─ library/               共享库（运行时生成，默认空）
 ├─ extensions/            扩展目录（运行时生成，默认空）
 ├─ README.md

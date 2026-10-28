@@ -82,6 +82,13 @@ python -m netlab.run
 
 `--no-index` 强制 pip 不访问网络，`--find-links wheels` 只从本地目录取包。只要 wheels 齐全，这一步不需要任何网络。
 
+Windows 上也可以直接用两个脚本：
+
+- 联网机器：双击 `netlab\download_wheels.bat`（依赖下载到项目根的 `wheels\`）
+- 离线机器：把整个项目连同 `wheels\` 拷过去，双击 `netlab\install_offline.bat`
+
+脚本内部执行的就是上面两条命令，并会检查 Python、目录与返回值。
+
 ### 3.3 目标机器没有 Python
 
 两个办法：

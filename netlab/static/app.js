@@ -46,6 +46,11 @@
   const femCtx = femCanvas.getContext('2d');
   const phaseCanvas = $('#phase');
   const phaseCtx = phaseCanvas.getContext('2d');
+  const scopeCanvas = $('#scope');
+  const scopeCtx = scopeCanvas?.getContext('2d');
+  const lissCanvas = $('#lissajous');
+  const lissCtx = lissCanvas?.getContext('2d');
+  const INST_COLORS = ['#c2542f', '#2f6f9e', '#7a5aa8', '#3f8f6b'];
 
   const ui = {
     main: $('main'),
@@ -76,7 +81,50 @@
     blocksPane: $('#tab-blocks'),
     analysisPane: $('#tab-analysis'),
     chartPane: $('#tab-chart'),
-    scenePane: $('#tab-scene'),
+    instPane: $('#tab-inst'),
+    instWindow: $('#instWindow'),
+    instStatus: $('#instStatus'),
+    instMeterKey: $('#instMeterKey'),
+    instValNow: $('#instValNow'),
+    instValMean: $('#instValMean'),
+    instValRms: $('#instValRms'),
+    instValPP: $('#instValPP'),
+    instValMinMax: $('#instValMinMax'),
+    instLegend: $('#instLegend'),
+    instLX: $('#instLX'),
+    instLY: $('#instLY'),
+    instTrail: $('#instTrail'),
+    instCh: ['#instCh1', '#instCh2', '#instCh3', '#instCh4'].map((sel) => $(sel)),
+    scenePane: $('#settingsScene'),
+    settingsScene: $('#settingsScene'),
+    settingsWin: $('#settingsWin'),
+    settingsClose: $('#setWinClose'),
+    guide: $('#guide'),
+    guideNever: $('#guideNever'),
+    guideEnter: $('#guideEnter'),
+    guideDocs: $('#guideDocs'),
+    guideDemo: $('#guideDemo'),
+    guideClose: $('#guideClose'),
+    docWin: $('#docWin'),
+    moduleWin: $('#moduleWin'),
+    moduleWinTitle: $('#moduleWinTitle'),
+    moduleWinHint: $('#moduleWinHint'),
+    modulePorts: $('#modulePorts'),
+    moduleMeta: $('#moduleMeta'),
+    moduleStage: document.querySelector('#moduleWin .modwin-stage'),
+    moduleCanvas: $('#moduleCanvas'),
+    moduleEmpty: $('#moduleEmpty'),
+    moduleDock: $('#moduleDock'),
+    moduleWinClose: $('#moduleWinClose'),
+    moduleEdit: $('#moduleEdit'),
+    moduleAddInstance: $('#moduleAddInstance'),
+    docNav: $('#docNav'),
+    docMain: $('#docMain'),
+    docContent: $('#docContent'),
+    docSearch: $('#docSearch'),
+    docResults: $('#docResults'),
+    docTitle: $('#docWinTitle'),
+    qcard: $('#qcard'),
     signalList: $('#signalList'),
     legend: $('#legend'),
     chartWindow: $('#chartWindow'),
@@ -85,6 +133,8 @@
     topTimeline: $('#topTimeline'),
     topTimelineTime: $('#topTimelineTime'),
     btnReplay: $('#btnReplay'),
+    replaySpeed: $('#replaySpeed'),
+    replaySpeedVal: $('#replaySpeedVal'),
     btnPrecompute: $('#btnPrecompute'),
     chartLoop: $('#chartLoop'),
     btnLive: $('#btnLive'),
@@ -106,12 +156,17 @@
     exitBtn: $('#btnExit'),
     menuItems: $('#menuItems'),
     infoBar: $('#infoBar'),
+    networks: $('#networks'),
     networkList: $('#networkList'),
-    netCollapse: $('#btnNetCollapse'),
     netAdd: $('#btnNetAdd'),
     netRename: $('#btnNetRename'),
     netDelete: $('#btnNetDelete'),
     netResize: $('#netResize'),
+    netHanger: $('#netHanger'),
+    panelHanger: $('#panelHanger'),
+    panelResize: $('#panelResize'),
+    guideOpenProject: $('#guideOpenProject'),
+    guideSettings: $('#guideSettings'),
   };
 
   const state = {
@@ -149,11 +204,22 @@
       colors: new Map(),
       loop: false,
     },
+    instrument: {
+      meterKey: '',
+      channels: [null, null, null, null],
+      lx: '',
+      ly: '',
+      trail: 600,
+      window: 5,
+      scopeSize: { w: 1, h: 1, dpr: 1 },
+      lissSize: { w: 1, h: 1, dpr: 1 },
+    },
     replay: {
       active: false,
       playing: false,
       index: 0,
       timer: 0,
+      speed: 60,
       recordingRevision: null,
     },
     pollTimer: 0,
@@ -187,6 +253,22 @@
       glyphColor: '#1f5f5b',
       drawingMode: false,
     },
+    // R30：外观偏好、文档与引导状态
+    prefs: { theme: 'light', motion: 'low', perf: 'perf', accent: '', guide: 'always', infobar: true },
+    palette: null,
+    settings: null,
+    docs: [],
+    docSlug: '',
+    docGeo: null,
+    plotkitGeo: null,
+    plotkitDock: false,
+    settingsGeo: null,
+    moduleGeo: null,
+    moduleBlock: null,
+    moduleDock: false,
+    guideMode: 'signal',
+    guideShown: false,
+    uiReady: false,
     multi: { nodes: new Set(), edges: new Set() },
     undoStack: [],
     redoStack: [],
@@ -279,14 +361,20 @@
 
   function colorForKey(key) {
     if (!state.chart.colors.has(key)) {
-      state.chart.colors.set(key, PALETTE[hashString(key) % PALETTE.length]);
+      state.chart.colors.set(key, CHART_PALETTE[hashString(key) % CHART_PALETTE.length]);
     }
-    return state.chart.colors.get(key);
+    return C(state.chart.colors.get(key));
   }
 
   function activeTab() {
-    const button = $('.tab.active');
-    return button ? button.dataset.tab : 'inspect';
+    const group = $('.panel-group.active')?.dataset.group || 'inspect';
+    if (group === 'fn') return state.fnRole === 'edge' ? 'edge-fn' : 'node-fn';
+    if (group === 'analysis' || group === 'modules') {
+      const sub = $('.panel-group.active .group-subnav [data-sub].active');
+      return sub ? sub.dataset.sub : (group === 'modules' ? 'blocks' : 'chart');
+    }
+    if (group === 'fem') return 'fem';
+    return 'inspect';
   }
 
   function modeLabel(mode) {
@@ -544,6 +632,24 @@
     if (state.selection.type && !lookupSelection()) {
       clearSelection();
     }
+    // 场景被换掉/节点被删后，多选集合里的旧 id 要清掉，否则「封装选中」
+    // 会拿着一批已经不存在的节点去请求，后端只能报「节点不存在」。
+    const liveNodes = new Set((state.scene?.nodes || []).map((node) => node.id));
+    const liveEdges = new Set((state.scene?.edges || []).map((edge) => edge.id));
+    let staleSelection = false;
+    for (const id of [...(state.multi?.nodes || [])]) {
+      if (!liveNodes.has(id)) {
+        state.multi.nodes.delete(id);
+        staleSelection = true;
+      }
+    }
+    for (const id of [...(state.multi?.edges || [])]) {
+      if (!liveEdges.has(id)) {
+        state.multi.edges.delete(id);
+        staleSelection = true;
+      }
+    }
+    if (staleSelection) requestDraw();
     updateModeUI();
     syncUI();
     updateInfoBar();
@@ -672,6 +778,7 @@
     // 重置后 probe_keys 会短暂为空：保留用户探针选择，避免“重置即清空通道”。
     if (!keys.length) {
       renderSignalList();
+      fillInstrumentSelects();
       scheduleChartDraw();
       return;
     }
@@ -683,6 +790,7 @@
       keys.slice(0, 2).forEach((key) => state.chart.selected.add(key));
     }
     renderSignalList();
+    fillInstrumentSelects();
     scheduleChartDraw();
   }
 
@@ -806,7 +914,7 @@
 
   function nodeRect(node) {
     const k = state.view.k;
-    if (state.scene?.mode === 'circuit' && node.kind === 'device') {
+    if (isPinNode(node)) {
       return deviceRect(node);
     }
     const radius = (nodeDiameter(node) / 2) * k;
@@ -829,7 +937,34 @@
     return (state.catalog?.elements || []).find((spec) => spec.kind === element) || null;
   }
 
+  function isModuleNode(node) {
+    return state.scene?.mode === 'circuit' && node?.kind === 'module';
+  }
+
+  // 电路里"带引脚的东西"：器件与模块实例都按引脚连线。
+  function isPinNode(node) {
+    return state.scene?.mode === 'circuit'
+      && (node?.kind === 'device' || node?.kind === 'module');
+  }
+
+  function modulePorts(node) {
+    return Array.isArray(node?.params?.ports) ? node.params.ports : [];
+  }
+
   function devicePins(node) {
+    if (node?.kind === 'module') {
+      // R24/D49：模块实例的端口就是引脚，方向决定它画在哪一侧。
+      return modulePorts(node).map((port) => ({
+        name: String(port?.name || ''),
+        role: port?.direction === 'input'
+          ? 'input'
+          : port?.direction === 'output'
+            ? 'output'
+            : 'passive',
+        required: false,
+        module: true,
+      }));
+    }
     return deviceElementSpec(node)?.pins || [];
   }
 
@@ -1285,11 +1420,11 @@
   };
 
   function nodeColor(node) {
-    if (node.kind === 'ground') return '#6f695f';
-    if (state.mode === 'circuit') return '#9a6a1c';
-    if (KIND_COLORS[node.kind]) return KIND_COLORS[node.kind];
+    if (node.kind === 'ground') return C('#6f695f');
+    if (state.mode === 'circuit') return C('#9a6a1c');
+    if (KIND_COLORS[node.kind]) return C(KIND_COLORS[node.kind]);
     const spec = getNodeSpec(node.kind);
-    return GROUP_COLORS[spec?.group] || '#a8541f';
+    return C(GROUP_COLORS[spec?.group] || '#a8541f');
   }
 
   function nodeKindLabel(node) {
@@ -1321,7 +1456,7 @@
     const ox = ((state.view.x % step) + step) % step;
     const oy = ((state.view.y % step) + step) % step;
 
-    ctx.fillStyle = 'rgba(104, 94, 78, 0.20)';
+    ctx.fillStyle = tokens().gridDot;
     for (let x = ox; x < width; x += step) {
       for (let y = oy; y < height; y += step) {
         ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
@@ -1329,7 +1464,7 @@
     }
 
     if (state.view.x > 0 && state.view.x < width) {
-      ctx.strokeStyle = '#cfc6b5';
+      ctx.strokeStyle = tokens().gridAxis;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(Math.round(state.view.x) + 0.5, 0);
@@ -1337,7 +1472,7 @@
       ctx.stroke();
     }
     if (state.view.y > 0 && state.view.y < height) {
-      ctx.strokeStyle = '#cfc6b5';
+      ctx.strokeStyle = tokens().gridAxis;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, Math.round(state.view.y) + 0.5);
@@ -1363,7 +1498,7 @@
       };
       const sp = worldToScreen(snapped.x, snapped.y);
       const size = 7;
-      ctx.strokeStyle = 'rgba(168, 84, 31, 0.85)';
+      ctx.strokeStyle = C('rgba(168, 84, 31, 0.85)');
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.moveTo(sp.x - size, sp.y);
@@ -1373,7 +1508,7 @@
       ctx.stroke();
       ctx.beginPath();
       ctx.arc(sp.x, sp.y, size + 3, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(168, 84, 31, 0.35)';
+      ctx.strokeStyle = C('rgba(168, 84, 31, 0.35)');
       ctx.stroke();
     }
   }
@@ -1417,8 +1552,8 @@
       ? (Number(layout.rot) * Math.PI) / 180
       : circuitMidAngle(points);
     const scale = symbolScalePx();
-    const theme = state.ui?.glyphColor || '#1f5f5b';
-    const glyphColor = color === '#a8541f' ? '#a8541f' : theme;
+    const theme = C(state.ui?.glyphColor || '#1f5f5b');
+    const glyphColor = color === '#a8541f' ? C('#a8541f') : theme;
     const ctx2 = ctx;
     ctx2.save();
     ctx2.translate(center.x, center.y);
@@ -1599,7 +1734,7 @@
     const from = midAt - half;
     const to = midAt + half;
     ctx.save();
-    ctx.strokeStyle = '#f7f4ec';
+    ctx.strokeStyle = C('#f7f4ec');
     ctx.lineWidth = 5;
     ctx.lineCap = 'round';
     for (const segment of segments) {
@@ -1631,9 +1766,9 @@
       const center = nodeCenterScreen(node);
       ctx.beginPath();
       ctx.arc(center.x, center.y, 3.4, 0, Math.PI * 2);
-      ctx.fillStyle = '#4d463c';
+      ctx.fillStyle = C('#4d463c');
       ctx.fill();
-      ctx.strokeStyle = '#f7f4ec';
+      ctx.strokeStyle = C('#f7f4ec');
       ctx.lineWidth = 1;
       ctx.stroke();
     }
@@ -1735,10 +1870,10 @@
   }
 
   function wirePathPoints(edge, source, target) {
-    const start = source.kind === 'device'
+    const start = isPinNode(source)
       ? devicePinScreen(source, edge.source_pin)
       : anchorPoint(source, 'auto', nodeCenterScreen(target));
-    const end = target.kind === 'device'
+    const end = isPinNode(target)
       ? devicePinScreen(target, edge.target_pin)
       : anchorPoint(target, 'auto', nodeCenterScreen(source));
     let route = edge.route || 'auto';
@@ -1788,7 +1923,7 @@
       ctx.stroke();
       ctx.beginPath();
       ctx.arc(to.x, to.y, 2.4, 0, Math.PI * 2);
-      ctx.fillStyle = '#f7f4ec';
+      ctx.fillStyle = C('#f7f4ec');
       ctx.fill();
       ctx.stroke();
       ctx.restore();
@@ -1849,7 +1984,7 @@
       ctx.save();
       ctx.beginPath();
       ctx.arc(point.x, point.y, 3.6, 0, Math.PI * 2);
-      ctx.fillStyle = '#f7f4ec';
+      ctx.fillStyle = C('#f7f4ec');
       ctx.fill();
       ctx.beginPath();
       ctx.arc(point.x, point.y, 4.2, Math.PI * 1.05, Math.PI * 1.95);
@@ -1877,23 +2012,23 @@
   function drawDrawingFrame(width, height) {
     const margin = 18;
     ctx.save();
-    ctx.strokeStyle = '#4d463c';
+    ctx.strokeStyle = C('#4d463c');
     ctx.lineWidth = 1.4;
     ctx.strokeRect(margin, margin, width - margin * 2, height - margin * 2);
     const boxW = 300;
     const boxH = 62;
     const x = width - margin - boxW;
     const y = height - margin - boxH;
-    ctx.fillStyle = '#fffdf8';
+    ctx.fillStyle = C('#fffdf8');
     ctx.fillRect(x, y, boxW, boxH);
     ctx.strokeRect(x, y, boxW, boxH);
-    ctx.fillStyle = '#11100e';
+    ctx.fillStyle = C('#11100e');
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.font = '600 11px "Segoe UI", "Microsoft YaHei", sans-serif';
     ctx.fillText(state.project?.name || '未命名工程', x + 10, y + 16);
     ctx.font = '9px "Cascadia Code", Consolas, monospace';
-    ctx.fillStyle = '#6f695f';
+    ctx.fillStyle = C('#6f695f');
     ctx.fillText(`${state.currentNetwork?.name || '网络'} · ${state.scene?.mode || ''} · R19`, x + 10, y + 34);
     ctx.fillText(new Date().toISOString().slice(0, 19).replace('T', ' '), x + 10, y + 50);
     ctx.restore();
@@ -1936,7 +2071,7 @@
       let color = '#a49a89';
       if (!edge.enabled) color = '#d3ccbc';
       else if (edge.delay) color = '#b0762a';
-      if (selected) color = '#a8541f';
+      if (selected) color = C('#a8541f');
       else if (hovered) color = '#5f584e';
 
       ctx.save();
@@ -2018,12 +2153,12 @@
         const boxLeft = labelRect.x;
         ctx.fillStyle = 'rgba(247, 244, 236, 0.92)';
         ctx.fillRect(boxLeft, labelY - 6, boxW, 12);
-        ctx.fillStyle = selected ? '#a8541f' : '#7b7266';
+        ctx.fillStyle = selected ? C('#a8541f') : '#7b7266';
         ctx.fillText(label, labelX, labelY);
         if (selected && !circuitGb) {
           const value = edgeValueText(edge);
           if (value) {
-            ctx.fillStyle = '#1f5f5b';
+            ctx.fillStyle = C('#1f5f5b');
             ctx.font = '9px "Cascadia Code", Consolas, monospace';
             ctx.fillText(value, middle.x, middle.y + 5);
           }
@@ -2039,9 +2174,9 @@
           const active = state.drag?.type === 'endpoint' && state.drag.id === edge.id && state.drag.end === handle.end;
           ctx.beginPath();
           ctx.arc(handle.p.x, handle.p.y, active ? 6 : 4.5, 0, Math.PI * 2);
-          ctx.fillStyle = active ? '#a8541f' : '#faf8f2';
+          ctx.fillStyle = active ? C('#a8541f') : C('#faf8f2');
           ctx.fill();
-          ctx.strokeStyle = '#a8541f';
+          ctx.strokeStyle = C('#a8541f');
           ctx.lineWidth = 1.2;
           ctx.stroke();
         }
@@ -2051,9 +2186,9 @@
             const snapPoint = anchorScreenPoint(node, state.drag.anchor);
             ctx.beginPath();
             ctx.arc(snapPoint.x, snapPoint.y, 7, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(168, 84, 31, 0.18)';
+            ctx.fillStyle = C('rgba(168, 84, 31, 0.18)');
             ctx.fill();
-            ctx.strokeStyle = '#a8541f';
+            ctx.strokeStyle = C('#a8541f');
             ctx.lineWidth = 1.4;
             ctx.stroke();
           }
@@ -2068,9 +2203,9 @@
             || (state.hoverWaypoint?.edgeId === edge.id && state.hoverWaypoint.index === index);
           ctx.beginPath();
           ctx.arc(point.x, point.y, active ? 6.5 : 5, 0, Math.PI * 2);
-          ctx.fillStyle = active ? '#a8541f' : '#faf8f2';
+          ctx.fillStyle = active ? C('#a8541f') : C('#faf8f2');
           ctx.fill();
-          ctx.strokeStyle = '#a8541f';
+          ctx.strokeStyle = C('#a8541f');
           ctx.lineWidth = 1.2;
           ctx.stroke();
         }
@@ -2084,7 +2219,7 @@
           const point = pathPointAt(points, t);
           ctx.beginPath();
           ctx.arc(point.x, point.y, selected ? 2.0 : 1.35, 0, Math.PI * 2);
-          ctx.fillStyle = edge.delay ? 'rgba(176,118,42,.8)' : 'rgba(168,84,31,.7)';
+          ctx.fillStyle = edge.delay ? C('rgba(176,118,42,.8)') : C('rgba(168,84,31,.7)');
           ctx.fill();
         }
       }
@@ -2095,10 +2230,10 @@
 
   function drawGbCircuitNode(ctx, node, cx, cy, radius, accent, isSelected, isHovered, k) {
     const style = state.ui?.nodeStyle || 'circle';
-    const color = isSelected ? '#a8541f' : isHovered ? '#5f584e' : '#7b7266';
+    const color = isSelected ? C('#a8541f') : isHovered ? '#5f584e' : '#7b7266';
     ctx.save();
     ctx.strokeStyle = color;
-    ctx.fillStyle = '#faf8f2';
+    ctx.fillStyle = C('#faf8f2');
     ctx.lineWidth = isSelected ? 1.8 : 1.2;
     if (node.kind === 'ground') {
       const top = cy - radius * 0.5;
@@ -2116,7 +2251,7 @@
       if (isSelected) {
         ctx.beginPath();
         ctx.arc(cx, cy, Math.max(radius, 12) + 4, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(168, 84, 31, 0.45)';
+        ctx.strokeStyle = C('rgba(168, 84, 31, 0.45)');
         ctx.stroke();
       }
       ctx.restore();
@@ -2125,7 +2260,7 @@
     if (style === 'dot') {
       ctx.beginPath();
       ctx.arc(cx, cy, 4.2, 0, Math.PI * 2);
-      ctx.fillStyle = isSelected ? '#a8541f' : accent;
+      ctx.fillStyle = isSelected ? C('#a8541f') : accent;
       ctx.fill();
     } else if (style === 'box') {
       ctx.beginPath();
@@ -2141,7 +2276,7 @@
     if (isSelected) {
       ctx.beginPath();
       ctx.arc(cx, cy, 10.5, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(168, 84, 31, 0.6)';
+      ctx.strokeStyle = C('rgba(168, 84, 31, 0.6)');
       ctx.lineWidth = 1;
       ctx.stroke();
     }
@@ -2149,7 +2284,7 @@
   }
 
   function drawGbFunctionGlyph(ctx, node, cx, cy, radius, accent, isSelected, isHovered, k) {
-    const color = isSelected ? '#a8541f' : isHovered ? '#5f584e' : accent;
+    const color = isSelected ? C('#a8541f') : isHovered ? '#5f584e' : accent;
     const R = radius * 0.92;
     const fontPx = Math.max(10, Math.round(R * 0.8));
     ctx.save();
@@ -2210,18 +2345,18 @@
   }
 
   function drawGbDeviceNode(ctx, node, rect, accent, isSelected, isHovered, k) {
-    const color = isSelected ? '#a8541f' : isHovered ? '#5f584e' : accent;
+    const color = isSelected ? C('#a8541f') : isHovered ? '#5f584e' : accent;
     const inactive = Boolean(state.sim?.running) && deviceInactive(node);
     ctx.save();
     ctx.strokeStyle = color;
     ctx.lineWidth = isSelected ? 1.8 : 1.2;
-    ctx.fillStyle = '#faf8f2';
+    ctx.fillStyle = C('#faf8f2');
     if (inactive) {
       // R21/D43：运行中未参与求解的器件红色辉光（停止后恢复）。
       ctx.save();
       ctx.shadowColor = 'rgba(220, 38, 38, 0.95)';
       ctx.shadowBlur = 16 * k;
-      ctx.strokeStyle = '#dc2626';
+      ctx.strokeStyle = C('#dc2626');
       ctx.lineWidth = 2;
       ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
       ctx.restore();
@@ -2239,7 +2374,7 @@
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `600 ${clamp(9 * k, 7, 12)}px "Cascadia Code", Consolas, monospace`;
-    ctx.fillText(spec?.label || node.params?.element || '器件', cx, cy);
+    ctx.fillText(spec?.label || node.params?.block_name || node.params?.element || '器件', cx, cy);
     const showNames = k > 0.55 && state.ui.showPins !== false;
     for (const pin of devicePins(node)) {
       const local = devicePinLocal(node, pin);
@@ -2259,7 +2394,7 @@
       ctx.fill();
       if (showNames) {
         const label = deviceSupplyLabel(node, pin);
-        ctx.fillStyle = '#6f695f';
+        ctx.fillStyle = C('#6f695f');
         ctx.font = `${clamp(6.5 * k, 4.5, 9)}px "Cascadia Code", Consolas, monospace`;
         if (local.side === 'left') {
           ctx.textAlign = 'right';
@@ -2283,7 +2418,7 @@
       const gx = cx + local.x * k;
       const gy = cy + local.y * k;
       const dir = local.side === 'top' ? -1 : 1;
-      ctx.strokeStyle = '#6f695f';
+      ctx.strokeStyle = C('#6f695f');
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.moveTo(gx, gy);
@@ -2298,7 +2433,7 @@
         ctx.stroke();
       }
       if (showNames) {
-        ctx.fillStyle = '#6f695f';
+        ctx.fillStyle = C('#6f695f');
         ctx.font = `${clamp(6 * k, 4.2, 8.5)}px "Cascadia Code", Consolas, monospace`;
         ctx.textAlign = 'center';
         ctx.fillText('自动接地', gx, gy + dir * 22 * k);
@@ -2339,7 +2474,7 @@
 
       ctx.save();
       const gbStyle = state.ui?.symbol === 'gb';
-      const isDeviceNode = state.scene?.mode === 'circuit' && node.kind === 'device';
+      const isDeviceNode = isPinNode(node);
       let customLabel = false;
       if (isDeviceNode) {
         customLabel = true;
@@ -2357,7 +2492,7 @@
         // 外圈与纸面圆盘
         ctx.beginPath();
         ctx.arc(cx, cy, radius + 5, 0, Math.PI * 2);
-        ctx.strokeStyle = isSelected ? '#a8541f' : isHovered ? '#8e8477' : '#cfc6b5';
+        ctx.strokeStyle = isSelected ? C('#a8541f') : isHovered ? '#8e8477' : C('#cfc6b5');
         ctx.lineWidth = isSelected ? 1.6 : 1;
         if (!isSelected && !isHovered) ctx.setLineDash([2, 4]);
         ctx.stroke();
@@ -2365,9 +2500,9 @@
 
         ctx.beginPath();
         ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.fillStyle = isSelected ? '#f7ecdf' : '#faf8f2';
+        ctx.fillStyle = isSelected ? '#f7ecdf' : C('#faf8f2');
         ctx.fill();
-        ctx.strokeStyle = isSelected ? '#a8541f' : '#bcb3a1';
+        ctx.strokeStyle = isSelected ? C('#a8541f') : C('#bcb3a1');
         ctx.lineWidth = isSelected ? 1.5 : 1;
         ctx.stroke();
 
@@ -2389,13 +2524,13 @@
         const sy = cy + Math.sin(angle) * (radius * 0.38);
         const ex = cx + Math.cos(angle) * length;
         const ey = cy + Math.sin(angle) * length;
-        ctx.strokeStyle = vector.source === 'velocity' ? 'rgba(168, 84, 31, .5)' : 'rgba(31, 95, 91, .45)';
+        ctx.strokeStyle = vector.source === 'velocity' ? C('rgba(168, 84, 31, .5)') : C('rgba(31, 95, 91, .45)');
         ctx.lineWidth = 1.2;
         ctx.beginPath();
         ctx.moveTo(sx, sy);
         ctx.lineTo(ex, ey);
         ctx.stroke();
-        ctx.fillStyle = vector.source === 'velocity' ? 'rgba(168, 84, 31, .8)' : 'rgba(31, 95, 91, .75)';
+        ctx.fillStyle = vector.source === 'velocity' ? C('rgba(168, 84, 31, .8)') : C('rgba(31, 95, 91, .75)');
         ctx.beginPath();
         ctx.moveTo(ex, ey);
         ctx.lineTo(ex - 5 * Math.cos(angle - 0.42), ey - 5 * Math.sin(angle - 0.42));
@@ -2412,7 +2547,7 @@
         ctx.font = `600 ${metaSize}px "Cascadia Code", Consolas, monospace`;
         ctx.fillText(nodeKindLabel(node), cx, cy - radius * 0.56, radius * 1.42);
 
-        ctx.fillStyle = '#11100e';
+        ctx.fillStyle = C('#11100e');
         ctx.font = `700 ${nameSize}px "Segoe UI", "Microsoft YaHei", sans-serif`;
         const maxNameWidth = radius * 1.55;
         let name = node.name;
@@ -2423,17 +2558,17 @@
         ctx.fillText(name, cx, cy - radius * 0.06);
 
         if (showValue) {
-          ctx.fillStyle = node.kind === 'ground' ? '#6f695f' : '#6f695f';
+          ctx.fillStyle = node.kind === 'ground' ? C('#6f695f') : C('#6f695f');
           ctx.font = `${valueSize}px "Cascadia Code", Consolas, monospace`;
           const text = node.kind === 'ground' ? '0 V · REF' : nodeValueText(node);
           ctx.fillText(text, cx, cy + radius * 0.38, radius * 1.55);
         }
 
         if (isSelected) {
-          ctx.fillStyle = '#a8541f';
+          ctx.fillStyle = C('#a8541f');
           ctx.font = `600 ${metaSize}px "Cascadia Code", Consolas, monospace`;
           ctx.fillText('●', cx, cy - radius - 13);
-          ctx.fillStyle = '#7b7266';
+          ctx.fillStyle = C('#7b7266');
           ctx.font = `${metaSize}px "Cascadia Code", Consolas, monospace`;
           ctx.fillText(node.id.slice(-4), cx + radius * 0.9, cy - radius - 13);
         }
@@ -2445,11 +2580,11 @@
           : cy + (radius < 20 ? Math.max(14, radius + 8) : radius * 0.62);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#11100e';
+        ctx.fillStyle = C('#11100e');
         ctx.font = `600 ${nameSize2}px "Segoe UI", "Microsoft YaHei", sans-serif`;
         ctx.fillText(node.name, cx, labelY, 96);
         if (showValue && state.scene?.mode !== 'circuit') {
-          ctx.fillStyle = '#6f695f';
+          ctx.fillStyle = C('#6f695f');
           ctx.font = `${valueSize2}px "Cascadia Code", Consolas, monospace`;
           const text = node.kind === 'ground' ? '0 V · REF' : nodeValueText(node);
           ctx.fillText(text, cx, labelY + nameSize2 + 3, 96);
@@ -2465,7 +2600,7 @@
 
       if (isSelected) {
         const tick = 6;
-        ctx.strokeStyle = '#a8541f';
+        ctx.strokeStyle = C('#a8541f');
         ctx.lineWidth = 1;
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
           ctx.beginPath();
@@ -2498,9 +2633,9 @@
         for (const point of points) {
           ctx.beginPath();
           ctx.arc(point.x, point.y, portRadius - 0.4, 0, Math.PI * 2);
-          ctx.fillStyle = '#faf8f2';
+          ctx.fillStyle = C('#faf8f2');
           ctx.fill();
-          ctx.strokeStyle = '#8e8477';
+          ctx.strokeStyle = C('#8e8477');
           ctx.lineWidth = 1;
           ctx.stroke();
         }
@@ -2510,8 +2645,8 @@
       const inPoint = { x: cx - radius, y: cy };
       const outPoint = { x: cx + radius, y: cy };
       const linkingSource = state.drag?.type === 'link' && state.drag.sourceId === node.id;
-      ctx.fillStyle = '#faf8f2';
-      ctx.strokeStyle = '#8e8477';
+      ctx.fillStyle = C('#faf8f2');
+      ctx.strokeStyle = C('#8e8477');
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.arc(inPoint.x, inPoint.y, portRadius - 0.6, 0, Math.PI * 2);
@@ -2520,8 +2655,8 @@
 
       ctx.beginPath();
       ctx.arc(outPoint.x, outPoint.y, linkingSource ? portRadius + 1.5 : portRadius, 0, Math.PI * 2);
-      ctx.fillStyle = linkingSource ? '#a8541f' : '#faf8f2';
-      ctx.strokeStyle = linkingSource ? '#a8541f' : accent;
+      ctx.fillStyle = linkingSource ? C('#a8541f') : C('#faf8f2');
+      ctx.strokeStyle = linkingSource ? C('#a8541f') : accent;
       ctx.lineWidth = 1.2;
       ctx.fill();
       ctx.stroke();
@@ -2530,8 +2665,8 @@
         // 尺寸手柄：右下角，拖动改变节点直径（R09）
         const hx = cx + radius - 2;
         const hy = cy + radius - 2;
-        ctx.fillStyle = '#faf8f2';
-        ctx.strokeStyle = '#a8541f';
+        ctx.fillStyle = C('#faf8f2');
+        ctx.strokeStyle = C('#a8541f');
         ctx.lineWidth = 1.2;
         ctx.beginPath();
         ctx.rect(hx - 4, hy - 4, 8, 8);
@@ -2556,7 +2691,7 @@
         ? { x: state.pointer.x, y: state.pointer.y }
         : start;
       ctx.save();
-      ctx.strokeStyle = 'rgba(168, 84, 31, .55)';
+      ctx.strokeStyle = C('rgba(168, 84, 31, .55)');
       ctx.lineWidth = 1.7;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
@@ -2566,9 +2701,9 @@
       ctx.setLineDash([]);
       ctx.beginPath();
       ctx.arc(start.x, start.y, 5, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(168, 84, 31, .25)';
+      ctx.fillStyle = C('rgba(168, 84, 31, .25)');
       ctx.fill();
-      ctx.strokeStyle = '#a8541f';
+      ctx.strokeStyle = C('#a8541f');
       ctx.stroke();
       ctx.restore();
       return;
@@ -2584,7 +2719,7 @@
     const end = target ? portIn(target) : { x: state.pointer.x, y: state.pointer.y };
     const bend = Math.max(34, Math.abs(end.x - start.x) * 0.35);
     ctx.save();
-    ctx.strokeStyle = target ? '#a8541f' : 'rgba(168, 84, 31, .45)';
+    ctx.strokeStyle = target ? C('#a8541f') : C('rgba(168, 84, 31, .45)');
     ctx.lineWidth = 1.6;
     ctx.setLineDash([5, 4]);
     ctx.beginPath();
@@ -2594,7 +2729,7 @@
     ctx.setLineDash([]);
     ctx.beginPath();
     ctx.arc(end.x, end.y, 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#a8541f';
+    ctx.fillStyle = C('#a8541f');
     ctx.fill();
     ctx.restore();
   }
@@ -2609,11 +2744,11 @@
       ctx.save();
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#8e8477';
+      ctx.fillStyle = C('#8e8477');
       ctx.font = '13px "Segoe UI", "Microsoft YaHei", sans-serif';
       ctx.fillText('画布为空 · 点击左侧「节点」或从「场景」载入模板', w / 2, h / 2);
       ctx.font = '10px "Cascadia Code", Consolas, monospace';
-      ctx.fillStyle = '#a49a89';
+      ctx.fillStyle = C('#a49a89');
       ctx.fillText('拖拽移动 · 从右侧端口拖出连接 · 滚轮缩放 · 双击编辑', w / 2, h / 2 + 24);
       ctx.restore();
       return;
@@ -2635,8 +2770,8 @@
     const w = Math.abs(drag.x - drag.startX);
     const h = Math.abs(drag.y - drag.startY);
     ctx.save();
-    ctx.fillStyle = 'rgba(168, 84, 31, .08)';
-    ctx.strokeStyle = 'rgba(168, 84, 31, .65)';
+    ctx.fillStyle = C('rgba(168, 84, 31, .08)');
+    ctx.strokeStyle = C('rgba(168, 84, 31, .65)');
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 3]);
     ctx.fillRect(x, y, w, h);
@@ -2681,7 +2816,7 @@
     const world = screenToWorld(target.x, target.y);
     ctx.save();
     // 十字准线：让用户看清拐点落在网格的哪里。
-    ctx.strokeStyle = 'rgba(168, 84, 31, .28)';
+    ctx.strokeStyle = C('rgba(168, 84, 31, .28)');
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 4]);
     ctx.beginPath();
@@ -2694,9 +2829,9 @@
     // 拐点标记
     ctx.beginPath();
     ctx.arc(target.x, target.y, 6, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(168, 84, 31, .18)';
+    ctx.fillStyle = C('rgba(168, 84, 31, .18)');
     ctx.fill();
-    ctx.strokeStyle = '#a8541f';
+    ctx.strokeStyle = C('#a8541f');
     ctx.lineWidth = 1.6;
     ctx.stroke();
     // 坐标标签（画布内偏移，避免贴边裁切）
@@ -2711,7 +2846,7 @@
     if (bx + boxW > w - 8) bx = target.x - 16 - boxW;
     if (by + boxH > h - 8) by = target.y - 16 - boxH;
     ctx.fillStyle = 'rgba(250, 248, 242, .96)';
-    ctx.strokeStyle = 'rgba(168, 84, 31, .75)';
+    ctx.strokeStyle = C('rgba(168, 84, 31, .75)');
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.roundRect
@@ -2719,7 +2854,7 @@
       : ctx.rect(bx, by, boxW, boxH);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = '#5a3a24';
+    ctx.fillStyle = C('#5a3a24');
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, bx + padding, by + boxH / 2 + 0.5);
@@ -3466,6 +3601,29 @@
           action: () => void convertNodeToGround(hit.id),
         });
       }
+      if (node.kind === 'node' && state.mode === 'circuit') {
+        const marked = Boolean(node.params?.port_name);
+        const current = node.params?.port_direction || 'inout';
+        const portName = marked ? String(node.params.port_name) : node.name;
+        items.push({
+          label: marked ? '改端口方向' : '设为模块端口',
+          hint: marked
+            ? `当前「${portName}」· ${MODULE_DIR_LABEL[current] || '双向'}`
+            : '先选方向，封装时按方向画引脚',
+          children: PORT_DIRECTION_CHOICES.map(([value, label, hint]) => ({
+            label: `${label}${marked && value === current ? ' · 当前' : ''}`,
+            hint,
+            action: () => void setNetPort(node.id, portName, value),
+          })),
+        });
+        if (marked) {
+          items.push({
+            label: '取消模块端口',
+            hint: `当前端口 ${portName}`,
+            action: () => void setNetPort(node.id, '', 'inout'),
+          });
+        }
+      }
       items.push({ label: '复制', hint: 'Ctrl+C', action: () => copySelection(false) });
       if (isDevice) {
         items.push({
@@ -3637,6 +3795,26 @@
     renderInspector();
   }
 
+  // R24/D49：把网络节点标记/取消为模块端口。
+  async function setNetPort(nodeId, portName, direction = 'inout') {
+    const node = nodeById(nodeId);
+    if (!node) return;
+    const params = portName
+      ? { port_name: String(portName).slice(0, 24), port_direction: direction || 'inout' }
+      : {};
+    const response = await task(() =>
+      jsonRequest(`/api/nodes/${encodeURIComponent(nodeId)}`, 'PATCH', {
+        name: node.name,
+        kind: node.kind,
+        params,
+      }),
+    );
+    if (!response) return;
+    await refreshState(true);
+    renderInspector();
+    toast(params.port_name ? `已标记端口「${params.port_name}」` : '已取消端口标记', 'ok', 2200);
+  }
+
   async function patchEdgeGeometry(edgeId, payload) {
     const response = await task(() =>
       jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, 'PATCH', payload),
@@ -3650,11 +3828,65 @@
     if (state.chartTimer) return;
     state.chartTimer = setTimeout(() => {
       state.chartTimer = 0;
-      if (activeTab() === 'chart') drawChart();
+      const tab = activeTab();
+      if (tab === 'chart') drawChart();
+      else if (tab === 'inst') drawInstruments();
     }, 70);
   }
 
+  const PANEL_GROUPS = {
+    inspect: { group: 'inspect' },
+    'node-fn': { group: 'fn', role: 'node' },
+    'edge-fn': { group: 'fn', role: 'edge' },
+    spec: { group: 'fn' },
+    blocks: { group: 'modules', sub: 'blocks' },
+    ext: { group: 'modules', sub: 'ext' },
+    chart: { group: 'analysis', sub: 'chart' },
+    inst: { group: 'analysis', sub: 'inst' },
+    vector: { group: 'analysis', sub: 'vector' },
+    analysis: { group: 'analysis', sub: 'analysis' },
+    plotkit: { group: 'analysis', sub: 'plotkit' },
+    fem: { group: 'fem' },
+  };
+
+  function defaultTabForGroup(group) {
+    if (group === 'fn') return state.fnRole === 'edge' ? 'edge-fn' : 'node-fn';
+    if (group === 'modules') {
+      const sub = $('.panel-group[data-group="modules"] .group-subnav [data-sub].active');
+      return sub ? sub.dataset.sub : 'blocks';
+    }
+    if (group === 'analysis') {
+      const sub = $('.panel-group[data-group="analysis"] .group-subnav [data-sub].active');
+      return sub ? sub.dataset.sub : 'chart';
+    }
+    if (group === 'fem') return 'fem';
+    return 'inspect';
+  }
+
+  function setPanelGroup(group) {
+    $$('.panel-tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.group === group));
+    $$('.panel-group').forEach((node) => node.classList.toggle('active', node.dataset.group === group));
+  }
+
+  function setGroupSub(group, sub) {
+    const host = $(`.panel-group[data-group="${group}"]`);
+    if (!host) return;
+    const attr = group === 'fn' ? 'fnrole' : 'sub';
+    $$(`[data-${attr}]`, host).forEach((node) => {
+      node.classList.toggle('active', node.dataset[attr] === sub);
+    });
+    if (group === 'modules' || group === 'analysis') {
+      $$('.tab-pane', host).forEach((pane) => {
+        pane.classList.toggle('hidden', pane.id !== `tab-${sub}`);
+      });
+    }
+  }
+
   function switchTab(name) {
+    if (name === 'scene') {
+      openSettings('project');
+      return;
+    }
     if (name === 'fem' && state.workspace !== 'fem') {
       void switchWorkspace('fem');
       return;
@@ -3663,43 +3895,47 @@
       void switchWorkspace('network').then(() => switchTab(name));
       return;
     }
-    const paneName = name === 'node-fn' || name === 'edge-fn' ? 'spec' : name;
-    if (name === 'node-fn' || name === 'edge-fn') {
-      state.fnRole = name === 'edge-fn' ? 'edge' : 'node';
+    const conf = PANEL_GROUPS[name] || PANEL_GROUPS.inspect;
+    if (conf.role) {
+      state.fnRole = conf.role;
       state.specKind = '';
+      setGroupSub('fn', conf.role);
     }
-    $$('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === name));
-    $$('.tab-pane').forEach((pane) => pane.classList.toggle('active', pane.id === `tab-${paneName}`));
-    if (name === 'chart') {
+    setPanelGroup(conf.group);
+    if (conf.sub) setGroupSub(conf.group, conf.sub);
+    if (conf.group === 'fn') {
+      const note = $('#fnNote');
+      if (note) note.textContent = state.fnRole === 'edge' ? '连接函数' : '节点函数';
+      renderSpecPane();
+      requestDraw();
+    }
+    if (conf.sub === 'chart') {
       resizeChart();
       scheduleChartDraw();
     }
-    if (name === 'vector') {
+    if (conf.sub === 'vector') {
       resizePhase();
       renderVectorNodeList();
       drawPhase();
     }
-    if (name === 'fem') {
+    if (conf.sub === 'plotkit') {
+      // 侧栏只放入口；真正的绘图在非模态浮窗里（iframe 懒加载）
+      $('#btnOpenPlotkit')?.focus({ preventScroll: true });
+    }
+    if (conf.sub === 'analysis') {
+      renderAnalysisPanel();
+    }
+    if (conf.sub === 'blocks') {
+      renderBlocksPanel();
+    }
+    if (conf.sub === 'ext') {
+      renderExtensionPanel();
+    }
+    if (conf.group === 'fem') {
       renderFemPanel();
       resizeFem();
       updateFemPanelValues();
       drawFem();
-    }
-    if (name === 'scene' && !ui.scenePane.dataset.ready) {
-      renderScenePanel();
-    }
-    if (paneName === 'spec') {
-      renderSpecPane();
-      requestDraw();
-    }
-    if (name === 'blocks') {
-      renderBlocksPanel();
-    }
-    if (name === 'analysis') {
-      renderAnalysisPanel();
-    }
-    if (name === 'ext') {
-      renderExtensionPanel();
     }
   }
 
@@ -3851,14 +4087,14 @@
       state.drag = null;
       return;
     }
-    if (state.mode === 'circuit' && (source.kind === 'device' || target.kind === 'device')) {
-      if (source.kind === 'device' && target.kind === 'device') {
-        toast('导线只允许「器件引脚 ↔ 网络节点」', 'error', 4000);
+    if (state.mode === 'circuit' && (isPinNode(source) || isPinNode(target))) {
+      if (isPinNode(source) && isPinNode(target)) {
+        toast('导线只允许「器件/模块引脚 ↔ 网络节点」', 'error', 4000);
         state.drag = null;
         return;
       }
-      const deviceNode = source.kind === 'device' ? source : target;
-      const netNode = source.kind === 'device' ? target : source;
+      const deviceNode = isPinNode(source) ? source : target;
+      const netNode = isPinNode(source) ? target : source;
       const used = new Set((state.scene?.edges || [])
         .filter((edge) => edge.kind === 'wire')
         .map((edge) => (edge.source === deviceNode.id ? edge.source_pin : edge.target === deviceNode.id ? edge.target_pin : '')));
@@ -3946,43 +4182,7 @@
   }
 
   function showHelp() {
-    ui.modalCard.replaceChildren();
-    const heading = el('h3', null, '操作与快捷键');
-    const body = el('p', null, '两个工作区：TOPOLOGY 是节点网络（信号流 / 电路 / 矢量），FIELD · FEM 是二维有限元热传导场。所有参数在请求成功后才写入服务端。');
-    const table = el('table', 'shortcut-table');
-    const rows = [
-      ['空格', '运行 / 暂停当前工作区'],
-      ['S', '单步推进一个 dt'],
-      ['R', '重置状态与时间'],
-      ['A', '在视图中心添加节点'],
-      ['F', '适配网络视图'],
-      ['Delete', '删除选中的节点或连接'],
-      ['双击节点 / 连接', '打开检查器编辑'],
-      ['从右侧端口拖出', '连接目标节点并选择传递函数'],
-      ['滚轮 / 中键拖拽', '缩放 / 平移'],
-      ['Ctrl + S', '导出当前网络场景 JSON'],
-      ['Esc', '关闭菜单 / 弹窗'],
-    ];
-    for (const [key, desc] of rows) {
-      const tr = el('tr');
-      const left = el('td');
-      left.appendChild(el('kbd', null, key));
-      const right = el('td', null, desc);
-      tr.append(left, right);
-      table.appendChild(tr);
-    }
-    const safety = div('help');
-    safety.style.marginTop = '12px';
-    safety.textContent = '数据安全：前端不执行任何用户提交的代码；表达式节点在服务端的受限解析器中求值；导入文件大小上限 2 MB。有限元场由 SciPy 稀疏 LU 求解，网格与参数均有上限，所有 JSON 在入库前经过校验。';
-    const actions = div('modal-actions');
-    const close = button('知道了', 'btn primary', closeModal);
-    actions.appendChild(close);
-    ui.modalCard.append(heading, body, table, safety, actions);
-    ui.modal.classList.remove('hidden');
-    ui.modal.onclick = (event) => {
-      if (event.target === ui.modal) closeModal();
-    };
-    setTimeout(() => close.focus(), 30);
+    openDoc('shortcuts');
   }
 
   /* ======================================================================
@@ -4408,7 +4608,9 @@
       wrap.appendChild(row);
     } else {
       const prefixable = type === 'float' && PREFIXABLE_UNITS.has(String(param.unit || ''));
-      wrap.appendChild(numberedField(labelText, prefixable ? '' : (param.unit || '')));
+      const fieldLabel = numberedField(labelText, prefixable ? '' : (param.unit || ''));
+      typeLabelHelp(fieldLabel, param);
+      wrap.appendChild(fieldLabel);
       let control;
       let unitSelect = null;
       if (type === 'choice') {
@@ -4732,6 +4934,7 @@
   }
 
   function renderInspector() {
+    syncFnRoleToSelection();
     scheduleSpecRender();
     if (!state.selection.type) {
       renderEmptyInspector();
@@ -4771,12 +4974,13 @@
   }
 
   function renderNodeInspector(node) {
+    const isModule = state.mode === 'circuit' && node.kind === 'module';
     const isDevice = state.mode === 'circuit' && node.kind === 'device';
-    const spec = isDevice ? deviceElementSpec(node) : getNodeSpec(node.kind);
-    const specLabel = spec?.label || node.kind;
+    const spec = isDevice ? deviceElementSpec(node) : (isModule ? null : getNodeSpec(node.kind));
+    const specLabel = isModule ? '模块' : (spec?.label || node.kind);
     const { head, heading, badge } = buildHeader(
       node.name,
-      `${specLabel} · ${isDevice ? '器件' : '节点'} ${node.id}`,
+      `${specLabel} · ${isModule ? '模块实例' : isDevice ? '器件' : '节点'} ${node.id}`,
       specLabel,
     );
 
@@ -4801,7 +5005,16 @@
 
     const kindField = div('field');
     let kindSelect = null;
-    if (isDevice) {
+    if (isModule) {
+      kindField.appendChild(numberedField('模块类型', '封装后的电路模块实例'));
+      const hiddenKind = el('input');
+      hiddenKind.type = 'hidden';
+      hiddenKind.dataset.role = 'kind';
+      hiddenKind.value = 'module';
+      kindField.appendChild(hiddenKind);
+      const portNames = modulePorts(node).map((port) => port.name).join('、') || '（无端口）';
+      kindField.appendChild(div('help', `块 ${node.params?.block_name || node.params?.block_id || '?'} · 端口 ${portNames}`));
+    } else if (isDevice) {
       kindField.appendChild(numberedField('元件类型', '器件节点：引脚在下方「引脚」区查看'));
       const hiddenKind = el('input');
       hiddenKind.type = 'hidden';
@@ -4835,6 +5048,33 @@
     identity.appendChild(sizeField);
 
     const params = buildParamFields(spec, node.params || {});
+    if (state.mode === 'circuit' && node.kind === 'node') {
+      // R24/D49：网络节点可标记为模块端口，封装时按端口暴露到外部。
+      const portName = div('field');
+      portName.dataset.param = 'port_name';
+      portName.dataset.type = 'text';
+      portName.dataset.label = '端口名';
+      portName.appendChild(numberedField('端口名', '留空＝不作端口'));
+      const portInput = el('input');
+      portInput.type = 'text';
+      portInput.maxLength = 24;
+      portInput.value = String(node.params?.port_name || '');
+      portName.appendChild(portInput);
+      const portDir = div('field');
+      portDir.dataset.param = 'port_direction';
+      portDir.dataset.type = 'text';
+      portDir.dataset.label = '端口方向';
+      portDir.appendChild(numberedField('端口方向', '封装后画成进/出/双向'));
+      const dirSelect = el('select');
+      for (const [value, label] of [['inout', '双向'], ['input', '输入'], ['output', '输出']]) {
+        const option = el('option', null, label);
+        option.value = value;
+        dirSelect.appendChild(option);
+      }
+      dirSelect.value = String(node.params?.port_direction || 'inout');
+      portDir.appendChild(dirSelect);
+      params.append(portName, portDir);
+    }
 
     let dataEditor = null;
     if (state.mode !== 'circuit') {
@@ -4888,8 +5128,8 @@
     const remove = button('删除节点', 'btn danger', () => void deleteNode(node.id));
     actions.append(save, remove);
 
-    const pinSection = isDevice
-      ? section('引脚', '必接引脚需恰好一条导线（pin↔net）', buildDevicePinList(node))
+    const pinSection = (isDevice || isModule)
+      ? section('引脚', isModule ? '模块端口 ↔ 网络节点导线' : '必接引脚需恰好一条导线（pin↔net）', buildDevicePinList(node))
       : null;
     form.append(
       identity,
@@ -5412,7 +5652,9 @@
       row.appendChild(el('td', null, param.unit || '—'));
       row.appendChild(el('td', null, paramRangeText(param) || '—'));
       row.appendChild(el('td', null, param.required ? '是' : ''));
-      row.appendChild(el('td', 'spec-help', param.help || ''));
+      const helpCell = el('td', 'spec-help', param.help || '');
+      attachParamHelp(helpCell, param, spec, state.specRole || 'node');
+      row.appendChild(helpCell);
       table.appendChild(row);
     }
     wrap.appendChild(table);
@@ -6009,7 +6251,8 @@
       toast('连线的两个端点不能是同一个节点', 'error', 3000);
       return;
     }
-    if (source.kind === 'device' && target.kind === 'device') {
+    // 器件与模块实例都是"带引脚的东西"：模块实例的端口就是引脚。
+    if (isPinNode(source) && isPinNode(target)) {
       toast('导线不允许直接连接两个器件（请经网络节点）', 'error', 3500);
       return;
     }
@@ -6021,8 +6264,15 @@
       enabled: true,
       route: state.ui?.circuitOrthogonal !== false ? 'orthogonal' : 'straight',
     };
-    if (source.kind === 'device') body.source_pin = sourcePin || '';
-    if (target.kind === 'device') body.target_pin = targetPin || '';
+    // 模块实例以前被漏掉（只判 kind==='device'），导致连到模块上的导线不带引脚。
+    // 只有唯一端口时直接用它——用户从模块符号上拖线时不必再挑一次引脚。
+    const pinFor = (node, pin) => {
+      if (pin) return pin;
+      const pins = devicePins(node);
+      return pins.length === 1 ? String(pins[0].name || '') : '';
+    };
+    if (isPinNode(source)) body.source_pin = pinFor(source, sourcePin);
+    if (isPinNode(target)) body.target_pin = pinFor(target, targetPin);
     const response = await task(() => jsonRequest('/api/edges', 'POST', body));
     if (!response) return;
     applySnapshot(response);
@@ -6055,7 +6305,7 @@
       const select = el('select');
       select.dataset.role = roleLabel.includes('A') ? 'wire-a' : 'wire-b';
       for (const node of nodes) {
-        const option = el('option', null, `${node.name} · ${node.kind === 'device' ? (node.params?.element || 'device') : node.kind}`);
+        const option = el('option', null, `${node.name} · ${node.kind === 'module' ? `模块 ${node.params?.block_name || ''}`.trim() : node.kind === 'device' ? (node.params?.element || 'device') : node.kind}`);
         option.value = node.id;
         select.appendChild(option);
       }
@@ -6073,17 +6323,17 @@
       for (const item of [first, second]) {
         const node = nodeById(item.select.value);
         item.pinSelect.replaceChildren();
-        const blank = el('option', null, node?.kind === 'device' ? '（请选择引脚）' : '—');
+        const blank = el('option', null, isPinNode(node) ? '（请选择引脚）' : '—');
         blank.value = '';
         item.pinSelect.appendChild(blank);
-        if (node?.kind === 'device') {
+        if (isPinNode(node)) {
           for (const pin of devicePins(node)) {
             const option = el('option', null, `${pin.name}（${pin.role}${pin.required ? ' · 必接' : ''}）`);
             option.value = pin.name;
             item.pinSelect.appendChild(option);
           }
         }
-        item.pinSelect.disabled = node?.kind !== 'device';
+        item.pinSelect.disabled = !isPinNode(node);
       }
     };
     first.select.addEventListener('change', refreshPins);
@@ -6099,13 +6349,13 @@
     create.addEventListener('click', () => {
       const a = nodeById(first.select.value);
       const b = nodeById(second.select.value);
-      const aPin = a?.kind === 'device' ? first.pinSelect.value : '';
-      const bPin = b?.kind === 'device' ? second.pinSelect.value : '';
-      if (a?.kind === 'device' && !aPin) {
+      const aPin = isPinNode(a) ? first.pinSelect.value : '';
+      const bPin = isPinNode(b) ? second.pinSelect.value : '';
+      if (isPinNode(a) && !aPin) {
         toast('端点 A 是器件，请选择引脚', 'error', 3000);
         return;
       }
-      if (b?.kind === 'device' && !bPin) {
+      if (isPinNode(b) && !bPin) {
         toast('端点 B 是器件，请选择引脚', 'error', 3000);
         return;
       }
@@ -6629,7 +6879,7 @@
       requestDraw();
     });
     const colorSelect = el('select', 'input');
-    for (const [value, label] of [['#1f5f5b', '青绿'], ['#a8541f', '暖橙'], ['#2563a8', '靛蓝']]) {
+    for (const [value, label] of [['#1f5f5b', '青绿'], [C('#a8541f'), '暖橙'], ['#2563a8', '靛蓝']]) {
       const option = el('option', null, label);
       option.value = value;
       colorSelect.appendChild(option);
@@ -6865,15 +7115,17 @@
     toast(`积分方法已切换为 ${value === 'trapezoidal' ? '梯形法' : '后向欧拉'}`, 'ok', 2000);
   }
 
-  async function switchMode(mode) {
+  async function switchMode(mode, options = {}) {
     if (mode === state.mode) return;
-    const confirmed = await confirmModal(
-      `切换到${modeLabel(mode)}模式？`,
-      '切换会把当前场景替换为该模式的空白模板，节点、连接、参数与录制数据都会清空。请先导出需要保留的场景。',
-      '切换',
-      true,
-    );
-    if (!confirmed) return;
+    if (!options.skipConfirm) {
+      const confirmed = await confirmModal(
+        `切换到${modeLabel(mode)}模式？`,
+        '切换会把当前场景替换为该模式的空白模板，节点、连接、参数与录制数据都会清空。请先导出需要保留的场景。',
+        '切换',
+        true,
+      );
+      if (!confirmed) return;
+    }
     const response = await task(() => jsonRequest('/api/mode', 'POST', { mode }));
     if (!response) return;
     state.selection = { type: null, id: null };
@@ -7630,6 +7882,8 @@
       state.replay.timer = 0;
     }
     state.replay.playing = false;
+    state.replay.lastTick = 0;
+    state.replay.carry = 0;
   }
 
   function updateReplayUI() {
@@ -7661,6 +7915,13 @@
     if (ui.btnReplay) {
       ui.btnReplay.textContent = state.replay.playing ? '⏸ 暂停' : '▶ 回放';
       ui.btnReplay.disabled = !state.frames.length;
+    }
+    if (ui.replaySpeed) {
+      ui.replaySpeed.value = String(state.replay.speed);
+      ui.replaySpeed.disabled = !state.frames.length;
+    }
+    if (ui.replaySpeedVal) {
+      ui.replaySpeedVal.textContent = `${Math.round(state.replay.speed)}/s`;
     }
     if (ui.btnLive) ui.btnLive.disabled = !state.replay.active;
     if (ui.btnResolve) ui.btnResolve.disabled = !recordingStale();
@@ -7696,12 +7957,14 @@
     scheduleChartDraw();
   }
 
+  // 回放定时器固定 16 ms 一跳；速度只影响每次推进的帧数。
+  const REPLAY_TICK_MS = 16;
+
   function toggleReplayPlayback() {
     if (!state.frames.length) {
       toast('还没有可回放的录制帧', 'info', 2200);
       return;
-    }
-    if (state.replay.playing) {
+    }    if (state.replay.playing) {
       stopReplayTimer();
       updateReplayUI();
       return;
@@ -7712,31 +7975,44 @@
     }
     if (state.replay.index >= state.frames.length - 1) state.replay.index = 0;
     state.replay.playing = true;
-    const interval = Math.max(16, Math.round(1000 / Math.max(1, Number(state.sim?.fps) || 30)));
-    state.replay.timer = setInterval(() => {
-      if (!state.frames.length) {
+    state.replay.lastTick = performance.now();
+    state.replay.carry = 0;
+    state.replay.timer = setInterval(replayTick, REPLAY_TICK_MS);
+    updateReplayUI();
+  }
+
+  // 按真实时间累积“要播放的帧数”，速度用 帧/秒 表示；
+  // 这样调速度只改推进量，不改定时器频率，快放不会把主线程刷爆。
+  function replayTick() {
+    const now = performance.now();
+    const elapsed = Math.min(400, Math.max(0, now - (state.replay.lastTick || now)));
+    state.replay.lastTick = now;
+    if (!state.frames.length) {
+      stopReplayTimer();
+      updateReplayUI();
+      scheduleChartDraw();
+      return;
+    }
+    const speed = clamp(Number(state.replay.speed) || 60, 5, 240);
+    state.replay.carry = (state.replay.carry || 0) + (elapsed * speed) / 1000;
+    const advance = Math.floor(state.replay.carry);
+    if (advance <= 0) return;
+    state.replay.carry -= advance;
+    const max = state.frames.length - 1;
+    let next = state.replay.index + advance;
+    if (next > max) {
+      if (!state.chart.loop) {
+        state.replay.index = max;
         stopReplayTimer();
         updateReplayUI();
         scheduleChartDraw();
         return;
       }
-      const max = state.frames.length - 1;
-      if (state.replay.index >= max) {
-        if (state.chart.loop) {
-          state.replay.index = 0;
-        } else {
-          stopReplayTimer();
-          updateReplayUI();
-          scheduleChartDraw();
-          return;
-        }
-      } else {
-        state.replay.index += 1;
-      }
-      updateReplayUI();
-      scheduleChartDraw();
-    }, interval);
+      next = max > 0 ? next % (max + 1) : 0;
+    }
+    state.replay.index = next;
     updateReplayUI();
+    scheduleChartDraw();
   }
 
   /* ---- 相图 ------------------------------------------------------------ */
@@ -7803,12 +8079,12 @@
     if (w < 20 || h < 20) return;
     phaseCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     phaseCtx.clearRect(0, 0, w, h);
-    phaseCtx.fillStyle = '#faf8f2';
+    phaseCtx.fillStyle = C('#faf8f2');
     phaseCtx.fillRect(0, 0, w, h);
 
     const node = nodeByName(state.phaseNode);
     if (!node) {
-      phaseCtx.fillStyle = '#969083';
+      phaseCtx.fillStyle = C('#969083');
       phaseCtx.font = '11px "Segoe UI", "Microsoft YaHei", sans-serif';
       phaseCtx.textAlign = 'center';
       phaseCtx.textBaseline = 'middle';
@@ -7902,7 +8178,7 @@
     const mapY = (value) => py + size / 2 - (value - (minY + maxY) / 2) * scale;
 
     // 网格
-    phaseCtx.strokeStyle = '#e3ddd0';
+    phaseCtx.strokeStyle = C('#e3ddd0');
     phaseCtx.lineWidth = 1;
     phaseCtx.beginPath();
     for (let index = 0; index <= 6; index += 1) {
@@ -7916,7 +8192,7 @@
     phaseCtx.stroke();
 
     // 坐标轴
-    phaseCtx.strokeStyle = '#bcb3a1';
+    phaseCtx.strokeStyle = C('#bcb3a1');
     phaseCtx.lineWidth = 1;
     phaseCtx.beginPath();
     const axisY = clamp(mapY(0), py, py + size);
@@ -7929,7 +8205,7 @@
 
     // 轨迹
     if (points.length > 1) {
-      phaseCtx.strokeStyle = 'rgba(168, 84, 31, 0.78)';
+      phaseCtx.strokeStyle = C('rgba(168, 84, 31, 0.78)');
       phaseCtx.lineWidth = 1.4;
       phaseCtx.lineJoin = 'round';
       phaseCtx.beginPath();
@@ -7946,7 +8222,7 @@
       const angle = Math.atan2(mapY(current.y) - mapY(previous.y), mapX(current.x) - mapX(previous.x));
       const tipX = mapX(current.x);
       const tipY = mapY(current.y);
-      phaseCtx.fillStyle = '#1f5f5b';
+      phaseCtx.fillStyle = C('#1f5f5b');
       phaseCtx.beginPath();
       phaseCtx.arc(tipX, tipY, 3.2, 0, Math.PI * 2);
       phaseCtx.fill();
@@ -7958,7 +8234,7 @@
       phaseCtx.fill();
     }
 
-    phaseCtx.fillStyle = '#7b7266';
+    phaseCtx.fillStyle = C('#7b7266');
     phaseCtx.font = '9px "Cascadia Code", Consolas, monospace';
     phaseCtx.textAlign = 'left';
     phaseCtx.textBaseline = 'top';
@@ -7985,6 +8261,478 @@
     }
   }
 
+  // ---------------- 仪器面板（R23 / D47，P7-04） ----------------
+  // 全部只读 state.frames：仪表/示波器/李萨如都是旁路观察，绝不写回电路状态。
+  function instrumentPrefsKey() {
+    return 'netlab.instrument';
+  }
+
+  function loadInstrumentPrefs() {
+    let data = null;
+    try {
+      data = JSON.parse(localStorage.getItem(instrumentPrefsKey()) || 'null');
+    } catch {
+      data = null;
+    }
+    if (!data || typeof data !== 'object') return;
+    if (typeof data.meterKey === 'string') state.instrument.meterKey = data.meterKey;
+    if (Array.isArray(data.channels)) {
+      state.instrument.channels = [0, 1, 2, 3].map((i) => (
+        typeof data.channels[i] === 'string' ? data.channels[i] : null
+      ));
+    }
+    if (typeof data.lx === 'string') state.instrument.lx = data.lx;
+    if (typeof data.ly === 'string') state.instrument.ly = data.ly;
+    if (Number.isFinite(data.trail)) state.instrument.trail = clamp(Math.round(data.trail), 20, 4000);
+    if (Number.isFinite(data.window)) state.instrument.window = clamp(data.window, 0.1, 120);
+  }
+
+  function saveInstrumentPrefs() {
+    try {
+      localStorage.setItem(instrumentPrefsKey(), JSON.stringify({
+        meterKey: state.instrument.meterKey,
+        channels: state.instrument.channels,
+        lx: state.instrument.lx,
+        ly: state.instrument.ly,
+        trail: state.instrument.trail,
+        window: state.instrument.window,
+      }));
+    } catch {
+      /* 存储不可用时静默降级：仪表仍可用，只是不记忆选择 */
+    }
+  }
+
+  function instrumentFieldLabel(field) {
+    const map = { voltage: '电压', current: '电流', power: '功率', voltage_difference: '压差' };
+    return map[field] || field || '值';
+  }
+
+  function instrumentKeyLabel(key) {
+    const parts = String(key || '').split(':');
+    const field = parts.length > 1 ? parts[parts.length - 1] : '';
+    const name = parts.length > 2 ? parts.slice(1, -1).join(':') : (parts[1] || key);
+    return `${name} · ${instrumentFieldLabel(field)}`;
+  }
+
+  function instrumentSelectGroups() {
+    const groups = new Map();
+    for (const key of state.probeKeys) {
+      const parts = String(key).split(':');
+      const field = parts.length > 1 ? parts[parts.length - 1] : '';
+      const name = parts.length > 2 ? parts.slice(1, -1).join(':') : (parts[1] || key);
+      const kind = parts[0] === 'e' ? '元件' : '节点';
+      const label = `${kind}${instrumentFieldLabel(field)}`;
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label).push({ key, text: `${name} · ${instrumentFieldLabel(field)}` });
+    }
+    const order = ['节点电压', '元件电流', '元件压差', '元件电压', '元件功率'];
+    return [...groups.entries()].sort((a, b) => {
+      const ia = order.indexOf(a[0]);
+      const ib = order.indexOf(b[0]);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a[0].localeCompare(b[0]);
+    });
+  }
+
+  function fillInstrumentSelect(select, current, placeholder) {
+    if (!select) return '';
+    select.innerHTML = '';
+    const none = document.createElement('option');
+    none.value = '';
+    none.textContent = placeholder;
+    select.appendChild(none);
+    for (const [label, items] of instrumentSelectGroups()) {
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = label;
+      for (const item of items) {
+        const option = document.createElement('option');
+        option.value = item.key;
+        option.textContent = item.text;
+        optgroup.appendChild(option);
+      }
+      select.appendChild(optgroup);
+    }
+    const wanted = current && state.probeKeys.includes(current) ? current : '';
+    select.value = wanted;
+    return select.value;
+  }
+
+  function fillInstrumentSelects() {
+    if (!ui.instPane) return;
+    const firstRun = !state.instrument.meterKey
+      && !state.instrument.lx && !state.instrument.ly
+      && state.instrument.channels.every((key) => !key);
+    state.instrument.meterKey = fillInstrumentSelect(ui.instMeterKey, state.instrument.meterKey, '选择电压 / 电流信号');
+    state.instrument.channels = [0, 1, 2, 3].map((i) => (
+      fillInstrumentSelect(ui.instCh[i], state.instrument.channels[i], `CH${i + 1} 未接`) || null
+    ));
+    state.instrument.lx = fillInstrumentSelect(ui.instLX, state.instrument.lx, 'X 未接');
+    state.instrument.ly = fillInstrumentSelect(ui.instLY, state.instrument.ly, 'Y 未接');
+    if (firstRun && state.probeKeys.length) {
+      // 首次打开仪器页时自动接上「第一个电压 + 第一个电流」，避免空白页
+      const volts = state.probeKeys.filter((key) => key.endsWith(':voltage'));
+      const currents = state.probeKeys.filter((key) => key.endsWith(':current'));
+      const ch1 = volts[0] || state.probeKeys[0];
+      const ch2 = currents[0] || state.probeKeys[1] || '';
+      state.instrument.meterKey = ch1;
+      state.instrument.channels = [ch1, ch2 || null, null, null];
+      state.instrument.lx = ch1;
+      state.instrument.ly = ch2;
+      if (ui.instMeterKey) ui.instMeterKey.value = ch1;
+      if (ui.instCh[0]) ui.instCh[0].value = ch1;
+      if (ui.instCh[1]) ui.instCh[1].value = ch2;
+      if (ui.instLX) ui.instLX.value = ch1;
+      if (ui.instLY) ui.instLY.value = ch2;
+    }
+    state.instrument.channels.forEach((key, i) => {
+      const dot = ui.instCh[i]?.closest('.inst-ch')?.querySelector('.dot');
+      if (!dot) return;
+      dot.classList.toggle('on', Boolean(key));
+      dot.style.color = key ? INST_COLORS[i] : '';
+    });
+    if (ui.instWindow) ui.instWindow.value = String(state.instrument.window);
+    if (ui.instTrail) ui.instTrail.value = String(state.instrument.trail);
+    saveInstrumentPrefs();
+    scheduleChartDraw();
+  }
+
+  function instrumentFrames() {
+    const all = state.replay.active ? state.frames.slice(0, state.replay.index + 1) : state.frames;
+    const window = Math.max(0.1, Number(state.instrument.window) || 5);
+    if (!all.length) return { frames: [], window };
+    const last = all[all.length - 1].t;
+    const start = last - window;
+    let from = all.length - 1;
+    while (from > 0 && all[from - 1].t >= start) from -= 1;
+    return { frames: all.slice(from), window };
+  }
+
+  function instrumentStats(frames, key) {
+    let count = 0;
+    let sum = 0;
+    let square = 0;
+    let min = Infinity;
+    let max = -Infinity;
+    let last = 0;
+    for (const frame of frames) {
+      const value = frame.v?.[key];
+      if (typeof value !== 'number' || !Number.isFinite(value)) continue;
+      count += 1;
+      sum += value;
+      square += value * value;
+      last = value;
+      if (value < min) min = value;
+      if (value > max) max = value;
+    }
+    if (!count) return null;
+    return { count, last, mean: sum / count, rms: Math.sqrt(square / count), min, max, pp: max - min };
+  }
+
+  function instrumentSurface(context, canvas, size, fill) {
+    if (!context || !canvas) return null;
+    const { w, h, dpr } = size;
+    if (w < 20 || h < 20) return null;
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    context.clearRect(0, 0, w, h);
+    context.fillStyle = C(fill);
+    context.fillRect(0, 0, w, h);
+    return { w, h };
+  }
+
+  function instrumentHint(context, w, h, text) {
+    context.fillStyle = C('#969083');
+    context.font = '12px "Segoe UI", "Microsoft YaHei", sans-serif';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(text, w / 2, h / 2);
+  }
+
+  function renderInstrumentMeter(frames) {
+    const key = state.instrument.meterKey;
+    const stats = key ? instrumentStats(frames, key) : null;
+    const put = (element, text) => {
+      if (element) element.textContent = text;
+    };
+    if (!stats) {
+      put(ui.instValNow, '—');
+      put(ui.instValMean, '—');
+      put(ui.instValRms, '—');
+      put(ui.instValPP, '—');
+      put(ui.instValMinMax, '—');
+      return;
+    }
+    put(ui.instValNow, fmt(stats.last, 4));
+    put(ui.instValMean, fmt(stats.mean, 4));
+    put(ui.instValRms, fmt(stats.rms, 4));
+    put(ui.instValPP, fmt(stats.pp, 4));
+    put(ui.instValMinMax, `${fmt(stats.max, 3)} / ${fmt(stats.min, 3)}`);
+  }
+
+  function renderInstrumentLegend(frames) {
+    if (!ui.instLegend) return;
+    ui.instLegend.innerHTML = '';
+    state.instrument.channels.forEach((key, index) => {
+      if (!key) return;
+      const stats = instrumentStats(frames, key);
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      const dot = document.createElement('i');
+      dot.className = 'legend-dot';
+      dot.style.background = INST_COLORS[index];
+      const name = document.createElement('span');
+      name.className = 'legend-name';
+      name.textContent = `CH${index + 1} ${instrumentKeyLabel(key)}`;
+      const value = document.createElement('em');
+      value.className = 'legend-value';
+      value.textContent = stats ? fmt(stats.last, 4) : '—';
+      item.append(dot, name, value);
+      ui.instLegend.appendChild(item);
+    });
+  }
+
+  function drawScope(frames, window) {
+    const surface = instrumentSurface(scopeCtx, scopeCanvas, state.instrument.scopeSize, '#faf8f2');
+    if (!surface) return;
+    const { w, h } = surface;
+    const left = 46;
+    const right = 12;
+    const top = 12;
+    const bottom = 20;
+    const plotW = Math.max(10, w - left - right);
+    const plotH = Math.max(10, h - top - bottom);
+    scopeCtx.strokeStyle = C('#e7e2d7');
+    scopeCtx.lineWidth = 1;
+    scopeCtx.beginPath();
+    for (let i = 0; i <= 4; i += 1) {
+      const y = top + (plotH * i) / 4 + 0.5;
+      scopeCtx.moveTo(left, y);
+      scopeCtx.lineTo(left + plotW, y);
+    }
+    for (let i = 0; i <= 4; i += 1) {
+      const x = left + (plotW * i) / 4 + 0.5;
+      scopeCtx.moveTo(x, top);
+      scopeCtx.lineTo(x, top + plotH);
+    }
+    scopeCtx.stroke();
+
+    const channels = state.instrument.channels
+      .map((key, index) => ({ key, index }))
+      .filter((entry) => entry.key && state.probeKeys.includes(entry.key));
+    if (!frames.length || !channels.length) {
+      instrumentHint(
+        scopeCtx, w, h,
+        channels.length ? '运行仿真后显示波形' : '给 CH1–CH4 接上信号',
+      );
+      renderInstrumentLegend([]);
+      return;
+    }
+
+    const last = frames[frames.length - 1].t;
+    const start = Math.max(frames[0].t, last - Math.max(0.1, window));
+    const span = Math.max(1e-9, last - start);
+    let amp = 0;
+    for (const { key } of channels) {
+      for (const frame of frames) {
+        const value = frame.v?.[key];
+        if (Number.isFinite(value)) amp = Math.max(amp, Math.abs(value));
+      }
+    }
+    amp = amp > 0 ? amp * 1.1 : 1;
+    const xOf = (t) => left + plotW * ((t - start) / span);
+    const yOf = (v) => top + plotH / 2 - (v / amp) * (plotH / 2);
+
+    scopeCtx.strokeStyle = C('#c9c2b4');
+    scopeCtx.beginPath();
+    scopeCtx.moveTo(left, top + plotH / 2 + 0.5);
+    scopeCtx.lineTo(left + plotW, top + plotH / 2 + 0.5);
+    scopeCtx.stroke();
+
+    for (const { key, index } of channels) {
+      scopeCtx.strokeStyle = INST_COLORS[index];
+      scopeCtx.lineWidth = 1.5;
+      scopeCtx.beginPath();
+      let started = false;
+      for (const frame of frames) {
+        const value = frame.v?.[key];
+        if (typeof value !== 'number' || !Number.isFinite(value)) continue;
+        const x = xOf(frame.t);
+        const y = yOf(value);
+        if (!started) {
+          scopeCtx.moveTo(x, y);
+          started = true;
+        } else {
+          scopeCtx.lineTo(x, y);
+        }
+      }
+      scopeCtx.stroke();
+    }
+
+    scopeCtx.fillStyle = C('#969083');
+    scopeCtx.font = '9px "Segoe UI", "Microsoft YaHei", sans-serif';
+    scopeCtx.textAlign = 'right';
+    scopeCtx.textBaseline = 'middle';
+    scopeCtx.fillText(fmt(amp, 2), left - 5, top + 6);
+    scopeCtx.fillText('0', left - 5, top + plotH / 2);
+    scopeCtx.fillText(fmt(-amp, 2), left - 5, top + plotH - 6);
+    scopeCtx.textBaseline = 'top';
+    scopeCtx.textAlign = 'left';
+    scopeCtx.fillText(`${fmt(start, 3)} s`, left, top + plotH + 4);
+    scopeCtx.textAlign = 'right';
+    scopeCtx.fillText(`${fmt(last, 3)} s`, left + plotW, top + plotH + 4);
+    renderInstrumentLegend(frames);
+  }
+
+  function drawLissajous(frames) {
+    const surface = instrumentSurface(lissCtx, lissCanvas, state.instrument.lissSize, '#faf8f2');
+    if (!surface) return;
+    const { w, h } = surface;
+    const pad = 14;
+    lissCtx.strokeStyle = C('#e7e2d7');
+    lissCtx.lineWidth = 1;
+    lissCtx.beginPath();
+    lissCtx.moveTo(w / 2 + 0.5, pad);
+    lissCtx.lineTo(w / 2 + 0.5, h - pad);
+    lissCtx.moveTo(pad, h / 2 + 0.5);
+    lissCtx.lineTo(w - pad, h / 2 + 0.5);
+    lissCtx.stroke();
+
+    const xKey = state.instrument.lx;
+    const yKey = state.instrument.ly;
+    const ready = Boolean(xKey && yKey && state.probeKeys.includes(xKey) && state.probeKeys.includes(yKey));
+    if (!ready || !frames.length) {
+      instrumentHint(lissCtx, w, h, ready ? '运行仿真后显示李萨如图' : '选择 X / Y 两路信号');
+      return;
+    }
+    const trail = clamp(Math.round(Number(state.instrument.trail) || 600), 20, 4000);
+    const slice = frames.slice(-trail);
+    let amp = 0;
+    for (const frame of slice) {
+      const x = frame.v?.[xKey];
+      const y = frame.v?.[yKey];
+      if (Number.isFinite(x)) amp = Math.max(amp, Math.abs(x));
+      if (Number.isFinite(y)) amp = Math.max(amp, Math.abs(y));
+    }
+    amp = amp > 0 ? amp * 1.1 : 1;
+    const size = Math.max(10, Math.min(w, h) - pad * 2);
+    const xOf = (v) => w / 2 + (v / amp) * (size / 2);
+    const yOf = (v) => h / 2 - (v / amp) * (size / 2);
+
+    lissCtx.strokeStyle = C('#c2542f');
+    lissCtx.lineWidth = 1.2;
+    lissCtx.beginPath();
+    let started = false;
+    let tail = null;
+    for (const frame of slice) {
+      const x = frame.v?.[xKey];
+      const y = frame.v?.[yKey];
+      if (typeof x !== 'number' || typeof y !== 'number') continue;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      const px = xOf(x);
+      const py = yOf(y);
+      if (!started) {
+        lissCtx.moveTo(px, py);
+        started = true;
+      } else {
+        lissCtx.lineTo(px, py);
+      }
+      tail = { x: px, y: py };
+    }
+    lissCtx.stroke();
+    if (tail) {
+      lissCtx.fillStyle = C('#c2542f');
+      lissCtx.beginPath();
+      lissCtx.arc(tail.x, tail.y, 2.5, 0, Math.PI * 2);
+      lissCtx.fill();
+    }
+    lissCtx.fillStyle = C('#969083');
+    lissCtx.font = '9px "Segoe UI", "Microsoft YaHei", sans-serif';
+    lissCtx.textAlign = 'left';
+    lissCtx.textBaseline = 'top';
+    lissCtx.fillText(`X ${xKey.split(':').slice(1, -1).join(':')}`, pad, pad - 10 + 0.5);
+    lissCtx.textBaseline = 'bottom';
+    lissCtx.fillText(`Y ${yKey.split(':').slice(1, -1).join(':')}`, pad, h - 1);
+  }
+
+  function drawInstruments() {
+    if (activeTab() !== 'inst') return;
+    const { frames, window } = instrumentFrames();
+    renderInstrumentMeter(frames);
+    drawScope(frames, window);
+    drawLissajous(frames);
+    if (ui.instStatus) {
+      if (frames.length) {
+        ui.instStatus.textContent = `${frames.length} 帧 · 窗口 ${fmt(window, 2)} s${state.replay.active ? ' · 回放中' : ''}`;
+      } else {
+        ui.instStatus.textContent = state.sim?.running ? '等待采集中…' : '运行仿真后显示读数与波形';
+      }
+    }
+  }
+
+  function resizeInstrument() {
+    const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5);
+    for (const [target, key] of [[scopeCanvas, 'scopeSize'], [lissCanvas, 'lissSize']]) {
+      if (!target) continue;
+      const wrap = target.parentElement;
+      if (!wrap) continue;
+      const rect = wrap.getBoundingClientRect();
+      const w = Math.max(1, Math.floor(rect.width));
+      const h = Math.max(1, Math.floor(rect.height));
+      state.instrument[key] = { w, h, dpr };
+      target.width = Math.max(1, Math.round(w * dpr));
+      target.height = Math.max(1, Math.round(h * dpr));
+    }
+    scheduleChartDraw();
+  }
+
+  function bindInstrumentEvents() {
+    const bind = (element, event, handler) => {
+      if (element) element.addEventListener(event, handler);
+    };
+    bind(ui.instMeterKey, 'change', () => {
+      state.instrument.meterKey = ui.instMeterKey.value || '';
+      saveInstrumentPrefs();
+      scheduleChartDraw();
+    });
+    ui.instCh.forEach((select, index) => {
+      bind(select, 'change', () => {
+        state.instrument.channels[index] = select.value || null;
+        const dot = select.closest('.inst-ch')?.querySelector('.dot');
+        if (dot) {
+          dot.classList.toggle('on', Boolean(select.value));
+          dot.style.color = select.value ? INST_COLORS[index] : '';
+        }
+        saveInstrumentPrefs();
+        scheduleChartDraw();
+      });
+    });
+    bind(ui.instLX, 'change', () => {
+      state.instrument.lx = ui.instLX.value || '';
+      saveInstrumentPrefs();
+      scheduleChartDraw();
+    });
+    bind(ui.instLY, 'change', () => {
+      state.instrument.ly = ui.instLY.value || '';
+      saveInstrumentPrefs();
+      scheduleChartDraw();
+    });
+    bind(ui.instWindow, 'input', () => {
+      state.instrument.window = clamp(Number(ui.instWindow.value) || 5, 0.1, 120);
+      saveInstrumentPrefs();
+      scheduleChartDraw();
+    });
+    bind(ui.instTrail, 'input', () => {
+      state.instrument.trail = clamp(Math.round(Number(ui.instTrail.value) || 600), 20, 4000);
+      saveInstrumentPrefs();
+      scheduleChartDraw();
+    });
+  }
+
+  function initInstruments() {
+    loadInstrumentPrefs();
+    resizeInstrument();
+    bindInstrumentEvents();
+    fillInstrumentSelects();
+  }
+
   function drawChart() {
     if (activeTab() !== 'chart') return;
     const { w, h, dpr } = state.chartSize;
@@ -7992,7 +8740,7 @@
     chartCanvas.dataset.renderSize = `${w}x${h}@${dpr}`;
     chartCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     chartCtx.clearRect(0, 0, w, h);
-    chartCtx.fillStyle = '#faf8f2';
+    chartCtx.fillStyle = C('#faf8f2');
     chartCtx.fillRect(0, 0, w, h);
 
     const keys = Array.from(state.chart.selected);
@@ -8000,7 +8748,7 @@
       ? state.frames.slice(0, state.replay.index + 1)
       : state.frames;
     if (!keys.length || !frames.length) {
-      chartCtx.fillStyle = '#969083';
+      chartCtx.fillStyle = C('#969083');
       chartCtx.font = '12px "Segoe UI", "Microsoft YaHei", sans-serif';
       chartCtx.textAlign = 'center';
       chartCtx.textBaseline = 'middle';
@@ -8036,7 +8784,7 @@
       series.push({ key, color, points });
     }
     if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
-      chartCtx.fillStyle = '#969083';
+      chartCtx.fillStyle = C('#969083');
       chartCtx.font = '12px "Segoe UI", "Microsoft YaHei", sans-serif';
       chartCtx.textAlign = 'center';
       chartCtx.fillText('所选信号在时间窗内没有数值', w / 2, h / 2);
@@ -8068,7 +8816,7 @@
       chartCtx.moveTo(left, Math.round(y) + 0.5);
       chartCtx.lineTo(left + plotW, Math.round(y) + 0.5);
       chartCtx.stroke();
-      chartCtx.fillStyle = '#8b8376';
+      chartCtx.fillStyle = C('#8b8376');
       chartCtx.textAlign = 'right';
       chartCtx.fillText(fmt(yMax - (spanY * index) / 4, 3), left - 8, y);
     }
@@ -8079,7 +8827,7 @@
       chartCtx.moveTo(Math.round(x) + 0.5, top);
       chartCtx.lineTo(Math.round(x) + 0.5, top + plotH);
       chartCtx.stroke();
-      chartCtx.fillStyle = '#8b8376';
+      chartCtx.fillStyle = C('#8b8376');
       chartCtx.textAlign = index === 0 ? 'left' : index === 4 ? 'right' : 'center';
       const tick = tMin + (spanT * index) / 4;
       const decimals = spanT >= 10 ? 1 : spanT >= 1 ? 2 : spanT >= 0.1 ? 3 : spanT >= 0.01 ? 4 : 5;
@@ -8117,7 +8865,7 @@
       const frame = nearestFrame(t);
       if (frame) {
         const hx = xOf(frame.t);
-        chartCtx.strokeStyle = 'rgba(168, 84, 31, .45)';
+        chartCtx.strokeStyle = C('rgba(168, 84, 31, .45)');
         chartCtx.lineWidth = 1;
         chartCtx.setLineDash([3, 3]);
         chartCtx.beginPath();
@@ -8146,7 +8894,7 @@
         const boxX = clamp(hx + 12, left + 4, left + plotW - boxW - 4);
         const boxY = clamp(top + 6, top + 4, top + plotH - boxH - 4);
         chartCtx.fillStyle = 'rgba(250, 248, 242, .97)';
-        chartCtx.strokeStyle = '#bcb3a1';
+        chartCtx.strokeStyle = C('#bcb3a1');
         chartCtx.lineWidth = 1;
         roundRectPath(chartCtx, boxX, boxY, boxW, boxH, 6);
         chartCtx.fill();
@@ -8154,7 +8902,7 @@
         chartCtx.textAlign = 'left';
         chartCtx.textBaseline = 'top';
         lines.forEach((line, index) => {
-          chartCtx.fillStyle = index === 0 ? '#a8541f' : '#5f584e';
+          chartCtx.fillStyle = index === 0 ? C('#a8541f') : '#5f584e';
           chartCtx.fillText(line, boxX + 8, boxY + 6 + index * 15);
         });
       }
@@ -8245,11 +8993,6 @@
       updateFemPanelValues();
       drawFem();
       syncFemChrome();
-      if (state.fem && !state.fem.running && !state.femStarted) {
-        state.femStarted = true;
-        await femControl('run');
-        toast('二维有限元场已启动 · 后向欧拉 / Q4 双线性单元', 'info', 4200);
-      }
     } else {
       if (state.fem?.running) await femControl('pause');
       state.workspace = 'network';
@@ -8357,11 +9100,11 @@
     if (w < 20 || h < 20) return;
     femCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     femCtx.clearRect(0, 0, w, h);
-    femCtx.fillStyle = '#f2efe7';
+    femCtx.fillStyle = C('#f2efe7');
     femCtx.fillRect(0, 0, w, h);
 
     if (!state.fem || !state.femMesh) {
-      femCtx.fillStyle = '#969083';
+      femCtx.fillStyle = C('#969083');
       femCtx.font = '12px "Segoe UI", "Microsoft YaHei", sans-serif';
       femCtx.textAlign = 'center';
       femCtx.textBaseline = 'middle';
@@ -8420,10 +9163,10 @@
     }
     femCtx.stroke();
 
-    femCtx.strokeStyle = '#11100e';
+    femCtx.strokeStyle = C('#11100e');
     femCtx.lineWidth = 1.2;
     femCtx.strokeRect(x0, y0, size, size);
-    femCtx.strokeStyle = '#a8541f';
+    femCtx.strokeStyle = C('#a8541f');
     femCtx.lineWidth = 2.2;
     femCtx.beginPath();
     femCtx.moveTo(x0 + 0.5, y0);
@@ -8432,7 +9175,7 @@
     femCtx.lineTo(x0 + size - 0.5, y0 + size);
     femCtx.stroke();
 
-    femCtx.fillStyle = '#6f695f';
+    femCtx.fillStyle = C('#6f695f');
     femCtx.font = '8px "Cascadia Code", Consolas, monospace';
     femCtx.textAlign = 'left';
     femCtx.textBaseline = 'top';
@@ -8445,7 +9188,7 @@
     const sourceScreenX = x0 + sourceX * size;
     const sourceScreenY = y0 + (1 - sourceY) * size;
     const sourceRadius = Math.max(8, Number(config.source_sigma || 0.09) * size * 2.2);
-    femCtx.strokeStyle = 'rgba(168, 84, 31, 0.85)';
+    femCtx.strokeStyle = C('rgba(168, 84, 31, 0.85)');
     femCtx.lineWidth = 1;
     femCtx.setLineDash([3, 3]);
     femCtx.beginPath();
@@ -8458,7 +9201,7 @@
     femCtx.moveTo(sourceScreenX, sourceScreenY - 5);
     femCtx.lineTo(sourceScreenX, sourceScreenY + 5);
     femCtx.stroke();
-    femCtx.fillStyle = '#a8541f';
+    femCtx.fillStyle = C('#a8541f');
     femCtx.font = '8px "Cascadia Code", Consolas, monospace';
     femCtx.textAlign = 'left';
     femCtx.textBaseline = 'top';
@@ -8474,10 +9217,10 @@
     }
     femCtx.fillStyle = gradient;
     femCtx.fillRect(barX, barY, barW, barH);
-    femCtx.strokeStyle = '#bcb3a1';
+    femCtx.strokeStyle = C('#bcb3a1');
     femCtx.lineWidth = 1;
     femCtx.strokeRect(barX, barY, barW, barH);
-    femCtx.fillStyle = '#6f695f';
+    femCtx.fillStyle = C('#6f695f');
     femCtx.font = '8px "Cascadia Code", Consolas, monospace';
     femCtx.textAlign = 'center';
     femCtx.textBaseline = 'bottom';
@@ -8496,7 +9239,7 @@
     }
 
 
-    femCtx.fillStyle = '#6f695f';
+    femCtx.fillStyle = C('#6f695f');
     femCtx.font = '8px "Cascadia Code", Consolas, monospace';
     femCtx.textAlign = 'right';
     femCtx.textBaseline = 'top';
@@ -8504,7 +9247,7 @@
 
     const hover = state.femHover;
     if (hover) {
-      femCtx.strokeStyle = '#11100e';
+      femCtx.strokeStyle = C('#11100e');
       femCtx.lineWidth = 1;
       femCtx.beginPath();
       femCtx.moveTo(hover.sx - 7, hover.sy);
@@ -8522,7 +9265,7 @@
       const labelY = clamp(hover.sy - 20, y0, y0 + size - 18);
       femCtx.fillStyle = 'rgba(250, 248, 242, .95)';
       femCtx.fillRect(labelX - 4, labelY - 2, textWidth + 8, 15);
-      femCtx.fillStyle = '#11100e';
+      femCtx.fillStyle = C('#11100e');
       femCtx.textAlign = 'left';
       femCtx.textBaseline = 'top';
       femCtx.fillText(label, labelX, labelY);
@@ -8856,20 +9599,8 @@
   }
 
   async function maybeAutostart() {
-    if (!state.sim || state.sim.running) return;
-    let already = false;
-    try {
-      already = window.sessionStorage.getItem('netlab:autostart') === '1';
-    } catch (error) {
-      already = false;
-    }
-    if (already) return;
-    try {
-      window.sessionStorage.setItem('netlab:autostart', '1');
-    } catch (error) {
-      // 隐私模式下忽略
-    }
-    await control('run');
+    // R30-4：启动后任何模式都保持停止状态；运行必须由用户显式触发（空格/按钮）。
+    return;
   }
 
   function showShutdownScreen() {
@@ -8924,6 +9655,8 @@
     netWidth: 'netlab.networks.width',
     netCollapsed: 'netlab.networks.collapsed',
     panelCollapsed: 'netlab.panel.collapsed',
+    panelWidth: 'netlab.panel.width',
+    femPanelWidth: 'netlab.panel.width.fem',
   };
 
   function menuDefinition() {
@@ -8973,7 +9706,7 @@
           } },
           { sep: true },
           { label: '收起 / 展开左侧网络栏', action: () => toggleNetworks() },
-          { label: '收起 / 展开右侧面板', action: () => $('#btnPanel').click() },
+          { label: '收起 / 展开右侧面板', action: () => togglePanel() },
           { label: '切换到有限元场', action: () => void switchWorkspace('fem') },
         ],
       },
@@ -9010,22 +9743,38 @@
       {
         label: '工具',
         items: [
+          { label: '全局搜索…', hint: 'Ctrl+K / R14', action: () => openDocSearch() },
+          { sep: true },
           { label: '节点函数', action: () => switchTab('node-fn') },
           { label: '连接函数', action: () => switchTab('edge-fn') },
-          { label: '扩展', action: () => switchTab('ext') },
-          { label: '模块库', action: () => switchTab('blocks') },
+          { label: '模块与扩展', action: () => switchTab('blocks') },
           { sep: true },
           { label: '性能面板', action: () => switchTab('analysis') },
           { label: '迁移场景为器件模型（R20）', hint: '元件边 → 器件节点 + 引脚导线', action: () => void migrateSceneToDevices() },
           { label: '新建连线（选择端点）…', hint: '网络↔网络纯导线 / 器件引脚↔网络', action: () => openWireDialog() },
-          { label: '全局搜索', hint: 'P5 实现（R14）', disabled: true },
+        ],
+      },
+      {
+        label: '设置',
+        items: [
+          { label: '工程设置…', hint: '工作模式 / 模板 / 文件 / 画布网格', action: () => openSettings('project') },
+          { label: '视图与外观…', hint: '主题 / 强调色 / 动效 / 性能', action: () => openSettings('view') },
+          { label: '交互与文档…', hint: '启动引导 / 自动保存 / 快捷键', action: () => openSettings('interact') },
+          { sep: true },
+          { label: '重新打开引导页', action: () => showGuide(true) },
+          { label: '自动保存', hint: state.project.autosave ? '当前：开' : '当前：关', action: () => void saveAutosaveSetting({ autosave_enabled: !state.project.autosave }) },
         ],
       },
       {
         label: '帮助',
         items: [
-          { label: '快捷键与操作', action: () => showHelp() },
-          { label: '文档中心', hint: 'P5 实现（R14）', disabled: true },
+          { label: '快速上手', action: () => openDoc('quickstart') },
+          { label: '界面指南', action: () => openDoc('interface') },
+          { label: '术语表', action: () => openDoc('glossary') },
+          { label: '常见问题', action: () => openDoc('faq') },
+          { label: '快捷键', hint: '?', action: () => openDoc('shortcuts') },
+          { sep: true },
+          { label: '文档中心（搜索）', hint: 'Ctrl+K', action: () => openDocSearch() },
           { label: '关于 Netlab', action: () => toast('Netlab · 拓扑网络 / 电路 / 热场仿真（本地运行）', 'info', 4000) },
         ],
       },
@@ -9096,8 +9845,23 @@
     setInfo('project', `${state.project.name || '未命名工程'}${state.project.dirty ? ' *' : ''}`);
     setInfo('network', total > 1 ? `${network} (${total})` : network);
     setInfo('mode', modeLabel);
+    const nodes = state.scene?.nodes?.length || 0;
+    const edges = state.scene?.edges?.length || 0;
+    setInfo('counts', `节点 ${nodes} · 连线 ${edges}`);
+    const dt = Number(sim.config?.dt ?? sim.dt ?? state.scene?.sim?.dt ?? 0);
+    const dtMs = dt * 1000;
+    const dtText = dt >= 1
+      ? `${dt.toFixed(dt % 1 ? 2 : 0)} s`
+      : `${dtMs >= 10 ? dtMs.toFixed(0) : dtMs >= 1 ? dtMs.toFixed(1) : dtMs.toFixed(2)} ms`;
+    setInfo('dt', `dt ${dtText}`);
     setInfo('time', `t ${Number(sim.time || 0).toFixed(3)} s`);
     setInfo('steps', `step ${Number(sim.steps || 0)}`);
+    const alerts = Number(sim.alerts ?? sim.warnings ?? 0) || 0;
+    const alertNode = ui.infoBar.querySelector('[data-info="alerts"]');
+    if (alertNode) {
+      alertNode.textContent = `告警 ${alerts}`;
+      alertNode.classList.toggle('has-alert', alerts > 0);
+    }
     const run = ui.infoBar.querySelector('[data-info="run"]');
     if (run) {
       run.textContent = sim.running ? '运行中' : '停止';
@@ -9136,8 +9900,100 @@
       item.append(dot, label, meta);
       item.addEventListener('click', () => void switchNetwork(network.id));
       item.addEventListener('dblclick', () => void renameNetwork(network.id));
+      item.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        openNetworkMenu(network, event.clientX, event.clientY);
+      });
       ui.networkList.appendChild(item);
     }
+  }
+
+  /* 网络列表右键菜单（R02 / D49-D50，P7-07）：把封装入口放到网络这一层 */
+  function openNetworkMenu(network, x, y) {
+    const isCurrent = Boolean(network.current);
+    const picked = isCurrent ? multiSelection().nodes.size : 0;
+    const tempModule = String(network.name || '').startsWith('模块 ');
+    const moduleName = tempModule ? String(network.name).slice(3).trim() : '';
+    const knownBlock = moduleName ? (state.blocks || []).find((block) => block.name === moduleName) : null;
+    if (tempModule && !(state.blocks || []).length) void refreshBlocks();
+    const items = [
+      {
+        label: '封装选中节点为模块…',
+        hint: isCurrent
+          ? (picked ? `已选 ${picked} 个节点` : '先在画布上 Ctrl+单击多选')
+          : '先切换到该网络',
+        disabled: !isCurrent || !picked,
+        action: () => void encapsulateSelection(),
+      },
+      {
+        label: '打开模块库',
+        hint: '封装 / 实例化 / 打开内部',
+        action: () => switchTab('blocks'),
+      },
+      { sep: true },
+      {
+        label: '在模块内部浮窗中打开',
+        hint: knownBlock ? `预览「${moduleName}」内部` : tempModule ? '模块库里找不到同名模块' : '先切到模块内部临时网络',
+        disabled: !knownBlock,
+        action: () => {
+          if (knownBlock) openModuleInternal(knownBlock.id);
+        },
+      },
+      {
+        label: '关闭模块内部临时网络',
+        disabled: !tempModule,
+        action: () => void closeInternalNetwork(),
+      },
+    ];
+    showFloatingMenu(x, y, items, network.name);
+  }
+
+  /* 轻量浮层菜单：给右键 / 局部入口复用 */
+  let floatingMenu = null;
+
+  function closeFloatingMenu() {
+    if (!floatingMenu) return;
+    floatingMenu.remove();
+    floatingMenu = null;
+  }
+
+  function showFloatingMenu(x, y, items, title = '') {
+    closeFloatingMenu();
+    const box = div('ctxmenu');
+    box.setAttribute('role', 'menu');
+    if (title) box.appendChild(div('ctxmenu-title', title));
+    for (const item of items) {
+      if (item.sep) {
+        box.appendChild(div('menu-sep'));
+        continue;
+      }
+      const entry = el('button', 'menu-item');
+      entry.type = 'button';
+      entry.disabled = Boolean(item.disabled);
+      entry.appendChild(el('strong', null, item.label));
+      if (item.hint) entry.appendChild(el('small', null, item.hint));
+      entry.addEventListener('click', () => {
+        closeFloatingMenu();
+        if (!item.disabled) item.action();
+      });
+      box.appendChild(entry);
+    }
+    document.body.appendChild(box);
+    const rect = box.getBoundingClientRect();
+    box.style.left = `${Math.max(4, Math.min(x, window.innerWidth - rect.width - 8))}px`;
+    box.style.top = `${Math.max(4, Math.min(y, window.innerHeight - rect.height - 8))}px`;
+    floatingMenu = box;
+    return box;
+  }
+
+  function initFloatingMenu() {
+    document.addEventListener('pointerdown', (event) => {
+      if (!floatingMenu) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target?.closest('.ctxmenu')) closeFloatingMenu();
+    }, true);
+    window.addEventListener('blur', () => closeFloatingMenu());
+    window.addEventListener('resize', () => closeFloatingMenu());
   }
 
   async function switchNetwork(networkId) {
@@ -9205,15 +10061,33 @@
     toast('网络已删除', 'ok', 2200);
   }
 
+  // 挂耳位置跟随侧栏真实宽度：媒体查询会改列宽，只靠 CSS 里的默认值会偏出侧栏
+  function syncChromeEdges() {
+    if (!ui.main) return;
+    if (ui.networks && !ui.main.classList.contains('net-hidden')) {
+      const netWidth = Math.round(ui.networks.getBoundingClientRect().width);
+      if (netWidth > 0) ui.main.style.setProperty('--net-edge', `${netWidth}px`);
+    }
+    if (ui.panel && !ui.main.classList.contains('panel-hidden')) {
+      const panelWidth = Math.round(ui.panel.getBoundingClientRect().width);
+      if (panelWidth > 0) ui.main.style.setProperty('--panel-edge', `${panelWidth}px`);
+    }
+  }
+
   function applyNetCollapsed(collapsed) {
     ui.main.classList.toggle('net-hidden', collapsed);
-    if (ui.netCollapse) ui.netCollapse.textContent = collapsed ? '⟩' : '⟨';
+    if (ui.netHanger) {
+      ui.netHanger.textContent = collapsed ? '›' : '‹';
+      ui.netHanger.title = collapsed ? '展开网络栏' : '收起网络栏';
+      ui.netHanger.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    }
     try {
       localStorage.setItem(SHELL_KEYS.netCollapsed, collapsed ? '1' : '0');
     } catch (error) {
       // 隐私模式忽略
     }
     setTimeout(() => {
+      syncChromeEdges();
       resizeGraph();
       resizeChart();
       schedulePhaseDraw();
@@ -9239,7 +10113,7 @@
     }
     applyNetCollapsed(collapsed);
 
-    ui.netCollapse?.addEventListener('click', toggleNetworks);
+    ui.netHanger?.addEventListener('click', toggleNetworks);
     ui.netAdd?.addEventListener('click', () => void addNetwork());
     ui.netRename?.addEventListener('click', () => void renameNetwork());
     ui.netDelete?.addEventListener('click', () => void deleteNetwork());
@@ -9250,6 +10124,8 @@
     let startX = 0;
     let startWidth = 0;
     const currentWidth = () => {
+      const rect = ui.networks?.getBoundingClientRect();
+      if (rect && rect.width > 0) return rect.width;
       const value = parseFloat(getComputedStyle(ui.main).getPropertyValue('--net-w'));
       return Number.isFinite(value) ? value : 172;
     };
@@ -9265,6 +10141,7 @@
       if (!dragging) return;
       const next = clamp(Math.round(startWidth + event.clientX - startX), 140, 360);
       ui.main.style.setProperty('--net-w', `${next}px`);
+      ui.main.style.setProperty('--net-edge', `${next}px`);
     });
     const finish = (event) => {
       if (!dragging) return;
@@ -9275,6 +10152,7 @@
       } catch (error) {
         // 忽略
       }
+      syncChromeEdges();
       resizeGraph();
       resizeChart();
       schedulePhaseDraw();
@@ -9386,20 +10264,33 @@
   }
 
   async function encapsulateSelection() {
-    const { nodes } = multiSelection();
-    if (!nodes.size) {
+    const liveNodes = new Set((state.scene?.nodes || []).map((node) => node.id));
+    const picked = [...multiSelection().nodes];
+    const nodes = picked.filter((id) => liveNodes.has(id));
+    if (picked.length && !nodes.length) {
+      // 画布和服务端场景不同步（后端重启、另一个窗口改过场景）：先同步再让用户重选。
+      await refreshState(false);
+      toast('画布已过期（节点已不在当前场景），已刷新，请重新选择要封装的节点', 'error', 5200);
+      return;
+    }
+    if (!nodes.length) {
       toast('先在画布上选中要封装的节点（Ctrl+单击多选）', 'info', 3200);
       return;
     }
     const proposed = window.prompt('模块名称（最长 32 字）', '模块');
     if (proposed === null) return;
-    const response = await task(() =>
-      jsonRequest('/api/blocks/encapsulate', 'POST', {
-        node_ids: [...nodes],
+    let response = null;
+    try {
+      response = await jsonRequest('/api/blocks/encapsulate', 'POST', {
+        node_ids: nodes,
         name: proposed,
         model: state.blocksStructural ? 'structural' : 'behavioral',
-      }),
-    );
+      });
+    } catch (error) {
+      await refreshState(false);
+      toast(`封装失败：${error.message || error}`, 'error', 6000);
+      return;
+    }
     if (!response) return;
     applySnapshot({ scene: response.scene, sim: response.sim, limits: state.limits });
     state.multi.nodes.clear();
@@ -9464,11 +10355,263 @@
     const response = await task(() =>
       jsonRequest(`/api/blocks/${encodeURIComponent(blockId)}/open-internal`, 'POST', {}),
     );
-    if (!response) return;
+    if (!response) return false;
     applySnapshot({ scene: response.scene, sim: response.sim, limits: state.limits });
     await fetchNetworks();
     fitView();
     toast('已在临时网络中打开模块内部', 'ok', 3000);
+    return true;
+  }
+
+  /* 8.7b 模块内部浮窗（R02 / D50，P7-07）：只读预览，不切换当前网络 */
+  const MODULE_DIR_GLYPH = { input: '→', output: '←', inout: '↔' };
+  const MODULE_DIR_LABEL = { input: '输入', output: '输出', inout: '双向' };
+  // 网络节点右键盘口方向三选一（D49：方向只决定引脚画在哪一侧）。
+  const PORT_DIRECTION_CHOICES = [
+    ['input', '输入', '引脚画在模块左侧，表示从外部流进来'],
+    ['output', '输出', '引脚画在模块右侧，表示向外流出'],
+    ['inout', '双向', '电气网络默认，两侧都可接线，也可当测试点'],
+  ];
+
+  // 模块库卡片上的端口摘要：电路模块按方向分组，信号块仍是「入 → 出」。
+  function describeBlockPorts(spec) {
+    const ports = Array.isArray(spec?.ports) ? spec.ports : [];
+    if (String(spec?.mode || '') === 'circuit' && ports.length) {
+      const grouped = { input: [], output: [], inout: [] };
+      for (const port of ports) {
+        const bucket = grouped[port.direction] || grouped.inout;
+        bucket.push(port.name);
+      }
+      const parts = [];
+      for (const key of ['input', 'output', 'inout']) {
+        if (grouped[key].length) parts.push(`${MODULE_DIR_LABEL[key]} ${grouped[key].join('/')}`);
+      }
+      return parts.join('   ') || '无端口';
+    }
+    const inputs = (spec?.inputs || []).map((port) => port.name).join(', ') || '—';
+    const outputs = (spec?.outputs || []).map((port) => port.name).join(', ') || '—';
+    return `${inputs} → ${outputs}`;
+  }
+
+  function modulePortList(block) {
+    return (block?.ports || []).map((port) => ({
+      name: String(port.name || 'port'),
+      direction: String(port.direction || (port.dtype === 'electrical' ? 'inout' : 'input')),
+      dtype: String(port.dtype || ''),
+      net: String(port.net || ''),
+    }));
+  }
+
+  function renderModuleSide(block) {
+    const side = ui.modulePorts;
+    if (side) {
+      side.replaceChildren();
+      const ports = modulePortList(block);
+      side.appendChild(el('h4', null, `端口（${ports.length}）`));
+      if (!ports.length) side.appendChild(div('help', '这个模块没有端口。'));
+      for (const port of ports) {
+        const row = div('port-row');
+        row.appendChild(el('span', 'port-dir', MODULE_DIR_GLYPH[port.direction] || '·'));
+        const name = el('span', 'port-name', port.name);
+        name.title = `${port.name} · ${port.direction}${port.net ? ` · ${port.net}` : ''}`;
+        row.appendChild(name);
+        row.appendChild(el('span', 'badge gray', port.dtype === 'electrical' ? '电气' : '信号'));
+        side.appendChild(row);
+      }
+    }
+    const meta = ui.moduleMeta;
+    if (meta) {
+      meta.replaceChildren();
+      const rows = [
+        ['节点', String((block?.nodes || []).length)],
+        ['连线', String((block?.edges || []).length)],
+        ['端口', String((block?.ports || []).length)],
+        ['版本', `v${Number(block?.version || 1)}`],
+        ['模型', block?.model === 'structural' ? '结构' : '行为'],
+      ];
+      for (const [key, value] of rows) {
+        meta.appendChild(el('span', null, key));
+        meta.appendChild(el('b', null, value));
+      }
+    }
+  }
+
+  function drawModulePreview() {
+    const canvas = ui.moduleCanvas;
+    const block = state.moduleBlock;
+    const stage = ui.moduleStage;
+    if (!canvas || !stage || !block) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const box = stage.getBoundingClientRect();
+    const width = Math.round(box.width);
+    const height = Math.round(box.height);
+    if (width < 20 || height < 20) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = C('#faf8f2');
+    ctx.fillRect(0, 0, width, height);
+
+    const nodes = (block.nodes || []).map((node) => ({
+      id: String(node.id || ''),
+      label: String(node.params?.port_name || node.name || node.label || node.kind || node.id || '?'),
+      kind: String(node.kind || ''),
+      x: Number(node.position?.x ?? node.x ?? 0),
+      y: Number(node.position?.y ?? node.y ?? 0),
+    }));
+    const isEmpty = !nodes.length;
+    if (ui.moduleEmpty) ui.moduleEmpty.hidden = !isEmpty;
+    canvas.hidden = isEmpty;
+    if (isEmpty) return;
+
+    const portNets = new Set(modulePortList(block).map((port) => port.net).filter(Boolean));
+    const xs = nodes.map((node) => node.x);
+    const ys = nodes.map((node) => node.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const pad = 34;
+    const spanX = Math.max(1, maxX - minX);
+    const spanY = Math.max(1, maxY - minY);
+    const scale = Math.min((width - pad * 2) / spanX, (height - pad * 2) / spanY, 1.15);
+    const offsetX = (width - spanX * scale) / 2 - minX * scale;
+    const offsetY = (height - spanY * scale) / 2 - minY * scale;
+    const project = (node) => ({ x: node.x * scale + offsetX, y: node.y * scale + offsetY });
+    const byId = new Map(nodes.map((node) => [node.id, node]));
+
+    ctx.strokeStyle = C('#ded7c8');
+    ctx.lineWidth = 1;
+    for (const edge of block.edges || []) {
+      const source = byId.get(String(edge.source || ''));
+      const target = byId.get(String(edge.target || ''));
+      if (!source || !target) continue;
+      const a = project(source);
+      const b = project(target);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+
+    ctx.font = '10px "Segoe UI", "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const node of nodes) {
+      const point = project(node);
+      const isPort = portNets.has(node.id);
+      const isGround = node.kind === 'ground';
+      const isDevice = node.kind === 'device';
+      const text = node.label.length > 12 ? `${node.label.slice(0, 11)}…` : node.label;
+      const w = Math.max(54, Math.round(ctx.measureText(text).width) + 18);
+      const h = 22;
+      // 端口 > 接地 > 器件 > 普通网络，四档配色让内部结构一眼分清
+      const fill = isPort ? '#fdf3e4' : isGround ? '#eaf3e8' : isDevice ? '#eef1f6' : '#ffffff';
+      const stroke = isPort ? '#c07a1c' : isGround ? '#4f8a4a' : isDevice ? '#7f8b9e' : '#cfc8b8';
+      const ink = isPort ? '#8a5310' : isGround ? '#2f5a2b' : isDevice ? '#38414f' : '#3b3830';
+      ctx.beginPath();
+      ctx.rect(point.x - w / 2, point.y - h / 2, w, h);
+      ctx.fillStyle = C(fill);
+      ctx.fill();
+      ctx.strokeStyle = C(stroke);
+      ctx.lineWidth = isPort ? 1.6 : 1;
+      ctx.stroke();
+      ctx.fillStyle = C(ink);
+      ctx.fillText(text, point.x, point.y);
+    }
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = C('#969083');
+    ctx.font = '9.5px "Segoe UI", "Microsoft YaHei", sans-serif';
+    ctx.fillText(`只读预览 · ${block.name || block.id} · ${nodes.length} 节点 / ${(block.edges || []).length} 连线`, 12, height - 12);
+  }
+
+  function layoutModuleWindow() {
+    if (!ui.moduleWin) return;
+    ui.moduleWin.classList.toggle('docked', Boolean(state.moduleDock));
+    if (ui.moduleDock) ui.moduleDock.classList.toggle('on', Boolean(state.moduleDock));
+  }
+
+  function openModuleInternal(blockId, block) {
+    const run = async () => {
+      let target = block;
+      if (!target) {
+        const response = await task(
+          () => jsonRequest(`/api/blocks/${encodeURIComponent(blockId)}`, 'GET'),
+          { dirty: false },
+        );
+        if (!response?.block) return;
+        target = response.block;
+      }
+      state.moduleBlock = target;
+      if (ui.moduleWinTitle) ui.moduleWinTitle.textContent = target.name || target.id || '模块内部';
+      if (ui.moduleWinHint) {
+        ui.moduleWinHint.textContent = `MODULE · ${(target.nodes || []).length} 节点 · v${Number(target.version || 1)}`;
+      }
+      renderModuleSide(target);
+      ui.moduleWin.hidden = false;
+      layoutModuleWindow();
+      if (!state.moduleDock) {
+        placeFloatWindow(ui.moduleWin, 'moduleGeo');
+        raiseFloatWindow(ui.moduleWin);
+      }
+      requestAnimationFrame(() => drawModulePreview());
+    };
+    void run();
+  }
+
+  function closeModuleInternal() {
+    if (!ui.moduleWin || ui.moduleWin.hidden) return;
+    ui.moduleWin.hidden = true;
+    toast('已关闭模块内部视图', 'info', 1800);
+  }
+
+  function toggleModuleDock() {
+    if (!ui.moduleWin) return;
+    state.moduleDock = !state.moduleDock;
+    layoutModuleWindow();
+    if (state.moduleDock) {
+      ui.moduleWin.hidden = false;
+      ui.moduleWin.classList.remove('moved');
+      ui.moduleWin.style.left = '';
+      ui.moduleWin.style.top = '';
+      ui.moduleWin.style.width = '';
+      ui.moduleWin.style.height = '';
+      requestAnimationFrame(() => drawModulePreview());
+    } else {
+      placeFloatWindow(ui.moduleWin, 'moduleGeo');
+      raiseFloatWindow(ui.moduleWin);
+      requestAnimationFrame(() => drawModulePreview());
+    }
+  }
+
+  function initModuleWindow() {
+    if (!ui.moduleWin) return;
+    initFloatWindow(ui.moduleWin, 'moduleGeo', { minWidth: 520, minHeight: 340 });
+    ui.moduleWinClose?.addEventListener('click', () => closeModuleInternal());
+    ui.moduleDock?.addEventListener('click', () => toggleModuleDock());
+    ui.moduleEdit?.addEventListener('click', () => {
+      const block = state.moduleBlock;
+      if (!block?.id) return;
+      // 打开成功才收窗：失败（例如内部网络缺接地）时保留预览，错误由 task 统一提示
+      void openBlockInternal(block.id).then((ok) => {
+        if (ok) closeModuleInternal();
+      });
+    });
+    ui.moduleAddInstance?.addEventListener('click', () => {
+      const block = state.moduleBlock;
+      if (!block?.id) return;
+      void instantiateBlockFromLibrary(block.id);
+    });
+    if (ui.moduleStage && typeof ResizeObserver === 'function') {
+      const observer = new ResizeObserver(() => {
+        if (!ui.moduleWin?.hidden) drawModulePreview();
+      });
+      observer.observe(ui.moduleStage);
+    }
   }
 
   async function saveCurrentAsBlockCopy() {
@@ -9649,7 +10792,7 @@
     for (let index = 0; index < n; index += 1) {
       const value = mags[index] / peak;
       const barH = Math.max(0, Math.min(1, value)) * (height - 18);
-      ctx.fillStyle = index === 0 ? '#b09a78' : 'rgba(168, 84, 31, 0.55)';
+      ctx.fillStyle = index === 0 ? '#b09a78' : C('rgba(168, 84, 31, 0.55)');
       ctx.fillRect(index * bw, height - 14 - barH, Math.max(1, bw - 0.5), barH);
     }
     ctx.strokeStyle = 'rgba(104, 94, 78, 0.4)';
@@ -9657,7 +10800,7 @@
     ctx.moveTo(0, height - 14.5);
     ctx.lineTo(width, height - 14.5);
     ctx.stroke();
-    ctx.fillStyle = '#7b7266';
+    ctx.fillStyle = C('#7b7266');
     ctx.font = '9px "Cascadia Code", Consolas, monospace';
     ctx.fillText('0 Hz', 2, height - 3);
     const maxFreq = freqs.length ? freqs[Math.min(freqs.length - 1, 399)] : 0;
@@ -9804,13 +10947,7 @@
       const badges = div('block-badges');
       for (const badge of blockBadges(spec)) badges.appendChild(el('span', 'badge gray', badge));
       info.append(name, badges);
-      const ports = el(
-        'small',
-        'block-ports',
-        `${(spec.inputs || []).map((port) => port.name).join(', ') || '—'} → ${
-          (spec.outputs || []).map((port) => port.name).join(', ') || '—'
-        }`,
-      );
+      const ports = el('small', 'block-ports', describeBlockPorts(spec));
       info.appendChild(ports);
       item.draggable = true;
       item.addEventListener('dragstart', (event) => {
@@ -9820,18 +10957,106 @@
       });
       const actions = div('block-actions');
       actions.appendChild(button('实例化', 'btn tiny primary', () => void instantiateBlockFromLibrary(spec.id)));
-      const openBtn = button('打开内部', 'btn tiny', () => void openBlockInternal(spec.id));
-      openBtn.disabled = (spec.model || 'behavioral') !== 'structural';
-      openBtn.title = openBtn.disabled ? '行为模型不提供内部视图（封装时勾选结构模型）' : '在临时网络中打开内部';
+      const openBtn = button('打开内部', 'btn tiny', () => openModuleInternal(spec.id));
+      openBtn.title = (spec.model || 'behavioral') !== 'structural'
+        ? '打开内部浮窗（行为模型只看得到端口）'
+        : '在内部浮窗中预览模块结构';
       actions.appendChild(openBtn);
+      const renameBtn = button('改名', 'btn tiny', () => void renameLibraryBlock(spec));
+      renameBtn.title = '改模块名字（文件名同步改，引用不变）';
+      actions.appendChild(renameBtn);
+      const deleteBtn = button('删除', 'btn tiny danger', () => void deleteLibraryBlock(spec));
+      deleteBtn.title = '从库里删掉这个模块文件';
+      actions.appendChild(deleteBtn);
       item.append(info, actions);
       list.appendChild(item);
     }
     host.appendChild(list);
     host.appendChild(
-      div('help', '模块文件位于 library/blocks/<id>/v<N>.block；版本号只由导入更高版本产生，库中旧版本会保留。'),
+      div('help', '模块文件位于 library/blocks/<模块名>.block：一个模块一个文件，文件名就是模块名；库中只保留最新版。'),
     );
     pane.replaceChildren(host);
+  }
+
+  function findBlockNameClash(name, ignoreId) {
+    const wanted = String(name || '').trim().toLowerCase();
+    if (!wanted) return null;
+    return (
+      state.blocks.find(
+        (item) =>
+          item.id !== ignoreId && String(item.name || '').trim().toLowerCase() === wanted,
+      ) || null
+    );
+  }
+
+  async function renameLibraryBlock(spec) {
+    const proposed = window.prompt(`模块新名字（当前：${spec.name || spec.id}）`, spec.name || '');
+    if (proposed === null) return;
+    const name = proposed.trim();
+    if (!name) {
+      toast('模块名不能为空', 'error');
+      return;
+    }
+    if (name === spec.name) return;
+    const clash = findBlockNameClash(name, spec.id);
+    if (clash) {
+      toast(`模块名已存在：「${clash.name}」，请换一个名字`, 'error', 3600);
+      return;
+    }
+    const run = async (force) => {
+      const body = await jsonRequest(
+        `/api/blocks/${encodeURIComponent(spec.id)}/rename`,
+        'POST',
+        { name, force },
+      );
+      return body;
+    };
+    try {
+      try {
+        await run(false);
+      } catch (error) {
+        const message = error?.message || String(error);
+        if (!/引用|存在/.test(message)) throw error;
+        if (!window.confirm(`${message}\n\n仍然改名？`)) return;
+        await run(true);
+      }
+      await refreshBlocks();
+      toast(`已改名为「${name}」`, 'ok');
+    } catch (error) {
+      toast(`改名失败：${error?.message || error}`, 'error', 4000);
+    }
+  }
+
+  async function deleteLibraryBlock(spec) {
+    if (
+      !window.confirm(
+        `删除模块「${spec.name || spec.id}」？\n库里对应的 .block 文件会被删除，已经放进画布的实例会变成缺失状态。`,
+      )
+    ) {
+      return;
+    }
+    const run = async (force) => {
+      const body = await jsonRequest(
+        `/api/blocks/${encodeURIComponent(spec.id)}/delete`,
+        'POST',
+        { version: spec.version, force },
+      );
+      return body;
+    };
+    try {
+      try {
+        await run(false);
+      } catch (error) {
+        const message = error?.message || String(error);
+        if (!/引用|存在/.test(message)) throw error;
+        if (!window.confirm(`${message}\n\n仍然删除？`)) return;
+        await run(true);
+      }
+      await refreshBlocks();
+      toast(`已删除模块「${spec.name || spec.id}」`, 'ok');
+    } catch (error) {
+      toast(`删除失败：${error?.message || error}`, 'error', 4000);
+    }
   }
 
   function initStatusToggles() {
@@ -9874,10 +11099,101 @@
     }
   }
 
+  function applyPanelHidden(hidden, persist = true) {
+    ui.main.classList.toggle('panel-hidden', hidden);
+    ui.panel?.classList.toggle('collapsed', hidden);
+    if (ui.panelHanger) {
+      ui.panelHanger.textContent = hidden ? '‹' : '›';
+      ui.panelHanger.title = hidden ? '展开右侧面板' : '收起右侧面板';
+      ui.panelHanger.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+    }
+    if (persist) {
+      try {
+        localStorage.setItem(SHELL_KEYS.panelCollapsed, hidden ? '1' : '0');
+      } catch (error) {
+        // 隐私模式忽略
+      }
+    }
+    setTimeout(() => {
+      syncChromeEdges();
+      resizeGraph();
+      resizeChart();
+      resizeFem();
+      resizePhase();
+    }, 60);
+  }
+
+  function togglePanel() {
+    applyPanelHidden(!ui.main.classList.contains('panel-hidden'));
+  }
+
+  function initPanelChrome() {
+    let hidden = false;
+    let width = 0;
+    try {
+      hidden = localStorage.getItem(SHELL_KEYS.panelCollapsed) === '1';
+      width = Number(localStorage.getItem(SHELL_KEYS.panelWidth)) || 0;
+    } catch (error) {
+      hidden = false;
+    }
+    if (width >= 260 && width <= 720) ui.main.style.setProperty('--panel-w', `${Math.round(width)}px`);
+    applyPanelHidden(hidden, false);
+    ui.panelHanger?.addEventListener('click', togglePanel);
+
+    const handle = ui.panelResize;
+    if (!handle) return;
+    let dragging = false;
+    let startX = 0;
+    let startWidth = 0;
+    // FEM 模式下右栏有独立的宽度变量，拖拽要写对口，否则面板看起来“拖不动”
+    const panelVar = () => (ui.main.classList.contains('fem-mode') ? '--panel-w-fem' : '--panel-w');
+    const currentWidth = () => {
+      const rect = ui.panel?.getBoundingClientRect();
+      if (rect && rect.width > 0) return rect.width;
+      const value = parseFloat(getComputedStyle(ui.main).getPropertyValue(panelVar()));
+      return Number.isFinite(value) && value > 0 ? value : 388;
+    };
+    handle.addEventListener('pointerdown', (event) => {
+      if (ui.main.classList.contains('panel-hidden')) return;
+      dragging = true;
+      startX = event.clientX;
+      startWidth = currentWidth();
+      handle.setPointerCapture(event.pointerId);
+      document.body.classList.add('panel-dragging');
+      event.preventDefault();
+    });
+    handle.addEventListener('pointermove', (event) => {
+      if (!dragging) return;
+      const next = clamp(Math.round(startWidth - (event.clientX - startX)), 260, 720);
+      ui.main.style.setProperty(panelVar(), `${next}px`);
+      ui.main.style.setProperty('--panel-edge', `${next}px`);
+    });
+    const finish = (event) => {
+      if (!dragging) return;
+      dragging = false;
+      document.body.classList.remove('panel-dragging');
+      try {
+        localStorage.setItem(SHELL_KEYS.panelWidth, String(Math.round(currentWidth())));
+      } catch (error) {
+        // 忽略
+      }
+      syncChromeEdges();
+      resizeGraph();
+      resizeChart();
+      resizeFem();
+      resizePhase();
+      if (handle.hasPointerCapture?.(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+    };
+    handle.addEventListener('pointerup', finish);
+    handle.addEventListener('pointercancel', finish);
+  }
+
   function initShell() {
     initMenus();
     initNetworkSidebar();
+    initPanelChrome();
     updateInfoBar();
+    requestAnimationFrame(syncChromeEdges);
   }
 
   function bindStaticEvents() {
@@ -9897,16 +11213,6 @@
     $('#btnClear').addEventListener('click', () => void clearScene());
 
     $('#btnHelp').addEventListener('click', showHelp);
-    $('#btnPanel').addEventListener('click', () => {
-      ui.panel.classList.toggle('collapsed');
-      ui.main.classList.toggle('panel-hidden', ui.panel.classList.contains('collapsed'));
-      setTimeout(() => {
-        resizeGraph();
-        resizeChart();
-        resizeFem();
-        resizePhase();
-      }, 60);
-    });
 
     if (ui.workspaceSwitch) {
       $$('button[data-workspace]', ui.workspaceSwitch).forEach((buttonNode) => {
@@ -9915,9 +11221,28 @@
     }
     setWorkspaceButtons();
 
-    $$('.tab').forEach((tab) => {
-      tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    $$('.panel-tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const group = tab.dataset.group;
+        switchTab(group === 'inspect' ? 'inspect' : defaultTabForGroup(group));
+      });
     });
+    $$('#panel .group-subnav').forEach((nav) => {
+      nav.addEventListener('click', (event) => {
+        const target = event.target.closest('button');
+        if (!target) return;
+        if (target.dataset.fnrole) {
+          state.fnRole = target.dataset.fnrole;
+          state.specKind = '';
+          switchTab(target.dataset.fnrole === 'edge' ? 'edge-fn' : 'node-fn');
+        } else if (target.dataset.sub) {
+          switchTab(target.dataset.sub);
+        }
+      });
+    });
+    setPanelGroup('inspect');
+    setGroupSub('modules', 'blocks');
+    setGroupSub('analysis', 'chart');
 
     if (ui.vectorNode) {
       ui.vectorNode.addEventListener('change', () => {
@@ -9996,6 +11321,21 @@
     }
     if (ui.btnReplay) {
       ui.btnReplay.addEventListener('click', () => toggleReplayPlayback());
+    }
+    try {
+      const storedSpeed = Number(localStorage.getItem('netlab.replaySpeed'));
+      if (Number.isFinite(storedSpeed) && storedSpeed >= 5 && storedSpeed <= 240) {
+        state.replay.speed = storedSpeed;
+      }
+    } catch (error) { /* 存储不可用时用默认速度 */ }
+    if (ui.replaySpeed) {
+      ui.replaySpeed.addEventListener('input', () => {
+        state.replay.speed = clamp(Number(ui.replaySpeed.value) || 60, 5, 240);
+        try {
+          localStorage.setItem('netlab.replaySpeed', String(state.replay.speed));
+        } catch (error) { /* 忽略 */ }
+        updateReplayUI();
+      });
     }
     if (ui.btnPrecompute) {
       ui.btnPrecompute.addEventListener('click', async () => {
@@ -10154,30 +11494,43 @@
   }
 
   async function boot() {
+    await loadUiPrefs();
     initProject();
     initShell();
+    initAppearanceControls();
+    initSettingsWin();
+    initGuide();
+    initDocWin();
+    initModuleWindow();
+    initFloatingMenu();
+    initShellKeys();
     bindStaticEvents();
     bindCanvas();
     resizeGraph();
     resizeChart();
     resizePhase();
+    initInstruments();
 
     const observer = new ResizeObserver(() => {
       if (state.workspace === 'network') resizeGraph();
       resizeChart();
       if (state.workspace === 'fem') resizeFem();
       resizePhase();
+      resizeInstrument();
     });
     observer.observe(stage);
     const chartWrap = $('.chart-wrap');
     if (chartWrap) observer.observe(chartWrap);
     const phaseWrap = $('.phase-wrap');
     if (phaseWrap) observer.observe(phaseWrap);
+    $$('.scope-wrap').forEach((wrap) => observer.observe(wrap));
     window.addEventListener('resize', () => {
+      syncChromeEdges();
       resizeGraph();
       resizeChart();
       resizeFem();
       resizePhase();
+      resizeInstrument();
     });
     setInterval(() => {
       if (!ui.sessionClock) return;
@@ -10199,6 +11552,7 @@
       initStatusToggles();
       state.cursor = Math.max(0, Number(snapshot.sim?.cursor || 0) - 600);
       renderScenePanel();
+      await ensureDocs();
       renderSignalList();
       renderInspector();
       updateModeUI();
@@ -10210,7 +11564,8 @@
       }, 4000);
       state.booted = true;
       await maybeOfferRecovery();
-      await maybeAutostart();
+      await ensureStoppedOnBoot();
+      if (state.prefs.guide !== 'never') showGuide();
       if (!state.sim?.running) {
         toast('画布已就绪：空格运行，双击节点编辑，从右侧端口拖出连线', 'info', 4200);
       }
@@ -10234,6 +11589,962 @@
     worldToScreen,
     screenToWorld,
   };
+
+  /* ======================================================================
+   * 8.7 R30：外观令牌 / 设置窗与浮窗通用层 / 启动引导 / 文档中心 / 参数帮助卡
+   * ==================================================================== */
+
+  const THEME_TOKENS = {
+    light: {
+      ink: '#080a08', ink2: '#2b2a24', muted: '#77756d', dim: '#9a9487', line: '#aaa59a',
+      paper: '#eae5e1', panel: '#edebe4', surface: '#e2dccf', paper3: '#e2dccf',
+      accent: '#9b7247', accent2: '#565c46', accentSoft: '#e4d5c1',
+      red: '#8a4234', amber: '#a67d48', green: '#565c46',
+      gridDot: 'rgba(104, 94, 78, 0.20)', gridAxis: '#cfc6b5',
+    },
+    dark: {
+      ink: '#e0e3dc', ink2: '#c6cbc3', muted: '#a6b0b1', dim: '#7f8c8e', line: '#536166',
+      paper: '#11181b', panel: '#202a2f', surface: '#2a363b', paper3: '#1b2429',
+      accent: '#c5a16b', accent2: '#9aa88c', accentSoft: '#2e3b40',
+      red: '#c08a7d', amber: '#c5a16b', green: '#9aa88c',
+      gridDot: 'rgba(166, 176, 177, 0.16)', gridAxis: '#3a4a50',
+    },
+  };
+
+  const COLOR_ALIAS = {
+    '#a8541f': 'accent', '#1f5f5b': 'accent2', '#6f695f': 'muted', '#969083': 'dim',
+    '#11100e': 'ink', '#faf8f2': 'panel', '#f7f4ec': 'paper', '#fffdf8': 'surface',
+    '#f2efe7': 'paper', '#bcb3a1': 'line', '#cfc6b5': 'gridAxis', '#e7e1d5': 'paper3',
+  };
+
+  const CHART_PALETTE = [
+    '#a8541f', '#1f5f5b', '#7b8c3a', '#8a4a7c', '#4a6f8a',
+    '#b08a3e', '#8e2f24', '#5f6b52', '#7a4a2a', '#4d463c',
+  ];
+
+  const ACCENT_SWATCHES = ['', '#9b7247', '#565c46', '#3f5d6b', '#8a4234', '#6b6257'];
+  const PREF_CACHE_KEY = 'netlab.ui.prefs';
+
+  function themeKey() {
+    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+  }
+
+  function tokens() {
+    return THEME_TOKENS[themeKey()];
+  }
+
+  function mixHex(foreground, background, amount) {
+    const a = hexToRgb(foreground);
+    const b = hexToRgb(background);
+    if (!a || !b) return foreground;
+    const t = clamp(Number(amount) || 0, 0, 1);
+    const out = a.map((channel, index) => Math.round(channel + (b[index] - channel) * t));
+    return `rgb(${out[0]}, ${out[1]}, ${out[2]})`;
+  }
+
+  // 画布取色：把旧版硬编码色映射到当前主题令牌；未知色在深色下向纸面文字方向提亮。
+  const LEGACY_RGB = {
+    '168,84,31': 'accent',
+    '31,95,91': 'accent2',
+    '142,47,36': 'red',
+    '79,107,64': 'green',
+    '176,118,42': 'amber',
+  };
+
+  function C(value) {
+    const raw = String(value || '').trim();
+    const legacy = raw.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([0-9.]+))?\s*\)$/i);
+    if (legacy) {
+      const target = LEGACY_RGB[`${legacy[1]},${legacy[2]},${legacy[3]}`];
+      const hex = target ? tokens()[target] : '';
+      const rgb = hex ? hexToRgb(hex) : null;
+      if (rgb) return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${legacy[4] ?? 1})`;
+    }
+    const token = COLOR_ALIAS[raw.toLowerCase()];
+    if (token) return tokens()[token];
+    if (themeKey() === 'dark') return mixHex(raw, '#e0e3dc', 0.42);
+    return raw;
+  }
+
+  function applyAppearance() {
+    const root = document.documentElement;
+    const pref = state.prefs || {};
+    const theme = resolveTheme(pref.theme || 'system');
+    root.dataset.theme = theme;
+    root.dataset.motion = pref.motion || 'low';
+    root.dataset.perf = pref.perf || 'perf';
+    const pal = THEME_TOKENS[theme];
+    const accent = pref.accent || pal.accent;
+    root.style.setProperty('--accent', accent);
+    root.style.setProperty('--accent-rgb', hexToRgbString(accent));
+    root.style.setProperty('--accent-soft', mixHex(pal.paper, accent, 0.28));
+    root.style.setProperty('--accent-2', pal.accent2);
+    root.style.setProperty('--green', pal.green);
+    state.palette = pal;
+    if (ui.infoBar) ui.infoBar.style.display = pref.infobar === false ? 'none' : '';
+    syncPrefControls();
+    writePrefCache();
+    if (state.booted) {
+      requestDraw();
+      scheduleChartDraw();
+      drawPhase();
+      if (state.workspace === 'fem') {
+        drawFem();
+      }
+      if (ui.moduleWin && !ui.moduleWin.hidden) drawModulePreview();
+    }
+  }
+
+  function resolveTheme(pref) {
+    if (pref === 'light' || pref === 'dark') return pref;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  function readPrefCache() {
+    try {
+      return JSON.parse(window.localStorage.getItem(PREF_CACHE_KEY) || 'null');
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writePrefCache() {
+    try {
+      window.localStorage.setItem(PREF_CACHE_KEY, JSON.stringify(state.prefs || {}));
+    } catch (error) {
+      // 隐私模式忽略
+    }
+  }
+
+  async function loadUiPrefs() {
+    const cached = readPrefCache();
+    if (cached && typeof cached === 'object') state.prefs = { ...state.prefs, ...cached };
+    applyAppearance();
+    try {
+      const response = await jsonRequest('/api/settings', 'GET');
+      const stored = response.settings || {};
+      state.settings = stored;
+      state.prefs.theme = ['system', 'light', 'dark'].includes(stored.theme) ? stored.theme : 'system';
+      state.prefs.motion = ['off', 'low', 'med', 'high'].includes(stored.ui_motion) ? stored.ui_motion : 'low';
+      state.prefs.perf = ['perf', 'balanced', 'quality'].includes(stored.ui_perf) ? stored.ui_perf : 'perf';
+      state.prefs.accent = typeof stored.ui_accent === 'string' ? stored.ui_accent : '';
+      state.prefs.guide = stored.ui_guide === 'never' ? 'never' : 'always';
+      if (typeof stored.autosave_enabled === 'boolean') state.project.autosave = stored.autosave_enabled;
+      const interval = Number(stored.autosave_interval_seconds);
+      if (Number.isFinite(interval) && interval >= 5) state.project.autosaveInterval = interval * 1000;
+      applyAppearance();
+    } catch (error) {
+      // 后端离线时使用缓存
+    }
+    state.uiReady = true;
+  }
+
+  const PREF_SETTING_KEYS = { theme: 'theme', motion: 'ui_motion', perf: 'ui_perf', accent: 'ui_accent', guide: 'ui_guide' };
+
+  async function setPref(key, value) {
+    state.prefs[key] = value;
+    applyAppearance();
+    const settingKey = PREF_SETTING_KEYS[key];
+    if (!settingKey) return;
+    try {
+      const response = await jsonRequest('/api/settings', 'PATCH', { [settingKey]: value });
+      state.settings = response.settings || state.settings;
+    } catch (error) {
+      toast(`偏好保存失败：${error.message}`, 'warn', 3200);
+    }
+  }
+
+  function syncPrefControls() {
+    const prefs = state.prefs || {};
+    const paint = (host, value) => {
+      if (!host) return;
+      $$('button[data-value]', host).forEach((node) => {
+        const on = node.dataset.value === value;
+        node.classList.toggle('active', on);
+        node.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    };
+    paint($('#segTheme'), prefs.theme || 'system');
+    paint($('#segMotion'), prefs.motion || 'low');
+    paint($('#segPerf'), prefs.perf || 'perf');
+    paint($('#segInfoBar'), prefs.infobar === false ? 'off' : 'on');
+    paint($('#segGuide'), prefs.guide === 'never' ? 'never' : 'always');
+    paint($('#segAutosave'), state.project.autosave ? 'on' : 'off');
+    if ($('#selAutosaveInterval')) $('#selAutosaveInterval').value = String(Math.round(state.project.autosaveInterval / 1000));
+    const swatches = $('#accentSwatches');
+    if (swatches) {
+      $$('button', swatches).forEach((node) => {
+        node.classList.toggle('active', (node.dataset.value || '') === (prefs.accent || ''));
+      });
+    }
+    if (ui.guideNever) ui.guideNever.checked = prefs.guide === 'never';
+  }
+
+  function initAppearanceControls() {
+    $('#segTheme')?.addEventListener('click', (event) => {
+      const target = event.target.closest('button[data-value]');
+      if (target) void setPref('theme', target.dataset.value);
+    });
+    $('#segMotion')?.addEventListener('click', (event) => {
+      const target = event.target.closest('button[data-value]');
+      if (target) void setPref('motion', target.dataset.value);
+    });
+    $('#segPerf')?.addEventListener('click', (event) => {
+      const target = event.target.closest('button[data-value]');
+      if (target) void setPref('perf', target.dataset.value);
+    });
+    $('#segInfoBar')?.addEventListener('click', (event) => {
+      const target = event.target.closest('button[data-value]');
+      if (!target) return;
+      state.prefs.infobar = target.dataset.value !== 'off';
+      applyAppearance();
+    });
+    $('#segGuide')?.addEventListener('click', (event) => {
+      const target = event.target.closest('button[data-value]');
+      if (target) void setPref('guide', target.dataset.value);
+    });
+    $('#segAutosave')?.addEventListener('click', (event) => {
+      const target = event.target.closest('button[data-value]');
+      if (!target) return;
+      void saveAutosaveSetting({ autosave_enabled: target.dataset.value === 'on' });
+    });
+    $('#selAutosaveInterval')?.addEventListener('change', () => {
+      const seconds = Number($('#selAutosaveInterval').value);
+      if (Number.isFinite(seconds)) void saveAutosaveSetting({ autosave_interval_seconds: seconds });
+    });
+
+    const swatches = $('#accentSwatches');
+    if (swatches) {
+      for (const value of ACCENT_SWATCHES) {
+        const node = button(value ? '' : 'A', 'swatch', () => void setPref('accent', value));
+        node.dataset.value = value;
+        node.title = value ? `强调色 ${value}` : '默认强调色';
+        if (!value) node.classList.add('default');
+        node.style.background = value || 'linear-gradient(135deg, #9b7247 50%, #eae5e1 50%)';
+        swatches.appendChild(node);
+      }
+    }
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if ((state.prefs.theme || 'system') === 'system') applyAppearance();
+    });
+  }
+
+  async function saveAutosaveSetting(patch) {
+    state.project.autosave = patch.autosave_enabled !== undefined ? patch.autosave_enabled : state.project.autosave;
+    if (patch.autosave_interval_seconds) state.project.autosaveInterval = patch.autosave_interval_seconds * 1000;
+    syncPrefControls();
+    try {
+      const response = await jsonRequest('/api/settings', 'PATCH', patch);
+      state.settings = response.settings || state.settings;
+      toast(patch.autosave_enabled === false ? '自动保存已关闭' : patch.autosave_enabled ? '自动保存已开启' : '快照间隔已更新', 'ok', 2000);
+    } catch (error) {
+      toast(`设置保存失败：${error.message}`, 'error', 3600);
+    }
+  }
+
+  // ---- 设置窗（非模态内部浮窗） ---------------------------------------------
+  function openSettings(pane = 'project') {
+    if (!ui.settingsWin) return;
+    ui.settingsWin.hidden = false;
+    ui.settingsWin.classList.remove('minimized');
+    setSettingsPane(pane);
+    if (!ui.scenePane || !ui.scenePane.dataset.ready) renderScenePanel();
+    placeFloatWindow(ui.settingsWin, 'settingsGeo');
+    raiseFloatWindow(ui.settingsWin);
+  }
+
+  function closeSettings() {
+    if (!ui.settingsWin) return;
+    ui.settingsWin.classList.remove('minimized', 'maximized');
+    ui.settingsWin.hidden = true;
+  }
+
+  function setSettingsPane(pane) {
+    $$('#settingsWin .setwin-nav button[data-pane]').forEach((node) => {
+      node.classList.toggle('active', node.dataset.pane === pane);
+    });
+    $$('#settingsWin .setwin-pane').forEach((node) => {
+      node.classList.toggle('active', node.dataset.pane === pane);
+    });
+    const hint = $('#setWinHint');
+    if (hint) {
+      hint.textContent = { project: 'SETTINGS · 工程级，随 .netlab 保存', view: 'SETTINGS · 全局外观偏好', interact: 'SETTINGS · 全局交互偏好' }[pane] || '';
+    }
+    const main = ui.settingsWin?.querySelector('.setwin-main');
+    if (main) main.scrollTop = 0;
+  }
+
+  function initSettingsWin() {
+    $('#settingsWin .setwin-nav')?.addEventListener('click', (event) => {
+      const target = event.target.closest('button[data-pane]');
+      if (target) setSettingsPane(target.dataset.pane);
+    });
+    ui.settingsClose?.addEventListener('click', closeSettings);
+    $$('#settingsWin [data-doc]').forEach((node) => {
+      node.addEventListener('click', () => openDoc(node.dataset.doc));
+    });
+    initFloatWindow(ui.settingsWin, 'settingsGeo', { minWidth: 520, minHeight: 380 });
+  }
+
+  // ---- 启动引导 -------------------------------------------------------------
+  function showGuide(force = false) {
+    if (!ui.guide) return;
+    if (!force && state.prefs.guide === 'never') return;
+    state.guideShown = true;
+    document.body.classList.add('guide-open');
+    ui.guide.hidden = false;
+    selectGuideMode(state.guideMode || state.mode || 'signal');
+    syncPrefControls();
+  }
+
+  function hideGuide() {
+    if (!ui.guide) return;
+    ui.guide.hidden = true;
+    document.body.classList.remove('guide-open');
+  }
+
+  function selectGuideMode(mode) {
+    const picked = ['signal', 'circuit', 'vector'].includes(mode) ? mode : 'signal';
+    state.guideMode = picked;
+    $$('.guide-mode').forEach((node) => {
+      const on = node.dataset.mode === picked;
+      node.classList.toggle('selected', on);
+      node.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  }
+
+  async function enterGuideScene() {
+    const mode = state.guideMode || 'signal';
+    if (ui.guideNever?.checked) {
+      await setPref('guide', 'never');
+    } else if (state.prefs.guide === 'never') {
+      await setPref('guide', 'always');
+    }
+    hideGuide();
+    if (mode !== state.mode) {
+      await switchMode(mode, { skipConfirm: true });
+    } else {
+      toast(`${modeLabel(mode)}场景已就绪 · 空格运行`, 'ok', 2600);
+    }
+  }
+
+  function initGuide() {
+    if (!ui.guide) return;
+    $$('.guide-mode').forEach((node) => {
+      node.addEventListener('click', () => selectGuideMode(node.dataset.mode));
+    });
+    ui.guideEnter?.addEventListener('click', () => void enterGuideScene());
+    ui.guideClose?.addEventListener('click', hideGuide);
+    ui.guideDocs?.addEventListener('click', () => {
+      // 保持引导层不退出：文档窗浮在开始页之上，关闭文档后仍回到开始页
+      openDoc('quickstart');
+    });
+    ui.guideDemo?.addEventListener('click', () => {
+      hideGuide();
+      void loadTemplate('signal_chain', '信号链示例');
+    });
+    ui.guideOpenProject?.addEventListener('click', () => void openProject());
+    ui.guideSettings?.addEventListener('click', () => openSettings('view'));
+    $$('#guide [data-doc]').forEach((node) => {
+      node.addEventListener('click', (event) => {
+        event.stopPropagation();
+        openDoc(node.dataset.doc);
+      });
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !ui.guide.hidden && !event.target.closest('input, textarea, select')) {
+        event.preventDefault();
+        void enterGuideScene();
+      }
+    });
+  }
+
+  // ---- 文档中心 -------------------------------------------------------------
+  async function ensureDocs() {
+    if (state.docs && state.docs.length) return state.docs;
+    try {
+      const response = await jsonRequest('/api/docs', 'GET');
+      state.docs = Array.isArray(response.docs) ? response.docs : [];
+    } catch (error) {
+      state.docs = [];
+      toast(`文档读取失败：${error.message}`, 'warn', 4200);
+    }
+    return state.docs;
+  }
+
+  function docBySlug(slug) {
+    return (state.docs || []).find((doc) => doc.slug === slug) || null;
+  }
+
+  // ---- PlotKit 绘图窗口（非模态浮窗，iframe 懒加载） ----------------------
+  let plotkitReady = false;
+
+  function layoutPlotkitWindow() {
+    const win = $('#plotkitWin');
+    if (!win) return;
+    win.classList.toggle('docked', Boolean(state.plotkitDock));
+    const dock = $('#plotkitDock');
+    if (dock) dock.classList.toggle('on', Boolean(state.plotkitDock));
+    if (!state.plotkitDock) {
+      if (!win.hidden) placeFloatWindow(win, 'plotkitGeo');
+      return;
+    }
+    // 停靠 = 贴在画布区右侧，占 62% 宽、72% 高；跟随窗口尺寸变化
+    const stage = $('#graph')?.closest('.stage') || $('#graph')?.parentElement;
+    const rect = stage?.getBoundingClientRect();
+    if (!rect || rect.width < 240) return;
+    const width = Math.max(560, Math.round(rect.width * 0.72));
+    const height = Math.max(320, Math.round(rect.height * 0.78));
+    win.style.left = `${Math.round(rect.left + rect.width - width - 16)}px`;
+    win.style.top = `${Math.round(rect.top + 16)}px`;
+    win.style.width = `${width}px`;
+    win.style.height = `${height}px`;
+  }
+
+  function togglePlotkitDock() {
+    const win = $('#plotkitWin');
+    if (!win || win.hidden) return;
+    state.plotkitDock = !state.plotkitDock;
+    if (!state.plotkitDock) {
+      win.style.left = '';
+      win.style.top = '';
+      win.style.width = '';
+      win.style.height = '';
+    }
+    layoutPlotkitWindow();
+  }
+
+  function openPlotkit() {
+    const win = $('#plotkitWin');
+    if (!win) return;
+    const frame = $('#plotkitFrame');
+    if (frame && !plotkitReady) {
+      frame.src = '/plotkit/?embed=1';
+      plotkitReady = true;
+    }
+    win.hidden = false;
+    win.classList.remove('minimized');
+    layoutPlotkitWindow();
+    if (typeof raiseFloatWindow === 'function') raiseFloatWindow(win);
+  }
+
+  function closePlotkit() {
+    const win = $('#plotkitWin');
+    if (!win) return;
+    win.hidden = true;
+    win.classList.remove('minimized', 'maximized');
+    state.plotkitGeo = null;
+  }
+
+  async function openDoc(slug = 'quickstart') {
+    if (!ui.docWin) return;
+    await ensureDocs();
+    const doc = docBySlug(slug) || state.docs[0];
+    if (!doc) {
+      toast('文档目录为空，请检查后端安装', 'warn', 4000);
+      return;
+    }
+    state.docSlug = doc.slug;
+    ui.docWin.hidden = false;
+    ui.docWin.classList.remove('min');
+    document.body.classList.add('doc-open');
+    ui.docTitle.textContent = `NETLAB · ${doc.title}`;
+    renderDocNav();
+    renderDocBody(doc);
+    ui.docContent.parentElement.scrollTop = 0;
+    ui.docSearch.value = '';
+    ui.docResults.replaceChildren();
+    placeDocWindow();
+  }
+
+  function closeDoc() {
+    if (!ui.docWin) return;
+    ui.docWin.hidden = true;
+    ui.docWin.classList.remove('minimized', 'maximized');
+    document.body.classList.remove('doc-open');
+    state.docGeo = null;
+    if (state.guideShown && !ui.guide.hidden) syncPrefControls();
+  }
+
+  function renderDocNav() {
+    if (!ui.docNav) return;
+    ui.docNav.replaceChildren();
+    for (const doc of state.docs) {
+      const node = button(doc.title, 'docnav-item', () => {
+        state.docSlug = doc.slug;
+        ui.docTitle.textContent = `NETLAB · ${doc.title}`;
+        renderDocNav();
+        renderDocBody(doc);
+        ui.docResults.replaceChildren();
+        ui.docSearch.value = '';
+      });
+      node.classList.toggle('active', doc.slug === state.docSlug);
+      ui.docNav.appendChild(node);
+    }
+  }
+
+  function renderDocBody(doc) {
+    if (!ui.docContent) return;
+    const fragment = renderMarkdown(doc.text || '');
+    ui.docContent.replaceChildren(fragment);
+  }
+
+  function renderInline(text, target) {
+    const source = String(text || '');
+    const pattern = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
+    let cursor = 0;
+    let match;
+    while ((match = pattern.exec(source))) {
+      if (match.index > cursor) target.appendChild(document.createTextNode(source.slice(cursor, match.index)));
+      const token = match[0];
+      if (token.startsWith('**')) {
+        target.appendChild(el('b', null, token.slice(2, -2)));
+      } else if (token.startsWith('`')) {
+        target.appendChild(el('code', null, token.slice(1, -1)));
+      } else {
+        const label = token.slice(1, token.indexOf(']'));
+        target.appendChild(el('span', 'doc-link', label));
+      }
+      cursor = match.index + token.length;
+    }
+    if (cursor < source.length) target.appendChild(document.createTextNode(source.slice(cursor)));
+    return target;
+  }
+
+  function renderMarkdown(text) {
+    const fragment = document.createDocumentFragment();
+    const lines = String(text || '').replace(/\r\n/g, '\n').split('\n');
+    let index = 0;
+    let blockId = 0;
+    while (index < lines.length) {
+      const line = lines[index];
+      const fence = line.match(/^```(\w*)\s*$/);
+      if (fence) {
+        const code = [];
+        index += 1;
+        while (index < lines.length && !/^```\s*$/.test(lines[index])) {
+          code.push(lines[index]);
+          index += 1;
+        }
+        index += 1;
+        const pre = el('pre', 'doc-code');
+        pre.textContent = code.join('\n');
+        fragment.appendChild(pre);
+        continue;
+      }
+      const heading = line.match(/^(#{1,4})\s+(.*)$/);
+      if (heading) {
+        const level = heading[1].length;
+        const node = el(level === 1 ? 'h1' : level === 2 ? 'h2' : 'h3', 'doc-h');
+        node.id = `doc-h-${blockId++}`;
+        renderInline(heading[2], node);
+        fragment.appendChild(node);
+        index += 1;
+        continue;
+      }
+      if (/^\s*[-*]\s+/.test(line)) {
+        const list = el('ul', 'doc-list');
+        while (index < lines.length && /^\s*[-*]\s+/.test(lines[index])) {
+          const item = el('li');
+          renderInline(lines[index].replace(/^\s*[-*]\s+/, ''), item);
+          list.appendChild(item);
+          index += 1;
+        }
+        fragment.appendChild(list);
+        continue;
+      }
+      if (/^\s*\d+\.\s+/.test(line)) {
+        const list = el('ol', 'doc-list');
+        while (index < lines.length && /^\s*\d+\.\s+/.test(lines[index])) {
+          const item = el('li');
+          renderInline(lines[index].replace(/^\s*\d+\.\s+/, ''), item);
+          list.appendChild(item);
+          index += 1;
+        }
+        fragment.appendChild(list);
+        continue;
+      }
+      if (/^\s*>\s?/.test(line)) {
+        const quote = el('blockquote', 'doc-quote');
+        while (index < lines.length && /^\s*>\s?/.test(lines[index])) {
+          renderInline(lines[index].replace(/^\s*>\s?/, ''), quote);
+          quote.appendChild(document.createElement('br'));
+          index += 1;
+        }
+        fragment.appendChild(quote);
+        continue;
+      }
+      if (!line.trim()) {
+        index += 1;
+        continue;
+      }
+      const paragraph = el('p', 'doc-p');
+      const parts = [line];
+      index += 1;
+      while (index < lines.length && lines[index].trim() && !/^(#{1,4}\s|```|\s*[-*]\s|\s*\d+\.\s|>)/.test(lines[index])) {
+        parts.push(lines[index]);
+        index += 1;
+      }
+      renderInline(parts.join(' '), paragraph);
+      fragment.appendChild(paragraph);
+    }
+    return fragment;
+  }
+
+  function searchDocs(query) {
+    if (!ui.docResults) return;
+    const text = String(query || '').trim().toLowerCase();
+    ui.docResults.replaceChildren();
+    if (!text) {
+      ui.docMain.classList.remove('searching');
+      return;
+    }
+    ui.docMain.classList.add('searching');
+    const hits = [];
+    for (const doc of state.docs) {
+      const blocks = String(doc.text || '').split(/\n{2,}/);
+      for (const block of blocks) {
+        if (block.toLowerCase().includes(text)) {
+          hits.push({
+            slug: doc.slug,
+            title: doc.title,
+            snippet: block.replace(/[#>*`]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 150),
+          });
+          break;
+        }
+      }
+    }
+    if (!hits.length) {
+      ui.docResults.appendChild(div('doc-empty', '没有匹配的段落；试试「节点」「求解器」「快捷键」等关键词。'));
+      return;
+    }
+    for (const hit of hits) {
+      const node = button('', 'doc-hit', () => {
+        openDoc(hit.slug);
+        ui.docSearch.value = query;
+        searchDocs(query);
+      });
+      node.appendChild(el('b', null, hit.title));
+      node.appendChild(el('span', null, hit.snippet));
+      ui.docResults.appendChild(node);
+    }
+  }
+
+  // ---- 内部浮窗（文档中心 / 设置窗共用：拖动 · 缩放 · 最小化 · 最大化） -------
+  function placeFloatWindow(root, key) {
+    if (!root) return;
+    const geo = state[key];
+    if (!geo) {
+      root.classList.remove('moved');
+      root.style.left = '';
+      root.style.top = '';
+      root.style.width = '';
+      root.style.height = '';
+      return;
+    }
+    root.classList.add('moved');
+    root.style.left = `${geo.left}px`;
+    root.style.top = `${geo.top}px`;
+    root.style.width = `${geo.width}px`;
+    root.style.height = `${geo.height}px`;
+  }
+
+  function placeDocWindow() {
+    placeFloatWindow(ui.docWin, 'docGeo');
+  }
+
+  // 非模态浮窗互不阻塞：最近一次点击/打开的窗抬到最上层（qcard 140 仍在最上）
+  function raiseFloatWindow(root) {
+    if (!root) return;
+    const cur = state.floatZ || 131;
+    state.floatZ = cur >= 138 ? 132 : cur + 1;
+    root.style.zIndex = String(state.floatZ);
+  }
+
+  function toggleFloatMaximize(root, key) {
+    if (!root) return;
+    root.classList.toggle('maximized');
+    if (!root.classList.contains('maximized')) placeFloatWindow(root, key);
+  }
+
+  function initFloatWindow(root, key, spec = {}) {
+    if (!root) return;
+    const minWidth = spec.minWidth || 420;
+    const minHeight = spec.minHeight || 320;
+    root.addEventListener('pointerdown', () => raiseFloatWindow(root), true);
+    const head = root.querySelector('.floatwin-head');
+    if (head) {
+      let drag = null;
+      head.addEventListener('pointerdown', (event) => {
+        if (event.target.closest('button')) return;
+        if (root.classList.contains('maximized') || root.classList.contains('minimized')) return;
+        const rect = root.getBoundingClientRect();
+        drag = { dx: event.clientX - rect.left, dy: event.clientY - rect.top };
+        head.setPointerCapture(event.pointerId);
+      });
+      head.addEventListener('pointermove', (event) => {
+        if (!drag) return;
+        const rect = root.getBoundingClientRect();
+        // 标题栏始终留在视口内，且窗口底边不越界（否则右下角缩放柄会移到屏幕外）
+        const maxTop = Math.max(40, window.innerHeight - rect.height - 8);
+        const maxLeft = Math.max(8, window.innerWidth - 140);
+        state[key] = {
+          left: clamp(event.clientX - drag.dx, 8, maxLeft),
+          top: clamp(event.clientY - drag.dy, 40, maxTop),
+          width: rect.width,
+          height: rect.height,
+        };
+        placeFloatWindow(root, key);
+      });
+      const stopDrag = () => { drag = null; };
+      head.addEventListener('pointerup', stopDrag);
+      head.addEventListener('pointercancel', stopDrag);
+      head.addEventListener('dblclick', (event) => {
+        if (event.target.closest('button')) return;
+        toggleFloatMaximize(root, key);
+      });
+    }
+    root.querySelector('.floatwin-min')?.addEventListener('click', () => {
+      root.classList.toggle('minimized');
+    });
+    root.querySelector('.floatwin-max')?.addEventListener('click', () => toggleFloatMaximize(root, key));
+    const grip = root.querySelector('.floatwin-resize');
+    if (grip) {
+      let resize = null;
+      grip.addEventListener('pointerdown', (event) => {
+        if (root.classList.contains('maximized') || root.classList.contains('minimized')) return;
+        const rect = root.getBoundingClientRect();
+        resize = { x: event.clientX, y: event.clientY, w: rect.width, h: rect.height, left: rect.left, top: rect.top };
+        grip.setPointerCapture(event.pointerId);
+      });
+      grip.addEventListener('pointermove', (event) => {
+        if (!resize) return;
+        state[key] = {
+          left: resize.left,
+          top: resize.top,
+          width: clamp(resize.w + event.clientX - resize.x, minWidth, Math.max(minWidth, window.innerWidth - resize.left - 12)),
+          height: clamp(resize.h + event.clientY - resize.y, minHeight, Math.max(minHeight, window.innerHeight - resize.top - 12)),
+        };
+        placeFloatWindow(root, key);
+      });
+      const stopResize = () => { resize = null; };
+      grip.addEventListener('pointerup', stopResize);
+      grip.addEventListener('pointercancel', stopResize);
+    }
+  }
+
+  function initDocWin() {
+    if (!ui.docWin) return;
+    ui.docWin.querySelector('#docWinClose')?.addEventListener('click', closeDoc);
+    ui.docSearch?.addEventListener('input', () => searchDocs(ui.docSearch.value));
+    ui.docSearch?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        const first = ui.docResults.querySelector('.doc-hit');
+        if (first) first.click();
+      }
+      if (event.key === 'Escape') {
+        ui.docSearch.value = '';
+        searchDocs('');
+      }
+    });
+    initFloatWindow(ui.docWin, 'docGeo', { minWidth: 420, minHeight: 320 });
+    const plotkitWin = $('#plotkitWin');
+    if (plotkitWin) {
+      initFloatWindow(plotkitWin, 'plotkitGeo', { minWidth: 720, minHeight: 480 });
+      $('#plotkitWinClose')?.addEventListener('click', closePlotkit);
+      $('#plotkitDock')?.addEventListener('click', togglePlotkitDock);
+      window.addEventListener('resize', () => {
+        if (state.plotkitDock && !plotkitWin.hidden) layoutPlotkitWindow();
+      });
+      $('#btnOpenPlotkit')?.addEventListener('click', openPlotkit);
+    }
+  }
+
+  // ---- 参数 ? 卡片 -----------------------------------------------------------
+  function hideHelpCard() {
+    if (ui.qcard) ui.qcard.hidden = true;
+  }
+
+  function showHelpCard(anchor, info) {
+    if (!ui.qcard) return;
+    ui.qcard.replaceChildren();
+    const head = div('qcard-head');
+    head.appendChild(el('b', null, info.title || '参数说明'));
+    const close = button('✕', 'qcard-close', hideHelpCard);
+    head.appendChild(close);
+    ui.qcard.appendChild(head);
+
+    const dl = el('dl');
+    const sections = [
+      ['说明', info.description || '该参数没有额外说明。'],
+      ['取值', info.range || '—'],
+      ['单位与默认', `${info.unit || '无量纲'} · 默认 ${info.def === undefined || info.def === null || info.def === '' ? '—' : info.def}`],
+      ['公式 / 实现', info.formula || '—'],
+    ];
+    for (const [label, value] of sections) {
+      dl.appendChild(el('dt', null, label));
+      dl.appendChild(el('dd', null, value));
+    }
+    ui.qcard.appendChild(dl);
+    if (info.source) {
+      const actions = div('qcard-actions');
+      const jump = button('查看实现页 →', 'btn tiny', () => {
+        hideHelpCard();
+        switchTab(info.role === 'edge' ? 'edge-fn' : 'node-fn');
+        toast(info.source, 'info', 5200);
+      });
+      actions.appendChild(jump);
+      ui.qcard.appendChild(actions);
+    }
+    ui.qcard.hidden = false;
+    const rect = anchor.getBoundingClientRect();
+    const width = 320;
+    const left = clamp(rect.right + 10, 12, window.innerWidth - width - 12);
+    const top = clamp(rect.top - 8, 56, window.innerHeight - 240);
+    ui.qcard.style.left = `${left}px`;
+    ui.qcard.style.top = `${top}px`;
+  }
+
+  function attachParamHelp(cell, param, spec, role) {
+    if (!cell) return;
+    const ask = button('?', 'qbtn', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      showHelpCard(ask, {
+        title: `${param.label || param.key}（${param.key}）`,
+        description: param.help,
+        range: paramRangeText(param),
+        unit: param.unit,
+        def: param.default,
+        formula: spec?.formula || '',
+        source: spec?.source_path || '',
+        role,
+      });
+    });
+    ask.title = '四段式参数说明（说明 / 取值 / 单位与默认 / 公式）';
+    ask.setAttribute('aria-label', `查看 ${param.key} 的说明`);
+    cell.appendChild(ask);
+  }
+
+  // ---- 启动时保持停止 --------------------------------------------------------
+  async function ensureStoppedOnBoot() {
+    try {
+      if (state.sim?.running) await networkControl('pause');
+      if (state.fem?.running) await femControl('pause');
+    } catch (error) {
+      // 保持静默；状态刷新会纠正按钮
+    }
+  }
+
+  // ---- 键盘：文档与设置窗 ----------------------------------------------------
+  function initShellKeys() {
+    document.addEventListener('keydown', (event) => {
+      // 合成事件可能把 document 当 target（无 closest），统一兜一层
+      const target = event.target instanceof Element ? event.target : null;
+      const typing = target?.closest('input, textarea, select, [contenteditable="true"]');
+      if (event.key === 'Escape') {
+        if (floatingMenu) {
+          closeFloatingMenu();
+          event.preventDefault();
+          return;
+        }
+        if (ui.qcard && !ui.qcard.hidden) {
+          hideHelpCard();
+          event.preventDefault();
+          return;
+        }
+        if (ui.moduleWin && !ui.moduleWin.hidden) {
+          ui.moduleWin.hidden = true;
+          event.preventDefault();
+          return;
+        }
+        if (ui.settingsWin && !ui.settingsWin.hidden) {
+          closeSettings();
+          event.preventDefault();
+          return;
+        }
+        if (ui.docWin && !ui.docWin.hidden) {
+          closeDoc();
+          event.preventDefault();
+        }
+        return;
+      }
+      if (typing) return;
+      const key = event.key.toLowerCase();
+      if (event.ctrlKey && key === 'k') {
+        event.preventDefault();
+        openDoc(state.docSlug || 'quickstart');
+        setTimeout(() => ui.docSearch?.focus(), 60);
+        return;
+      }
+      if (key === 'h') {
+        event.preventDefault();
+        openDoc('quickstart');
+      }
+      if (event.key === '?') {
+        event.preventDefault();
+        openDoc('shortcuts');
+      }
+    });
+    document.addEventListener('click', (event) => {
+      if (ui.qcard && !ui.qcard.hidden && !event.target.closest('#qcard, .qbtn')) hideHelpCard();
+    });
+  }
+
+  function hexToRgb(hex) {
+    const text = String(hex || '').trim().replace(/^#/, '');
+    if (/^[0-9a-fA-F]{3}$/.test(text)) {
+      return [0, 1, 2].map((index) => parseInt(text[index] + text[index], 16));
+    }
+    if (!/^[0-9a-fA-F]{6}$/.test(text)) return null;
+    return [0, 2, 4].map((index) => parseInt(text.slice(index, index + 2), 16));
+  }
+
+  function hexToRgbString(hex) {
+    const rgb = hexToRgb(hex);
+    return rgb ? rgb.join(', ') : '155, 114, 71';
+  }
+
+  function typeLabelHelp(label, param) {
+    if (!label || !param) return;
+    const ask = button('?', 'qbtn inline', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      showHelpCard(ask, {
+        title: `${param.label || param.key}（${param.key}）`,
+        description: param.help,
+        range: paramRangeText(param),
+        unit: param.unit,
+        def: param.default,
+        role: state.selection?.type === 'edge' ? 'edge' : 'node',
+      });
+    });
+    ask.title = '参数说明：说明 / 取值 / 单位与默认';
+    label.appendChild(ask);
+  }
+
+  function openDocSearch() {
+    openDoc(state.docSlug || 'quickstart');
+    setTimeout(() => {
+      if (ui.docSearch) {
+        ui.docSearch.focus();
+        ui.docSearch.select();
+      }
+    }, 90);
+  }
+
+  function syncFnRoleToSelection() {
+    const type = state.selection?.type;
+    if (type !== 'node' && type !== 'edge') return;
+    const role = type === 'edge' ? 'edge' : 'node';
+    if (state.fnRole === role) return;
+    state.fnRole = role;
+    state.specKind = '';
+    $$('#panel .group-subnav [data-fnrole]').forEach((node) => {
+      node.classList.toggle('active', node.dataset.fnrole === role);
+    });
+    if ($('.panel-group.active')?.dataset.group === 'fn') renderSpecPane();
+  }
 
   boot();
 })();

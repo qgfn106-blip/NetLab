@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light" data-motion="low" data-perf="perf">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>RHINE LAB · NETLAB</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f3f0e8'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23111111' stroke-width='1.4'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%23a8541f'/%3E%3Cpath d='M16 3v5M16 24v5M3 16h5M24 16h5' stroke='%23111111'/%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="/static/style.css?v=3.8.13" />
+  <title>Netlab · 可解释仿真环境</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23eae5e1'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23080a08' stroke-width='1.4'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%239b7247'/%3E%3Cpath d='M16 3v5M16 24v5M3 16h5M24 16h5' stroke='%23080a08'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/static/style.css?v=3.15.0" />
 </head>
 <body>
   <header id="topbar">
@@ -14,8 +14,8 @@
         <span></span><i></i>
       </div>
       <div class="brand-text">
-        <h1>RHINE LAB <em>NETLAB</em></h1>
-        <p>SYNTHESIZE INFORMATION · ANALYSIS OS</p>
+        <h1>NETLAB <em>工作台</em></h1>
+        <p>SIGNAL FLOW · CIRCUIT · VECTOR · FEM</p>
       </div>
     </div>
 
@@ -47,8 +47,7 @@
 
     <div class="spacer"></div>
     <div class="session-meta"><i></i><span id="sessionClock">LOCAL SESSION</span></div>
-    <button id="btnHelp" class="btn ghost" title="快捷键与操作说明">帮助</button>
-    <button id="btnPanel" class="btn ghost" title="收起 / 展开右侧面板">面板</button>
+    <button id="btnHelp" class="btn ghost" title="快速上手与文档（H）">帮助</button>
     <button id="btnExit" class="btn ghost exit" title="关闭服务进程并释放端口">退出</button>
   </header>
 
@@ -58,9 +57,12 @@
       <span data-info="project">未命名工程</span><i>·</i>
       <span data-info="network">网络 1</span><i>·</i>
       <span data-info="mode">信号流</span><i>·</i>
+      <span data-info="counts">节点 0 · 连线 0</span><i>·</i>
+      <span data-info="dt">dt 10 ms</span><i>·</i>
       <span data-info="time">t 0.000 s</span><i>·</i>
-      <span data-info="steps">step 0</span>
-      <span data-info="run" class="run-state">停止</span>
+      <span data-info="steps">step 0</span><i>·</i>
+      <span data-info="alerts" class="alerts">告警 0</span>
+      <span data-info="run" class="run-state stopped">停止</span>
     </div>
   </nav>
 
@@ -68,7 +70,6 @@
     <aside id="networks" class="networks" aria-label="网络列表">
       <header class="networks-head">
         <strong>网络</strong>
-        <button id="btnNetCollapse" class="icon-btn" title="收起 / 展开网络栏" aria-label="收起或展开网络栏">⟨</button>
       </header>
       <div id="networkList" class="network-list" role="listbox" aria-label="工程内的网络"></div>
       <footer class="networks-foot">
@@ -110,81 +111,169 @@
       <div id="linkMenu" class="popup hidden" role="menu"></div>
     </section>
 
+    <button type="button" id="netHanger" class="hanger hanger-net" title="收起网络栏" aria-label="收起或展开网络栏" aria-expanded="true">‹</button>
     <aside id="panel" aria-label="侧边面板">
-      <nav class="tabs" role="tablist">
-        <button class="tab active" data-tab="inspect" role="tab">检查器</button>
-        <button class="tab" data-tab="node-fn" role="tab" title="节点函数：公式、源码与参数">节点函数</button>
-        <button class="tab" data-tab="edge-fn" role="tab" title="连接函数：传递公式、源码与参数">连接函数</button>
-        <button class="tab" data-tab="ext" role="tab" title="Python 自定义扩展">扩展</button>
-        <button class="tab" data-tab="blocks" role="tab" title="模块库：封装、实例化与版本">模块</button>
-        <button class="tab" data-tab="analysis" role="tab" title="分析（旁路）：指标/频谱/周期/数学形式/CSV">分析</button>
-        <button class="tab" data-tab="chart" role="tab">信号</button>
-        <button class="tab" data-tab="vector" role="tab">相图</button>
-        <button class="tab" data-tab="scene" role="tab">工程</button>
-        <button class="tab" data-tab="fem" role="tab">场</button>
+      <nav class="panel-nav" role="tablist" aria-label="面板分组">
+        <button class="panel-tab active" data-group="inspect" role="tab">检查器</button>
+        <button class="panel-tab" data-group="fn" role="tab" title="函数：节点函数与连接函数">函数</button>
+        <button class="panel-tab" data-group="modules" role="tab" title="模块与扩展">模块与扩展</button>
+        <button class="panel-tab" data-group="analysis" role="tab" title="分析：信号、相图与旁路分析">分析</button>
       </nav>
+      <div id="panelResize" class="panel-resize" title="拖动调整面板宽度"></div>
       <div class="panel-body">
-        <section id="tab-inspect" class="tab-pane active"></section>
-        <section id="tab-spec" class="tab-pane"></section>
-        <section id="tab-ext" class="tab-pane"></section>
-        <section id="tab-blocks" class="tab-pane"></section>
-        <section id="tab-analysis" class="tab-pane"></section>
-
-        <section id="tab-chart" class="tab-pane">
-          <div class="chart-toolbar">
-            <label class="inline-field">
-              <span>时间窗</span>
-              <input id="chartWindow" type="number" min="0.1" max="120" step="0.5" value="5" />
-              <em>s</em>
-            </label>
-            <label class="inline-field chart-replay-field">
-              <span>回放</span>
-              <input id="chartTimeline" type="range" min="0" max="0" step="1" value="0" />
-              <em id="chartReplayTime">—</em>
-            </label>
-            <button id="btnPrecompute" class="btn tiny">预计算 0→T…</button>
-            <button id="btnReplay" class="btn tiny">▶ 回放</button>
-            <label class="inline-field">
-              <input id="chartLoop" type="checkbox" />
-              <span>循环</span>
-            </label>
-            <button id="btnLive" class="btn tiny">回到实时</button>
-            <button id="btnResolve" class="btn tiny" disabled>重新求解</button>
-            <button id="btnClearChart" class="btn tiny">清空轨迹</button>
-            <span id="chartStatus" class="chart-status"></span>
-          </div>
-          <div class="signal-search">
-            <input id="signalSearch" type="search" placeholder="筛选信号，例如 voltage / x / u" />
-          </div>
-          <div id="signalList" class="signal-list" aria-label="可选信号"></div>
-          <div class="chart-wrap"><canvas id="chart"></canvas></div>
-          <div id="legend" class="legend"></div>
+        <section class="panel-group active" data-group="inspect">
+          <div id="tab-inspect" class="tab-pane"></div>
         </section>
 
-        <section id="tab-vector" class="tab-pane">
-          <div class="vector-toolbar">
-            <label class="inline-field">
-              <span>矢量节点</span>
-              <select id="vectorNode"></select>
-            </label>
-            <label class="inline-field">
-              <span>轨迹长度</span>
-              <input id="vectorTrail" type="number" min="20" max="1200" step="20" value="900" />
-              <em>帧</em>
-            </label>
+        <section class="panel-group" data-group="fn">
+          <div class="group-subnav">
+            <button type="button" data-fnrole="node" class="active">节点函数</button>
+            <button type="button" data-fnrole="edge">连接函数</button>
+            <span class="subnav-note" id="fnNote">选中节点或连线</span>
           </div>
-          <div class="phase-wrap"><canvas id="phase"></canvas></div>
-          <div id="phaseReadout" class="phase-readout">运行仿真后显示二维轨迹。</div>
-          <p class="help">相图读取节点数据中的 <code>x / y</code> 或 <code>vx / vy</code>。矢量模式下，非线性振子会直接产生这些字段。</p>
+          <div id="tab-spec" class="tab-pane"></div>
         </section>
 
-        <section id="tab-scene" class="tab-pane"></section>
+        <section class="panel-group" data-group="modules">
+          <div class="group-subnav">
+            <button type="button" data-sub="blocks" class="active">模块</button>
+            <button type="button" data-sub="ext">扩展</button>
+            <span class="subnav-note">.block / Python</span>
+          </div>
+          <div id="tab-blocks" class="tab-pane stack-pane"></div>
+          <div id="tab-ext" class="tab-pane stack-pane"></div>
+        </section>
 
-        <section id="tab-fem" class="tab-pane">
-          <div id="femPanel"></div>
+        <section class="panel-group" data-group="analysis">
+          <div class="group-subnav">
+            <button type="button" data-sub="chart" class="active">信号</button>
+            <button type="button" data-sub="vector">相图</button>
+            <button type="button" data-sub="analysis">旁路分析</button>
+            <button type="button" data-sub="inst">仪器</button>
+            <button type="button" data-sub="plotkit">绘图</button>
+          </div>
+          <div id="tab-chart" class="tab-pane">
+            <div class="chart-toolbar">
+              <label class="inline-field">
+                <span>时间窗</span>
+                <input id="chartWindow" type="number" min="0.1" max="120" step="0.5" value="5" />
+                <em>s</em>
+              </label>
+              <label class="inline-field chart-replay-field">
+                <span>回放</span>
+                <input id="chartTimeline" type="range" min="0" max="0" step="1" value="0" />
+                <em id="chartReplayTime">—</em>
+              </label>
+              <button id="btnPrecompute" class="btn tiny">预计算 0→T…</button>
+              <button id="btnReplay" class="btn tiny">▶ 回放</button>
+              <label class="inline-field replay-speed-field" title="回放速度：每秒播放多少帧（越大越快）">
+                <span>速度</span>
+                <input id="replaySpeed" type="range" min="5" max="240" step="5" value="60" />
+                <em id="replaySpeedVal">60/s</em>
+              </label>
+              <label class="inline-field">
+                <input id="chartLoop" type="checkbox" />
+                <span>循环</span>
+              </label>
+              <button id="btnLive" class="btn tiny">回到实时</button>
+              <button id="btnResolve" class="btn tiny" disabled>重新求解</button>
+              <button id="btnClearChart" class="btn tiny">清空轨迹</button>
+              <span id="chartStatus" class="chart-status"></span>
+            </div>
+            <div class="signal-search">
+              <input id="signalSearch" type="search" placeholder="筛选信号，例如 voltage / x / u" />
+            </div>
+            <div id="signalList" class="signal-list" aria-label="可选信号"></div>
+            <div class="chart-wrap"><canvas id="chart"></canvas></div>
+            <div id="legend" class="legend"></div>
+          </div>
+          <div id="tab-vector" class="tab-pane">
+            <div class="vector-toolbar">
+              <label class="inline-field">
+                <span>矢量节点</span>
+                <select id="vectorNode"></select>
+              </label>
+              <label class="inline-field">
+                <span>轨迹长度</span>
+                <input id="vectorTrail" type="number" min="20" max="1200" step="20" value="900" />
+                <em>帧</em>
+              </label>
+            </div>
+            <div class="phase-wrap"><canvas id="phase"></canvas></div>
+            <div id="phaseReadout" class="phase-readout">运行仿真后显示二维轨迹。</div>
+            <p class="help">相图读取节点数据中的 <code>x / y</code> 或 <code>vx / vy</code>。矢量模式下，非线性振子会直接产生这些字段。</p>
+          </div>
+          <div id="tab-inst" class="tab-pane">
+            <div class="inst-toolbar">
+              <label class="inline-field">
+                <span>时间窗</span>
+                <input id="instWindow" type="number" min="0.1" max="120" step="0.5" value="5" />
+                <em>s</em>
+              </label>
+              <span id="instStatus" class="chart-status"></span>
+            </div>
+
+            <section class="inst-block">
+              <h4>万用表 <em id="instMeterHint">探针旁路读数，不改变电路</em></h4>
+              <label class="inline-field wide">
+                <span>测量</span>
+                <select id="instMeterKey"></select>
+              </label>
+              <div class="inst-readout">
+                <span><em>实时</em><b id="instValNow">—</b></span>
+                <span><em>平均</em><b id="instValMean">—</b></span>
+                <span><em>有效值</em><b id="instValRms">—</b></span>
+                <span><em>峰峰值</em><b id="instValPP">—</b></span>
+                <span><em>最大 / 最小</em><b id="instValMinMax">—</b></span>
+              </div>
+            </section>
+
+            <section class="inst-block">
+              <h4>示波器 <em>1–4 通道 · 时域同刻度</em></h4>
+              <div class="inst-channels">
+                <label class="inst-ch"><i class="dot" data-ch="1"></i><span>CH1</span><select id="instCh1"></select></label>
+                <label class="inst-ch"><i class="dot" data-ch="2"></i><span>CH2</span><select id="instCh2"></select></label>
+                <label class="inst-ch"><i class="dot" data-ch="3"></i><span>CH3</span><select id="instCh3"></select></label>
+                <label class="inst-ch"><i class="dot" data-ch="4"></i><span>CH4</span><select id="instCh4"></select></label>
+              </div>
+              <div class="scope-wrap"><canvas id="scope"></canvas></div>
+              <div id="instLegend" class="legend"></div>
+            </section>
+
+            <section class="inst-block">
+              <h4>李萨如 <em>X / Y 双通道轨迹</em></h4>
+              <div class="inst-channels">
+                <label class="inline-field"><span>X</span><select id="instLX"></select></label>
+                <label class="inline-field"><span>Y</span><select id="instLY"></select></label>
+                <label class="inline-field">
+                  <span>轨迹</span>
+                  <input id="instTrail" type="number" min="20" max="4000" step="20" value="600" />
+                  <em>帧</em>
+                </label>
+              </div>
+              <div class="scope-wrap"><canvas id="lissajous"></canvas></div>
+              <p class="help">两路同频时呈闭合椭圆：倾斜方向反映相位差正负，长短轴比反映幅值比。回放时按当前帧裁剪轨迹。</p>
+            </section>
+          </div>
+          <div id="tab-plotkit" class="tab-pane">
+            <div class="plotkit-hint">
+              <p>绘图在独立窗口里打开，不挤在侧栏。</p>
+              <p class="muted">同一份数据：PlotKit 负责交互，matplotlib 负责正式出图。</p>
+              <button type="button" id="btnOpenPlotkit" class="ghost">打开绘图窗口</button>
+            </div>
+          </div>
+          <div id="tab-analysis" class="tab-pane stack-pane"></div>
+        </section>
+
+        <section class="panel-group" data-group="fem">
+          <div class="group-subnav"><span class="subnav-note">FIELD · Q4 FEM</span></div>
+          <div id="tab-fem" class="tab-pane stack-pane">
+            <div id="femPanel"></div>
+          </div>
         </section>
       </div>
     </aside>
+    <button type="button" id="panelHanger" class="hanger hanger-panel" title="收起右侧面板" aria-label="收起或展开右侧面板" aria-expanded="true">›</button>
   </main>
 
   <footer id="statusbar">
@@ -204,12 +293,252 @@
     <span id="statusLimits">节点 0 / 400</span>
   </footer>
 
+  <!-- 设置窗（非模态内部浮窗，R30 / D61） -->
+  <div id="settingsWin" class="floatwin setwin" hidden role="dialog" aria-label="设置">
+    <header class="floatwin-head">
+      <b>设置</b>
+      <span class="floatwin-hint" id="setWinHint">SETTINGS · 即时生效</span>
+      <button type="button" class="floatwin-min" title="最小化到右下角">—</button>
+      <button type="button" class="floatwin-max" title="最大化 / 还原">▢</button>
+      <button type="button" id="setWinClose" title="关闭设置（Esc）">✕</button>
+    </header>
+    <div class="floatwin-body">
+      <nav class="setwin-nav" aria-label="设置分组">
+        <span class="nav-label">SETTINGS</span>
+        <button type="button" data-pane="project" class="active"><b>工程设置</b><em>工作模式 / 模板 / 文件 / 画布网格</em></button>
+        <button type="button" data-pane="view"><b>视图与外观</b><em>主题 / 强调色 / 动效 / 性能</em></button>
+        <button type="button" data-pane="interact"><b>交互与文档</b><em>启动引导 / 自动保存 / 快捷键</em></button>
+      </nav>
+      <div class="setwin-main">
+        <div class="setwin-pane active" data-pane="project">
+          <div id="settingsScene"></div>
+        </div>
+        <div class="setwin-pane" data-pane="view">
+        <div class="set-row">
+          <label>外观主题<em>跟随系统会随系统深浅色切换</em></label>
+          <div class="set-control"><div class="seg" id="segTheme">
+            <button type="button" data-value="system">跟随系统</button>
+            <button type="button" data-value="light">浅色</button>
+            <button type="button" data-value="dark">深色</button>
+          </div></div>
+        </div>
+        <div class="set-row">
+          <label>强调色<em>仅影响界面主色，不改图纸符号</em></label>
+          <div class="set-control"><div class="swatches" id="accentSwatches"></div></div>
+        </div>
+        <div class="set-row">
+          <label>动效程度<em>面板滑入、页签与帮助卡片的时长与位移</em></label>
+          <div class="set-control"><div class="seg" id="segMotion">
+            <button type="button" data-value="off">关</button>
+            <button type="button" data-value="low">低</button>
+            <button type="button" data-value="med">中</button>
+            <button type="button" data-value="high">高</button>
+          </div></div>
+        </div>
+        <div class="set-row">
+          <label>UI 性能<em>性能优先会关闭模糊与阴影、限制画布像素比</em></label>
+          <div class="set-control"><div class="seg" id="segPerf">
+            <button type="button" data-value="perf">性能</button>
+            <button type="button" data-value="balanced">平衡</button>
+            <button type="button" data-value="quality">画质</button>
+          </div></div>
+        </div>
+        <div class="set-row">
+          <label>顶部信息条<em>菜单栏右侧的工程/网络/运行摘要</em></label>
+          <div class="set-control"><div class="seg" id="segInfoBar">
+            <button type="button" data-value="on">显示</button>
+            <button type="button" data-value="off">隐藏</button>
+          </div></div>
+        </div>
+        <p class="help">主题、强调色、动效与性能是「跟人走」的全局偏好（存 settings.json）；图纸风格、GB 符号、网格与节点样式属于工程，随工程保存。</p>
+      </div>
+      <div class="setwin-pane" data-pane="interact">
+        <div class="set-row">
+          <label>启动时显示引导<em>每次启动先选择工程场景；关闭后直接进入空白场景</em></label>
+          <div class="set-control"><div class="seg" id="segGuide">
+            <button type="button" data-value="always">显示</button>
+            <button type="button" data-value="never">不再显示</button>
+          </div></div>
+        </div>
+        <div class="set-row">
+          <label>自动保存<em>按间隔写工程 backups/ 快照，不影响正本</em></label>
+          <div class="set-control"><div class="seg" id="segAutosave">
+            <button type="button" data-value="on">开</button>
+            <button type="button" data-value="off">关</button>
+          </div></div>
+        </div>
+        <div class="set-row">
+          <label>快照间隔<em>自动保存写盘的最小间隔</em></label>
+          <div class="set-control">
+            <select id="selAutosaveInterval">
+              <option value="30">30 秒</option>
+              <option value="60">60 秒</option>
+              <option value="120">2 分钟</option>
+              <option value="300">5 分钟</option>
+            </select>
+          </div>
+        </div>
+        <div class="set-row">
+          <label>操作说明<em>快捷键、画布手势与常用工作流</em></label>
+          <div class="set-control">
+            <button type="button" class="btn tiny" data-doc="shortcuts">打开快捷键</button>
+            <button type="button" class="btn tiny" data-doc="quickstart">快速上手</button>
+          </div>
+        </div>
+        <p class="help">启动后仿真始终是停止状态；运行播放需要手动点击「运行」（空格）。</p>
+      </div>
+      </div>
+    </div>
+    <div class="floatwin-resize" id="setWinResize" title="拖动调整大小"></div>
+  </div>
+
+  <!-- 启动引导（R30-1） -->
+  <div id="guide" hidden>
+    <div class="guide-card">
+      <header class="guide-top">
+        <div>
+          <div class="guide-eyebrow">LOCAL SESSION · 2026 · 单机运行</div>
+          <h1 class="guide-mark">
+            <span class="gm-l1">NETLAB</span>
+            <span class="gm-l2">信号流 · 电路 · 矢量场仿真</span>
+            <span class="gm-l3">ANALYSIS <em>OS</em></span>
+          </h1>
+          <p class="guide-sub">网络用节点与连接描述，运行时按拓扑或节点电压法求解；所有曲线都能追溯到公式与源码。选一个工作模式开始，随时可从「设置 → 工程」切换。</p>
+        </div>
+        <button type="button" class="guide-close" id="guideClose">关闭 ✕</button>
+      </header>
+
+      <div class="guide-sec-head">
+        <h2>工作模式</h2>
+        <span>选中后进入该模式的空白场景 · 随时可从菜单重新选择</span>
+      </div>
+      <div class="guide-modes" role="radiogroup" aria-label="工作模式">
+        <button type="button" class="guide-mode selected" data-mode="signal" role="radio" aria-checked="true">
+          <span class="gm-idx">01 / SIGNAL FLOW</span>
+          <h3>信号流</h3>
+          <p>按拓扑顺序逐段传播字典数据，适合控制系统框图、滤波器与非线性动态的方波/阶跃观察。</p>
+          <ul><li>字典信号 · 拓扑传播</li><li>传递函数 / 频域分析</li><li>时域曲线与相图</li></ul>
+        </button>
+        <button type="button" class="guide-mode" data-mode="circuit" role="radio" aria-checked="false">
+          <span class="gm-idx">02 / CIRCUIT</span>
+          <h3>电路</h3>
+          <p>节点电压法（MNA）求解，配合 GB 符号、器件引脚与导线工具，绘制正规电气原理图。</p>
+          <ul><li>MNA · 牛顿迭代</li><li>GB/T 4728 风格符号</li><li>工作点 / AC 扫描</li></ul>
+        </button>
+        <button type="button" class="guide-mode" data-mode="vector" role="radio" aria-checked="false">
+          <span class="gm-idx">03 / VECTOR</span>
+          <h3>矢量</h3>
+          <p>非线性动态源、二维矢量连接与相图；适合振子、场与连续状态的可视化实验。</p>
+          <ul><li>二维矢量状态</li><li>相图与轨迹</li><li>非线性动态源</li></ul>
+        </button>
+      </div>
+
+      <div class="guide-info">
+        <div class="guide-intro">
+          <h3>使用指南</h3>
+          <p>左侧是网络列表，中间是画布，右侧是检查器与函数面板；顶部菜单管理工程、视图与设置。</p>
+          <ol>
+            <li><b>搭网络</b>：工具栏「节点」添加节点，从节点端口拖出连接；双击节点编辑参数。</li>
+            <li><b>看曲线</b>：右侧「分析 · 信号」选择变量，点「运行」开始采集；「回放」可在历史帧间拖动。</li>
+            <li><b>改外观</b>：菜单「设置」打开设置窗，可切主题、强调色、动效与性能；外观偏好全局保存。</li>
+            <li><b>查文档</b>：任意参数旁的 <b>?</b> 给出说明与公式；「帮助」打开非模态文档窗口（可拖动、可搜索）。</li>
+          </ol>
+        </div>
+        <div class="guide-links">
+          <h3>文档与示例</h3>
+          <button type="button" class="guide-link" data-doc="quickstart">快速上手 <span class="k">DOC</span></button>
+          <button type="button" class="guide-link" data-doc="interface">界面指南 <span class="k">DOC</span></button>
+          <button type="button" class="guide-link" data-doc="glossary">术语表 <span class="k">DOC</span></button>
+          <button type="button" class="guide-link" data-doc="faq">常见问题 <span class="k">DOC</span></button>
+          <button type="button" class="guide-link" data-doc="shortcuts">快捷键 <span class="k">DOC</span></button>
+          <button type="button" class="guide-link" id="guideDemo">打开示例工程（信号链） <span class="k">DEMO</span></button>
+        </div>
+      </div>
+
+      <div class="guide-foot">
+        <label class="guide-check"><input type="checkbox" id="guideNever" /> 不再显示（下次直接进入上次的场景）</label>
+        <div class="guide-actions">
+          <button type="button" class="guide-go mini" id="guideOpenProject" title="打开已有工程">打开工程</button>
+          <button type="button" class="guide-go mini" id="guideSettings" title="打开设置窗：主题、强调色、动效与性能">设置视图</button>
+          <button type="button" class="guide-go ghost" id="guideDocs">先看文档</button>
+          <button type="button" class="guide-go" id="guideEnter">进入场景 <kbd>Enter</kbd></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PlotKit 绘图窗口（非模态浮窗；iframe 隔离，不抢占右侧面板的分析页签） -->
+  <div id="plotkitWin" class="floatwin plotkit-win" hidden role="dialog" aria-label="绘图（PlotKit）">
+    <header class="floatwin-head">
+      <b>NETLAB · 绘图</b>
+      <span class="floatwin-hint">非模态 · 拖动标题栏 · 双击最大化</span>
+      <button type="button" class="floatwin-dock" id="plotkitDock" title="停靠到画布 / 浮出">⇥</button>
+      <button type="button" class="floatwin-min" id="plotkitWinMin" title="最小化到右下角">—</button>
+      <button type="button" class="floatwin-max" id="plotkitWinMax" title="最大化 / 还原">▢</button>
+      <button type="button" id="plotkitWinClose" title="关闭（Esc）">✕</button>
+    </header>
+    <div class="plotkit-body">
+      <iframe id="plotkitFrame" class="plotkit-frame" title="PlotKit 绘图" loading="lazy"></iframe>
+    </div>
+    <div class="floatwin-resize" id="plotkitResize" title="拖动调整大小"></div>
+  </div>
+
+  <!-- 文档中心（非模态浮窗，R30-5） -->
+  <div id="docWin" class="docwin" hidden role="dialog" aria-label="文档中心">
+    <header class="floatwin-head">
+      <b id="docWinTitle">NETLAB · 文档</b>
+      <span class="floatwin-hint">非模态 · 拖动标题栏 · 双击标题栏最大化</span>
+      <button type="button" class="floatwin-min" id="docWinMin" title="最小化到右下角">—</button>
+      <button type="button" class="floatwin-max" id="docWinMax" title="最大化 / 还原">▢</button>
+      <button type="button" id="docWinClose" title="关闭（Esc）">✕</button>
+    </header>
+    <div class="docwin-body">
+      <nav class="docwin-nav" id="docNav" aria-label="文档目录"></nav>
+      <div class="docwin-main" id="docMain">
+        <div class="docwin-searchrow">
+          <input id="docSearch" type="search" placeholder="搜索文档：参数、术语、快捷键…" aria-label="搜索文档" />
+        </div>
+        <div id="docContent" class="doc-body"></div>
+        <div id="docResults"></div>
+      </div>
+    </div>
+    <div class="floatwin-resize docwin-resize" id="docResize" title="拖动调整大小"></div>
+  </div>
+
+  <div id="moduleWin" class="floatwin modwin" hidden role="dialog" aria-label="模块内部">
+    <header class="floatwin-head">
+      <b id="moduleWinTitle">模块内部</b>
+      <span class="floatwin-hint" id="moduleWinHint">MODULE · 只读预览</span>
+      <button type="button" class="floatwin-dock" id="moduleDock" title="收起为侧边栏 / 展开">⇥</button>
+      <button type="button" class="floatwin-min" title="最小化到右下角">—</button>
+      <button type="button" class="floatwin-max" title="最大化 / 还原">▢</button>
+      <button type="button" id="moduleWinClose" title="关闭（Esc）">✕</button>
+    </header>
+    <div class="modwin-body">
+      <aside class="modwin-side">
+        <div class="modwin-ports" id="modulePorts"></div>
+        <div class="modwin-meta" id="moduleMeta"></div>
+        <div class="modwin-actions">
+          <button type="button" class="btn tiny primary" id="moduleEdit">在临时网络中编辑</button>
+          <button type="button" class="btn tiny" id="moduleAddInstance">实例化到画布</button>
+        </div>
+      </aside>
+      <div class="modwin-stage">
+        <canvas id="moduleCanvas" aria-label="模块内部结构预览"></canvas>
+        <div class="modwin-empty" id="moduleEmpty" hidden>这个模块内部没有可预览的网络。</div>
+      </div>
+    </div>
+    <div class="floatwin-resize" id="moduleResize" title="拖动调整大小"></div>
+  </div>
+
+  <div id="qcard" class="qcard" hidden role="dialog" aria-label="参数说明"></div>
+
   <div id="toasts" class="toasts" aria-live="polite"></div>
 
   <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="modal-card" id="modalCard"></div>
   </div>
 
-  <script src="/static/app.js?v=3.8.13"></script>
+  <script src="/static/app.js?v=3.15.0"></script>
 </body>
 </html>

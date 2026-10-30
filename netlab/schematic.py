@@ -308,7 +308,8 @@ def validate_schematic(scene: Any) -> dict[str, Any]:
     blocking: list[str] = []
     for edge in scene.edges.values():
         layout = getattr(edge, "layout", None)
-        if layout is not None:
+        # 空布局 = 还没自动布局（程序新建的导线就是这种），不算错误。
+        if layout and "rot" in layout:
             rot = layout.get("rot")
             if not isinstance(rot, int) or rot % ROT_STEP != 0:
                 blocking.append(f"{edge.name}: rot 必须是 {ROT_STEP}° 的整数倍")
@@ -327,7 +328,17 @@ def validate_schematic(scene: Any) -> dict[str, Any]:
                     continue  # 两端元件不要求所有可选控制脚
             if node_id not in scene.nodes:
                 blocking.append(f"{edge.name}: 引脚 {pin['name']} 绑定的节点不存在")
-    return {"ok": not blocking, "blocking": blocking, "pins": sum(len(pins_for(e.kind)) for e in scene.edges.values())}
+    warnings: list[str] = []
+    if getattr(scene, "mode", "") == "circuit":
+        from .circuit_modules import unwired_ports
+
+        warnings.extend(unwired_ports(scene))
+    return {
+        "ok": not blocking,
+        "blocking": blocking,
+        "warnings": warnings,
+        "pins": sum(len(pins_for(e.kind)) for e in scene.edges.values()),
+    }
 
 
 def fill_missing_layout(scene: Any) -> int:

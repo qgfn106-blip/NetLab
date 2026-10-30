@@ -85,6 +85,14 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 _DESKTOP_TOKEN = os.environ.get("NETLAB_DESKTOP_TOKEN")
 
+# 绘图子应用（可选依赖）：装了 plotkit 就挂到 /plotkit，没装则完全不出现。
+try:  # pragma: no cover - 取决于环境里是否装了 plotkit
+    from . import plotkit_bridge
+
+    PLOTKIT_MOUNTED = plotkit_bridge.mount(app, SERVICE)
+except Exception:  # pragma: no cover
+    PLOTKIT_MOUNTED = False
+
 
 @app.middleware("http")
 async def desktop_token_guard(request: Request, call_next):
@@ -654,10 +662,18 @@ def project_export(request: ProjectExportRequest) -> dict[str, Any]:
 
 @app.post("/api/project/validate")
 def project_validate(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
-    project = validate_project(payload)
+    library = str(_library_path())
+    degraded = None
+    try:
+        project = validate_project(payload, library=library)
+    except ValidationError:
+        # 只是看摘要：模块库缺失也应能出摘要，并说明「打开时会是降级只读」。
+        project = validate_project(payload, library=library, allow_degraded=True)
+        degraded = project.get("degraded")
     scene = project_current_network(project).get("scene") or {}
     return {
         "ok": True,
+        "degraded": degraded,
         "summary": {
             "name": project.get("name"),
             "version": project.get("version"),
@@ -1214,8 +1230,14 @@ def blocks_open_internal(block_id: str, request: BlockOpenInternalRequest) -> di
     created = SERVICE.add_network(f"模块 {block.name}")
     network_id = created["id"]
     simulation = SERVICE.simulation(network_id)
-    simulation.load_scene(payload)
-    SERVICE.switch(network_id)
+    try:
+        simulation.load_scene(payload)
+        SERVICE.switch(network_id)
+    except Exception:
+        # 载入失败（例如内部网络缺接地）时把临时网络回滚掉，避免留下空壳网络
+        if network_id in {item["id"] for item in SERVICE.list_networks()}:
+            SERVICE.remove_network(network_id)
+        raise
     return {
         "network": network_id,
         "block_id": block.id,
@@ -1452,6 +1474,42 @@ def settings_get() -> dict[str, Any]:
 @app.patch("/api/settings")
 def settings_patch(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
     return {"settings": save_settings(payload), "path": str(settings_file())}
+
+
+# ---- 应用内文档中心（R14 / R30-5）-----------------------------------------
+USER_DOCS_DIR = Path(__file__).resolve().parent / "docs" / "user"
+USER_DOC_ORDER: tuple[tuple[str, str], ...] = (
+    ("quickstart", "欢迎 / 快速上手"),
+    ("interface", "界面指南"),
+    ("glossary", "术语表"),
+    ("faq", "常见问题"),
+    ("shortcuts", "快捷键"),
+)
+
+
+def _user_docs() -> list[dict[str, str]]:
+    docs: list[dict[str, str]] = []
+    for slug, title in USER_DOC_ORDER:
+        path = USER_DOCS_DIR / f"{slug}.md"
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        docs.append({"slug": slug, "title": title, "text": text})
+    return docs
+
+
+@app.get("/api/docs")
+def docs_index() -> dict[str, Any]:
+    return {"docs": _user_docs()}
+
+
+@app.get("/api/docs/{slug}")
+def docs_one(slug: str) -> dict[str, Any]:
+    for doc in _user_docs():
+        if doc["slug"] == slug:
+            return doc
+    raise NotFoundError(f"没有这篇文档：{slug}")
 
 
 # ---- 加速后端 --------------------------------------------------------------

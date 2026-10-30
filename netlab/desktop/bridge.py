@@ -18,10 +18,42 @@ except Exception as exc:  # pragma: no cover
 from ..project import (
     PROJECT_SUFFIX,
     atomic_write,
+    compute_checksum,
     load_project_raw,
     project_to_text,
     validate_project,
 )
+from ..workspace import load_settings
+
+
+def _library_root() -> Path:
+    """模块库根目录：与 web 端一致——设置里的 library_root，否则工作目录下 library。"""
+    configured = str(load_settings().get("library_root") or "").strip()
+    if configured:
+        return Path(configured).expanduser()
+    return Path.cwd() / "library"
+
+
+def _validate_for_file(payload: Any) -> dict[str, Any]:
+    """存盘/自动保存用的校验：模块引用解析不了也不能挡住存盘（引用原样保留）。
+
+    桌面桥负责把工程写到用户选的路径，库文件是否齐全由打开时再判断；否则
+    一个引用了模块的工程在库路径不对时会连保存都做不到（历史 bug）。
+    降级校验会填占位块，存盘前把 blocks 换回原始引用再重算校验和。
+    """
+    library = str(_library_root())
+    try:
+        return validate_project(payload, library=library)
+    except Exception:
+        pass
+    project = validate_project(payload, library=library, allow_degraded=True)
+    original_blocks = (payload or {}).get("blocks") if isinstance(payload, dict) else None
+    if original_blocks is not None:
+        project["blocks"] = json.loads(json.dumps(original_blocks))
+    project.pop("degraded", None)
+    project.pop("checksum", None)
+    project["checksum"] = compute_checksum(project)
+    return project
 
 
 class Bridge(QObject):
@@ -41,7 +73,7 @@ class Bridge(QObject):
     @Slot(str, str, result=str)
     def saveProject(self, payload_json: str, suggested_name: str = "") -> str:
         try:
-            payload = validate_project(json.loads(payload_json))
+            payload = _validate_for_file(json.loads(payload_json))
             default_name = (suggested_name or payload.get("name") or "netlab-project").strip()
             if not default_name.lower().endswith(PROJECT_SUFFIX):
                 default_name += PROJECT_SUFFIX
@@ -69,7 +101,7 @@ class Bridge(QObject):
                 return ""
             if not target.lower().endswith(PROJECT_SUFFIX):
                 target += PROJECT_SUFFIX
-            payload = validate_project(json.loads(payload_json))
+            payload = _validate_for_file(json.loads(payload_json))
             atomic_write(target, payload)
             self._current_path = target
             self._last_directory = str(Path(target).parent)
@@ -183,7 +215,7 @@ class Bridge(QObject):
     @Slot(str, result=str)
     def autosave(self, payload_json: str) -> str:
         try:
-            payload = validate_project(json.loads(payload_json))
+            payload = _validate_for_file(json.loads(payload_json))
             path = self._autosave_path()
             path.parent.mkdir(parents=True, exist_ok=True)
             atomic_write(path, payload)

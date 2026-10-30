@@ -464,9 +464,17 @@ class SignalEngine(_Engine):
 class CircuitEngine(_Engine):
     def __init__(self, scene: "Scene") -> None:
         self.scene = scene
+        # R24/D51：电路模块按"电气直连"展开——模块引脚与内部端口网络合并，
+        # 内部器件进父矩阵。没有模块时 extra_* 为空，行为与之前完全一致。
+        from .circuit_modules import flatten_circuit
+
+        extra_nodes, extra_edges, merges = flatten_circuit(scene)
+        all_nodes = {**scene.nodes, **extra_nodes}
+        all_edges = list(scene.edges.values()) + list(extra_edges)
+        self.block_records = extra_nodes
         net_records = {
             record.id: record
-            for record in scene.nodes.values()
+            for record in all_nodes.values()
             if record.kind in ("node", "ground")
         }
         parent = {node_id: node_id for node_id in net_records}
@@ -484,8 +492,16 @@ class CircuitEngine(_Engine):
             if root_a != root_b:
                 parent[root_b] = root_a
 
+        # R24/D51：模块端口 ↔ 内部端口网络合并成同一个电气节点。
+        for first, second in merges:
+            if first in net_records and second in net_records:
+                union(first, second)
+            elif second in net_records and first not in net_records:
+                raise ComputeError(
+                    f"模块端口接到的网络 {first!r} 不是网络节点（不能接在器件上）"
+                )
         # R20：网络节点之间的纯导线在电气上合并网络（MNA 只保留代表节点）。
-        for edge in scene.edges.values():
+        for edge in all_edges:
             if not edge.enabled or edge.kind != "wire":
                 continue
             if edge.source in net_records and edge.target in net_records:
@@ -515,10 +531,17 @@ class CircuitEngine(_Engine):
         #: 只有一端接线的电源：空脚自动对地（R21/D43），这里记录以便前端画出接地标记。
         self.implicit_grounds: list[dict[str, str]] = []
         used_roots: set[str] = set()
-        # 旧模型（过渡期兼容）：边 = 元件。
-        for record in scene.edges.values():
+        # 旧模型（过渡期兼容）：边 = 元件。模块内部的元件边（flatten 出来的）
+        # 也要一起装配，否则封装进模块的元件会整个消失。
+        for record in all_edges:
             if not record.enabled or record.kind == "wire":
                 continue
+            if record.source not in net_root or record.target not in net_root:
+                raise ComputeError(
+                    f"元件 {record.name!r} 的一端接在已不存在的节点上"
+                    f"（{record.source if record.source not in net_root else record.target}）；"
+                    "请删掉这条元件连线重新绘制，或撤销刚才的封装/删除操作"
+                )
             try:
                 element = create_element(
                     record.kind,
@@ -541,12 +564,12 @@ class CircuitEngine(_Engine):
                 if isinstance(value, str) and value in net_root:
                     used_roots.add(net_root[value])
         # R20 新模型：器件节点 + 引脚导线。
-        for record in scene.nodes.values():
+        for record in all_nodes.values():
             if record.kind != "device":
                 continue
             kind = str(record.params.get("element") or "")
             pins: dict[str, str] = {}
-            for edge in scene.edges.values():
+            for edge in all_edges:
                 if not edge.enabled or edge.kind != "wire":
                     continue
                 if edge.source == record.id:
@@ -981,11 +1004,67 @@ class Scene:
             return params, spec.label
         if kind == "device":
             return self._normalize_device_params(raw), "器件"
+        if kind == "module":
+            return self._normalize_module_params(raw), "电路模块"
         if kind not in ("node", "ground"):
-            raise ValidationError("电路模式的节点类型只能是 node、ground 或 device")
-        if raw not in (None, {}):
-            raise ValidationError("电学节点没有额外参数")
-        return {}, "接地" if kind == "ground" else "电学节点"
+            raise ValidationError(
+                "电路模式的节点类型只能是 node、ground、device 或 module"
+            )
+        return self._normalize_net_params(raw), "接地" if kind == "ground" else "电学节点"
+
+    def _normalize_net_params(self, raw: Any) -> dict[str, Any]:
+        """网络节点可带端口标记（R24/D49）：这个名字/方向的网络就是模块端口。"""
+        if raw in (None, {}):
+            return {}
+        if not isinstance(raw, dict):
+            raise ValidationError("网络节点参数必须是对象")
+        allowed = {"port_name", "port_direction", "port_note"}
+        unknown = set(raw) - allowed
+        if unknown:
+            raise ValidationError(
+                "网络节点只支持端口标记参数：" + ", ".join(sorted(allowed))
+            )
+        name = str(raw.get("port_name") or "").strip()
+        direction = str(raw.get("port_direction") or "").strip()
+        if direction and direction not in ("input", "output", "inout"):
+            raise ValidationError("端口方向必须是 input / output / inout")
+        if direction and not name:
+            raise ValidationError("选了端口方向就要给端口名称")
+        params: dict[str, Any] = {}
+        if name:
+            params["port_name"] = name[:32]
+            params["port_direction"] = direction or "inout"
+        if raw.get("port_note"):
+            params["port_note"] = str(raw.get("port_note"))[:200]
+        return params
+
+    def _normalize_module_params(self, raw: Any) -> dict[str, Any]:
+        """电路模块节点：只能由模块库实例化或封装生成（R24/D51）。"""
+        if not isinstance(raw, dict):
+            raise ValidationError("模块节点参数必须是对象")
+        block_id = str(raw.get("block_id") or "").strip()
+        if not block_id:
+            raise ValidationError(
+                "模块节点缺少 block_id，不能手动创建：电路模块只能由模块库实例化或封装生成"
+            )
+        ports = raw.get("ports")
+        clean: list[dict[str, str]] = []
+        if isinstance(ports, list):
+            for item in ports:
+                if not isinstance(item, dict):
+                    raise ValidationError("模块端口必须是对象")
+                name = str(item.get("name") or "").strip()
+                direction = str(item.get("direction") or "inout")
+                if not name:
+                    raise ValidationError("模块端口缺少名称")
+                if direction not in ("input", "output", "inout"):
+                    raise ValidationError("模块端口方向必须是 input / output / inout")
+                clean.append({"name": name[:32], "direction": direction})
+        return {
+            "block_id": block_id,
+            "block_name": str(raw.get("block_name") or "")[:32],
+            "ports": clean,
+        }
 
     def _normalize_device_params(self, raw: Any) -> dict[str, Any]:
         """器件节点参数：``{"element": 元件 kind, ...元件参数}``。"""
@@ -1037,7 +1116,12 @@ class Scene:
         target_node = node_map.get(target_id)
         if source_node is None or target_node is None:
             raise NotFoundError("导线的端点节点不存在")
-        is_device = (source_node.kind == "device", target_node.kind == "device")
+        from .circuit_modules import DEVICE_KINDS, pin_names
+
+        is_device = (
+            source_node.kind in DEVICE_KINDS,
+            target_node.kind in DEVICE_KINDS,
+        )
         if is_device[0] and is_device[1]:
             raise ValidationError("导线不允许直接连接两个器件（请经网络节点）")
         if not any(is_device):
@@ -1045,25 +1129,36 @@ class Scene:
             if source_pin or target_pin:
                 raise ValidationError("网络节点之间的纯导线不能绑定引脚")
             return "", ""
-        for side, node, pin in (
-            ("起点", source_node, source_pin),
-            ("终点", target_node, target_pin),
+        resolved = [source_pin, target_pin]
+        for index, (side, node) in enumerate(
+            (("起点", source_node), ("终点", target_node))
         ):
-            if node.kind == "device":
+            pin = resolved[index]
+            if node.kind in DEVICE_KINDS:
+                if not pin and node.kind == "module":
+                    # 只有一个端口的模块：外部直接连到那个端口，不必再指定引脚名。
+                    only = pin_names(node)
+                    if len(only) == 1:
+                        pin = resolved[index] = only[0]
                 if not pin:
                     raise ValidationError(f"{side}是器件节点 {node.name!r}，必须指定引脚")
-                element = str(node.params.get("element") or "")
-                try:
-                    names = {item.name for item in pins_for_device(element)}
-                except KeyError as exc:
-                    raise ValidationError(str(exc)) from exc
+                if node.kind == "module":
+                    names = set(pin_names(node))
+                    label = "模块"
+                else:
+                    element = str(node.params.get("element") or "")
+                    try:
+                        names = {item.name for item in pins_for_device(element)}
+                    except KeyError as exc:
+                        raise ValidationError(str(exc)) from exc
+                    label = "器件"
                 if pin not in names:
                     raise ValidationError(
-                        f"器件 {node.name!r} 没有引脚 {pin!r}；可用：{', '.join(sorted(names))}"
+                        f"{label} {node.name!r} 没有引脚 {pin!r}；可用：{', '.join(sorted(names))}"
                     )
             elif pin:
                 raise ValidationError(f"{side}是网络节点，不能绑定引脚 {pin!r}")
-        return source_pin, target_pin
+        return resolved[0], resolved[1]
 
     def _normalize_signal_ports(
         self,

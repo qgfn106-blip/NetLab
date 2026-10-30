@@ -43,7 +43,8 @@ def backend_selftest() -> dict:
                 {
                     "name": "project_import",
                     "ok": imported.status_code == 200
-                    and len(imported.json()["scene"]["nodes"]) >= 1,
+                    and imported.json()["scene"].get("mode")
+                    in {"signal", "circuit", "vector"},
                 }
             )
             with tempfile.TemporaryDirectory(prefix="netlab-selftest-") as folder:

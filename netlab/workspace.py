@@ -56,6 +56,10 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "default_project_dir": "",
     "library_root": "",
     "theme": "system",
+    "ui_accent": "",
+    "ui_motion": "low",
+    "ui_perf": "perf",
+    "ui_guide": "always",
 }
 
 #: 设置项 → 类型/范围校验；未知键一律拒绝，避免隐藏配置。
@@ -67,8 +71,15 @@ _SETTINGS_RULES: dict[str, tuple[type, Any]] = {
     "default_project_dir": (str, 1024),
     "library_root": (str, 1024),
     "theme": (str, None),
+    "ui_accent": (str, 7),
+    "ui_motion": (str, None),
+    "ui_perf": (str, None),
+    "ui_guide": (str, None),
 }
 _THEMES = ("system", "light", "dark")
+_UI_MOTION = ("off", "low", "med", "high")
+_UI_PERF = ("perf", "balanced", "quality")
+_UI_GUIDE = ("always", "never")
 
 
 @dataclass(frozen=True)
@@ -137,6 +148,15 @@ def _coerce_setting(key: str, value: Any) -> Any:
             raise ValidationError(f"设置 {key} 过长")
         if key == "theme" and value not in _THEMES:
             raise ValidationError(f"设置 theme 必须是 {', '.join(_THEMES)} 之一")
+        if key == "ui_motion" and value not in _UI_MOTION:
+            raise ValidationError(f"设置 ui_motion 必须是 {', '.join(_UI_MOTION)} 之一")
+        if key == "ui_perf" and value not in _UI_PERF:
+            raise ValidationError(f"设置 ui_perf 必须是 {', '.join(_UI_PERF)} 之一")
+        if key == "ui_guide" and value not in _UI_GUIDE:
+            raise ValidationError(f"设置 ui_guide 必须是 {', '.join(_UI_GUIDE)} 之一")
+        if key == "ui_accent":
+            if value and not (len(value) == 7 and value.startswith("#")):
+                raise ValidationError("设置 ui_accent 必须是空串或 #rrggbb")
         return value
     raise ValidationError(f"未知设置项：{key}")
 

@@ -85,9 +85,11 @@ class PortDef:
     dtype: str = "signal"
     description: str = ""
     default: float = 0.0
+    #: 电路模块专用：端口绑定的内部网络节点 id（R24/D51）。
+    net: str = ""
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload = {
             "name": self.name,
             "direction": self.direction,
             "fields": list(self.fields),
@@ -95,6 +97,9 @@ class PortDef:
             "description": self.description,
             "default": float(self.default),
         }
+        if self.net:
+            payload["net"] = self.net
+        return payload
 
     @classmethod
     def from_payload(cls, raw: Any) -> "PortDef":
@@ -102,11 +107,11 @@ class PortDef:
             raise ValidationError("端口必须是对象")
         name = check_name(raw.get("name"), "端口名称")
         direction = str(raw.get("direction", "input"))
-        if direction not in ("input", "output"):
-            raise ValidationError("端口方向必须是 input 或 output")
+        if direction not in ("input", "output", "inout"):
+            raise ValidationError("端口方向必须是 input / output / inout")
         dtype = str(raw.get("dtype", "signal"))
-        if dtype not in ("signal", "vector", "bit", "any"):
-            raise ValidationError("端口 dtype 必须是 signal/vector/bit/any")
+        if dtype not in ("signal", "vector", "bit", "any", "electrical"):
+            raise ValidationError("端口 dtype 必须是 signal/vector/bit/any/electrical")
         fields = _port_fields(raw.get("fields"))
         if not fields:
             fields = ["x", "y"] if dtype == "vector" else ["voltage"]
@@ -117,6 +122,7 @@ class PortDef:
             dtype=dtype,
             description=str(raw.get("description", ""))[:400],
             default=float(raw.get("default", 0.0) or 0.0),
+            net=str(raw.get("net") or ""),
         )
 
 
@@ -156,7 +162,7 @@ class BlockDef:
         if len(set(names)) != len(names):
             raise ValidationError("功能块端口名称不能重复")
         directions = {port.direction for port in self.ports}
-        if directions - {"input", "output"}:
+        if directions - {"input", "output", "inout"}:
             raise ValidationError("端口方向不合法")
 
     @property
@@ -166,6 +172,11 @@ class BlockDef:
     @property
     def output_ports(self) -> list[PortDef]:
         return [port for port in self.ports if port.direction == "output"]
+
+    @property
+    def circuit_ports(self) -> list[PortDef]:
+        """电路模块端口（direction 可为 inout）。"""
+        return [port for port in self.ports if port.dtype == "electrical"]
 
     def to_payload(self) -> dict[str, Any]:
         return {
@@ -197,6 +208,8 @@ class BlockDef:
             "edge_count": len(self.edges),
             "inputs": [port.to_payload() for port in self.input_ports],
             "outputs": [port.to_payload() for port in self.output_ports],
+            # R24：电路模块的端口是 inout，单列出来给前端画引脚。
+            "ports": [port.to_payload() for port in self.ports],
             "metadata": copy.deepcopy(self.metadata),
         }
 
@@ -568,6 +581,16 @@ def encapsulate_nodes(
     """把选中的节点/内部连接封装为 ``BlockDef``，并在父场景替换为功能节点。"""
     from .scene import Scene  # 局部导入避免循环
 
+    if scene.mode == "circuit":
+        from .circuit_modules import encapsulate_circuit
+
+        return encapsulate_circuit(
+            scene,
+            node_ids,
+            name=name,
+            description=description,
+            model="structural" if model == "behavioral" else model,
+        )
     selected = [check_id(item, "节点 id") for item in node_ids]
     if not selected:
         raise ValidationError("请选择至少一个节点")
@@ -863,6 +886,12 @@ def instantiate_block(
     name_prefix: str | None = None,
 ) -> dict[str, Any]:
     block = scene.blocks.require(block_id)
+    if block.mode == "circuit":
+        from .circuit_modules import instantiate_circuit_block
+
+        return instantiate_circuit_block(
+            scene, block, position=position, name_prefix=name_prefix
+        )
     center = position or {"x": 0.0, "y": 0.0}
     prefix = check_name(name_prefix or block.name, "实例名称") if name_prefix else block.name
     block_node = scene.add_node(

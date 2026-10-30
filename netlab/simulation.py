@@ -588,11 +588,15 @@ class Simulation:
 
 
 def default_simulation() -> Simulation:
-    """默认载入信号链示例，首页打开即可看到数据流动。"""
+    """启动场景为空白的信号流（2026-10-28 R30：首页不再自动载入 demo）。
+
+    示例网络仍可通过模板（``signal_chain`` 等）或引导页「打开示例工程」进入；
+    启动即停止的语义由前端控制：这里只负责给出一个干净的空白场景。
+    """
     from .templates import build_template
 
     scene = Scene("signal")
-    scene.load_payload(build_template("signal_chain"))
+    scene.load_payload(build_template("blank_signal"))
     simulation = Simulation(scene)
     simulation.apply_config({"fps": 30, "dt": 0.01, "steps_per_frame": 1})
     return simulation

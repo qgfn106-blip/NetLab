@@ -1,6 +1,6 @@
 """模块库文件层（R02 / D1 / D4 / D5 / D10）。
 
-一个模块 = 一个独立文件，放在共享库的 ``library/blocks/<id>/v<N>.block``：
+一个模块 = 一个文件，文件名就是模块名，放在共享库的 ``library/blocks/<名字>.block``：
 
 ```
 {
@@ -13,8 +13,9 @@
 
 规则（与台账一致）：
 
-* 同 id 同 version **内容不同 → 拒绝**（D10）；内容相同 → 视为已存在；
-* 版本号只能由「导入更高 version」产生，本层不做应用内 +1；
+* 库里只保留每个模块的最新版，文件名 = 模块名（重名会被拒绝，避免歧义）；
+* 内容发生变化时版本号自动 +1；导入已有模块必须带更高版本号；
+* 旧的 ``library/blocks/<id>/v<N>.block`` 目录在扫描时自动压平成新布局；
 * 读取时校验格式、校验和与基本结构（节点 id 唯一、边端点存在），不做运行/干跑（R04）；
 * 库扫描只读文件，不加载执行任何代码。
 """
@@ -24,6 +25,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -121,22 +123,6 @@ def validate_block_structure(block: BlockDef) -> None:
             raise ValidationError(f"第 {index + 1} 条内部连接的端点不存在")
 
 
-def write_block(library: str | Path, block: BlockDef) -> Path:
-    """写一个版本文件；同 id+version 内容冲突时拒绝（D10）。"""
-    target = block_path(library, block.id, block.version)
-    document = render_block_file(block)
-    if target.exists():
-        existing = read_block_file(target)
-        if _block_checksum(existing.to_payload()) == document["checksum"]:
-            return target
-        raise ValidationError(
-            f"功能块 {block.id!r} 的 v{block.version} 已存在且内容不同；"
-            "版本号只能由导入更高版本产生"
-        )
-    atomic_write(target, json.dumps(document, ensure_ascii=False, indent=2))
-    return target
-
-
 def read_block_file(path: str | Path) -> BlockDef:
     target = Path(path)
     if not target.is_file():
@@ -155,59 +141,211 @@ def _write_document(path: Path, block: BlockDef) -> None:
     atomic_write(path, json.dumps(render_block_file(block), ensure_ascii=False, indent=2))
 
 
+def blocks_root(library: str | Path) -> Path:
+    return Path(library).expanduser() / LIBRARY_BLOCKS_DIR
+
+
+def _slug(name: Any, block_id: str = "") -> str:
+    """模块名 → 文件名（去掉 Windows 非法字符，保留中文）。"""
+    text = str(name or "").strip()
+    text = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", text)
+    text = re.sub(r"\s+", " ", text).strip(" .")
+    if not text:
+        text = "模块" + block_id[:6]
+    return text[:60]
+
+
+def flat_path(library: str | Path, name: Any, block_id: str = "") -> Path:
+    """模块在库里的文件路径：``blocks/<名字>.block``。"""
+    return blocks_root(library) / (_slug(name, block_id) + BLOCK_SUFFIX)
+
+
+def _flat_files(library: str | Path) -> list[Path]:
+    root = blocks_root(library)
+    if not root.is_dir():
+        return []
+    return sorted(path for path in root.glob("*" + BLOCK_SUFFIX) if path.is_file())
+
+
+def _read_quiet(path: Path) -> BlockDef | None:
+    try:
+        return read_block_file(path)
+    except (ValidationError, NotFoundError, LimitError, OSError):
+        return None
+
+
+def _legacy_versions(library: str | Path, block_id: str) -> list[dict[str, Any]]:
+    folder = blocks_root(library) / str(block_id)
+    if not folder.is_dir():
+        return []
+    items: list[dict[str, Any]] = []
+    for path in sorted(folder.glob("v*" + BLOCK_SUFFIX)):
+        try:
+            version = int(path.stem[1:])
+        except ValueError:
+            continue
+        items.append({"version": version, "path": str(path), "size": path.stat().st_size})
+    items.sort(key=lambda item: item["version"])
+    return items
+
+
+def find_block_path(library: str | Path, block_id: str) -> Path | None:
+    """按 id 找模块文件：先扁平 ``<名字>.block``，再兼容旧的 ``<id>/v<N>.block``。"""
+    _check_id(block_id)
+    for path in _flat_files(library):
+        block = _read_quiet(path)
+        if block is not None and block.id == block_id:
+            return path
+    legacy = _legacy_versions(library, block_id)
+    if legacy:
+        return Path(legacy[-1]["path"])
+    return None
+
+
+def migrate_library(library: str | Path) -> list[str]:
+    """把旧的 ``blocks/<id>/v<N>.block`` 目录压平成 ``blocks/<名字>.block``（幂等）。"""
+    root = blocks_root(library)
+    if not root.is_dir():
+        return []
+    moved: list[str] = []
+    for folder in sorted(root.iterdir()):
+        if not folder.is_dir():
+            continue
+        versions = _legacy_versions(library, folder.name)
+        if not versions:
+            continue
+        block = _read_quiet(Path(versions[-1]["path"]))
+        if block is None:
+            continue
+        target = flat_path(library, block.name, block.id)
+        if target.exists():
+            other = _read_quiet(target)
+            if other is not None and other.id != block.id:
+                target = blocks_root(library) / (
+                    _slug(block.name, block.id) + "-" + block.id[:6] + BLOCK_SUFFIX
+                )
+        atomic_write(target, json.dumps(render_block_file(block), ensure_ascii=False, indent=2))
+        for item in versions:
+            Path(item["path"]).unlink(missing_ok=True)
+        try:
+            folder.rmdir()
+        except OSError:
+            pass
+        moved.append(str(target))
+    return moved
+
+
+def name_taken(
+    library: str | Path, name: Any, *, ignore_id: str = ""
+) -> dict[str, Any] | None:
+    """重名检查（忽略大小写与首尾空白）；命中返回已有模块的 id/name。"""
+    wanted = str(name or "").strip().casefold()
+    if not wanted:
+        return None
+    for path in _flat_files(library):
+        block = _read_quiet(path)
+        if block is None or block.id == ignore_id:
+            continue
+        if str(block.name).strip().casefold() == wanted:
+            return {"id": block.id, "name": block.name}
+    return None
+
+
+def _same_content(a: BlockDef, b: BlockDef) -> bool:
+    def strip(block: BlockDef) -> str:
+        payload = block.to_payload()
+        for key in ("version", "created", "modified"):
+            payload.pop(key, None)
+        return canonical_json(payload)
+
+    return strip(a) == strip(b)
+
+
+def list_versions(library: str | Path, block_id: str) -> list[dict[str, Any]]:
+    path = find_block_path(library, block_id)
+    if path is None:
+        raise NotFoundError(f"模块 {block_id!r} 不在库中")
+    block = read_block_file(path)
+    return [{"version": int(block.version), "path": str(path), "size": path.stat().st_size}]
+
+
+def write_block(library: str | Path, block: BlockDef) -> Path:
+    """写模块文件（一个模块一个文件、按名字命名）；内容变化时版本自动 +1。"""
+    validate_block_structure(block)
+    block = copy.deepcopy(block)
+    blocks_root(library).mkdir(parents=True, exist_ok=True)
+    current = find_block_path(library, block.id)
+    target = flat_path(library, block.name, block.id)
+    clash = name_taken(library, block.name, ignore_id=block.id)
+    if clash is not None:
+        raise ValidationError(
+            f"模块名已存在：{block.name!r}（已有模块 {clash['name']!r}）；请换一个名字"
+        )
+    if target.exists() and (current is None or target.resolve() != current.resolve()):
+        other = _read_quiet(target)
+        if other is not None and other.id != block.id:
+            raise ValidationError(f"模块名已存在：{block.name!r}；请换一个名字")
+    if current is not None:
+        old = _read_quiet(current)
+        if old is not None:
+            if _same_content(old, block) and target.resolve() == current.resolve():
+                return current
+            if int(block.version) <= int(old.version):
+                block.version = int(old.version) + 1
+            block.created = old.created or block.created
+    atomic_write(target, json.dumps(render_block_file(block), ensure_ascii=False, indent=2))
+    if current is not None and target.resolve() != current.resolve():
+        current.unlink(missing_ok=True)
+        legacy = blocks_root(library) / block.id
+        if legacy.is_dir():
+            for path in legacy.glob("*" + BLOCK_SUFFIX):
+                path.unlink(missing_ok=True)
+            try:
+                legacy.rmdir()
+            except OSError:
+                pass
+    return target
+
+
 def rename_block(
     library: str | Path, block_id: str, name: str, *, version: int | None = None
 ) -> BlockDef:
-    """改模块显示名（只改指定/最新版本文件；id 不变，引用不受影响）。"""
+    """改模块显示名：文件名跟着改，id 与引用不变（重名直接拒绝）。"""
     from .blocks import check_name
 
     clean = check_name(name, "模块名称")
-    versions = list_versions(library, block_id)
-    target = versions[-1] if version is None else next(
-        (item for item in versions if item["version"] == version), None
-    )
-    if target is None:
-        raise NotFoundError(f"模块 {block_id!r} 没有 v{version}")
-    block = read_block_file(target["path"])
+    path = find_block_path(library, block_id)
+    if path is None:
+        raise NotFoundError(f"模块 {block_id!r} 不在库中")
+    clash = name_taken(library, clean, ignore_id=block_id)
+    if clash is not None:
+        raise ValidationError(
+            f"模块名已存在：{clean!r}（已有模块 {clash['name']!r}）；请换一个名字"
+        )
+    block = read_block_file(path)
     block.name = clean
-    _write_document(Path(target["path"]), block)
-    return block
+    if version is not None:
+        _check_version(version)
+    target = flat_path(library, clean, block_id)
+    atomic_write(target, json.dumps(render_block_file(block), ensure_ascii=False, indent=2))
+    if target.resolve() != path.resolve():
+        path.unlink(missing_ok=True)
+    return read_block_file(target)
 
 
 def overwrite_block(
     library: str | Path, payload: dict[str, Any], *, version: int | None = None
 ) -> BlockDef:
-    """覆盖已存在的同 id+version 文件；调用方负责引用扫描与用户确认（D6）。"""
+    """覆盖已存在的模块文件；调用方负责引用扫描与用户确认（D6）。"""
     block = BlockDef.from_payload(payload)
     validate_block_structure(block)
-    target_version = int(version if version is not None else block.version)
-    target = block_path(library, block.id, target_version)
-    if not target.exists():
-        raise NotFoundError(f"模块 {block.id!r} 没有 v{target_version}，不能覆盖")
-    block.version = target_version
-    _write_document(target, block)
-    return block
-
-
-def list_versions(library: str | Path, block_id: str) -> list[dict[str, Any]]:
-    folder = block_dir(library, block_id)
-    if not folder.is_dir():
-        raise NotFoundError(f"模块 {block_id!r} 不在库中")
-    items: list[dict[str, Any]] = []
-    for path in sorted(folder.glob(f"v*{BLOCK_SUFFIX}")):
-        try:
-            version = int(path.stem[1:])
-        except ValueError:
-            continue
-        items.append(
-            {
-                "version": version,
-                "path": str(path),
-                "size": path.stat().st_size,
-            }
-        )
-    items.sort(key=lambda item: item["version"])
-    return items
+    path = find_block_path(library, block.id)
+    if path is None:
+        raise NotFoundError(f"模块 {block.id!r} 不在库中，不能覆盖")
+    if version is not None:
+        block.version = _check_version(version)
+    atomic_write(path, json.dumps(render_block_file(block), ensure_ascii=False, indent=2))
+    return read_block_file(path)
 
 
 def import_block(
@@ -216,22 +354,19 @@ def import_block(
     *,
     version: int | None = None,
 ) -> dict[str, Any]:
-    """导入模块：新 id 建 v1；已有 id 必须是更高版本（D5/D10）。"""
+    """导入模块：新 id 建 v1；已有 id 必须带更高版本（D5/D10）。"""
     block = payload if isinstance(payload, BlockDef) else BlockDef.from_payload(payload)
     validate_block_structure(block)
-    folder = block_dir(library, block.id)
-    existing = list_versions(library, block.id) if folder.is_dir() else []
-    latest = existing[-1]["version"] if existing else 0
+    latest = 0
+    existing: BlockDef | None = None
+    path = find_block_path(library, block.id)
+    if path is not None:
+        existing = read_block_file(path)
+        latest = int(existing.version)
     target_version = _check_version(version) if version is not None else int(block.version)
-    if latest == 0:
-        if target_version < 1:
-            target_version = 1
-    else:
+    if latest:
         if target_version <= latest:
-            existing_block = read_block_file(existing[-1]["path"])
-            if _block_checksum(existing_block.to_payload()) == _block_checksum(
-                block.to_payload()
-            ):
+            if existing is not None and _same_content(existing, block):
                 target_version = latest
             else:
                 raise ValidationError(
@@ -239,46 +374,41 @@ def import_block(
                 )
     block = copy.deepcopy(block)
     block.version = int(target_version)
-    path = write_block(library, block)
+    written = write_block(library, block)
     return {
         "id": block.id,
         "version": block.version,
-        "path": str(path),
+        "path": str(written),
         "created": int(block.version) > latest,
     }
 
 
 def remove_block(library: str | Path, block_id: str, version: int | None = None) -> list[int]:
-    """删除模块版本（D6 的「真正删除」动作；引用扫描由调用方做）。"""
-    versions = list_versions(library, block_id)
-    targets = [item for item in versions if version is None or item["version"] == version]
-    if not targets:
+    """删除模块文件（D6 的「真正删除」；引用扫描由调用方做）。"""
+    path = find_block_path(library, block_id)
+    if path is None:
+        raise NotFoundError(f"模块 {block_id!r} 不在库中")
+    block = read_block_file(path)
+    if version is not None and int(version) != int(block.version):
         raise NotFoundError(f"模块 {block_id!r} 没有 v{version}")
-    removed: list[int] = []
-    for item in targets:
-        Path(item["path"]).unlink(missing_ok=True)
-        removed.append(int(item["version"]))
-    folder = block_dir(library, block_id)
-    try:
-        if folder.is_dir() and not any(folder.iterdir()):
-            folder.rmdir()
-    except OSError:
-        pass
-    return removed
+    path.unlink(missing_ok=True)
+    legacy = blocks_root(library) / block_id
+    if legacy.is_dir():
+        for item in legacy.glob("*" + BLOCK_SUFFIX):
+            item.unlink(missing_ok=True)
+        try:
+            legacy.rmdir()
+        except OSError:
+            pass
+    return [int(block.version)]
 
 
 def load_block(library: str | Path, block_id: str, version: int | None = None) -> BlockDef:
-    versions = list_versions(library, block_id)
-    if not versions:
-        raise NotFoundError(f"模块 {block_id!r} 没有任何版本")
-    target = (
-        next((item for item in versions if item["version"] == version), None)
-        if version is not None
-        else versions[-1]
-    )
-    if target is None:
-        raise NotFoundError(f"模块 {block_id!r} 没有 v{version}")
-    return read_block_file(target["path"])
+    """按 id 读模块（库里只保留最新版；旧版本引用按最新版加载）。"""
+    path = find_block_path(library, block_id)
+    if path is None:
+        raise NotFoundError(f"模块 {block_id!r} 不在库中")
+    return read_block_file(path)
 
 
 def block_ref(payload: dict[str, Any]) -> dict[str, Any]:
@@ -287,21 +417,20 @@ def block_ref(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def ensure_blocks(library: str | Path, payloads: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """保存前把工程用到的块同步进库，返回引用列表；同版本冲突直接拒绝。"""
+    """保存前把工程用到的块同步进库，返回引用列表；内容不同则版本 +1。"""
     refs: list[dict[str, Any]] = []
     for payload in payloads:
         block = BlockDef.from_payload(payload)
-        target = block_path(library, block.id, block.version)
-        if target.exists():
-            existing = read_block_file(target)
-            if _block_checksum(existing.to_payload()) != _block_checksum(block.to_payload()):
-                raise ValidationError(
-                    f"模块 {block.id!r} v{block.version} 在库中内容不同；"
-                    "请先导入更高版本再保存工程"
-                )
-        else:
-            write_block(library, block)
-        refs.append(block_ref(payload))
+        path = find_block_path(library, block.id)
+        if path is not None:
+            existing = read_block_file(path)
+            if _same_content(existing, block):
+                refs.append(block_ref(payload))
+                continue
+            if int(block.version) <= int(existing.version):
+                block.version = int(existing.version) + 1
+        write_block(library, block)
+        refs.append({"id": block.id, "version": int(block.version)})
     return refs
 
 
@@ -439,7 +568,10 @@ def resolve_refs(library: str | Path | None, refs: Any) -> list[dict[str, Any]]:
     if refs is None or refs == []:
         return []
     if library is None:
-        raise ValidationError("工程使用模块引用，需要一个库路径才能打开")
+        raise ValidationError(
+            "这个工程用到了模块引用，但当前没有可用的模块库路径；"
+            "请在设置里指定 library 目录（默认是工作目录下的 library/）后再打开"
+        )
     payloads: list[dict[str, Any]] = []
     missing: list[str] = []
     for item in refs:
@@ -455,46 +587,39 @@ def resolve_refs(library: str | Path | None, refs: Any) -> list[dict[str, Any]]:
         raise ValidationError(
             "工程引用的模块在库中缺失或损坏："
             + "、".join(missing)
-            + "；请把对应 .block 文件放回 library/blocks/<id>/v<N>.block，"
-            "或移除引用后再打开"
+            + "；请把对应的 <模块名>.block 放回 library/blocks/ 目录，"
+            "或在工程里移除这些引用后再打开"
         )
     return payloads
 
 
 def scan_library(library: str | Path) -> list[dict[str, Any]]:
-    """列出库中所有模块的最新版本摘要；不加载执行。"""
-    root = Path(library).expanduser() / LIBRARY_BLOCKS_DIR
-    if not root.is_dir():
-        return []
+    """列出库中所有模块（文件名 = 模块名）；不加载执行。"""
+    try:
+        migrate_library(library)
+    except (ValidationError, NotFoundError, LimitError, OSError):
+        pass
     items: list[dict[str, Any]] = []
-    for folder in sorted(root.iterdir()):
-        if not folder.is_dir():
-            continue
-        block_id = folder.name
-        try:
-            versions = list_versions(library, block_id)
-        except (NotFoundError, ValidationError):
-            continue
-        if not versions:
-            continue
-        latest = versions[-1]
-        try:
-            block = read_block_file(latest["path"])
-        except (ValidationError, LimitError):
+    for path in _flat_files(library):
+        block = _read_quiet(path)
+        if block is None:
             items.append(
                 {
-                    "id": block_id,
-                    "name": block_id,
+                    "id": path.stem,
+                    "name": path.stem,
                     "error": "模块文件无法解析",
-                    "version": latest["version"],
-                    "versions": [item["version"] for item in versions],
+                    "version": 0,
+                    "versions": [],
+                    "path": str(path),
                 }
             )
             continue
         summary = block.summary()
-        summary["versions"] = [item["version"] for item in versions]
-        summary["path"] = latest["path"]
+        summary["versions"] = [int(block.version)]
+        summary["path"] = str(path)
+        summary["file"] = path.name
         items.append(summary)
+    items.sort(key=lambda item: str(item.get("name") or "").casefold())
     return items
 
 
@@ -504,6 +629,11 @@ __all__ = [
     "BLOCK_SUFFIX",
     "block_dir",
     "block_path",
+    "blocks_root",
+    "flat_path",
+    "find_block_path",
+    "migrate_library",
+    "name_taken",
     "render_block_file",
     "parse_block_file",
     "validate_block_structure",

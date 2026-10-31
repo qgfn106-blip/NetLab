@@ -16,9 +16,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import Body, FastAPI, Query, Request
+from fastapi import Body, FastAPI, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -329,10 +329,20 @@ class ExtensionDeactivateRequest(BaseModel):
 
 # ---- 页面与元数据 ----------------------------------------------------------
 @app.get("/", include_in_schema=False)
-def index() -> FileResponse:
-    return FileResponse(
-        STATIC_DIR / "index.html", headers={"Cache-Control": "no-store"}
-    )
+def index() -> Response:
+    page = STATIC_DIR / "index.html"
+    if os.environ.get("NETLAB_DESKTOP_SHELL") == "pywebview":
+        # 桌面壳（pywebview）需要把 Promise 风格的原生桥映射成 QWebChannel 风格；
+        # 只在桌面进程里注入，浏览器访问拿到的仍是原页面。
+        html = page.read_text(encoding="utf-8")
+        if "desktop-shim.js" not in html:
+            html = html.replace(
+                "</head>",
+                '  <script src="/static/desktop-shim.js"></script>\n</head>',
+                1,
+            )
+        return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+    return FileResponse(page, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/catalog")

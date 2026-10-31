@@ -141,9 +141,11 @@ def _ingest(figure: Any, frames: list[dict[str, Any]], keys: list[str]) -> None:
         store.push(name, np.asarray(values, dtype="float64"))
     for name in list(store.names()):
         if name != "t" and len(store.get(name)) > MAX_POINTS:
-            store.add(name, store.get(name)[-MAX_POINTS:], role="series", life="replace", overwrite=True)
+            # 必须用 trim 而不是 add(..., life="replace")：后者会把数据集永久改成
+            # "替换"语义，下一次 push 只留最后一帧，曲线几秒后就塌了。
+            store.trim(name, MAX_POINTS)
     if "t" in store.names() and len(store.get("t")) > MAX_POINTS:
-        store.add("t", store.get("t")[-MAX_POINTS:], role="coord", life="replace", overwrite=True)
+        store.trim("t", MAX_POINTS)
 
 
 def mount(app: Any, service: Any | None = None) -> bool:

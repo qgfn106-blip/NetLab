@@ -141,6 +141,7 @@ class NetworkContainer:
 
     # ---- 结构编辑 -----------------------------------------------------------
     def add_network(self, name: str | None = None) -> dict[str, Any]:
+        self._require_writable()
         mode = self.current.scene.mode
         template = build_template(
             {"signal": "blank_signal", "circuit": "blank_circuit", "vector": "blank_vector"}[
@@ -159,6 +160,7 @@ class NetworkContainer:
         return {"id": network_id, "name": label, "networks": self.list_networks()}
 
     def rename_network(self, network_id: str, name: str) -> dict[str, Any]:
+        self._require_writable()
         self._entry(network_id)
         clean = str(name or "").strip()
         if not clean:
@@ -170,6 +172,7 @@ class NetworkContainer:
         return {"id": network_id, "name": clean, "networks": self.list_networks()}
 
     def remove_network(self, network_id: str) -> dict[str, Any]:
+        self._require_writable()
         simulation = self._entry(network_id)
         with self.lock:
             if len(self._order) <= 1:
@@ -245,19 +248,19 @@ class NetworkContainer:
     def set_degraded(self, info: dict[str, Any] | None) -> None:
         self.degraded = info or None
 
-    def mutate(self, function):
-        # D7：降级只读期间禁止任何结构/参数修改；补回库文件或替换占位块后解除。
+    def _require_writable(self) -> None:
+        """D7：降级只读期间禁止任何结构/参数修改。"""
         if self.degraded:
             raise ConflictError(
                 "工程处于降级只读模式：请先补回缺失的库文件，或确认用占位块替换后再编辑"
             )
+
+    def mutate(self, function):
+        self._require_writable()
         return self.current.mutate(function)
 
     def load_scene(self, payload):
-        if self.degraded:
-            raise ConflictError(
-                "工程处于降级只读模式：请先补回缺失的库文件，或确认用占位块替换后再编辑"
-            )
+        self._require_writable()
         result = self.current.load_scene(payload)
         fill_missing_layout(self.current.scene)
         return result

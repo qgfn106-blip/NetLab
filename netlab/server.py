@@ -26,11 +26,9 @@ from .fem import FemSimulation
 from .limits import ConflictError, NetlabError, NotFoundError, ValidationError
 from .networks import NetworkContainer
 from .project import (
-    build_project,
     compute_checksum,
     migrate_scene_to_devices,
     project_current_network,
-    project_scene_payload,
     validate_project,
 )
 from .workspace import (
@@ -55,7 +53,7 @@ CURRENT_WORKSPACE: Path | None = None
 #: 降级打开时的原始工程载荷；补回库文件后可 POST /api/project/retry 重新解析。
 LAST_PROJECT: dict[str, Any] | None = None
 LAST_PROJECT_LIBRARY: str | None = None
-from .simulation import Simulation, default_simulation
+from .simulation import default_simulation
 from .templates import TEMPLATES, build_template, template_catalog
 from . import accel, analysis, block_validate, blocklib, extensions, profiling, schematic
 from .blocks import build_block_from_scene, encapsulate_nodes, instantiate_block
@@ -927,6 +925,10 @@ def workspace_create(request: WorkspaceCreateRequest) -> dict[str, Any]:
 @app.post("/api/workspace/save")
 def workspace_save(request: WorkspaceSaveRequest) -> dict[str, Any]:
     global CURRENT_WORKSPACE
+    if SERVICE.degraded:
+        raise ConflictError(
+            "工程处于降级只读模式：请先补回缺失的库文件，或确认用占位块替换后再保存"
+        )
     workspace, path = save_workspace(
         request.path,
         SERVICE,
@@ -948,9 +950,9 @@ def workspace_open(request: WorkspacePathRequest) -> dict[str, Any]:
         request.path, library_root=request.library_root
     )
     result = _apply_project(project, request.trust_extensions, library=str(workspace.library))
+    CURRENT_WORKSPACE = workspace.root
     result["workspace"] = workspace.as_dict()
     result["library"] = scan_library(workspace)
-    CURRENT_WORKSPACE = workspace.root
     return result
 
 
@@ -997,10 +999,14 @@ def workspace_restore(request: WorkspaceRestoreRequest) -> dict[str, Any]:
     global CURRENT_WORKSPACE
     workspace = workspace_for(request.path, library_root=request.library_root)
     project = load_snapshot(workspace, request.snapshot)
-    result = _apply_project(project, request.trust_extensions)
+    result = _apply_project(
+        project,
+        request.trust_extensions,
+        library=str(workspace.library),
+    )
+    CURRENT_WORKSPACE = workspace.root
     result["workspace"] = workspace.as_dict()
     result["restored_from"] = request.snapshot
-    CURRENT_WORKSPACE = workspace.root
     return result
 
 

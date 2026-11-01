@@ -277,14 +277,28 @@ def encapsulate_circuit(
                 group_parent[right] = left
                 net_group[inside.id] = left
 
-    merged_groups: dict[int, tuple[Any, list[tuple[Any, str]]]] = {}
+    merged_groups: dict[int, tuple[list[Any], list[tuple[Any, str]]]] = {}
     for index, (outside, members) in enumerate(groups):
         root = _find_group(index)
-        if root not in merged_groups:
-            merged_groups[root] = (outside, list(members))
-        else:
-            merged_groups[root][1].extend(members)
-    groups = list(merged_groups.values())
+        entry = merged_groups.setdefault(root, ([], []))
+        entry[0].append(outside)
+        entry[1].extend(members)
+
+    groups = []
+    for outsides, members in merged_groups.values():
+        names = {name for name, _direction in map(_port_marker, outsides) if name}
+        if len(names) > 1:
+            raise ValidationError(
+                "合并后的端口存在多个不同名称："
+                + "、".join(sorted(names)[:3])
+                + "；请只保留一个端口标记"
+            )
+        outside = min(
+            outsides,
+            key=lambda item: (0 if _port_marker(item)[0] else 1, item.kind, item.id),
+        )
+        groups.append((outside, members))
+    groups.sort(key=lambda item: (item[0].kind, item[0].id))
 
     #: 内部网络别名：被合并网络的新 id → 代表网络的新 id。
     net_aliases: dict[str, str] = {}

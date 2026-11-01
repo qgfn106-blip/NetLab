@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import copy
 import math
 import threading
 import time
@@ -15,9 +14,8 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Callable
 
 from .limits import (
-    MAX_NUMBER,
+    MAX_PRECOMPUTE_STEPS,
     ComputeError,
-    NetlabError,
     ValidationError,
     as_bool,
     as_float,
@@ -276,8 +274,25 @@ class Simulation:
     def precompute(self, duration: float, dt: float | None = None, sample_every: int | None = None) -> dict[str, Any]:
         """P7-05/D48：从 0 开始预计算 0→T，填充录制帧；不改当前场景参数。"""
         with self.lock:
-            if not (0.0 < float(duration) <= 120.0):
+            # 先完成全部校验，再动任何状态：被拒绝的预计算不能清空当前录制帧
+            # 或重置场景，否则用户只是填错参数就会丢掉已经跑出的结果。
+            duration = float(duration)
+            if not (0.0 < duration <= 120.0):
                 raise ValidationError("预计算时长必须在 (0, 120] s 内")
+            step_dt = float(dt if dt is not None else self.config.dt)
+            if not (1.0e-9 <= step_dt <= 10.0):
+                raise ValidationError("预计算 dt 必须在 1e-9–10 s 内")
+            sample = int(sample_every if sample_every is not None else self.config.sample_every)
+            sample = max(1, min(100, sample))
+            count = max(1, int(round(duration / step_dt)))
+            if count > MAX_PRECOMPUTE_STEPS:
+                raise ValidationError(
+                    f"预计算步数超过 {MAX_PRECOMPUTE_STEPS}；请增大 dt、缩短 duration，或分段预计算"
+                )
+            # 录制环形缓冲只有 RECORDER_CAPACITY 帧：整段 0→T 必须装得下，
+            # 否则只剩最后一段，前端看到的「起始时间」就不是 0。
+            needed = int(math.ceil(count / RECORDER_CAPACITY))
+            sample = max(sample, needed, 1)
             self.ensure_thread()
             self.running = False
             self.scene.reset()
@@ -287,20 +302,6 @@ class Simulation:
             self.error_at = None
             self.recorder.clear()
             self._frame_times.clear()
-            step_dt = float(dt if dt is not None else self.config.dt)
-            if not (1.0e-9 <= step_dt <= 10.0):
-                raise ValidationError("预计算 dt 必须在 1e-9–10 s 内")
-            sample = int(sample_every if sample_every is not None else self.config.sample_every)
-            sample = max(1, min(100, sample))
-            count = max(1, int(round(float(duration) / step_dt)))
-            if count > 200_000:
-                raise ValidationError(
-                    "预计算步数超过 200000；请增大 dt、缩短 duration，或分段预计算"
-                )
-            # 录制环形缓冲只有 RECORDER_CAPACITY 帧：整段 0→T 必须装得下，
-            # 否则只剩最后一段，前端看到的「起始时间」就不是 0。
-            needed = int(math.ceil(count / RECORDER_CAPACITY))
-            sample = max(sample, needed, 1)
             for _ in range(count):
                 if not self._advance_locked(step_dt, sample):
                     break

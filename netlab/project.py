@@ -20,11 +20,14 @@ import time
 import uuid
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .limits import LimitError, NetlabError, ValidationError, json_safe
 from .scene import MODES, Scene
-from .simulation import Simulation, SimConfig
+from .simulation import Simulation
+
+if TYPE_CHECKING:
+    from .networks import NetworkContainer
 
 PROJECT_FORMAT = "netlab-project"
 PROJECT_VERSION = 5
@@ -891,19 +894,25 @@ def load_project_raw(path: str | os.PathLike[str]) -> dict[str, Any]:
     return project
 
 
+def build_project_for(
+    simulation: Simulation | NetworkContainer,
+    fem: Any | None = None,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """按对象类型打包工程：容器自己负责多网络，普通仿真走单场景构建。"""
+    builder = getattr(simulation, "build_project", None)
+    if callable(builder):
+        return builder(fem=fem, **kwargs)
+    return build_project(simulation, fem, **kwargs)
+
+
 def save_project(
     path: str | os.PathLike[str],
-    simulation: Simulation,
+    simulation: Simulation | NetworkContainer,
     fem: Any | None = None,
     **kwargs: Any,
 ) -> Path:
-    builder = getattr(simulation, "build_project", None)
-    if callable(builder):
-        # NetworkContainer 自己实现了多网络打包；不能让其通过
-        # __getattr__ 代理后落回单 Simulation 的 build_project。
-        project = builder(fem=fem, **kwargs)
-    else:
-        project = build_project(simulation, fem, **kwargs)
+    project = build_project_for(simulation, fem, **kwargs)
     return atomic_write(path, project)
 
 

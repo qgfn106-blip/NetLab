@@ -32,7 +32,7 @@ from .limits import LimitError, ValidationError
 from .project import (
     PROJECT_SUFFIX,
     atomic_write,
-    build_project,
+    build_project_for,
     load_project,
     save_project,
 )
@@ -290,7 +290,7 @@ def create_project(
     if payload is None:
         if simulation is None:
             raise ValidationError("新建工程需要 simulation 或 payload")
-        project = build_project(simulation, name=name)
+        project = build_project_for(simulation, name=name)
         atomic_write(project_file, project)
     else:
         project = dict(payload)

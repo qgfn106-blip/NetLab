@@ -21,6 +21,8 @@ MAX_ARRAY = 256
 MAX_MATRIX = 12
 MAX_NUMBER = 1.0e15
 MAX_NAME = 32
+#: 单次预计算允许的最大步数；超过则拒绝，避免静默截断时间轴。
+MAX_PRECOMPUTE_STEPS = 200_000
 
 _NAME_RE = re.compile(r"^[^\x00-\x1f<>\"'&]{1,32}$")
 _FORBIDDEN = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")

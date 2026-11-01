@@ -15,11 +15,9 @@ htmlcov/
 *.tmp.json
 *.log
 
-# 对外发布时排除的内容
+# 对外发布时排除的内容（测试与文档要进版本库：它们是可复现性的一部分）
 MyProject/
-netlab/tests/
 netlab/tools/
-netlab/docs/
 
 # 共享库与扩展：只保留目录骨架，个人数据不入库
 library/*

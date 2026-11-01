@@ -947,10 +947,10 @@ def workspace_open(request: WorkspacePathRequest) -> dict[str, Any]:
     workspace, project = load_workspace(
         request.path, library_root=request.library_root
     )
-    CURRENT_WORKSPACE = workspace.root
     result = _apply_project(project, request.trust_extensions, library=str(workspace.library))
     result["workspace"] = workspace.as_dict()
     result["library"] = scan_library(workspace)
+    CURRENT_WORKSPACE = workspace.root
     return result
 
 
@@ -994,11 +994,13 @@ def workspace_snapshot(request: WorkspaceSnapshotRequest) -> dict[str, Any]:
 
 @app.post("/api/workspace/restore")
 def workspace_restore(request: WorkspaceRestoreRequest) -> dict[str, Any]:
+    global CURRENT_WORKSPACE
     workspace = workspace_for(request.path, library_root=request.library_root)
     project = load_snapshot(workspace, request.snapshot)
     result = _apply_project(project, request.trust_extensions)
     result["workspace"] = workspace.as_dict()
     result["restored_from"] = request.snapshot
+    CURRENT_WORKSPACE = workspace.root
     return result
 
 

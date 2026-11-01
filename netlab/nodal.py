@@ -1507,6 +1507,21 @@ class CircuitSolver:
                     raise ComputeError(f"内部节点 id 冲突：{node_id!r}")
                 internal.append(node_id)
         unknown.extend(internal)
+        valid_ids = node_ids | set(internal)
+        # 在建立未知量索引前验证所有元件端点与控制端点，避免非法引用
+        # 被静默排除后，装配阶段才以难以定位的 KeyError 失败。
+        for element in self.elements:
+            for node_id in (element.a, element.b):
+                if node_id not in valid_ids:
+                    raise ComputeError(
+                        f"元件 {element.name!r} 连接到了不存在的节点 {node_id!r}"
+                    )
+            for attribute in ("control_a", "control_b"):
+                control = getattr(element, attribute, None)
+                if control and control not in valid_ids:
+                    raise ComputeError(
+                        f"元件 {element.name!r} 的控制节点不存在 {control!r}"
+                    )
         # 固定按物理 id 排序：均衡/消元顺序与 dict 插入历史无关，报告也稳定。
         unknown = sorted(unknown)
         self.unknown_ids = unknown
@@ -1561,20 +1576,6 @@ class CircuitSolver:
         if self.sparse:
             return _sparse.lil_matrix((self.matrix_size, self.matrix_size))
         return np.zeros((self.matrix_size, self.matrix_size))
-
-        # 端点合法性检查
-        for element in self.elements:
-            for node_id in (element.a, element.b):
-                if node_id not in node_ids:
-                    raise ComputeError(
-                        f"元件 {element.name!r} 连接到了不存在的节点"
-                    )
-            for attribute in ("control_a", "control_b"):
-                control = getattr(element, attribute, None)
-                if control and control not in node_ids:
-                    raise ComputeError(
-                        f"元件 {element.name!r} 的控制节点不存在"
-                    )
 
     # ---- 事务检查点（P0-01） ---------------------------------------------
     def _capture_element_state(self) -> list[dict[str, Any]]:

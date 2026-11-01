@@ -252,20 +252,71 @@ def encapsulate_circuit(
         groups[group_index[key]][1].append((inside, inside_pin))
         _unused_pin = outside_pin
 
+    # 同一个被选中网络可能出现在多个外部分组里；这些分组在电气上属于同一个
+    # 父网络，必须先合并，否则会生成重复端口、孤立父节点，甚至让复用模块开路。
+    group_parent = list(range(len(groups)))
+
+    def _find_group(index: int) -> int:
+        while group_parent[index] != index:
+            group_parent[index] = group_parent[group_parent[index]]
+            index = group_parent[index]
+        return index
+
+    net_group: dict[str, int] = {}
+    for index, (_outside, members) in enumerate(groups):
+        for inside, _pin in members:
+            if inside.kind not in NET_KINDS:
+                continue
+            previous = net_group.get(inside.id)
+            if previous is None:
+                net_group[inside.id] = _find_group(index)
+                continue
+            left = _find_group(previous)
+            right = _find_group(index)
+            if left != right:
+                group_parent[right] = left
+                net_group[inside.id] = left
+
+    merged_groups: dict[int, tuple[Any, list[tuple[Any, str]]]] = {}
+    for index, (outside, members) in enumerate(groups):
+        root = _find_group(index)
+        if root not in merged_groups:
+            merged_groups[root] = (outside, list(members))
+        else:
+            merged_groups[root][1].extend(members)
+    groups = list(merged_groups.values())
+
+    #: 内部网络别名：被合并网络的新 id → 代表网络的新 id。
+    net_aliases: dict[str, str] = {}
+
     for outside, members in groups:
         # 端口名优先级：外部网络端口标记 → 内部网络名 → 外部网络名 → 器件.引脚
         marker_name, direction = _port_marker(outside)
-        absorbed = None  # 组里有「被吸收的内部网络」时，它就是端口在模块内部的落点
+        absorbed_nets: list[Any] = []
+        absorbed_ids: set[str] = set()
         pin_members: list[tuple[Any, str]] = []
+        seen_pins: set[tuple[str, str]] = set()
         for inside, inside_pin in members:
             if inside.kind in NET_KINDS:
-                if absorbed is None:
-                    absorbed = inside
-                    marker_name = marker_name or _port_marker(inside)[0]
+                if inside.id not in absorbed_ids:
+                    absorbed_ids.add(inside.id)
+                    absorbed_nets.append(inside)
+                if not marker_name:
+                    marker_name = _port_marker(inside)[0]
             else:
-                pin_members.append((inside, inside_pin))
+                key = (inside.id, inside_pin)
+                if key not in seen_pins:
+                    seen_pins.add(key)
+                    pin_members.append((inside, inside_pin))
 
-        if absorbed is not None:
+        if absorbed_nets:
+            # 被选中的多个内部网络若连到同一个外部网络，必须在模块内合并，
+            # 并让它们对应的父场景导线全部指向同一个新网络；只保留第一个
+            # 网络会留下悬空导线，也会使后续端口丢失电气连接。
+            absorbed = next(
+                (item for item in absorbed_nets if item.kind == "ground"),
+                absorbed_nets[0],
+            )
             # 被选中的网络接到外面：网络本身进模块，父场景换成一个同名新网络，
             # 原有外部导线改接到新网络上。
             parent_net_id = _new_id()
@@ -285,8 +336,27 @@ def encapsulate_circuit(
                     },
                 }
             )
-            rewire[absorbed.id] = parent_net_id
+            for absorbed_net in absorbed_nets:
+                rewire[absorbed_net.id] = parent_net_id
             inner_net = id_map[absorbed.id]
+            aliases = {
+                id_map[item.id]: inner_net
+                for item in absorbed_nets
+                if item.id != absorbed.id
+            }
+            net_aliases.update(aliases)
+            if aliases:
+                # 先复制的内部导线/元件可能仍引用被合并网络；统一改到
+                # 第一个网络，之后补的端口导线直接使用 inner_net。
+                for edge in inner_edges:
+                    edge["source"] = aliases.get(edge["source"], edge["source"])
+                    edge["target"] = aliases.get(edge["target"], edge["target"])
+                    params = edge.get("params")
+                    if isinstance(params, dict):
+                        edge["params"] = {
+                            key: aliases.get(value, value)
+                            for key, value in params.items()
+                        }
             # 同一外部网络上还接着内部器件引脚：直接并到内部这个网络上。
             for index, (inside, inside_pin) in enumerate(pin_members, start=1):
                 inner_edges.append(
@@ -345,6 +415,26 @@ def encapsulate_circuit(
             f"{device_name}.{device_pin}" if device_pin else device_name
         )
         add_port(port_base, direction, inner_net_id, outside.id)
+
+    if net_aliases:
+        # 分组顺序可能让先前创建的端口仍指向后来被合并的内部网络；建块前
+        # 统一规范到代表网络，否则复用该模块时对应引脚会悬空。
+        for port in ports:
+            port.net = net_aliases.get(port.net, port.net)
+        referenced = {port.net for port in ports}
+        for edge in inner_edges:
+            for endpoint in (edge.get("source"), edge.get("target")):
+                if endpoint:
+                    referenced.add(endpoint)
+            params = edge.get("params")
+            if isinstance(params, dict):
+                referenced.update(
+                    value for value in params.values() if isinstance(value, str)
+                )
+        inner_nodes = [
+            node for node in inner_nodes
+            if node["id"] not in net_aliases or node["id"] in referenced
+        ]
 
     # 纯内部、但被标记成端口的网络：同样导出成端口（父场景留一个同名网络 +
     # 一根到模块引脚的导线），这样封装后还能在模块外面探测/改名/改方向。

@@ -897,7 +897,13 @@ def save_project(
     fem: Any | None = None,
     **kwargs: Any,
 ) -> Path:
-    project = build_project(simulation, fem, **kwargs)
+    builder = getattr(simulation, "build_project", None)
+    if callable(builder):
+        # NetworkContainer 自己实现了多网络打包；不能让其通过
+        # __getattr__ 代理后落回单 Simulation 的 build_project。
+        project = builder(fem=fem, **kwargs)
+    else:
+        project = build_project(simulation, fem, **kwargs)
     return atomic_write(path, project)
 
 

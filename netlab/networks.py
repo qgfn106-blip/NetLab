@@ -254,7 +254,10 @@ class NetworkContainer:
         return self.current.mutate(function)
 
     def load_scene(self, payload):
-        self.degraded = None
+        if self.degraded:
+            raise ConflictError(
+                "工程处于降级只读模式：请先补回缺失的库文件，或确认用占位块替换后再编辑"
+            )
         result = self.current.load_scene(payload)
         fill_missing_layout(self.current.scene)
         return result

@@ -292,7 +292,11 @@ class Simulation:
                 raise ValidationError("预计算 dt 必须在 1e-9–10 s 内")
             sample = int(sample_every if sample_every is not None else self.config.sample_every)
             sample = max(1, min(100, sample))
-            count = max(1, min(200_000, int(round(float(duration) / step_dt))))
+            count = max(1, int(round(float(duration) / step_dt)))
+            if count > 200_000:
+                raise ValidationError(
+                    "预计算步数超过 200000；请增大 dt、缩短 duration，或分段预计算"
+                )
             # 录制环形缓冲只有 RECORDER_CAPACITY 帧：整段 0→T 必须装得下，
             # 否则只剩最后一段，前端看到的「起始时间」就不是 0。
             needed = int(math.ceil(count / RECORDER_CAPACITY))

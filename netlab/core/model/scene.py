@@ -75,18 +75,26 @@ class NodeRecord:
     #: 节点尺寸（R09）：``{"w": 直径}``；空字典表示用默认半径。
     size: dict[str, float] = field(default_factory=dict)
 
-    def snapshot(self) -> dict[str, Any]:
-        return {
+    def snapshot(self, *, include_state: bool = True) -> dict[str, Any]:
+        """返回可 JSON 化的节点快照。
+
+        ``include_state=False``（前端画布/场景树用的只读视图）时不深拷贝
+        ``state``/``inputs``：这两个字段每拍都变、体积最大，而调用方随后
+        就会丢弃它们，拷贝纯属浪费（204 节点场景实测占 to_payload 一半时间）。
+        """
+        item = {
             "id": self.id,
             "name": self.name,
             "kind": self.kind,
             "params": copy.deepcopy(self.params),
             "data": copy.deepcopy(self.data),
-            "state": copy.deepcopy(self.state),
-            "inputs": copy.deepcopy(self.inputs),
             "position": dict(self.position),
             "size": dict(self.size),
         }
+        if include_state:
+            item["state"] = copy.deepcopy(self.state)
+            item["inputs"] = copy.deepcopy(self.inputs)
+        return item
 
 
 @dataclass
@@ -113,8 +121,8 @@ class EdgeRecord:
     source_port: str = ""
     target_port: str = ""
 
-    def snapshot(self) -> dict[str, Any]:
-        return {
+    def snapshot(self, *, include_state: bool = True) -> dict[str, Any]:
+        item = {
             "id": self.id,
             "name": self.name,
             "source": self.source,
@@ -125,7 +133,6 @@ class EdgeRecord:
             "source_port": self.source_port,
             "target_port": self.target_port,
             "params": copy.deepcopy(self.params),
-            "state": copy.deepcopy(self.state),
             "delay": self.delay,
             "enabled": self.enabled,
             "route": self.route,
@@ -133,6 +140,9 @@ class EdgeRecord:
             "anchors": dict(self.anchors),
             "layout": dict(self.layout),
         }
+        if include_state:
+            item["state"] = copy.deepcopy(self.state)
+        return item
 
 
 # ---- 引擎 ------------------------------------------------------------------
@@ -1719,17 +1729,10 @@ class Scene:
     def to_payload(self, *, include_state: bool = False) -> dict[str, Any]:
         nodes = []
         for record in self.nodes.values():
-            item = record.snapshot()
-            if not include_state:
-                item.pop("state", None)
-                item.pop("inputs", None)
-            nodes.append(item)
+            nodes.append(record.snapshot(include_state=include_state))
         edges = []
         for record in self.edges.values():
-            item = record.snapshot()
-            if not include_state:
-                item.pop("state", None)
-            edges.append(item)
+            edges.append(record.snapshot(include_state=include_state))
         return {
             "mode": self.mode,
             "integration": self.integration,

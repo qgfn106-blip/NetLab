@@ -895,6 +895,67 @@ boot()
 
 ---
 
+## 13.5 数据结构与数据通路（审计 + 优化，D80）
+
+三个问题：数据长什么样、沿哪条路走、哪里慢。数字均为本机实测（`time.perf_counter`
+中位数），护栏测试见 `netlab/tests/test_data_path.py`。
+
+### 13.5.1 数据结构
+
+| 结构 | 位置 | 形状 | 说明 |
+| --- | --- | --- | --- |
+| `Scene.nodes` / `Scene.edges` | `netlab/core/model/scene.py` | `dict[str, NodeRecord]` / `dict[str, EdgeRecord]` | 插入顺序即绘制顺序；边用节点 id 引用端点 |
+| `NodeRecord` | 同上 | id / name / kind / params / data / state / inputs / position{x,y} / size{w} | `params`=元件参数；`state`=每拍变化的求解状态 |
+| `EdgeRecord` | 同上 | id / name / source / target / kind / params / state / delay / enabled / route / waypoints / anchors / layout / source_pin,target_pin,source_port,target_port | |
+| `SimConfig` | `core/compute/simulation.py` | fps / dt / steps_per_frame / sample_every / integrator / sparse… | `info()` 用 `asdict` 展开 |
+| `Recorder.frames` | 同上 | `deque(maxlen=1200)`，元素 `{"seq": int, "t": float, "v": {探针: float}}` | 环形缓冲，丢最旧 |
+| 探针键 | 引擎 | `n:<节点名>:<字段>` / `e:<边名>:<字段>` | 前端据此拆 `nodeValues` / `edgeValues` |
+
+### 13.5.2 跨层载荷
+
+| 端点 | 载荷 | 参考体积 |
+| --- | --- | --- |
+| `GET /api/state` | `{scene: to_payload(include_state=True), sim: info(), limits}` | 204 节点 ≈ 47 KB |
+| `GET /api/live?cursor&limit` | `{frames, cursor, oldest, keys, sim}`；`limit ≤ 600`，超出等间隔降采样并保留首尾 | 600 帧 × 7 探针 ≈ 120 KB |
+| `GET /api/scene/export` / `POST /api/scene` | `to_payload(include_state=?)` 形状 | 同上 |
+
+### 13.5.3 运行中的数据通路
+
+```
+求解线程 _loop ─step─► 引擎.evaluate() ─probes{n:…,e:…}─► Recorder.push(t, probes)  deque(1200)、seq 自增、帧不可变
+                                                                  │
+GET /api/live?cursor=N ─► SERVICE.live → recorder.since(N,600) → {frames,cursor,keys,sim} → fast_json 紧凑字节
+                                                                  │
+前端 pollLive 110ms（暂停 500ms）─► ingestFrame → state.values/nodeValues/edgeValues + state.frames(≤5000)
+                                                                  │
+scheduleChartDraw 70–80ms ─► drawChart：二分定位时间窗 → 稠密抽稀 → Canvas 2D
+```
+
+### 13.5.4 实测（改前 → 改后）
+
+| 热点 | 改前 | 改后 | 手段 |
+| --- | --- | --- | --- |
+| 600 帧 × 7 探针序列化 | `jsonable_encoder` 10.6 ms | 1.6 ms | `/api/live`、`/api/state`、`/api/fem/state|live`、`/api/scene/export` 改走 `server.fast_json()`，跳过 FastAPI 逐字段编码 |
+| 同一响应字节数 | 131,756 B | 120,247 B | `separators=(",",":")` + `ensure_ascii=False` |
+| 204 节点场景序列化 | 6.3 ms | 0.5 ms | 同上 |
+| `Recorder.since` 尾部增量（3 帧 / 容量 5000） | 52 µs | 0.8 µs | `reversed(deque)` 反向收集，遇 `seq<=cursor` 即停，并按连续 seq 提前结束 |
+| `Recorder.keys()` | 每次重建 list | 0.2 µs | 探针集合不变时复用缓存；`push` 比对、`clear` 清空 |
+| `to_payload(include_state=False)`（204 节点） | 1.74 ms | 1.07 ms | `snapshot(include_state=False)` 不再深拷贝 `state`/`inputs` |
+| 前端 `drawChart`（5000 帧） | 每帧从 0 扫、每点建对象 | 二分定位窗起点 + 每像素 >4 点抽稀 | 抽稀只影响绘制、保留末点，不改 `state.frames` |
+| 前端无新帧轮询 | 全量刷 DOM/图例/检视器 | 只刷状态条 | `pollLive` 在 `frames` 空且未重置时跳过重活 |
+
+### 13.5.5 有意保留的开销
+
+- `to_payload` ≈5 µs/节点（`params`/`data` 深拷贝）。节点上限 400 → 单次 ≤2 ms，只在场景变更时发生；不做写时复制。
+- 首次加载 `cursor=0` 需收集并降采样 ≤1200 帧（≈0.27 ms），一次性。
+- `sim.info()` 的 `asdict(SimConfig)` + `scene.stats()` ≈20 µs/次（110 ms 一次）。
+- 帧仍是「每帧一个 dict」以保持 `/api/live` 契约与 `ingestFrame` 简单；若要再省 3–4 倍体积，可加 `?format=columnar`（键只传一次、值为行数组），列为后续可选。
+
+> 结论：瓶颈不在求解、也不在 JSON 编码本身，而在**框架默认的逐字段编码**和
+> **整窗扫描**这两个"每请求都做一次"的固定开销；替换后成本与增量帧数成正比。
+
+---
+
 ## 14. 安全模型
 
 - **不执行用户代码**：表达式节点走 `safeexpr.py` 的受限 AST 解释器（只允许数字、四则、幂、比较、三元与固定数学函数），没有 `eval`、属性访问、下标、lambda。

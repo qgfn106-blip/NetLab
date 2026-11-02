@@ -8767,19 +8767,44 @@
     const tMin = Math.max(0, tMax - window);
     const spanT = Math.max(1e-9, tMax - tMin);
 
+    // frames 按时间升序：二分定位时间窗起点，避免每帧从 0 开始扫（5000 帧 × N 信号）。
+    let startAt = 0;
+    {
+      let lo = 0;
+      let hi = frames.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (frames[mid].t < tMin) lo = mid + 1;
+        else hi = mid;
+      }
+      startAt = lo;
+    }
+    const visibleCount = frames.length - startAt;
+    // 每像素超过 4 个采样点时等间隔抽稀：只影响绘制，不改 state.frames 里的原始数据。
+    const stride = visibleCount > plotW * 4 ? Math.ceil(visibleCount / (plotW * 4)) : 1;
+    const lastFrame = frames[frames.length - 1];
     const series = [];
     let yMin = Infinity;
     let yMax = -Infinity;
     for (const key of keys) {
       const color = colorForKey(key);
       const points = [];
-      for (const frame of frames) {
-        if (frame.t < tMin) continue;
+      for (let i = startAt; i < frames.length; i += stride) {
+        const frame = frames[i];
         const value = frame.v[key];
         if (typeof value !== 'number' || !Number.isFinite(value)) continue;
         points.push({ t: frame.t, v: value });
         if (value < yMin) yMin = value;
         if (value > yMax) yMax = value;
+      }
+      // 抽稀后仍要保留最新一帧，曲线终点才能对上实时值。
+      if (lastFrame && lastFrame.t >= tMin && lastFrame.v
+          && typeof lastFrame.v[key] === 'number' && Number.isFinite(lastFrame.v[key])
+          && (!points.length || points[points.length - 1].t !== lastFrame.t)) {
+        const lastV = lastFrame.v[key];
+        points.push({ t: lastFrame.t, v: lastV });
+        if (lastV < yMin) yMin = lastV;
+        if (lastV > yMax) yMax = lastV;
       }
       series.push({ key, color, points });
     }
@@ -9495,15 +9520,21 @@
           state.frames.splice(0, state.frames.length - MAX_FRAMES);
         }
       }
+      const gotFrames = Boolean(Array.isArray(data.frames) && data.frames.length);
       if (typeof data.cursor === 'number') state.cursor = data.cursor;
       if (data.sim) state.sim = data.sim;
-      updateSignalKeyCache();
-      syncUI();
-      updateReplayUI();
-      updateInspectorLive();
-      updateSignalListValues();
-      updateLegendValues();
-      scheduleChartDraw();
+      if (gotFrames || resetDetected) {
+        updateSignalKeyCache();
+        syncUI();
+        updateReplayUI();
+        updateInspectorLive();
+        updateSignalListValues();
+        updateLegendValues();
+        scheduleChartDraw();
+      } else {
+        // 没有新帧（暂停/空闲）：只刷新状态条，不重绘图、不刷图例与检视器。
+        syncUI();
+      }
       if (resetDetected) void refreshState(true);
     } catch (error) {
       const now = performance.now();

@@ -50,6 +50,7 @@
     <section class="plotwrap">
       <div id="plot" class="plot">
         <img id="plotImg" alt="" draggable="false">
+        <canvas id="plotCanvas" hidden></canvas>
         <canvas id="plot3d" hidden></canvas>
         <canvas id="plot3d-deco" hidden></canvas>
         <div id="plot3d-hud" class="plot-hover" hidden></div>
@@ -96,6 +97,21 @@
         </div>
       </details>
 
+      <details class="pgroup sect" id="figgroup" open>
+        <summary><span class="sect-title">画布与子图</span></summary>
+        <div class="body">
+          <label class="row"><span>标题</span><input id="figTitle" type="text" placeholder="（无标题）"></label>
+          <label class="row"><span>列数</span>
+            <select id="figNcols"><option value="1">1 列</option><option value="2">2 列</option><option value="3">3 列</option><option value="4">4 列</option></select>
+          </label>
+          <label class="row"><span>子图数</span>
+            <select id="figSubplots"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="6">6</option><option value="8">8</option></select>
+          </label>
+          <label class="row"><span>X 轴名</span><input id="figXlabel" type="text" placeholder="（无）"></label>
+          <label class="row"><span>Y 轴名</span><input id="figYlabel" type="text" placeholder="（无）"></label>
+          <p class="tiny">子图用于并行拼图：给每个图层选「槽」即可放到对应子图。</p>
+        </div>
+      </details>
       <details class="pgroup sect grow" open>
         <summary><span class="sect-title">图层</span> <span class="count" id="layercount">0</span></summary>
         <div class="sect-body">
@@ -124,6 +140,7 @@
   </footer>
 
   <script src="static/view3d.js"></script>
+  <script src="static/render2d.js"></script>
   <script src="static/app.js"></script>
 </body>
 </html>

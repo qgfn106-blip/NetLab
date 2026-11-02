@@ -11273,7 +11273,7 @@
     $('#btnZoomOut').addEventListener('click', () => zoomCenter(1 / 1.2));
     $('#btnClear').addEventListener('click', () => void clearScene());
 
-    $('#btnHelp').addEventListener('click', showHelp);
+    // 顶栏不再放“帮助”按钮：帮助菜单与 H/F1 快捷键仍调用 showHelp()。
 
     if (ui.workspaceSwitch) {
       $$('button[data-workspace]', ui.workspaceSwitch).forEach((buttonNode) => {
@@ -11996,30 +11996,19 @@
     $$('.guide-mode').forEach((node) => {
       node.addEventListener('click', () => selectGuideMode(node.dataset.mode));
     });
-    // 开始页卡片可以按住标题区拖动（无边框窗口下也能挪开挡住的地方）
+    // 开始页标题区 = 窗口拖动柄：拖动它移动整个窗口（仅桌面壳；浏览器没有窗口可动）。
+    // 旧实现拖动的是卡片本身（translate），在整屏开始页里视觉上等于没反应，已移除。
     (() => {
-      const card = document.querySelector('#guide .guide-card');
       const handle = document.querySelector('#guide .guide-top');
-      if (!card || !handle) return;
-      let drag = null;
-      const offset = { x: 0, y: 0 };
+      if (!handle) return;
+      const desktop = window.netlabDesktop;
+      if (!desktop || typeof desktop.attachWindowDrag !== 'function') return;
       handle.style.cursor = 'grab';
-      handle.addEventListener('pointerdown', (ev) => {
-        if (ev.button !== 0) return;
-        if (ev.target.closest('button, a, input, select, textarea, [role="tab"]')) return;
-        drag = { x: ev.clientX, y: ev.clientY, ox: offset.x, oy: offset.y };
-        handle.style.cursor = 'grabbing';
-        try { handle.setPointerCapture(ev.pointerId); } catch (err) { /* noop */ }
+      desktop.attachWindowDrag(handle, {
+        dblclick: false,
+        onStart: () => { handle.style.cursor = 'grabbing'; },
+        onEnd: () => { handle.style.cursor = 'grab'; },
       });
-      handle.addEventListener('pointermove', (ev) => {
-        if (!drag) return;
-        offset.x = drag.ox + ev.clientX - drag.x;
-        offset.y = drag.oy + ev.clientY - drag.y;
-        card.style.transform = `translate(${offset.x}px, ${offset.y}px)`;
-      });
-      const stop = () => { drag = null; handle.style.cursor = 'grab'; };
-      handle.addEventListener('pointerup', stop);
-      handle.addEventListener('pointercancel', stop);
     })();
     ui.guideEnter?.addEventListener('click', () => void enterGuideScene());
     ui.guideClose?.addEventListener('click', hideGuide);
@@ -12548,6 +12537,11 @@
     return (value || '').trim() || fallback;
   }
 
+  function analysisWarn() {
+    // 用户要求：开始分析前弹提醒，但不阻止
+    toast('分析会基于当前场景重新求解，期间实时播放会暂停；可随时关闭分析窗。', 'warn', 4200);
+  }
+
   function openAnalysis(tab = 'op') {
     const win = $('#analWin');
     if (!win) return;
@@ -12593,6 +12587,7 @@
   }
 
   async function runOperatingPoint() {
+    analysisWarn();
     const body = $('#analOpTable');
     const meta = $('#analOpMeta');
     if (meta) meta.textContent = '求解中…';
@@ -12627,6 +12622,7 @@
   }
 
   async function runAcSweep() {
+    analysisWarn();
     const meta = $('#analAcMeta');
     const params = new URLSearchParams();
     const input = $('#analAcInput')?.value || '';
@@ -12872,15 +12868,39 @@
 
   function applyPkChannels() {
     const keys = pkCheckedKeys();
-    fetch('/api/plotkit/channels', {
+    const hint = $('#pkDataHint');
+    const applyBtn = $('#pkChApply');
+    // 接入前先强制预计算：把 0→T 的整段数据算完再登记，避免边跑边画导致的卡顿
+    const seconds = Math.max(1, Math.min(120, Number(state.chart && state.chart.window) || 5));
+    if (hint) hint.textContent = `正在预计算 0→${seconds}s 的数据…`;
+    if (applyBtn) applyBtn.disabled = true;
+    fetch('/api/plotkit/precompute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keys }),
-    }).then((r) => r.json()).then((data) => {
-      if (!data || !data.ok) { toast('接入失败：PlotKit 未就绪', 'warn', 3000); return; }
-      toast(`已接入 ${(data.selected || []).length} 条通道`, 'ok', 2600);
-      reloadPlotkitFrame();
-      refreshPkChannels();
+      body: JSON.stringify({ seconds }),
+    }).then((r) => r.json()).catch(() => null).then((pre) => {
+      if (applyBtn) applyBtn.disabled = false;
+      if (pre && pre.ok === false) {
+        toast('预计算失败：' + (pre.error || '未知错误'), 'warn', 4000);
+        if (hint) hint.textContent = '预计算失败，可重试或检查场景。';
+        return null;
+      }
+      if (pre && pre.elapsed_ms) {
+        if (hint) hint.textContent = `预计算完成：${seconds}s / ${pre.frames ?? pre.frames_recorded ?? '?'} 帧 / ${Math.round(pre.elapsed_ms)} ms`;
+      }
+      return fetch('/api/plotkit/channels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keys }),
+      });
+    }).then((res) => {
+      if (!res) return;
+      return res.json().then((data) => {
+        if (!data || !data.ok) { toast('接入失败：PlotKit 未就绪', 'warn', 3000); return; }
+        toast(`已接入 ${(data.selected || []).length} 条通道`, 'ok', 2600);
+        reloadPlotkitFrame();
+        refreshPkChannels();
+      });
     }).catch(() => toast('接入失败', 'warn', 2600));
   }
 

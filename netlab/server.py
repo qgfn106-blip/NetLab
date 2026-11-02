@@ -395,7 +395,7 @@ def index() -> Response:
         if "desktop-shim.js" not in html:
             html = html.replace(
                 "</head>",
-                '  <script src="/static/desktop-shim.js?v=3.15.6"></script>\n</head>',
+                '  <script src="/static/desktop-shim.js?v=3.16.0"></script>\n</head>',
                 1,
             )
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})
@@ -455,6 +455,30 @@ def plotkit_set_channels(payload: dict[str, Any] | None = None) -> dict[str, Any
         "selected": plotkit_bridge.selected_channels(),
     }
 
+
+@app.post("/api/plotkit/precompute")
+def plotkit_precompute(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """接入 PlotKit 前先把 0→T 的整段数据算出来并登记（仿真保持停止）。
+
+    用户要求：接入时不要边跑边画，先强制预计算一遍；返回耗时与帧数供前端提示。
+    """
+    seconds = float((payload or {}).get("seconds") or 5.0)
+    if seconds <= 0:
+        seconds = 5.0
+    started = time.perf_counter()
+    try:
+        # 步数上限保护：场景 dt 很小时按 duration/2000 放大步长，避免一次算几十万步
+        try:
+            cfg = (SERVICE.snapshot().get("sim") or {}).get("config") or {}
+        except Exception:
+            cfg = {}
+        step_dt = float(cfg.get("dt") or 0.01)
+        step_dt = max(step_dt, seconds / 2000.0)
+        result = SERVICE.precompute(seconds, dt=step_dt) or {}
+    except Exception as exc:  # pragma: no cover - 取决于场景
+        return {"ok": False, "seconds": seconds, "error": str(exc)}
+    elapsed = (time.perf_counter() - started) * 1000.0
+    return {"ok": True, "seconds": seconds, "elapsed_ms": round(elapsed, 1), **result}
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:

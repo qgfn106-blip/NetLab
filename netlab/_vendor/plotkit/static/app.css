@@ -1,26 +1,27 @@
 :root {
-  --bg: #0f172a;
-  --bg-2: #111827;
-  --panel: #131c2e;
-  --line: #1f2937;
-  --text: #e2e8f0;
-  --muted: #94a3b8;
-  --accent: #4fc3f7;
-  --accent-2: #ff8a65;
-  --ok: #aed581;
+  /* 与 netlab 共用一套 design token（D86）：纸色底、墨色字、赭石强调 */
+  --bg: #11181b;
+  --bg-2: #171f22;
+  --panel: #171f22;
+  --line: #263033;
+  --text: #e0e3dc;
+  --muted: #8b9490;
+  --accent: #c5a16b;
+  --accent-2: #d98b52;
+  --ok: #a7c07a;
   --radius: 10px;
   --shadow: 0 10px 30px rgba(0, 0, 0, .35);
 }
 
 body[data-theme="light"] {
-  --bg: #f8fafc;
-  --bg-2: #ffffff;
-  --panel: #ffffff;
-  --line: #e5e7eb;
-  --text: #1f2937;
-  --muted: #64748b;
-  --accent: #0284c7;
-  --accent-2: #ea580c;
+  --bg: #eae5e1;
+  --bg-2: #faf8f2;
+  --panel: #faf8f2;
+  --line: #cfc6b5;
+  --text: #080a08;
+  --muted: #7b7266;
+  --accent: #9b7247;
+  --accent-2: #a8541f;
   --shadow: 0 10px 24px rgba(15, 23, 42, .08);
 }
 
@@ -31,7 +32,7 @@ html, body {
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font: 13px/1.5 system-ui, "Microsoft YaHei", sans-serif;
+  font: 13px/1.5 "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
 }
 
 body { display: flex; flex-direction: column; }

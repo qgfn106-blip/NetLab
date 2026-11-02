@@ -559,3 +559,10 @@ window.dispatchEvent(new Event('netlab-desktop-ready'));
 5. **`requestAnimationFrame` 在无头/后台页会被暂停**：用 rAF 驱动的回放"点了不动"。改用 `setTimeout` + 「真实经过时间 × 速度」推进，重绘被降频也不会失真。
 6. **`mpl` 的 `inset_axes` 是子轴**：`len(fig.axes)` 仍是 1，判断 inset 是否存在要看 `parent.child_axes`，否则会误判"inset 没画出来"。
 7. **plotly 的三处"静默忽略"**（⚠ 不报错，只是画错）：① 子图轴引用必须是 `x2`/`y2` 这类轴 id，写 `xaxis2` 会被忽略并回落到第一个轴（表现为所有子图叠在一起）；② 对数轴的 `range` 是**指数**不是数据值，传 `[1.3, 11]` 会把坐标轴压成 1.05~1.35；③ `layout.annotations` 里混进一个非法条目（如 shape 字典），**整组文字全不渲染**——文字改用 `mode:"text"` 的 trace，线/带用 `shapes`，箭头用「线 shape + 三角 marker trace」。
+
+## D81：PlotKit 卡顿的三条真根因（2026-11-02）
+
+- **「卡住不动」优先怀疑数据长度错开，不是渲染慢**：探针是跑起来后才出现的，通道建立时若从 0 长度开始 `push`，它和坐标列 `t` 就永远差一截，`render` 直接抛 `图层 x/y 长度不一致: 2424 vs 88`。新数据集必须用 `np.full(len(t), nan)` 补齐历史。
+- **共享可变数据集的"读—写"必须同一把锁**：后台同步线程按 0.5s 在 push/trim，出图线程整批读；不加锁迟早读到"`t` 已加、某条曲线还没加"的中间态。`store/registry.py` 的 `DATA_LOCK` 同时给两边用，顺带把渲染串行化，避免多个 200ms 渲染叠着排队。
+- **matplotlib 出图是持 GIL 的纯 CPU 活**：6 条曲线 1200×700 要 149ms，直接把 `scene.step` 从 122µs 拉到 200µs 上下。降频（1Hz）+ 限尺寸（面积上限 1400×1000）+ 不可见就停，比"优化渲染"便宜得多。判可见要三路：`document.hidden`、`offsetParent/clientWidth`、宿主 `postMessage`（iframe 被 `display:none` 的祖先藏起来时，iframe 内部的 `document.hidden` 仍是 false）。
+- **iframe 面板里"看不到"的另一种表现是 spec 不刷新**：面板先于数据打开时 spec 里没有 layer，之后后端补了图层前端不会再取，界面一直「0 个图层」。轮询里空图层时顺手重取 `api/spec` 即可自愈。

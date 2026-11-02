@@ -22,8 +22,8 @@ LOGGER = logging.getLogger(__name__)
 MOUNT_PATH = "/plotkit"
 #: 每个通道保留的点数；超出后只留尾部（对应 spec 里的 life="replace" 语义）
 MAX_POINTS = 20_000
-#: 同步线程的采样节奏（秒）
-SYNC_INTERVAL = 0.2
+#: 同步线程的采样节奏（秒）；前端实时重绘是 1Hz，这里 2Hz 足够，再快只是白烧 CPU
+SYNC_INTERVAL = 0.5
 #: 最多同时接多少个通道（probes 一次可能给 240 个）
 MAX_CHANNELS = 6
 DEFAULT_WINDOW = 5.0   # 秒；与 netlab 老画布的「时间窗」默认值一致
@@ -178,12 +178,18 @@ def _sync_loop(service: Any, figure: Any, stop_event: threading.Event) -> None:
             if payload.get("cursor", cursor) < cursor:  # 重新运行 / 换场景 / 重置
                 cursor = 0
                 frames = []
-                _reset(figure)
+                from plotkit.store.registry import DATA_LOCK as _DL
+
+                with _DL:
+                    _reset(figure)
             if frames:
                 cursor = payload.get("cursor", cursor)
-                if _FORCED.get("keys") is None:
-                    _ensure_channels(figure, frames, limit=MAX_CHANNELS)
-                _ingest(figure, frames, keys)
+                from plotkit.store.registry import DATA_LOCK
+
+                with DATA_LOCK:  # 与出图线程互斥，避免读到半写入的数据集
+                    if _FORCED.get("keys") is None:
+                        _ensure_channels(figure, frames, limit=MAX_CHANNELS)
+                    _ingest(figure, frames, keys)
         except Exception:  # 同步线程永不把异常抛给主线程
             LOGGER.debug("plotkit 同步失败", exc_info=True)
         time.sleep(SYNC_INTERVAL)
@@ -212,17 +218,28 @@ def _reset(figure: Any) -> None:
 
 
 def _ensure_channels(figure: Any, frames: list[dict[str, Any]], *, limit: int = 4) -> None:
-    """场景里新出现的通道自动补成数据集 + 图层（最多 limit 条曲线）。"""
+    """场景里新出现的通道自动补成数据集 + 图层（最多 limit 条曲线）。
+
+    新通道必须**先补齐到当前 t 的长度**（用 NaN）：中途出现的探针若从 0 长度开始
+    追加，它和 ``t`` 的长度会永远错开，下一次 render 直接抛
+    ``ValueError: 图层 x/y 长度不一致``，曲线就此卡住不再更新。
+    """
+    import numpy as np
+
     existing = set(figure.store.names())
     incoming: list[str] = []
     for frame in frames:
         for key in (frame.get("v") or {}):
             if key not in existing and key not in incoming:
                 incoming.append(key)
+    t_len = len(figure.store.get("t")) if "t" in existing else 0
     for key in incoming:
         if len(figure.spec["layers"]) >= limit:
             return
-        figure.add_data(key, [], role="series", life="append", tags=[key.split(":")[0]])
+        figure.add_data(
+            key, np.full(t_len, np.nan, dtype="float64"), role="series", life="append",
+            tags=[key.split(":")[0]],
+        )
         try:
             figure.add_plot(x="t", y=key, label=_label(key), style=LINE_STYLE)
         except Exception:  # 通道名里有怪字符时宁可少画一条
@@ -233,7 +250,20 @@ def _ingest(figure: Any, frames: list[dict[str, Any]], keys: list[str]) -> None:
     """把一批帧追加进 PlotKit 的命名数据集；缺字段补 NaN，保持等长。"""
     import numpy as np
 
+    from plotkit.store.registry import DATA_LOCK
+
     store = figure.store
+    names_all = list(store.names())
+    t_len = len(store.get("t")) if "t" in names_all else 0
+    # 对齐：任何比 t 短的序列先补 NaN，比 t 长的先裁掉，保证 push 后长度一致
+    for name in names_all:
+        if name == "t":
+            continue
+        have = len(store.get(name))
+        if have < t_len:
+            store.push(name, np.full(t_len - have, np.nan, dtype="float64"))
+        elif have > t_len:
+            store.trim(name, t_len)
     times = [float(frame.get("t", 0.0)) for frame in frames]
     store.push("t", np.asarray(times, dtype="float64"))
     seen = {name for name in store.names() if name != "t"}

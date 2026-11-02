@@ -1,26 +1,24 @@
-"""桌面入口：Qt 原生界面（2026-11-02 起为唯一界面，D77）。
+"""桌面入口：pywebview + WebView2 网页壳（D78 恢复为 Web UI）。
 
-    python -m netlab.desktop            # 原生 Qt 界面（等价 --native）
-    python -m netlab.desktop --native   # 显式写法，保留兼容
+    python -m netlab.desktop            # pywebview + WebView2
 
-旧 pywebview + WebView2 壳与原 web 前端已于 2026-11-02 退役并备份到
-GitHub（分支 backup/web-ui-static-2026-11-02、标签 web-legacy-2026-11-02、
-docs/archive/netlab-web-ui-2026-11-02.zip）。
+Qt 原生界面（R33/D74/D77）已于 2026-11-02 按用户决定整体备份到
+git 分支 ``backup/qt-native-2026-11-02``（标签 ``qt-native-2026-11-02``）后删除。
 """
 
 import sys
 
-if "--web" in sys.argv:
-    print(
-        "旧的 web 界面已退役（D77）。请改用原生界面：\n"
-        "  python -m netlab.desktop --native\n"
-        "原 web 前端备份在 GitHub 分支 backup/web-ui-static-2026-11-02。",
-        file=sys.stderr,
-    )
-    raise SystemExit(2)
 
-sys.argv = [arg for arg in sys.argv if arg != "--native"]
+def _main() -> int:
+    if "--native" in sys.argv:
+        sys.stderr.write(
+            "Qt 原生界面已移除（备份见分支 backup/qt-native-2026-11-02）。\n"
+            "请直接运行：python -m netlab.desktop\n"
+        )
+        return 2
+    from .webview_app import main
 
-from ..ui.app import main  # noqa: E402
+    return main()
 
-raise SystemExit(main())
+
+raise SystemExit(_main())

@@ -18,7 +18,7 @@
 **闸门（2026-10-26 用户授权变更）**：开工前用 chat 简报「要做什么」，完工后简报「做了什么 + 进度 + 耗时（分钟）」，汇报尽量简短；**任务是否进行不需要逐期批准，按票单顺序连续推进**（`PROGRESS §7` / `NetlabExtras/scratch/*/issues/`）；每完成一个大任务或一批票后停下整理并汇报。三件套（见 §5）与 PROGRESS 更新仍是硬要求。
 > 原规则「每期做完 → 报告 → 停下等批准」已被上述授权覆盖，保留原文备查。
 
-**原生外壳（2026-11-02 起）**：`python -m netlab.desktop --native`（或 `netlab/start_native.bat`）启动 Qt Widgets 版，代码在 `netlab/ui/`；不带 `--native` 仍是 pywebview 版。原生版已覆盖外壳、工程树/属性、5 个图表、主画布、文档窗、PlotKit 面板。**`static/app.js` 自本次起冻结**：新功能只加在 `netlab/ui/`，web 版仅做兼容性修复（决策 D74）。
+**界面（2026-11-02 D78 起）**：`python -m netlab.desktop`（或 `netlab/start_desktop.bat`）启动 pywebview + WebView2 网页壳，前端在 `netlab/static/`（index.html / app.js / style.css）。Qt 原生界面曾于同日完整实现（R33），按用户决定「还是用 html 的 ui」整体备份到 Git 分支 `backup/qt-native-2026-11-02`（标签同名）后删除，`netlab/ui/` 不再存在；`--native` 会提示已移除。
 
 **运行目录（2026-10-28 整理后）**：仓库根是 `ProjectPoint/`，但 Netlab 的运行根是 `NetlabHome/`。**所有命令先 `cd NetlabHome`**（`python -m pytest netlab/tests -q`、`python -m netlab.desktop`、备份目标 `../NetlabExtras/backups/ProjectPoint_backups/`）；直接双击 `NetlabHome/netlab/start_desktop.bat` 也可以。文档里的相对链接都以 `netlab/docs/` 为基准，不受影响。
 

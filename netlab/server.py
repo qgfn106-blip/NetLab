@@ -19,6 +19,7 @@ from typing import Any, Literal
 from fastapi import Body, FastAPI, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 from .fem import FemSimulation
@@ -57,6 +58,7 @@ from .templates import TEMPLATES, build_template, template_catalog
 from . import accel, analysis, block_validate, blocklib, extensions, profiling, schematic
 from .blocks import build_block_from_scene, encapsulate_nodes, instantiate_block
 
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 SERVICE: NetworkContainer = NetworkContainer(default_simulation(), name="网络 1")
 FEM: FemSimulation = FemSimulation()
 
@@ -78,6 +80,7 @@ app = FastAPI(
     description="节点数据流 + 状态空间 + 节点电压法电路求解",
     lifespan=lifespan,
 )
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 _DESKTOP_TOKEN = os.environ.get("NETLAB_DESKTOP_TOKEN")
 
 # 绘图子应用（可选依赖）：装了 plotkit 就挂到 /plotkit，没装则完全不出现。
@@ -325,25 +328,19 @@ class ExtensionDeactivateRequest(BaseModel):
 # ---- 页面与元数据 ----------------------------------------------------------
 @app.get("/", include_in_schema=False)
 def index() -> Response:
-    """Web 前端已于 2026-11-02 退役（D77），这里只留一个说明页。
-
-    原页面、脚本与样式已备份到 GitHub：
-    分支 backup/web-ui-static-2026-11-02 / 标签 web-legacy-2026-11-02 /
-    docs/archive/netlab-web-ui-2026-11-02.zip。
-    """
-    html = r"""<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
-<title>Netlab</title><style>
-body{font:14px/1.7 "Microsoft YaHei UI",system-ui;background:#eae5e1;color:#080a08;
-display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
-.box{max-width:560px;padding:28px 32px;background:#f6f2ef;border:1px solid #d8d0c8;border-radius:10px}
-h1{font-size:18px;margin:0 0 12px}code{background:#eee7e1;padding:1px 6px;border-radius:4px}
-</style></head><body><div class="box">
-<h1>Web 界面已退役</h1>
-<p>Netlab 的界面已迁移到 Qt 原生版本。请从项目根目录运行：</p>
-<p><code>python -m netlab.desktop --native</code>，或双击 <code>netlab\start_native.bat</code>。</p>
-<p>HTTP API（<code>/api/...</code>）仍然可用，供测试与脚本调用。</p>
-</div></body></html>"""
-    return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+    page = STATIC_DIR / "index.html"
+    if os.environ.get("NETLAB_DESKTOP_SHELL") == "pywebview":
+        # 桌面壳（pywebview）需要把 Promise 风格的原生桥映射成 QWebChannel 风格；
+        # 只在桌面进程里注入，浏览器访问拿到的仍是原页面。
+        html = page.read_text(encoding="utf-8")
+        if "desktop-shim.js" not in html:
+            html = html.replace(
+                "</head>",
+                '  <script src="/static/desktop-shim.js"></script>\n</head>',
+                1,
+            )
+        return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+    return FileResponse(page, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/catalog")

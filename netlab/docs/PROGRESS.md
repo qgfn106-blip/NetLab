@@ -1,13 +1,13 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-01 20:08
+> 最后修改：2026-11-02 07:56
 
 | 项 | 内容 |
 | --- | --- |
-| 记录时间 | 2026-10-30 23:30（Asia/Shanghai） |
-| 当前阶段 | **P1–P4 主体完成；P7-01/02/03 完成；P7-05 完成（时间轴回放/过期标记/循环/时间窗/重置保留探针/求解窗口 0→T）；P0 求解可靠性完成 + P0 求解加固完成（失败事务/检查点回滚、行列均衡缩放、尺度无关残差、线性解质量、器件节点断点、超时回滚、BJT/LDO 猜测分层），Phase D 元件契约与 Phase E 信号/矢量整步事务完成；R26 求解器分析能力（DC 工作点/AC-Bode/Gear2/稀疏矩阵）完成；工程校验和二次校验修复（§7.10）；R27 回放/时间轴可用性完成（§7.11）、R29 回放速度滑块（§7.16），**343 passed**、静态 3.14.4（2026-10-29 P7-06 电路模块化 §7.21、P7-07 模块内部浮窗 §7.22、P7-08 电气直连展开 §7.23）；**R30/P10 UI 集中优化六票完成**（§7.17，引导页/右栏 4 组/设置抽屉/文档中心/9 项信息条/9 项菜单/外观三档/参数 `?`；2026-10-29 03:35 挂耳与右栏拖拽收尾 §7.24，静态 3.14.1）；**2026-10-30 01:50 封装报错修复 + 端口方向入口 + 模块库清理 + `MODULES_HOWTO.md`**（§7.25，静态 3.14.2）；公开仓库已上线（§7.13）；浏览器内演示曾发布到 GitHub Pages（§7.14），同日 21:15 用户要求删除、已撤销（§7.15，站点 404）；下一步 P7-09/10/11 内置结构（R25，三批按 opamp/comparator → dff/counter/shift → 555/LDO/ADC/DAC）；R19 参考级图纸暂停；票 12 pending；**2026-10-29 R31 并网逆变器电网控制立项**（P11-01…P11-07，见 §7.19，未开工） |
+| 记录时间 | 2026-11-02 04:45（Asia/Shanghai） |
+| 当前阶段 | **P1–P4 主体完成；P7-01/02/03 完成；P7-05 完成（时间轴回放/过期标记/循环/时间窗/重置保留探针/求解窗口 0→T）；P0 求解可靠性完成 + P0 求解加固完成（失败事务/检查点回滚、行列均衡缩放、尺度无关残差、线性解质量、器件节点断点、超时回滚、BJT/LDO 猜测分层），Phase D 元件契约与 Phase E 信号/矢量整步事务完成；R26 求解器分析能力（DC 工作点/AC-Bode/Gear2/稀疏矩阵）完成；工程校验和二次校验修复（§7.10）；R27 回放/时间轴可用性完成（§7.11）、R29 回放速度滑块（§7.16），**343 passed**、静态 3.14.4（2026-10-29 P7-06 电路模块化 §7.21、P7-07 模块内部浮窗 §7.22、P7-08 电气直连展开 §7.23）；**R30/P10 UI 集中优化六票完成**（§7.17，引导页/右栏 4 组/设置抽屉/文档中心/9 项信息条/9 项菜单/外观三档/参数 `?`；2026-10-29 03:35 挂耳与右栏拖拽收尾 §7.24，静态 3.14.1）；**2026-10-30 01:50 封装报错修复 + 端口方向入口 + 模块库清理 + `MODULES_HOWTO.md`**（§7.25，静态 3.14.2）；公开仓库已上线（§7.13）；浏览器内演示曾发布到 GitHub Pages（§7.14），同日 21:15 用户要求删除、已撤销（§7.15，站点 404）；**R33 原生桌面外壳已实现**（§7.33/§7.33.1，385 passed）；主线待办见 [BACKLOG.md](BACKLOG.md)——下一步 P7-09/10/11 内置结构（R25，三批按 opamp/comparator → dff/counter/shift → 555/LDO/ADC/DAC）；R19 参考级图纸暂停；**2026-10-29 R31 并网逆变器电网控制立项**（P11-01…P11-07，见 §7.19，未开工） |
 | 基线 | 修改前 43 passed（2026-10-24 14:26） |
-| 当前测试 | **356 passed, 3 skipped**（2026-11-01 20:08；新增 5 项：多网络新建工程、容器降级只读、预计算拒绝不破坏状态、合并分组端口标记/冲突） |
+| 当前测试 | **387 passed, 3 skipped**（2026-11-02 05:20；新增 29 项：`test_ui_models.py` 8、`test_ui_geometry.py` 13、`test_ui_widgets.py` 8） |
 | 本地备份 | `netlab_20261101_2010`（本轮 7 源文件 + 5 文档 + 5 测试 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_20261024_142654`、`_1727`、`netlab_20261025_0125`、`netlab_20261025_1306`（P0-0）、`netlab_20261026_0348p1retry`（P1 收口）、`netlab_20261026_1240`（R15 收尾）、`netlab_20261026_1318`（R20 模型批基础层）、`netlab_20261026_1322`（R20 模型批功能完成）、`netlab_20261026_1330`（R20 UI 批）、`netlab_20261026_1335`（R20 UI 迁移动作）、`netlab_20261026_1340`（R20 信号端口）、`netlab_20261026_1415`（纯导线/共集示例）、`netlab_20261027_0150`（P7-01 前快照）、`netlab_20261027_1744`（P7-03 收尾）、`netlab_20261027_1753`（R22 参数放宽/单位）、`netlab_20261027_1856`（三极管型号预设）、`netlab_20261027_2218`（拐点拖动）、`netlab_20261027_2324`（P7-03/P7-05 收尾）、`netlab_20261027_2330`（P0 求解可靠性）、`netlab_20261028_0016`（P0 收尾/P7-05）、`netlab_20261028_0048`（电源波形界面）、`netlab_20261028_0103`（dt 精度预设）、`netlab_20261028_0114`（奇异阈值/步长原位微调）、`netlab_20261028_0318`（P0 求解加固：事务/均衡/断点/超时）、`netlab_20261028_0405`（Phase D/E 代码前快照）、`netlab_20261028_0434`（R26 代码前快照）、`netlab_20261028_1219`（工程校验和修复前 `project.py`）、`project_20261028_1219`（用户工程文件前快照）、`netlab_20261028_1855`（R27 后端/前端快照）、`docs_20261028_1932`（公开仓库文档前快照）、`docs_20261028_2108`（R28 文档前快照）、`web_20261028_2130`（演示页与 workflow 删除前快照）、`ui_20261028_2205`（R29 回放滑块前 static 快照）、`netlab_ui_20261028_2242`（R30 UI 集中优化前 netlab 全量）；文档快照见 `docs_20261026_*、docs_20261027_1744、netlab_docs_20261028_0420、netlab_docs_20261028_0445` |
 | 备份清单 | 各自目录下 `MANIFEST.sha256` |
 | 版本控制 | 用户已授权 GitHub `qgfn106-blip` 做版本管理/备份（2026-10-24）；本地仍保留备份，尚无 `.git` |
@@ -1308,3 +1308,43 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 - **代码提交**：`a40dba6 fix(modules,project): D7 降级只读全覆盖 + R16/D2 多网络保存 + D48 预计算事务校验 + P7-06 封装合并确定性`。
 - **残余与说明**：`nodal.py` 现在会把“端点悬空”从静默接地改为 `ComputeError`，属有意收紧；`pins` 绑定在 `Scene.add_edge()` 已物化为 `source/target`，封装复制不会携带独立 `pins` 字段（本轮用探针确认）。仓库级 `REQUIREMENTS_AND_RULES.md:738/764` 仍写“没有 Git”，与当前 `NetlabHome/` git 仓库事实冲突；本轮未改该历史口径，需单独立项裁定。
 - **备份**：`NetlabExtras/backups/ProjectPoint_backups/netlab_20261101_2010/`（含改动源码与 `MANIFEST.sha256`）。
+
+## 7.33 R33 原生桌面外壳（Qt Widgets，2026-11-02，385 passed / 3 skipped）
+
+- **背景**：用户 2026-11-01 定「选B」——只改 netlab，PlotKit 一行不动；要求「qt 界面完全实现，接口都对齐，软件功能完善」。规格见 `QT_NATIVE_SPEC.md`（R33/C1–C13/D69–D76/A1–A25），票单 `.scratch/netlab-qt/issues/01–15`。
+- **新包 `netlab/ui/`**（约 5.6k 行）：`models.py`（纯视图模型：NodeVM/EdgeVM/SceneVM/TreeVM/LiveVM + 投影函数）、`geometry.py`（引脚、边界点、正交路由、吸附、ViewTransform）、`theme.py`（light/dark token → QSS + `qcolor`）、`bridge.py`（`ServiceBridge` + `LiveWorker`/`FemWorker` 两个 QThread，数据面直连 `SERVICE.live()`，不再走 HTTP）、`canvas/render.py`（网格/边/元件符号/跨线桥/标签避让/HUD）、`canvas/widget.py`（选择/拖拽/框选/缩放/平移/连线/拖入/右键/双击）、`charts.py`（时域/相图/示波器/李萨如/FEM，含 hover 读数与时间轴回看）、`panels.py`（工程树 + 属性表单 + 模块库 `ModulePalette`）、`shell.py`（菜单/工具条/停靠面板/状态栏/QSettings/撤销栈 120/复制粘贴/PNG·PDF·SVG 导出）、`docwin.py`、`plotkit_panel.py`（懒加载 QWebEngineView + 子进程托管）、`app.py`（单实例、`--selftest`）、`pixeldiff.py`、`acceptance.py`。
+- **启动**：`python -m netlab.desktop --native`（或 `netlab/start_native.bat`）；不带 `--native` 仍是 pywebview。
+- **实测**（`--selftest`）：build 187 ms / first paint 268 ms / ready **287 ms** / RSS **151 MB**；`acceptance.py`：`children=[] webengine_processes=0 listening=[] rss_mb=148 PASS`。对照旧壳 714–748 MB、2.9–3.5 s。
+- **像素 diff**：同参数两次截图 **0.000%**（430 万像素 0 差异），渲染确定性成立。
+- **本轮修掉的坑**：`render.py` 相对导入层级（`.geometry`→`..geometry`）；`QColor("rgba(...)")` 非法导致 HUD 黑块（改用 `theme.qcolor`）；图表无曲线（`chart_dock.isVisible()` 门控 + live 帧值在嵌套 `v` 里）；图例压刻度（移到绘图区左上、超宽截断加 `…`）；电路元件 `dx=dy=0` 引脚按 role 分边；符号溢出/标签重叠（有符号不画外圆 + 两遍标签避让）；FEM 均匀场压到冷端 + 图像拉伸；`open_docs()` 不留引用被 GC；`QWidget.render(painter)` 需 `targetOffset`；`QSvgGenerator` 在 `PySide6.QtSvg` 而非 `QtGui`。
+- **测试**：新增 `test_ui_models.py`(8)、`test_ui_geometry.py`(13)、`test_ui_widgets.py`(6)，全量 **383 passed, 3 skipped**（11.2 s）。
+- **PlotKit 面板实机验证（2026-11-02 04:50）**：WebEngine 起初一直 `loadFinished(false)`，根因两条——①受限桌面会话里 Chromium 的 renderer 沙箱起不来（要 `--no-sandbox`）；②本机有系统代理，Chromium 连 `127.0.0.1` 也走代理，页面永远转圈（要 `--no-proxy-server`）。`plotkit_panel.ensure_loaded()` 现默认设 `QTWEBENGINE_CHROMIUM_FLAGS=--disable-gpu --no-proxy-server`，`NETLAB_WEBENGINE_NO_SANDBOX=1` 作兜底。加后 `loadFinished(True)`，面板完整渲染 PlotKit 编辑器（截图 `_shot_plotkit.png`），A4 由「未验」转「通过」。
+- **未验项**（如实记录）：A5/A13/A14/A18/A21 依赖真实桌面会话（屏幕缩放）或人工 kill，本轮环境给不出数。
+- **文档**：`QT_NATIVE_SPEC.md` 升 v1.2（§10 全部勾选、新增 §14 验收结果表）；`AGENT_GUIDE.md` 增原生外壳路由与 `static/app.js` 冻结说明；`REQUIREMENTS_AND_RULES.md` R33 现状更新。
+
+
+### 7.33.1 追加：PlotKit 接入与动效（2026-11-02 05:20）
+
+用户要求「Plotkit继续接入，并且优化ui与动效」，本轮补齐：
+
+- **PlotKit 面板**（`netlab/ui/plotkit_panel.py` 重写）：顶部工具条（刷新 / 在浏览器打开 / 浮动 / 状态）+ `QStackedWidget`（占位 → WebEngine）；首次打开浮出 1100×760；`loadFinished` 与面板 resize 时向页面派发 `window.resize`，解决「图看起来是空的」。
+- **主题联动**：`apply_theme` → `plotkit_bridge.set_theme()` + 页面 `?theme=`；`Figure.revision` 是 spec 内容摘要，原地改主题也会换 ETag。
+- **通道联动**：画布选中节点 → 只画该节点探针（`n:<节点名>:`），取消选择恢复全部。
+- **曲线样式**：`LINE_STYLE = {"mode": "lines", "width": 1.4, "marker": {"symbol": ""}}`（`mode=lines` 仍会画 marker，必须显式清空 symbol）。
+- **动效**（`netlab/ui/motion.py`，可在「视图 → 界面动效」关闭）：连线流动光点（仿真运行时）、悬停淡入、选中脉冲、90 ms 光标锚定缩放、图表淡入、面板滑入。关掉后全部直接落终态。
+- **QSS 补齐**：QSlider（groove/sub-page/handle）、QCheckBox/QRadioButton indicator、QProgressBar、QMenu::separator。
+- **画布自适应**：首次载入场景后 `request_fit()`，且在用户手动缩放/平移前跟随窗口尺寸自动 fit（`_auto_fit`），修掉「dock 展开后电路缩在角落」。
+
+坑（已写进 spec §15.3）：PlotKit 按元素尺寸渲染（窄面板 → constrained_layout 塌陷）、`mode=lines` 仍画圆点、`QTimer(owner)` 要求 QObject、浮动 dock 不能走 `slide_dock`。
+
+验收：**385 passed, 3 skipped**；截图 `_shot_main_light.png`、`_shot_main_dark.png`、`_shot_plotkit_light.png`、`_shot_plotkit_dark5.png`。
+
+### §7.33.2 自动保存与验收脚本（2026-11-02 10:55）
+
+- **背景**：R33 验收表里 A21（强杀恢复）标着「未验」，核查发现不是「没测」，而是**原生壳根本没有自动保存**——web 壳有（`webview_bridge._autosave_path`），原生壳漏了。
+- **实现**：`shell.py` 加 `AUTOSAVE_INTERVAL_MS=60_000`、`autosave_path()`（`%APPDATA%/Netlab/NetlabDesktop/autosave.netlab`）、`_autosave/_clear_autosave/recover_autosave/has_autosave`；`app.py` 加 `--no-recover` 与启动询问；`--selftest` 关掉自动保存避免污染用户目录；关窗只在自己拥有自动保存时清理。
+- **脚本**：`netlab/ui/soak.py`（A18 长跑采样）、`netlab/ui/restore_check.py`（A21 三进程强杀恢复）。
+- **实测**：`restore_check` → 崩溃前 1 节点、自动保存 1615 B、重启恢复 1 节点、`dirty=True`，**PASS**；`soak --minutes 2` → 148.6 MB 全程不变（波动 0.2 MB），脚本自检通过（30 分钟才算 A18 通过）。
+- **顺手修**：模块库按 `scene.mode` 过滤桶，信号模式下不再出现 `node`/`device`（原来落地报「未知的节点构造方式」）。
+- **测试**：新增 `test_catalog_entries_follow_mode`、`test_autosave_write_and_recover` → **387 passed, 3 skipped**。
+- **文档**：`QT_NATIVE_SPEC.md` 新增 §16；`BACKLOG.md` 首版。

@@ -447,8 +447,8 @@
 - **落地形态**：新建 `netlab/ui/` 包（shell / panels / canvas / charts / doc / plotkit_panel / theme / models / bridge）；`SERVICE` 为唯一数据来源；画布立即模式 `QPainter`；图表自绘；主题 token 单一来源；`desktop/` 保留为过渡入口。
 - **不做什么**：不迁 PlotKit、不做三维原生、不重写 web 前端、不改求解器/工程格式/checksum、不引入 QML / pyqtgraph / VTK。
 - **验收**：见 [QT_NATIVE_SPEC.md](QT_NATIVE_SPEC.md) §8 的 A1–A25 与 §9 的 20 项交互清单。关键数字：启动 ≤1.5 s、常驻 ≤350 MB（未开 PlotKit）、未开 PlotKit 时无 `QtWebEngineProcess`、像素 diff <1%、正常运行不监听 TCP 端口、现有 pytest 全绿且只增不减。
-- **权重·期次**：⭐⭐⭐ / P0–P5（2026-11-02 定稿，待开工）
-- **现状**：`netlab/ui/` 尚不存在。完整的规划、约束、验收与任务分解**全部记在 [QT_NATIVE_SPEC.md](QT_NATIVE_SPEC.md)**（R33.1–R33.6、C1–C13、D69–D76、A1–A25、P0–P5 勾选表），本文件只留这一行指针。票单拆解在 `.scratch/netlab-qt/issues/01–15`（15 张 tracer bullet；FEM 独立成票、文档窗纳入收口、每票含完工检测项）。评估依据（四档形态、逐层映射、成本测算、被高估/低估的收益）在 `docs/QT_MIGRATION_EVALUATION.md`。
+- **权重·期次**：⭐⭐⭐ / P0–P5（2026-11-02 实现完成，A4 已实机验证；待人工复验 A5/A13/A14/A18/A21）
+- **现状**：**P0–P5 已实现**。`netlab/ui/` 共 12 个模块（models / geometry / theme / motion / bridge / canvas / charts / panels / shell / docwin / plotkit_panel / app），启动入口 `python -m netlab.desktop --native`。实测启动 287 ms、RSS 151 MB、`webengine_processes=0`、`listening=[]`、两次截图 diff 0.000%、**387 passed / 3 skipped**。PlotKit 面板已做实机接入（浮窗 1100×760、主题与通道联动、`?theme=` 参数），动效可在「视图 → 界面动效」关闭。规划、约束、验收与任务分解**全部记在 [QT_NATIVE_SPEC.md](QT_NATIVE_SPEC.md)**（R33.1–R33.6、C1–C13、D69–D76、A1–A25、P0–P5 勾选表 + §14 验收结果），本文件只留这一行指针。票单拆解在 `.scratch/netlab-qt/issues/01–15`。评估依据（四档形态、逐层映射、成本测算）在 `docs/QT_MIGRATION_EVALUATION.md`。
 
 ## 4. 权重与依赖
 

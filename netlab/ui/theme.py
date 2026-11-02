@@ -246,6 +246,44 @@ def build_qss(t: Mapping[str, str]) -> str:
         color: {t['muted']};
     }}
     QSplitter::handle {{ background: {t['line']}; }}
+    QSlider::groove:horizontal {{
+        height: 4px; background: {t['line']}; border-radius: 2px;
+    }}
+    QSlider::sub-page:horizontal {{
+        background: {t['accent']}; border-radius: 2px;
+    }}
+    QSlider::handle:horizontal {{
+        background: {t['paper']};
+        border: 1px solid {t['accent']};
+        width: 12px; height: 12px;
+        margin: -5px 0;
+        border-radius: 7px;
+    }}
+    QSlider::handle:horizontal:hover {{ background: {t['accent_soft']}; }}
+    QSlider::groove:vertical {{ width: 4px; background: {t['line']}; border-radius: 2px; }}
+    QSlider::handle:vertical {{
+        background: {t['paper']}; border: 1px solid {t['accent']};
+        height: 12px; margin: 0 -5px; border-radius: 7px;
+    }}
+    QCheckBox::indicator, QRadioButton::indicator {{
+        width: 13px; height: 13px;
+        border: 1px solid {t['line_strong']};
+        border-radius: 3px;
+        background: {t['paper']};
+    }}
+    QCheckBox::indicator:checked {{
+        background: {t['accent']}; border-color: {t['accent']};
+    }}
+    QRadioButton::indicator {{ border-radius: 7px; }}
+    QRadioButton::indicator:checked {{
+        background: {t['accent']}; border-color: {t['accent']};
+    }}
+    QProgressBar {{
+        border: 1px solid {t['line']}; border-radius: 3px;
+        background: {t['paper2']}; text-align: center; height: 12px;
+    }}
+    QProgressBar::chunk {{ background: {t['accent']}; border-radius: 2px; }}
+    QMenu::separator {{ height: 1px; background: {t['line']}; margin: 4px 8px; }}
     QToolTip {{
         background: {t['menu_bg']};
         color: {t['ink']};

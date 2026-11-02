@@ -162,6 +162,9 @@ def draw_edges(
     *,
     selected: Iterable[str] = (),
     hovered: str | None = None,
+    phase: float = 0.0,
+    running: bool = False,
+    hover_alpha: float = 0.0,
 ) -> None:
     selected = set(selected)
     hops = crossing_map(scene, view)
@@ -171,7 +174,12 @@ def draw_edges(
         is_sel = edge.id in selected
         is_hov = edge.id == hovered
         color = _color(edge_color(edge, is_sel, is_hov, tokens))
-        width = 2.2 if is_sel else (1.8 if is_hov else 1.4)
+        if is_sel:
+            width = 2.2
+        elif is_hov:
+            width = 1.4 + 0.5 * max(0.0, min(1.0, hover_alpha))
+        else:
+            width = 1.4
         pen = QPen(color, width)
         pen.setCapStyle(Qt.RoundCap)
         pen.setJoinStyle(Qt.RoundJoin)
@@ -181,6 +189,7 @@ def draw_edges(
         elif edge.delay:
             pen.setStyle(Qt.CustomDashLine)
             pen.setDashPattern([7, 5])
+
         painter.setPen(pen)
         painter.setBrush(Qt.NoBrush)
         path = QPainterPath()
@@ -190,7 +199,55 @@ def draw_edges(
         painter.drawPath(path)
         if edge.id in hops:
             draw_crossing_hops(painter, hops[edge.id], color, tokens)
+        if running and edge.enabled and not edge.delay:
+            _draw_flow(painter, view, edge, tokens, phase)
         _draw_arrow(painter, view, edge.points[-2], edge.points[-1], color)
+
+
+def _flow_position(points: Sequence[tuple[float, float]], frac: float) -> tuple[float, float]:
+    """按屏幕折线的累计长度取点：0 = 起点，1 = 终点。"""
+    lengths: list[float] = []
+    total = 0.0
+    for index in range(1, len(points)):
+        seg = math.dist(points[index - 1], points[index])
+        lengths.append(seg)
+        total += seg
+    if total <= 1e-6:
+        return points[0]
+    target = max(0.0, min(1.0, frac)) * total
+    acc = 0.0
+    for index, seg in enumerate(lengths):
+        if acc + seg >= target:
+            t = (target - acc) / seg if seg > 1e-6 else 0.0
+            ax, ay = points[index]
+            bx, by = points[index + 1]
+            return (ax + (bx - ax) * t, ay + (by - ay) * t)
+        acc += seg
+    return points[-1]
+
+
+def _draw_flow(
+    painter: QPainter,
+    view: ViewTransform,
+    edge: EdgeVM,
+    tokens: Mapping[str, str],
+    phase: float,
+) -> None:
+    """跑仿真时，在连线上画一个沿路径移动的光点（信号在流动的感觉）。
+
+    只改「动的部分」，不改线的样式：虚线的语义仍然是禁用/延迟。
+    """
+    screen = [view.to_screen(*point) for point in edge.points]
+    seed = (sum(ord(char) for char in edge.id) % 97) / 97.0
+    accent = _color(tokens.get("accent", "#9b7247"))
+    for index in range(2):
+        frac = (phase * 0.18 + seed + index * 0.5) % 1.0
+        x, y = _flow_position(screen, frac)
+        # 尾部渐隐：越靠近起点越淡
+        alpha = 0.25 + 0.75 * min(1.0, frac * 2.0) * min(1.0, (1.0 - frac) * 4.0)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(accent.red(), accent.green(), accent.blue(), int(200 * alpha)))
+        painter.drawEllipse(QPointF(x, y), 2.8, 2.8)
 
 
 def _draw_arrow(
@@ -262,6 +319,8 @@ def draw_nodes(
     *,
     selected: Iterable[str] = (),
     hovered: str | None = None,
+    pulse: float = 0.0,
+    hover_alpha: float = 0.0,
 ) -> None:
     selected = set(selected)
     occupied: list[QRectF] = [node_rect(node, view) for node in scene.nodes]
@@ -280,6 +339,8 @@ def draw_nodes(
             tokens,
             selected=node.id in selected,
             hovered=node.id == hovered,
+            pulse=pulse,
+            hover_alpha=hover_alpha,
         )
         if rect.width() < 26 or rect.height() < 20:
             continue
@@ -319,15 +380,21 @@ def draw_node(
     *,
     selected: bool = False,
     hovered: bool = False,
+    pulse: float = 0.0,
+    hover_alpha: float = 0.0,
 ) -> None:
     cx, cy = view.to_screen(node.x, node.y)
     w = node.w * view.k
     h = node.h * view.k
     rect = QRectF(cx - w / 2.0, cy - h / 2.0, w, h)
 
-    stroke = _color(
-        tokens["accent"] if selected else (HOVER if hovered else tokens["node_stroke"])
-    )
+    if selected:
+        stroke = _color(tokens["accent"])
+    elif hovered:
+        stroke = QColor(HOVER)
+        stroke.setAlphaF(0.55 + 0.45 * max(0.0, min(1.0, hover_alpha)))
+    else:
+        stroke = _color(tokens["node_stroke"])
     pen = QPen(stroke, 2.4 if selected else (1.9 if hovered else 1.5))
     painter.setPen(pen)
 
@@ -352,6 +419,19 @@ def draw_node(
                 Qt.AlignHCenter | Qt.AlignTop,
                 node.kind,
             )
+
+    if selected:
+        # 选中外环轻微脉冲：只改透明度与内边距，不改变布局，避免影响命中与像素 diff
+        wave = pulse * 0.5 + 0.5
+        ring = _color(tokens["accent"])
+        ring.setAlphaF(0.40 + 0.22 * wave)
+        pad = 4.0 + 1.8 * wave
+        painter.setPen(QPen(ring, 1.3))
+        painter.setBrush(Qt.NoBrush)
+        if abs(node.w - node.h) < 0.5 and glyph not in GLYPHS:
+            painter.drawEllipse(rect.adjusted(-pad, -pad, pad, pad))
+        else:
+            painter.drawRoundedRect(rect.adjusted(-pad, -pad, pad, pad), 10, 10)
 
     painter.setPen(QPen(_color(tokens["line_strong"]), 1.2))
     painter.setBrush(_color(tokens["node_fill"]))

@@ -53,6 +53,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--project", default="", help="启动后打开 .netlab 工程")
     parser.add_argument("--no-live", action="store_true", help="不启动实时取帧线程")
     parser.add_argument("--allow-multi", action="store_true", help="允许同时开多个实例")
+    parser.add_argument("--no-recover", action="store_true", help="启动时不提示恢复自动保存")
     parser.add_argument("--selftest", action="store_true", help="启动后自测并退出（测启动耗时/内存）")
     args = parser.parse_args(argv)
 
@@ -81,7 +82,28 @@ def main(argv: list[str] | None = None) -> int:
         window.open_path(args.project)
     if args.no_live:
         window.bridge.stop_live()
+    _offer_recovery(window, disabled=args.no_recover)
     return int(app.exec())
+
+
+def _offer_recovery(window, *, disabled: bool = False) -> None:
+    """A21：上次被强杀时留下的自动保存，启动时问一句要不要恢复。"""
+    if disabled or not window.has_autosave():
+        return
+    from PySide6.QtWidgets import QMessageBox
+
+    answer = QMessageBox.question(
+        window,
+        "恢复未保存的工作",
+        "发现上次未保存的工作（自动保存于关闭前）。要恢复吗？\n"
+        "选「否」会丢弃这份自动保存。",
+        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        QMessageBox.StandardButton.Yes,
+    )
+    if answer == QMessageBox.StandardButton.Yes:
+        window.recover_autosave()
+    else:
+        window._clear_autosave()
 
 
 def _rss_mb() -> float:
@@ -130,6 +152,7 @@ def _selftest(app, service, window_cls, args) -> int:
 
     started = time.perf_counter()
     window = window_cls(service, theme=args.theme)
+    window._autosave_enabled = False  # 自测不写用户目录
     built = time.perf_counter()
     window.show()
     for _ in range(30):

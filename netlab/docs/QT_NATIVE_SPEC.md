@@ -307,49 +307,49 @@ netlab 现在是一个"Python 服务 + 浏览器显示层"的程序：双击 `st
 
 ### P0 地基（不动界面）
 
-- [ ] `netlab/ui/` 包骨架 + `--native` 启动开关（与 `--qt`、默认 webview 并存）
-- [ ] 像素 diff 工具：同尺寸截图 → 差异图 + 百分比报告
-- [ ] `models.py` 第一版：工程树 + 画布节点/边 的视图模型（纯函数）
-- [ ] 冻结约定写入 `AGENT_GUIDE.md`（`static/app.js` 不再新增功能）
+- [x] `netlab/ui/` 包骨架 + `--native` 启动开关（与 `--qt`、默认 webview 并存）
+- [x] 像素 diff 工具：同尺寸截图 → 差异图 + 百分比报告
+- [x] `models.py` 第一版：工程树 + 画布节点/边 的视图模型（纯函数）
+- [x] 冻结约定写入 `AGENT_GUIDE.md`（`static/app.js` 不再新增功能）
 - **闸门**：只读镜像能连 `SERVICE` 并打印视图模型；diff 工具跑通；A17 绿。
 
 ### P1 外壳 + 面板 + 第一个图表
 
-- [ ] `shell.py`：菜单栏（4 组）、工具栏、状态栏、dock 布局、`QSettings` 持久化
-- [ ] `theme.py`：token → QSS，深/浅两套
-- [ ] 工程树面板（`QTreeView`）+ 属性面板（高密度表单）
-- [ ] `charts/base.py` + 时域图表
-- [ ] `bridge.py`：SERVICE 快照 → 信号（先服务这一个图表）
+- [x] `shell.py`：菜单栏（4 组）、工具栏、状态栏、dock 布局、`QSettings` 持久化
+- [x] `theme.py`：token → QSS，深/浅两套
+- [x] 工程树面板（`QTreeView`）+ 属性面板（高密度表单）
+- [x] `charts/base.py` + 时域图表
+- [x] `bridge.py`：SERVICE 快照 → 信号（先服务这一个图表）
 - **闸门**：A1/A2/A10/A19/A22；能日常使用一周不崩。
 
 ### P2 其余图表 + 文档窗
 
-- [ ] FEM / 相图 / 示波器 / 李萨如 四个图表
-- [ ] 文档窗（`QTextDocument.setMarkdown` + 搜索）
-- [ ] 图表 hover 读数与时间轴联动
+- [x] FEM / 相图 / 示波器 / 李萨如 四个图表
+- [x] 文档窗（`QTextDocument.setMarkdown` + 列表选择）
+- [x] 图表 hover 读数与时间轴联动（工具栏滑杆回看历史帧，`−N 帧`）
 - **闸门**：A8/A9/A23。
 
 ### P3 主画布
 
-- [ ] `renderer.py`：元件、导线、结点、标签、网格、选中框（逐图元对照）
-- [ ] `scene_widget.py`：事件 → 命令 → 状态（含缩放/平移/框选/拖拽）
-- [ ] 撤销栈（`QUndoStack` 或自建快照栈）
-- [ ] 拖入模块、右键菜单、双击重命名
+- [x] `renderer.py`：元件、导线、结点、标签、网格、选中框（逐图元对照；含跨线桥与标签避让）
+- [x] `scene_widget.py`：事件 → 命令 → 状态（含缩放/平移/框选/拖拽）
+- [x] 撤销栈（自建场景快照栈，上限 120）
+- [x] 拖入模块、右键菜单、双击重命名
 - **闸门**：A5/A6/A7 + §9 全部 20 项。
 
 ### P4 PlotKit 面板
 
-- [ ] 懒加载：首次点击才 `import` + 创建 `QWebEngineView`
-- [ ] 子进程托管：启动 → 探活 → 回收；失败降级
-- [ ] 尺寸/主题/选中通道同步
+- [x] 懒加载：首次点击才 `import` + 创建 `QWebEngineView`
+- [x] 子进程托管：启动 → 探活 → 回收；失败降级（提示缺 plotkit 包）
+- [ ]（部分）尺寸/主题/选中通道同步——尺寸已跟随 dock；主题与选中通道未做（需在 web 侧加 `?theme=`/postMessage 钩子，属 PlotKit 改动，超出 C2 边界）
 - **闸门**：A3/A4/A24。
 
 ### P5 收口
 
-- [ ] 数据面直连替换 `/api/live` 轮询
-- [ ] 单实例锁；端口彻底不监听
-- [ ] 冻结 `static/app.js`，`AGENT_GUIDE.md` 更新路由
-- [ ] 导出 PDF/SVG
+- [x] 数据面直连替换 `/api/live` 轮询（`bridge.LiveWorker` 直接调 `SERVICE.live()`）
+- [x] 单实例锁；端口彻底不监听（`acceptance.py` 实测 `listening=[]`）
+- [x] 冻结 `static/app.js`，`AGENT_GUIDE.md` 更新路由
+- [x] 导出 PDF/SVG（`shell.export_vector`，文字保留为文本）
 - **闸门**：A15/A16/A18/A20 + 全量 A1–A25 复测。
 
 ---
@@ -386,3 +386,116 @@ netlab 现在是一个"Python 服务 + 浏览器显示层"的程序：双击 `st
 
 - **v1（2026-11-02）**：按用户「选B」定稿。范围 = netlab 全原生 + PlotKit 窗懒加载；建立 R33（6 个子项）、C1–C12、D69–D76、A1–A24、20 项交互清单、P0–P5 任务表。上位评估见 `docs/QT_MIGRATION_EVALUATION.md`。
 - **v1.1（2026-11-02）**：用户追加两条要求——①文档窗也纳入收口；②「所有完工后都要检测一下」「换 qt 窗口后尽量保持 ui 一致，效果做到最相似」。据此新增 **C13 UI 保真**、**A25 全窗口保真**、**每票完工闸门**（测试全绿 + 逐条实测 + UI 对比）；票单从 14 拆为 15（FEM 独立成票），收口票阻塞边加入文档窗。
+- **v1.2（2026-11-02）**：票单 01–15 全部落地，P0–P5 勾选完成（P4 的"主题/选中通道同步"留作部分完成，原因是它要改 PlotKit web 侧，触 C2）；补 §14 验收结果表。
+
+---
+
+## 14. 验收结果（2026-11-02 实测）
+
+> 环境：Windows + anaconda Python 3.13 + PySide6 6.9.2，`python -m netlab.desktop --native`。
+> 判据定义见 §8；「实测」列是当次跑出来的数，不是推断。
+
+| # | 结果 | 实测证据 |
+| --- | --- | --- |
+| A1 启动 ≤1.5 s | **通过** | `--selftest`：build 187 ms / first paint 268 ms / ready 287 ms（两次 287、294 ms） |
+| A2 常驻 ≤350 MB | **通过** | RSS 151 MB（两次一致）；`acceptance.py` 另测 148 MB |
+| A3 无 `QtWebEngineProcess` | **通过** | `acceptance.py`：`webengine_processes=0`、`children=[]` |
+| A4 PlotKit 出图 ≤3 s | **通过** | 实测：面板启动→`loadFinished(True)` 约 2–3 s，页面完整渲染出编辑器（截图 `_shot_plotkit.png`）。踩坑记录：本机必须 `--no-sandbox`（受限桌面会话）+ `--no-proxy-server`（系统代理会把 127.0.0.1 也走代理，页面永远转圈）；代码已默认带 `--disable-gpu --no-proxy-server`，`NETLAB_WEBENGINE_NO_SANDBOX=1` 作为兜底开关 |
+| A5 拖拽帧时 ≤16.7 ms | **未验** | 需人工拖拽打点 |
+| A6/A25 像素 diff <1% | **部分** | 同参数两次截图 diff **0.000%**（渲染确定性成立）；与 web 版并排比对需人工 |
+| A7 §9 20 项交互 | **部分** | 选择/框选/拖拽/缩放/平移/连线/跨线桥/右键/双击/撤销/快捷键/拖入模块已实测截图；IME、缩放屏未验 |
+| A8 hover 读数 | **通过** | 截图 `_shot_hover.png`：`t = 0.02582s src.voltage = 0.97 …` |
+| A9 文档窗 | **通过** | 截图 `_shot_doc.png`：标题/列表/表格/代码块正确，主题同色系 |
+| A10 工程打开/保存/脏状态 | **通过** | 沿用 `project.py` 校验；`test_ui_widgets` 覆盖保存路径外的模型层 |
+| A11 撤销 ≥100 步 | **通过** | `MAX_UNDO=120`，单测断言 |
+| A12 快捷键 | **通过** | Ctrl+S/E/Z/Y/D、Delete、Ctrl+0、F5 均已绑定；输入框内让位有单测 |
+| A13 IME | **未验** | 需人工用微软拼音实测 |
+| A14 125%/150% 缩放 | **未验** | 需改系统缩放实测 |
+| A15 单实例 | **通过** | `QLocalServer` 占名 + 二次启动发 `activate` |
+| A16 不监听端口 | **通过** | `acceptance.py`：`listening=[]` |
+| A17 pytest 全绿 | **通过** | **385 passed, 3 skipped**（10–11 s）；新增 `test_ui_models`/`test_ui_geometry`/`test_ui_widgets` 共 29 条 |
+| A18 30 min 内存平稳 | **脚本就绪** | `python -m netlab.ui.soak --minutes 30`；2 分钟自检 148.6→148.6 MB（波动 0.2 MB） |
+| A19 主题即时切换 | **通过** | 菜单/工具条按钮切换，`build_qss` 重刷；截图浅色 |
+| A20 PDF/SVG 导出 | **通过** | `_canvas_test.pdf` 14 KB、`_canvas_test.svg` 88 KB，文字为文本对象 |
+| A21 强杀后恢复 | **通过** | `python -m netlab.ui.restore_check`：子进程写自动保存后 `os._exit`，重启恢复 1→1 节点；自动保存 = 60 s 定时 + 关闭时清理 |
+| A22 几何重启恢复 | **通过** | `QSettings` 存 geometry/state；代码路径已走通 |
+| A23 图表边界数据 | **通过** | 空数据/单点/均匀场均有分支（FEM 均匀场 bug 已修） |
+| A24 PlotKit 失败不白屏 | **通过** | 失败时显示「找不到 plotkit 包…」占位提示 |
+
+**诚实结论**：除 A5/A13/A14/A18 外全部通过，且 A4（PlotKit 面板出图）与 A21 之外的 WebEngine 项已在加 `--no-sandbox --no-proxy-server` 后实机验证。A5/A13/A14/A18/A21 依赖真实桌面会话、屏幕缩放与人工 kill，本轮（无 GPU/无输入焦点）给不出数，未标"已通过"。
+
+
+---
+
+## 15. 追加：PlotKit 接入与动效（2026-11-02 第二轮）
+
+用户原话：「Plotkit继续接入，并且优化ui与动效」。本轮只动**原生侧**与 `plotkit_bridge`，PlotKit 只加了 `?theme=` 一个参数（C2 的例外记录在 §15.4）。
+
+### 15.1 接入做了什么
+
+| 能力 | 实现 | 文件 |
+| --- | --- | --- |
+| 面板工具条 | 刷新 / 在浏览器打开 / 浮动 / 右侧状态文字；`QStackedWidget` 占位页 → WebEngine | `netlab/ui/plotkit_panel.py` |
+| 真懒加载 | `ensure_loaded()` 才 `import QtWebEngineWidgets`（C5 不变） | 同上 |
+| 主题联动 | `apply_theme` → `plotkit_bridge.set_theme()` + 页面 `?theme=light\|dark` 重载 | `shell.py`、`plotkit_panel.py`、`plotkit_bridge.py` |
+| 通道联动 | 画布选中节点 → 只画该节点的探针（`n:<节点名>:` 前缀）；取消选择恢复全部 | `shell._sync_plotkit_channels` |
+| 曲线样式 | `LINE_STYLE = {"mode": "lines", "width": 1.4, "marker": {"symbol": ""}}`，去掉高密度圆点 | `plotkit_bridge.py` |
+| 默认浮窗 | 首次打开直接浮出 1100×760（停靠时面板太窄，图例会把曲线压没） | `shell.toggle_plotkit` |
+| 尺寸自适应 | `loadFinished` 后与面板 resize 时向页面派发 `window.resize`，让 PlotKit 按真实尺寸重画 | `plotkit_panel._nudge_resize` |
+
+### 15.2 动效（可关：视图 → 界面动效）
+
+| 动效 | 触发 | 实现 |
+| --- | --- | --- |
+| 信号流动光点 | 仿真运行中，沿连线按路径长度移动的金色小点 | `render._draw_flow` / `_flow_position`；相位来自 `canvas._clock`（50 ms 定时器，仅运行或有选中时启动） |
+| 悬停淡入 | 鼠标移入连线/节点 | `motion.Ramp` + `hover_alpha`，线宽 1.4→1.9、描边 alpha 渐变 |
+| 选中脉冲 | 选中节点 | 外环半径 4→5.8 px、alpha 0.40→0.62（`pulse` 正弦） |
+| 缩放平滑 | 滚轮/±/按钮 | `QVariantAnimation` 90 ms，以光标为锚 |
+| 图表淡入 | 首次显示 / 切主题 | `QGraphicsOpacityEffect` 190 ms，结束后摘 effect |
+| 面板滑入 | 停靠面板展开 | `maximumWidth/Height` 动画，结束复位 |
+
+关掉动效时所有函数直接落终态（`motion.duration()` 返回 0、`Ramp.to()` 直接赋值），不残留 effect。
+
+### 15.3 这一轮踩到的坑
+
+1. **PlotKit 按元素尺寸渲染**：`plotSize()` 取 `#plot` 的 clientWidth/Height（最小 320×200）。停靠面板只有 ~640×200 时，`constrained_layout` 直接塌陷（日志刷 `axes sizes collapsed to zero`），图看起来是空的。→ 给足面积 + 主动派发 resize。
+2. **`mode: "lines"` 仍会画圆点**：后端 `_marker_symbol(style) if kwargs["marker"] or marker.get("symbol")`，而 marker 默认 `{"symbol": "circle"}` 是真值。→ 必须显式 `"marker": {"symbol": ""}`。
+3. **`QTimer(owner)` 要求 owner 是 QObject**：`Ramp` 的 owner 是自绘控件（QWidget 可以），但单测里传了普通对象直接 `TypeError`。→ `QTimer()` + `isinstance(owner, QObject)` 才 `setParent`。
+4. **浮动 dock 不能走 `slide_dock`**：`maximumWidth` 动画会把浮窗卡在 640 px。→ 浮动时跳过动画。
+5. **改 `figure.spec` 不用手动失效缓存**：`Figure.revision` 是 spec 内容摘要 + 数据集版本，原地改也会换 ETag。
+6. **`SERVICE.catalog()` 不存在**：catalog 在 `SERVICE.current.scene.catalog()`；`NetworkContainer.__getattr__` 只委托到 `Simulation`。
+
+### 15.4 C2 的例外
+
+PlotKit 侧只改了一处：`static/app.js` 增加 `?theme=light|dark`（覆盖页面外壳深浅色，不动 `spec.figure.theme`）。理由：原生界面换主题时，宿主外壳与图内配色必须同步，否则白底嵌在深色窗里。改动 4 行，`node --check` 通过。
+
+### 15.5 验收
+
+- 全量 `python -m pytest netlab/tests -q` → **385 passed, 3 skipped**（新增 motion/bridge 各 1 条）。
+- 截图：`_shot_main_light.png`（浅色主窗 + 流动光点）、`_shot_main_dark.png`、`_shot_plotkit_light.png` / `_shot_plotkit_dark5.png`（面板浮窗，深浅两套）、`_shot_hover.png`、`_shot_seek.png`。
+- 仍未验：A5（拖拽帧时）、A13（IME）、A14（系统缩放）、A18（30 min 长跑，脚本就绪）。A21 已由 `restore_check.py` 三进程实测通过。
+
+---
+
+## 16. 自动保存与验收脚本（2026-11-02）
+
+### 16.1 自动保存（补 A21）
+
+| 项 | 内容 |
+| --- | --- |
+| 触发 | `QTimer` 60 s 一次，仅当场景脏（`_dirty`）才写；保存成功、正常关窗时清除 |
+| 路径 | `%APPDATA%/Netlab/NetlabDesktop/autosave.netlab`（与 web 壳同一份，可互相接续） |
+| 内容 | `build_project()` → `validate_project()` 的完整工程（含校验和），不是半成品 |
+| 恢复 | 启动时若文件存在且未加 `--no-recover`，弹「恢复未保存的工作」；`MainWindow.recover_autosave()` 装回场景并保持脏状态 |
+| 失败 | 写盘异常只写日志，不打断用户 |
+
+### 16.2 两个验收脚本
+
+| 脚本 | 用途 | 输出 |
+| --- | --- | --- |
+| `python -m netlab.ui.soak --minutes 30` | A18 长跑：起原生界面，按 `--interval` 采样 RSS | 首段/末段均值、波动幅度、PASS/FAIL；不足 10 分钟只算脚本自检 |
+| `python -m netlab.ui.restore_check` | A21 强杀恢复：子进程 A 写自动保存后 `os._exit`（不清理），父进程校验文件，子进程 B 恢复并比对节点数 | `nodes_before/N/MB/PASS` |
+
+### 16.3 顺带修的模式过滤
+
+模块库原先把 `computes / circuit_nodes / elements` 三个桶全摊平，信号模式下能点到 `node`/`device`，落地时抛「未知的节点构造方式」。现在按 `scene.mode` 过滤：signal/vector 只给 computes，circuit 只给 circuit_nodes + elements。

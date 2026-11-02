@@ -18,7 +18,7 @@
 **闸门（2026-10-26 用户授权变更）**：开工前用 chat 简报「要做什么」，完工后简报「做了什么 + 进度 + 耗时（分钟）」，汇报尽量简短；**任务是否进行不需要逐期批准，按票单顺序连续推进**（`PROGRESS §7` / `NetlabExtras/scratch/*/issues/`）；每完成一个大任务或一批票后停下整理并汇报。三件套（见 §5）与 PROGRESS 更新仍是硬要求。
 > 原规则「每期做完 → 报告 → 停下等批准」已被上述授权覆盖，保留原文备查。
 
-**界面（2026-11-02 D78 起）**：`python -m netlab.desktop`（或 `netlab/start_desktop.bat`）启动 pywebview + WebView2 网页壳，前端在 `netlab/static/`（index.html / app.js / style.css）。Qt 原生界面曾于同日完整实现（R33），按用户决定「还是用 html 的 ui」整体备份到 Git 分支 `backup/qt-native-2026-11-02`（标签同名）后删除，`netlab/ui/` 不再存在；`--native` 会提示已移除。
+**界面（2026-11-02 D78 起）**：`python -m netlab.desktop`（或 `netlab/start_desktop.bat`）启动 pywebview + WebView2 网页壳，前端在 `frontend/`（index.html / app.js / style.css）。Qt 原生界面曾于同日完整实现（R33），按用户决定「还是用 html 的 ui」整体备份到 Git 分支 `backup/qt-native-2026-11-02`（标签同名）后删除，`netlab/ui/` 不再存在；`--native` 会提示已移除。
 
 **运行目录（2026-10-28 整理后）**：仓库根是 `ProjectPoint/`，但 Netlab 的运行根是 `NetlabHome/`。**所有命令先 `cd NetlabHome`**（`python -m pytest netlab/tests -q`、`python -m netlab.desktop`、备份目标 `../NetlabExtras/backups/ProjectPoint_backups/`）；直接双击 `NetlabHome/netlab/start_desktop.bat` 也可以。文档里的相对链接都以 `netlab/docs/` 为基准，不受影响。
 
@@ -34,7 +34,7 @@
 | 改前端面板、画布、交互 | [UI_SPEC.md](UI_SPEC.md) | CHEATSHEET §6、ARCHITECTURE §11；电路图先读 [SCHEMATIC_DRAWING_SPEC.md](SCHEMATIC_DRAWING_SPEC.md) 与 [GLOSSARY.md](GLOSSARY.md) |
 | 改**原生界面**（Qt Widgets，`netlab/ui/`） | [QT_NATIVE_SPEC.md](QT_NATIVE_SPEC.md) |
 | 想知道**现在要做什么、还差什么** | [BACKLOG.md](BACKLOG.md) | `.scratch/netlab-qt/issues/01–15`、`netlab/ui/` 各模块 docstring |
-| 改工程文件、校验和、目录 | CHEATSHEET §8 | [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) R01/R16、`netlab/project.py` |
+| 改工程文件、校验和、目录 | CHEATSHEET §8 | [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) R01/R16、`netlab/core/model/project.py` |
 | 改桌面外壳、bat 启动 | CHEATSHEET §9 | `netlab/desktop/*`、[LESSONS.md](LESSONS.md)「bat 三坑」 |
 | 改扩展系统（Python 自定义） | CHEATSHEET §10 | EXTENDING、LESSONS §5（handler 语义坑） |
 | 排查报错、验证功能 | LESSONS §0 | LESSONS §3（CDP）、PROGRESS 现有证据 |

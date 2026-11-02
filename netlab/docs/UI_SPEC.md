@@ -10,12 +10,12 @@
 
 | 文件 | 作用 | 规模 |
 | --- | --- | --- |
-| `netlab/static/index.html` | 唯一页面外壳：顶栏、菜单栏 + 信息条、网络栏、工具栏、画布、右栏、状态栏、设置窗、引导页、文档窗、qcard、toast、modal | 约 330 行 |
-| `netlab/static/style.css` | 设计令牌 + 全部样式 + 主题/动效/性能档覆盖 + 新组件 | 约 1940 行 |
-| `netlab/static/app.js` | 单 IIFE 前端应用；R30 新模块追加在文件末尾（`boot();` 之前） | 约 11200 行 |
+| `frontend/index.html` | 唯一页面外壳：顶栏、菜单栏 + 信息条、网络栏、工具栏、画布、右栏、状态栏、设置窗、引导页、文档窗、qcard、toast、modal | 约 330 行 |
+| `frontend/style.css` | 设计令牌 + 全部样式 + 主题/动效/性能档覆盖 + 新组件 | 约 1940 行 |
+| `frontend/app.js` | 单 IIFE 前端应用；R30 新模块追加在文件末尾（`boot();` 之前） | 约 11200 行 |
 | `netlab/docs/user/*.md` | 应用内文档中心的 5 篇用户向文档（离线、打包随源码） | 5 篇 |
 | `netlab/server.py` | `GET /api/docs`、`GET /api/docs/{slug}` | — |
-| `netlab/workspace.py` | 外观偏好设置键与校验 | — |
+| `netlab/core/model/workspace.py` | 外观偏好设置键与校验 | — |
 
 前端无构建步骤、无 npm 依赖、无框架；改完直接刷新即可（见 §17 版本与缓存）。
 
@@ -439,7 +439,7 @@ cd NetlabHome
 python -m pytest netlab/tests -q              # 当前 323 passed
 python -m compileall -q netlab
 python -m netlab.desktop --selftest           # backend + qt + ok:true
-node --check netlab/static/app.js
+node --check frontend/app.js
 # 浏览器实测（页在 http://127.0.0.1:8010，CDP 在 9333）：
 node netlab/tools/cdp_check.mjs
 ```

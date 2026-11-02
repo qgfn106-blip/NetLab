@@ -43,7 +43,7 @@ TOPOLOGY 内部有 3 种模式，共用同一套 HTTP 与场景模型：
 | HTTP | FastAPI + Pydantic | 请求体 `extra="forbid"`，统一错误体 `{"detail": ...}` |
 | 服务 | Uvicorn | `run.py` 负责端口探测与自动开浏览器 |
 | 数值 | NumPy（必需）、SciPy（仅 FEM） | `linalg.py` 自带 Padé `expm`，不依赖 SciPy |
-| 前端 | 原生 ES2020 + Canvas | 无构建步骤、无第三方库，`static/app.js` 一个 IIFE |
+| 前端 | 原生 ES2020 + Canvas | 无构建步骤、无第三方库，`frontend/app.js` 一个 IIFE |
 | 测试 | pytest + httpx/TestClient | 43 个回归用例，覆盖数值、场景与 API |
 
 运行形态：
@@ -62,61 +62,78 @@ TOPOLOGY 内部有 3 种模式，共用同一套 HTTP 与场景模型：
 
 ## 2. 目录与模块职责
 
+> 结构图：[docs/assets/netlab-structure.svg](../../docs/assets/netlab-structure.svg)
+
+> **2026-11-02 结构整理后**（D-重构）：前后端彻底分目录；后端按“计算 / 模型 / 公共”三类放进 `netlab/core/` 的子文件夹。旧的 `netlab/<name>.py` 仍可 import，它们是转发到新位置的兼容 shim。
+
 ```text
-netlab/
-├─ run.py                 启动入口：参数、端口探测、延迟打开浏览器
-├─ start.bat              Windows 双击启动
-├─ requirements.txt
-├─ __init__.py            包门面：导出 Network / Node / Connection / Scene / NetlabError
+NetlabHome/
+├─ frontend/                  ★ 前端（浏览器侧，只有 HTML/CSS/JS）
+│  ├─ index.html              两工作区外壳
+│  ├─ style.css               纸白/黑墨/铜色主题
+│  ├─ app.js                  画布、交互、动态表单、信号图、相图、FEM 渲染
+│  └─ desktop-shim.js         桌面壳注入：无边框窗控、拖拽区
 │
-├─ limits.py              ★ 输入边界：异常类型、数值/名称/JSON 校验、硬上限常量
-├─ params.py              ★ ParamSpec：前后端共用参数模式（类型、默认值、范围、枚举）
-├─ safeexpr.py            受限 AST 表达式解释器（不使用 eval）
-├─ linalg.py              线性求解、Padé expm、连续→离散（ZOH / Tustin / 前后向欧拉）
-├─ waveform.py            8 种波形 + 共享 ParamSpec
-├─ statespace.py          x'=Ax+Bu, y=Cx+Du 与四种离散化
-│
-├─ graph.py               ★ 信号层运行时：Node / Connection / Network
-├─ computes.py            ★ 节点计算注册表（13 种 kind）
-├─ methods.py             ★ 连接函数注册表（11 种 kind）
-├─ nodal.py               ★ 电路层：MNA 求解器 + 9 种元件 + ElementSpec
-├─ scene.py               ★ 场景层：NodeRecord/EdgeRecord、Scene、SignalEngine、CircuitEngine
-├─ simulation.py          ★ 固定步长线程、SimConfig、Recorder、增量查询
-├─ networks.py            ★ 多网络容器：当前网络、增删改、降级只读、工程打包
-├─ blocks.py              功能块定义/实例化/内部运行时
-├─ circuit_modules.py     电路封装/展开、端口标记与合并
-├─ project.py             ★ .netlab 工程文件：构建/校验/迁移/原子写/校验和
-├─ workspace.py           ★ 工作区目录、共享库、快照、用户设置
-├─ fem.py                 ★ 二维 Q4 有限元模型 + FemSimulation 线程
-├─ templates.py           12 个可复现场景（builder + SIM_PRESETS）
-├─ server.py              FastAPI 路由、Pydantic 请求模型、静态页
-├─ static/
-│  ├─ index.html          两工作区外壳
-│  ├─ style.css           纸白/黑墨/铜色主题
-│  └─ app.js              画布、交互、动态表单、信号图、相图、FEM 渲染
-├─ tests/
-│  ├─ conftest.py         把项目根加入 sys.path
-│  └─ test_*.py           pytest 用例（2026-11-01 全量 356 passed / 3 skipped）
-├─ docs/                  截图 + 本文档
-└─ tools/                 可选 Edge CDP 冒烟脚本
+├─ netlab/                    后端 Python 包
+│  ├─ run.py                  启动入口：参数、端口探测、延迟打开浏览器
+│  ├─ __init__.py             包门面：导出 Network / Node / Connection / Scene / NetlabError
+│  ├─ server.py               FastAPI 路由、Pydantic 请求模型、前端目录解析
+│  ├─ plotkit_bridge.py       PlotKit 子应用挂载 + 源码定位（ensure_plotkit_importable）
+│  ├─ desktop/                桌面壳：webview_app / webview_bridge / server_host
+│  │
+│  ├─ core/
+│  │  ├─ common/              （1）跨层公共
+│  │  │  └─ limits.py         ★ 输入边界：异常类型、数值/名称/JSON 校验、硬上限常量
+│  │  │
+│  │  ├─ compute/             （20）底层计算内核——不含任何 I/O、HTTP、UI
+│  │  │  ├─ simulation.py     ★ 固定步长线程、SimConfig、Recorder、增量查询
+│  │  │  ├─ nodal.py          ★ 电路层：MNA 求解器 + 9 种元件 + ElementSpec
+│  │  │  ├─ linalg.py         线性求解、Padé expm、连续→离散（ZOH/Tustin/欧拉）
+│  │  │  ├─ statespace.py    x'=Ax+Bu, y=Cx+Du 与四种离散化
+│  │  │  ├─ fem.py            ★ 二维 Q4 有限元模型 + FemSimulation 线程
+│  │  │  ├─ computes.py       ★ 节点计算注册表（13 种 kind）
+│  │  │  ├─ methods.py        ★ 连接函数注册表（11 种 kind）
+│  │  │  ├─ circuit_modules.py 电路封装/展开、端口标记与合并
+│  │  │  ├─ digital.py / logic.py / transistors.py / magnetics.py
+│  │  │  ├─ waveform.py / params.py / safeexpr.py
+│  │  │  └─ accel.py / analysis.py / introspection.py / profiling.py / timers.py
+│  │  │
+│  │  └─ model/               （12）连接与场景模型——定义“网络长什么样”
+│  │     ├─ graph.py          ★ 信号层运行时：Node / Connection / Network
+│  │     ├─ scene.py          ★ 场景层：NodeRecord/EdgeRecord、Scene、SignalEngine、CircuitEngine
+│  │     ├─ networks.py       ★ 多网络容器：当前网络、增删改、降级只读、工程打包
+│  │     ├─ project.py        ★ .netlab 工程文件：构建/校验/迁移/原子写/校验和
+│  │     ├─ workspace.py      ★ 工作区目录、共享库、快照、用户设置
+│  │     ├─ blocklib.py / blocks.py / block_validate.py / extensions.py
+│  │     ├─ ports.py / schematic.py / graph 辅助
+│  │     └─ templates.py      12 个可复现场景（builder + SIM_PRESETS）
+│  │
+│  ├─ tests/                  conftest.py + test_*.py（2026-11-02 全量 359 passed / 3 skipped）
+│  ├─ docs/                   截图 + 文档（本文件、CODE_GUIDE、MATH…）
+│  └─ tools/                  可选 Edge CDP 冒烟脚本 / 结构整理脚本
+└─ （兼容层）netlab/<name>.py  转发 shim：`from .core.<bucket>.<name> import *`
 ```
 
 带 ★ 的是“改功能时最常碰”的模块。依赖方向只有一个：
 
 ```text
-server.py
-  ├─ networks.py ── project.py
-  ├─ workspace.py ── project.py
-  └─ simulation.py / fem.py
-       └─ scene.py
-            ├─ graph.py  ← computes.py / methods.py
-            ├─ nodal.py
-            └─ params.py / limits.py / linalg.py / waveform.py / statespace.py
+server.py / desktop/*
+  └─ core.model.networks ── core.model.project
+       └─ core.model.workspace ── core.model.project
+            └─ core.compute.simulation / core.compute.fem
+                 └─ core.model.scene
+                      ├─ core.model.graph  ← core.compute.computes / core.compute.methods
+                      ├─ core.compute.nodal
+                      └─ core.compute.{params,limits,linalg,waveform,statespace}
 ```
 
-`project.py` 的 `build_project_for()` 按对象分派：`NetworkContainer` 用自己的 `build_project()` 打包全部网络，普通 `Simulation` 走单场景构建。`networks.py` 反向 import `project.py` 的构建函数，因此 `project.py` 对容器只做 `TYPE_CHECKING` 注解，运行时不 import，避免循环依赖。
+三条边界：
 
-`graph.py`、`nodal.py` **不 import `scene.py`**；注册表模块只依赖参数与校验层。新增功能时保持这个方向，循环 import 就不会出现。
+- **frontend 只经 HTTP 访问后端**（`/api/*`、`/plotkit/*`）；后端不知道前端的任何 DOM 结构。
+- **core 不 import server / desktop / frontend**；计算层不碰 I/O。
+- `graph.py`、`nodal.py` **不 import `scene.py`**；注册表只依赖参数与校验层。新增功能保持这个方向，循环 import 就不会出现。
+
+`project.py` 的 `build_project_for()` 按对象分派：`NetworkContainer` 用自己的 `build_project()` 打包全部网络，普通 `Simulation` 走单场景构建；`networks.py` 反向 import 构建函数，因此 `project.py` 对容器只做 `TYPE_CHECKING` 注解。
 
 ---
 
@@ -735,7 +752,7 @@ prepare 阶段（构造/配置变更时）：
 
 ## 11. 前端架构
 
-`static/app.js` 是一个 IIFE，按注释分成 10 段：
+`frontend/app.js` 是一个 IIFE，按注释分成 10 段：
 
 | 段 | 内容 | 关键函数 |
 | --- | --- | --- |
@@ -898,13 +915,13 @@ boot()
 | 新增连接函数 | `methods.py` | `MethodSpec` + `register` |
 | 新增电路元件 | `nodal.py` | `CircuitElement` 子类 + `ELEMENT_SPECS` |
 | 新增场景模板 | `templates.py` | builder + `TEMPLATES` / `SIM_PRESETS` |
-| 新增参数类型 | `params.py` + `static/app.js` | `ParamSpec.coerce` / `to_dict`；`buildParamField` / `collectParamValues` |
-| 新增模式 | `scene.py` + `server.py` + `static/app.js` + `templates.py` | `MODES`、`ensure_engine`、`/api/mode`、`kindListFor`、空白模板 |
+| 新增参数类型 | `params.py` + `frontend/app.js` | `ParamSpec.coerce` / `to_dict`；`buildParamField` / `collectParamValues` |
+| 新增模式 | `scene.py` + `server.py` + `frontend/app.js` + `templates.py` | `MODES`、`ensure_engine`、`/api/mode`、`kindListFor`、空白模板 |
 | 新增 HTTP 接口 | `server.py` | Pydantic 模型 + 路由 + `SERVICE.mutate` |
-| 改节点/边外观 | `static/app.js` | `drawNodes` / `drawEdges` / `nodeValueText` |
-| 改信号图/相图 | `static/app.js` | `drawChart` / `drawPhase` |
+| 改节点/边外观 | `frontend/app.js` | `drawNodes` / `drawEdges` / `nodeValueText` |
+| 改信号图/相图 | `frontend/app.js` | `drawChart` / `drawPhase` |
 | 改 FEM 方程/边界 | `fem.py` | `FemModel`、`_element_matrices`、`_source_vector` |
-| 改 FEM 外观 | `static/app.js` | `drawFem`、`femLayout`、`femColor` |
+| 改 FEM 外观 | `frontend/app.js` | `drawFem`、`femLayout`、`femColor` |
 | 改数值算法 | `linalg.py` / `statespace.py` / `waveform.py` | 对应函数 |
 | 改校验/上限 | `limits.py` | 常量与 `as_*` 函数 |
 | 新增模板/接口测试 | `tests/test_netlab.py` | `client` fixture、`template_scene` |

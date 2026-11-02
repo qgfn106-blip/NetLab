@@ -62,13 +62,25 @@ python -m netlab.desktop
 
 ```
 .
-├─ netlab/                应用包（服务端 + 元件库 + 静态前端）
+├─ frontend/              前端（原生 JS / CSS / HTML，无构建步骤）
+│  ├─ index.html
+│  ├─ style.css
+│  ├─ app.js
+│  └─ desktop-shim.js     桌面壳注入（无边框窗控）
+├─ netlab/                后端包（服务端 + 计算内核 + 模型）
 │  ├─ run.py              一键启动入口
-│  ├─ desktop/            可选的桌面窗口壳
-│  ├─ static/             原生 JS / CSS / HTML 前端（无构建步骤）
+│  ├─ server.py           HTTP API（/api/*、/plotkit/*）
+│  ├─ plotkit_bridge.py   PlotKit 子应用挂载
+│  ├─ desktop/            可选的桌面窗口壳（pywebview）
+│  ├─ core/
+│  │  ├─ compute/         计算内核：simulation / nodal / linalg / fem …
+│  │  ├─ model/           连接与模型：graph / scene / networks / project …
+│  │  ├─ common/          limits（输入边界与校验）
+│  │  ├─ tests/
+│  │  └─ docs/
 │  ├─ requirements.txt    运行依赖
 │  └─ requirements-desktop.txt
-├─ docs/assets/           README 截图
+├─ docs/assets/           README 截图 + 结构图
 ├─ library/               共享库（运行时生成，默认空）
 ├─ extensions/            扩展目录（运行时生成，默认空）
 ├─ README.md
@@ -79,7 +91,9 @@ python -m netlab.desktop
 
 ## 文档
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) —— 分层、场景数据模型、求解器与前端数据流
+- [ARCHITECTURE.md](ARCHITECTURE.md) —— 分层、场景数据模型、求解器与前端数据流（含[结构图](docs/assets/netlab-structure.svg)）
+- [netlab/docs/CODE_GUIDE.md](netlab/docs/CODE_GUIDE.md) —— 目录地图、模块职责、关键符号与调用链
+- [netlab/docs/MATH.md](netlab/docs/MATH.md) —— 数学原理：MNA、伴随模型、Newton、状态空间、Q4 FEM
 - [OPERATION.md](OPERATION.md) —— 界面速览、快捷键、建图/建电路、曲线与回放、工程文件
 - [INSTALL.md](INSTALL.md) —— 安装、离线部署、局域网访问、故障排查
 

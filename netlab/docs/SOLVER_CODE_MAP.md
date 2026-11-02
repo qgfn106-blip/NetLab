@@ -11,12 +11,12 @@
 
 | 顺序 | 文件 | 看什么 | 行数 |
 | --- | --- | --- | --- |
-| 1 | `netlab/graph.py` | `Node` / `Connection` / `Network.step` —— 信号流的求解内核 | 489 |
-| 2 | `netlab/scene.py` | `NodeRecord` / `EdgeRecord` / `SignalEngine` —— 界面数据与内核的桥 | 1107 |
-| 3 | `netlab/computes.py`、`netlab/methods.py` | 节点公式 / 连接函数的注册表与 handler | 893 / 667 |
-| 4 | `netlab/nodal.py` | 电路 MNA 求解器 `CircuitSolver` 与元件 `stamp` | 1053 |
-| 5 | `netlab/simulation.py` | 后台线程、`dt`、帧时间戳、录制器 | 352 |
-| 6 | `netlab/fem.py` | 二维热场有限元（与信号/电路无关的另一条求解路径） | 667 |
+| 1 | `netlab/core/model/graph.py` | `Node` / `Connection` / `Network.step` —— 信号流的求解内核 | 489 |
+| 2 | `netlab/core/model/scene.py` | `NodeRecord` / `EdgeRecord` / `SignalEngine` —— 界面数据与内核的桥 | 1107 |
+| 3 | `netlab/core/compute/computes.py`、`netlab/core/compute/methods.py` | 节点公式 / 连接函数的注册表与 handler | 893 / 667 |
+| 4 | `netlab/core/compute/nodal.py` | 电路 MNA 求解器 `CircuitSolver` 与元件 `stamp` | 1053 |
+| 5 | `netlab/core/compute/simulation.py` | 后台线程、`dt`、帧时间戳、录制器 | 352 |
+| 6 | `netlab/core/compute/fem.py` | 二维热场有限元（与信号/电路无关的另一条求解路径） | 667 |
 
 ### 0.1 全流程原理图（先看图，再读代码）
 

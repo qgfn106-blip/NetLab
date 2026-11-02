@@ -15,7 +15,7 @@
 | 项目根 | `E:\Python\MyPython\ProjectPoint`（包在 `netlab/`） |
 | 语言/栈 | Python 3.13 + FastAPI/uvicorn + NumPy/SciPy + 原生 JS 前端 + 可选 PyQt6 桌面外壳 |
 | 启动 | `python netlab/run.py --port 8010 --no-browser`；桌面 `python -m netlab.desktop` |
-| 前端 | `netlab/static/{index.html,app.js,style.css}`（无构建步骤，改完刷新即可，注意 bump `?v=`） |
+| 前端 | `frontend/{index.html,app.js,style.css}`（无构建步骤，改完刷新即可，注意 bump `?v=`） |
 | 测试 | `python -m pytest netlab/tests -q` → **356 passed, 3 skipped**（2026-11-01） |
 | 版本控制 | 本目录是 git 仓库（`NetlabHome/` 为根）；`.gitignore` 排除 `netlab/tests/`、`netlab/docs/`、`netlab/tools/`，证据仍以 PROGRESS 为准；改动前另做本地备份 |
 | 当前阶段 | 以 PROGRESS 头部为准：P1–P4 主体、P7 多数、R26/R27/R29/R30/R32 已完成；2026-11-01 完成 D7 降级只读、R16/D2 多网络保存、D48 预计算上限、P7-06 封装合并与节点校验加固 |
@@ -58,7 +58,7 @@
 | `safeexpr.py` | 232 | 表达式节点的受限 AST 求值（无 eval） | `evaluate` |
 | `fem.py` | 667 | 二维有限元热传导 | `FemSimulation`、`FemModel`、`build_mesh` |
 | `templates.py` | 1193 | 场景模板与仿真预设 | `TEMPLATES`、`build_template` |
-| `static/app.js` | 12550 | 全部前端逻辑（单文件，按分区组织，见 §6；R20 器件框/引脚/导线渲染） | 见 §6 |
+| `frontend/app.js` | 12550 | 全部前端逻辑（单文件，按分区组织，见 §6；R20 器件框/引脚/导线渲染） | 见 §6 |
 | `desktop/` | — | PyQt6 外壳：窗口/桥/服务宿主/自检 | `main_window.py`、`bridge.py`、`server_host.py` |
 | `tools/` | — | 基准与浏览器验证脚本 | `bench.py`、`cdp_eval.mjs`、`cdp_shot.mjs` |
 | `tests/` | — | pytest 用例 | `conftest.py` 提供 `client`、`simulation` fixture |
@@ -135,7 +135,7 @@ Simulation._loop (线程) → Scene.step(dt) → 引擎.step(dt)
 
 ---
 
-## 6. 前端架构（`static/app.js` 单文件）
+## 6. 前端架构（`frontend/app.js` 单文件）
 
 分区（行号为分区起点，改代码时直接定位）：
 

@@ -1,19 +1,19 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-02 07:56
+> 最后修改：2026-11-02 13:05
 
 | 项 | 内容 |
 | --- | --- |
 | 记录时间 | 2026-11-02 04:45（Asia/Shanghai） |
 | 当前阶段 | **P1–P4 主体完成；P7-01/02/03 完成；P7-05 完成（时间轴回放/过期标记/循环/时间窗/重置保留探针/求解窗口 0→T）；P0 求解可靠性完成 + P0 求解加固完成（失败事务/检查点回滚、行列均衡缩放、尺度无关残差、线性解质量、器件节点断点、超时回滚、BJT/LDO 猜测分层），Phase D 元件契约与 Phase E 信号/矢量整步事务完成；R26 求解器分析能力（DC 工作点/AC-Bode/Gear2/稀疏矩阵）完成；工程校验和二次校验修复（§7.10）；R27 回放/时间轴可用性完成（§7.11）、R29 回放速度滑块（§7.16），**343 passed**、静态 3.14.4（2026-10-29 P7-06 电路模块化 §7.21、P7-07 模块内部浮窗 §7.22、P7-08 电气直连展开 §7.23）；**R30/P10 UI 集中优化六票完成**（§7.17，引导页/右栏 4 组/设置抽屉/文档中心/9 项信息条/9 项菜单/外观三档/参数 `?`；2026-10-29 03:35 挂耳与右栏拖拽收尾 §7.24，静态 3.14.1）；**2026-10-30 01:50 封装报错修复 + 端口方向入口 + 模块库清理 + `MODULES_HOWTO.md`**（§7.25，静态 3.14.2）；公开仓库已上线（§7.13）；浏览器内演示曾发布到 GitHub Pages（§7.14），同日 21:15 用户要求删除、已撤销（§7.15，站点 404）；**R33 原生桌面外壳已实现**（§7.33/§7.33.1，385 passed）；主线待办见 [BACKLOG.md](BACKLOG.md)——下一步 P7-09/10/11 内置结构（R25，三批按 opamp/comparator → dff/counter/shift → 555/LDO/ADC/DAC）；R19 参考级图纸暂停；**2026-10-29 R31 并网逆变器电网控制立项**（P11-01…P11-07，见 §7.19，未开工） |
 | 基线 | 修改前 43 passed（2026-10-24 14:26） |
-| 当前测试 | **356 passed / 3 skipped**（D78 恢复 web 前端后） |
+| 当前测试 | **364 passed / 3 skipped**（2026-11-02 13:05：D79 结构整理 + 检查点快速快照优化 + fastcopy 5 条新测试） |
 | 本地备份 | `netlab_20261101_2010`（本轮 7 源文件 + 5 文档 + 5 测试 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_20261024_142654`、`_1727`、`netlab_20261025_0125`、`netlab_20261025_1306`（P0-0）、`netlab_20261026_0348p1retry`（P1 收口）、`netlab_20261026_1240`（R15 收尾）、`netlab_20261026_1318`（R20 模型批基础层）、`netlab_20261026_1322`（R20 模型批功能完成）、`netlab_20261026_1330`（R20 UI 批）、`netlab_20261026_1335`（R20 UI 迁移动作）、`netlab_20261026_1340`（R20 信号端口）、`netlab_20261026_1415`（纯导线/共集示例）、`netlab_20261027_0150`（P7-01 前快照）、`netlab_20261027_1744`（P7-03 收尾）、`netlab_20261027_1753`（R22 参数放宽/单位）、`netlab_20261027_1856`（三极管型号预设）、`netlab_20261027_2218`（拐点拖动）、`netlab_20261027_2324`（P7-03/P7-05 收尾）、`netlab_20261027_2330`（P0 求解可靠性）、`netlab_20261028_0016`（P0 收尾/P7-05）、`netlab_20261028_0048`（电源波形界面）、`netlab_20261028_0103`（dt 精度预设）、`netlab_20261028_0114`（奇异阈值/步长原位微调）、`netlab_20261028_0318`（P0 求解加固：事务/均衡/断点/超时）、`netlab_20261028_0405`（Phase D/E 代码前快照）、`netlab_20261028_0434`（R26 代码前快照）、`netlab_20261028_1219`（工程校验和修复前 `project.py`）、`project_20261028_1219`（用户工程文件前快照）、`netlab_20261028_1855`（R27 后端/前端快照）、`docs_20261028_1932`（公开仓库文档前快照）、`docs_20261028_2108`（R28 文档前快照）、`web_20261028_2130`（演示页与 workflow 删除前快照）、`ui_20261028_2205`（R29 回放滑块前 static 快照）、`netlab_ui_20261028_2242`（R30 UI 集中优化前 netlab 全量）；文档快照见 `docs_20261026_*、docs_20261027_1744、netlab_docs_20261028_0420、netlab_docs_20261028_0445` |
 | 备份清单 | 各自目录下 `MANIFEST.sha256` |
 | 版本控制 | 用户已授权 GitHub `qgfn106-blip` 做版本管理/备份（2026-10-24）；本地仍保留备份，尚无 `.git` |
 | 速查文档 | **[AGENT_GUIDE.md](AGENT_GUIDE.md)（开工先读）**、**[UI_SPEC.md](UI_SPEC.md)（UI 设计语言/组件/接口）**、[FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md)、[LESSONS.md](LESSONS.md)、[REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)、[SOLVER_CODE_MAP.md](SOLVER_CODE_MAP.md)；仓库根 `AGENTS.md` 指向本套文档 |
-| 下一步 | **P13-00（PlotKit 侧）**：mpl 单后端渲染管线与交互层（复用 Figure + blit + 抽稀 + 编码分层 + ETag），见 `PlotKit/docs/REQUIREMENTS_AND_PROGRESS.md`；netlab 旧 canvas 与分析面板**保留不删**（D68），两条路径并存 |
-| 需求口径 | **以 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) 的 R01–R32 + D1–D67 为准**；本文档 §7 为执行进度视图 |
+| 下一步 | 主线待办见 [BACKLOG.md](BACKLOG.md)；本轮回合已完成：PlotKit 三形态接入（D-接入）、D79 结构整理、`copy_state` 步进优化（−7%…−26%/步） |
+| 需求口径 | **以 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) 的 R01–R33 + D1–D79 为准**；本文档 §7 为执行进度视图 |
 
 > 本文件只记录**已实际验证**的内容；未完成的能力明确标为“未接通/未实现”，
 > 不把计划写成已完成。
@@ -32,23 +32,23 @@
 
 新增/修改：
 
-- `netlab/accel.py`（新）
+- `netlab/core/compute/accel.py`（新）
   - `auto|cpu|gpu` 策略；GPU 需 CuPy + CUDA，规模阈值默认 192；
   - `solve_dense` / `matmul` / `synchronize` / `to_cpu` / `status`；
   - GPU 异常自动回退 CPU，返回前显式同步，不跨步异步。
-- `netlab/linalg.py`
+- `netlab/core/compute/linalg.py`
   - `solve_linear` 统一走 `accel.solve_dense`；支持 1D/2D 右端。
-- `netlab/graph.py`
+- `netlab/core/model/graph.py`
   - 内置 handler/连接使用 `trusted` 快路径：缓存 `NodeView` 与参数视图、
     浅拷贝 data、快速标量结果校验；
   - 自定义/兼容回调和用户扩展仍走深拷贝 + `json_safe`；
   - `Network` 缓存延迟边与入边列表，不再每步全量扫描所有边。
-- `netlab/nodal.py`
+- `netlab/core/compute/nodal.py`
   - MNA 矩阵/右端缓冲复用；
   - 线性电路 LU 分解缓存（矩阵与 dt 未变时只回代），`linear_reuse` 统计；
   - 非线性 Newton 迭代矩阵变化时缓存自然失效；
   - 预留 GPU 大矩阵路径。
-- `netlab/fem.py`
+- `netlab/core/compute/fem.py`
   - 高斯热源预计算为稀疏映射矩阵，去掉每步 `bincount` 循环；
   - 结果与原有有限元测试一致。
 - `netlab/tests/test_netlab.py` 中数值、FEM、电路、图回归均通过。
@@ -68,7 +68,7 @@ GPU 因本机未安装 CuPy，**未验证 GPU 路径**，仅验证 CPU 回退。
 
 新增：
 
-- `netlab/project.py`
+- `netlab/core/model/project.py`
   - 版本化 `.netlab` 工程（format/version/name/scene/sim/fem/ui/blocks/extensions/checksum）；
   - `build_project` / `validate_project` / `migrate_project` / `project_scene_payload`；
   - 原子写入（同目录临时文件 → fsync → 旧文件 `.bak` → `os.replace`）；
@@ -115,7 +115,7 @@ Qt WebEngine 壳保留为回退（`python -m netlab.desktop --qt`），默认走
   加载完成再显示（`hidden=True` + `loaded` 回调 + 8 s 兜底），不再有黑窗；
 - `netlab/desktop/webview_bridge.py`：纯 Python 桥（打开/保存/另存/自动保存/恢复），
   文件对话框走 `window.create_file_dialog`；
-- `netlab/static/desktop-shim.js`：把 pywebview 的 Promise API 适配成原来的
+- `frontend/desktop-shim.js`：把 pywebview 的 Promise API 适配成原来的
   QWebChannel 调用风格，**前端零改动**；顺带补 Ctrl+N/O/S/Shift+S；
 - `netlab/server.py` 的 `index()` 在 `NETLAB_DESKTOP_SHELL=pywebview` 时注入垫片脚本。
 
@@ -147,15 +147,15 @@ netlab 侧**无需改动**，但要知道两点：
 
 新增/修改：
 
-- `netlab/params.py`
+- `netlab/core/compute/params.py`
   - `ParamSpec` 增加 `group` / `example` / `required` 并序列化。
-- `netlab/computes.py`、`netlab/methods.py`、`netlab/nodal.py`
+- `netlab/core/compute/computes.py`、`netlab/core/compute/methods.py`、`netlab/core/compute/nodal.py`
   - 规格增加 `formula` / `source` / `editable` / `builtin`；
-  - catalog 通过 `netlab/introspection.py` 返回：
+  - catalog 通过 `netlab/core/compute/introspection.py` 返回：
     `formula`、真实 `source`（`inspect.getsource`）、`source_path`、参数完整定义。
-- `netlab/introspection.py`（新）
+- `netlab/core/compute/introspection.py`（新）
   - 实际源码读取；失败返回空字符串，不伪造。
-- `netlab/extensions.py`（新）
+- `netlab/core/model/extensions.py`（新）
   - `Param` / `@node(...)` / `@method(...)`；
   - AST 检查：禁止 import、while、with、class、async、dunder 属性/敏感内建；
   - 受限 builtins；代码大小、AST 节点数、参数数量上限；
@@ -180,14 +180,14 @@ netlab 侧**无需改动**，但要知道两点：
 
 已新增：
 
-- `netlab/blocks.py`
+- `netlab/core/model/blocks.py`
   - `PortDef` / `BlockDef` / `BlockStore` / `BlockRuntime`；
   - 端口方向、字段、类型、默认值、版本、内置标记；
   - 封装选中节点、边界端口生成、实例化端口节点、父场景替换；
   - 嵌套深度上限 6、定义/节点/边/端口上限；
   - 每个实例独立内部 `Scene`，state 隔离；
   - 循环引用检测。
-- `netlab/computes.py`
+- `netlab/core/compute/computes.py`
   - 新增 `module_input` / `module_output` / `block` 三种节点规格。
 - 公式表已补充这些 kind 的说明。
 
@@ -419,8 +419,8 @@ V2-0 完成并报告后，再按 V2-1 → V2-2 → V2-3 → V2-4 → V2-5 → V2
 
 ### 6.2 V2-2 已实现内容（待回归）
 
-- `static/index.html`：新增「规格」「扩展」两个面板 tab（`#tab-spec`、`#tab-ext`），静态资源版本 bump 到 `?v=2.2.0`。
-- `static/app.js` 新增 §6.5：
+- `frontend/index.html`：新增「规格」「扩展」两个面板 tab（`#tab-spec`、`#tab-ext`），静态资源版本 bump 到 `?v=2.2.0`。
+- `frontend/app.js` 新增 §6.5：
   - `renderSpecPane()`：按当前选中节点/连接展示规格——公式、参数表（名称/类型/默认/单位/范围/必填/说明）、
     真实源码（带行号）、源码路径、内置/扩展/可自定义徽标；无选中时可下拉浏览当前模式全部规格。
   - `renderExtensionPanel()`：扩展列表（kind/type/sha256/参数数）、代码编辑器、新建模板、校验、启用、停用、
@@ -494,7 +494,7 @@ V2-2 期间发现并修掉的真 bug：前端「新建模板」给的 `def f(par
 菜单与 kind 下拉按它过滤；`Scene` 对无 `block_id` 的 `kind=="block"` 抛可修复提示。
 证据：85 passed；备份 `netlab_20261025_1306`。
 
-**01 R01（2026-10-26）**：`netlab/workspace.py`（工程目录 `project.netlab + blocks/extensions/exports/backups`、
+**01 R01（2026-10-26）**：`netlab/core/model/workspace.py`（工程目录 `project.netlab + blocks/extensions/exports/backups`、
 父目录 `library/{blocks,templates}` 单份共享、`%APPDATA%/Netlab/settings.json` 可被 `NETLAB_SETTINGS_DIR` 覆盖）；
 API `GET /api/workspace`、`POST /api/workspace/{create,save,open}`、`GET/PATCH /api/settings`；
 `server._apply_project` 供导入/打开共用。证据：`test_workspace.py` 7 项。
@@ -505,13 +505,13 @@ API `POST /api/workspace/snapshot`、`GET /api/workspace/snapshots`、`POST /api
 前端自动保存改为「有工程路径就写快照、按设置间隔（默认 60 s、可关）」。证据：`test_snapshots.py` 5 项。
 
 **06 R11+R13（2026-10-26）**：`SimConfig.t_step`（0=跟随 dt，单步=round(T_step/dt)）、
-`zero_time()`（只归零时间轴/录制，不清状态；`reset` 仍清状态）、`netlab/profiling.py`
+`zero_time()`（只归零时间轴/录制，不清状态；`reset` 仍清状态）、`netlab/core/compute/profiling.py`
 （`@timed`/`measure`、512 环形采样、默认关），装饰 `scene.step`/`network.step`/`circuit.solver.step`；
 API `POST /api/control{action:"zero"}`、`PATCH /api/config{t_step}`、`GET/PATCH /api/profile`。
 证据：`test_time_profile.py` 7 项。性能面板与单拍超时保护已由 P3 补齐（见 §7.2 P3 证据）。
 
 **03 R07 多网络（2026-10-26）**：工程格式升到 v2（`networks: [...]` + `current`），
-v1 与旧场景 JSON 自动迁移（校验和按迁移前验证、迁移后重算）；新增 `netlab/networks.py`
+v1 与旧场景 JSON 自动迁移（校验和按迁移前验证、迁移后重算）；新增 `netlab/core/model/networks.py`
 （`NetworkContainer`：每网络独立 `Simulation`/线程/录制器，切换暂停旧网络，未运行层不推进，
 可 `run_all/pause_all`）；API `GET/POST /api/networks`、`PATCH/DELETE /api/networks/{id}`、
 `POST /api/networks/{id}/activate`、`POST /api/networks/run-all|pause-all`；工程导入整体替换网络。
@@ -536,7 +536,7 @@ v1 与旧场景 JSON 自动迁移（校验和按迁移前验证、迁移后重�
 切正交落库；全选删除 0/0 → 撤销回 4/3；复制粘贴 4/3→8/6 → 撤销回 4/3；框选 2 节点/3 连接）；
 截图 [assets/r09-gb.png](assets/r09-gb.png)（GB 矩形节点）、[assets/r09-orthogonal.png](assets/r09-orthogonal.png)（几何面板 + 正交路由）。
 
-**P1-01 R02 文件层（2026-10-26）**：新增 `netlab/blocklib.py`（`.block` JSON + sha256 校验；
+**P1-01 R02 文件层（2026-10-26）**：新增 `netlab/core/model/blocklib.py`（`.block` JSON + sha256 校验；
 库路径 `library/blocks/<id>/v<N>.block`；同 id+version 内容不同拒绝、相同幂等；导入必须更高版本）；
 `BlockDef` 增加 `model`（behavioral|structural，默认 behavioral）；API `GET /api/blocks`、
 `POST /api/blocks/import`、`GET /api/blocks/{id}`（可带 `library` 参数，默认 settings.library_root 或 cwd/library）；
@@ -564,7 +564,7 @@ v1 与旧场景 JSON 自动迁移（校验和按迁移前验证、迁移后重�
 D6：`workspace.scan_block_references` + `GET /api/blocks/{id}/references`，`POST /api/blocks/{id}/delete`
 无 `force` 时 409 并列出引用工程。证据 `test_degraded.py` 2 项。
 
-**P1-05 R04 导入前校验（2026-10-26）**：`netlab/block_validate.py` 输出 `{ok, blocking[], warnings[], summary, block}`
+**P1-05 R04 导入前校验（2026-10-26）**：`netlab/core/model/block_validate.py` 输出 `{ok, blocking[], warnings[], summary, block}`
 与可复制 `text`；阻断级含结构/自引用/端口无内部接口/干跑失败，警告级含缺描述/空模块/无连接/无输入输出/端口无字段/
 接口未声明/子模块不在库；干跑真实 `BlockRuntime.step(0.01)` 1 步（passed/skipped/failed）。API
 `POST /api/blocks/validate`；前端导入 `.block` 先校验（阻断→横幅拒绝、警告→确认后导入）。
@@ -596,7 +596,7 @@ D6：`workspace.scan_block_references` + `GET /api/blocks/{id}/references`，`PO
 `anchors`（撤销一步可回退）。CDP 实测：amplifier 终点锚点 → `left`，Ctrl+Z 后回到 auto；
 截图 [assets/p2-anchor-drag.png](assets/p2-anchor-drag.png)（检查器终点锚点=左）。前端静态版本 2.9.2。
 
-**P3 分析旁路（2026-10-26）**：新增 `netlab/analysis.py` 与 `/api/analysis/*`（metrics/spectrum/period/
+**P3 分析旁路（2026-10-26）**：新增 `netlab/core/compute/analysis.py` 与 `/api/analysis/*`（metrics/spectrum/period/
 math/transfer/export，统一 5s 线程超时）。指标含超调/上升/调节时间并带算法来源；频谱为录制 FFT（Hann+校正，
 Top 峰值）；周期为 FFT 候选 + 平移一致性（score=1-mae/σ）；数学形式用节点注册表公式；CSV 含 `#` 元数据头、
 `网络.节点.字段` 列名、抽稀、只写 `exports/` 同名加序号；传递函数用 sympy 逐级拼接线性节点（假设/来源/失败原因）。
@@ -641,7 +641,7 @@ ROUT/RL 输出），测试确认输出为正且数值有限。截图 [assets/opa
 `netlab/docs/SCHEMATIC_DRAWING_SPEC.md` 给出引脚/导线/汇合点/标注/确定性布局/验收清单，
 `netlab/docs/adr/0001-schematic-layer.md` 记录取舍与备选方案。**实现未开始**，下一步按 R19 票单施工。
 
-**P4-05 R19 数据层首批（2026-10-26）**：`netlab/schematic.py` 提供引脚表/绑定解析/确定性自动布局/布局校验；
+**P4-05 R19 数据层首批（2026-10-26）**：`netlab/core/model/schematic.py` 提供引脚表/绑定解析/确定性自动布局/布局校验；
 `EdgeRecord.layout` + API `pins`/`layout`；`/api/schematic/layout|validate`；前端符号位置/旋转优先 `layout`，
 工程页「自动布局（电路）」应用后 fitView（可撤销）。测试 `test_schematic.py` 5 项（两次生成一致、节点在 20 网格、
 引脚绑定填 params、45° 被拒、API 往返）。截图 [assets/r19-layout.png](assets/r19-layout.png)。
@@ -653,9 +653,9 @@ ROUT/RL 输出），测试确认输出为正且数值有限。截图 [assets/opa
 [assets/r19-pins.png](assets/r19-pins.png)（trip_unit 自动布局；密集图仍建议手工微调）。
 **未做**：旧工程迁移、非连接交叉、标注碰撞检测、图纸模式/图框；自动布局对密集图的观感尚未调优。
 
-**P4-07 R15 第三批收尾：ADC/变压器/互感（2026-10-26）**：新增 `netlab/magnetics.py`——`transformer`（v2 = n·v1、
+**P4-07 R15 第三批收尾：ADC/变压器/互感（2026-10-26）**：新增 `netlab/core/compute/magnetics.py`——`transformer`（v2 = n·v1、
 i1 + n·i2 = 0；`Lm>0` 时原边并联励磁电感，用第 3 条支路方程）与 `coupling_inductor`（双绕组互感 M = k·sqrt(L1·L2)，
-梯形/后向欧拉伴随模型 `i = i_prev + (dt/2)·L⁻¹·v`）；`netlab/digital.py` 新增 `adc4`（逐次逼近：CLK 上升沿逐位比较
+梯形/后向欧拉伴随模型 `i = i_prev + (dt/2)·L⁻¹·v`）；`netlab/core/compute/digital.py` 新增 `adc4`（逐次逼近：CLK 上升沿逐位比较
 8→4→2→1，4 拍锁存 Q3..Q0）。catalog 27→**30**；`test_magnetics.py` 4 项（变比/功率守恒、励磁电感、互感电压比
 1.96、catalog）+ ADC 1 项（3.3 V→0b1010、4.9 V→0b1111），**195 passed**。前端补 GB 符号（变压器/互感双绕组+铁芯/
 虚线耦合、ADC 矩形+阶梯+7 引脚）与位号 T/L/U。**同时修掉 3 个接线层真 bug**：① 手动布线 `waypoints` 把数字传给
@@ -875,7 +875,7 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 
 > 用户指令（2026-10-28 04:29 原话）：「DC 工作点 .op、AC/Bode、Gear、稀疏化 将这些完成」——明确推翻 `SOLVER_OPTIMIZATION_PLAN.md` 原先的「不做」条目。备份 `netlab_20261028_0434`（代码前）、`netlab_docs_20261028_0445`（文档前）。
 
-**内核（`netlab/nodal.py`）**
+**内核（`netlab/core/compute/nodal.py`）**
 
 - **DC 工作点**：新增 `CircuitSolver.operating_point()`。实现方式是不调 `prepare`、令 `time=0` 并让源取 `waveform_value(params, 0)`，在 `StampContext(mode="dc")` 下：电容直接不盖章（开路）、电感用 `DC_CONDUCTANCE=1e5`（≈10 µΩ）短路近似、其余元件按工作点线性化；Newton 失败提示改为「直流工作点 … 未收敛」。成功后用 `mode="dc"` 的 ctx 逐元件 `commit`，返回 `time/node_voltages/elements/iterations/matrix_size/residual/strategies/sparse`，**`finally` 恢复 checkpoint**——调用前后 `solver.time` 与 `solution` 逐元素不变（有测试）。
 - **AC/Bode**：新增 `ac_sweep(frequencies, *, input_source=None, probes=None)`。先内部求一次工作点（临时检查点），再逐频点用 `mode="ac"`、`omega=2πf` 的复数 MNA：C→`jωC`、L→`1/(jωL)`、独立源取 1 V/1 A 激励（其余源置 0）；`AC_KINDS` 限定 resistor/capacitor/inductor/vsource/isource/vcvs/vccs/switch，二极管/MOS 等直接报「AC 分析暂不支持元件 …」。探针支持节点电压、R/C/L 电流、压源支路电流，输出 `magnitude/phase_deg/db`；只读，调用后瞬态状态不变。
@@ -908,7 +908,7 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 
 **修复**
 
-- `netlab/project.py`：`validate_project()` 在完成全部网络规范化后重算 `project["checksum"] = compute_checksum(project)`（仅当工程原本带 checksum），并在代码注释里说明「规范化是程序行为，不是篡改」。
+- `netlab/core/model/project.py`：`validate_project()` 在完成全部网络规范化后重算 `project["checksum"] = compute_checksum(project)`（仅当工程原本带 checksum），并在代码注释里说明「规范化是程序行为，不是篡改」。
 - `netlab/tests/test_project.py` 新增 `test_validate_normalizes_scene_without_breaking_checksum`：构造 opamp 电路工程 → 删掉 `gbw/slew_rate` 后重算校验和模拟旧文件 → 连续两次 `validate_project` + `project_scene_payload` 均须通过，且规范化后两参数为 `0.0`。
 - 用户工程 `MyProject/未命名工程.netlab`：经 `load_project → validate_project → atomic_write` 重写为规范形式（`checksum=d5a4ca2a3ef7…`、version 5、28 节点/28 连线），原文件保留在 `NetlabExtras/backups/ProjectPoint_backups/project_20261028_1219/`。
 
@@ -940,7 +940,7 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 
 - `Recorder` push 3000 帧 → `since(0,600)` 返回 600 帧，seq 1801…3000，末帧为最新，帧间隔集合 {2,3}（差 ≤1）。
 - `sim.precompute(5.0, dt=1e-3)` → `frames=1001, sample_every=5, first_time=0.001, last_time=5.0`；`precompute(2.0, dt=1e-3, sample_every=1)` 帧数 ≤1200 且 `first_time ≤ 2e-3`。
-- `node --check netlab/static/app.js` 通过；HTML id 唯一、CSS 类与 JS 引用一致。
+- `node --check frontend/app.js` 通过；HTML id 唯一、CSS 类与 JS 引用一致。
 - 全套 **319 passed, 2 warnings**；`compileall` COMPILE_OK；`desktop --selftest` → `"ok": true`。
 
 **仍未做/边界**：浏览器端行为（拖动平滑度、双击回实时）未做自动化测试，只做了 DOM/JS 语法与后端数据一致性验证；极速模式下仍是「每次 poll 最多 600 帧」，只是抽样均匀；若未来把 `RECORDER_CAPACITY` 调小，预计算会自动提高采样步长、波形时间分辨率随之下降（会在返回值的 `sample_every` 里体现）。
@@ -953,7 +953,7 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 
 - `netlab/`：应用本体（代码、静态资源、pytest 套件、文档），不动。
 - `NetlabExtras/`：辅助资料统一收纳——`demos/`（`circuit_grid.py`、`element.py`、`node_connection_demo.py`）、`screenshots/archify/`（原 `.archify`）、`backups/ProjectPoint_backups/`（原根目录备份）、`scratch/`（原 `.scratch` 探针脚本）、`legacy-docs/`（原 `netlab/docs/未命名工程-诊断报告.md` 旧副本）、`README.md`。
-- `MyProject/`、`library/`、`extensions/` 保留在根：`netlab/workspace.py` 的 `workspace_for()` 以「工程根目录的父目录/library」定位共享库，`netlab/server.py` 的默认库路径用 `Path.cwd()/"library"`，三者搬走会破坏运行时解析。
+- `MyProject/`、`library/`、`extensions/` 保留在根：`netlab/core/model/workspace.py` 的 `workspace_for()` 以「工程根目录的父目录/library」定位共享库，`netlab/server.py` 的默认库路径用 `Path.cwd()/"library"`，三者搬走会破坏运行时解析。
 - 清理删除：`.pytest_cache`、`.pytest_tmp`、`Plugin/`、`tools/`、`netlab/.pytest_cache`、`netlab/catalog.tmp.json`、`netlab/fem.tmp.json`、`netlab/femlive.tmp.json`、全仓库 `__pycache__` 与 `*.pyc`（均可再生）。
 - 未移动 `netlab/tests`：它是代码套件的一部分，移出会使 `python -m pytest netlab/tests` 与文档里所有验收入口失效；用户所说的「测试」按临时测试产物（`.pytest_tmp`）与探针脚本（`.scratch`）处理。
 
@@ -997,7 +997,7 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 - **实现**：`state.replay.speed`（帧/秒，5–240，默认 60）；「图纸」页「▶ 回放」旁新增 `#replaySpeed` 滑块 + `#replaySpeedVal` 读数；`localStorage["netlab.replaySpeed"]` 记住上次速度；回放按钮与时间轴语义不变。
 - **播放循环重写**：原先 `setInterval(1000/fps)` 每跳只前进 1 帧、速度被仿真 `fps` 绑死；现改固定 16 ms 定时器，按 `elapsed × speed` 累积推进帧，速度只改推进量、不改重绘频率；绘制仍走 `scheduleChartDraw` 的 70 ms 去抖。快放不再因每帧重绘拖死主线程。
 - **证据（无头 Edge CDP，真实页面）**：设定 30/120/240 帧每秒，实测推进 29.8/119.1/240.9 帧/秒；240 帧/秒连播 3 s，PerformanceObserver 记录 **0 个 >50 ms 长任务**；暂停后索引不再变化；循环开启时从末尾回到开头（从 2129/2139 播 0.9 s 回到 98）。
-- **改动文件**：`netlab/static/app.js`（状态、`toggleReplayPlayback`/`replayTick`、`stopReplayTimer`、事件与持久化）、`netlab/static/index.html`（滑块、版本键 `?v=3.8.14`）、`netlab/static/style.css`（`.replay-speed-field`）。
+- **改动文件**：`frontend/app.js`（状态、`toggleReplayPlayback`/`replayTick`、`stopReplayTimer`、事件与持久化）、`frontend/index.html`（滑块、版本键 `?v=3.8.14`）、`frontend/style.css`（`.replay-speed-field`）。
 - **备份**：`NetlabExtras/backups/ProjectPoint_backups/ui_20261028_2205/`（改前 static 三件 + `MANIFEST.sha256`）。
 - **验证**：`python -m pytest netlab/tests -q` → 319 passed；`compileall` OK；`desktop --selftest` ok。
 - **边界**：速度上限 240 帧/秒（再快屏幕也分辨不出）；滑块只在「图纸」页，顶栏时间轴仍只管拖动定位。
@@ -1020,7 +1020,7 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 - **启动停止**：`maybeAutostart()` 改 no-op，移除 FEM 首次切换的自动 run，`boot()` 末尾 `ensureStoppedOnBoot()` 两侧 `pause`。
 - **兼容修复**：3.9.6 修复「开始页点文档直接退出」——`#guideDocs` 原先 `hideGuide()` 再开文档窗，改为只开文档窗（z-index 130 > 引导层 110），关闭文档仍回开始页；引导卡片由 1080px 放宽到 `min(1560px, 100vw-48px)`，开始页全屏铺开。3.9.5 修复「菜单点不开」——R30 为防横向溢出给 `#menubar` 加了 `overflow:hidden`，把绝对定位的 `.menu-panel` 整体裁掉；改为 `overflow:visible`（实测 `scrollWidth===innerWidth` 仍成立，下拉可正常展开、菜单项可点）。另：9 项菜单/信息条曾把 body 撑到 1583px（视口 1568），改 `body{grid-template-columns:minmax(0,1fr)}` + 各外壳块 `min-width:0`；`dt` 取 `sim.config.dt` 并自适应单位（0.0001 → `dt 0.10 ms`）；引导页动作行在 854px 高视口 sticky 吸底。
 - **证据**：`pytest -q` → **323 passed**（新增 `test_r30_ui.py` 4 项：空白默认场景、5 篇文档索引与正文、单篇/未知 slug、UI 设置默认值与校验）；`compileall` OK；`node --check app.js` OK；`desktop --selftest` → `ok:true`（同步把 `project_import` 的「至少 1 个节点」断言改为合法模式断言）；无头 Edge CDP 实测菜单 9 组、信息条 9 段、右栏 4 组、docs=5、运行停止、主题/动效/抽屉/文档窗/搜索均生效，无 JS 异常与 console error；截图 `NetlabExtras/scratch/shot_guide2.png`、`scratch/r30/01-guide.png`～`05-search.png`。
-- **改动文件**：`static/index.html`（重写外壳，3.9.6）、`static/style.css`（令牌 + 组件 + 三档覆盖）、`static/app.js`（R30 模块追加 + 面板/菜单/信息条/启动改造）、`workspace.py`（4 个 `ui_*` 设置键）、`simulation.py`（空白默认场景）、`server.py`（`/api/docs`、`/api/docs/{slug}`）、`docs/user/*.md`（5 篇）、`docs/UI_SPEC.md`（新增）、`tests/test_r30_ui.py`（新增）、`desktop/selftest.py`（断言更新）。
+- **改动文件**：`frontend/index.html`（重写外壳，3.9.6）、`frontend/style.css`（令牌 + 组件 + 三档覆盖）、`frontend/app.js`（R30 模块追加 + 面板/菜单/信息条/启动改造）、`workspace.py`（4 个 `ui_*` 设置键）、`simulation.py`（空白默认场景）、`server.py`（`/api/docs`、`/api/docs/{slug}`）、`docs/user/*.md`（5 篇）、`docs/UI_SPEC.md`（新增）、`tests/test_r30_ui.py`（新增）、`desktop/selftest.py`（断言更新）。
 - **备份**：`NetlabExtras/backups/ProjectPoint_backups/netlab_ui_20261028_2242/`（netlab 全量 + AGENTS.md + `MANIFEST.sha256`）。
 - **边界**：画布仍有少量旧灰色（`#7b7266` 等）走深色自动混色，未逐一配令牌；文档窗搜索为「按空行切段 + 包含匹配」，非全文索引；引导页「不再显示」只存全局、不按工程区分（D60）。
 
@@ -1035,7 +1035,7 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 - **取消让位**：删掉 `body.settings-open main{padding-right:…}` —— 浮窗浮在画布上但不改 `main` 网格列宽；CDP 实测打开设置窗前后 `#panel` 451px / `#stage` 835px 完全一致。
 - **两个踩坑**：① 拖动夹的是 `top ≤ innerHeight - 高度 - 8`，否则窗口底边跑出视口、右下缩放柄不可点（首轮缩放测试就是因此失败的）；② 有记忆位置（`.moved`）时进场动画必须换成纯淡入 `floatwin-fade`，否则 `translate(-50%,-50%)` 与内联 `left/top` 叠加，重开时窗口会从半屏外飞进来（实测 `left` 短时为 -254）。
 - **证据**：`NetlabExtras/scratch/verify_settings_win.mjs` 全绿——菜单进入→视图页（hint `SETTINGS · 全局外观偏好`）、拖动（left 388→168）、缩放（760×606 → 850×602）、页签切换（hint 同步 `全局交互偏好`）、最小化（高 40、贴右下 16px）、最大化（12/108、1512×634）、与文档窗共存并抬层（134 > 130）、Esc 先关设置窗、重开位置记忆稳定、`exceptions=[] consoleErrors=[]`；重开稳定性另测 `verify_settings_reopen.mjs`（4 次采样 left/top 恒为 508/136）。`node --check app.js` OK；HTML 标签闭合用 `html.parser` 校验无未闭合。截图 `NetlabExtras/scratch/r30/11-settings-window.png`、`12-settings-dragged.png`、`13-settings-interact.png`、`14-settings-minimized.png`、`15-settings-maximized.png`、`16-settings-and-doc.png`、`17-settings-project.png`、`18-settings-reopen.png`。
-- **改动文件**：`static/index.html`（浮窗结构 + 版本 3.10.0）、`static/style.css`（`.floatwin` 基类 + `.setwin` 段，删旧 drawer 段与让位规则）、`static/app.js`（浮窗通用层 + `initSettingsWin`/`openSettings`/`setSettingsPane`）、`docs/UI_SPEC.md`（§6 重写 + §6.1 浮窗基类）、`docs/REQUIREMENTS_AND_RULES.md`（D62 + 变更记录）。
+- **改动文件**：`frontend/index.html`（浮窗结构 + 版本 3.10.0）、`frontend/style.css`（`.floatwin` 基类 + `.setwin` 段，删旧 drawer 段与让位规则）、`frontend/app.js`（浮窗通用层 + `initSettingsWin`/`openSettings`/`setSettingsPane`）、`docs/UI_SPEC.md`（§6 重写 + §6.1 浮窗基类）、`docs/REQUIREMENTS_AND_RULES.md`（D62 + 变更记录）。
 
 ## 7.19 R31 并网逆变器电网控制立项（2026-10-29 01:39，规划完成、未开工）
 
@@ -1056,7 +1056,7 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 
 **目标**：右栏 分析 组新增「仪器」子页，把探针数据做成万用表 / 示波器 / 李萨如三块，全程旁路——只读 `state.frames`，不写电路、不触发求解。
 
-**实现（`netlab/static/`，`app.js` 8.6 段）**：
+**实现（`frontend/`，`app.js` 8.6 段）**：
 - 结构：`#tab-inst` 内 `时间窗` → `万用表`（`#instMeterKey` + 5 读数）→ `示波器`（`#instCh1–4` + `#scope` + `#instLegend`）→ `李萨如`（`#instLX/#instLY/#instTrail` + `#lissajous`）。
 - 数据：`instrumentFrames()` 按 `state.instrument.window` 截取尾部帧（回放时取 `frames.slice(0, replay.index+1)`）；`instrumentStats()` 算实时/平均/RMS/峰峰值/极值；`drawScope()` 统一幅值缩放 `amp = max(abs) × 1.1`；`drawLissajous()` 取最近 `trail` 帧画 X-Y 轨迹。
 - 选择项：`instrumentSelectGroups()` 按探针键分「节点电压 / 元件电流 / 元件压差 / 元件电压 / 元件功率」五组，文案 `名称 · 字段`；图例复用 `instrumentKeyLabel()`，不再裸露 `n:signal:voltage`。
@@ -1085,13 +1085,13 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 
 **做了什么**：
 - 端口标记 = 网络节点参数。`Scene._normalize_net_params` 只收 `port_name`/`port_direction`/`port_note`；有方向必须有名字，方向限 in/out/inout，名字截断 32 字。
-- `netlab/circuit_modules.py`（新文件，563 行）：
+- `netlab/core/compute/circuit_modules.py`（新文件，563 行）：
   - `encapsulate_circuit(scene, node_ids, name)`：把选中的节点/器件连上它们之间的边搬进 `.block`（内部网络层），父场景原位置留一个 `module` 节点 + 每个跨界网络的端口网络节点，外部导线改接到新网络；未标记端口的跨界网络用网络名自动当端口名。
   - `instantiate_circuit_block(scene, block, position)`：从块定义生成模块节点 + 端口网络节点，端口未接线不报错（校验给 warning）。
   - `flatten_circuit(scene)`：电气直连展开（内外端口合并同一 MNA 节点），为 P7-08 做准备；`module_net_map`、`pin_names` 辅助。
   - `_wire_layout`：程序生成的导线按两端位置给中点 + rot 0/90。
-- `netlab/blocks.py:encapsulate_nodes` 在 circuit 模式转发到 `encapsulate_circuit`，信号流路径不变（D51「信号流仍走数据传递」）。
-- `netlab/schematic.py:validate_schematic`：空布局不再算错（只校验已存在的 rot），否则 API/程序新建的导线会被误判。
+- `netlab/core/model/blocks.py:encapsulate_nodes` 在 circuit 模式转发到 `encapsulate_circuit`，信号流路径不变（D51「信号流仍走数据传递」）。
+- `netlab/core/model/schematic.py:validate_schematic`：空布局不再算错（只校验已存在的 rot），否则 API/程序新建的导线会被误判。
 - 前端：`isPinNode` 把模块当引脚节点画（矩形框 + 引脚圆点 + 端口名），模块节点在框内显示块名、框下显示节点名；模块库面板可拖入实例化，`/api/blocks/instantiate`。
 
 **证据**：
@@ -1128,7 +1128,7 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 2. 模块内部**必须自带 `ground`** 才允许「打开内部」进临时网络（`电路需要至少一个接地节点`），所以夹具把 `gIn` 一起选进模块。
 3. canvas 里的空状态提示曾因 `.modwin-empty { display:grid }` 盖过 `[hidden]` 而永久显示，补 `.modwin-empty[hidden]{display:none}` 才算真隐藏；收成侧栏后标题被挤成三行，也靠 `.modwin.docked .floatwin-head b{…ellipsis}` + 隐藏 hint 修掉。
 
-**改动文件**：`netlab/static/index.html`（`#moduleWin` 结构、`?v=3.14.0` 两处）、`netlab/static/app.js`（`openModuleInternal`/`closeModuleInternal`/`toggleModuleDock`/`renderModuleSide`/`modulePortList`/`drawModulePreview`/`initModuleWindow`、网络列表右键菜单）、`netlab/static/style.css`（`.modwin*`、`.ctxmenu`、`.modwin.docked`）、`docs/UI_SPEC.md`（§5.8 + §5.7 入口补句）、本文 §7.22 与票表。
+**改动文件**：`frontend/index.html`（`#moduleWin` 结构、`?v=3.14.0` 两处）、`frontend/app.js`（`openModuleInternal`/`closeModuleInternal`/`toggleModuleDock`/`renderModuleSide`/`modulePortList`/`drawModulePreview`/`initModuleWindow`、网络列表右键菜单）、`frontend/style.css`（`.modwin*`、`.ctxmenu`、`.modwin.docked`）、`docs/UI_SPEC.md`（§5.8 + §5.7 入口补句）、本文 §7.22 与票表。
 
 **下一票**：P7-08 电气直连展开（内外端口同一 MNA 节点）+ 封装前后等价性测试。
 
@@ -1136,7 +1136,7 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 
 **用户原话**（m00502/m00505）：「逆变器不急，按你的开工顺序，做到模块化完全做完，实现模块闭环」，本票是模块化的最后一步：让「封装前后电气等价」有可复算的证据。
 
-**已确认的运行时链路**：`CircuitEngine.__init__`（`netlab/scene.py:469-474`）先 `flatten_circuit(scene)` 拿到 `extra_nodes/extra_edges/merges`，把它们并进父场景，再用并查集把「模块引脚所在的外部网络」与「`{module_id}/{port.net}` 内部端口网络」合并——内外端口因此是同一个 MNA 节点，内部器件直接进父矩阵。没有模块实例时 `extra_*` 为空，行为与之前完全一致。
+**已确认的运行时链路**：`CircuitEngine.__init__`（`netlab/core/model/scene.py:469-474`）先 `flatten_circuit(scene)` 拿到 `extra_nodes/extra_edges/merges`，把它们并进父场景，再用并查集把「模块引脚所在的外部网络」与「`{module_id}/{port.net}` 内部端口网络」合并——内外端口因此是同一个 MNA 节点，内部器件直接进父矩阵。没有模块实例时 `extra_*` 为空，行为与之前完全一致。
 
 **修掉的一处实现与文档不一致**：`encapsulate_circuit` 原先只把**跨边界**的网络导成端口，完全在模块内部、但显式标了 `port_name` 的网络（例如分压中点，想留作探测点/级联点）会被吞掉。现在补了「纯内部端口标记」分支：生成父场景同名端口网络（保留 `port_name/port_direction` 与坐标）+ 一根到模块引脚的导线；占位映射写成 `rewire[parent_net_id] = parent_net_id`，再由既有 `real_ids` 一轮统一换成 `add_node` 生成的真实 id（直接写 `rewire[record.id]` 会让 `parent_wires` 找不到节点、报 `节点 '…' 不存在`）。
 
@@ -1148,7 +1148,7 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 
 **验证**：`python -m pytest netlab/tests/test_circuit_modules.py -q` → 11 passed；`python -m pytest -q` → **335 passed, 2 warnings**（10.36s，2 条为 SciPy `LinAlgWarning`，属既有奇异矩阵用例）。
 
-**改动文件**：`netlab/circuit_modules.py`（`encapsulate_circuit` 内部端口导出分支）、`netlab/tests/test_circuit_modules.py`（+3 条等价性测试、API 用例期望更新）、`docs/REQUIREMENTS_AND_RULES.md`（R24 现状、§9 变更记录）、本文 §7.23 与票表。静态资源本次未改，保持 3.14.0。
+**改动文件**：`netlab/core/compute/circuit_modules.py`（`encapsulate_circuit` 内部端口导出分支）、`netlab/tests/test_circuit_modules.py`（+3 条等价性测试、API 用例期望更新）、`docs/REQUIREMENTS_AND_RULES.md`（R24 现状、§9 变更记录）、本文 §7.23 与票表。静态资源本次未改，保持 3.14.0。
 
 **模块化闭环结论**：封装（P7-06）→ 落库/载入（P7-06）→ 拖入与按引脚接线（P7-06）→ 内部视图/侧栏（P7-07）→ 求解时电气直连展开且与平铺电路逐帧一致（P7-08）——四步都能跑通并有测试/脚本证据。
 
@@ -1173,7 +1173,7 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 - 右栏收放：点挂耳 → `panel-hidden`、面板宽 0、挂耳停在 1434 侧（`right:6px`），画布铺到 1440。
 - 引导页：`#guideOpenProject`（打开工程）/`#guideSettings`（设置视图）可见，点后者弹出 `.floatwin`（760×640，视图与外观页）。
 
-**改动文件**：`netlab/static/style.css`（响应式列宽、`.hanger*` 材质/圆角/定位）、`netlab/static/app.js`（`syncChromeEdges` 新增与全部调用点、`ui.networks` 映射、`currentWidth()` 改实测优先、`panelVar()` FEM 分支）、`netlab/static/index.html`（`?v=3.14.1` 两处）、本文 §7.24 与头部行。
+**改动文件**：`frontend/style.css`（响应式列宽、`.hanger*` 材质/圆角/定位）、`frontend/app.js`（`syncChromeEdges` 新增与全部调用点、`ui.networks` 映射、`currentWidth()` 改实测优先、`panelVar()` FEM 分支）、`frontend/index.html`（`?v=3.14.1` 两处）、本文 §7.24 与头部行。
 
 **验证**：`node --check app.js` OK；`python -m pytest netlab/tests -q` → **335 passed, 2 warnings**（纯前端改动，无新增用例）；备份 `NetlabExtras/backups/ProjectPoint_backups/ui_20261029_0335/`（static 三件 + `MANIFEST.sha256`）。
 
@@ -1204,14 +1204,14 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 
 **用户原话**：「先帮我把模块的这个菜单栏修改一下，能直接对这些保存的模块增删和重命名，并且在重复名字时提醒，以及 library 里的模块命名明显不合理，请按名字命名不要分割那么多子文件夹」。
 
-**存储层改成「一个模块一个文件、文件名=模块名」**（`netlab/blocklib.py`）：
+**存储层改成「一个模块一个文件、文件名=模块名」**（`netlab/core/model/blocklib.py`）：
 - 旧布局 `library/blocks/<id>/v<N>.block` → 新布局 `library/blocks/<模块名>.block`；库里只保留最新版，内容变化时版本号自动 +1（不再因「同版本内容不同」拒绝）。
 - 重名（忽略大小写与首尾空白）拒绝保存/改名，报「模块名已存在：…（已有模块 …）；请换一个名字」。
 - `scan_library` 先跑 `migrate_library`：旧 `<id>/v*.block` 自动压平成 `<名字>.block`，重名自动加 `-<id前6>` 后缀；`load_block` 忽略版本号（库里没有旧版），旧工程 `id@vN` 引用照常加载。
 - 新增/改写：`blocks_root`、`_slug`（去 Windows 非法字符、保留中文、限 60 字）、`flat_path`、`find_block_path`、`migrate_library`、`name_taken`、`_same_content`；`write_block/rename_block/overwrite_block/import_block/remove_block/load_block/ensure_blocks/list_versions/scan_library` 全部跟着改。
 - 实际库已迁移：`twice.block`、`加法.block`、`加法-f42824.block`（两个模块曾同名「加法」，第二个自动带后缀，用户可自行改名区分）。
 
-**前端模块库面板**（`netlab/static/app.js` `renderBlocksPanel`）：每张卡片新增「改名」「删除」两个按钮。
+**前端模块库面板**（`frontend/app.js` `renderBlocksPanel`）：每张卡片新增「改名」「删除」两个按钮。
 - 改名：`window.prompt` 预填当前名 → 前端先查 `state.blocks` 重名（立即 toast「模块名已存在」）→ `POST /api/blocks/{id}/rename`；服务端报「仍被工程引用」时二次确认后带 `force:true`。
 - 删除：确认框说明「文件会删、画布上的实例会变缺失」→ `POST /api/blocks/{id}/delete`（带 `version`），被引用时同样二次确认后 force。
 - 面板底部说明改为「模块文件位于 `library/blocks/<模块名>.block`：一个模块一个文件，文件名就是模块名；库中只保留最新版」。
@@ -1226,7 +1226,7 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 
 **根因**：旧模型里器件本身就是一条边（`kind=resistor/vsource/...`，没有独立器件节点）。`encapsulate_circuit` 只把 `kind=="wire"` 的导线搬进模块，器件边既没进模块、也没从父场景删除；而它两端的网络节点已经被搬走 → 器件边悬空 → 运行期 `net_root[record.source]` KeyError。
 
-**修复（`netlab/circuit_modules.py`、`netlab/scene.py`）**：
+**修复（`netlab/core/compute/circuit_modules.py`、`netlab/core/model/scene.py`）**：
 - `encapsulate_circuit` 新增 `internal_elements`（两端都在选中集的器件边，连同名参数与控制端引用一起进模块）与 `straddling`（只有一端在选中集 → 直接报「两个引脚分在选中范围的两侧」）；`remove_edges` 一并移除已入模块的器件边；「至少要包含一个器件」的判断改成「没有器件节点也没有器件边」。
 - 运行期：`CircuitEngine` 的旧模型装配改成遍历 `all_edges`（含 flatten 出来的模块内部边），并给悬空端点一个可操作的中文报错（「一端接在已不存在的节点上…请删掉这条元件连线重画」）。
 - `_LightEdge` 补 `state` 字段，供 `create_element` 读取。
@@ -1244,7 +1244,7 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 **已修**：
 - `netlab/desktop/bridge.py`：新增 `_library_root()`（`NetlabHome/library`，不存在则退到工作目录）与 `_validate_for_file(payload)`——先用库路径校验，失败再 `allow_degraded=True` 重试并回填 `degraded`，随后恢复原始 `blocks` 与 `checksum`，保证「引用缺失也能保存」；三处调用点全部替换；`compute_checksum` 一并 import。
 - `netlab/server.py`：`POST /api/project/validate` 改为传 `library=_library_path()`，`ValidationError` 时降级校验并在响应里带 `degraded`。
-- `netlab/blocklib.py`：`library is None` 的文案改为「这个工程用到了模块引用，但当前没有可用的模块库路径；请在设置里指定 library 目录（默认是工作目录下的 library/）后再打开」；缺模块文案改成 `<模块名>.block` 要放回 `library/blocks/`。
+- `netlab/core/model/blocklib.py`：`library is None` 的文案改为「这个工程用到了模块引用，但当前没有可用的模块库路径；请在设置里指定 library 目录（默认是工作目录下的 library/）后再打开」；缺模块文案改成 `<模块名>.block` 要放回 `library/blocks/`。
 
 **验证**：隔离端口 8011 + 临时工作区 `NetlabExtras/scratch/tmp_ws`，脚本 `NetlabExtras/scratch/verify_p706_legacy.py` —— 造「旧模型器件边」电路（vsource+两电阻，器件就是边）→ `/api/blocks/encapsulate` → 生成 `library/blocks/hr-legacy.block`（3 条边：`vsource V_legacytest`、`resistor R1_legacytest`、`resistor R2_legacytest`，端口 `mid_legacytest` inout），父场景无悬空器件边；`POST /api/control {"action":"run"}` 跑 142 步无装配错误，`out_legacytest` 读数与手算一致（4.0 V，因调试时多并了一只 1 kΩ：10×0.667/1.667）。验证后已关服务、删临时工作区。
 
@@ -1256,11 +1256,11 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 
 **用户报**：从模块符号上拉线，红条报「起点是器件节点 '模块'，必须指定引脚」，并质疑「接口只是声明，外部直接连到显示的端口就行」。
 
-**根因（前端）**：`netlab/static/app.js` 的 `createWireBetween()` 用 `source.kind === 'device'` 判断要不要带引脚，模块实例是 `kind === 'module'`，被漏掉 → 请求里根本没有 `source_pin` → `scene.py:1138` 拒绝。项目里本来就有正确的判据 `isPinNode(node)`（device 或 module），只是这里没用。
+**根因（前端）**：`frontend/app.js` 的 `createWireBetween()` 用 `source.kind === 'device'` 判断要不要带引脚，模块实例是 `kind === 'module'`，被漏掉 → 请求里根本没有 `source_pin` → `scene.py:1138` 拒绝。项目里本来就有正确的判据 `isPinNode(node)`（device 或 module），只是这里没用。
 
 **已修**：
 - `createWireBetween()`：改用 `isPinNode()` 判断两侧，并加 `pinFor()` —— 显式给了引脚就用它，没给且该节点**只有一个端口**时自动取那一个；两器件直连的拦截也改成 `isPinNode` 判断。
-- `netlab/scene.py` `_normalize_wire_pins()`：单端口模块缺引脚时自动补（`resolved` 数组回写），多端口仍报「必须指定引脚」；顺带把循环改成 `resolved[index]` 回写，修掉「本地 `pin` 改了但返回值没变」的问题。
+- `netlab/core/model/scene.py` `_normalize_wire_pins()`：单端口模块缺引脚时自动补（`resolved` 数组回写），多端口仍报「必须指定引脚」；顺带把循环改成 `resolved[index]` 回写，修掉「本地 `pin` 改了但返回值没变」的问题。
 - 测试：`test_circuit_modules.py` 新增 `test_module_wire_autofills_single_port`（单端口自动填 `vin`）、`test_module_wire_still_requires_pin_when_ambiguous`（三端口仍报错）。该文件 17 passed，全库 **343 passed**。
 - 静态版本 3.14.3 → 3.14.4；`node --check app.js` 通过。
 
@@ -1320,7 +1320,7 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 - **测试**：新增 `test_ui_models.py`(8)、`test_ui_geometry.py`(13)、`test_ui_widgets.py`(6)，全量 **383 passed, 3 skipped**（11.2 s）。
 - **PlotKit 面板实机验证（2026-11-02 04:50）**：WebEngine 起初一直 `loadFinished(false)`，根因两条——①受限桌面会话里 Chromium 的 renderer 沙箱起不来（要 `--no-sandbox`）；②本机有系统代理，Chromium 连 `127.0.0.1` 也走代理，页面永远转圈（要 `--no-proxy-server`）。`plotkit_panel.ensure_loaded()` 现默认设 `QTWEBENGINE_CHROMIUM_FLAGS=--disable-gpu --no-proxy-server`，`NETLAB_WEBENGINE_NO_SANDBOX=1` 作兜底。加后 `loadFinished(True)`，面板完整渲染 PlotKit 编辑器（截图 `_shot_plotkit.png`），A4 由「未验」转「通过」。
 - **未验项**（如实记录）：A5/A13/A14/A18/A21 依赖真实桌面会话（屏幕缩放）或人工 kill，本轮环境给不出数。
-- **文档**：`QT_NATIVE_SPEC.md` 升 v1.2（§10 全部勾选、新增 §14 验收结果表）；`AGENT_GUIDE.md` 增原生外壳路由与 `static/app.js` 冻结说明；`REQUIREMENTS_AND_RULES.md` R33 现状更新。
+- **文档**：`QT_NATIVE_SPEC.md` 升 v1.2（§10 全部勾选、新增 §14 验收结果表）；`AGENT_GUIDE.md` 增原生外壳路由与 `frontend/app.js` 冻结说明；`REQUIREMENTS_AND_RULES.md` R33 现状更新。
 
 
 ### 7.33.1 追加：PlotKit 接入与动效（2026-11-02 05:20）
@@ -1348,3 +1348,25 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 - **顺手修**：模块库按 `scene.mode` 过滤桶，信号模式下不再出现 `node`/`device`（原来落地报「未知的节点构造方式」）。
 - **测试**：新增 `test_catalog_entries_follow_mode`、`test_autosave_write_and_recover` → **387 passed, 3 skipped**。
 - **文档**：`QT_NATIVE_SPEC.md` 新增 §16；`BACKLOG.md` 首版。
+
+### §7.34 PlotKit 接入修复、结构整理与步进优化（2026-11-02 13:05）
+
+- **PlotKit 接入（commit `ff401de`）**：根因是 `import plotkit` 失败（未装 wheel，`PLOTKIT_MOUNTED=False`），`/plotkit/` 恒 404。`netlab/plotkit_bridge.py` 新增 `ensure_plotkit_importable()`（env `NETLAB_PLOTKIT_SRC` → 同级 `PlotKit/src` 多级探测）并在 `mount()` 前调用；实测 `/plotkit/` 200、`/plotkit/api/meta` 200。
+- **三种呈现形态**：PlotKit 页签改为「嵌入此处 / 浮出窗口 / 独立窗口」三按钮（`#btnPlotkitInline` / `#btnOpenPlotkit` / `#btnPlotkitPopup` + `#plotkitInlineHost`），`frontend/app.js` 新增 `ensurePlotkitFrame()` / `placePlotkit(mode)`；浮窗头加「↗ 独立窗口」。
+- **结构整理（D79）**：`netlab/static` → `NetlabHome/frontend`；后端内核拆 `netlab/core/{compute,model,common}`，旧路径保留转发 shim；`tools/reorg_core.py` 可重放。359 passed。
+- **步进优化**：`capture_checkpoint` 里的 `copy.deepcopy` 是单步最大热点（cProfile：占电路单步约 41%）。新增 `netlab/core/common/fastcopy.py::copy_state`（不可变标量原样、ndarray `.copy()`、容器递归、未知对象 deepcopy），`nodal._capture_element_state`/restore 与 `graph._state_snapshot` 改用它。基准 `tools/bench_step.py`（1200 步中位数，A/B 同机）：
+
+| 模板 | 优化前 µs/步 | 优化后 µs/步 | 提升 |
+| --- | ---: | ---: | ---: |
+| rlc_series | 166.1 | 123.3 | −26% |
+| rc_step | 139.4 | 113.8 | −18% |
+| diode_rectifier | 320.1 | 263.4 | −18% |
+| controlled_source | 142.0 | 110.5 | −22% |
+| signal_chain | 24.9 | 20.2 | −19% |
+| nonlinear_control | 95.3 | 80.8 | −15% |
+| opamp_inverting | 279.4 | 259.4 | −7% |
+| common_collector | 317.6 | 278.5 | −12% |
+
+- **测试**：新增 `test_fastcopy.py`（5 条：标量复用、嵌套容器隔离、ndarray 复制、未知对象 deepcopy、与 deepcopy 等价）→ 全量 **359 passed**。
+- **文档**：`ARCHITECTURE.md`（根）整篇重写并嵌[结构图](docs/assets/netlab-structure.svg)；`netlab/docs/ARCHITECTURE.md` §2 按新结构重写；新增 `netlab/docs/CODE_GUIDE.md`（425 行，模块清单/符号索引/14 跳调用链/file:line 证据）与 `netlab/docs/MATH.md`（722 行，MNA/伴随模型/Newton/状态空间/Q4 FEM/器件/数字/磁性）；README/INSTALL 路径同步。
+

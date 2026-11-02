@@ -67,11 +67,17 @@ class Recorder:
 
     def __post_init__(self) -> None:
         self.frames = deque(maxlen=self.capacity)
+        #: 探针名缓存：帧结构一旦确定就复用同一个 list，避免每拍/每次轮询重建。
+        self._keys: list[str] | None = None
 
     def push(self, time_value: float, probes: dict[str, float]) -> None:
         if not probes:
             return
         self.seq += 1
+        if self._keys is None or len(self._keys) != len(probes) or any(
+            key not in probes for key in self._keys
+        ):
+            self._keys = list(probes)
         self.frames.append(
             {
                 "seq": self.seq,
@@ -85,7 +91,19 @@ class Recorder:
             return []
         if cursor < 0:
             cursor = 0
-        selected = [frame for frame in self.frames if frame["seq"] > cursor]
+        # 帧按 seq 严格递增且尾部最新：从尾向头收集，遇到 <= cursor 立即停。
+        # 每次轮询通常只有个位数新帧，所以这是 O(新帧数)，不再整窗扫描 5000 帧。
+        selected: list[dict[str, Any]] = []
+        last_seq = self.seq
+        # deque 的 reversed() 是 O(1) 逐步的，不复制。
+        for frame in reversed(self.frames):
+            if frame["seq"] <= cursor:
+                break
+            selected.append(frame)
+            # 已经能覆盖 [cursor+1, last_seq] 的全部帧（seq 连续），无需再往前。
+            if len(selected) >= last_seq - cursor:
+                break
+        selected.reverse()
         if len(selected) > limit:
             # 均匀降采样，而不是「只留最后 limit 帧」：后者会让前端把跳过的
             # 那一段直接连成一条直线，极速模式下波形会像被削平/断裂。
@@ -110,11 +128,14 @@ class Recorder:
         return self.frames[-1] if self.frames else None
 
     def keys(self) -> list[str]:
+        if self._keys is not None:
+            return list(self._keys)
         frame = self.latest()
         return list(frame["v"]) if frame else []
 
     def clear(self) -> None:
         self.frames.clear()
+        self._keys = None
         self.seq = 0
 
     def __len__(self) -> int:

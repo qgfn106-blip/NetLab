@@ -96,6 +96,41 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 _DESKTOP_TOKEN = os.environ.get("NETLAB_DESKTOP_TOKEN")
 
+
+def _json_default(value: Any) -> Any:
+    """把 NumPy 标量/数组转成原生类型；其余无法序列化的对象退化为字符串。"""
+    if type(value).__module__.split(".")[0] == "numpy":  # pragma: no cover - 取决于数据
+        try:
+            import numpy as np
+        except Exception:
+            return str(value)
+        if isinstance(value, np.generic):
+            return value.item()
+        if isinstance(value, np.ndarray):
+            return value.tolist()
+    if isinstance(value, (set, frozenset)):
+        return list(value)
+    return str(value)
+
+
+def fast_json(payload: Any) -> Response:
+    """直接产出紧凑 JSON，绕开 FastAPI 的 ``jsonable_encoder``。
+
+    原因（实测见 docs/ARCHITECTURE.md「数据结构与数据通路」）：对 600 帧 ×
+    7 探针的 /api/live 响应，``jsonable_encoder`` 要 10.7 ms，而 ``json.dumps``
+    只要 1.5 ms（约 7 倍），且紧凑分隔符再省约 9% 字节；对 204 节点场景
+    6.3 ms → 0.5 ms。返回值与默认路径的 JSON 结构完全一致（同 key、同值）。
+    """
+    body = json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        default=_json_default,
+        allow_nan=False,
+    )
+    return Response(content=body.encode("utf-8"), media_type="application/json")
+
+
 # 绘图子应用（可选依赖）：装了 plotkit 就挂到 /plotkit，没装则完全不出现。
 try:  # pragma: no cover - 取决于环境里是否装了 plotkit
     from . import plotkit_bridge
@@ -368,16 +403,16 @@ def catalog() -> dict[str, Any]:
 
 
 @app.get("/api/state")
-def state() -> dict[str, Any]:
-    return SERVICE.snapshot()
+def state() -> Response:
+    return fast_json(SERVICE.snapshot())
 
 
 @app.get("/api/live")
 def live(
     cursor: int = Query(default=0, ge=0),
     limit: int = Query(default=400, ge=1, le=600),
-) -> dict[str, Any]:
-    return SERVICE.live(cursor, limit)
+) -> Response:
+    return fast_json(SERVICE.live(cursor, limit))
 
 
 @app.get("/api/health")
@@ -587,8 +622,8 @@ def load_template(name: str) -> dict[str, Any]:
 
 
 @app.get("/api/scene/export")
-def export_scene(include_state: bool = Query(default=False)) -> dict[str, Any]:
-    return SERVICE.scene.to_payload(include_state=include_state)
+def export_scene(include_state: bool = Query(default=False)) -> Response:
+    return fast_json(SERVICE.scene.to_payload(include_state=include_state))
 
 
 @app.post("/api/scene")
@@ -1635,16 +1670,16 @@ def extensions_scan() -> dict[str, Any]:
 
 # ---- 二维有限元 ------------------------------------------------------------
 @app.get("/api/fem/state")
-def fem_state(include_mesh: bool = Query(default=True)) -> dict[str, Any]:
-    return FEM.snapshot(include_mesh=include_mesh)
+def fem_state(include_mesh: bool = Query(default=True)) -> Response:
+    return fast_json(FEM.snapshot(include_mesh=include_mesh))
 
 
 @app.get("/api/fem/live")
 def fem_live(
     cursor: int = Query(default=0, ge=0),
     limit: int = Query(default=30, ge=1, le=120),
-) -> dict[str, Any]:
-    return FEM.live(cursor, limit)
+) -> Response:
+    return fast_json(FEM.live(cursor, limit))
 
 
 @app.post("/api/fem/control")

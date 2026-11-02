@@ -158,6 +158,13 @@ NetlabHome/
 - `steps_per_frame` 只影响每帧步数，`sample_every` 只影响录制密度，都不改物理步长 `dt`。
 - 录制环 1200 帧；超出容量**等间隔降采样**（保留首尾），不截断。
 
+数据通路的关键成本与优化（实测：600 帧 × 7 探针的 `/api/live` 序列化
+10.6 ms → 1.6 ms、字节 132 KB → 120 KB；`Recorder.since` 尾部增量 52 µs →
+0.8 µs；204 节点 `to_payload` 1.74 ms → 1.07 ms）见
+[docs/ARCHITECTURE.md §13.5](netlab/docs/ARCHITECTURE.md)：`/api/live`、
+`/api/state`、`/api/fem/*`、`/api/scene/export` 走 `server.fast_json()` 跳过
+FastAPI 的逐字段编码；前端 `drawChart` 二分定位时间窗并按像素抽稀。
+
 ## 7. 前端（`frontend/`）
 
 无构建步骤：`index.html` 加载 `app.js` 与 `style.css`。

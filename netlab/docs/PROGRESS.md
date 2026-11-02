@@ -1372,3 +1372,15 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 - **微优化（第二轮，噪声内）**：`_equilibration` 只取一次 `np.abs(matrix)`（原来整矩阵 abs 两次）；`_check_floating` 只在第 0 次 Newton 迭代执行（悬空是拓扑属性，与迭代无关）。定点 A/B（5 次中位数）：common_collector 298→279 µs、rlc 209→183 µs、diode 298→333 µs（该模板波动大）。结论：正向但幅度在噪声边缘，收益远小于第一轮的 `copy_state`；后续真正的提升点已不在 Python 侧的小函数，而在 ①线性电路复用 `lu_factor` 之后的 `_solve_matrix` 固定开销（4×4 电路仍 ~120 µs/步，numpy 小矩阵调用开销为主）②前端重绘。
 - **代码质量**：`python -m pyflakes netlab/core netlab/server.py netlab/plotkit_bridge.py` 现在零告警（清掉 13 处未用 import/变量、修正 blocks.py 里 `field` 被循环变量遮蔽、scene.py 两处无占位符 f-string、删除 blocks.py 一个多余局部 import）。`netlab/desktop/{app,main_window,bridge}.py` 是 D78 前的旧 Qt 壳，已无人引用（`__main__` 只走 `webview_app`），留作死代码待清理，未在本轮删除。
 
+### 7.35 第二轮性能与启动优化（2026-11-02）
+
+| 优化 | 位置 | 机制 | 效果（A/B 交替、5 次中位数） |
+|---|---|---|---|
+| LU 复用带均衡因子 | `core/compute/nodal.py::_solve_matrix` | 缓存命中时直接用缓存的 row/col scale，跳过整矩阵 abs 与两次除法；缓存判定提到均衡之前 | rlc 125→108 µs/步，common_collector 273→235 µs/步，diode 262→250 µs/步（结果按位相同，见下） |
+| SciPy 按需导入 | `core/compute/nodal.py::_load_scipy` | `import scipy.linalg` 需 200~300 ms，信号/矢量模式不需要；改为构造电路求解器时才加载 | `import netlab` 1047 ms → 265 ms；`--selftest` 端到端 2.71 s 不变（桌面本来就用到电路） |
+| 桌面包惰性入口 | `netlab/desktop/__init__.py` | PEP 562 `__getattr__`，导入包不再拉 `app`（Qt 回退入口） | 语义更正确；Qt 壳仍可 `python -m netlab.desktop.app` 手工使用 |
+
+数值等价性：`rlc_series / diode_rectifier / common_collector` 各跑 300 步后
+`Scene.to_payload(include_state=True)` 的 SHA-256 前缀在优化前后完全一致
+（`cdeb869ce37a2118` / `e92c51343e712821` / `6236a7eaa997d7c6`）。
+

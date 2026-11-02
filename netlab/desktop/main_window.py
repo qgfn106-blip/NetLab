@@ -7,14 +7,13 @@ from pathlib import Path
 from typing import Any
 
 try:  # pragma: no cover - 依赖桌面环境
-    from PySide6.QtCore import QFile, QIODevice, QSettings, Qt, QUrl
+    from PySide6.QtCore import QFile, QIODevice, QSettings, QUrl
     from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
     from PySide6.QtWebChannel import QWebChannel
     from PySide6.QtWebEngineCore import QWebEngineScript
     from PySide6.QtWebEngineWidgets import QWebEngineView
     from PySide6.QtWidgets import (
-        QFileDialog,
-        QMainWindow,
+            QMainWindow,
         QMessageBox,
         QStatusBar,
     )

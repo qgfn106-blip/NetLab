@@ -25,19 +25,34 @@ from .params import ParamSpec, choice_param, float_param, validate_params
 
 from .waveform import WAVEFORM_SPECS, waveform_value
 
-try:  # SciPy 已在 requirements 中；没有时仍可用 NumPy 求解。
-    from scipy.linalg import lu_factor as _scipy_lu_factor
-    from scipy.linalg import lu_solve as _scipy_lu_solve
-except Exception:  # pragma: no cover - 依赖环境
-    _scipy_lu_factor = None
-    _scipy_lu_solve = None
+# SciPy 改为**按需导入**：`import scipy.linalg` 要 200~300 ms，而信号流/矢量
+# 模式根本不需要它。只有真正构造电路求解器时才付这笔钱（启动快 ~0.3 s）。
+_scipy_lu_factor: Any = None
+_scipy_lu_solve: Any = None
+_sparse: Any = None
+_splu: Any = None
+_scipy_loaded = False
 
-try:  # 稀疏装配/分解（R26/D53）；缺失时 auto 自动回退稠密。
-    from scipy import sparse as _sparse
-    from scipy.sparse.linalg import splu as _splu
-except Exception:  # pragma: no cover - 依赖环境
-    _sparse = None
-    _splu = None
+
+def _load_scipy() -> None:
+    """第一次用到电路求解时才导入 SciPy（幂等，失败则退回纯 NumPy）。"""
+    global _scipy_loaded, _scipy_lu_factor, _scipy_lu_solve, _sparse, _splu
+    if _scipy_loaded:
+        return
+    _scipy_loaded = True
+    try:  # SciPy 已在 requirements 中；没有时仍可用 NumPy 求解。
+        from scipy.linalg import lu_factor, lu_solve
+
+        _scipy_lu_factor, _scipy_lu_solve = lu_factor, lu_solve
+    except Exception:  # pragma: no cover - 依赖环境
+        pass
+    try:  # 稀疏装配/分解（R26/D53）；缺失时 auto 自动回退稠密。
+        from scipy import sparse
+        from scipy.sparse.linalg import splu
+
+        _sparse, _splu = sparse, splu
+    except Exception:  # pragma: no cover - 依赖环境
+        pass
 
 K_BOLTZMANN = 8.617333262e-5
 MAX_NEWTON_ITERATIONS = 60
@@ -1553,6 +1568,7 @@ class CircuitSolver:
         self._lu_cache = None
         self._lu_matrix: np.ndarray | None = None
         self._lu_col_scale: np.ndarray | None = None
+        self._lu_row_scale: np.ndarray | None = None
         self._cached_dt: float | None = None
         self._sparse_lu = None
         self._sparse_key: tuple[Any, ...] | None = None
@@ -1560,6 +1576,7 @@ class CircuitSolver:
         self.linear_reuse = 0
 
     def _decide_sparse(self) -> bool:
+        _load_scipy()
         """按 SolverOptions.sparse 决定装配/求解后端（R26/D53）。"""
         mode = str(getattr(self.options, "sparse", "auto")).lower()
         if mode not in ("auto", "on", "off"):
@@ -1626,6 +1643,7 @@ class CircuitSolver:
         self._lu_cache = None
         self._lu_matrix = None
         self._lu_col_scale = None
+        self._lu_row_scale = None
         self._cached_dt = None
         self._sparse_lu = None
         self._sparse_key = None
@@ -1927,6 +1945,7 @@ class CircuitSolver:
         Newton 迭代矩阵都会变化，缓存自然失效；这保证数值语义完全不变。
         稀疏后端的语义与稠密一致，只是分解改用 ``splu``（R26/D53）。
         """
+        _load_scipy()
         if self.sparse:
             return self._solve_sparse(matrix, rhs, dt)
         use_gpu = (
@@ -1935,25 +1954,32 @@ class CircuitSolver:
         )
         if use_gpu:  # pragma: no cover - 依赖本机 GPU
             return solve_linear(matrix, rhs, what="电路")
-        row_scale, col_scale = self._equilibration(matrix) if self.options.scaling else (
-            np.ones(matrix.shape[0]),
-            np.ones(matrix.shape[1]),
-        )
-        self.last_scaled = bool(self.options.scaling)
-        self.last_row_scale = row_scale
-        self.last_col_scale = col_scale
-        scaled = matrix / row_scale[:, None] / col_scale[None, :]
-        scaled_rhs = rhs / row_scale
+        scaling = bool(self.options.scaling)
+        # 命中缓存时连均衡因子一起复用：均衡只取决于矩阵，矩阵不变时算它是白费。
         if (
             _scipy_lu_factor is not None
             and self._lu_cache is not None
             and self._lu_matrix is not None
             and self._lu_col_scale is not None
+            and self._lu_row_scale is not None
             and self._cached_dt == dt
+            and matrix.shape == self._lu_matrix.shape
             and np.array_equal(matrix, self._lu_matrix)
         ):
             self.linear_reuse += 1
-            return _scipy_lu_solve(self._lu_cache, scaled_rhs) / self._lu_col_scale
+            self.last_scaled = scaling
+            self.last_row_scale = self._lu_row_scale
+            self.last_col_scale = self._lu_col_scale
+            return _scipy_lu_solve(self._lu_cache, rhs / self._lu_row_scale) / self._lu_col_scale
+        row_scale, col_scale = self._equilibration(matrix) if scaling else (
+            np.ones(matrix.shape[0]),
+            np.ones(matrix.shape[1]),
+        )
+        self.last_scaled = scaling
+        self.last_row_scale = row_scale
+        self.last_col_scale = col_scale
+        scaled = matrix / row_scale[:, None] / col_scale[None, :]
+        scaled_rhs = rhs / row_scale
         if _scipy_lu_factor is not None:
             try:
                 factor = _scipy_lu_factor(scaled, check_finite=False)
@@ -1975,6 +2001,7 @@ class CircuitSolver:
                 self._lu_cache = factor
                 self._lu_matrix = matrix.copy()
                 self._lu_col_scale = col_scale.copy()
+                self._lu_row_scale = row_scale.copy()
                 self._cached_dt = dt
                 return solution
             except ComputeError:
@@ -2325,6 +2352,7 @@ class CircuitSolver:
         self._lu_cache = None
         self._lu_matrix = None
         self._lu_col_scale = None
+        self._lu_row_scale = None
         self._cached_dt = None
         self._sparse_lu = None
         self._sparse_key = None

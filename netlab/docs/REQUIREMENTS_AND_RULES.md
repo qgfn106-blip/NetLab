@@ -1123,3 +1123,4 @@ MOSFET。
 重要架构决策应简洁地记录方案、原因、备选方案及影响。尽量增量更新现有文档，不要每次重新生成整份 ARCHITECTURE.md 或 EXTENDING.md。
 
 文档只能记录已实现、已确认或明确标记为计划中的内容，不能把计划中的能力写成已经完成的功能。
+| 2026-11-02 | **D82 无边框窗口拖动改为页面自绘**（用户报「没法拖动窗口」）：放弃 pywebview `easy_drag` + `DRAG_REGION_DIRECT_TARGET_ONLY`（只认命中元素本身，顶栏空白处拖不动），改 `desktop-shim.js` 指针拖动 + `WebviewBridge.window_rect/window_move_to`，`easy_drag=False`；实测窗口按指针位移精确移动；护栏 `test_desktop_drag.py` 4 条；静态版本 3.15.6 |

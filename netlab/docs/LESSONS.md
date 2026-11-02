@@ -566,3 +566,10 @@ window.dispatchEvent(new Event('netlab-desktop-ready'));
 - **共享可变数据集的"读—写"必须同一把锁**：后台同步线程按 0.5s 在 push/trim，出图线程整批读；不加锁迟早读到"`t` 已加、某条曲线还没加"的中间态。`store/registry.py` 的 `DATA_LOCK` 同时给两边用，顺带把渲染串行化，避免多个 200ms 渲染叠着排队。
 - **matplotlib 出图是持 GIL 的纯 CPU 活**：6 条曲线 1200×700 要 149ms，直接把 `scene.step` 从 122µs 拉到 200µs 上下。降频（1Hz）+ 限尺寸（面积上限 1400×1000）+ 不可见就停，比"优化渲染"便宜得多。判可见要三路：`document.hidden`、`offsetParent/clientWidth`、宿主 `postMessage`（iframe 被 `display:none` 的祖先藏起来时，iframe 内部的 `document.hidden` 仍是 false）。
 - **iframe 面板里"看不到"的另一种表现是 spec 不刷新**：面板先于数据打开时 spec 里没有 layer，之后后端补了图层前端不会再取，界面一直「0 个图层」。轮询里空图层时顺手重取 `api/spec` 即可自愈。
+
+## 无边框窗口拖动（D82，2026-11-02）
+
+- pywebview 的 `easy_drag=True` + `DRAG_REGION_DIRECT_TARGET_ONLY=True` 只认**命中元素本身**带 `.pywebview-drag-region`；只给标题/logo 加类，其余区域（命中 `#topbar`）一律拖不动——用户感受就是"窗口没法拖"。
+- 稳妥做法是自绘：`pointerdown` 记 `screenX/screenY` 与窗口 rect，`pointermove` 调 `window_move_to(x0+dx, y0+dy)`，并用 `rAF` 合并；必须排除 `button/input/select/textarea/a/label/[role=tab]` 等交互控件，否则点按钮变成拖窗。
+- 页面垫片在 `DOMContentLoaded` 时 `window.pywebview` 往往还不存在，`window_rect()` 拿不到值；要监听 `pywebviewready`（以及 `pointerenter`）再刷新缓存。
+- `hidden=True` 的窗口里 `requestAnimationFrame` 不跑，用 rAF 合并的拖动在这种窗口上验证会"纹丝不动"——验证要用可见窗口。

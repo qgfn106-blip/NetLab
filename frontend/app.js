@@ -16,7 +16,7 @@
 
   // 界面版本号：必须与 index.html 的 ?v= 和 netlab/server.py 的 APP_BUILD 一致。
   // 用来识别「前端文件已更新、后端进程还是旧的」这种只关窗口不重启的情况。
-  const UI_BUILD = '3.16.2';
+  const UI_BUILD = '3.16.3';
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -259,7 +259,7 @@
       drawingMode: false,
     },
     // R30：外观偏好、文档与引导状态
-    prefs: { theme: 'light', motion: 'low', perf: 'perf', accent: '', guide: 'always', infobar: true },
+    prefs: { theme: 'light', motion: 'low', perf: 'perf', accent: '', guide: 'always', infobar: true, runWarn: true },
     palette: null,
     settings: null,
     docs: [],
@@ -9716,12 +9716,91 @@
     if (action === 'reset') toast('仿真已重置；探针与仪器设置保留', 'ok', 2200);
   }
 
-  async function control(action, steps) {
+  async function control(action, steps, opts) {
+    // 运行前提示：建议先预计算，否则 PlotKit 面板拿不到整段数据（只能边跑边截断）
+    const running = !!(state.sim && state.sim.running);
+    if ((action === 'toggle' || action === 'run') && !running && !(opts && opts.skipWarn) && state.prefs.runWarn !== false) {
+      openRunWarn();
+      return;
+    }
     if (state.workspace === 'fem') {
       await femControl(action, steps);
       return;
     }
     await networkControl(action, steps);
+  }
+
+  // ---- 运行前「建议预计算」对话框 -------------------------------------------
+  function openRunWarn() {
+    if (document.getElementById('runWarnWin')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'runWarnWin';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(16,20,18,.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    const card = document.createElement('div');
+    card.style.cssText = 'width:520px;max-width:92vw;background:var(--paper,#faf8f2);color:var(--ink,#080a08);border:1px solid var(--line,#cfc6b5);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.28);padding:22px 24px 18px;font:13px/1.7 "Microsoft YaHei UI",sans-serif;';
+    card.innerHTML = `
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px;">运行前建议先预计算</div>
+      <div style="color:var(--muted,#7b7266);margin-bottom:14px;">
+        实时运行只登记探针，绘图面板不会边算边画。先用下面的时间窗把 0→T 整段算完，
+        之后在「绘图」页可以毫秒级回放、并直接接入为数据源。
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <span>预计算时间窗</span>
+        <input id="runWarnSec" type="number" min="1" max="120" step="1" value="${Math.max(1, Math.min(120, Math.round(Number((state.chart && state.chart.window) || 5))))}"
+          style="width:84px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:8px;background:var(--panel,#fff);color:inherit;font:inherit;" />
+        <span>s</span>
+        <span id="runWarnChips" style="display:flex;gap:6px;margin-left:6px;"></span>
+      </div>
+      <div id="runWarnInfo" style="color:var(--muted,#7b7266);min-height:20px;margin-bottom:6px;"></div>
+      <label style="display:flex;align-items:center;gap:8px;margin:10px 0 16px;color:var(--muted,#7b7266);">
+        <input id="runWarnNever" type="checkbox" /> 以后不再提示
+      </label>
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button id="runWarnCancel" class="ghost" style="padding:7px 14px;border:1px solid var(--line,#cfc6b5);border-radius:9px;background:transparent;color:inherit;cursor:pointer;">取消</button>
+        <button id="runWarnRun" class="ghost" style="padding:7px 14px;border:1px solid var(--line,#cfc6b5);border-radius:9px;background:transparent;color:inherit;cursor:pointer;">直接运行</button>
+        <button id="runWarnPre" class="primary" style="padding:7px 16px;border:1px solid var(--accent,#9b7247);border-radius:9px;background:var(--accent,#9b7247);color:#fff;cursor:pointer;">预计算并接入</button>
+      </div>`;
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    const sec = card.querySelector('#runWarnSec');
+    const info = card.querySelector('#runWarnInfo');
+    const chips = card.querySelector('#runWarnChips');
+    [1, 5, 10, 30].forEach((v) => {
+      const b = document.createElement('button');
+      b.textContent = v + 's';
+      b.style.cssText = 'padding:3px 9px;border:1px solid var(--line,#cfc6b5);border-radius:999px;background:transparent;color:inherit;cursor:pointer;font:inherit;';
+      b.onclick = () => { sec.value = String(v); };
+      chips.appendChild(b);
+    });
+    const close = () => overlay.remove();
+    overlay.onclick = (ev) => { if (ev.target === overlay) close(); };
+    card.querySelector('#runWarnCancel').onclick = close;
+    card.querySelector('#runWarnRun').onclick = () => {
+      if (card.querySelector('#runWarnNever').checked) void setPref('runWarn', false);
+      close();
+      void control('toggle', undefined, { skipWarn: true });
+    };
+    card.querySelector('#runWarnPre').onclick = () => {
+      const seconds = Math.max(1, Math.min(120, Math.round(Number(sec.value) || 5)));
+      if (card.querySelector('#runWarnNever').checked) void setPref('runWarn', false);
+      const btn = card.querySelector('#runWarnPre');
+      btn.disabled = true; btn.textContent = '预计算中…'; info.textContent = `正在计算 0→${seconds}s…`;
+      fetch('/api/plotkit/precompute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seconds }) })
+        .then((r) => r.json()).catch(() => null).then((pre) => {
+          btn.disabled = false; btn.textContent = '预计算并接入';
+          if (!pre || pre.ok === false) {
+            info.textContent = '预计算失败：' + ((pre && pre.error) || '未知错误') + '，可直接运行或缩小时间窗重试。';
+            return;
+          }
+          info.textContent = `完成：${seconds}s / ${pre.frames ?? '?'} 帧 / ${Math.round(pre.elapsed_ms || 0)} ms`;
+          toast(`预计算完成：${pre.frames ?? '?'} 帧，去「绘图」页勾选探针后点「接入」`, 'ok', 4200);
+          close();
+          const tab = document.querySelector('[data-sub="plotkit"]');
+          if (tab) tab.click();
+          setTimeout(() => refreshPkChannels(true), 400);
+        });
+    };
+    sec.focus();
   }
 
   async function maybeAutostart() {
@@ -11514,7 +11593,7 @@
         if (!recordingStale()) return;
         leaveReplay();
         await control('reset');
-        await control('run');
+        await control('run', undefined, { skipWarn: true });
         toast('场景已修改，旧记录清除并重新求解', 'ok', 2400);
       });
     }

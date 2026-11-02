@@ -3932,6 +3932,9 @@
       // 侧栏只放入口；真正的绘图在非模态浮窗里（iframe 懒加载）
       $('#btnOpenPlotkit')?.focus({ preventScroll: true });
     }
+    // 让 PlotKit 知道自己是"看得见"还是"被切走了"：看不见就停掉实时出图，
+    // 否则面板藏在别的页签后面还在按 1Hz 出 100–200ms 的图，白烧 CPU。
+    notifyPlotkit(conf.sub === 'plotkit');
     if (conf.sub === 'analysis') {
       renderAnalysisPanel();
     }
@@ -3952,6 +3955,18 @@
   /* ======================================================================
    * 5. 弹层、菜单、模态框
    * ==================================================================== */
+
+  function plotkitFrames() {
+    return [$('#plotkitFrame'), $('#plotkitInlineHost iframe')].filter(Boolean);
+  }
+
+  function notifyPlotkit(visible) {
+    for (const frame of plotkitFrames()) {
+      try {
+        frame.contentWindow?.postMessage({ type: 'plotkit-visibility', visible: Boolean(visible) }, '*');
+      } catch (err) { /* 跨源/未加载完成时忽略 */ }
+    }
+  }
 
   function positionPopup(popup, x, y) {
     popup.classList.remove('hidden');

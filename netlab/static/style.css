@@ -2116,3 +2116,21 @@ body { grid-template-columns: minmax(0, 1fr); }
 /* 停靠形态：贴画布右侧的内嵌窗口；浮出时恢复可拖动浮窗 */
 .plotkit-win.docked { animation: none; transform: none; border-radius: 10px; }
 .plotkit-win.docked .plotkit-body { border-radius: 0 0 10px 10px; }
+
+/* 嵌入形态：直接占满「分析 → 绘图」页签 */
+.plotkit-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.plotkit-actions .ghost { align-self: auto; }
+.plotkit-inline-host {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 460px;
+  height: calc(100vh - 300px);
+  margin-top: 8px;
+  border: 1px solid var(--line, #d9d3c7);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #12131a;
+}
+.plotkit-inline-host[hidden] { display: none; }
+.plotkit-inline-host .plotkit-frame { border-radius: 0; }
+

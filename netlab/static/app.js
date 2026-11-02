@@ -12014,14 +12014,54 @@
     layoutPlotkitWindow();
   }
 
-  function openPlotkit() {
-    const win = $('#plotkitWin');
-    if (!win) return;
+  function ensurePlotkitFrame() {
     const frame = $('#plotkitFrame');
     if (frame && !plotkitReady) {
       frame.src = '/plotkit/?embed=1';
       plotkitReady = true;
     }
+    return frame;
+  }
+
+  // 三种承载方式：嵌进右侧「分析 → 绘图」页签 / 浮窗 / 独立浏览器窗口
+  function placePlotkit(mode) {
+    const frame = ensurePlotkitFrame();
+    const win = $('#plotkitWin');
+    const host = $('#plotkitInlineHost');
+    const floatBody = $('#plotkitWin .plotkit-body');
+    state.plotkitMode = mode;
+    if (!frame) {
+      if (mode === 'popup') toast('绘图 iframe 不存在，已改为独立窗口', 'warn', 2400);
+      return;
+    }
+    if (mode === 'inline') {
+      if (win) win.hidden = true;
+      if (host) {
+        host.hidden = false;
+        host.appendChild(frame);
+      }
+      document.querySelector('[data-sub="plotkit"]')?.click();
+      if (typeof setStatusHint === 'function') setStatusHint('绘图已嵌在右侧面板 · 点「浮出窗口」可拖到画布上');
+    } else if (mode === 'float') {
+      if (host) host.hidden = true;
+      if (floatBody) floatBody.appendChild(frame);
+      openPlotkit();
+    } else if (mode === 'popup') {
+      const url = '/plotkit/?embed=1';
+      const popup = window.open(url, 'netlab-plotkit', 'width=1180,height=820');
+      if (popup) {
+        toast('已在独立窗口打开绘图', 'ok', 2400);
+        if (typeof setStatusHint === 'function') setStatusHint('独立绘图窗口 · 数据与主界面同源');
+      } else {
+        toast('浏览器拦截了弹出窗口，请允许后重试', 'warn', 3200);
+      }
+    }
+  }
+
+  function openPlotkit() {
+    const win = $('#plotkitWin');
+    if (!win) return;
+    ensurePlotkitFrame();
     win.hidden = false;
     win.classList.remove('minimized');
     layoutPlotkitWindow();
@@ -12356,7 +12396,13 @@
       window.addEventListener('resize', () => {
         if (state.plotkitDock && !plotkitWin.hidden) layoutPlotkitWindow();
       });
-      $('#btnOpenPlotkit')?.addEventListener('click', openPlotkit);
+      $('#btnOpenPlotkit')?.addEventListener('click', () => placePlotkit('float'));
+      $('#btnPlotkitInline')?.addEventListener('click', () => placePlotkit('inline'));
+      $('#btnPlotkitPopup')?.addEventListener('click', () => placePlotkit('popup'));
+      $('#plotkitPopout')?.addEventListener('click', () => {
+        closePlotkit();
+        placePlotkit('popup');
+      });
     }
   }
 

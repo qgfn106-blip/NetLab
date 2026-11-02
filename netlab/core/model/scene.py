@@ -40,7 +40,6 @@ from ..compute.methods import (
 from ..compute.nodal import (
     CircuitNode,
     CircuitSolver,
-    ELEMENT_SPECS,
     create_element,
     create_element_from_pins,
     element_catalog,
@@ -1288,10 +1287,10 @@ class Scene:
             points.append(
                 {
                     "x": as_float(
-                        item.get("x"), f"拐点 x", lo=-MAX_POSITION, hi=MAX_POSITION
+                        item.get("x"), "拐点 x", lo=-MAX_POSITION, hi=MAX_POSITION
                     ),
                     "y": as_float(
-                        item.get("y"), f"拐点 y", lo=-MAX_POSITION, hi=MAX_POSITION
+                        item.get("y"), "拐点 y", lo=-MAX_POSITION, hi=MAX_POSITION
                     ),
                 }
             )

@@ -9,11 +9,10 @@
 
 from __future__ import annotations
 
-import copy
 import math
 import time as _time
 from dataclasses import dataclass, field, replace as _dataclass_replace
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 

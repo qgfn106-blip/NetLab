@@ -35,7 +35,6 @@ from __future__ import annotations
 
 import ast
 import hashlib
-import json
 import math
 import re
 import threading
@@ -47,10 +46,8 @@ import numpy as np
 
 from ..compute.computes import COMPUTE_SPECS, ComputeSpec
 from ..common.limits import (
-    ComputeError,
     LimitError,
     ValidationError,
-    json_safe,
 )
 from ..compute.methods import METHOD_SPECS, MethodSpec
 from ..compute.params import ParamSpec

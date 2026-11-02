@@ -6,7 +6,6 @@ import math
 from typing import Any
 
 from ..common.limits import ValidationError
-from ..compute.nodal import element_spec
 
 GRID = 20
 RANK_STEP = 220

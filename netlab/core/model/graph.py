@@ -12,7 +12,6 @@
 
 from __future__ import annotations
 
-import copy
 
 from ..common.fastcopy import copy_state
 import math

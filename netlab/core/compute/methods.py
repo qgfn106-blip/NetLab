@@ -148,7 +148,6 @@ def _tf_factory(params: dict[str, Any]) -> Method:
         b = a = None  # type: ignore[assignment]
     input_key = params["input_key"]
     output_key = params["output_key"]
-    discretization = params["discretization"]
     cache: dict[str, Any] = {"dt": None, "b": b, "a": a}
 
     def coefficients(dt: float) -> tuple[np.ndarray, np.ndarray]:

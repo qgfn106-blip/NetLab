@@ -250,7 +250,7 @@ def encapsulate_circuit(
             group_index[key] = len(groups)
             groups.append((outside, []))
         groups[group_index[key]][1].append((inside, inside_pin))
-        _unused_pin = outside_pin
+        _pin = outside_pin
 
     # 同一个被选中网络可能出现在多个外部分组里；这些分组在电气上属于同一个
     # 父网络，必须先合并，否则会生成重复端口、孤立父节点，甚至让复用模块开路。

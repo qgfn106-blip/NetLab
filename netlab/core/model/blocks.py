@@ -29,7 +29,6 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Iterable, TYPE_CHECKING
 
-from ..compute.computes import prepare_compute
 from ..common.limits import (
     MAX_EDGES,
     MAX_NODES,
@@ -42,10 +41,9 @@ from ..common.limits import (
     check_name,
 )
 from ..compute.methods import prepare_method
-from ..compute.params import ParamSpec
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .scene import Scene
+    from .scene import Scene  # noqa: F401
 
 MAX_BLOCK_DEPTH = 6
 MAX_BLOCK_NODES = 200
@@ -434,9 +432,9 @@ class BlockRuntime:
             payload = dict(inputs.get(port_name) or {})
             port = defaults.get(port_name)
             if port is not None:
-                for field in port.fields or []:
-                    if field not in payload:
-                        payload[field] = float(port.default or 0.0)
+                for fld in port.fields or []:
+                    if fld not in payload:
+                        payload[fld] = float(port.default or 0.0)
             for key, value in payload.items():
                 if isinstance(value, (int, float, bool, str)) and not isinstance(value, complex):
                     record.data[key] = copy.deepcopy(value)
@@ -579,8 +577,6 @@ def encapsulate_nodes(
     model: str = "behavioral",
 ) -> BlockDef:
     """把选中的节点/内部连接封装为 ``BlockDef``，并在父场景替换为功能节点。"""
-    from .scene import Scene  # 局部导入避免循环
-
     if scene.mode == "circuit":
         from ..compute.circuit_modules import encapsulate_circuit
 

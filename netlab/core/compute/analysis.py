@@ -14,7 +14,6 @@ from typing import Any, Callable
 
 import numpy as np
 
-from ..common.limits import ValidationError
 
 ANALYSIS_TIMEOUT = 5.0
 MAX_EXPORT_ROWS = 200_000

@@ -28,9 +28,10 @@ NetlabHome/
     │   ├─ model/             连接与网络：场景、图、工程、块、扩展、工作区
     │   └─ common/            公共：错误与限额（limits）
     ├─ tests/                 pytest（HTTP + 纯函数 + 像素）
-    ├─ docs/                  规格、进度、经验、数学与代码导读
-    └─ <name>.py              历史兼容 shim（转发到 core/*，见 §8）
+    └─ docs/                  规格、进度、经验、数学与代码导读
 ```
+
+> 包根只有真正的入口与适配模块：`__init__.py`、`server.py`、`run.py`、`plotkit_bridge.py`、`plotkit_vendor.py`、`vscode_bridge.py`、`desktop/`、`core/`。**没有历史转发 shim**（D85 已清空并改写全部引用）。
 
 > 说明：后端目录就是 `netlab/`（Python 包名必须叫 `netlab`，`python -m netlab.*` 才能工作，所以不再套一层 `backend/`）。前端与后端已经是两个平级目录，互不混淆。
 
@@ -190,7 +191,7 @@ graph LR
 
 - **禁止**：`core/**` 不得 import `server`、`desktop`、`frontend`；`PlotKit` 不得 import `netlab`。
 - 内核内部 `compute` 与 `model` 目前**允许双向**（例如 `blocks`(model) 用 `computes`(compute)，`computes`(compute) 用 `graph`(model)），这是历史事实；新增代码优先让 `model` 依赖 `compute`。
-- 历史模块名（`netlab/core/model/scene.py` 等）是**兼容 shim**：只做转发，不含逻辑。新代码请 import `netlab.core.model.scene`。它们由 `tools/reorg_core.py` 一次性生成，保留是为了不破坏旧 import 与外部扩展。
+- 模块引用一律用**规范路径** `netlab.core.<分桶>.<模块>`；旧写法（`from netlab.scene import ...`、`from .graph import ...`）已于 D85 全量改写，包根不再保留转发 shim。新增模块请直接放进对应分桶，不要往 `netlab/` 包根堆文件。
 
 ## 9. 想改功能，去哪
 

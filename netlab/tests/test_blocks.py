@@ -11,15 +11,15 @@ import json
 
 import pytest
 
-from netlab.blocks import (
+from netlab.core.model.blocks import (
     BlockDef,
     BlockStore,
     encapsulate_nodes,
     instantiate_block,
 )
-from netlab.limits import ComputeError, ValidationError
-from netlab.methods import METHOD_SPECS, prepare_method
-from netlab.scene import Scene
+from netlab.core.common.limits import ComputeError, ValidationError
+from netlab.core.compute.methods import METHOD_SPECS, prepare_method
+from netlab.core.model.scene import Scene
 
 
 def node_by_name(scene: Scene, name: str):

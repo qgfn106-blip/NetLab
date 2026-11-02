@@ -11,11 +11,11 @@ import json
 
 import pytest
 
-from netlab.project import build_project, project_current_network, save_project
-from netlab.scene import Scene
-from netlab.simulation import Simulation
-from netlab.networks import NetworkContainer
-from netlab.workspace import (
+from netlab.core.model.project import build_project, project_current_network, save_project
+from netlab.core.model.scene import Scene
+from netlab.core.compute.simulation import Simulation
+from netlab.core.model.networks import NetworkContainer
+from netlab.core.model.workspace import (
     DEFAULT_SETTINGS,
     PROJECT_FILENAME,
     PROJECT_SUBDIRS,
@@ -205,7 +205,7 @@ def test_workspace_api_roundtrip(client, tmp_path):
 
 def test_workspace_open_failure_keeps_previous_workspace(client, tmp_path, monkeypatch):
     from netlab import server
-    from netlab.limits import ValidationError
+    from netlab.core.common.limits import ValidationError
 
     first = tmp_path / "ws-a"
     second = tmp_path / "ws-b"

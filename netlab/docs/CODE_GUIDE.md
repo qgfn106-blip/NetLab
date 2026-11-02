@@ -48,7 +48,7 @@ NetlabHome/
 │  ├─ server.py              # FastAPI 应用与全部 /api 端点（≈1.7k 行）
 │  ├─ run.py                 # 一键启动：uvicorn + 自动开浏览器
 │  ├─ plotkit_bridge.py      # 把 PlotKit 作为子应用挂到 /plotkit（可选依赖）
-│  └─ <name>.py              # 33 个兼容 shim，转发到 core.*（见 §6）
+│  └─ （无 shim）             # D85：33 个转发 shim 已删除，引用全部用 netlab.core.*
 │
 └─ tools/
    └─ reorg_core.py          # 一次性结构整理脚本（历史记录，见 §6）
@@ -59,7 +59,7 @@ NetlabHome/
 | 目录 | 职责 |
 | --- | --- |
 | `frontend/` | 浏览器端全部 UI 与绘图逻辑，静态文件直出，无打包器。 |
-| `netlab/` | Python 包根：服务入口、启动器、集成桥，以及兼容 shim。 |
+| `netlab/` | Python 包根：服务入口、启动器、集成桥（shim 已于 D85 清空）。 |
 | `netlab/core/compute/` | 不关心“场景怎么存”的计算内核：MNA 求解、节点/边算法、分析、FEM。 |
 | `netlab/core/model/` | 关心“场景长什么样”的模型层：记录、图、功能块、工程文件、模板、工作区。 |
 | `netlab/core/common/` | 全内核共享的上限常量、错误类型与安全类型转换。 |
@@ -300,40 +300,22 @@ NetlabHome/
 
 ---
 
-## 6. 兼容 shim 与结构整理历史
+## 6. 结构整理历史（D79 → D85）
 
-### 6.1 shim 长什么样
+### 6.1 两次整理
 
-`netlab/` 包根下除 `__init__.py`、`server.py`、`run.py`、`plotkit_bridge.py`、`desktop/` 外，其余 **33 个 `.py` 都是兼容 shim**（`accel.py`、`analysis.py`、…、`waveform.py`、`workspace.py`）。统一模板（以 `netlab/scene.py` 为例）：
+1. **D79（2026-11-02）**：`tools/reorg_core.py` 把旧模块按“计算 / 模型 / 公共”分桶搬进 `netlab/core/{compute,model,common}/`，并在包根生成 33 个转发 shim（`from .core.<bucket>.<name> import *` + `__getattr__`），以保证历史 import 不炸。
+2. **D85（2026-11-02）**：包根 33 个 1KB shim 让 `netlab/` 看起来“一片混乱”（用户原话），因此**全部删除**，并把仓库内所有引用改写为规范路径：
+   - `from .scene import X` → `from .core.model.scene import X`
+   - `from netlab.graph import X` → `from netlab.core.model.graph import X`
+   - `from netlab import accel` → `from netlab.core.compute import accel`
+   - `desktop/*.py`：`from ..project import X` → `from ..core.model.project import X`
 
-```python
-"""兼容层：实现在 netlab.core.model.scene（2026-11-02 结构整理）。"""
-from .core.model import scene as _impl
-from .core.model.scene import *          # 公开名字
+### 6.2 现在的规则
 
-def __getattr__(attr):                   # 私有名字与非常量
-    return getattr(_impl, attr)
-
-def __dir__():
-    return dir(_impl)
-```
-
-行为要点：
-
-- `from netlab.scene import Scene` 仍然可用，拿到的是**同一个对象**（`_impl` 的 `Scene`），不是副本；`isinstance` 检查不会失效。
-- `import *` 只导出公开名字；私有/动态名字靠 `__getattr__` 兜底。
-- 新代码**必须**写 `from netlab.core.model.scene import Scene`，不要再从 shim 引。shim 只是“历史 import 不炸”的保险丝。
-
-### 6.2 `tools/reorg_core.py` 做了什么
-
-一次性脚本（文件头自述“跑完即可，保留在 tools/ 里作为记录”）：
-
-1. 用三张集合把旧模块分桶：`COMPUTE`（18 个）、`MODEL`（12 个）、`COMMON`（`limits`）。
-2. 把文件移动到 `netlab/core/{compute,model,common}/`。
-3. 用正则重写模块内相对 import：同桶保持 `from .x`，跨桶改成 `from ..bucket.x`（`rewrite()`）。
-4. 在原路径生成 §6.1 的 shim。
-
-所以“`netlab/<name>.py` 是转发层”不是手工维护的约定，而是**脚本产物**；未来若再整理目录，应继续用同样的“迁移 + 生成 shim”模式，而不是手写。
+- 包根只允许：`__init__.py`、`server.py`、`run.py`、`plotkit_bridge.py`、`plotkit_vendor.py`、`vscode_bridge.py`，以及 `core/`、`desktop/`、`tests/`、`docs/`、`tools/`、`_vendor/` 目录。
+- 新增模块请放进 `core/compute`、`core/model` 或 `core/common`；不要再在包根加文件。
+- 回归护栏：`netlab/tests/test_structure_layout.py` 会断言「包根没有多余 .py」与「全仓库没有引用已删旧路径」。
 
 ---
 

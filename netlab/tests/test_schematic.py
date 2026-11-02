@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from netlab import schematic
-from netlab.limits import ValidationError
-from netlab.scene import Scene
-from netlab.templates import build_template
+from netlab.core.model import schematic
+from netlab.core.common.limits import ValidationError
+from netlab.core.model.scene import Scene
+from netlab.core.model.templates import build_template
 
 
 def circuit_scene():

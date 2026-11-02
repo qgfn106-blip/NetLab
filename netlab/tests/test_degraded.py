@@ -6,13 +6,13 @@ import json
 
 import pytest
 
-from netlab import blocklib
-from netlab.blocks import BlockDef, PortDef
-from netlab.limits import ConflictError
-from netlab.networks import NetworkContainer
-from netlab.project import build_project, project_scene_payload, validate_project
-from netlab.scene import Scene
-from netlab.simulation import Simulation
+from netlab.core.model import blocklib
+from netlab.core.model.blocks import BlockDef, PortDef
+from netlab.core.common.limits import ConflictError
+from netlab.core.model.networks import NetworkContainer
+from netlab.core.model.project import build_project, project_scene_payload, validate_project
+from netlab.core.model.scene import Scene
+from netlab.core.compute.simulation import Simulation
 
 
 def build_block() -> BlockDef:
@@ -49,7 +49,7 @@ def project_with_block(library, tmp_path):
     simulation = Simulation(scene)
     simulation.apply_config({"fps": 30, "dt": 0.01, "steps_per_frame": 1})
     # 让场景里出现一个块节点（用于占位块端口推导）
-    from netlab.blocks import instantiate_block
+    from netlab.core.model.blocks import instantiate_block
 
     instantiate_block(scene, block.id, position={"x": 0.0, "y": 0.0})
     try:
@@ -98,7 +98,7 @@ def test_reference_scan_and_guarded_delete(tmp_path, client, monkeypatch):
     )
     monkeypatch.setenv("NETLAB_SETTINGS_DIR", str(tmp_path / "settings"))
 
-    from netlab.workspace import scan_block_references
+    from netlab.core.model.workspace import scan_block_references
 
     refs = scan_block_references(project_root, "aaaaaaaaaaaa")
     assert [item["name"] for item in refs] == ["工程 A"]

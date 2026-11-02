@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from netlab.limits import ComputeError, ValidationError
-from netlab.scene import Scene
-from netlab.templates import build_template
+from netlab.core.common.limits import ComputeError, ValidationError
+from netlab.core.model.scene import Scene
+from netlab.core.model.templates import build_template
 
 
 def node(scene, name, kind="node"):
@@ -224,9 +224,9 @@ def test_device_wire_api(client):
     assert bad.status_code == 422
 
 
-@pytest.mark.parametrize("element", sorted(__import__("netlab.ports", fromlist=["PINS"]).PINS))
+@pytest.mark.parametrize("element", sorted(__import__("netlab.core.model.ports", fromlist=["PINS"]).PINS))
 def test_all_circuit_kinds_accept_device_nodes(element):
-    from netlab.ports import pins_for_device
+    from netlab.core.model.ports import pins_for_device
 
     scene = Scene("circuit")
     gnd = node(scene, "gnd", "ground")

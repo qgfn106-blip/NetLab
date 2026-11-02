@@ -7,9 +7,9 @@ import json
 
 import pytest
 
-from netlab import blocklib
-from netlab.blocks import BlockDef, PortDef
-from netlab.limits import NotFoundError, ValidationError
+from netlab.core.model import blocklib
+from netlab.core.model.blocks import BlockDef, PortDef
+from netlab.core.common.limits import NotFoundError, ValidationError
 
 
 def build_block(name: str = "双增益", *, version: int = 1) -> BlockDef:

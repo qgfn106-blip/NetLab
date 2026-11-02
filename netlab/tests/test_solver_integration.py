@@ -6,8 +6,8 @@ import math
 
 import pytest
 
-from netlab.nodal import Capacitor, Inductor, integration_methods
-from netlab.scene import Scene
+from netlab.core.compute.nodal import Capacitor, Inductor, integration_methods
+from netlab.core.model.scene import Scene
 
 
 def _rc_discharge() -> Scene:

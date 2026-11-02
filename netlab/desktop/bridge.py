@@ -15,7 +15,7 @@ try:  # pragma: no cover - 依赖桌面环境
 except Exception as exc:  # pragma: no cover
     raise RuntimeError("桌面模式需要 PySide6：pip install -r requirements-desktop.txt") from exc
 
-from ..project import (
+from ..core.model.project import (
     PROJECT_SUFFIX,
     atomic_write,
     compute_checksum,
@@ -23,7 +23,7 @@ from ..project import (
     project_to_text,
     validate_project,
 )
-from ..workspace import load_settings
+from ..core.model.workspace import load_settings
 
 
 def _library_root() -> Path:

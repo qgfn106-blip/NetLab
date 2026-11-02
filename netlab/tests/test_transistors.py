@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from netlab.scene import Scene
+from netlab.core.model.scene import Scene
 
 
 def node(scene, name, kind="node"):
@@ -108,7 +108,7 @@ def test_nmos_switch():
 
 
 def test_catalog_has_third_batch():
-    from netlab.nodal import element_catalog
+    from netlab.core.compute.nodal import element_catalog
 
     kinds = {item["kind"] for item in element_catalog()}
     assert {"npn", "pnp", "nmos", "pmos"} <= kinds

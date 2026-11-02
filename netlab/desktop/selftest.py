@@ -14,7 +14,7 @@ def backend_selftest() -> dict:
     try:
         from fastapi.testclient import TestClient
 
-        from netlab.project import atomic_write, load_project
+        from netlab.core.model.project import atomic_write, load_project
         from netlab.server import app
 
         with TestClient(app) as client:

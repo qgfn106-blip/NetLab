@@ -6,9 +6,9 @@ import copy
 
 import pytest
 
-from netlab.limits import NotFoundError, ValidationError
-from netlab.networks import NetworkContainer
-from netlab.project import (
+from netlab.core.common.limits import NotFoundError, ValidationError
+from netlab.core.model.networks import NetworkContainer
+from netlab.core.model.project import (
     PROJECT_VERSION,
     build_project,
     compute_checksum,
@@ -17,9 +17,9 @@ from netlab.project import (
     project_networks,
     validate_project,
 )
-from netlab.scene import Scene
-from netlab.simulation import Simulation
-from netlab.templates import build_template
+from netlab.core.model.scene import Scene
+from netlab.core.compute.simulation import Simulation
+from netlab.core.model.templates import build_template
 
 
 def build_simulation(name: str = "a") -> Simulation:

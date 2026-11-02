@@ -10,10 +10,10 @@ import copy
 
 import pytest
 
-from netlab.blocks import encapsulate_nodes, instantiate_block
-from netlab.graph import Network, Node
-from netlab.limits import ComputeError
-from netlab.scene import Scene
+from netlab.core.model.blocks import encapsulate_nodes, instantiate_block
+from netlab.core.model.graph import Network, Node
+from netlab.core.common.limits import ComputeError
+from netlab.core.model.scene import Scene
 
 
 # ---------------------------------------------------------------------------

@@ -6,8 +6,8 @@ import copy
 
 import pytest
 
-from netlab.limits import LimitError, ValidationError
-from netlab.scene import Scene
+from netlab.core.common.limits import LimitError, ValidationError
+from netlab.core.model.scene import Scene
 
 
 def build_scene() -> Scene:

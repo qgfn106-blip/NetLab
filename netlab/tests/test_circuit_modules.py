@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import pytest
 
-from netlab.blocks import encapsulate_nodes
-from netlab.circuit_modules import (
+from netlab.core.model.blocks import encapsulate_nodes
+from netlab.core.compute.circuit_modules import (
     encapsulate_circuit,
     flatten_circuit,
     instantiate_circuit_block,
     module_net_map,
 )
-from netlab.limits import ComputeError, ValidationError
-from netlab.scene import CircuitEngine, Scene
+from netlab.core.common.limits import ComputeError, ValidationError
+from netlab.core.model.scene import CircuitEngine, Scene
 
 
 def node(scene, name, kind="node", **params):
@@ -122,7 +122,7 @@ def test_instantiate_circuit_block_adds_module_node():
 
 def test_flatten_tolerates_unwired_ports():
     """端口没接线时求解不炸，校验给"端口未接线"警告。"""
-    from netlab.schematic import validate_schematic
+    from netlab.core.model.schematic import validate_schematic
 
     scene, parts = divider_scene()
     encapsulate_circuit(
@@ -143,8 +143,8 @@ def test_flatten_tolerates_unwired_ports():
 
 def test_circuit_block_roundtrip_and_run(tmp_path):
     """封装 → 落库 → 载入 → 拖入 → 运行（R24 验收②③④）。"""
-    from netlab import blocklib
-    from netlab.circuit_modules import instantiate_circuit_block
+    from netlab.core.model import blocklib
+    from netlab.core.compute.circuit_modules import instantiate_circuit_block
 
     scene, parts = divider_scene()
     block = encapsulate_circuit(
@@ -216,7 +216,7 @@ def test_module_wire_still_requires_pin_when_ambiguous():
 
 def test_port_wires_carry_layout_and_validate_clean():
     """封装生成的端口导线要有布局，校验不再把「没布局」当错误。"""
-    from netlab.schematic import validate_schematic
+    from netlab.core.model.schematic import validate_schematic
 
     scene, parts = divider_scene()
     encapsulate_circuit(

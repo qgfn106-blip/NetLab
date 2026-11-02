@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from netlab.scene import Scene
+from netlab.core.model.scene import Scene
 
 
 def node(scene, name, kind="node"):
@@ -133,7 +133,7 @@ def test_adc4_successive_approximation():
 
 
 def test_digital_catalog():
-    from netlab.nodal import element_catalog
+    from netlab.core.compute.nodal import element_catalog
 
     kinds = {item["kind"] for item in element_catalog()}
     assert {"counter4", "shift4", "dac4", "adc4"} <= kinds

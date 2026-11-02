@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from netlab.block_validate import report_as_text, validate_block_payload
-from netlab.blocks import BlockDef, PortDef
+from netlab.core.model.block_validate import report_as_text, validate_block_payload
+from netlab.core.model.blocks import BlockDef, PortDef
 
 
 def _node(node_id: str, name: str, kind: str, params=None) -> dict:

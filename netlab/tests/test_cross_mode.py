@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from netlab import blocklib
-from netlab.blocks import BlockDef, PortDef
-from netlab.limits import ValidationError
-from netlab.scene import Scene
+from netlab.core.model import blocklib
+from netlab.core.model.blocks import BlockDef, PortDef
+from netlab.core.common.limits import ValidationError
+from netlab.core.model.scene import Scene
 
 
 def make_block(mode: str = "signal") -> BlockDef:

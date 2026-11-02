@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from netlab import blocklib
+from netlab.core.model import blocklib
 
 
 @pytest.fixture(autouse=True)
@@ -105,7 +105,7 @@ def test_open_internal_creates_temporary_network_and_save_copy(client, tmp_path)
 
 def test_open_internal_rolls_back_when_scene_invalid(client, tmp_path):
     """内部网络不合法（缺接地）时不应留下空壳临时网络。"""
-    from netlab.blocks import BlockDef, PortDef
+    from netlab.core.model.blocks import BlockDef, PortDef
 
     library = tmp_path / "library"
     block = BlockDef(

@@ -20,7 +20,7 @@ try:  # pragma: no cover - 依赖桌面环境
 except Exception as exc:  # pragma: no cover
     raise RuntimeError("桌面模式需要 PySide6：pip install -r requirements-desktop.txt") from exc
 
-from ..project import PROJECT_SUFFIX, atomic_write, project_to_text, validate_project
+from ..core.model.project import PROJECT_SUFFIX, atomic_write, project_to_text, validate_project
 from .bridge import Bridge
 
 WEBCHANNEL_JS = ""

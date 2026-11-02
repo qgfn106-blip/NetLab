@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from netlab.scene import Scene
+from netlab.core.model.scene import Scene
 
 
 def node(scene: Scene, name: str, kind: str = "node"):

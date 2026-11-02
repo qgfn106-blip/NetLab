@@ -99,3 +99,12 @@ def test_diag_reports_vendor_and_error():
     data = c.get("/api/plotkit/diag").json()
     assert "mounted" in data
     assert "candidates" in data and data["candidates"]
+
+
+def test_channels_payload_has_build_stamp(client):
+    """前端靠 build 字段识别「后端进程还是旧的」，必须一直返回。"""
+    from netlab.server import APP_BUILD
+
+    data = client.get("/api/plotkit/channels").json()
+    assert data.get("build") == APP_BUILD
+    assert client.get("/api/health").json().get("build") == APP_BUILD

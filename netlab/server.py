@@ -23,6 +23,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 from .core.compute.fem import FemSimulation
+
+#: 服务端代码版本（与 frontend/index.html 的 ?v= 对齐）；用于检测「前端已更新、后端进程仍是旧的」
+APP_BUILD = "3.16.2"
 from .core.common.limits import ConflictError, NetlabError, NotFoundError, ValidationError
 from .core.model.networks import NetworkContainer
 from .core.model.project import (
@@ -456,17 +459,19 @@ def plotkit_channels() -> dict[str, Any]:
             pass
     if not PLOTKIT_MOUNTED:
         return {"mounted": False, "channels": [], "selected": [],
-                "available": available, "diag": plotkit_bridge.diagnose()}
+                "available": available, "build": APP_BUILD,
+                "diag": plotkit_bridge.diagnose()}
     try:
         return {
             "mounted": True,
             "channels": plotkit_bridge.channels(),
             "selected": plotkit_bridge.selected_channels(),
             "available": available,
+            "build": APP_BUILD,
         }
     except Exception as exc:  # pragma: no cover - 取决于运行状态
         return {"mounted": True, "channels": [], "selected": [], "available": available,
-                "error": str(exc)}
+                "build": APP_BUILD, "error": str(exc)}
 
 
 @app.post("/api/plotkit/channels")
@@ -522,6 +527,7 @@ def plotkit_precompute(payload: dict[str, Any] | None = None) -> dict[str, Any]:
 def health() -> dict[str, Any]:
     return {
         "ok": True,
+        "build": APP_BUILD,
         "running": SERVICE.running,
         "mode": SERVICE.scene.mode,
         "fem_running": FEM.running,

@@ -58,7 +58,20 @@ from .templates import TEMPLATES, build_template, template_catalog
 from . import accel, analysis, block_validate, blocklib, extensions, profiling, schematic
 from .blocks import build_block_from_scene, encapsulate_nodes, instantiate_block
 
-STATIC_DIR = Path(__file__).resolve().parent / "static"
+def _resolve_frontend_dir() -> Path:
+    """前端资源目录：环境变量 > NetlabHome/frontend > 包内 static（历史回退）。"""
+    override = os.environ.get("NETLAB_FRONTEND_DIR")
+    if override:
+        return Path(override)
+    here = Path(__file__).resolve()
+    for cand in (here.parents[1] / "frontend", here.parent / "static"):
+        if (cand / "index.html").is_file():
+            return cand
+    return here.parent / "static"
+
+
+FRONTEND_DIR = _resolve_frontend_dir()
+STATIC_DIR = FRONTEND_DIR  # 兼容旧名字：前端资源已迁到 NetlabHome/frontend/
 SERVICE: NetworkContainer = NetworkContainer(default_simulation(), name="网络 1")
 FEM: FemSimulation = FemSimulation()
 

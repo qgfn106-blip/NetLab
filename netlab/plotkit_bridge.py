@@ -32,6 +32,8 @@ LINE_STYLE = {"mode": "lines", "width": 1.4, "marker": {"symbol": ""}}
 
 _LOCK = threading.Lock()
 _STATE: dict[str, Any] = {"figure": None, "app": None, "thread": None}
+#: 面板是否可见；不可见时不采样（省 CPU / 内存，避免后台白白堆积数据）
+_ACTIVE = threading.Event()
 #: 原生界面显式指定的配色 / 通道；None 表示按 workspace 设置与自动发现
 _FORCED: dict[str, Any] = {"theme": None, "keys": None}
 
@@ -106,6 +108,19 @@ def _theme_name(service: Any) -> str:
     return "netlab-dark" if theme == "dark" else "default"
 
 
+def set_active(active: bool) -> bool:
+    """打开/关闭同步采样；返回当前是否激活。"""
+    if active:
+        _ACTIVE.set()
+    else:
+        _ACTIVE.clear()
+    return bool(active)
+
+
+def is_active() -> bool:
+    return _ACTIVE.is_set()
+
+
 def set_theme(dark: bool) -> bool:
     """让 PlotKit 的图跟着原生界面换深浅色；返回是否已作用到现有 figure。"""
     name = "netlab-dark" if dark else "default"
@@ -135,6 +150,9 @@ def set_channels(keys: list[str] | None) -> bool:
     figure = _STATE.get("figure")
     wanted = [str(k) for k in (keys or [])][:MAX_CHANNELS]
     _FORCED["keys"] = wanted or None
+    # 显式接入通道说明用户马上要看图，顺手把采样打开
+    if wanted:
+        _ACTIVE.set()
     if figure is None:
         return False
     try:
@@ -194,6 +212,10 @@ def _sync_loop(service: Any, figure: Any, stop_event: threading.Event) -> None:
     cursor = 0
     keys: list[str] = []
     while not stop_event.is_set():
+        # 没有人看这个面板就不采样（挂载后默认关，前端打开面板时再打开）
+        if not _ACTIVE.is_set():
+            stop_event.wait(0.5)
+            continue
         try:
             payload = service.live(cursor, limit=600)
             frames = payload.get("frames") or []

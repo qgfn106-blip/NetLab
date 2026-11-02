@@ -779,6 +779,11 @@
     ui.runBtn.title = running ? '暂停（空格）' : '运行（空格）';
   }
 
+  function frameCap() {
+    const keys = Math.max(1, Number(state.sim?.probe_keys?.length) || state.values.size || 1);
+    return Math.min(MAX_FRAMES, Math.max(600, Math.floor(250000 / keys)));
+  }
+
   function updateSignalKeyCache() {
     const keys = Array.isArray(state.sim?.probe_keys) ? state.sim.probe_keys : [];
     const signature = keys.join('\u0001');
@@ -1459,6 +1464,28 @@
     return field ? `${field} ${fmt(data[field], 3)}` : '';
   }
 
+  const __gridPattern = { key: '', pattern: null };
+  function gridPattern(step, dpr, color) {
+    const key = `${step.toFixed(3)}|${dpr}|${color}`;
+    if (__gridPattern.key === key) return __gridPattern.pattern;
+    try {
+      const tile = document.createElement('canvas');
+      const size = Math.max(1, Math.round(step * dpr));
+      tile.width = size;
+      tile.height = size;
+      const tctx = tile.getContext('2d');
+      tctx.scale(dpr, dpr);
+      tctx.fillStyle = color;
+      tctx.fillRect(0, 0, 1, 1);
+      __gridPattern.key = key;
+      __gridPattern.pattern = ctx.createPattern(tile, 'repeat');
+    } catch (error) {
+      __gridPattern.key = key;
+      __gridPattern.pattern = null;
+    }
+    return __gridPattern.pattern;
+  }
+
   function drawGrid(width, height) {
     if (state.ui?.showGrid === false || state.ui?.drawingMode) return;
     let step = (Number(state.ui?.grid) || 20) * state.view.k;
@@ -1467,10 +1494,21 @@
     const ox = ((state.view.x % step) + step) % step;
     const oy = ((state.view.y % step) + step) % step;
 
-    ctx.fillStyle = tokens().gridDot;
-    for (let x = ox; x < width; x += step) {
-      for (let y = oy; y < height; y += step) {
-        ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
+    // 网格点用 CanvasPattern 平铺：一次 fillRect 取代 (w/step)*(h/step) 次 1px 填充
+    // （1400×900、步距 20 时原本每帧 3000+ 次 fillRect，是画布重绘的主要开销）。
+    const pattern = gridPattern(step, state.canvasSize?.dpr || 1, tokens().gridDot);
+    if (pattern) {
+      ctx.save();
+      ctx.translate(Math.round(ox), Math.round(oy));
+      ctx.fillStyle = pattern;
+      ctx.fillRect(-1, -1, width + 2, height + 2);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = tokens().gridDot;
+      for (let x = ox; x < width; x += step) {
+        for (let y = oy; y < height; y += step) {
+          ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
+        }
       }
     }
 
@@ -2876,16 +2914,27 @@
     state.needsDraw = true;
   }
 
+  const __graphMs = [];
+  function __dbgGraph(ms) {
+    __graphMs.push(Math.round(ms * 10) / 10);
+    if (__graphMs.length > 300) __graphMs.splice(0, 150);
+    window.__graphMs = __graphMs;
+  }
+
   function animationLoop(timestamp) {
     if (state.shuttingDown) return;
     if (state.workspace === 'network') {
       if (state.sim?.running && timestamp - (state.lastPaint || 0) >= 33) {
         state.lastPaint = timestamp;
         state.needsDraw = false;
+        const __g0 = performance.now();
         drawGraph();
+        __dbgGraph(performance.now() - __g0);
       } else if (state.needsDraw) {
         state.needsDraw = false;
+        const __g0 = performance.now();
         drawGraph();
+        __dbgGraph(performance.now() - __g0);
       }
     }
     requestAnimationFrame(animationLoop);
@@ -3966,6 +4015,16 @@
       try {
         frame.contentWindow?.postMessage({ type: 'plotkit-visibility', visible: Boolean(visible) }, '*');
       } catch (err) { /* 跨源/未加载完成时忽略 */ }
+    }
+    // 同步告诉后端：面板不可见就别采样（否则 2Hz 白跑，还让数据集无限增长）。
+    const want = Boolean(visible);
+    if (want !== state.plotkitActive) {
+      state.plotkitActive = want;
+      api('/api/plotkit/active', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: want }),
+      }).catch(() => { /* 后端未挂载 plotkit 时忽略 */ });
     }
   }
 
@@ -9542,8 +9601,11 @@
           state.frames.push(frame);
           ingestFrame(frame);
         }
-        if (state.frames.length > MAX_FRAMES) {
-          state.frames.splice(0, state.frames.length - MAX_FRAMES);
+        // 帧上限按探针数自适应：总采样点控制在 ~25 万，避免 100+ 探针时
+        // 5000 帧 × N 键的 JS 堆把 GC 拖起来（表现为长时间运行后卡顿）。
+        const cap = frameCap();
+        if (state.frames.length > cap) {
+          state.frames.splice(0, state.frames.length - cap);
         }
       }
       const gotFrames = Boolean(Array.isArray(data.frames) && data.frames.length);
@@ -9553,9 +9615,10 @@
         updateSignalKeyCache();
         syncUI();
         updateReplayUI();
-        updateInspectorLive();
-        updateSignalListValues();
-        updateLegendValues();
+        // 面板不可见时跳过对应 DOM 更新：128 个探针下这些写操作每 110ms 一次并不便宜。
+        if (ui.inspector?.offsetParent !== null) updateInspectorLive();
+        if (ui.signalList?.offsetParent !== null) updateSignalListValues();
+        if (activeTab() === 'chart') updateLegendValues();
         scheduleChartDraw();
       } else {
         // 没有新帧（暂停/空闲）：只刷新状态条，不重绘图、不刷图例与检视器。
@@ -9604,7 +9667,9 @@
     } finally {
       if (!state.shuttingDown) {
         const activeRunning = state.workspace === 'fem' ? state.fem?.running : state.sim?.running;
-        state.pollTimer = setTimeout(pollLoop, activeRunning ? 110 : 500);
+        // 窗口最小化/切到后台时不追帧：回来时用一次大 limit 追平即可。
+        const delay = document.hidden ? 1000 : (activeRunning ? 110 : 500);
+        state.pollTimer = setTimeout(pollLoop, delay);
       }
     }
   }
@@ -11624,7 +11689,7 @@
       state.pollTimer = setTimeout(pollLoop, 220);
       state.stateTimer = setInterval(() => {
         if (state.sim?.running) void refreshState(true);
-      }, 4000);
+      }, 8000);
       state.booted = true;
       await maybeOfferRecovery();
       await ensureStoppedOnBoot();

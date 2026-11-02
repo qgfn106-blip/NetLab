@@ -14,6 +14,10 @@
    * 0. 常量与小工具
    * ==================================================================== */
 
+  // 界面版本号：必须与 index.html 的 ?v= 和 netlab/server.py 的 APP_BUILD 一致。
+  // 用来识别「前端文件已更新、后端进程还是旧的」这种只关窗口不重启的情况。
+  const UI_BUILD = '3.16.2';
+
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 
@@ -12915,6 +12919,12 @@
       const hint = $('#pkDataHint');
       const avail = (data && data.available) || [];
       const registered = (data && data.channels) || [];
+      if (data && data.build && data.build !== UI_BUILD) {
+        pkChannelCache = avail;
+        renderPkChannels([]);
+        if (hint) hint.textContent = `服务端进程还是旧版本（后端 ${data.build} / 界面 ${UI_BUILD}）——请完全退出应用后重新启动；只关闭窗口可能残留旧进程。`;
+        return;
+      }
       if (!data || !data.mounted) {
         pkChannelCache = avail;
         renderPkChannels([]);

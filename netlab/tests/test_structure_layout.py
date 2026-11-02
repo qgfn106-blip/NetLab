@@ -45,7 +45,7 @@ def test_no_compatibility_shims_left():
     """D85：旧的 1KB 转发 shim 已全部删除，顶层只留真正的入口/适配模块。"""
     leftovers = sorted(CORE_MODULES[name] and name for name in CORE_MODULES if (PKG / f"{name}.py").exists())
     assert not leftovers, "仍存在兼容 shim：" + ", ".join(f"netlab/{n}.py" for n in leftovers)
-    allowed = {"__init__.py", "server.py", "run.py", "plotkit_bridge.py", "plotkit_vendor.py", "vscode_bridge.py"}
+    allowed = {"__init__.py", "server.py", "run.py", "plotkit_bridge.py", "plotkit_vendor.py", "vscode_bridge.py", "cache_guard.py"}
     extra = sorted(p.name for p in PKG.glob("*.py") if p.name not in allowed)
     assert not extra, "netlab/ 顶层出现了未分类模块：" + ", ".join(extra)
 

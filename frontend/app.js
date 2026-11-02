@@ -9874,6 +9874,7 @@
           { label: '代码工作区（VS Code）', hint: '本地 IDE · 终端 / 扩展 / 调试', action: () => void openVscode() },
           { sep: true },
           { label: '性能面板', action: () => switchTab('analysis') },
+          { label: '缓存体检与清理…', hint: '只清可再生成的缓存，不碰工程与自动保存', action: () => openCacheDialog() },
           { label: 'DC 工作点（.op）', hint: '不推进仿真，静默解一次静态电路', action: () => openAnalysis('op') },
           { label: 'AC 扫频（Bode）…', hint: '先求工作点再逐频点求解', action: () => openAnalysis('ac') },
           { label: '迁移场景为器件模型（R20）', hint: '元件边 → 器件节点 + 引脚导线', action: () => void migrateSceneToDevices() },
@@ -12912,16 +12913,38 @@
   function refreshPkChannels(keepSelection) {
     fetch('/api/plotkit/channels').then((r) => r.json()).then((data) => {
       const hint = $('#pkDataHint');
+      const avail = (data && data.available) || [];
+      const registered = (data && data.channels) || [];
       if (!data || !data.mounted) {
-        pkChannelCache = [];
-        if (hint) hint.textContent = 'PlotKit 没挂载（找不到 plotkit 包）：可 pip install -e ../PlotKit。';
+        pkChannelCache = avail;
         renderPkChannels([]);
+        const why = (data && data.diag && data.diag.last_error) || '找不到 plotkit 包';
+        if (hint) hint.textContent = `PlotKit 未挂载：${why}`;
         return;
       }
-      pkChannelCache = data.channels || [];
+      // 优先列「场景里的探针」（不运行也能选），已登记的也算
+      pkChannelCache = avail.length ? avail : registered;
       renderPkChannels(keepSelection ? null : (data.selected || []));
-      if (hint && pkChannelCache.length) {
-        hint.textContent = `可选 ${pkChannelCache.length} 条通道，当前画 ${(data.selected || []).length} 条。`;
+      if (hint) {
+        hint.textContent = avail.length
+          ? `场景共 ${avail.length} 条探针，已登记 ${registered.length} 条，当前画 ${(data.selected || []).length} 条；勾选后点「接入」。`
+          : '当前场景没有探针：先放探针节点或打开带探针的工程。';
+      }
+    }).catch(() => {});
+  }
+
+  function retryPlotkit() {
+    const hint = $('#pkDataHint');
+    if (hint) hint.textContent = '正在重新检测 PlotKit…';
+    fetch('/api/plotkit/channels').then((r) => r.json()).then((data) => {
+      if (data && data.mounted) {
+        reloadPlotkitFrame();
+        refreshPkChannels(true);
+        toast('PlotKit 已就绪', 'info', 1800);
+      } else {
+        const why = (data && data.diag && data.diag.last_error) || '未知原因';
+        if (hint) hint.textContent = `仍然未挂载：${why}`;
+        toast('PlotKit 仍未挂载，请看提示', 'warn', 4000);
       }
     }).catch(() => {});
   }
@@ -12997,6 +13020,8 @@
       toast(`已勾选该节点的 ${keys.length} 条通道`, 'info', 2200);
     });
     if (apply) apply.addEventListener('click', applyPkChannels);
+    const retry = $('#pkChRetry');
+    if (retry) retry.addEventListener('click', retryPlotkit);
     document.querySelectorAll('[data-sub="plotkit"]').forEach((btn) => {
       btn.addEventListener('click', () => setTimeout(() => refreshPkChannels(true), 60));
     });
@@ -13233,6 +13258,127 @@
     label.appendChild(ask);
   }
 
+
+  // ---- 缓存体检与安全清理（D88）----
+  function cacheHuman(n) {
+    n = Number(n) || 0;
+    if (n >= 1073741824) return (n / 1073741824).toFixed(1) + ' GB';
+    if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
+    if (n >= 1024) return (n / 1024).toFixed(1) + ' KB';
+    return Math.round(n) + ' B';
+  }
+
+  function ensureCacheWin() {
+    let win = document.getElementById('cacheWin');
+    if (win) return win;
+    win = document.createElement('div');
+    win.id = 'cacheWin';
+    win.style.cssText = 'position:fixed;inset:0;background:rgba(8,10,8,.36);display:none;z-index:90;';
+    win.innerHTML = `
+      <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(680px,92vw);
+                  max-height:82vh;display:flex;flex-direction:column;border-radius:10px;overflow:hidden;
+                  background:var(--bg,#faf8f2);border:1px solid var(--line,#cfc6b5);
+                  box-shadow:0 18px 48px rgba(0,0,0,.28);color:var(--text,#080a08);font:13px/1.5 'Microsoft YaHei UI',sans-serif;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;
+                    border-bottom:1px solid var(--line,#cfc6b5);">
+          <strong>缓存体检与清理</strong>
+          <button type="button" data-close style="border:0;background:transparent;font-size:16px;cursor:pointer;">✕</button>
+        </div>
+        <div id="cacheBody" style="padding:12px 16px;overflow:auto;"></div>
+        <div style="display:flex;gap:8px;align-items:center;padding:10px 16px;border-top:1px solid var(--line,#cfc6b5);">
+          <span id="cacheMsg" style="flex:1;color:var(--muted,#7b7266);font-size:12px;">只清理可再生成的缓存；工程、自动保存、导出的图都不会被删。</span>
+          <button type="button" data-act="scan" class="ghost">重新扫描</button>
+          <button type="button" data-act="safe" class="primary">清理安全缓存</button>
+          <button type="button" data-act="caution" class="ghost">连同界面偏好…</button>
+        </div>
+      </div>`;
+    document.body.appendChild(win);
+    win.addEventListener('click', (ev) => {
+      if (ev.target === win || ev.target.closest('[data-close]')) win.style.display = 'none';
+    });
+    win.querySelector('[data-act="scan"]').addEventListener('click', () => renderCacheBody());
+    win.querySelector('[data-act="safe"]').addEventListener('click', () => cleanCache(false));
+    win.querySelector('[data-act="caution"]').addEventListener('click', () => cleanCache(true));
+    return win;
+  }
+
+  function openCacheDialog() {
+    ensureCacheWin().style.display = 'block';
+    renderCacheBody();
+  }
+
+  function renderCacheBody() {
+    const body = document.getElementById('cacheBody');
+    if (!body) return;
+    body.textContent = '正在扫描…';
+    fetch('/api/cache/status').then((r) => r.json()).then((data) => {
+      body.textContent = '';
+      const entries = (data.entries || []).filter((e) => e.exists);
+      if (!entries.length) {
+        body.textContent = '没有发现可清理的缓存。';
+        return;
+      }
+      const tierName = { safe: '安全', caution: '谨慎', protected: '保护' };
+      entries.forEach((e) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--line,#cfc6b5);';
+        const tag = document.createElement('span');
+        tag.textContent = tierName[e.tier] || e.tier;
+        tag.style.cssText = 'flex:none;font-size:11px;padding:1px 6px;border-radius:9px;border:1px solid var(--line,#cfc6b5);color:var(--muted,#7b7266);';
+        const mid = document.createElement('div');
+        mid.style.cssText = 'flex:1;min-width:0;';
+        const t = document.createElement('div');
+        t.textContent = e.label;
+        const p = document.createElement('div');
+        p.textContent = e.path;
+        p.style.cssText = 'font-size:11px;color:var(--muted,#7b7266);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        mid.append(t, p);
+        if (e.note) {
+          const n = document.createElement('div');
+          n.textContent = e.note;
+          n.style.cssText = 'font-size:11px;color:var(--muted,#7b7266);';
+          mid.appendChild(n);
+        }
+        const size = document.createElement('span');
+        size.textContent = cacheHuman(e.bytes);
+        size.style.cssText = 'flex:none;font-variant-numeric:tabular-nums;';
+        row.append(tag, mid, size);
+        body.appendChild(row);
+      });
+      const total = document.createElement('div');
+      total.style.cssText = 'padding-top:10px;font-weight:600;';
+      total.textContent = `合计：安全 ${cacheHuman(data.totals.safe)}，谨慎 ${cacheHuman(data.totals.caution)}`;
+      body.appendChild(total);
+      const msg = document.getElementById('cacheMsg');
+      if (msg) msg.textContent = '只清理可再生成的缓存；工程、自动保存、导出的图都不会被删。';
+    }).catch(() => { body.textContent = '扫描失败：后端未响应。'; });
+  }
+
+  function cleanCache(withCaution) {
+    const msg = document.getElementById('cacheMsg');
+    if (withCaution && !window.confirm('谨慎档会删掉浏览器用户数据（面板宽度等界面偏好会重置）。继续？')) return;
+    if (msg) msg.textContent = '正在清理…';
+    fetch('/api/cache/clean', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dry_run: false, caution: !!withCaution }),
+    }).then((r) => r.json()).then((data) => {
+      const freed = cacheHuman(data.freed_bytes || 0);
+      const skipped = (data.skipped || []).length;
+      toast(`已清理 ${freed}${skipped ? `，${skipped} 项被跳过（占用/受保护）` : ''}`, 'info', 3200);
+      renderCacheBody();
+    }).catch(() => { if (msg) msg.textContent = '清理失败：后端未响应。'; });
+  }
+
+  function checkCacheQuietly() {
+    fetch('/api/cache/status').then((r) => r.json()).then((data) => {
+      const safe = (data.totals && data.totals.safe) || 0;
+      if (safe > 300 * 1048576) {
+        toast(`缓存已占 ${cacheHuman(safe)}，可在 工具 → 缓存体检与清理 里释放`, 'info', 6000);
+      }
+    }).catch(() => {});
+  }
+
   function openDocSearch() {
     openDoc(state.docSlug || 'quickstart');
     setTimeout(() => {
@@ -13257,4 +13403,5 @@
   }
 
   boot();
+  setTimeout(checkCacheQuietly, 6000);
 })();

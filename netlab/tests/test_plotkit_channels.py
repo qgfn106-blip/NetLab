@@ -23,10 +23,12 @@ def test_channels_follow_recorder_and_can_be_selected():
     c = _client()
     SERVICE.load_scene(build_template("rlc_series"))
     SERVICE.start()
+    # D87：只有面板可见时才采样；测试里显式"打开面板"
+    c.post("/api/plotkit/active", json={"active": True})
     try:
         import time
 
-        time.sleep(1.0)
+        time.sleep(1.2)
     finally:
         SERVICE.pause()
     data = c.get("/api/plotkit/channels").json()
@@ -55,9 +57,9 @@ def test_precompute_runs_and_records_frames():
     assert data["frames"] and data["frames"] > 10
     assert data["seconds"] == 1.0
     assert SERVICE.running is False
-    # 预计算后可列出通道
+    # 预计算后可列出可接入通道
     chans = c.get("/api/plotkit/channels").json()
-    assert chans["channels"]
+    assert chans["available"]
 
 
 def test_precompute_rejects_absurd_duration():
@@ -68,3 +70,32 @@ def test_precompute_rejects_absurd_duration():
     resp2 = c.post("/api/plotkit/precompute", json={"seconds": 999})
     assert resp2.status_code == 200
     assert resp2.json()["ok"] is False
+
+
+def test_available_probes_listed_without_running():
+    """不运行仿真也能列出「可接入的探针」——这是"面板 0 通道"的根因修复。"""
+    c = _client()
+    SERVICE.load_scene(build_template("rlc_series"))
+    SERVICE.pause()
+    data = c.get("/api/plotkit/channels").json()
+    assert data["mounted"] is True
+    assert data["available"], "停止状态下也应列出场景探针"
+    assert any(k.startswith("n:") for k in data["available"])
+
+
+def test_接入_available_keys_registers_datasets():
+    c = _client()
+    SERVICE.load_scene(build_template("rlc_series"))
+    SERVICE.pause()
+    avail = c.get("/api/plotkit/channels").json()["available"][:2]
+    posted = c.post("/api/plotkit/channels", json={"keys": avail}).json()
+    assert posted["ok"] is True
+    assert posted["selected"] == avail
+    assert set(avail).issubset(set(posted["channels"]))
+
+
+def test_diag_reports_vendor_and_error():
+    c = _client()
+    data = c.get("/api/plotkit/diag").json()
+    assert "mounted" in data
+    assert "candidates" in data and data["candidates"]

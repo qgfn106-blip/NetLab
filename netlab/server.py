@@ -395,7 +395,7 @@ def index() -> Response:
         if "desktop-shim.js" not in html:
             html = html.replace(
                 "</head>",
-                '  <script src="/static/desktop-shim.js?v=3.16.1"></script>\n</head>',
+                '  <script src="/static/desktop-shim.js?v=3.16.2"></script>\n</head>',
                 1,
             )
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})
@@ -426,19 +426,47 @@ def live(
     return fast_json(SERVICE.live(cursor, limit))
 
 
+def _plotkit_available() -> list[str]:
+    """当前场景**可接入**的探针通道（不需要先运行仿真）。"""
+    try:
+        return sorted(SERVICE.scene.probes().keys())
+    except Exception:
+        return []
+
+
+@app.get("/api/plotkit/diag")
+def plotkit_diag() -> dict[str, Any]:
+    """PlotKit 挂载诊断：告诉前端到底缺什么，而不是笼统一句"未挂载"。"""
+    return plotkit_bridge.diagnose()
+
+
 @app.get("/api/plotkit/channels")
 def plotkit_channels() -> dict[str, Any]:
-    """PlotKit 面板可接入的数据通道（探针），以及当前正在画的那几条。"""
+    """PlotKit 面板可接入的数据通道（探针），以及当前正在画的那几条。
+
+    `available` 来自场景探针（不运行也能列出）；`channels` 是已经登记到
+    PlotKit 的数据集（通常在「接入」预计算之后才会有）。
+    """
+    available = _plotkit_available()
+    if not PLOTKIT_MOUNTED:  # 首次挂载可能因依赖就绪顺序失败：这里再试一次（自愈）
+        try:
+            if plotkit_bridge.remount(app):
+                globals()["PLOTKIT_MOUNTED"] = True
+        except Exception:
+            pass
     if not PLOTKIT_MOUNTED:
-        return {"mounted": False, "channels": [], "selected": []}
+        return {"mounted": False, "channels": [], "selected": [],
+                "available": available, "diag": plotkit_bridge.diagnose()}
     try:
         return {
             "mounted": True,
             "channels": plotkit_bridge.channels(),
             "selected": plotkit_bridge.selected_channels(),
+            "available": available,
         }
     except Exception as exc:  # pragma: no cover - 取决于运行状态
-        return {"mounted": True, "channels": [], "selected": [], "error": str(exc)}
+        return {"mounted": True, "channels": [], "selected": [], "available": available,
+                "error": str(exc)}
 
 
 @app.post("/api/plotkit/channels")
@@ -1615,6 +1643,22 @@ def settings_get() -> dict[str, Any]:
 @app.patch("/api/settings")
 def settings_patch(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
     return {"settings": save_settings(payload), "path": str(settings_file())}
+
+
+# ---- 缓存体检与安全清理（D88）---------------------------------------------
+@app.get("/api/cache/status")
+def cache_status() -> dict[str, Any]:
+    from . import cache_guard
+    return cache_guard.scan()
+
+
+@app.post("/api/cache/clean")
+def cache_clean(payload: dict[str, Any] = Body(default={})) -> dict[str, Any]:
+    """默认 dry-run；只有显式 dry_run=False 才真删，且只删 safe（可选 caution）档。"""
+    from . import cache_guard
+    dry_run = bool(payload.get("dry_run", True))
+    tiers = ("safe", "caution") if payload.get("caution") else ("safe",)
+    return cache_guard.clean(tiers=tiers, dry_run=dry_run)
 
 
 # ---- 应用内文档中心（R14 / R30-5）-----------------------------------------

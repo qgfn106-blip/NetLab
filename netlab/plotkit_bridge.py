@@ -36,6 +36,8 @@ _STATE: dict[str, Any] = {"figure": None, "app": None, "thread": None}
 _ACTIVE = threading.Event()
 #: 原生界面显式指定的配色 / 通道；None 表示按 workspace 设置与自动发现
 _FORCED: dict[str, Any] = {"theme": None, "keys": None}
+#: 最近一次挂载/导入失败的原因（给诊断接口用，避免"未挂载"这种无信息提示）
+_LAST_ERROR: str = ""
 
 
 def _plotkit_src_candidates() -> list[Path]:
@@ -69,6 +71,8 @@ def ensure_plotkit_importable() -> bool:
     except Exception:
         vendored = None
     candidates = ([vendored] if vendored else []) + ([Path(override)] if override else []) + _plotkit_src_candidates()
+    global _LAST_ERROR
+    errors = []
     for path in candidates:
         try:
             if (path / "plotkit" / "__init__.py").is_file():
@@ -79,8 +83,10 @@ def ensure_plotkit_importable() -> bool:
                 importlib.import_module("plotkit")
                 LOGGER.info("PlotKit 未安装，改用源码目录 %s", entry)
                 return True
-        except Exception:
+        except Exception as exc:  # 记录每条候选的失败原因
+            errors.append(f"{path}: {exc}")
             LOGGER.debug("从 %s 加载 PlotKit 失败", path, exc_info=True)
+    _LAST_ERROR = "找不到可导入的 plotkit；候选：" + "; ".join(errors or [str(p) for p in candidates])
     return False
 
 
@@ -318,6 +324,44 @@ def _ingest(figure: Any, frames: list[dict[str, Any]], keys: list[str]) -> None:
             store.trim(name, MAX_POINTS)
     if "t" in store.names() and len(store.get("t")) > MAX_POINTS:
         store.trim("t", MAX_POINTS)
+
+
+def diagnose() -> dict[str, Any]:
+    """挂载诊断：告诉界面到底缺什么。"""
+    info: dict[str, Any] = {"mounted": _STATE.get("figure") is not None}
+    try:
+        from . import plotkit_vendor
+
+        vendor = plotkit_vendor.vendor_path()
+        info["vendor"] = str(vendor)
+        info["vendor_exists"] = (vendor / "plotkit" / "__init__.py").is_file()
+    except Exception as exc:
+        info["vendor"] = None
+        info["vendor_exists"] = False
+        info["vendor_error"] = str(exc)
+    try:
+        spec = importlib.util.find_spec("plotkit")
+        info["plotkit_module"] = getattr(spec, "origin", None) if spec else None
+    except Exception:
+        info["plotkit_module"] = None
+    info["candidates"] = [str(p) for p in _plotkit_src_candidates()]
+    info["last_error"] = _LAST_ERROR
+    info["active"] = _ACTIVE.is_set()
+    return info
+
+
+def remount(app: Any | None = None, service: Any | None = None) -> bool:
+    """运行时再试一次挂载（用户点了「重试」或首次挂载时依赖还没就绪）。"""
+    if _STATE.get("figure") is not None:
+        return True
+    if app is None:
+        try:
+            import netlab.server as _srv
+
+            app = _srv.app
+        except Exception:
+            return False
+    return mount(app, service)
 
 
 def mount(app: Any, service: Any | None = None) -> bool:

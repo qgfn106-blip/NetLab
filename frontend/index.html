@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netlab · 可解释仿真环境</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23eae5e1'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23080a08' stroke-width='1.4'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%239b7247'/%3E%3Cpath d='M16 3v5M16 24v5M3 16h5M24 16h5' stroke='%23080a08'/%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="/static/style.css?v=3.16.1" />
+  <link rel="stylesheet" href="/static/style.css?v=3.16.2" />
 </head>
 <body>
   <header id="topbar">
@@ -274,6 +274,7 @@
                     <button type="button" id="pkChNone" class="ghost">清空</button>
                     <button type="button" id="pkChNode" class="ghost">按选中节点</button>
                     <button type="button" id="pkChApply" class="primary">接入</button>
+                    <button type="button" id="pkChRetry" class="ghost" title="重新检测 PlotKit 挂载并重载面板">重试</button>
                   </div>
                   <p class="pk-hint" id="pkDataHint">勾选要画的探针（节点电压/支路电流），点「接入」后曲线上屏；仿真在跑时会自动更新。</p>
                 </div>
@@ -615,6 +616,6 @@
     <div class="modal-card" id="modalCard"></div>
   </div>
 
-  <script src="/static/app.js?v=3.16.1"></script>
+  <script src="/static/app.js?v=3.16.2"></script>
 </body>
 </html>

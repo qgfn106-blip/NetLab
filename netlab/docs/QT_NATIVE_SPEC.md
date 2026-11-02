@@ -499,3 +499,21 @@ PlotKit 侧只改了一处：`static/app.js` 增加 `?theme=light|dark`（覆盖
 ### 16.3 顺带修的模式过滤
 
 模块库原先把 `computes / circuit_nodes / elements` 三个桶全摊平，信号模式下能点到 `node`/`device`，落地时抛「未知的节点构造方式」。现在按 `scene.mode` 过滤：signal/vector 只给 computes，circuit 只给 circuit_nodes + elements。
+
+---
+
+## 17. 原 web 前端退役（v1.3，2026-11-02）
+
+用户决定：「请把原web界面打包到github备份，后在本地删掉」。见 D77。
+
+| 备份 | 位置 |
+| --- | --- |
+| Git 分支 | `backup/web-ui-static-2026-11-02`（含完整 static 与旧壳） |
+| Git 标签 | `web-legacy-2026-11-02` |
+| 压缩包 | `docs/archive/netlab-web-ui-2026-11-02.zip`（154 KB，6 文件 + 说明） |
+
+本地删除：`netlab/static/{index.html,app.js,style.css,desktop-shim.js}`、`netlab/desktop/webview_app.py`、`netlab/desktop/webview_bridge.py`。
+
+代码调整：`server.py` 去掉 `StaticFiles` 挂载与 `STATIC_DIR`，`/` 改为内置说明页（`/api/*` 不变）；`desktop/__main__.py` 默认原生、`--web` 报错退出 2；`test_plotkit_tab.py` 改为断言首页说明页 + `/static/style.css` 404。
+
+验收：**387 passed / 3 skipped**；`/` 200（含「原生」文案）、`/static/style.css` 404、`/api/health` 200、`--selftest` ready 301 ms / RSS 155 MB。

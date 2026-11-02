@@ -112,9 +112,10 @@
 | D71 | 主画布实现（2026-11-02） | 保持**立即模式** `QPainter`，不换 `QGraphicsScene`；绘制函数（吃视图模型）与事件处理（改状态）分离。理由：现有几何/命中逻辑就是立即模式的，换场景图等于重写两遍。 |
 | D72 | 图表实现（2026-11-02） | 5 个图表（时域/FEM/相图/示波器/李萨如）自绘 `QWidget`；**不引入 pyqtgraph**，也不用 matplotlib 做实时图。理由：要与 web 版像素一致，且不加新依赖。 |
 | D73 | 数据通路（2026-11-02） | 控制面保留 `SERVICE`（HTTP 仍可用，测试仍走 TestClient）；数据面直连：SERVICE 产出**不可变快照** → `QueuedConnection` → UI。UI 永不持锁、不再 110 ms 轮询 `/api/live`。 |
-| D74 | 旧前端处置（2026-11-02） | `static/app.js` **冻结**（不再更新、不再修 bug），但保留 `/` 入口可用（不删）。删除需另开决策。`server.py` 的 `/api` 保留。 |
+| D74 | 旧前端处置（2026-11-02；**已被 D77 取代**） | `static/app.js` **冻结**（不再更新、不再修 bug），但保留 `/` 入口可用（不删）。删除需另开决策。`server.py` 的 `/api` 保留。 |
 | D75 | 主题来源（2026-11-02） | 一份 token（JSON）→ 生成 CSS vars 与 QSS，单一来源；切换即时生效。禁止两套主题各写一遍。 |
 | D76 | 验收手段（2026-11-02） | 像素 diff 工具（`QWidget.grab()` vs 浏览器截图，<1% 差异）+ 20 项交互清单，共同作为 P3 闸门。 |
+| D77 | 原 web 前端退役（2026-11-02，取代 D74，承接 R33） | 用户原话：「请把原web界面打包到github备份，后在本地删掉」。执行：①备份三份——Git 分支 `backup/web-ui-static-2026-11-02`、标签 `web-legacy-2026-11-02`、压缩包 `docs/archive/netlab-web-ui-2026-11-02.zip`（含 static 四文件 + 旧 pywebview 壳两文件 + 说明）；②本地删除 `netlab/static/` 与 `netlab/desktop/webview_app.py`、`webview_bridge.py`；③`/` 改为内置说明页，`/api/*` 全部保留（测试与脚本仍用）；④`python -m netlab.desktop` 默认走原生，`--web` 明确报错退出 2。验收：387 passed / 3 skipped，`/` 200、`/static/style.css` 404、`/api/health` 200、`--selftest` 正常。 |
 ---
 
 ## 3. 需求清单（R01–R33）
@@ -448,7 +449,7 @@
 - **不做什么**：不迁 PlotKit、不做三维原生、不重写 web 前端、不改求解器/工程格式/checksum、不引入 QML / pyqtgraph / VTK。
 - **验收**：见 [QT_NATIVE_SPEC.md](QT_NATIVE_SPEC.md) §8 的 A1–A25 与 §9 的 20 项交互清单。关键数字：启动 ≤1.5 s、常驻 ≤350 MB（未开 PlotKit）、未开 PlotKit 时无 `QtWebEngineProcess`、像素 diff <1%、正常运行不监听 TCP 端口、现有 pytest 全绿且只增不减。
 - **权重·期次**：⭐⭐⭐ / P0–P5（2026-11-02 实现完成，A4 已实机验证；待人工复验 A5/A13/A14/A18/A21）
-- **现状**：**P0–P5 已实现**。`netlab/ui/` 共 12 个模块（models / geometry / theme / motion / bridge / canvas / charts / panels / shell / docwin / plotkit_panel / app），启动入口 `python -m netlab.desktop --native`。实测启动 287 ms、RSS 151 MB、`webengine_processes=0`、`listening=[]`、两次截图 diff 0.000%、**387 passed / 3 skipped**。PlotKit 面板已做实机接入（浮窗 1100×760、主题与通道联动、`?theme=` 参数），动效可在「视图 → 界面动效」关闭。规划、约束、验收与任务分解**全部记在 [QT_NATIVE_SPEC.md](QT_NATIVE_SPEC.md)**（R33.1–R33.6、C1–C13、D69–D76、A1–A25、P0–P5 勾选表 + §14 验收结果），本文件只留这一行指针。票单拆解在 `.scratch/netlab-qt/issues/01–15`。评估依据（四档形态、逐层映射、成本测算）在 `docs/QT_MIGRATION_EVALUATION.md`。
+- **现状**：**P0–P5 已实现**。`netlab/ui/` 共 12 个模块（models / geometry / theme / motion / bridge / canvas / charts / panels / shell / docwin / plotkit_panel / app），启动入口 `python -m netlab.desktop --native`。实测启动 287 ms、RSS 151 MB、`webengine_processes=0`、`listening=[]`、两次截图 diff 0.000%、**387 passed / 3 skipped**。原 web 前端已按 D77 备份到 GitHub 后从本地删除（`/static` 不再存在，`/` 为说明页，`/api/*` 保留）。PlotKit 面板已做实机接入（浮窗 1100×760、主题与通道联动、`?theme=` 参数），动效可在「视图 → 界面动效」关闭。规划、约束、验收与任务分解**全部记在 [QT_NATIVE_SPEC.md](QT_NATIVE_SPEC.md)**（R33.1–R33.6、C1–C13、D69–D76、A1–A25、P0–P5 勾选表 + §14 验收结果），本文件只留这一行指针。票单拆解在 `.scratch/netlab-qt/issues/01–15`。评估依据（四档形态、逐层映射、成本测算）在 `docs/QT_MIGRATION_EVALUATION.md`。
 
 ## 4. 权重与依赖
 

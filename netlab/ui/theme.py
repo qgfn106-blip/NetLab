@@ -1,6 +1,7 @@
 """主题：一份 token → QSS。
 
-token 与 ``static/style.css`` 的 CSS 变量一一对应（spec 约束 C9/C13）：
+token 与已退役的 web 前端 ``static/style.css`` 的 CSS 变量一一对应
+（spec 约束 C9/C13；原文件已备份到 docs/archive/netlab-web-ui-2026-11-02.zip）：
 换框架不换外观，颜色、字号、间距都从同一份表里取。
 """
 

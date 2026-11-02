@@ -447,3 +447,18 @@ node netlab/tools/cdp_check.mjs
 R30 的自动化 UI 验收脚本在 `NetlabExtras/scratch/verify_r30.mjs`（引导页、设置抽屉、文档窗、主题、分组），
 设置窗改造的验收脚本是 `NetlabExtras/scratch/verify_settings_win.mjs`（拖动/缩放/最小化/最大化/页签/与文档窗共存/位置记忆），
 截图输出到 `NetlabExtras/scratch/r30/`。
+
+## 19. 电路分析浮窗（R26，2026-11-02）
+
+`#analWin` 是非模态浮窗（`class="floatwin analwin"`，默认 760×580，复用 §6.1 的拖动/缩放/最小化/最大化，`Esc` 关闭）。
+
+- 入口：工具菜单「DC 工作点（.op）」「AC 扫频（Bode）…」，打开同一个浮窗并直接切到对应页签；
+- 页签：`.anal-tab[data-anal="op"|"ac"]`，对应 `.anal-pane[data-anal-pane]`；
+- DC 工作点：`#analRunOp` → `GET /api/operating-point`；`#analOpTable` 渲染两张表
+  （节点电压；元件 电流/端电压/功率），`#analOpMeta` 显示「迭代 N 步 · 矩阵 M · 残差 R · 稠密/稀疏」；
+- AC 扫频：`#analAcInput`（自动列出场景里的 vsource/isource）、`#analAcF1/F2`、`#analAcPts`、
+  `#analAcScale`（log/lin）、`#analRunAc` → `GET /api/ac-sweep`；`#analAcCanvas` 画双区 Bode
+  （上：幅值 dB；下：相位 °，对数/线性频轴），`#analAcLegend` 给曲线配色图例；
+- 默认探针只取 `kind==='node'` 的节点——`ground` 会被后端判为「AC 探针不存在」，前端必须排除；
+- 失效策略：`applySnapshot` 比较 `scene.revision`，变化即清空 `state.acResult` 并提示「电路已变化，请重新扫频」；
+- 护栏：`netlab/tests/test_ui_analysis_entry.py`（标记存在性、端点调用、探针过滤）。

@@ -463,3 +463,73 @@ class ModulePalette(QListWidget):
 
 
 __all__ = ["Inspector", "ModulePalette", "ProjectTree"]
+
+
+class BlocksPane(QWidget):
+    """模块与扩展（对应 web `#tab-blocks` / `#tab-ext`）。
+
+    进程内直接调用 ``netlab.blocks``（不走 HTTP），列出 library 里的 .block 模块，
+    支持刷新 / 实例化到画布 / 打开内部预览 / 删除。
+    """
+
+    instantiateRequested = Signal(str)          # block_id
+    openInternalRequested = Signal(str)         # block_id
+
+    def __init__(self, tokens_map: dict[str, str] | None = None, parent=None) -> None:
+        super().__init__(parent)
+        self.tokens_map = dict(tokens_map or {})
+        self._blocks: list[dict] = []
+        self._build()
+        self.refresh()
+
+    def _build(self) -> None:
+        root = QVBoxLayout(self)
+        root.setContentsMargins(10, 8, 10, 8)
+        root.setSpacing(8)
+        bar = QHBoxLayout()
+        self.search = QLineEdit(self)
+        self.search.setPlaceholderText("搜索模块…")
+        self.search.textChanged.connect(self._apply_filter)
+        self.btn_refresh = QPushButton("刷新", self)
+        self.btn_refresh.clicked.connect(self.refresh)
+        bar.addWidget(self.search, 1)
+        bar.addWidget(self.btn_refresh)
+        root.addLayout(bar)
+        self.list = QListWidget(self)
+        self.list.setAlternatingRowColors(True)
+        self.list.itemDoubleClicked.connect(self._on_activate)
+        root.addWidget(self.list, 1)
+        self.hint = QLabel("library 里还没有 .block 模块。", self)
+        self.hint.setObjectName("muted")
+        root.addWidget(self.hint)
+
+    def refresh(self) -> None:
+        try:
+            from .. import blocks as blocklib
+            from ..server import _library_path
+
+            target = _library_path(None)
+            self._blocks = list(blocklib.scan_library(target) or [])
+            self.hint.setText("" if self._blocks else "library 里还没有 .block 模块。")
+        except Exception as exc:  # noqa: BLE001 - 面板不该因库异常而崩
+            self._blocks = []
+            self.hint.setText(f"无法读取模块库：{exc}")
+        self._apply_filter()
+
+    def _apply_filter(self) -> None:
+        needle = self.search.text().strip().lower()
+        self.list.clear()
+        for block in self._blocks:
+            name = str(block.get("name") or block.get("id") or "")
+            model = str(block.get("model") or "")
+            if needle and needle not in name.lower() and needle not in model.lower():
+                continue
+            item = QListWidgetItem(f"{name}  ·  {model}")
+            item.setData(Qt.UserRole, str(block.get("id") or block.get("name") or ""))
+            item.setToolTip(str(block.get("path") or ""))
+            self.list.addItem(item)
+
+    def _on_activate(self, item: QListWidgetItem) -> None:
+        block_id = str(item.data(Qt.UserRole) or "")
+        if block_id:
+            self.instantiateRequested.emit(block_id)

@@ -58,6 +58,7 @@ class CanvasWidget(QWidget):
         self._show_grid = True
         self._grid_step = 20.0
         self._snap = True
+        self._snap_point: tuple[float, float] | None = None
         self._fitted = False
         # 动效状态：跑仿真时边上有流动虚线，选中时外环轻微脉冲
         self._running = False
@@ -75,7 +76,8 @@ class CanvasWidget(QWidget):
         self._sync_ticker()
 
     def _sync_ticker(self) -> None:
-        want = motion.enabled() and (self._running or bool(self._selection))
+        # 只有仿真在跑时才需要持续重绘（web app.js:2864-2882 的 rAF 也只在 running 时开）
+        want = motion.enabled() and self._running
         if want and not self._tick_timer.isActive():
             self._tick_timer.start()
         elif not want and self._tick_timer.isActive():
@@ -279,6 +281,8 @@ class CanvasWidget(QWidget):
             pulse=math.sin(self._clock * 2.4),
             hover_alpha=self._hover_ramp.value,
         )
+        if self._snap_point is not None:
+            render.draw_snap_marker(painter, self._snap_point, self._view)
         if self._box is not None:
             render.draw_selection_box(painter, self._box, self._tokens)
         if self._link is not None:
@@ -329,7 +333,7 @@ class CanvasWidget(QWidget):
             node, pin = pin_hit
             start = self._world(pos)
             self._link = (node.id, start, start)
-            self._drag = {"type": "link", "node": node.id}
+            self._drag = {"type": "link", "node": node.id, "kind": node.kind}
             self.update()
             return
 
@@ -347,6 +351,7 @@ class CanvasWidget(QWidget):
                 "type": "node",
                 "start": pos,
                 "moved": False,
+                "primary": node.id,
                 "origins": {
                     item.id: (item.x, item.y)
                     for item in self._scene.nodes
@@ -366,11 +371,17 @@ class CanvasWidget(QWidget):
             self.update()
             return
 
-        if not (event.modifiers() & Qt.ShiftModifier):
-            self._selection.clear()
-            self.selectionChanged.emit([])
-        self._drag = {"type": "box", "start": pos}
-        self._box = QRectF(pos, pos)
+        if event.modifiers() & Qt.ControlModifier:
+            if not (event.modifiers() & Qt.ShiftModifier):
+                self._selection.clear()
+                self.selectionChanged.emit([])
+            self._drag = {"type": "box", "start": pos}
+            self._box = QRectF(pos, pos)
+            self.update()
+            return
+        self._auto_fit = False
+        self._drag = {"type": "pan", "start": pos, "origin": (self._view.x, self._view.y)}
+        self.setCursor(QCursor(Qt.ClosedHandCursor))
         self.update()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:  # noqa: N802
@@ -391,12 +402,21 @@ class CanvasWidget(QWidget):
             dy = (pos.y() - drag["start"].y()) / max(1e-6, self._view.k)
             if abs(dx) > 1 or abs(dy) > 1:
                 drag["moved"] = True
+            step = self._grid_step if (self._snap and self._grid_step > 0) else 0.0
             for node in self._scene.nodes:
                 origin = drag["origins"].get(node.id)
                 if origin is None:
                     continue
-                node.__dict__["x"] = origin[0] + dx
-                node.__dict__["y"] = origin[1] + dy
+                nx, ny = origin[0] + dx, origin[1] + dy
+                if step:
+                    # 拖动过程中实时吸附网格（web app.js:3331），不是松手才吸
+                    nx = round(nx / step) * step
+                    ny = round(ny / step) * step
+                node.__dict__["x"] = nx
+                node.__dict__["y"] = ny
+            primary = drag.get("primary")
+            dragged = next((n for n in self._scene.nodes if n.id == primary), None)
+            self._snap_point = (dragged.x, dragged.y) if (step and dragged is not None) else None
             self.update()
         elif kind == "box":
             start = drag["start"]
@@ -410,6 +430,7 @@ class CanvasWidget(QWidget):
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # noqa: N802
         drag = self._drag
         self._drag = {}
+        self._snap_point = None
         pos = event.position()
         if not drag:
             return
@@ -429,7 +450,7 @@ class CanvasWidget(QWidget):
         if kind == "box":
             rect = self._box
             self._box = None
-            if rect is not None and (rect.width() > 3 or rect.height() > 3):
+            if rect is not None and rect.width() > 3 and rect.height() > 3:
                 x0, y0 = self._view.to_world(rect.left(), rect.top())
                 x1, y1 = self._view.to_world(rect.right(), rect.bottom())
                 hits = [
@@ -440,7 +461,8 @@ class CanvasWidget(QWidget):
                 hits += [
                     edge.id
                     for edge in self._scene.edges
-                    if all(x0 <= px <= x1 and y0 <= py <= y1 for px, py in edge.points)
+                    if edge.points and (x0 <= edge.points[len(edge.points) // 2][0] <= x1
+                                        and y0 <= edge.points[len(edge.points) // 2][1] <= y1)
                 ]
                 self.set_selection(hits)
             self.update()
@@ -457,6 +479,13 @@ class CanvasWidget(QWidget):
                         break
                 if target is None:
                     self._update_hover(pos)
+                    self.update()
+                    return
+                src_kind = str(drag.get("kind") or "")
+                if src_kind in ("device", "module") and target.kind not in ("node", "ground"):
+                    self.statusMessage.emit(
+                        "请把引脚拖到网络节点（电学节点/接地）上才能连接导线"
+                    )
                     self.update()
                     return
                 self.edgeRequested.emit(source, target.id)
@@ -523,9 +552,11 @@ class CanvasWidget(QWidget):
         delta = event.angleDelta().y()
         if delta == 0:
             return
-        factor = 1.12 if delta > 0 else 1 / 1.12
+        # 对齐 web：连续缩放 exp(-deltaY * 0.0015)，范围 0.12~3.2，鼠标锚定，无动画
+        factor = math.exp(-delta * 0.0015)
         pos = event.position()
-        self._animate_zoom(factor, pos.x(), pos.y())
+        self._view.zoom_at(pos.x(), pos.y(), factor, lo=0.12, hi=3.2)
+        self.update()
 
     def keyPressEvent(self, event) -> None:  # noqa: N802
         key = event.key()

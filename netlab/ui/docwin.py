@@ -1,7 +1,9 @@
 """文档窗：原生 Markdown 阅读器（对应旧前端 docWin 浮窗）。
 
-用 ``QTextDocument.setMarkdown`` 直接渲染仓库里的 docs/*.md，
-不再需要 WebEngine；外链交给系统浏览器。
+只列**用户文档**（``netlab/docs/user/`` 的五篇，顺序与标题取自
+``server.USER_DOC_ORDER``），不再把开发文档（PROGRESS/REQUIREMENTS 等）
+混进列表——用户原话：「文档只收入用户相关文档，不收入开发文档」。
+用 ``QTextDocument.setMarkdown`` 渲染，外链交给系统浏览器。
 """
 
 from __future__ import annotations
@@ -21,13 +23,24 @@ from PySide6.QtWidgets import (
 
 from .theme import FONT_FAMILY, tokens as theme_tokens
 
-DOCS_DIR = Path(__file__).resolve().parent.parent / "docs"
+DOCS_DIR = Path(__file__).resolve().parent.parent / "docs" / "user"
+DOC_TITLES: tuple[tuple[str, str], ...] = (
+    ("quickstart", "欢迎 / 快速上手"),
+    ("interface", "界面指南"),
+    ("glossary", "术语表"),
+    ("faq", "常见问题"),
+    ("shortcuts", "快捷键"),
+)
 
 
-def doc_files() -> list[Path]:
-    if not DOCS_DIR.is_dir():
-        return []
-    return sorted(path for path in DOCS_DIR.glob("*.md") if path.is_file())
+def doc_files() -> list[tuple[str, Path]]:
+    """按用户文档顺序返回 ``(标题, 路径)``，缺失的条目自动跳过。"""
+    out: list[tuple[str, Path]] = []
+    for slug, title in DOC_TITLES:
+        path = DOCS_DIR / f"{slug}.md"
+        if path.is_file():
+            out.append((title, path))
+    return out
 
 
 class DocWindow(QMainWindow):
@@ -42,8 +55,8 @@ class DocWindow(QMainWindow):
 
         self.list = QListWidget(host)
         self.list.setMaximumWidth(240)
-        for path in doc_files():
-            item = QListWidgetItem(path.stem)
+        for title, path in doc_files():
+            item = QListWidgetItem(title)
             item.setData(Qt.UserRole, str(path))
             self.list.addItem(item)
         self.list.currentItemChanged.connect(self._on_select)

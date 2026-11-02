@@ -28,6 +28,22 @@ from ..theme import FONT_FAMILY, qcolor
 SELECT = "#a8541f"
 HOVER = "#7a4a2a"
 
+#: 以下常量逐条对齐原 web 前端（app.js:2074-2110 / 2495-2614），保证像素 diff 与观感一致。
+RING_NORMAL = "#cfc6b5"
+RING_HOVER = "#8e8477"
+NODE_SELECTED = "#a8541f"
+NODE_STROKE_IDLE = "#bcb3a1"
+NODE_FILL = "#faf8f2"
+NODE_FILL_SEL = "#f7ecdf"
+EDGE_NORMAL = "#a49a89"
+EDGE_HOVER = "#5f584e"
+EDGE_DISABLED = "#d3ccbc"
+EDGE_DELAY = "#b0762a"
+FLOW_PERIOD = 1.6  # 秒：web 用 1600ms 一周
+FLOW_RADIUS = 1.35
+FLOW_RADIUS_SELECTED = 2.0
+FLOW_MAX_EDGES = 220
+
 #: 有专属符号的元件（电路模式的 ``params.element``，或独立 kind）。
 GLYPHS = {
     "resistor",
@@ -67,8 +83,8 @@ def draw_grid(
         step *= 2
     while step > 84:
         step /= 2
-    ox = (view.x * view.k) % step
-    oy = (view.y * view.k) % step
+    ox = ((view.x * view.k) % step + step) % step
+    oy = ((view.y * view.k) % step + step) % step
     painter.setPen(Qt.NoPen)
     painter.setBrush(_color(tokens["grid_dot"]))
     x = ox
@@ -93,14 +109,14 @@ def draw_grid(
 
 def edge_color(edge: EdgeVM, selected: bool, hovered: bool, tokens: Mapping[str, str]) -> str:
     if selected:
-        return tokens["accent"]
+        return NODE_SELECTED
     if hovered:
-        return HOVER
+        return EDGE_HOVER
     if not edge.enabled:
-        return tokens["edge_disabled"]
+        return EDGE_DISABLED
     if edge.delay:
-        return tokens["edge_delay"]
-    return tokens["edge"]
+        return EDGE_DELAY
+    return EDGE_NORMAL
 
 
 def _segment_hit(
@@ -174,12 +190,13 @@ def draw_edges(
         is_sel = edge.id in selected
         is_hov = edge.id == hovered
         color = _color(edge_color(edge, is_sel, is_hov, tokens))
+        # 线宽对齐 web：常态 1.15 / 悬停 1.7 / 选中 2.1
         if is_sel:
-            width = 2.2
+            width = 2.1
         elif is_hov:
-            width = 1.4 + 0.5 * max(0.0, min(1.0, hover_alpha))
+            width = 1.7
         else:
-            width = 1.4
+            width = 1.15
         pen = QPen(color, width)
         pen.setCapStyle(Qt.RoundCap)
         pen.setJoinStyle(Qt.RoundJoin)
@@ -199,8 +216,8 @@ def draw_edges(
         painter.drawPath(path)
         if edge.id in hops:
             draw_crossing_hops(painter, hops[edge.id], color, tokens)
-        if running and edge.enabled and not edge.delay:
-            _draw_flow(painter, view, edge, tokens, phase)
+        if running and edge.enabled and (is_sel or len(scene.edges) <= FLOW_MAX_EDGES):
+            _draw_flow(painter, view, edge, tokens, phase, selected=is_sel)
         _draw_arrow(painter, view, edge.points[-2], edge.points[-1], color)
 
 
@@ -232,22 +249,23 @@ def _draw_flow(
     edge: EdgeVM,
     tokens: Mapping[str, str],
     phase: float,
+    *,
+    selected: bool = False,
 ) -> None:
-    """跑仿真时，在连线上画一个沿路径移动的光点（信号在流动的感觉）。
+    """连线上流动的光点：周期 1600ms、每边 2 个、逐边 hash 错相（web app.js:2214-2226）。
 
-    只改「动的部分」，不改线的样式：虚线的语义仍然是禁用/延迟。
+    延迟边用琥珀色 ``rgba(176,118,42,.8)``，其余 ``rgba(168,84,31,.7)``；半径 1.35（选中 2.0）。
     """
     screen = [view.to_screen(*point) for point in edge.points]
-    seed = (sum(ord(char) for char in edge.id) % 97) / 97.0
-    accent = _color(tokens.get("accent", "#9b7247"))
+    seed = (sum(ord(char) for char in edge.id) % 997) / 997.0
+    color = QColor(176, 118, 42) if edge.delay else QColor(168, 84, 31)
+    radius = FLOW_RADIUS_SELECTED if selected else FLOW_RADIUS
+    painter.setPen(Qt.NoPen)
     for index in range(2):
-        frac = (phase * 0.18 + seed + index * 0.5) % 1.0
+        frac = (phase / FLOW_PERIOD + seed + index * 0.5) % 1.0
         x, y = _flow_position(screen, frac)
-        # 尾部渐隐：越靠近起点越淡
-        alpha = 0.25 + 0.75 * min(1.0, frac * 2.0) * min(1.0, (1.0 - frac) * 4.0)
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor(accent.red(), accent.green(), accent.blue(), int(200 * alpha)))
-        painter.drawEllipse(QPointF(x, y), 2.8, 2.8)
+        painter.setBrush(QColor(color.red(), color.green(), color.blue(), 178 if not edge.delay else 204))
+        painter.drawEllipse(QPointF(x, y), radius, radius)
 
 
 def _draw_arrow(
@@ -282,7 +300,20 @@ def node_rect(node: NodeVM, view: ViewTransform) -> QRectF:
 
 
 def label_font(view: ViewTransform) -> QFont:
-    return QFont(FONT_FAMILY, max(7, int(min(13, 11 * view.k))))
+    """节点名：700 粗体，尺寸 clamp(12.5k, 6.5, 17)（web app.js:2551）。"""
+    font = QFont(FONT_FAMILY)
+    font.setPixelSize(max(7, int(round(min(17.0, max(6.5, 12.5 * view.k))))))
+    font.setBold(True)
+    return font
+
+
+def kind_font(view: ViewTransform) -> QFont:
+    """节点类别：600 mono，尺寸 clamp(7.5k, 5, 11)（web app.js:2547）。"""
+    font = QFont("Cascadia Code", -1)
+    font.setStyleHint(QFont.Monospace)
+    font.setPixelSize(max(5, int(round(min(11.0, max(5.0, 7.5 * view.k))))))
+    font.setBold(True)
+    return font
 
 
 def _place_label(
@@ -344,6 +375,29 @@ def draw_nodes(
         )
         if rect.width() < 26 or rect.height() < 20:
             continue
+        if not is_glyph and abs(node.w - node.h) < 0.5 and rect.width() >= 56:
+            # 圆形节点：名字 + 类别画在圆内（对齐 web app.js:2547-2562）
+            name_f = label_font(view)
+            name_m = QFontMetricsF(name_f)
+            name_h = name_m.height()
+            painter.setFont(name_f)
+            painter.setPen(_color(tokens["ink"]))
+            nm = name_m.elidedText(node.name, Qt.ElideRight, rect.width() - 14)
+            painter.drawText(
+                QRectF(rect.left() + 4, rect.center().y() - name_h * 0.92, rect.width() - 8, name_h),
+                Qt.AlignHCenter | Qt.AlignVCenter,
+                nm,
+            )
+            k_f = kind_font(view)
+            k_m = QFontMetricsF(k_f)
+            painter.setFont(k_f)
+            painter.setPen(_color(tokens["muted"]))
+            painter.drawText(
+                QRectF(rect.left() + 4, rect.center().y() + name_h * 0.08, rect.width() - 8, k_m.height()),
+                Qt.AlignHCenter | Qt.AlignVCenter,
+                node.kind,
+            )
+            continue
         limit = max(24.0, rect.width() * (1.6 if is_glyph else 1.0) - 4)
         text = metrics.elidedText(node.name, Qt.ElideRight, limit)
         width = min(limit, metrics.horizontalAdvance(text) + 8)
@@ -355,12 +409,6 @@ def draw_nodes(
     painter.setFont(font)
     painter.setPen(_color(tokens["ink"]))
     for box, text, is_glyph in pending:
-        if not is_glyph:
-            continue
-        painter.drawText(box, Qt.AlignCenter, text)
-    for box, text, is_glyph in pending:
-        if is_glyph:
-            continue
         painter.drawText(box, Qt.AlignCenter, text)
 
 
@@ -383,61 +431,82 @@ def draw_node(
     pulse: float = 0.0,
     hover_alpha: float = 0.0,
 ) -> None:
+    """单个节点：外圈三层状态 + 主体 + 类型弧线 + 引脚（对齐 web app.js:2495-2614）。
+
+    外圈不脉动（原前端没有 breathing/pulse，``pulse`` 参数仅为兼容保留）。
+    """
     cx, cy = view.to_screen(node.x, node.y)
     w = node.w * view.k
     h = node.h * view.k
     rect = QRectF(cx - w / 2.0, cy - h / 2.0, w, h)
-
-    if selected:
-        stroke = _color(tokens["accent"])
-    elif hovered:
-        stroke = QColor(HOVER)
-        stroke.setAlphaF(0.55 + 0.45 * max(0.0, min(1.0, hover_alpha)))
-    else:
-        stroke = _color(tokens["node_stroke"])
-    pen = QPen(stroke, 2.4 if selected else (1.9 if hovered else 1.5))
-    painter.setPen(pen)
-
+    circular = abs(node.w - node.h) < 0.5
     glyph = node_glyph(node)
+    has_glyph = glyph in GLYPHS and w >= 34 and h >= 34
 
-    if glyph in GLYPHS and w >= 34 and h >= 34:
+    # 1) 外圈：选中 #a8541f 1.6 实线 / 悬停 #8e8477 1 实线 / 常态 #cfc6b5 1 虚线[2,4]
+    if selected:
+        ring_color, ring_width, ring_dash = QColor(NODE_SELECTED), 1.6, None
+    elif hovered:
+        ring_color, ring_width, ring_dash = QColor(RING_HOVER), 1.0, None
+    else:
+        ring_color, ring_width, ring_dash = QColor(RING_NORMAL), 1.0, [2, 4]
+    if w >= 16 and h >= 16:
+        ring = QPen(ring_color, ring_width)
+        if ring_dash:
+            ring.setStyle(Qt.CustomDashLine)
+            ring.setDashPattern(ring_dash)
+        painter.setPen(ring)
+        painter.setBrush(Qt.NoBrush)
+        pad = 5.0
+        if circular and not has_glyph:
+            painter.drawEllipse(rect.adjusted(-pad, -pad, pad, pad))
+        else:
+            painter.drawRoundedRect(rect.adjusted(-pad, -pad, pad, pad), 8, 8)
+
+    stroke = QColor(NODE_SELECTED) if selected else QColor(NODE_STROKE_IDLE)
+
+    if has_glyph:
         side = min(w, h) * 0.66
         box = QRectF(cx - side / 2.0, cy - side / 2.0, side, side)
         _draw_glyph(painter, glyph, box, stroke)
     else:
-        painter.setBrush(_color(tokens["node_fill"]))
-        if abs(node.w - node.h) < 0.5:
+        painter.setPen(QPen(stroke, 1.5 if selected else 1.0))
+        painter.setBrush(QColor(NODE_FILL_SEL if selected else NODE_FILL))
+        if circular:
             painter.drawEllipse(rect)
         else:
             painter.drawRoundedRect(rect, 6, 6)
-        if w >= 44 and h > 44:
-            kind_font = QFont(FONT_FAMILY, max(6, int(min(10, 8 * view.k))))
-            painter.setFont(kind_font)
-            painter.setPen(_color(tokens["muted"]))
-            painter.drawText(
-                QRectF(rect.left(), rect.bottom() - 17 * view.k, w, 14 * view.k),
-                Qt.AlignHCenter | Qt.AlignTop,
-                node.kind,
-            )
+        # 顶部类型弧线（web app.js:2511-2517）
+        if circular and w >= 20:
+            arc_pen = QPen(_color(tokens.get("accent", "#9b7247")))
+            arc_pen.setWidthF(max(1.2, min(3.5, 2.4 * view.k)))
+            arc_pen.setCapStyle(Qt.RoundCap)
+            painter.setPen(arc_pen)
+            painter.setBrush(Qt.NoBrush)
+            radius = w / 2.0 - 2.5 * view.k
+            if radius > 2:
+                arc_rect = QRectF(cx - radius, cy - radius, radius * 2, radius * 2)
+                painter.drawArc(arc_rect, int(180 * 16), int(-100 * 16))
 
     if selected:
-        # 选中外环轻微脉冲：只改透明度与内边距，不改变布局，避免影响命中与像素 diff
-        wave = pulse * 0.5 + 0.5
-        ring = _color(tokens["accent"])
-        ring.setAlphaF(0.40 + 0.22 * wave)
-        pad = 4.0 + 1.8 * wave
-        painter.setPen(QPen(ring, 1.3))
+        # 四角刻度（web app.js:2601-2612）：四方向各 6px 短线
+        tick = 6.0
+        d = max(w, h) / 2.0 + 7.0
+        painter.setPen(QPen(QColor(NODE_SELECTED), 1.0))
         painter.setBrush(Qt.NoBrush)
-        if abs(node.w - node.h) < 0.5 and glyph not in GLYPHS:
-            painter.drawEllipse(rect.adjusted(-pad, -pad, pad, pad))
-        else:
-            painter.drawRoundedRect(rect.adjusted(-pad, -pad, pad, pad), 10, 10)
+        for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+            painter.drawLine(
+                QPointF(cx + dx * d, cy + dy * d),
+                QPointF(cx + dx * (d + tick), cy + dy * (d + tick)),
+            )
 
+    # 引脚点：半径 clamp(3.4k, 2, 5)
     painter.setPen(QPen(_color(tokens["line_strong"]), 1.2))
     painter.setBrush(_color(tokens["node_fill"]))
+    pin_radius = max(2.0, min(5.0, 3.4 * view.k))
     for pin in node.pins:
         px, py = view.to_screen(pin.x, pin.y)
-        painter.drawEllipse(QPointF(px, py), 2.2, 2.2)
+        painter.drawEllipse(QPointF(px, py), pin_radius, pin_radius)
 
 
 def _draw_glyph(painter: QPainter, kind: str, box: QRectF, color: QColor) -> None:
@@ -525,9 +594,26 @@ def draw_selection_box(
     rect: QRectF,
     tokens: Mapping[str, str],
 ) -> None:
-    painter.setPen(QPen(_color(tokens["accent"]), 1.2, Qt.DashLine))
-    painter.setBrush(_color(tokens["accent"], 26))
+    pen = QPen(QColor(168, 84, 31, 166), 1.0)
+    pen.setStyle(Qt.CustomDashLine)
+    pen.setDashPattern([4, 3])
+    painter.setPen(pen)
+    painter.setBrush(QColor(168, 84, 31, 20))
     painter.drawRect(rect)
+
+
+def draw_snap_marker(
+    painter: QPainter,
+    point: tuple[float, float],
+    view: ViewTransform,
+) -> None:
+    """拖动时的吸附十字（web app.js:1481-1510）：7px 十字，rgba(168,84,31,.85)，1.2px。"""
+    x, y = view.to_screen(*point)
+    pen = QPen(QColor(168, 84, 31, 217), 1.2)
+    painter.setPen(pen)
+    painter.setBrush(Qt.NoBrush)
+    painter.drawLine(QPointF(x - 3.5, y), QPointF(x + 3.5, y))
+    painter.drawLine(QPointF(x, y - 3.5), QPointF(x, y + 3.5))
 
 
 def draw_link_preview(

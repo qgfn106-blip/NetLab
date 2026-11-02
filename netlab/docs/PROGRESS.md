@@ -1,13 +1,13 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-02 20:20
+> 最后修改：2026-11-02 21:20
 
 | 项 | 内容 |
 | --- | --- |
 | 记录时间 | 2026-11-02 19:05（Asia/Shanghai） |
 | 当前阶段 | **P1–P4 主体完成；P7-01/02/03 完成；P7-05 完成（时间轴回放/过期标记/循环/时间窗/重置保留探针/求解窗口 0→T）；P0 求解可靠性完成 + P0 求解加固完成（失败事务/检查点回滚、行列均衡缩放、尺度无关残差、线性解质量、器件节点断点、超时回滚、BJT/LDO 猜测分层），Phase D 元件契约与 Phase E 信号/矢量整步事务完成；R26 求解器分析能力（DC 工作点/AC-Bode/Gear2/稀疏矩阵）完成；工程校验和二次校验修复（§7.10）；R27 回放/时间轴可用性完成（§7.11）、R29 回放速度滑块（§7.16），**343 passed**、静态 3.14.4（2026-10-29 P7-06 电路模块化 §7.21、P7-07 模块内部浮窗 §7.22、P7-08 电气直连展开 §7.23）；**R30/P10 UI 集中优化六票完成**（§7.17，引导页/右栏 4 组/设置抽屉/文档中心/9 项信息条/9 项菜单/外观三档/参数 `?`；2026-10-29 03:35 挂耳与右栏拖拽收尾 §7.24，静态 3.14.1）；**2026-10-30 01:50 封装报错修复 + 端口方向入口 + 模块库清理 + `MODULES_HOWTO.md`**（§7.25，静态 3.14.2）；公开仓库已上线（§7.13）；浏览器内演示曾发布到 GitHub Pages（§7.14），同日 21:15 用户要求删除、已撤销（§7.15，站点 404）；**R33 原生桌面外壳已实现**（§7.33/§7.33.1，385 passed）；主线待办见 [BACKLOG.md](BACKLOG.md)——下一步 P7-09/10/11 内置结构（R25，三批按 opamp/comparator → dff/counter/shift → 555/LDO/ADC/DAC）；R19 参考级图纸暂停；**2026-10-29 R31 并网逆变器电网控制立项**（P11-01…P11-07，见 §7.19，未开工） |
 | 基线 | 修改前 43 passed（2026-10-24 14:26） |
-| 当前测试 | **393 passed**（2026-11-02 20:20：D86 PlotView —— 前端 2D 自绘 + 预计算门控 + 窗口缩放） |
+| 当前测试 | **396 passed**（2026-11-02 21:20：D87 性能减负 —— 网格 pattern / 帧上限自适应 / 面板不可见不采样） |
 | 本地备份 | `netlab_20261101_2010`（本轮 7 源文件 + 5 文档 + 5 测试 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_20261024_142654`、`_1727`、`netlab_20261025_0125`、`netlab_20261025_1306`（P0-0）、`netlab_20261026_0348p1retry`（P1 收口）、`netlab_20261026_1240`（R15 收尾）、`netlab_20261026_1318`（R20 模型批基础层）、`netlab_20261026_1322`（R20 模型批功能完成）、`netlab_20261026_1330`（R20 UI 批）、`netlab_20261026_1335`（R20 UI 迁移动作）、`netlab_20261026_1340`（R20 信号端口）、`netlab_20261026_1415`（纯导线/共集示例）、`netlab_20261027_0150`（P7-01 前快照）、`netlab_20261027_1744`（P7-03 收尾）、`netlab_20261027_1753`（R22 参数放宽/单位）、`netlab_20261027_1856`（三极管型号预设）、`netlab_20261027_2218`（拐点拖动）、`netlab_20261027_2324`（P7-03/P7-05 收尾）、`netlab_20261027_2330`（P0 求解可靠性）、`netlab_20261028_0016`（P0 收尾/P7-05）、`netlab_20261028_0048`（电源波形界面）、`netlab_20261028_0103`（dt 精度预设）、`netlab_20261028_0114`（奇异阈值/步长原位微调）、`netlab_20261028_0318`（P0 求解加固：事务/均衡/断点/超时）、`netlab_20261028_0405`（Phase D/E 代码前快照）、`netlab_20261028_0434`（R26 代码前快照）、`netlab_20261028_1219`（工程校验和修复前 `project.py`）、`project_20261028_1219`（用户工程文件前快照）、`netlab_20261028_1855`（R27 后端/前端快照）、`docs_20261028_1932`（公开仓库文档前快照）、`docs_20261028_2108`（R28 文档前快照）、`web_20261028_2130`（演示页与 workflow 删除前快照）、`ui_20261028_2205`（R29 回放滑块前 static 快照）、`netlab_ui_20261028_2242`（R30 UI 集中优化前 netlab 全量）；文档快照见 `docs_20261026_*、docs_20261027_1744、netlab_docs_20261028_0420、netlab_docs_20261028_0445` |
 | 备份清单 | 各自目录下 `MANIFEST.sha256` |
 | 版本控制 | 用户已授权 GitHub `qgfn106-blip` 做版本管理/备份（2026-10-24）；本地仍保留备份，尚无 `.git` |
@@ -1544,3 +1544,23 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 **边界**：contourf 目前按网格色块近似（无等值线路径）；streamplot/3D 系列仍回落服务端渲染（仅定格导出）。
 
 **坑**：PlotKit 静态文件改动后必须 `python -m netlab.plotkit_vendor install --src ../PlotKit/src/plotkit --force` 同步内置副本，否则 netlab 里加载的是旧 JS（现象：`window.Plot2D undefined`）。
+
+### 7.44 性能减负：网格 pattern、帧上限自适应、面板不可见不采样（D87，2026-11-02）
+
+**背景**：用户反馈「运行卡顿感很强」，要求查冗余与重复执行。先量化再动手：后端数据通路全在 10–250 µs 量级（`live(增量3帧)` 11 µs、`live(0,600)` 241 µs、`snapshot()` 64 µs），不是瓶颈；浏览器侧在无 GPU（`--disable-gpu` 软件光栅）下 p50≈190 ms/帧且每帧 80 ms long task，去掉 `--disable-gpu` 后 p50=16–17 ms（60 fps）—— 说明「卡」主要来自无 GPU 环境的合成开销，但 `drawGraph()` 自身仍有可省之处。
+
+**实测（QtWebEngine，`window.__graphMs` 采样）**
+
+| 项 | 前 | 后 | 倍数 |
+| --- | --- | --- | --- |
+| drawGraph 7 节点 | 6.1 ms | **1.9 ms** | 3.2× |
+| drawGraph 127 节点 | 20.6 ms | **8.8 ms** | 2.3× |
+| 面板关闭时 PlotKit 采样 | 每 0.2 s 空转（数据集无限增长） | **0** | — |
+
+**改动**
+- `frontend/app.js`：`gridPattern(step,dpr,color)` 用离屏 tile + `createPattern('repeat')` 缓存，`drawGrid` 一次 `fillRect`（原 3150 次 1×1 fillRect）；`frameCap()` 按探针数自适应 `min(5000, max(600, 250000/键数))`；`updateInspectorLive/updateSignalListValues/updateLegendValues` 面板不可见时直接返回；`pollLoop` 在 `document.hidden` 时降到 1000 ms；`/api/state` 轮询 4000→8000 ms。
+- `netlab/plotkit_bridge.py`：`_ACTIVE = threading.Event()` + `set_active/is_active`，`_sync_loop` 不活跃时 `wait(0.5)` 跳过采样。
+- `netlab/server.py`：`POST /api/plotkit/active`；静态版本 3.16.1。
+- `frontend/app.js` 的 `notifyPlotkit(visible)` 同步把可见性 POST 给后端。
+
+**验证**：新增 `netlab/tests/test_plotkit_active.py` 3 条（端点开关、不可见不采样、可见恢复采样）；全量 **396 passed**；画布截图确认网格/节点/连线正常。

@@ -395,7 +395,7 @@ def index() -> Response:
         if "desktop-shim.js" not in html:
             html = html.replace(
                 "</head>",
-                '  <script src="/static/desktop-shim.js?v=3.16.0"></script>\n</head>',
+                '  <script src="/static/desktop-shim.js?v=3.16.1"></script>\n</head>',
                 1,
             )
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})
@@ -454,6 +454,16 @@ def plotkit_set_channels(payload: dict[str, Any] | None = None) -> dict[str, Any
         "channels": plotkit_bridge.channels(),
         "selected": plotkit_bridge.selected_channels(),
     }
+
+
+@app.post("/api/plotkit/active")
+def plotkit_active(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """打开/关闭 PlotKit 的数据采样：面板不可见时不采样，省 CPU 与内存。"""
+    if not PLOTKIT_MOUNTED:
+        return {"mounted": False, "active": False}
+    active = bool((payload or {}).get("active", True))
+    plotkit_bridge.set_active(active)
+    return {"mounted": True, "active": plotkit_bridge.is_active()}
 
 
 @app.post("/api/plotkit/precompute")

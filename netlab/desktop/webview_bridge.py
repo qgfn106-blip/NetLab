@@ -67,6 +67,7 @@ class WebviewBridge:
         self.url = url
         self._window: Any = None
         self._dirty = False
+        self._maxed = False
         self._current_path = ""
         self._last_directory = str(Path.home())
 
@@ -201,6 +202,34 @@ class WebviewBridge:
     def set_dirty(self, flag: Any) -> bool:
         self._dirty = bool(flag)
         return self._dirty
+
+    # ---- 窗口控制（无边框窗口的自绘按钮）---------------------------------
+    def window_minimize(self) -> bool:
+        try:
+            self._window.minimize()
+            return True
+        except Exception:
+            return False
+
+    def window_toggle_maximize(self) -> bool:
+        """返回切换后的最大化状态。"""
+        try:
+            if self._maxed:
+                self._window.restore()
+                self._maxed = False
+            else:
+                self._window.maximize()
+                self._maxed = True
+            return self._maxed
+        except Exception:
+            return False
+
+    def window_close(self) -> bool:
+        try:
+            self._window.destroy()
+            return True
+        except Exception:
+            return False
 
     # ---- 供壳调用 -------------------------------------------------------
     def command(self, name: str, payload: Any = None) -> None:

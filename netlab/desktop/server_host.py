@@ -72,12 +72,19 @@ class ServerHost:
         return self._ready
 
     def stop(self) -> None:
+        """先让 uvicorn 优雅退出（关闭监听 socket），超时才强制结束。"""
         server = self._server
+        thread = self._thread
         if server is not None:
             server.should_exit = True
-        thread = self._thread
         if thread is not None and thread.is_alive():
-            thread.join(timeout=5.0)
+            thread.join(timeout=4.0)
+            if thread.is_alive() and server is not None:
+                try:
+                    server.force_exit = True
+                except Exception:
+                    pass
+                thread.join(timeout=2.0)
         self._thread = None
         self._server = None
         self._ready = False

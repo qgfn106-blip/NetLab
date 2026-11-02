@@ -25,6 +25,7 @@ import urllib.request
 from pathlib import Path
 
 _SHOW_FALLBACK_SECONDS = 8.0
+_MIN_W, _MIN_H = 1100, 700
 
 
 def _state_dir() -> Path:
@@ -37,24 +38,79 @@ def _window_state_path() -> Path:
     return _state_dir() / "window.json"
 
 
+def _virtual_screen() -> tuple[int, int, int, int] | None:
+    """Windows 虚拟桌面范围 (x, y, w, h)；非 Windows 返回 None。"""
+    try:
+        import ctypes
+
+        user32 = ctypes.windll.user32  # type: ignore[attr-defined]
+        return (
+            int(user32.GetSystemMetrics(76)),
+            int(user32.GetSystemMetrics(77)),
+            int(user32.GetSystemMetrics(78)),
+            int(user32.GetSystemMetrics(79)),
+        )
+    except Exception:
+        return None
+
+
+def _point_on_screen(x: int, y: int) -> bool:
+    box = _virtual_screen()
+    if box is None:
+        return True
+    vx, vy, vw, vh = box
+    return (vx - 40) <= x <= (vx + vw - 80) and (vy - 40) <= y <= (vy + vh - 80)
+
+
 def _load_window_state() -> dict:
+    """读窗口几何；坏值（最小化留下的 -32000 / 极小尺寸）一律丢弃。"""
     try:
         data = json.loads(_window_state_path().read_text(encoding="utf-8"))
-        if isinstance(data, dict):
-            return data
+        if not isinstance(data, dict):
+            return {}
     except Exception:
-        pass
-    return {}
-
-
-def _save_window_state(window) -> None:
-    """记住窗口位置/大小/最大化——下次打开回到原来的样子（Qt 壳用 QSettings 做同样的事）。"""
+        return {}
     try:
-        state = {
-            "x": int(window.x), "y": int(window.y),
-            "width": int(window.width), "height": int(window.height),
-            "maximized": bool(getattr(window, "maximized", False)),
-        }
+        width = int(data.get("width") or 0)
+        height = int(data.get("height") or 0)
+        if width < _MIN_W or height < _MIN_H:
+            data.pop("width", None)
+            data.pop("height", None)
+        x, y = data.get("x"), data.get("y")
+        if (
+            not isinstance(x, (int, float))
+            or not isinstance(y, (int, float))
+            or int(x) <= -10000
+            or int(y) <= -10000
+            or not _point_on_screen(int(x), int(y))
+        ):
+            data.pop("x", None)
+            data.pop("y", None)
+    except Exception:
+        data.pop("width", None)
+        data.pop("height", None)
+        data.pop("x", None)
+        data.pop("y", None)
+    return data
+
+
+def _save_window_state(window, bridge=None) -> None:
+    """记住窗口位置/大小/最大化——下次打开回到原来的样子（Qt 壳用 QSettings 做同样的事）。
+
+    最小化时 Windows 会报 -32000 和极小尺寸，这种状态不写盘，避免下次启动窗口变成一条缝。
+    """
+    try:
+        state = _load_window_state()
+        maximized = bool(getattr(bridge, "_maxed", False))
+        state["maximized"] = maximized
+        if not maximized:
+            try:
+                x, y = int(window.x), int(window.y)
+                width, height = int(window.width), int(window.height)
+            except Exception:
+                x = y = width = height = 0
+            if width >= _MIN_W and height >= _MIN_H and _point_on_screen(x, y):
+                state.update({"x": x, "y": y, "width": width, "height": height})
         path = _window_state_path()
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(state), encoding="utf-8")
@@ -207,6 +263,13 @@ def main(argv: list[str] | None = None) -> int:
     from .server_host import ServerHost
     from .webview_bridge import WebviewBridge
 
+    # 无边框窗口：只有带 `.pywebview-drag-region` 的元素能拖动窗口，
+    # 否则 easy_drag 会让画布/面板里任何一次拖拽都变成移动窗口。
+    try:
+        webview.settings["DRAG_REGION_DIRECT_TARGET_ONLY"] = True
+    except Exception:
+        pass
+
     token = None if args.no_token else secrets.token_urlsafe(24)
     # 服务端据此在 index.html 注入桌面垫片；浏览器访问时不存在该变量。
     os.environ["NETLAB_DESKTOP_SHELL"] = "pywebview"
@@ -240,6 +303,8 @@ def main(argv: list[str] | None = None) -> int:
             min_size=(1100, 700),
             hidden=True,
             background_color="#0e1116",
+            frameless=True,   # 去掉系统标题栏/边框，只留网页自己的外观
+            easy_drag=True,   # 无边框时靠 .pywebview-drag-region 区域拖动窗口
         )
         bridge.attach(window)
 
@@ -259,7 +324,12 @@ def main(argv: list[str] | None = None) -> int:
                         "退出 Netlab", "工程有未保存的修改，确定要退出吗？")
                     if not ok:
                         return False
-                _save_window_state(window)
+                _save_window_state(window, bridge)
+                # 关窗即刻释放本地端口（uvicorn 线程随进程一起退出，不留监听）
+                try:
+                    host.stop()
+                except Exception:
+                    pass
             except Exception:
                 pass
             return True
@@ -282,6 +352,10 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 result["title"] = window.evaluate_js("document.title")
                 result["has_bridge"] = window.evaluate_js("!!window.netlabDesktop")
+                result["has_win_ctl"] = window.evaluate_js(
+                    "!!document.getElementById('nlWinCtl')")
+                result["drag_region"] = window.evaluate_js(
+                    "document.querySelectorAll('.pywebview-drag-region').length")
                 result["has_command"] = window.evaluate_js(
                     "typeof window.netlabDesktopCommand === 'function'")
                 window.evaluate_js(
@@ -316,7 +390,6 @@ def main(argv: list[str] | None = None) -> int:
                 gui="edgechromium",
                 private_mode=False,
                 storage_path=str(Path.home() / ".netlab-desktop"),
-                menu=_build_menu(window, bridge, show_devtools=bool(args.debug)),
             )
         finally:
             fallback.cancel()

@@ -8,9 +8,13 @@
 
 from __future__ import annotations
 
+import importlib
 import logging
+import os
+import sys
 import threading
 import time
+from pathlib import Path
 from typing import Any
 
 LOGGER = logging.getLogger(__name__)
@@ -30,6 +34,45 @@ _LOCK = threading.Lock()
 _STATE: dict[str, Any] = {"figure": None, "app": None, "thread": None}
 #: 原生界面显式指定的配色 / 通道；None 表示按 workspace 设置与自动发现
 _FORCED: dict[str, Any] = {"theme": None, "keys": None}
+
+
+def _plotkit_src_candidates() -> list[Path]:
+    """PlotKit 源码目录的几个可能位置（同仓库并列布局优先）。"""
+    here = Path(__file__).resolve()
+    return [
+        here.parents[2] / "PlotKit" / "src",        # ProjectPoint/PlotKit/src
+        here.parents[1] / "PlotKit" / "src",        # NetlabHome/PlotKit/src
+        here.parents[3] / "PlotKit" / "src",        # 更外层
+    ]
+
+
+def ensure_plotkit_importable() -> bool:
+    """确保 ``import plotkit`` 可用。
+
+    优先用已安装的 wheel；没有安装时，把同仓库的 ``PlotKit/src`` 追加进
+    ``sys.path``（本地单机应用，避免让用户先跑 ``pip install -e``）。
+    也可用环境变量 ``NETLAB_PLOTKIT_SRC`` 指定源码目录。
+    """
+    try:
+        importlib.import_module("plotkit")
+        return True
+    except Exception:
+        pass
+    override = os.environ.get("NETLAB_PLOTKIT_SRC")
+    candidates = ([Path(override)] if override else []) + _plotkit_src_candidates()
+    for path in candidates:
+        try:
+            if (path / "plotkit" / "__init__.py").is_file():
+                entry = str(path)
+                if entry not in sys.path:
+                    sys.path.insert(0, entry)
+                importlib.invalidate_caches()
+                importlib.import_module("plotkit")
+                LOGGER.info("PlotKit 未安装，改用源码目录 %s", entry)
+                return True
+        except Exception:
+            LOGGER.debug("从 %s 加载 PlotKit 失败", path, exc_info=True)
+    return False
 
 
 def _label(key: str) -> str:
@@ -215,9 +258,12 @@ def mount(app: Any, service: Any | None = None) -> bool:
         if _STATE.get("app") is not None:
             return False
         try:
+            if not ensure_plotkit_importable():
+                LOGGER.info("未安装 plotkit，跳过 /plotkit 子应用")
+                return False
             from plotkit.server.app import create_app
         except Exception:
-            LOGGER.info("未安装 plotkit，跳过 /plotkit 子应用")
+            LOGGER.info("未安装 plotkit，跳过 /plotkit 子应用", exc_info=True)
             return False
         try:
             from .server import SERVICE

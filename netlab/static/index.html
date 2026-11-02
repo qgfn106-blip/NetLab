@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netlab · 可解释仿真环境</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23eae5e1'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23080a08' stroke-width='1.4'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%239b7247'/%3E%3Cpath d='M16 3v5M16 24v5M3 16h5M24 16h5' stroke='%23080a08'/%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="/static/style.css?v=3.15.0" />
+  <link rel="stylesheet" href="/static/style.css?v=3.15.1" />
 </head>
 <body>
   <header id="topbar">
@@ -256,11 +256,16 @@
             </section>
           </div>
           <div id="tab-plotkit" class="tab-pane">
-            <div class="plotkit-hint">
-              <p>绘图在独立窗口里打开，不挤在侧栏。</p>
+            <div class="plotkit-hint" id="plotkitHint">
+              <p>绘图可以<strong>嵌在这个面板里</strong>，也可以浮成窗口，或独立到一个浏览器窗口。</p>
               <p class="muted">同一份数据：PlotKit 负责交互，matplotlib 负责正式出图。</p>
-              <button type="button" id="btnOpenPlotkit" class="ghost">打开绘图窗口</button>
+              <div class="plotkit-actions">
+                <button type="button" id="btnPlotkitInline" class="ghost">嵌入此处</button>
+                <button type="button" id="btnOpenPlotkit" class="ghost">浮出窗口</button>
+                <button type="button" id="btnPlotkitPopup" class="ghost">独立窗口 ↗</button>
+              </div>
             </div>
+            <div id="plotkitInlineHost" class="plotkit-inline-host" hidden></div>
           </div>
           <div id="tab-analysis" class="tab-pane stack-pane"></div>
         </section>
@@ -473,6 +478,7 @@
       <b>NETLAB · 绘图</b>
       <span class="floatwin-hint">非模态 · 拖动标题栏 · 双击最大化</span>
       <button type="button" class="floatwin-dock" id="plotkitDock" title="停靠到画布 / 浮出">⇥</button>
+      <button type="button" class="floatwin-dock" id="plotkitPopout" title="在独立窗口打开">↗</button>
       <button type="button" class="floatwin-min" id="plotkitWinMin" title="最小化到右下角">—</button>
       <button type="button" class="floatwin-max" id="plotkitWinMax" title="最大化 / 还原">▢</button>
       <button type="button" id="plotkitWinClose" title="关闭（Esc）">✕</button>
@@ -539,6 +545,6 @@
     <div class="modal-card" id="modalCard"></div>
   </div>
 
-  <script src="/static/app.js?v=3.15.0"></script>
+  <script src="/static/app.js?v=3.15.1"></script>
 </body>
 </html>

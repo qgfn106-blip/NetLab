@@ -32,6 +32,8 @@ NetlabHome/
     └─ <name>.py              历史兼容 shim（转发到 core/*，见 §8）
 ```
 
+> 说明：后端目录就是 `netlab/`（Python 包名必须叫 `netlab`，`python -m netlab.*` 才能工作，所以不再套一层 `backend/`）。前端与后端已经是两个平级目录，互不混淆。
+
 **分层规则**：
 
 | 层 | 目录 | 可以做 | 不可以做 |

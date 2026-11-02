@@ -1862,7 +1862,10 @@ class CircuitSolver:
                     element.source_scale = source_scale
                 for element in self.elements:
                     element.stamp(ctx)
-                self._check_floating(matrix)
+                if iteration == 0:
+                    # 悬空检测只看结构（哪些元件在该行盖章），与迭代次数无关；
+                    # 每次 Newton 迭代重复扫描是纯浪费。
+                    self._check_floating(matrix)
                 if gmin > 0:
                     for index in range(len(self.unknown_ids)):
                         matrix[index, index] += gmin
@@ -2057,8 +2060,9 @@ class CircuitSolver:
     def _equilibration(matrix: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """行/列最大模均衡，保留原始矩阵只用于缓存比较。"""
         tiny = 1.0e-300
-        row_scale = np.maximum(np.max(np.abs(matrix), axis=1), tiny)
-        row_normalized = np.abs(matrix) / row_scale[:, None]
+        absolute = np.abs(matrix)  # 只取一次绝对值，避免两次整矩阵分配
+        row_scale = np.maximum(np.max(absolute, axis=1), tiny)
+        row_normalized = absolute / row_scale[:, None]
         col_scale = np.maximum(np.max(row_normalized, axis=0), tiny)
         return row_scale, col_scale
 

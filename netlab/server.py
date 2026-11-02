@@ -55,7 +55,7 @@ LAST_PROJECT: dict[str, Any] | None = None
 LAST_PROJECT_LIBRARY: str | None = None
 from .simulation import default_simulation
 from .templates import TEMPLATES, build_template, template_catalog
-from . import accel, analysis, block_validate, blocklib, extensions, profiling, schematic
+from . import accel, analysis, block_validate, blocklib, extensions, profiling, schematic, vscode_bridge
 from .blocks import build_block_from_scene, encapsulate_nodes, instantiate_block
 
 def _resolve_frontend_dir() -> Path:
@@ -83,6 +83,7 @@ async def lifespan(_app: FastAPI):
     try:
         yield
     finally:
+        vscode_bridge.shutdown()
         SERVICE.shutdown()
         FEM.shutdown()
 
@@ -138,6 +139,14 @@ try:  # pragma: no cover - 取决于环境里是否装了 plotkit
     PLOTKIT_MOUNTED = plotkit_bridge.mount(app, SERVICE)
 except Exception:  # pragma: no cover
     PLOTKIT_MOUNTED = False
+
+
+# VS Code Server（可选依赖）：按需拉起到空闲端口，前端 iframe 直接加载 /code/。
+# 桌面 token 守卫只拦 /api/，前端用统一 api() 请求即可带上 X-Netlab-Token。
+@app.get("/api/vscode/status")
+def vscode_status(start: bool = Query(default=False)) -> dict[str, Any]:
+    """查询（或按需拉起）本地 VS Code Server；start=1 时最多阻塞数秒等待就绪。"""
+    return vscode_bridge.status(start_request=start)
 
 
 @app.middleware("http")
@@ -413,6 +422,36 @@ def live(
     limit: int = Query(default=400, ge=1, le=600),
 ) -> Response:
     return fast_json(SERVICE.live(cursor, limit))
+
+
+@app.get("/api/plotkit/channels")
+def plotkit_channels() -> dict[str, Any]:
+    """PlotKit 面板可接入的数据通道（探针），以及当前正在画的那几条。"""
+    if not PLOTKIT_MOUNTED:
+        return {"mounted": False, "channels": [], "selected": []}
+    try:
+        return {
+            "mounted": True,
+            "channels": plotkit_bridge.channels(),
+            "selected": plotkit_bridge.selected_channels(),
+        }
+    except Exception as exc:  # pragma: no cover - 取决于运行状态
+        return {"mounted": True, "channels": [], "selected": [], "error": str(exc)}
+
+
+@app.post("/api/plotkit/channels")
+def plotkit_set_channels(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """选择 PlotKit 要画的探针通道；keys 为空表示恢复自动发现。"""
+    if not PLOTKIT_MOUNTED:
+        return {"ok": False, "mounted": False, "channels": [], "selected": []}
+    keys = [str(k) for k in ((payload or {}).get("keys") or [])]
+    ok = plotkit_bridge.set_channels(keys)
+    return {
+        "ok": ok,
+        "mounted": True,
+        "channels": plotkit_bridge.channels(),
+        "selected": plotkit_bridge.selected_channels(),
+    }
 
 
 @app.get("/api/health")

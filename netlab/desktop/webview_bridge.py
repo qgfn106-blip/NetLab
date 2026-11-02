@@ -239,6 +239,15 @@ class WebviewBridge:
         except Exception:
             return [0, 0, 0, 0]
 
+    def window_resize(self, x: Any, y: Any, width: Any, height: Any) -> bool:
+        """同时设置窗口位置与尺寸（无边框窗口的四边/四角缩放用）。"""
+        try:
+            self._window.resize(int(width), int(height))
+            self._window.move(int(x), int(y))
+            return True
+        except Exception:
+            return False
+
     def window_move_to(self, x: Any, y: Any) -> bool:
         """把窗口左上角移到 (x, y)。页面自绘拖动时按指针位移调用。"""
         try:

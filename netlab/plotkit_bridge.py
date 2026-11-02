@@ -141,6 +141,23 @@ def set_channels(keys: list[str] | None) -> bool:
     return True
 
 
+def selected_channels() -> list[str]:
+    """当前图里真正在画的通道名（不含坐标 t）；供界面回显选中项。"""
+    if _FORCED.get("keys"):
+        return list(_FORCED["keys"])
+    figure = _STATE.get("figure")
+    if figure is None:
+        return []
+    try:
+        out: list[str] = []
+        for layer in figure.spec.get("layers") or []:
+            key = _layer_y(layer)
+            if key and key != "t" and key not in out:
+                out.append(key)
+        return out
+    except Exception:
+        return []
+
 def channels() -> list[str]:
     """当前 figure 里可选的通道名（不含坐标 t）。"""
     figure = _STATE.get("figure")

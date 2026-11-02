@@ -156,6 +156,85 @@
       });
     })();
 
+    // 1b) 四边/四角缩放：无边框窗口没有系统边框，这里补 8 个透明手柄。
+    (function installResize() {
+      var api = function () { return window.pywebview && window.pywebview.api; };
+      var MIN_W = 1100, MIN_H = 700;
+      var rect = null, st = null, pending = null, raf = 0;
+
+      function refresh() {
+        var a = api();
+        if (a && typeof a.window_rect === 'function') {
+          try {
+            a.window_rect().then(function (r) {
+              if (r && r.length >= 4) rect = { x: r[0], y: r[1], w: r[2], h: r[3] };
+            }).catch(function () {});
+          } catch (e) { /* noop */ }
+        }
+      }
+      refresh();
+      window.addEventListener('pywebviewready', refresh);
+
+      var css = document.createElement('style');
+      css.textContent = [
+        '.nl-resize{position:fixed;z-index:99999;background:transparent;}',
+        '.nl-resize[data-dir="n"]{top:0;left:8px;right:8px;height:5px;cursor:n-resize;}',
+        '.nl-resize[data-dir="s"]{bottom:0;left:8px;right:8px;height:5px;cursor:s-resize;}',
+        '.nl-resize[data-dir="e"]{right:0;top:8px;bottom:8px;width:5px;cursor:e-resize;}',
+        '.nl-resize[data-dir="w"]{left:0;top:8px;bottom:8px;width:5px;cursor:w-resize;}',
+        '.nl-resize[data-dir="ne"]{top:0;right:0;width:10px;height:10px;cursor:ne-resize;}',
+        '.nl-resize[data-dir="nw"]{top:0;left:0;width:10px;height:10px;cursor:nw-resize;}',
+        '.nl-resize[data-dir="se"]{bottom:0;right:0;width:10px;height:10px;cursor:se-resize;}',
+        '.nl-resize[data-dir="sw"]{bottom:0;left:0;width:10px;height:10px;cursor:sw-resize;}'
+      ].join('');
+      document.head.appendChild(css);
+
+      function flush() {
+        raf = 0;
+        if (!pending) return;
+        var a = api(), p = pending;
+        pending = null;
+        if (a && typeof a.window_resize === 'function') {
+          try {
+            a.window_resize(p[0], p[1], p[2], p[3]);
+            rect = { x: p[0], y: p[1], w: p[2], h: p[3] };
+          } catch (e) { /* noop */ }
+        }
+      }
+
+      ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].forEach(function (dir) {
+        var el = document.createElement('div');
+        el.className = 'nl-resize';
+        el.setAttribute('data-dir', dir);
+        document.body.appendChild(el);
+
+        el.addEventListener('pointerdown', function (ev) {
+          if (ev.button !== 0) return;
+          ev.preventDefault();
+          ev.stopPropagation();
+          refresh();
+          st = { dir: dir, sx: ev.screenX, sy: ev.screenY, r: rect ? { x: rect.x, y: rect.y, w: rect.w, h: rect.h } : null };
+          try { el.setPointerCapture(ev.pointerId); } catch (e) { /* noop */ }
+        });
+
+        el.addEventListener('pointermove', function (ev) {
+          if (!st || !st.r) return;
+          var dx = ev.screenX - st.sx, dy = ev.screenY - st.sy;
+          var x = st.r.x, y = st.r.y, w = st.r.w, h = st.r.h;
+          if (dir.indexOf('e') >= 0) w = Math.max(MIN_W, st.r.w + dx);
+          if (dir.indexOf('s') >= 0) h = Math.max(MIN_H, st.r.h + dy);
+          if (dir.indexOf('w') >= 0) { w = Math.max(MIN_W, st.r.w - dx); x = st.r.x + (st.r.w - w); }
+          if (dir.indexOf('n') >= 0) { h = Math.max(MIN_H, st.r.h - dy); y = st.r.y + (st.r.h - h); }
+          pending = [x, y, w, h];
+          if (!raf) raf = requestAnimationFrame(flush);
+        });
+
+        var end = function () { st = null; pending = null; };
+        el.addEventListener('pointerup', end);
+        el.addEventListener('pointercancel', end);
+      });
+    })();
+
     // 2) 窗口按钮，放在顶栏最右侧
     var style = document.createElement('style');
     style.textContent = [

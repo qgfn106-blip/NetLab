@@ -37,3 +37,16 @@ def test_easy_drag_disabled():
 def test_shim_script_tag_is_versioned():
     server = (ROOT / "netlab" / "server.py").read_text(encoding="utf-8")
     assert re.search(r'desktop-shim\.js\?v=\d', server)
+
+def test_shim_has_resize_handles():
+    js = SHIM.read_text(encoding="utf-8")
+    assert "installResize" in js
+    for d in ("n", "s", "e", "w", "ne", "nw", "se", "sw"):
+        assert "'%s'" % d in js
+    assert "window_resize" in js
+
+
+def test_bridge_exposes_resize():
+    from netlab.desktop.webview_bridge import WebviewBridge
+
+    assert hasattr(WebviewBridge, "window_resize")

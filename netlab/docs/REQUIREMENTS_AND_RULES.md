@@ -1124,3 +1124,4 @@ MOSFET。
 
 文档只能记录已实现、已确认或明确标记为计划中的内容，不能把计划中的能力写成已经完成的功能。
 | 2026-11-02 | **D82 无边框窗口拖动改为页面自绘**（用户报「没法拖动窗口」）：放弃 pywebview `easy_drag` + `DRAG_REGION_DIRECT_TARGET_ONLY`（只认命中元素本身，顶栏空白处拖不动），改 `desktop-shim.js` 指针拖动 + `WebviewBridge.window_rect/window_move_to`，`easy_drag=False`；实测窗口按指针位移精确移动；护栏 `test_desktop_drag.py` 4 条；静态版本 3.15.6 |
+| 2026-11-02 | **D83 内嵌 PlotKit 接入探针数据 + 无边框窗口四边缩放**：新增 `/api/plotkit/channels` GET/POST（`plotkit_bridge.selected_channels/set_channels`）、绘图页签「数据接入」通道复选条（含「按选中节点」+ 重载 iframe）；`window_resize` + shim 八向缩放手柄（最小 1100×700）；静态版本 3.15.7；测试 389→393 |

@@ -10,11 +10,13 @@ import json
 import math
 from typing import Any
 
-from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer, QVariantAnimation, Signal
 from PySide6.QtGui import QCursor, QMouseEvent, QPainter, QWheelEvent
 from PySide6.QtWidgets import QWidget
 
+from .. import motion
 from ..geometry import ViewTransform, snap
+from ..models import ZOOM_MAX, ZOOM_MIN
 from ..models import EdgeVM, NodeVM, SceneVM
 from ..theme import tokens
 from . import render
@@ -45,6 +47,8 @@ class CanvasWidget(QWidget):
         self._tokens = tokens_map or tokens("light")
         self._scene: SceneVM = SceneVM(mode="signal", integration="trapezoidal", nodes=(), edges=())
         self._view = ViewTransform(1.0, 0.0, 0.0)
+        self._auto_fit = True
+        self._fit_pending = False
         self._selection: set[str] = set()
         self._hover: str | None = None
         self._drag: dict[str, Any] = {}
@@ -55,8 +59,32 @@ class CanvasWidget(QWidget):
         self._grid_step = 20.0
         self._snap = True
         self._fitted = False
+        # 动效状态：跑仿真时边上有流动虚线，选中时外环轻微脉冲
+        self._running = False
+        self._clock = 0.0
+        self._hover_ramp = motion.Ramp(self, step_ms=16, speed=0.22)
+        self._zoom_anim: QVariantAnimation | None = None
+        self._tick_timer = QTimer(self)
+        self._tick_timer.setInterval(50)
+        self._tick_timer.timeout.connect(self._on_tick)
 
     # ---- 外部接口 ---------------------------------------------------------
+    def set_running(self, running: bool) -> None:
+        """仿真在跑时让边上的虚线流动起来（关掉动效则静止）。"""
+        self._running = bool(running)
+        self._sync_ticker()
+
+    def _sync_ticker(self) -> None:
+        want = motion.enabled() and (self._running or bool(self._selection))
+        if want and not self._tick_timer.isActive():
+            self._tick_timer.start()
+        elif not want and self._tick_timer.isActive():
+            self._tick_timer.stop()
+
+    def _on_tick(self) -> None:
+        self._clock = (self._clock + 0.05) % 1000.0
+        self.update()
+
     def set_tokens(self, tokens_map: dict[str, str]) -> None:
         self._tokens = tokens_map
         self.update()
@@ -76,6 +104,7 @@ class CanvasWidget(QWidget):
     def set_selection(self, ids: list[str] | set[str]) -> None:
         self._selection = set(ids)
         self.selectionChanged.emit(sorted(self._selection))
+        self._sync_ticker()
         self.update()
 
     def selection(self) -> list[str]:
@@ -96,6 +125,12 @@ class CanvasWidget(QWidget):
     def set_snap(self, value: bool) -> None:
         self._snap = value
 
+    def request_fit(self) -> None:
+        """下一帧适配视图（首次载入场景时窗口可能还没有尺寸）。"""
+        self._fit_pending = True
+        self._auto_fit = True
+        self.update()
+
     def fit(self) -> None:
         if not self._scene.nodes:
             self._view = ViewTransform(1.0, self.width() / 2.0, self.height() / 2.0)
@@ -105,13 +140,41 @@ class CanvasWidget(QWidget):
             self._view = fit_transform(
                 self._scene.bounds(), max(1, self.width()), max(1, self.height())
             )
+        self._fit_size = (self.width(), self.height())
         self.zoomChanged.emit(self._view.k)
         self.update()
 
     def zoom_to(self, factor: float) -> None:
-        self._view.zoom_at(self.width() / 2.0, self.height() / 2.0, factor)
-        self.zoomChanged.emit(self._view.k)
-        self.update()
+        self._auto_fit = False
+        self._animate_zoom(factor, self.width() / 2.0, self.height() / 2.0)
+
+    def _animate_zoom(self, factor: float, ax: float, ay: float) -> None:
+        """以光标为锚平滑缩放；关掉动效时直接落位。"""
+        target = max(ZOOM_MIN, min(ZOOM_MAX, self._view.k * factor))
+        if not motion.enabled() or abs(target - self._view.k) < 1e-4:
+            self._view.zoom_at(ax, ay, factor)
+            self.zoomChanged.emit(self._view.k)
+            self.update()
+            return
+        if self._zoom_anim is not None:
+            self._zoom_anim.stop()
+        anim = QVariantAnimation(self)
+        anim.setDuration(90)
+        anim.setStartValue(self._view.k)
+        anim.setEndValue(target)
+        anim.setEasingCurve(motion.QEasingCurve.OutCubic)
+
+        def _apply(value: Any) -> None:
+            k = float(value)
+            step = k / max(1e-6, self._view.k)
+            self._view.zoom_at(ax, ay, step)
+            self.zoomChanged.emit(self._view.k)
+            self.update()
+
+        anim.valueChanged.connect(_apply)
+        anim.finished.connect(lambda: setattr(self, "_zoom_anim", None))
+        self._zoom_anim = anim
+        anim.start(QVariantAnimation.DeleteWhenStopped)
 
     def reset_zoom(self) -> None:
         self._view.k = 1.0
@@ -159,7 +222,28 @@ class CanvasWidget(QWidget):
         return (snap(x, self._grid_step), snap(y, self._grid_step))
 
     # ---- 绘制 -------------------------------------------------------------
-    def paintEvent(self, event) -> None:  # noqa: N802 - Qt 命名
+    def showEvent(self, event) -> None:  # noqa: N802
+        super().showEvent(event)
+        if getattr(self, "_fit_pending", False) and self.width() > 40:
+            self._fit_pending = False
+            self.fit()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        if self.width() <= 40:
+            return
+        if getattr(self, "_fit_pending", False):
+            self._fit_pending = False
+            self.fit()
+        elif getattr(self, "_auto_fit", False):
+            # 用户还没手动缩放/平移过：跟着窗口大小自动适配（dock 展开后不会缩在角落）
+            self.fit()
+
+    def paintEvent(self, event) -> None:
+        if getattr(self, "_auto_fit", False) and self._scene.nodes:
+            size = (self.width(), self.height())
+            if size != getattr(self, "_fit_size", None) and size[0] > 80:
+                self.fit()  # noqa: N802 - Qt 命名
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
         painter.setRenderHint(QPainter.TextAntialiasing, True)
@@ -178,6 +262,9 @@ class CanvasWidget(QWidget):
             self._tokens,
             selected=self._selection,
             hovered=self._hover,
+            phase=self._clock,
+            running=self._running,
+            hover_alpha=self._hover_ramp.value,
         )
         for edge in self.selected_edges():
             if edge.waypoints:
@@ -189,6 +276,8 @@ class CanvasWidget(QWidget):
             self._tokens,
             selected=self._selection,
             hovered=self._hover,
+            pulse=math.sin(self._clock * 2.4),
+            hover_alpha=self._hover_ramp.value,
         )
         if self._box is not None:
             render.draw_selection_box(painter, self._box, self._tokens)
@@ -213,6 +302,7 @@ class CanvasWidget(QWidget):
         if event.button() == Qt.MiddleButton or (
             event.button() == Qt.LeftButton and event.modifiers() & Qt.AltModifier
         ):
+            self._auto_fit = False
             self._drag = {"type": "pan", "start": pos, "origin": (self._view.x, self._view.y)}
             self.setCursor(QCursor(Qt.ClosedHandCursor))
             return
@@ -429,14 +519,13 @@ class CanvasWidget(QWidget):
         event.acceptProposedAction()
 
     def wheelEvent(self, event: QWheelEvent) -> None:  # noqa: N802
+        self._auto_fit = False
         delta = event.angleDelta().y()
         if delta == 0:
             return
         factor = 1.12 if delta > 0 else 1 / 1.12
         pos = event.position()
-        self._view.zoom_at(pos.x(), pos.y(), factor)
-        self.zoomChanged.emit(self._view.k)
-        self.update()
+        self._animate_zoom(factor, pos.x(), pos.y())
 
     def keyPressEvent(self, event) -> None:  # noqa: N802
         key = event.key()
@@ -490,7 +579,9 @@ class CanvasWidget(QWidget):
             edge = self._hit_edge(pos)
             self._hover = edge.id if edge is not None else None
         if previous != self._hover:
+            self._hover_ramp.value = 0.0
             self.update()
+        self._hover_ramp.to(1.0 if self._hover else 0.0)
         self.setCursor(QCursor(Qt.PointingHandCursor if self._hover else Qt.ArrowCursor))
 
 

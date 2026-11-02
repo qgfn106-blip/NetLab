@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .theme import FONT_FAMILY
+from .theme import FONT_FAMILY, tokens as theme_tokens
 
 DOCS_DIR = Path(__file__).resolve().parent.parent / "docs"
 
@@ -31,10 +31,11 @@ def doc_files() -> list[Path]:
 
 
 class DocWindow(QMainWindow):
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, tokens_map: dict | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Netlab 文档")
         self.resize(1000, 760)
+        self._tokens = tokens_map or theme_tokens("light")
         host = QWidget(self)
         layout = QHBoxLayout(host)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -54,8 +55,41 @@ class DocWindow(QMainWindow):
         self.viewer.setFont(QFont(FONT_FAMILY, 10))
         layout.addWidget(self.viewer, 1)
         self.setCentralWidget(host)
+        self._apply_theme()
         if self.list.count():
             self.list.setCurrentRow(0)
+
+    def _apply_theme(self) -> None:
+        paper = self._tokens.get("paper", "#eae5e1")
+        panel = self._tokens.get("panel_bg", "#f7f4ec")
+        ink = self._tokens.get("ink", "#080a08")
+        muted = self._tokens.get("muted", "#6b6459")
+        line = self._tokens.get("line", "#d5cec3")
+        accent = self._tokens.get("accent", "#9b7247")
+        self.setStyleSheet(
+            f"""
+            QMainWindow, QWidget {{ background: {paper}; }}
+            QListWidget {{
+                background: {panel}; color: {ink};
+                border: none; border-right: 1px solid {line};
+                padding: 6px 4px; outline: none;
+            }}
+            QListWidget::item {{ padding: 6px 10px; border-radius: 3px; }}
+            QListWidget::item:selected {{ background: {accent}; color: {paper}; }}
+            QListWidget::item:hover {{ background: {line}; }}
+            QTextBrowser {{
+                background: {paper}; color: {ink};
+                border: none; padding: 18px 24px;
+                selection-background-color: {accent};
+            }}
+            QScrollBar:vertical {{ background: transparent; width: 10px; }}
+            QScrollBar::handle:vertical {{ background: {line}; border-radius: 5px; }}
+            QScrollBar::add-line, QScrollBar::sub-line {{ height: 0; }}
+            """
+        )
+        self.viewer.document().setDefaultStyleSheet(
+            f"code {{ color: {muted}; }} th {{ background: {panel}; }}"
+        )
 
     def _on_select(self, item: QListWidgetItem | None, _previous) -> None:
         if item is None:

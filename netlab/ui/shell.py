@@ -10,8 +10,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QSettings, QSize, Qt, QTimer
-from PySide6.QtGui import QAction, QActionGroup, QKeySequence
+from PySide6.QtCore import QPoint, QRect, QSettings, QSize, QSizeF, Qt, QTimer
+from PySide6.QtGui import QAction, QActionGroup, QKeySequence, QPageSize
 from PySide6.QtWidgets import (
     QAbstractSpinBox,
     QApplication,
@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
+    QSlider,
     QTabWidget,
     QTextEdit,
     QToolBar,
@@ -35,7 +36,18 @@ from PySide6.QtWidgets import (
 )
 
 from ..project import PROJECT_SUFFIX, atomic_write, compute_checksum, load_project_raw, validate_project
+from . import motion
 from .bridge import FemWorker, ServiceBridge
+
+AUTOSAVE_INTERVAL_MS = 60_000
+
+
+def autosave_path() -> Path:
+    """与 web 壳一致：``%APPDATA%/Netlab/NetlabDesktop/autosave.netlab``。"""
+    import os
+
+    base = os.environ.get("APPDATA") or str(Path.home() / "AppData" / "Roaming")
+    return Path(base) / "Netlab" / "NetlabDesktop" / "autosave.netlab"
 from .canvas.widget import CanvasWidget
 from .charts import FemPlot, LissajousPlot, PhasePlot, ScopePlot, TimeSeriesPlot
 from .models import LiveVM, SceneVM
@@ -60,11 +72,13 @@ class MainWindow(QMainWindow):
         self.bridge.reload_catalog()
         self.settings = QSettings(APP_ORG, APP_NAME)
         self.theme_name = str(self.settings.value("theme", theme) or theme)
+        motion.set_enabled(bool(self.settings.value("motion", True, type=bool)))
         self._tokens = tokens(self.theme_name)
         self._undo: list[dict[str, Any]] = []
         self._redo: list[dict[str, Any]] = []
         self._dirty = False
         self._path = ""
+        self._autosave_timer: QTimer | None = None
         self._live: LiveVM | None = None
         self._fem_worker: FemWorker | None = None
         self._selected: str | None = None
@@ -80,10 +94,23 @@ class MainWindow(QMainWindow):
         self._build_status()
         self._connect()
         self.apply_theme(self.theme_name)
+        try:
+            from .. import plotkit_bridge
+
+            plotkit_bridge.set_theme(self.theme_name == "dark")
+        except Exception:
+            pass
         self._restore_state()
         self.bridge.refresh(immediate=True)
         self.bridge.start_live()
         self._update_actions()
+
+        # 自动保存：与 web 壳同一路径、同一节奏，强杀后能恢复（A21）。
+        self._autosave_enabled = True
+        self._autosave_timer = QTimer(self)
+        self._autosave_timer.setInterval(AUTOSAVE_INTERVAL_MS)
+        self._autosave_timer.timeout.connect(self._autosave)
+        self._autosave_timer.start()
 
     # ------------------------------------------------------------------
     # 构建
@@ -169,11 +196,16 @@ class MainWindow(QMainWindow):
         self.act_paste = QAction("粘贴", self, shortcut=QKeySequence.Paste, triggered=self._guard(self.paste_clipboard))
         self.act_duplicate = QAction("复制一份", self, shortcut="Ctrl+D", triggered=self._guard(self.duplicate_selection))
         self.act_export_png = QAction("导出画布 PNG…", self, shortcut="Ctrl+E", triggered=self.export_png)
+        self.act_export_pdf = QAction("导出画布 PDF…", self, triggered=lambda: self.export_vector("pdf"))
+        self.act_export_svg = QAction("导出画布 SVG…", self, triggered=lambda: self.export_vector("svg"))
 
         self.act_grid = QAction("显示网格", self, checkable=True, checked=True)
         self.act_grid.toggled.connect(lambda v: self.canvas.set_grid(v))
         self.act_snap = QAction("吸附网格", self, checkable=True, checked=True)
         self.act_snap.toggled.connect(self.canvas.set_snap)
+        self.act_motion = QAction("界面动效", self, checkable=True, checked=True)
+        self.act_motion.setStatusTip("过渡动画：面板展开、主题切换、画布流动虚线")
+        self.act_motion.toggled.connect(self._toggle_motion)
         self.act_fit = QAction("适配视图", self, shortcut="Ctrl+0", triggered=self.canvas.fit)
         self.act_zoom_in = QAction("放大", self, shortcut=QKeySequence.ZoomIn, triggered=lambda: self.canvas.zoom_to(1.15))
         self.act_zoom_out = QAction("缩小", self, shortcut=QKeySequence.ZoomOut, triggered=lambda: self.canvas.zoom_to(1 / 1.15))
@@ -217,6 +249,8 @@ class MainWindow(QMainWindow):
         file_menu.addAction(self.act_import)
         file_menu.addSeparator()
         file_menu.addAction(self.act_export_png)
+        file_menu.addAction(self.act_export_pdf)
+        file_menu.addAction(self.act_export_svg)
         file_menu.addSeparator()
         file_menu.addAction(self.act_quit)
 
@@ -234,6 +268,7 @@ class MainWindow(QMainWindow):
         view_menu = bar.addMenu("视图")
         view_menu.addAction(self.act_grid)
         view_menu.addAction(self.act_snap)
+        view_menu.addAction(self.act_motion)
         view_menu.addSeparator()
         view_menu.addAction(self.act_fit)
         view_menu.addAction(self.act_zoom_in)
@@ -290,6 +325,17 @@ class MainWindow(QMainWindow):
         self.add_network_button.setToolTip("新建网络")
         self.add_network_button.clicked.connect(self.add_network)
         bar.addWidget(self.add_network_button)
+        bar.addSeparator()
+        bar.addWidget(QLabel(" 时间轴 "))
+        self.time_slider = QSlider(Qt.Horizontal, self)
+        self.time_slider.setMinimumWidth(180)
+        self.time_slider.setRange(0, 0)
+        self.time_slider.setToolTip("回看历史帧（0 = 最新）")
+        self.time_slider.valueChanged.connect(self._on_seek)
+        bar.addWidget(self.time_slider)
+        self.time_label = QLabel("实时")
+        self.time_label.setMinimumWidth(56)
+        bar.addWidget(self.time_label)
         bar.addSeparator()
         bar.addWidget(QLabel(" 缩放 "))
         self.zoom_label = QLabel("100%")
@@ -349,7 +395,13 @@ class MainWindow(QMainWindow):
     # 快照回调
     # ------------------------------------------------------------------
     def _on_scene(self, scene: SceneVM) -> None:
+        first = not getattr(self, "_scene_seen", False)
         self.canvas.set_scene(scene)
+        # 打开工程/切换网络后自动适配一次；之后保持用户的缩放（同旧前端）
+        if first and scene.nodes:
+            self.canvas.request_fit()
+        self._scene_seen = True
+        self._last_scene = scene
         self.tree.set_scene(scene, self.service.list_networks())
         self._fill_network_combo()
         self._refresh_inspector()
@@ -386,16 +438,31 @@ class MainWindow(QMainWindow):
         self.phase_plot.push(live)
         self.liss_plot.push(live)
         self.status_cursor.setText(f"帧 {live.cursor}")
+        if hasattr(self, "time_slider"):
+            span = min(600, max(1, self.time_plot._window))
+            self.time_slider.blockSignals(True)
+            self.time_slider.setRange(0, span)
+            if self.time_slider.value() > span:
+                self.time_slider.setValue(span)
+            self.time_slider.blockSignals(False)
         if self.key_list.count() == 0 and live.keys:
             self._refresh_key_list()
         if live.error:
             self.status_run.setText("错误")
             self.status_run.setStyleSheet("color:#a23b2c;")
 
+    def _on_seek(self, back: int) -> None:
+        """时间轴回看：0 表示跟随最新帧。"""
+        value = int(back) or None
+        for plot in (self.time_plot, self.scope_plot):
+            plot.set_seek(value)
+        self.time_label.setText("实时" if not value else f"−{value} 帧")
+
     def _on_status(self, info: dict[str, Any]) -> None:
         if not info:
             return
         running = bool(info.get("running") or info.get("is_running"))
+        self.canvas.set_running(running)
         self.status_run.setText("运行中" if running else "已停止")
         self.status_run.setStyleSheet("")
         fps = float(info.get("actual_fps") or 0.0)
@@ -416,6 +483,25 @@ class MainWindow(QMainWindow):
     def _on_selection(self, ids: list[str]) -> None:
         self._selected = ids[0] if len(ids) == 1 else None
         self._refresh_inspector()
+        self._sync_plotkit_channels()
+
+    def _sync_plotkit_channels(self) -> None:
+        """选中节点时，让 PlotKit 只画它的探针；没选中就恢复全部通道。"""
+        panel = getattr(self, "_plotkit", None)
+        if panel is None or not panel.isVisible():
+            return
+        try:
+            from .. import plotkit_bridge
+
+            node = self.canvas.scene().node(self._selected) if self._selected else None
+            if node is None:
+                plotkit_bridge.set_channels(None)
+                return
+            keys = [key for key in plotkit_bridge.channels() if key.startswith(f"n:{node.name}:")]
+            if keys:
+                plotkit_bridge.set_channels(keys)
+        except Exception:
+            pass
 
     def _refresh_inspector(self) -> None:
         scene = self.canvas.scene()
@@ -584,6 +670,42 @@ class MainWindow(QMainWindow):
         else:
             self._on_error("导出失败")
 
+    def export_vector(self, kind: str) -> None:
+        """导出画布为 PDF/SVG；文字保留为文本，可选中（A20）。"""
+        from PySide6.QtGui import QPainter, QPdfWriter
+        from PySide6.QtSvg import QSvgGenerator
+
+        suffix = ".pdf" if kind == "pdf" else ".svg"
+        filters = "PDF (*.pdf)" if kind == "pdf" else "SVG (*.svg)"
+        path, _ = QFileDialog.getSaveFileName(self, f"导出画布 {kind.upper()}", f"canvas{suffix}", filters)
+        if not path:
+            return
+        if not path.lower().endswith(suffix):
+            path += suffix
+        size = self.canvas.size()
+        painter: QPainter
+        if kind == "pdf":
+            writer = QPdfWriter(path)
+            writer.setResolution(96)
+            writer.setPageSize(QPageSize(QSizeF(size.width() / 96.0 * 25.4, size.height() / 96.0 * 25.4),
+                                         QPageSize.Millimeter))
+            painter = QPainter(writer)
+        else:
+            generator = QSvgGenerator()
+            generator.setFileName(path)
+            generator.setSize(size)
+            generator.setViewBox(QRect(0, 0, size.width(), size.height()))
+            generator.setTitle("netlab canvas")
+            painter = QPainter(generator)
+        try:
+            self.canvas.render(painter, QPoint(0, 0))
+        except Exception as exc:  # pragma: no cover - 依赖 Qt 后端
+            self._on_error(f"导出失败：{exc}")
+            return
+        finally:
+            painter.end()
+        self.statusBar().showMessage(f"已导出 {path}", 3000)
+
     def _on_add_node_at(self, x: float, y: float) -> None:
         self.add_node_dialog(x, y)
 
@@ -685,10 +807,27 @@ class MainWindow(QMainWindow):
     # 模块库
     # ------------------------------------------------------------------
     def _catalog_entries(self) -> list[dict[str, Any]]:
-        """把目录摊平成可添加的条目；电路元件统一成 ``device + element``。"""
+        """把目录摊平成可添加的条目；电路元件统一成 ``device + element``。
+
+        必须按当前模式过滤：signal/vector 模式只认 computes，circuit 模式只认
+        circuit_nodes + elements。混在一起会让用户点到「未知的节点构造方式」。
+        """
         catalog = self.service.scene.catalog()
+        try:
+            mode = str(self.service.scene.mode)
+        except Exception:
+            try:
+                mode = str(self.bridge.scene.mode)
+            except Exception:
+                mode = ""
+        if mode == "circuit":
+            buckets: tuple[str, ...] = ("circuit_nodes", "elements")
+        elif mode in ("signal", "vector"):
+            buckets = ("computes",)
+        else:
+            buckets = ("computes", "circuit_nodes", "elements")
         entries: list[dict[str, Any]] = []
-        for bucket in ("computes", "circuit_nodes", "elements"):
+        for bucket in buckets:
             for entry in catalog.get(bucket) or []:
                 if not entry.get("addable", True):
                     continue
@@ -853,7 +992,49 @@ class MainWindow(QMainWindow):
             return
         self._path = path
         self._set_dirty(False)
+        self._clear_autosave()
         self._log(f"已保存 {path}")
+
+    # ------------------------------------------------------------------
+    # 自动保存（A21：强杀后恢复未保存的工作）
+    # ------------------------------------------------------------------
+    def has_autosave(self) -> bool:
+        return autosave_path().is_file()
+
+    def _autosave(self) -> None:
+        if not getattr(self, "_autosave_enabled", False) or not self._dirty:
+            return
+        try:
+            project = validate_project(self.service.build_project(name="autosave"))
+            target = autosave_path()
+            target.parent.mkdir(parents=True, exist_ok=True)
+            atomic_write(target, json.dumps(project, ensure_ascii=False, indent=2))
+        except Exception as exc:  # 自动保存失败不能打断用户
+            self._log(f"自动保存失败：{exc}")
+
+    def _clear_autosave(self) -> None:
+        try:
+            autosave_path().unlink(missing_ok=True)
+        except OSError:
+            pass
+
+    def recover_autosave(self) -> bool:
+        """把自动保存装回场景；失败返回 False（不弹窗，由调用方决定提示）。"""
+        path = autosave_path()
+        if not path.is_file():
+            return False
+        try:
+            project = validate_project(load_project_raw(path))
+        except Exception as exc:
+            self._log(f"恢复失败：{exc}")
+            return False
+        self.service.load_project(project)
+        self.bridge.reset_live()
+        self.bridge.refresh(immediate=True)
+        self._set_dirty(True)
+        self.canvas.fit()
+        self._log("已恢复上次未保存的工作（自动保存）")
+        return True
 
     def export_scene_json(self) -> None:
         path, _ = QFileDialog.getSaveFileName(self, "导出场景", "scene.json", "JSON (*.json)")
@@ -881,11 +1062,18 @@ class MainWindow(QMainWindow):
         self._mark_dirty()
         self.canvas.fit()
 
-    def open_docs(self) -> None:
+    def open_docs(self):
         from .docwin import DocWindow
 
-        window = DocWindow(self)
+        # 必须留引用：局部变量一旦回收，Qt 窗口会跟着被销毁。
+        window = getattr(self, "_doc_window", None)
+        if window is None:
+            window = DocWindow(self, self._tokens)
+            self._doc_window = window
         window.show()
+        window.raise_()
+        window.activateWindow()
+        return window
 
     def show_about(self) -> None:
         QMessageBox.about(
@@ -894,15 +1082,38 @@ class MainWindow(QMainWindow):
             "Netlab — 信号流 / 电路 / 矢量场仿真台\n\n原生 Qt 界面（netlab.ui）。",
         )
 
+    def _toggle_motion(self, on: bool) -> None:
+        motion.set_enabled(bool(on))
+        self.settings.setValue("motion", bool(on))
+        if on:
+            motion.fade_in(self.canvas, 180, start=0.6, end=1.0)
+
     def toggle_plotkit(self) -> None:
         from .plotkit_panel import PlotKitPanel
 
         if getattr(self, "_plotkit", None) is None:
-            self._plotkit = PlotKitPanel(self)
+            self._plotkit = PlotKitPanel(self, theme=self.theme_name)
             self._plotkit.setObjectName("dock-plotkit")
+            self._plotkit.setMinimumWidth(640)
+            self._plotkit.setMinimumHeight(360)
             self.addDockWidget(Qt.RightDockWidgetArea, self._plotkit)
-        self._plotkit.setVisible(not self._plotkit.isVisible())
-        if self._plotkit.isVisible():
+            self.resizeDocks([self._plotkit], [720], Qt.Horizontal)
+            self.resizeDocks([self._plotkit], [max(420, self.height() - 260)], Qt.Vertical)
+            # 编辑器需要面积：第一次打开时直接浮出来（1100×760），用户可随时点「浮动」收回停靠
+            self._plotkit.setFloating(True)
+            self._plotkit.resize(1100, 760)
+            self._plotkit.move(
+                self.x() + max(24, (self.width() - 1100) // 2),
+                self.y() + max(24, (self.height() - 760) // 2),
+            )
+        visible = self._plotkit.isVisible()
+        if visible:
+            self._plotkit.setVisible(False)
+        else:
+            if not self._plotkit.isFloating():
+                motion.slide_dock(self._plotkit, True)
+            else:
+                self._plotkit.show()
             self._plotkit.ensure_loaded()
 
     # ------------------------------------------------------------------
@@ -1028,7 +1239,21 @@ class MainWindow(QMainWindow):
             self.liss_plot, self.fem_plot,
         ):
             widget.set_tokens(self._tokens)
+        doc_window = getattr(self, "_doc_window", None)
+        if doc_window is not None:
+            doc_window._tokens = self._tokens
+            doc_window._apply_theme()
         self.settings.setValue("theme", name)
+        try:
+            from .. import plotkit_bridge
+
+            plotkit_bridge.set_theme(name == "dark")
+        except Exception:
+            pass
+        panel = getattr(self, "_plotkit", None)
+        if panel is not None:
+            panel.set_theme(name)
+        motion.fade_in(self.canvas, 190, start=0.55, end=1.0)
 
     def _restore_state(self) -> None:
         geometry = self.settings.value("geometry")
@@ -1039,6 +1264,7 @@ class MainWindow(QMainWindow):
             self.restoreState(state)
         self.act_grid.setChecked(bool(self.settings.value("show_grid", True, type=bool)))
         self.act_snap.setChecked(bool(self.settings.value("snap", True, type=bool)))
+        self.act_motion.setChecked(bool(self.settings.value("motion", True, type=bool)))
         self.canvas.set_grid(self.act_grid.isChecked())
         self.canvas.set_snap(self.act_snap.isChecked())
 
@@ -1046,6 +1272,7 @@ class MainWindow(QMainWindow):
         self.settings.setValue("geometry", self.saveGeometry())
         self.settings.setValue("state", self.saveState())
         self.settings.setValue("show_grid", self.act_grid.isChecked())
+        self.settings.setValue("motion", self.act_motion.isChecked())
         self.settings.setValue("snap", self.act_snap.isChecked())
 
     def _log(self, message: str) -> None:
@@ -1058,6 +1285,11 @@ class MainWindow(QMainWindow):
         self._save_state()
         self.stop_fem()
         self.bridge.stop_live()
+        timer = getattr(self, "_autosave_timer", None)
+        if timer is not None:
+            timer.stop()
+        if getattr(self, "_autosave_enabled", False):
+            self._clear_autosave()
         event.accept()
 
 

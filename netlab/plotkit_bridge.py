@@ -23,9 +23,13 @@ SYNC_INTERVAL = 0.2
 #: 最多同时接多少个通道（probes 一次可能给 240 个）
 MAX_CHANNELS = 6
 DEFAULT_WINDOW = 5.0   # 秒；与 netlab 老画布的「时间窗」默认值一致
+#: 探针曲线统一细实线（默认的「线 + 圆点」在高密度下会糊成一片）
+LINE_STYLE = {"mode": "lines", "width": 1.4, "marker": {"symbol": ""}}
 
 _LOCK = threading.Lock()
 _STATE: dict[str, Any] = {"figure": None, "app": None, "thread": None}
+#: 原生界面显式指定的配色 / 通道；None 表示按 workspace 设置与自动发现
+_FORCED: dict[str, Any] = {"theme": None, "keys": None}
 
 
 def _label(key: str) -> str:
@@ -40,6 +44,9 @@ def _label(key: str) -> str:
 
 def _theme_name(service: Any) -> str:
     """把 netlab 的主题映射成 PlotKit 的配色。"""
+    forced = _FORCED.get("theme")
+    if forced:
+        return str(forced)
     try:
         from .workspace import load_settings
 
@@ -47,6 +54,59 @@ def _theme_name(service: Any) -> str:
     except Exception:  # 读配置失败不该挡住绘图
         theme = "dark"
     return "netlab-dark" if theme == "dark" else "default"
+
+
+def set_theme(dark: bool) -> bool:
+    """让 PlotKit 的图跟着原生界面换深浅色；返回是否已作用到现有 figure。"""
+    name = "netlab-dark" if dark else "default"
+    _FORCED["theme"] = name
+    figure = _STATE.get("figure")
+    if figure is None:
+        return False
+    try:
+        figure.spec.setdefault("figure", {})["theme"] = name
+    except Exception:
+        return False
+    return True
+
+
+def _layer_y(layer: dict[str, Any]) -> str:
+    """图层里被画成曲线的通道名（PlotKit 把 x/y 放在 ``data`` 下）。"""
+    data = layer.get("data") or {}
+    return str(data.get("y") or "")
+
+
+def set_channels(keys: list[str] | None) -> bool:
+    """只显示指定通道（None/空 = 恢复自动发现）；用于「选中节点 → 看它的探针」。"""
+    figure = _STATE.get("figure")
+    wanted = [str(k) for k in (keys or [])][:MAX_CHANNELS]
+    _FORCED["keys"] = wanted or None
+    if figure is None:
+        return False
+    try:
+        names = set(figure.store.names())
+        keep = [layer for layer in figure.spec.get("layers") or [] if _layer_y(layer) == "t"]
+        figure.spec["layers"] = keep
+        targets = wanted or [k for k in names if k != "t"][:MAX_CHANNELS]
+        for key in targets:
+            if key not in names:
+                continue
+            figure.add_plot(x="t", y=key, label=_label(key), style=LINE_STYLE)
+    except Exception:
+        LOGGER.debug("切换 PlotKit 通道失败", exc_info=True)
+        return False
+    return True
+
+
+def channels() -> list[str]:
+    """当前 figure 里可选的通道名（不含坐标 t）。"""
+    figure = _STATE.get("figure")
+    if figure is None:
+        return []
+    try:
+        return [name for name in figure.store.names() if name != "t"]
+    except Exception:
+        return []
 
 
 def build_figure(service: Any) -> Any:
@@ -58,8 +118,8 @@ def build_figure(service: Any) -> Any:
     fig.add_data("t", [], unit="s", role="coord", life="append")
     for key in keys:
         fig.add_data(key, [], role="series", life="append", tags=[key.split(":")[0]])
-        fig.add_plot(x="t", y=key, label=_label(key), subplot=0)
-    fig.set_view(0, xlabel="t / s", ylabel="值", grid=True)
+        fig.add_plot(x="t", y=key, label=_label(key), subplot=0, style=LINE_STYLE)
+    fig.set_view(0, xlabel="t / s", grid=True)
     # 和老画布默认一致：只显示最近 5 秒（可在界面上改，回放时沿游标往回截）
     fig.window(DEFAULT_WINDOW)
     return fig
@@ -78,7 +138,8 @@ def _sync_loop(service: Any, figure: Any, stop_event: threading.Event) -> None:
                 _reset(figure)
             if frames:
                 cursor = payload.get("cursor", cursor)
-                _ensure_channels(figure, frames, limit=MAX_CHANNELS)
+                if _FORCED.get("keys") is None:
+                    _ensure_channels(figure, frames, limit=MAX_CHANNELS)
                 _ingest(figure, frames, keys)
         except Exception:  # 同步线程永不把异常抛给主线程
             LOGGER.debug("plotkit 同步失败", exc_info=True)
@@ -120,7 +181,7 @@ def _ensure_channels(figure: Any, frames: list[dict[str, Any]], *, limit: int = 
             return
         figure.add_data(key, [], role="series", life="append", tags=[key.split(":")[0]])
         try:
-            figure.add_plot(x="t", y=key, label=_label(key))
+            figure.add_plot(x="t", y=key, label=_label(key), style=LINE_STYLE)
         except Exception:  # 通道名里有怪字符时宁可少画一条
             LOGGER.debug("无法为通道 %s 建图层", key, exc_info=True)
 

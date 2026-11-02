@@ -380,7 +380,7 @@
 - **拟改架构**：按 D53–D56——`CircuitSolver.operating_point()` / `ac_sweep()` 走临时检查点、不改瞬态状态；电容/电感在 `StampContext.mode` 下切换 DC/AC/Tran companion；`integration` 增加 `gear2` 且历史不足时回退 BE；`SolverOptions.sparse/sparse_threshold` 控制 scipy 稀疏装配；`SimConfig`、`PATCH /api/config`、`GET /api/operating-point`、`GET /api/ac-sweep` 暴露。
 - **验收**：① DC 分压、电容开路、电感短路（近似）、分析后瞬态时间/解不变；② AC RC 低通在 fc 处 −3.01 dB / −45°、反相增益 2×/180°、含二极管时给出「AC 分析暂不支持」；③ Gear2 同 dt 下 RC/RL 误差小于 backward_euler，首步与 dt 变化回退 BE；④ 稀疏与稠密解逐点一致、奇异报「矩阵奇异」、auto 阈值可切换；⑤ 全量 315 passed、compileall、selftest ok。
 - **权重·期次**：⭐⭐⭐ / P8（用户指定）
-- **现状**：**2026-10-28 已完成**（`netlab/core/compute/nodal.py` 内核 + scene/simulation/server 接入 + `test_solver_analysis.py` 11 项、`test_solver_integration.py` 6 项、`test_solver_sparse.py` 6 项；UI 未接图表入口，只有 API）。
+- **现状**：**2026-10-28 内核完成，2026-11-02 补齐 UI 入口**（`netlab/core/compute/nodal.py` 内核 + scene/simulation/server 接入 + `test_solver_analysis.py` 11 项、`test_solver_integration.py` 6 项、`test_solver_sparse.py` 6 项；2026-11-02 前端加「工具 → DC 工作点 / AC 扫频」菜单与 `#analWin` 电路分析浮窗：工作点表（节点电压 + 元件电流/端压/功率、迭代/矩阵/残差）+ Bode 双区图（幅值 dB / 相位 °，激励源与频率范围可选），护栏 `test_ui_analysis_entry.py` 3 项 → **383 passed**）。
 
 ### R27 回放与时间轴可用性（极速波形 / 预计算起点 / 顶栏时间轴）
 

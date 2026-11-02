@@ -2134,3 +2134,85 @@ body { grid-template-columns: minmax(0, 1fr); }
 .plotkit-inline-host[hidden] { display: none; }
 .plotkit-inline-host .plotkit-frame { border-radius: 0; }
 
+/* ---- 电路分析浮窗（R26）：DC 工作点 + AC 扫频 --------------------------- */
+.analwin { width: 760px; height: 580px; }
+.analwin-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  flex: 1;
+  padding: 10px 12px 12px;
+}
+.anal-tabs { display: flex; gap: 6px; }
+.anal-tab {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line, #d9d3c7);
+  background: transparent;
+  color: var(--muted, #7b7266);
+  cursor: pointer;
+}
+.anal-tab.active {
+  color: var(--ink, #080a08);
+  border-color: var(--accent, #9b7247);
+  background: rgba(155, 114, 71, 0.12);
+}
+.anal-pane { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; }
+.anal-pane[hidden] { display: none; }
+.anal-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted, #7b7266);
+}
+.anal-bar label { display: flex; gap: 4px; align-items: center; }
+.anal-bar input, .anal-bar select { width: 82px; }
+.anal-meta { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
+.anal-empty { padding: 16px; font-size: 12.5px; color: var(--muted, #7b7266); }
+.anal-tablewrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--line, #d9d3c7);
+  border-radius: 10px;
+}
+.anal-tablewrap table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.anal-tablewrap th, .anal-tablewrap td {
+  padding: 5px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--line, #d9d3c7);
+}
+.anal-tablewrap th {
+  position: sticky;
+  top: 0;
+  background: var(--panel, #f3efe8);
+  color: var(--muted, #7b7266);
+  font-weight: 600;
+}
+.anal-tablewrap td.num {
+  text-align: right;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.anal-tablewrap caption {
+  caption-side: top;
+  text-align: left;
+  padding: 6px 10px 2px;
+  font-size: 11.5px;
+  color: var(--muted, #7b7266);
+}
+.anal-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11.5px; color: var(--muted, #7b7266); }
+.anal-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; }
+#analAcCanvas {
+  flex: 1;
+  min-height: 220px;
+  width: 100%;
+  border: 1px solid var(--line, #d9d3c7);
+  border-radius: 10px;
+  background: var(--panel, #f3efe8);
+}
+

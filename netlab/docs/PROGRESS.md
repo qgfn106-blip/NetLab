@@ -1,19 +1,19 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-02 14:10
+> 最后修改：2026-11-02 14:45
 
 | 项 | 内容 |
 | --- | --- |
-| 记录时间 | 2026-11-02 04:45（Asia/Shanghai） |
+| 记录时间 | 2026-11-02 14:45（Asia/Shanghai） |
 | 当前阶段 | **P1–P4 主体完成；P7-01/02/03 完成；P7-05 完成（时间轴回放/过期标记/循环/时间窗/重置保留探针/求解窗口 0→T）；P0 求解可靠性完成 + P0 求解加固完成（失败事务/检查点回滚、行列均衡缩放、尺度无关残差、线性解质量、器件节点断点、超时回滚、BJT/LDO 猜测分层），Phase D 元件契约与 Phase E 信号/矢量整步事务完成；R26 求解器分析能力（DC 工作点/AC-Bode/Gear2/稀疏矩阵）完成；工程校验和二次校验修复（§7.10）；R27 回放/时间轴可用性完成（§7.11）、R29 回放速度滑块（§7.16），**343 passed**、静态 3.14.4（2026-10-29 P7-06 电路模块化 §7.21、P7-07 模块内部浮窗 §7.22、P7-08 电气直连展开 §7.23）；**R30/P10 UI 集中优化六票完成**（§7.17，引导页/右栏 4 组/设置抽屉/文档中心/9 项信息条/9 项菜单/外观三档/参数 `?`；2026-10-29 03:35 挂耳与右栏拖拽收尾 §7.24，静态 3.14.1）；**2026-10-30 01:50 封装报错修复 + 端口方向入口 + 模块库清理 + `MODULES_HOWTO.md`**（§7.25，静态 3.14.2）；公开仓库已上线（§7.13）；浏览器内演示曾发布到 GitHub Pages（§7.14），同日 21:15 用户要求删除、已撤销（§7.15，站点 404）；**R33 原生桌面外壳已实现**（§7.33/§7.33.1，385 passed）；主线待办见 [BACKLOG.md](BACKLOG.md)——下一步 P7-09/10/11 内置结构（R25，三批按 opamp/comparator → dff/counter/shift → 555/LDO/ADC/DAC）；R19 参考级图纸暂停；**2026-10-29 R31 并网逆变器电网控制立项**（P11-01…P11-07，见 §7.19，未开工） |
 | 基线 | 修改前 43 passed（2026-10-24 14:26） |
-| 当前测试 | **380 passed / 3 skipped**（2026-11-02 14:10：D79 结构整理 + 检查点快速快照优化 + fastcopy 5 条新测试） |
+| 当前测试 | **383 passed**（2026-11-02 14:45：D80 数据通路 5 条 + R26 前端入口 3 条） |
 | 本地备份 | `netlab_20261101_2010`（本轮 7 源文件 + 5 文档 + 5 测试 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_20261024_142654`、`_1727`、`netlab_20261025_0125`、`netlab_20261025_1306`（P0-0）、`netlab_20261026_0348p1retry`（P1 收口）、`netlab_20261026_1240`（R15 收尾）、`netlab_20261026_1318`（R20 模型批基础层）、`netlab_20261026_1322`（R20 模型批功能完成）、`netlab_20261026_1330`（R20 UI 批）、`netlab_20261026_1335`（R20 UI 迁移动作）、`netlab_20261026_1340`（R20 信号端口）、`netlab_20261026_1415`（纯导线/共集示例）、`netlab_20261027_0150`（P7-01 前快照）、`netlab_20261027_1744`（P7-03 收尾）、`netlab_20261027_1753`（R22 参数放宽/单位）、`netlab_20261027_1856`（三极管型号预设）、`netlab_20261027_2218`（拐点拖动）、`netlab_20261027_2324`（P7-03/P7-05 收尾）、`netlab_20261027_2330`（P0 求解可靠性）、`netlab_20261028_0016`（P0 收尾/P7-05）、`netlab_20261028_0048`（电源波形界面）、`netlab_20261028_0103`（dt 精度预设）、`netlab_20261028_0114`（奇异阈值/步长原位微调）、`netlab_20261028_0318`（P0 求解加固：事务/均衡/断点/超时）、`netlab_20261028_0405`（Phase D/E 代码前快照）、`netlab_20261028_0434`（R26 代码前快照）、`netlab_20261028_1219`（工程校验和修复前 `project.py`）、`project_20261028_1219`（用户工程文件前快照）、`netlab_20261028_1855`（R27 后端/前端快照）、`docs_20261028_1932`（公开仓库文档前快照）、`docs_20261028_2108`（R28 文档前快照）、`web_20261028_2130`（演示页与 workflow 删除前快照）、`ui_20261028_2205`（R29 回放滑块前 static 快照）、`netlab_ui_20261028_2242`（R30 UI 集中优化前 netlab 全量）；文档快照见 `docs_20261026_*、docs_20261027_1744、netlab_docs_20261028_0420、netlab_docs_20261028_0445` |
 | 备份清单 | 各自目录下 `MANIFEST.sha256` |
 | 版本控制 | 用户已授权 GitHub `qgfn106-blip` 做版本管理/备份（2026-10-24）；本地仍保留备份，尚无 `.git` |
 | 速查文档 | **[AGENT_GUIDE.md](AGENT_GUIDE.md)（开工先读）**、**[UI_SPEC.md](UI_SPEC.md)（UI 设计语言/组件/接口）**、[FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md)、[LESSONS.md](LESSONS.md)、[REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)、[SOLVER_CODE_MAP.md](SOLVER_CODE_MAP.md)；仓库根 `AGENTS.md` 指向本套文档 |
-| 下一步 | 主线待办见 [BACKLOG.md](BACKLOG.md)；本轮回合已完成：PlotKit 三形态接入（D-接入）、D79 结构整理、`copy_state` 步进优化（−7%…−26%/步） |
-| 需求口径 | **以 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) 的 R01–R33 + D1–D79 为准**；本文档 §7 为执行进度视图 |
+| 下一步 | 主线待办见 [BACKLOG.md](BACKLOG.md)；本轮已完成：PlotKit 三形态、D79 结构整理、D80 数据通路优化、**R26 UI 入口（DC 工作点 / AC 扫频浮窗，§7.37）**；接下来是 R25 P7-09 内置内部结构（需多天设计晶体管级内部电路） |
+| 需求口径 | **以 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) 的 R01–R33 + D1–D80 为准**；本文档 §7 为执行进度视图 |
 
 > 本文件只记录**已实际验证**的内容；未完成的能力明确标为“未接通/未实现”，
 > 不把计划写成已完成。
@@ -1405,3 +1405,27 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 文档：`netlab/docs/ARCHITECTURE.md` 新增 **§13.5 数据结构与数据通路**（结构表、载荷表、通路图、实测表、有意保留的开销）；根 `ARCHITECTURE.md` §6 加实测摘要与链接。
 
 验收：**380 passed / 3 skipped**（新增 5 条数据通路测试）；`/api/state`、`/api/live?cursor=0&limit=600`、`/api/scene/export`、`/api/catalog` 全部 200 且 JSON key 结构不变；前端静态版本 3.15.3（`node --check` 通过）。
+
+### 7.37 R26 补上 UI 入口：DC 工作点 / AC 扫频浮窗（2026-11-02）
+
+背景：R26 的求解器能力 2026-10-28 就完成了（`operating_point()` / `ac_sweep()` + `GET /api/operating-point`、
+`GET /api/ac-sweep`），但「现状」一直记着「UI 未接图表入口，只有 API」，用户看不到工作点与 Bode 曲线。
+
+本次补齐（前端，后端零改动，`frontend/` 三个文件）：
+
+| 位置 | 内容 |
+|---|---|
+| 工具菜单 | 新增「DC 工作点（.op）」「AC 扫频（Bode）…」，分别打开同一个自定义浮窗 |
+| `#analWin` 浮窗 | 复用 `initFloatWindow`（拖动/缩放/最小化/最大化），两页签：DC 工作点 / AC 扫频 |
+| DC 工作点页 | 「求解工作点」→ `GET /api/operating-point`，两张表：节点电压；元件 电流/端电压/功率；页脚显示迭代步数、矩阵阶数、残差、稠密/稀疏 |
+| AC 扫频页 | 激励源下拉（自动从当前场景的 vsource/isource 生成）、f 起/止、点数、对数/线性；「开始扫频」→ `GET /api/ac-sweep`；双区 Bode 图（幅值 dB 上、相位 ° 下），逐曲线配色 + 图例 |
+| 默认探针 | 只取 `kind==='node'` 的节点（**ground 会被后端判为「AC 探针不存在」，必须排除**） |
+| 失效策略 | `applySnapshot` 里比较 `scene.revision`，电路变了就把旧扫频结果置空并提示「电路已变化，请重新扫频」 |
+| Esc | 按 Esc 关闭电路分析浮窗（与文档窗/设置窗一致） |
+
+护栏：新增 `netlab/tests/test_ui_analysis_entry.py` 3 条（index 里有 `#analWin`/两页签/画布；app.js 调两个端点且菜单有入口；AC 默认探针块只含 `node`、不含 `ground`）。
+
+验收：**383 passed / 2 warnings**；离屏 QtWebEngine 实测（端口 8125 临时 uvicorn + `rlc_series` 模板）：
+DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠密」；AC 扫频 meta「3 条曲线 · 激励 V1 · 121 点」，
+画布 1286×719、有效笔迹像素 52,221，图例 `src / mid / out`，无 JS 报错。
+静态资源版本 3.15.3 → **3.15.4**（index.html 两处 `?v=`），`node --check` 通过。

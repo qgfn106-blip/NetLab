@@ -106,6 +106,7 @@
     guideDemo: $('#guideDemo'),
     guideClose: $('#guideClose'),
     docWin: $('#docWin'),
+    analWin: $('#analWin'),
     moduleWin: $('#moduleWin'),
     moduleWinTitle: $('#moduleWinTitle'),
     moduleWinHint: $('#moduleWinHint'),
@@ -617,6 +618,15 @@
 
     state.scene = snapshot.scene;
     state.sim = sim;
+    // 电路变了（revision 变化），旧的扫频结果不再成立：清掉缓存并提示重算
+    const nextRevision = snapshot.scene.revision ?? null;
+    if (state.acResult && state.acRevision !== null && nextRevision !== state.acRevision) {
+      state.acResult = null;
+      const acMeta = $('#analAcMeta');
+      if (acMeta) acMeta.textContent = '电路已变化，请重新扫频';
+      if (ui.analWin && !ui.analWin.hidden) requestAnimationFrame(() => drawAcChart());
+    }
+    state.acRevision = nextRevision;
     if (snapshot.limits) state.limits = snapshot.limits;
     state.mode = state.scene.mode || state.mode;
 
@@ -9781,6 +9791,8 @@
           { label: '模块与扩展', action: () => switchTab('blocks') },
           { sep: true },
           { label: '性能面板', action: () => switchTab('analysis') },
+          { label: 'DC 工作点（.op）', hint: '不推进仿真，静默解一次静态电路', action: () => openAnalysis('op') },
+          { label: 'AC 扫频（Bode）…', hint: '先求工作点再逐频点求解', action: () => openAnalysis('ac') },
           { label: '迁移场景为器件模型（R20）', hint: '元件边 → 器件节点 + 引脚导线', action: () => void migrateSceneToDevices() },
           { label: '新建连线（选择端点）…', hint: '网络↔网络纯导线 / 器件引脚↔网络', action: () => openWireDialog() },
         ],
@@ -11532,6 +11544,7 @@
     initSettingsWin();
     initGuide();
     initDocWin();
+    initAnalWin();
     initModuleWindow();
     initFloatingMenu();
     initShellKeys();
@@ -12404,6 +12417,298 @@
     }
   }
 
+  // ---- 电路分析浮窗（R26）：DC 工作点 / AC 小信号扫频 -----------------------
+  function analEscape(text) {
+    return String(text ?? '').replace(/[&<>"]/g, (ch) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]
+    ));
+  }
+
+  function analNum(value, digits = 6) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '—';
+    const abs = Math.abs(num);
+    if (abs !== 0 && (abs < 1e-4 || abs >= 1e5)) return num.toExponential(3);
+    return String(Number(num.toFixed(digits)));
+  }
+
+  function analToken(name, fallback) {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name);
+    return (value || '').trim() || fallback;
+  }
+
+  function openAnalysis(tab = 'op') {
+    const win = $('#analWin');
+    if (!win) return;
+    win.hidden = false;
+    raiseFloatWindow(win);
+    fillAcSources();
+    selectAnalTab(tab);
+  }
+
+  function closeAnalysis() {
+    const win = $('#analWin');
+    if (win) win.hidden = true;
+  }
+
+  function selectAnalTab(tab) {
+    for (const btn of $$('.anal-tab')) {
+      btn.classList.toggle('active', btn.dataset.anal === tab);
+    }
+    for (const pane of $$('.anal-pane')) {
+      pane.hidden = pane.dataset.analPane !== tab;
+    }
+    if (tab === 'ac') requestAnimationFrame(() => drawAcChart());
+  }
+
+  function fillAcSources() {
+    const select = $('#analAcInput');
+    if (!select) return;
+    const previous = select.value;
+    const nodes = state.scene?.nodes || [];
+    const sources = nodes.filter((node) => {
+      const kind = node.kind === 'device' ? node.params?.element : node.kind;
+      return kind === 'vsource' || kind === 'isource';
+    });
+    select.innerHTML = '<option value="">自动</option>'
+      + sources.map((node) => (
+        `<option value="${analEscape(node.name)}">${analEscape(node.name)}</option>`
+      )).join('');
+    if (sources.some((node) => node.name === previous)) select.value = previous;
+  }
+
+  async function runOperatingPoint() {
+    const body = $('#analOpTable');
+    const meta = $('#analOpMeta');
+    if (meta) meta.textContent = '求解中…';
+    try {
+      const data = await api('/api/operating-point');
+      const result = data.result || {};
+      const nodeRows = Object.entries(result.node_voltages || {}).map(([name, value]) => (
+        `<tr><td>${analEscape(name)}</td><td class="num">${analNum(value)}</td></tr>`
+      )).join('');
+      const elementRows = Object.entries(result.elements || {}).map(([name, info]) => (
+        `<tr><td>${analEscape(name)}</td><td class="num">${analNum(info.current)}</td>`
+        + `<td class="num">${analNum(info.voltage_difference)}</td>`
+        + `<td class="num">${analNum(info.power)}</td></tr>`
+      )).join('');
+      if (body) {
+        body.innerHTML = '<table><caption>节点电压（V）</caption><thead><tr><th>节点</th>'
+          + '<th>电压</th></tr></thead><tbody>' + (nodeRows || '<tr><td colspan="2">没有节点</td></tr>')
+          + '</tbody></table><table><caption>元件</caption><thead><tr><th>元件</th>'
+          + '<th>电流（A）</th><th>端电压（V）</th><th>功率（W）</th></tr></thead><tbody>'
+          + (elementRows || '<tr><td colspan="4">没有元件</td></tr>') + '</tbody></table>';
+      }
+      if (meta) {
+        meta.textContent = `迭代 ${result.iterations ?? '—'} 步 · 矩阵 ${result.matrix_size ?? '—'}`
+          + ` · 残差 ${analNum(result.residual, 3)} · ${result.sparse ? '稀疏' : '稠密'}`
+          + (result.strategies?.length ? ` · ${result.strategies.join('/')}` : '');
+      }
+    } catch (error) {
+      if (body) body.innerHTML = `<div class="anal-empty">${analEscape(error.message)}</div>`;
+      if (meta) meta.textContent = '求解失败';
+      toast(`DC 工作点失败：${error.message}`, 'error', 6000);
+    }
+  }
+
+  async function runAcSweep() {
+    const meta = $('#analAcMeta');
+    const params = new URLSearchParams();
+    const input = $('#analAcInput')?.value || '';
+    if (input) params.set('input', input);
+    params.set('f_start', $('#analAcF1')?.value || '10');
+    params.set('f_stop', $('#analAcF2')?.value || '1000000');
+    params.set('points', $('#analAcPts')?.value || '121');
+    params.set('scale', $('#analAcScale')?.value || 'log');
+    // 默认只看节点电压（元件电流曲线太密，需要时可在后端 probes 指定）
+    // 接地节点电压恒为 0，且后端 AC 探针不接受 ground，一并排除
+    const probeNames = (state.scene?.nodes || [])
+      .filter((node) => node.kind === 'node')
+      .map((node) => node.name)
+      .filter(Boolean);
+    if (probeNames.length) params.set('probes', probeNames.join(','));
+    if (meta) meta.textContent = '扫频中…';
+    try {
+      const data = await api(`/api/ac-sweep?${params.toString()}`);
+      state.acResult = data.result || null;
+      state.acRevision = state.scene?.revision ?? null;
+      const result = state.acResult;
+      const count = Object.keys(result?.probes || {}).length;
+      if (meta) {
+        meta.textContent = `${count} 条曲线 · 激励 ${result?.input || '—'} · ${result?.frequencies?.length || 0} 点`;
+      }
+      drawAcChart();
+    } catch (error) {
+      state.acResult = null;
+      if (meta) meta.textContent = '扫频失败';
+      toast(`AC 扫频失败：${error.message}`, 'error', 7000);
+      drawAcChart();
+    }
+  }
+
+  function drawAcChart() {
+    const canvas = $('#analAcCanvas');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width < 40 || rect.height < 40) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const W = rect.width;
+    const H = rect.height;
+    const ink = analToken('--ink', '#080a08');
+    const muted = analToken('--muted', '#7b7266');
+    const line = analToken('--line', '#d9d3c7');
+    ctx.clearRect(0, 0, W, H);
+    const result = state.acResult;
+    const legend = $('#analAcLegend');
+    if (!result || !result.frequencies?.length) {
+      if (legend) legend.innerHTML = '';
+      ctx.fillStyle = muted;
+      ctx.font = '12.5px "Microsoft YaHei UI", sans-serif';
+      ctx.fillText('选择激励与频率范围后点「开始扫频」', 16, 26);
+      return;
+    }
+    const freqs = result.frequencies;
+    const probes = Object.entries(result.probes || {});
+    const scale = $('#analAcScale')?.value || 'log';
+    const f0 = freqs[0];
+    const f1 = freqs[freqs.length - 1];
+    const padL = 52;
+    const padR = 14;
+    const padT = 12;
+    const gap = 30;
+    const padB = 26;
+    const magH = (H - padT - padB - gap) * 0.62;
+    const phaseH = (H - padT - padB - gap) - magH;
+    const magTop = padT;
+    const phaseTop = padT + magH + gap;
+    const plotW = Math.max(40, W - padL - padR);
+    const xOf = (f) => {
+      if (scale === 'log') {
+        const lo = Math.log10(Math.max(f0, 1e-9));
+        const hi = Math.log10(Math.max(f1, 1e-9));
+        const span = hi - lo || 1;
+        return padL + ((Math.log10(Math.max(f, 1e-9)) - lo) / span) * plotW;
+      }
+      const span = (f1 - f0) || 1;
+      return padL + ((f - f0) / span) * plotW;
+    };
+
+    let minDb = 0;
+    let maxDb = 0;
+    for (const [, info] of probes) {
+      for (const value of info.db || []) {
+        if (!Number.isFinite(value)) continue;
+        minDb = Math.min(minDb, value);
+        maxDb = Math.max(maxDb, value);
+      }
+    }
+    if (maxDb - minDb < 6) {
+      maxDb += 3;
+      minDb -= 3;
+    } else {
+      minDb -= 3;
+      maxDb += 3;
+    }
+    const yMag = (db) => magTop + (1 - (db - minDb) / (maxDb - minDb || 1)) * magH;
+    const yPhase = (deg) => phaseTop + (1 - (deg + 180) / 360) * phaseH;
+
+    ctx.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
+    // 幅度区网格
+    ctx.strokeStyle = line;
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i += 1) {
+      const y = magTop + (magH * i) / 4;
+      ctx.beginPath();
+      ctx.moveTo(padL, y);
+      ctx.lineTo(padL + plotW, y);
+      ctx.stroke();
+      ctx.fillStyle = muted;
+      const value = maxDb - ((maxDb - minDb) * i) / 4;
+      ctx.fillText(`${value.toFixed(0)} dB`, 6, y + 4);
+    }
+    // 相位区网格
+    for (const deg of [-180, -90, 0, 90, 180]) {
+      const y = yPhase(deg);
+      ctx.beginPath();
+      ctx.moveTo(padL, y);
+      ctx.lineTo(padL + plotW, y);
+      ctx.stroke();
+      ctx.fillStyle = muted;
+      ctx.fillText(`${deg}°`, 18, y + 4);
+    }
+    // 频率刻度
+    const ticks = 5;
+    for (let i = 0; i < ticks; i += 1) {
+      const ratio = i / (ticks - 1);
+      const f = scale === 'log' ? 10 ** (Math.log10(f0) + (Math.log10(f1) - Math.log10(f0)) * ratio) : f0 + (f1 - f0) * ratio;
+      const x = padL + plotW * ratio;
+      ctx.strokeStyle = line;
+      ctx.beginPath();
+      ctx.moveTo(x, magTop);
+      ctx.lineTo(x, magTop + magH + gap + phaseH);
+      ctx.stroke();
+      ctx.fillStyle = muted;
+      const label = f >= 1e6 ? `${(f / 1e6).toFixed(1)}M` : f >= 1e3 ? `${(f / 1e3).toFixed(1)}k` : f >= 1 ? `${f.toFixed(0)}` : f.toExponential(0);
+      ctx.fillText(label, x - 8, H - 8);
+    }
+    // 曲线
+    const swatches = [];
+    probes.forEach(([name, info], index) => {
+      const color = PALETTE[index % PALETTE.length];
+      swatches.push(`<span><i style="background:${color}"></i>${analEscape(name)}</span>`);
+      const draw = (values, yFn) => {
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.6;
+        let started = false;
+        for (let i = 0; i < freqs.length; i += 1) {
+          const value = values?.[i];
+          if (!Number.isFinite(value)) continue;
+          const x = xOf(freqs[i]);
+          const y = yFn(value);
+          if (!started) {
+            ctx.moveTo(x, y);
+            started = true;
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+        if (started) ctx.stroke();
+      };
+      draw(info.db, yMag);
+      draw(info.phase_deg, yPhase);
+    });
+    if (legend) legend.innerHTML = swatches.join('');
+    ctx.fillStyle = ink;
+    ctx.font = '11.5px "Microsoft YaHei UI", sans-serif';
+    ctx.fillText('幅值', 6, magTop + 8);
+    ctx.fillText('相位', 6, phaseTop + 10);
+  }
+
+  function initAnalWin() {
+    const win = $('#analWin');
+    if (!win) return;
+    win.querySelector('#analWinClose')?.addEventListener('click', closeAnalysis);
+    for (const btn of $$('.anal-tab')) {
+      btn.addEventListener('click', () => {
+        selectAnalTab(btn.dataset.anal || 'op');
+        if (btn.dataset.anal === 'ac') fillAcSources();
+      });
+    }
+    $('#analRunOp')?.addEventListener('click', () => void runOperatingPoint());
+    $('#analRunAc')?.addEventListener('click', () => void runAcSweep());
+    initFloatWindow(win, 'analGeo', { minWidth: 560, minHeight: 420 });
+    window.addEventListener('resize', () => {
+      if (!win.hidden && !win.querySelector('.anal-pane[data-anal-pane="ac"]')?.hidden) {
+        drawAcChart();
+      }
+    });
+  }
+
   function initDocWin() {
     if (!ui.docWin) return;
     ui.docWin.querySelector('#docWinClose')?.addEventListener('click', closeDoc);
@@ -12537,6 +12842,11 @@
         }
         if (ui.settingsWin && !ui.settingsWin.hidden) {
           closeSettings();
+          event.preventDefault();
+          return;
+        }
+        if (ui.analWin && !ui.analWin.hidden) {
+          closeAnalysis();
           event.preventDefault();
           return;
         }

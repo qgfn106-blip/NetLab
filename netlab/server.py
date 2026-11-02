@@ -22,16 +22,16 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
-from .fem import FemSimulation
-from .limits import ConflictError, NetlabError, NotFoundError, ValidationError
-from .networks import NetworkContainer
-from .project import (
+from .core.compute.fem import FemSimulation
+from .core.common.limits import ConflictError, NetlabError, NotFoundError, ValidationError
+from .core.model.networks import NetworkContainer
+from .core.model.project import (
     compute_checksum,
     migrate_scene_to_devices,
     project_current_network,
     validate_project,
 )
-from .workspace import (
+from .core.model.workspace import (
     create_project,
     list_snapshots,
     load_settings,
@@ -53,10 +53,12 @@ CURRENT_WORKSPACE: Path | None = None
 #: 降级打开时的原始工程载荷；补回库文件后可 POST /api/project/retry 重新解析。
 LAST_PROJECT: dict[str, Any] | None = None
 LAST_PROJECT_LIBRARY: str | None = None
-from .simulation import default_simulation
-from .templates import TEMPLATES, build_template, template_catalog
-from . import accel, analysis, block_validate, blocklib, extensions, profiling, schematic, vscode_bridge
-from .blocks import build_block_from_scene, encapsulate_nodes, instantiate_block
+from .core.compute.simulation import default_simulation
+from .core.model.templates import TEMPLATES, build_template, template_catalog
+from . import vscode_bridge
+from .core.compute import accel, analysis, profiling
+from .core.model import block_validate, blocklib, extensions, schematic
+from .core.model.blocks import build_block_from_scene, encapsulate_nodes, instantiate_block
 
 def _resolve_frontend_dir() -> Path:
     """前端资源目录：环境变量 > NetlabHome/frontend > 包内 static（历史回退）。"""
@@ -725,7 +727,7 @@ def _project_payload(request: ProjectExportRequest | None = None) -> dict[str, A
     request = request or ProjectExportRequest()
     extension_items = request.extensions or _extension_payload()
     library = _library_path()
-    from . import blocklib
+    from .core.model import blocklib
 
     with SERVICE.lock:
         block_payloads = SERVICE.scene.blocks.export_user()

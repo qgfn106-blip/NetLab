@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 
-from netlab.scene import Scene
+from netlab.core.model.scene import Scene
 
 
 def node(scene, name, kind="node"):
@@ -96,7 +96,7 @@ def test_coupled_inductor_voltage_ratio():
 
 
 def test_magnetics_catalog():
-    from netlab.nodal import element_catalog
+    from netlab.core.compute.nodal import element_catalog
 
     kinds = {item["kind"] for item in element_catalog()}
     assert {"transformer", "coupling_inductor"} <= kinds

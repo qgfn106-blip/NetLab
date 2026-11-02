@@ -8,10 +8,10 @@ import time
 import numpy as np
 import pytest
 
-from netlab.limits import ComputeError
-from netlab.nodal import SolverOptions
-from netlab.scene import Scene
-from netlab.simulation import Simulation
+from netlab.core.common.limits import ComputeError
+from netlab.core.compute.nodal import SolverOptions
+from netlab.core.model.scene import Scene
+from netlab.core.compute.simulation import Simulation
 
 
 def _diode_scene() -> Scene:

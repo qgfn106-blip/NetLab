@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from netlab.limits import ValidationError
-from netlab.scene import Scene
-from netlab.simulation import RECORDER_CAPACITY, Recorder, Simulation
+from netlab.core.common.limits import ValidationError
+from netlab.core.model.scene import Scene
+from netlab.core.compute.simulation import RECORDER_CAPACITY, Recorder, Simulation
 
 
 def test_recorder_resamples_pending_frames_instead_of_truncating():

@@ -98,7 +98,7 @@ def _theme_name(service: Any) -> str:
     if forced:
         return str(forced)
     try:
-        from .workspace import load_settings
+        from .core.model.workspace import load_settings
 
         theme = str((load_settings() or {}).get("theme") or "dark")
     except Exception:  # 读配置失败不该挡住绘图
@@ -273,8 +273,6 @@ def _ensure_channels(figure: Any, frames: list[dict[str, Any]], *, limit: int = 
 def _ingest(figure: Any, frames: list[dict[str, Any]], keys: list[str]) -> None:
     """把一批帧追加进 PlotKit 的命名数据集；缺字段补 NaN，保持等长。"""
     import numpy as np
-
-    from plotkit.store.registry import DATA_LOCK
 
     store = figure.store
     names_all = list(store.names())

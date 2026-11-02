@@ -6,9 +6,9 @@ import json
 
 import pytest
 
-from netlab import analysis
-from netlab.scene import Scene
-from netlab.simulation import Simulation
+from netlab.core.compute import analysis
+from netlab.core.model.scene import Scene
+from netlab.core.compute.simulation import Simulation
 
 
 def make_sim(series, dt=0.01):

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from netlab.scene import Scene
+from netlab.core.model.scene import Scene
 
 
 def node(scene, name, kind="node"):
@@ -56,7 +56,7 @@ def test_not_and_xor():
 
 
 def test_logic_catalog():
-    from netlab.nodal import element_catalog
+    from netlab.core.compute.nodal import element_catalog
 
     kinds = {item["kind"] for item in element_catalog()}
     assert {"and_gate", "or_gate", "not_gate", "xor_gate"} <= kinds

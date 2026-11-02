@@ -6,7 +6,7 @@ import pytest
 
 
 def test_default_simulation_is_blank():
-    from netlab.simulation import default_simulation
+    from netlab.core.compute.simulation import default_simulation
 
     simulation = default_simulation()
     assert len(simulation.scene.nodes) == 0
@@ -41,7 +41,7 @@ def test_docs_single_and_unknown_slug(client):
 
 
 def test_ui_settings_defaults_and_validation(client, tmp_path, monkeypatch):
-    from netlab.workspace import default_settings, load_settings, save_settings
+    from netlab.core.model.workspace import default_settings, load_settings, save_settings
 
     # 隔离到临时设置目录，避免污染本机 %APPDATA%/Netlab 的真实偏好
     monkeypatch.setenv("NETLAB_SETTINGS_DIR", str(tmp_path / "settings"))

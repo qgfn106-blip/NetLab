@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from netlab import blocklib
+from netlab.core.model import blocklib
 
 
 def scene_nodes(client):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import copy
 
-from netlab.project import (
+from netlab.core.model.project import (
     PROJECT_FORMAT,
     PROJECT_VERSION,
     compute_checksum,
@@ -12,8 +12,8 @@ from netlab.project import (
     migrate_project,
     validate_project,
 )
-from netlab.scene import Scene
-from netlab.templates import build_template
+from netlab.core.model.scene import Scene
+from netlab.core.model.templates import build_template
 
 
 def v3_project(scene_payload):

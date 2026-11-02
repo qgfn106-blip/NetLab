@@ -64,7 +64,7 @@ TOPOLOGY 内部有 3 种模式，共用同一套 HTTP 与场景模型：
 
 > 结构图：[docs/assets/netlab-structure.svg](../../docs/assets/netlab-structure.svg)
 
-> **2026-11-02 结构整理后**（D-重构）：前后端彻底分目录；后端按“计算 / 模型 / 公共”三类放进 `netlab/core/` 的子文件夹。旧的 `netlab/<name>.py` 仍可 import，它们是转发到新位置的兼容 shim。
+> **2026-11-02 结构整理后**（D79/D85）：前后端彻底分目录；后端按“计算 / 模型 / 公共”三类放进 `netlab/core/` 的子文件夹。旧的 `netlab/<name>.py` 转发 shim 已在 D85 全部删除，仓库内所有引用改写为规范路径 `netlab.core.<bucket>.<name>`；包根只留入口与适配模块。
 
 ```text
 NetlabHome/
@@ -111,7 +111,7 @@ NetlabHome/
 │  ├─ tests/                  conftest.py + test_*.py（2026-11-02 全量 359 passed / 3 skipped）
 │  ├─ docs/                   截图 + 文档（本文件、CODE_GUIDE、MATH…）
 │  └─ tools/                  可选 Edge CDP 冒烟脚本 / 结构整理脚本
-└─ （兼容层）netlab/<name>.py  转发 shim：`from .core.<bucket>.<name> import *`
+└─ （无兼容层）netlab/ 包根只剩 __init__ / server / run / plotkit_bridge / plotkit_vendor / vscode_bridge / desktop / core
 ```
 
 带 ★ 的是“改功能时最常碰”的模块。依赖方向只有一个：

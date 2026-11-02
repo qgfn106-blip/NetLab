@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from netlab.nodal import element_catalog
-from netlab.scene import Scene
-from netlab.templates import build_template
+from netlab.core.compute.nodal import element_catalog
+from netlab.core.model.scene import Scene
+from netlab.core.model.templates import build_template
 
 
 def node(scene, name, kind="node"):

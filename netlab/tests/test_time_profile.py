@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from netlab import profiling
-from netlab.profiling import Profiler, measure, timed
-from netlab.scene import Scene
-from netlab.simulation import Simulation
+from netlab.core.compute import profiling
+from netlab.core.compute.profiling import Profiler, measure, timed
+from netlab.core.model.scene import Scene
+from netlab.core.compute.simulation import Simulation
 
 
 def build_simulation(**config) -> Simulation:

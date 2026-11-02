@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 
-from netlab import blocklib
-from netlab.blocks import BlockDef, PortDef
+from netlab.core.model import blocklib
+from netlab.core.model.blocks import BlockDef, PortDef
 
 
 def build_block(name: str = "twice") -> BlockDef:

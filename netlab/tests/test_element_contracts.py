@@ -9,9 +9,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from netlab.nodal import Comparator, OpAmp, StampContext, element_catalog
-from netlab.scene import Scene
-from netlab.transistors import Mosfet
+from netlab.core.compute.nodal import Comparator, OpAmp, StampContext, element_catalog
+from netlab.core.model.scene import Scene
+from netlab.core.compute.transistors import Mosfet
 
 
 # ---------------------------------------------------------------------------

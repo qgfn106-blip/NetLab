@@ -7,17 +7,17 @@ import shutil
 
 import pytest
 
-from netlab import blocklib
-from netlab.blocks import BlockDef, PortDef
-from netlab.limits import ValidationError
-from netlab.project import (
+from netlab.core.model import blocklib
+from netlab.core.model.blocks import BlockDef, PortDef
+from netlab.core.common.limits import ValidationError
+from netlab.core.model.project import (
     build_project,
     project_scene_payload,
     validate_project,
 )
-from netlab.scene import Scene
-from netlab.simulation import Simulation
-from netlab.workspace import load_workspace, save_workspace
+from netlab.core.model.scene import Scene
+from netlab.core.compute.simulation import Simulation
+from netlab.core.model.workspace import load_workspace, save_workspace
 
 
 def build_block(version: int = 1) -> BlockDef:
@@ -182,7 +182,7 @@ def test_export_api_uses_refs_and_import_resolves(client, tmp_path, monkeypatch)
 
 def test_degraded_retry_after_library_restored(client, tmp_path, monkeypatch):
     """补回库文件后 /api/project/retry 能解除只读；仍缺失时 409。"""
-    from netlab.blocks import instantiate_block
+    from netlab.core.model.blocks import instantiate_block
 
     library = tmp_path / "library"
     monkeypatch.setenv("NETLAB_SETTINGS_DIR", str(tmp_path / "settings"))

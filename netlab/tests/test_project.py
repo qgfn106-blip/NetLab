@@ -6,9 +6,9 @@ import json
 
 import pytest
 
-from netlab.blocks import encapsulate_nodes
-from netlab.limits import ValidationError
-from netlab.project import (
+from netlab.core.model.blocks import encapsulate_nodes
+from netlab.core.common.limits import ValidationError
+from netlab.core.model.project import (
     project_current_network,
     atomic_write,
     build_project,
@@ -17,8 +17,8 @@ from netlab.project import (
     project_scene_payload,
     validate_project,
 )
-from netlab.scene import Scene
-from netlab.simulation import Simulation
+from netlab.core.model.scene import Scene
+from netlab.core.compute.simulation import Simulation
 
 
 def build_simulation() -> Simulation:

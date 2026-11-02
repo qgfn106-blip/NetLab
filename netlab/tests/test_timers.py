@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from netlab.scene import Scene
+from netlab.core.model.scene import Scene
 
 
 def node(scene, name, kind="node"):
@@ -57,7 +57,7 @@ def test_ldo_regulates_and_drops_out():
 
 
 def test_timer_catalog():
-    from netlab.nodal import element_catalog
+    from netlab.core.compute.nodal import element_catalog
 
     kinds = {item["kind"] for item in element_catalog()}
     assert {"ne555", "ldo"} <= kinds

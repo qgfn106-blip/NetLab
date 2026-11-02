@@ -12,10 +12,10 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from netlab.project import build_project
-from netlab.scene import Scene
-from netlab.simulation import Simulation
-from netlab.workspace import (
+from netlab.core.model.project import build_project
+from netlab.core.model.scene import Scene
+from netlab.core.compute.simulation import Simulation
+from netlab.core.model.workspace import (
     Workspace,
     create_project,
     list_snapshots,

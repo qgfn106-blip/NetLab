@@ -12,12 +12,12 @@ from __future__ import annotations
 
 import pytest
 
-from netlab import extensions
-from netlab.computes import compute_catalog
-from netlab.methods import method_catalog
-from netlab.nodal import ELEMENT_GROUP_ORDER, ELEMENT_GROUPS, element_catalog, node_catalog
-from netlab.ports import PINS
-from netlab.scene import Scene
+from netlab.core.model import extensions
+from netlab.core.compute.computes import compute_catalog
+from netlab.core.compute.methods import method_catalog
+from netlab.core.compute.nodal import ELEMENT_GROUP_ORDER, ELEMENT_GROUPS, element_catalog, node_catalog
+from netlab.core.model.ports import PINS
+from netlab.core.model.scene import Scene
 
 SPEC_KEYS = {
     "kind",

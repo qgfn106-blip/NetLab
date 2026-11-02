@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from ..project import (
+from ..core.model.project import (
     PROJECT_SUFFIX,
     atomic_write,
     compute_checksum,
@@ -22,7 +22,7 @@ from ..project import (
     project_to_text,
     validate_project,
 )
-from ..workspace import load_settings
+from ..core.model.workspace import load_settings
 
 _FILE_TYPES = (
     "Netlab 工程 (*.netlab)",

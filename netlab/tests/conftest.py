@@ -18,7 +18,7 @@ def client():
     from fastapi.testclient import TestClient
 
     from netlab.server import app
-    from netlab.templates import build_template
+    from netlab.core.model.templates import build_template
 
     with TestClient(app) as test_client:
         test_client.post("/api/control", json={"action": "pause"})

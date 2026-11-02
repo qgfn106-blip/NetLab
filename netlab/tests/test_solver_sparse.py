@@ -5,9 +5,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from netlab.limits import ComputeError, ValidationError
-from netlab.nodal import SolverOptions
-from netlab.scene import Scene
+from netlab.core.common.limits import ComputeError, ValidationError
+from netlab.core.compute.nodal import SolverOptions
+from netlab.core.model.scene import Scene
 
 
 def _ladder(count: int, *, source: float = 1.0, r_series: float = 1000.0,
@@ -99,7 +99,7 @@ def test_sparse_invalid_option_rejected():
 
 def test_sparse_config_passthrough():
     scene = _ladder(4)
-    from netlab.simulation import Simulation
+    from netlab.core.compute.simulation import Simulation
 
     sim = Simulation(scene)
     config = sim.apply_config({"sparse": "on", "sparse_threshold": 50})

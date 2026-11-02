@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import pytest
 
-from netlab import extensions
-from netlab.computes import COMPUTE_SPECS, prepare_compute
-from netlab.graph import ComputeContext
-from netlab.limits import ValidationError
+from netlab.core.model import extensions
+from netlab.core.compute.computes import COMPUTE_SPECS, prepare_compute
+from netlab.core.model.graph import ComputeContext
+from netlab.core.common.limits import ValidationError
 
 NODE_CODE = """
 @node(
@@ -93,7 +93,7 @@ def test_activate_executes_and_runs():
 
 def test_method_extension_is_registered_as_method():
     extensions.activate_code(METHOD_CODE, persist=False, kind_type="method")
-    from netlab.methods import METHOD_SPECS
+    from netlab.core.compute.methods import METHOD_SPECS
 
     assert "user.dead_zone2" in METHOD_SPECS
     extensions.deactivate("user.dead_zone2")

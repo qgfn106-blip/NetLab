@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from netlab.limits import ComputeError
-from netlab.nodal import CircuitNode, CircuitSolver, Diode
+from netlab.core.common.limits import ComputeError
+from netlab.core.compute.nodal import CircuitNode, CircuitSolver, Diode
 
 
 def _nodes():

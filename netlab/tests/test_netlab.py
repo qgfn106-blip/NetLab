@@ -9,17 +9,17 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
-from netlab.computes import COMPUTE_SPECS, prepare_compute
-from netlab.fem import FemConfig, FemModel, FemSimulation
-from netlab.graph import ComputeContext, Network, Node
-from netlab.limits import ComputeError, ValidationError  # noqa: F401
-from netlab.linalg import cont2discrete, expm, tustin_tf
-from netlab.methods import METHOD_SPECS
-from netlab.nodal import ELEMENT_SPECS
-from netlab.scene import Scene
+from netlab.core.compute.computes import COMPUTE_SPECS, prepare_compute
+from netlab.core.compute.fem import FemConfig, FemModel, FemSimulation
+from netlab.core.model.graph import ComputeContext, Network, Node
+from netlab.core.common.limits import ComputeError, ValidationError  # noqa: F401
+from netlab.core.compute.linalg import cont2discrete, expm, tustin_tf
+from netlab.core.compute.methods import METHOD_SPECS
+from netlab.core.compute.nodal import ELEMENT_SPECS
+from netlab.core.model.scene import Scene
 from netlab.server import app
-from netlab.simulation import Simulation
-from netlab.templates import build_template
+from netlab.core.compute.simulation import Simulation
+from netlab.core.model.templates import build_template
 
 
 # ---------------------------------------------------------------------------

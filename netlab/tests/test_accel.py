@@ -5,8 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from netlab import accel
-from netlab.limits import ComputeError
+from netlab.core.compute import accel
+from netlab.core.common.limits import ComputeError
 
 
 @pytest.fixture(autouse=True)

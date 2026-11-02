@@ -26,7 +26,7 @@
 
 ## 1. 问题陈述（用户视角）
 
-netlab 现在是一个"Python 服务 + 浏览器显示层"的程序：双击 `start_desktop.bat` 起一个 pywebview 窗口，窗口里是 `static/index.html`，界面全部由 DOM + canvas 画出来。
+netlab 现在是一个"Python 服务 + 浏览器显示层"的程序：双击 `start_desktop.bat` 起一个 pywebview 窗口，窗口里是 `frontend/index.html`，界面全部由 DOM + canvas 画出来。
 
 这带来四类实际问题：
 
@@ -158,7 +158,7 @@ netlab 现在是一个"Python 服务 + 浏览器显示层"的程序：双击 `st
 
 #### R33.6 旧前端冻结与去端口
 
-- **解读**：`static/app.js` 冻结（不再更新、不再修 bug）；`/` 入口保留可用；`server.py` 的 `/api` 保留（PlotKit 与测试仍依赖）。
+- **解读**：`frontend/app.js` 冻结（不再更新、不再修 bug）；`/` 入口保留可用；`server.py` 的 `/api` 保留（PlotKit 与测试仍依赖）。
 - **验收**：A16（正常运行不监听端口，PlotKit 面板除外）、A17（pytest 全绿）。
 - **期次**：P5。
 
@@ -193,7 +193,7 @@ netlab 现在是一个"Python 服务 + 浏览器显示层"的程序：双击 `st
 | **D71** | 画布实现 | 保持立即模式 `QPainter`；不换 `QGraphicsScene`；绘制函数与事件处理分离 |
 | **D72** | 图表实现 | 5 个图表自绘 `QWidget`；不引入 pyqtgraph，不用 matplotlib 做实时图 |
 | **D73** | 数据通路 | 控制面留 `SERVICE`（HTTP 仍可用）；数据面直连快照 + `QueuedConnection`；UI 不轮询 |
-| **D74** | 旧前端 | `static/app.js` 冻结但保留 `/` 入口（不删、不修）；删除需另开决策 |
+| **D74** | 旧前端 | `frontend/app.js` 冻结但保留 `/` 入口（不删、不修）；删除需另开决策 |
 | **D75** | 主题 | 一份 token（JSON）→ 生成 CSS vars 与 QSS；切换即时生效 |
 | **D76** | 验收手段 | 像素 diff 工具 + §9 的 20 项交互清单，作为 P3 闸门 |
 
@@ -310,7 +310,7 @@ netlab 现在是一个"Python 服务 + 浏览器显示层"的程序：双击 `st
 - [x] `netlab/ui/` 包骨架 + `--native` 启动开关（与 `--qt`、默认 webview 并存）
 - [x] 像素 diff 工具：同尺寸截图 → 差异图 + 百分比报告
 - [x] `models.py` 第一版：工程树 + 画布节点/边 的视图模型（纯函数）
-- [x] 冻结约定写入 `AGENT_GUIDE.md`（`static/app.js` 不再新增功能）
+- [x] 冻结约定写入 `AGENT_GUIDE.md`（`frontend/app.js` 不再新增功能）
 - **闸门**：只读镜像能连 `SERVICE` 并打印视图模型；diff 工具跑通；A17 绿。
 
 ### P1 外壳 + 面板 + 第一个图表
@@ -348,7 +348,7 @@ netlab 现在是一个"Python 服务 + 浏览器显示层"的程序：双击 `st
 
 - [x] 数据面直连替换 `/api/live` 轮询（`bridge.LiveWorker` 直接调 `SERVICE.live()`）
 - [x] 单实例锁；端口彻底不监听（`acceptance.py` 实测 `listening=[]`）
-- [x] 冻结 `static/app.js`，`AGENT_GUIDE.md` 更新路由
+- [x] 冻结 `frontend/app.js`，`AGENT_GUIDE.md` 更新路由
 - [x] 导出 PDF/SVG（`shell.export_vector`，文字保留为文本）
 - **闸门**：A15/A16/A18/A20 + 全量 A1–A25 复测。
 
@@ -467,7 +467,7 @@ netlab 现在是一个"Python 服务 + 浏览器显示层"的程序：双击 `st
 
 ### 15.4 C2 的例外
 
-PlotKit 侧只改了一处：`static/app.js` 增加 `?theme=light|dark`（覆盖页面外壳深浅色，不动 `spec.figure.theme`）。理由：原生界面换主题时，宿主外壳与图内配色必须同步，否则白底嵌在深色窗里。改动 4 行，`node --check` 通过。
+PlotKit 侧只改了一处：`frontend/app.js` 增加 `?theme=light|dark`（覆盖页面外壳深浅色，不动 `spec.figure.theme`）。理由：原生界面换主题时，宿主外壳与图内配色必须同步，否则白底嵌在深色窗里。改动 4 行，`node --check` 通过。
 
 ### 15.5 验收
 
@@ -512,7 +512,7 @@ PlotKit 侧只改了一处：`static/app.js` 增加 `?theme=light|dark`（覆盖
 | Git 标签 | `web-legacy-2026-11-02` |
 | 压缩包 | `docs/archive/netlab-web-ui-2026-11-02.zip`（154 KB，6 文件 + 说明） |
 
-本地删除：`netlab/static/{index.html,app.js,style.css,desktop-shim.js}`、`netlab/desktop/webview_app.py`、`netlab/desktop/webview_bridge.py`。
+本地删除：`frontend/{index.html,app.js,style.css,desktop-shim.js}`、`netlab/desktop/webview_app.py`、`netlab/desktop/webview_bridge.py`。
 
 代码调整：`server.py` 去掉 `StaticFiles` 挂载与 `STATIC_DIR`，`/` 改为内置说明页（`/api/*` 不变）；`desktop/__main__.py` 默认原生、`--web` 报错退出 2；`test_plotkit_tab.py` 改为断言首页说明页 + `/static/style.css` 404。
 

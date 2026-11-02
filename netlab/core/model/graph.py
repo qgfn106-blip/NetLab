@@ -13,6 +13,8 @@
 from __future__ import annotations
 
 import copy
+
+from ..common.fastcopy import copy_state
 import math
 from dataclasses import dataclass, field
 from types import MappingProxyType
@@ -67,15 +69,15 @@ def _fast_result(result: dict[str, Any], *, where: str) -> dict[str, Any]:
 
 
 def _state_snapshot(state: Mapping[str, Any]) -> dict[str, Any]:
-    """状态快照：优先深拷贝，遇到不可拷贝的自定义对象时退回浅拷贝。
+    """状态快照：标量字典走快速路径，自定义对象退回深拷贝/浅拷贝。
 
-    用户扩展的 handler / 连接函数可能在 state 里放任意对象；深拷贝失败不应该
-    让整步无法回滚，因此逐步降级，并在浅拷贝时仍然是「新字典」以避免快照
-    被后续原地修改污染。
+    用户扩展的 handler / 连接函数可能在 state 里放任意对象；``copy_state``
+    对不可变标量原样复用、容器递归、未知对象 deepcopy，失败时再降级为浅拷贝，
+    始终保证返回的是「新字典」，不会被后续原地修改污染。
     """
     try:
-        return copy.deepcopy(dict(state))
-    except Exception:  # 不可深拷贝的对象：退回浅拷贝，至少保证字典身份独立
+        return copy_state(dict(state))
+    except Exception:  # 不可拷贝的对象：退回浅拷贝，至少保证字典身份独立
         return dict(state)
 
 
@@ -158,12 +160,12 @@ class Node:
         if self.compute is not None:
             # 兼容原始回调：无法证明其只读，始终深拷贝。
             inputs_copy = {
-                key: copy.deepcopy(payload) for key, payload in self.inputs.items()
+                key: copy_state(payload) for key, payload in self.inputs.items()
             }
             ports_copy = {
-                key: copy.deepcopy(payload) for key, payload in self.ports.items()
+                key: copy_state(payload) for key, payload in self.ports.items()
             }
-            data_copy = copy.deepcopy(self.data)
+            data_copy = copy_state(self.data)
             trusted = False
         elif self.trusted:
             # 内置 handler 不修改入参；输入字典是每条边新生成的，data 用浅拷贝。
@@ -173,12 +175,12 @@ class Node:
             trusted = True
         else:
             inputs_copy = {
-                key: copy.deepcopy(payload) for key, payload in self.inputs.items()
+                key: copy_state(payload) for key, payload in self.inputs.items()
             }
             ports_copy = {
-                key: copy.deepcopy(payload) for key, payload in self.ports.items()
+                key: copy_state(payload) for key, payload in self.ports.items()
             }
-            data_copy = copy.deepcopy(self.data)
+            data_copy = copy_state(self.data)
             trusted = False
 
         # S-04：用户 handler 的 state 同样是隔离副本，失败时不能留下半改状态。

@@ -353,7 +353,7 @@ R20 后主要模型是“器件节点 + 引脚导线”，但 `Scene.next_breakp
 
 #### 修改位置
 
-- `netlab/nodal.py`
+- `netlab/core/compute/nodal.py`
   - `CircuitSolver.step`
   - `CircuitSolver._newton_solve`
   - `CircuitSolver._solve_matrix`
@@ -624,7 +624,7 @@ scene.step 已经完成
 ```text
 netlab/mna_scale.py    矩阵均衡、LU 诊断、相对残差
 netlab/mna_solver.py   CircuitSolver、事务、Newton
-netlab/nodal.py        元件模型与注册表兼容入口
+netlab/core/compute/nodal.py        元件模型与注册表兼容入口
 ```
 
 这只是后续候选结构，不在第一阶段直接执行。拆模块前必须先建立所有元件和求解器的回归基线。

@@ -74,11 +74,11 @@ Scene(JSON) → CircuitEngine（网络合并/引脚装配） → CircuitSolver.s
 
 关键位置：
 
-- `CircuitSolver.step()`：`netlab/nodal.py:1320`；Newton 循环 `:1332`；
+- `CircuitSolver.step()`：`netlab/core/compute/nodal.py:1320`；Newton 循环 `:1332`；
   收敛判据 `:1359`（`delta <= 1e-6 + 1e-9·max|new|`）；失败直接抛错 `:1378`。
-- `_build_index()`：`netlab/nodal.py:1257`，稠密矩阵分配在 `:1297`。
-- `_solve_matrix()`：`netlab/nodal.py:1410`，线性电路 LU 缓存，非线性每次重新分解。
-- `_check_floating()`：`netlab/nodal.py:1451`，只检查“整行为 0”的悬空节点。
+- `_build_index()`：`netlab/core/compute/nodal.py:1257`，稠密矩阵分配在 `:1297`。
+- `_solve_matrix()`：`netlab/core/compute/nodal.py:1410`，线性电路 LU 缓存，非线性每次重新分解。
+- `_check_floating()`：`netlab/core/compute/nodal.py:1451`，只检查“整行为 0”的悬空节点。
 - 时间步：`Simulation._advance_locked(dt)`，`dt` 由 `SimConfig` 固定给出；`Scene.step(dt)` 透传。
 - 详细代码地图见 [SOLVER_CODE_MAP.md](SOLVER_CODE_MAP.md)。
 
@@ -255,7 +255,7 @@ if (ckt->CKTnoncon == 0 && iterno != 1)
     ckt->CKTnoncon = NIconvTest(ckt);       /* 节点/支路分别判据 */
 ```
 
-**netlab**（`CircuitSolver.step()`，`netlab/nodal.py:1332`）：
+**netlab**（`CircuitSolver.step()`，`netlab/core/compute/nodal.py:1332`）：
 
 ```python
 for iteration in range(MAX_NEWTON_ITERATIONS if nonlinear_elements else 1):
@@ -327,7 +327,7 @@ case TRAPEZOIDAL:
 *geq = ckt->CKTag[0] * cap;
 ```
 
-**netlab**（`Capacitor.prepare()`，`netlab/nodal.py:195`）：
+**netlab**（`Capacitor.prepare()`，`netlab/core/compute/nodal.py:195`）：
 
 ```python
 if self.integration == "backward_euler":
@@ -382,7 +382,7 @@ netlab 缺这一层，所以方波边沿/刚性电路只能靠用户手动减小
 
 ### 3.1 P0-1 收敛判据太粗，可能假收敛
 
-- 证据：`netlab/nodal.py:1359` 只比较 `new_solution - solution` 的最大值，
+- 证据：`netlab/core/compute/nodal.py:1359` 只比较 `new_solution - solution` 的最大值，
   阈值 `1e-6 + 1e-9·max|new|`；没有 KCL 残差、没有电压/电流分容差、没有器件级判据。
 - 影响：病态/近奇异时可能提前宣布收敛；支路电流与节点电压共用容差不合理。
 - 建议：引入 `vntol/abstol/reltol`，对节点电压与支路电流分别判据；增加残差范数检查
@@ -390,7 +390,7 @@ netlab 缺这一层，所以方波边沿/刚性电路只能靠用户手动减小
 
 ### 3.2 P0-2 没有收敛救急
 
-- 证据：`netlab/nodal.py:1378` 直接抛 `ComputeError`；无 gmin/source stepping/阻尼。
+- 证据：`netlab/core/compute/nodal.py:1378` 直接抛 `ComputeError`；无 gmin/source stepping/阻尼。
 - 影响：强非线性电路只能靠用户减小 dt；交互体验差。
 - 建议：先实现 **gmin stepping**（沿对角线加 `gmin`，逐步减小到 0），再实现 source stepping
   （源按 0→1 斜坡）；节点阻尼可作为可选。
@@ -574,10 +574,10 @@ netlab 缺这一层，所以方波边沿/刚性电路只能靠用户手动减小
 
 ### netlab
 
-- 求解器：`netlab/nodal.py`（`CircuitSolver.step`、`_solve_matrix`、`_check_floating`）
-- 场景/引擎：`netlab/scene.py`（`CircuitEngine`）
-- 时间推进：`netlab/simulation.py`（`_advance_locked`）
-- 分析旁路：`netlab/analysis.py`
+- 求解器：`netlab/core/compute/nodal.py`（`CircuitSolver.step`、`_solve_matrix`、`_check_floating`）
+- 场景/引擎：`netlab/core/model/scene.py`（`CircuitEngine`）
+- 时间推进：`netlab/core/compute/simulation.py`（`_advance_locked`）
+- 分析旁路：`netlab/core/compute/analysis.py`
 - 代码地图：[SOLVER_CODE_MAP.md](SOLVER_CODE_MAP.md)
 - 需求/决策：[REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)（R12/Bode、R23/P7）
 
@@ -587,18 +587,18 @@ netlab 缺这一层，所以方波边沿/刚性电路只能靠用户手动减小
 
 | 主题 | 位置 |
 | --- | --- |
-| Newton 迭代上限 | `netlab/nodal.py:34`（60） |
-| 收敛容差 | `netlab/nodal.py:35-36`（1e-6 / 1e-9） |
-| 发散电压上限 | `netlab/nodal.py:37`（1e9 V） |
-| 未知量索引/矩阵分配 | `netlab/nodal.py:1257`、`:1297` |
-| Newton 主循环 | `netlab/nodal.py:1332` |
-| 收敛判断 | `netlab/nodal.py:1359` |
-| 未收敛抛错 | `netlab/nodal.py:1378` |
-| 线性求解/LU 复用 | `netlab/nodal.py:1410` |
-| 悬空节点检查 | `netlab/nodal.py:1451` |
-| 元件 stamp 接口 | `netlab/nodal.py:62`、`:74`（`_stamp_conductance/_stamp_current`） |
-| 电路引擎装配 | `netlab/scene.py`（`CircuitEngine`） |
-| 固定 dt | `netlab/simulation.py`（`_advance_locked`） |
+| Newton 迭代上限 | `netlab/core/compute/nodal.py:34`（60） |
+| 收敛容差 | `netlab/core/compute/nodal.py:35-36`（1e-6 / 1e-9） |
+| 发散电压上限 | `netlab/core/compute/nodal.py:37`（1e9 V） |
+| 未知量索引/矩阵分配 | `netlab/core/compute/nodal.py:1257`、`:1297` |
+| Newton 主循环 | `netlab/core/compute/nodal.py:1332` |
+| 收敛判断 | `netlab/core/compute/nodal.py:1359` |
+| 未收敛抛错 | `netlab/core/compute/nodal.py:1378` |
+| 线性求解/LU 复用 | `netlab/core/compute/nodal.py:1410` |
+| 悬空节点检查 | `netlab/core/compute/nodal.py:1451` |
+| 元件 stamp 接口 | `netlab/core/compute/nodal.py:62`、`:74`（`_stamp_conductance/_stamp_current`） |
+| 电路引擎装配 | `netlab/core/model/scene.py`（`CircuitEngine`） |
+| 固定 dt | `netlab/core/compute/simulation.py`（`_advance_locked`） |
 
 ## 附录 B：术语
 

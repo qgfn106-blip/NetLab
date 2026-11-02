@@ -99,7 +99,7 @@ Windows 上也可以直接用两个脚本：
 ```bash
 python -m pip install pyinstaller
 python -m PyInstaller --noconfirm --onefile --name netlab ^
-  --add-data "netlab/static;netlab/static" netlab/run.py
+  --add-data "frontend;frontend" netlab/run.py
 ```
 
 打包产物可能仍需要显式指定端口/关闭自动开浏览器，具体以构建结果为准。

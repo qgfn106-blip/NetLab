@@ -1,6 +1,6 @@
 # 电路模块化：怎么封装、怎么用
 
-> 适配版本：静态 3.14.4（2026-10-30）。配套代码 `netlab/circuit_modules.py`、`netlab/static/app.js`（模块库 / 模块内部浮窗段）。
+> 适配版本：静态 3.14.4（2026-10-30）。配套代码 `netlab/core/compute/circuit_modules.py`、`frontend/app.js`（模块库 / 模块内部浮窗段）。
 
 ## 0. 先说这次的「节点不存在」
 

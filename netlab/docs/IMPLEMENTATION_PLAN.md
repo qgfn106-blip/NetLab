@@ -107,13 +107,13 @@ Phase 9  打包发布（可延后）
 - 单进程、双工作区：TOPOLOGY（signal / circuit / vector）+ FIELD·FEM。
 - 后端分层清晰：HTTP → 服务/线程 → 场景/引擎 → 计算层 → 数值/校验。
 - 关键文件：
-  - 场景与引擎：`netlab/scene.py`
-  - 信号图运行时：`netlab/graph.py`
-  - 电路 MNA：`netlab/nodal.py`
-  - 节点/连接注册表：`netlab/computes.py`、`netlab/methods.py`
-  - 线程、配置、录制：`netlab/simulation.py`
+  - 场景与引擎：`netlab/core/model/scene.py`
+  - 信号图运行时：`netlab/core/model/graph.py`
+  - 电路 MNA：`netlab/core/compute/nodal.py`
+  - 节点/连接注册表：`netlab/core/compute/computes.py`、`netlab/core/compute/methods.py`
+  - 线程、配置、录制：`netlab/core/compute/simulation.py`
   - HTTP：`netlab/server.py`
-  - 前端单文件：`netlab/static/app.js`（约 4675 行）
+  - 前端单文件：`frontend/app.js`（约 4675 行）
   - 测试：`netlab/tests/test_netlab.py`
   - 文档：`netlab/docs/ARCHITECTURE.md`、`netlab/docs/EXTENDING.md`
 - 数据流：`NodeRecord/EdgeRecord → 引擎装配 → 每步 step → probes → Recorder → /api/live → Canvas`。
@@ -219,7 +219,7 @@ Scene revision / dirty
 1. **图热路径**：内置 handler 使用浅拷贝/只读视图；缓存 `NodeView` 与参数代理；预计算延迟边列表与入边列表；`json_safe` 只对自定义/未知输出强制。
 2. **MNA**：复用 `A/rhs` 缓冲；预计算 stamp 索引；线性电路在 dt/结构不变时只做一次 LU 分解，每步只回代；非线性才逐 Newton 分解。
 3. **FEM**：预计算高斯源基矩阵，将 `_source_vector` 改为矩阵乘；保持稀疏 LU。
-4. **可选 GPU**：新增 `netlab/accel.py`，接口包括 `solve_dense`、`sparse_lu_solve`、`matmul`、`synchronize`、`to_cpu`。
+4. **可选 GPU**：新增 `netlab/core/compute/accel.py`，接口包括 `solve_dense`、`sparse_lu_solve`、`matmul`、`synchronize`、`to_cpu`。
    - `NETLAB_ACCEL=auto|cpu|gpu`；auto 只在规模超过阈值且 CuPy 可用时启用。
    - 单 stream；每步结束显式同步；结果回拷后才提交状态。
    - GPU 异常/不一致自动回退 CPU，并记录 `accel` 状态。
@@ -245,7 +245,7 @@ Scene revision / dirty
 
 自定义扩展：
 
-- 新增 `netlab/extensions.py`，扫描 `extensions/nodes/*.py`、`extensions/methods/*.py`。
+- 新增 `netlab/core/model/extensions.py`，扫描 `extensions/nodes/*.py`、`extensions/methods/*.py`。
 - 用装饰器注册，例如：
 
   ```python
@@ -351,7 +351,7 @@ BlockInstance（父场景中的一个功能节点）
 }
 ```
 
-- 前端新增 `static/router.js` / `static/geometry.js`，纯函数 + Node 单测。
+- 前端新增 `frontend/router.js` / `frontend/geometry.js`，纯函数 + Node 单测。
 - 正交路由：曼哈顿折线 + 圆角；按边序号/哈希分车道；可选节点避让（线段-圆相交检测 + 绕行点）。
 - 手动拐点：拖拽、Alt+点击删除、双击添加；标签可拖动。
 - 层级：`z` + “置顶/置底”；选中边始终最上。
@@ -408,8 +408,8 @@ BlockInstance（父场景中的一个功能节点）
 | 目标 | 双击启动原生窗口；项目可保存/打开/自动保存/恢复；关闭前确认 |
 | 范围 | 桌面窗口、本地服务线程、原生文件对话框、项目文件、最近文件、自动保存、会话 token；**不含**模块/自定义代码/电路扩展 |
 | 依赖 | Phase 0 |
-| 新建 | `netlab/desktop/__init__.py`、`app.py`、`main_window.py`、`bridge.py`、`server_host.py`、`selftest.py`；`netlab/project.py`；`start_desktop.bat`；`requirements-desktop.txt` |
-| 修改 | `netlab/server.py`（app 工厂 / token / 优雅关闭）、`netlab/run.py`（可选桌面入口）、`netlab/static/app.js`（桌面桥检测、项目菜单、dirty 标记）、`netlab/static/index.html`、`netlab/static/style.css`、`netlab/tests/test_netlab.py`（兼容性） |
+| 新建 | `netlab/desktop/__init__.py`、`app.py`、`main_window.py`、`bridge.py`、`server_host.py`、`selftest.py`；`netlab/core/model/project.py`；`start_desktop.bat`；`requirements-desktop.txt` |
+| 修改 | `netlab/server.py`（app 工厂 / token / 优雅关闭）、`netlab/run.py`（可选桌面入口）、`frontend/app.js`（桌面桥检测、项目菜单、dirty 标记）、`frontend/index.html`、`frontend/style.css`、`netlab/tests/test_netlab.py`（兼容性） |
 | 交付物 | 可运行的桌面窗口；项目保存/打开/另存为/最近/自动保存/恢复；浏览器模式仍可用 |
 | 验收 | `python -m netlab.desktop --selftest` 通过；项目往返后场景/配置/UI 一致；关闭未保存时提示；43 + 新增测试通过；无浏览器依赖 |
 | 数据安全 | 服务端不读任意路径；桌面会话 token；原子保存；前端忽略旧 revision 快照 |
@@ -422,8 +422,8 @@ BlockInstance（父场景中的一个功能节点）
 | 目标 | 用基准驱动优化；GPU 有证据才启用 |
 | 范围 | 信号图热路径、MNA 线性复用、FEM 源项向量化、可选 CuPy 后端；不改变数值语义 |
 | 依赖 | Phase 1（有基准脚本与桌面观测入口） |
-| 新建 | `netlab/accel.py`；`netlab/tests/test_accel.py`；扩展 `tools/bench.py` |
-| 修改 | `netlab/graph.py`、`netlab/scene.py`、`netlab/nodal.py`、`netlab/fem.py`、`netlab/linalg.py`、`netlab/simulation.py`、`netlab/limits.py`、`netlab/server.py`、`netlab/static/app.js`（accel 状态） |
+| 新建 | `netlab/core/compute/accel.py`；`netlab/tests/test_accel.py`；扩展 `tools/bench.py` |
+| 修改 | `netlab/core/model/graph.py`、`netlab/core/model/scene.py`、`netlab/core/compute/nodal.py`、`netlab/core/compute/fem.py`、`netlab/core/compute/linalg.py`、`netlab/core/compute/simulation.py`、`netlab/core/common/limits.py`、`netlab/server.py`、`frontend/app.js`（accel 状态） |
 | 交付物 | 前后基准报告；CPU 优化；可选 GPU 后端与自动回退；性能面板 |
 | 验收 | 代表性场景 step_ms 有可重复改进（目标：信号 ≥1.5×、线性电路 ≥2×、FEM ≥1.3×；以基准为准）；数值与基线一致（容差内）；GPU 不可用/无收益时自动 CPU；确定性测试通过 |
 | 数据安全 | 单线程步进顺序不变；GPU 单 stream + 同步；引擎原子重建；录制只在成功后写入 |
@@ -436,8 +436,8 @@ BlockInstance（父场景中的一个功能节点）
 | 目标 | 看得见函数/公式/参数；能在应用内写 Python 扩展 |
 | 范围 | 内置源码/公式/参数说明；自定义节点/连接/传递函数；信任门控；文档 |
 | 依赖 | Phase 1（项目保存与信任 UI） |
-| 新建 | `netlab/extensions.py`；`docs/PYTHON_EXTENSIONS.md`；`tests/test_extensions.py` |
-| 修改 | `netlab/computes.py`、`netlab/methods.py`、`netlab/nodal.py`（规格元数据/公式/源码）、`netlab/params.py`（参数文档字段）、`netlab/scene.py`（catalog）、`netlab/server.py`（扩展 API）、`netlab/limits.py`（代码大小/路径）、`netlab/static/app.js`（代码页/编辑器/参数表）、`netlab/project.py`（内嵌代码与哈希） |
+| 新建 | `netlab/core/model/extensions.py`；`docs/PYTHON_EXTENSIONS.md`；`tests/test_extensions.py` |
+| 修改 | `netlab/core/compute/computes.py`、`netlab/core/compute/methods.py`、`netlab/core/compute/nodal.py`（规格元数据/公式/源码）、`netlab/core/compute/params.py`（参数文档字段）、`netlab/core/model/scene.py`（catalog）、`netlab/server.py`（扩展 API）、`netlab/core/common/limits.py`（代码大小/路径）、`frontend/app.js`（代码页/编辑器/参数表）、`netlab/core/model/project.py`（内嵌代码与哈希） |
 | 交付物 | 内置源码查看；参数说明表；自定义扩展示例；应用内编辑/校验/保存/热重载；文档 |
 | 验收 | 任一内置节点/连接可看到公式、参数表、源码；自定义 `rate_limiter` / `dead_zone` / 传递函数可运行；危险 AST 被拒；项目打开不自动执行代码；错误带行号；测试通过 |
 | 安全 | 明确“本地可信扩展”边界；保留只读与受限表达式路径；不加载远程代码 |
@@ -450,8 +450,8 @@ BlockInstance（父场景中的一个功能节点）
 | 目标 | 网络可封装为带输入/输出接口的功能节点；支持嵌套与复用 |
 | 范围 | `BlockDef` / 实例 / 端口节点 / 接口节点 / 嵌套编辑 / 封装选中 / 模块库 / 参数绑定；signal+vector 先行 |
 | 依赖 | Phase 1（保存）、Phase 3（若模块含自定义节点） |
-| 新建 | `netlab/blocks.py`；`docs/BLOCKS.md`；`tests/test_blocks.py` |
-| 修改 | `netlab/scene.py`（blocks/scope/序列化/展开）、`netlab/graph.py`（隐藏节点/端口）、`netlab/computes.py`（`module_input` / `module_output`）、`netlab/methods.py`（`block_feed` / `block_emit`）、`netlab/server.py`（blocks API/scope）、`netlab/templates.py`（示例模块）、`netlab/static/app.js`（块卡片/端口/面包屑/封装）、`netlab/limits.py`（嵌套/展开上限）、`netlab/project.py` |
+| 新建 | `netlab/core/model/blocks.py`；`docs/BLOCKS.md`；`tests/test_blocks.py` |
+| 修改 | `netlab/core/model/scene.py`（blocks/scope/序列化/展开）、`netlab/core/model/graph.py`（隐藏节点/端口）、`netlab/core/compute/computes.py`（`module_input` / `module_output`）、`netlab/core/compute/methods.py`（`block_feed` / `block_emit`）、`netlab/server.py`（blocks API/scope）、`netlab/core/model/templates.py`（示例模块）、`frontend/app.js`（块卡片/端口/面包屑/封装）、`netlab/core/common/limits.py`（嵌套/展开上限）、`netlab/core/model/project.py` |
 | 交付物 | 封装/展开、端口编辑、嵌套编辑、模块库、参数绑定、保存/加载 |
 | 验收 | 选中网络一键封装后外部连线保持；模块实例输出与扁平网络数值一致；两个实例状态互不影响；嵌套 2 层可用；递归/超限有可读错误；保存再打开一致；测试通过 |
 | 数据安全 | 每实例独立 state；端口值拷贝；引擎原子构建；展开上限与递归检测 |
@@ -465,7 +465,7 @@ BlockInstance（父场景中的一个功能节点）
 | 范围 | 2 端子元件、保险丝、PTC/MOV、稳压/肖特基/LED/TVS/变容/光电二极管、可变 R/C、磁珠；多端子经功能块；运放/比较器/稳压器；`cccs/ccvs` |
 | 依赖 | Phase 4（功能块/端口/展开） |
 | 新建 | `docs/CIRCUIT_LIBRARY.md`；`tests/test_elements_extra.py`；内置块定义可放 `blocks.py` 或 `netlab/builtin_blocks.py` |
-| 修改 | `netlab/nodal.py`（新元件/规格/符号元数据/CCCS/CCVS）、`netlab/blocks.py`（内置块）、`netlab/templates.py`（示例）、`netlab/static/app.js`（符号/参数/内部视图入口）、`netlab/scene.py`（元件目录/序列化） |
+| 修改 | `netlab/core/compute/nodal.py`（新元件/规格/符号元数据/CCCS/CCVS）、`netlab/core/model/blocks.py`（内置块）、`netlab/core/model/templates.py`（示例）、`frontend/app.js`（符号/参数/内部视图入口）、`netlab/core/model/scene.py`（元件目录/序列化） |
 | 交付物 | 元件参数/模型/测试/符号；保险丝熔断锁存；运放增益/饱和/内部电路；示例模板 |
 | 验收 | 每个 Tier A 元件有解析或行为测试；保险丝按 `EXTENDING` 示例熔断并锁存；运放闭环增益/饱和符合预期；内部电路可打开并仿真；保存/重置正确；测试通过 |
 | 备注 | Tier B/C 在文档中列明；不承诺一次性完成全部清单 |
@@ -477,8 +477,8 @@ BlockInstance（父场景中的一个功能节点）
 | 目标 | 逻辑门/触发器/寄存器/计数器/ADC/DAC 可用；模拟-数字可协同 |
 | 范围 | 四态逻辑、确定性事件队列、DFF/JK/RS、计数器、移位寄存器、ADC/DAC、混合信号桥、逻辑图/真值表 |
 | 依赖 | Phase 5（模拟块/端口/内部视图） |
-| 新建 | `netlab/digital.py`；`tests/test_digital.py`；`docs/DIGITAL.md` |
-| 修改 | `netlab/blocks.py`（数字块）、`netlab/nodal.py`（桥接元件/采样）、`netlab/scene.py`（数字统计/状态）、`netlab/server.py`（数字配置/状态）、`netlab/static/app.js`（逻辑图/真值表/内部视图）、`netlab/templates.py`（示例） |
+| 新建 | `netlab/core/compute/digital.py`；`tests/test_digital.py`；`docs/DIGITAL.md` |
+| 修改 | `netlab/core/model/blocks.py`（数字块）、`netlab/core/compute/nodal.py`（桥接元件/采样）、`netlab/core/model/scene.py`（数字统计/状态）、`netlab/server.py`（数字配置/状态）、`frontend/app.js`（逻辑图/真值表/内部视图）、`netlab/core/model/templates.py`（示例） |
 | 交付物 | 门真值表、DFF 边沿/寄存器移位/计数器测试；ADC/DAC 量化；混合信号示例；内部逻辑图 |
 | 验收 | 真值表/时序测试通过；时钟边沿确定；跨域一步因果明确；无隐藏代数环；保存/重置正确；测试通过 |
 | 非目标 | MCU/CPU/RAM/ROM/Flash 指令级仿真、PCB 封装 |
@@ -490,8 +490,8 @@ BlockInstance（父场景中的一个功能节点）
 | 目标 | 连线不遮节点、可直角/直线/手动；参数设置更像常规软件；操作可撤销 |
 | 范围 | 路由模式/拐点/锚点/标签/层级/避让；参数分组/说明/默认/校验；撤销重做；保存 UI 完善 |
 | 依赖 | Phase 1（保存）、Phase 4（端口） |
-| 新建 | `netlab/static/router.js`、`netlab/static/geometry.js`、`netlab/tests-js/*.test.mjs`；`tests` 中路由序列化测试 |
-| 修改 | `netlab/scene.py`（route 字段/校验）、`netlab/server.py`（请求模型）、`netlab/static/app.js`（绘制/命中/交互/撤销）、`netlab/static/index.html`、`netlab/static/style.css`、`netlab/project.py` |
+| 新建 | `frontend/router.js`、`frontend/geometry.js`、`netlab/tests-js/*.test.mjs`；`tests` 中路由序列化测试 |
+| 修改 | `netlab/core/model/scene.py`（route 字段/校验）、`netlab/server.py`（请求模型）、`frontend/app.js`（绘制/命中/交互/撤销）、`frontend/index.html`、`frontend/style.css`、`netlab/core/model/project.py` |
 | 交付物 | 直线/正交/手动路由；拖动拐点；避让开关；层级；标签拖动；参数表单升级；撤销/重做；保存/恢复 UI 设置 |
 | 验收 | JS 几何单测通过；路由保存/加载一致；节点拖动后路由缓存正确失效；参数修改有校验/恢复默认；撤销/重做不破坏运行状态；CDP 截图检查 |
 | 数据安全 | route 校验上限；撤销通过服务端快照恢复，恢复时暂停仿真并重置运行时状态（明确提示） |
@@ -505,7 +505,7 @@ BlockInstance（父场景中的一个功能节点）
 | 范围 | 列式录制器、history API、相图时长/抽稀、回放控件、推荐周期 |
 | 依赖 | Phase 1（UI 设置保存）、Phase 2（性能/内存基线） |
 | 新建 | `netlab/history.py`（或并入 `simulation.py`）；`tests/test_history.py`；`tests-js/phase.test.mjs` |
-| 修改 | `netlab/simulation.py`、`netlab/server.py`、`netlab/static/app.js`、`netlab/static/index.html`、`netlab/static/style.css`、`netlab/project.py` |
+| 修改 | `netlab/core/compute/simulation.py`、`netlab/server.py`、`frontend/app.js`、`frontend/index.html`、`frontend/style.css`、`netlab/core/model/project.py` |
 | 交付物 | 20k 帧列式录制；`/api/history`；时长制轨迹；回放/循环/速度；推荐周期与依据 |
 | 验收 | 内存有上限；长轨迹不卡顿；循环边界正确；自定义时长生效；推荐值与驱动频率/自相关一致；回放不改变仿真；保存/恢复设置；测试通过 |
 | 风险 | 内存与抽稀；用容量/最大点数/时间窗三重限制 |
@@ -542,13 +542,13 @@ BlockInstance（父场景中的一个功能节点）
 | 区域 | 现有文件 | 计划新增 |
 | --- | --- | --- |
 | 桌面 | `netlab/run.py` | `netlab/desktop/*`、`start_desktop.bat`、`requirements-desktop.txt` |
-| 项目保存 | `netlab/server.py`、`netlab/simulation.py` | `netlab/project.py` |
-| 信号图 | `netlab/graph.py`、`netlab/scene.py` | — |
-| 电路 | `netlab/nodal.py`、`netlab/linalg.py` | `netlab/digital.py` |
-| 注册表/参数 | `netlab/computes.py`、`netlab/methods.py`、`netlab/params.py`、`netlab/limits.py` | `netlab/extensions.py`、`netlab/blocks.py` |
-| FEM/加速 | `netlab/fem.py` | `netlab/accel.py` |
-| 前端 | `netlab/static/app.js`、`netlab/static/index.html`、`netlab/static/style.css` | `netlab/static/router.js`、`netlab/static/geometry.js` |
-| 模板 | `netlab/templates.py` | 模块/电路/数字示例模板 |
+| 项目保存 | `netlab/server.py`、`netlab/core/compute/simulation.py` | `netlab/core/model/project.py` |
+| 信号图 | `netlab/core/model/graph.py`、`netlab/core/model/scene.py` | — |
+| 电路 | `netlab/core/compute/nodal.py`、`netlab/core/compute/linalg.py` | `netlab/core/compute/digital.py` |
+| 注册表/参数 | `netlab/core/compute/computes.py`、`netlab/core/compute/methods.py`、`netlab/core/compute/params.py`、`netlab/core/common/limits.py` | `netlab/core/model/extensions.py`、`netlab/core/model/blocks.py` |
+| FEM/加速 | `netlab/core/compute/fem.py` | `netlab/core/compute/accel.py` |
+| 前端 | `frontend/app.js`、`frontend/index.html`、`frontend/style.css` | `frontend/router.js`、`frontend/geometry.js` |
+| 模板 | `netlab/core/model/templates.py` | 模块/电路/数字示例模板 |
 | 测试 | `netlab/tests/test_netlab.py` | `test_desktop.py`、`test_project.py`、`test_accel.py`、`test_extensions.py`、`test_blocks.py`、`test_elements_extra.py`、`test_digital.py`、`test_history.py`、`tests-js/*` |
 | 工具 | `netlab/tools/cdp_*.mjs` | `netlab/tools/bench.py`、`netlab/tools/build_windows.ps1` |
 | 文档 | `netlab/README.md`、`netlab/docs/ARCHITECTURE.md`、`netlab/docs/EXTENDING.md` | `netlab/docs/PROGRESS.md`、`netlab/docs/USER_GUIDE.md`、`netlab/docs/PYTHON_EXTENSIONS.md`、`netlab/docs/BLOCKS.md`、`netlab/docs/CIRCUIT_LIBRARY.md`、`netlab/docs/DIGITAL.md` |

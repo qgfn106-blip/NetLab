@@ -19,9 +19,11 @@ import numpy as np
 
 from . import accel
 from .profiling import timed
+from ..common.fastcopy import copy_state as _copy_state
 from ..common.limits import ComputeError, ConflictError, ValidationError
 from .linalg import solve_linear
 from .params import ParamSpec, choice_param, float_param, validate_params
+
 from .waveform import WAVEFORM_SPECS, waveform_value
 
 try:  # SciPy 已在 requirements 中；没有时仍可用 NumPy 求解。
@@ -1582,9 +1584,9 @@ class CircuitSolver:
         rows: list[dict[str, Any]] = []
         for element in self.elements:
             row: dict[str, Any] = {
-                "state": copy.deepcopy(element.state),
-                "guess": copy.deepcopy(element.iteration_guess),
-                "result": copy.deepcopy(element.result),
+                "state": _copy_state(element.state),
+                "guess": _copy_state(element.iteration_guess),
+                "result": _copy_state(element.result),
                 "time": float(getattr(element, "time", 0.0)),
             }
             if hasattr(element, "value"):
@@ -1613,9 +1615,9 @@ class CircuitSolver:
         self.last_iterations = int(checkpoint.get("last_iterations", 0))
         self.last_solve_ms = float(checkpoint.get("last_solve_ms", 0.0))
         for element, row in zip(self.elements, checkpoint.get("elements", [])):
-            element.state = copy.deepcopy(row.get("state", {}))
-            element.iteration_guess = copy.deepcopy(row.get("guess", {}))
-            element.result = copy.deepcopy(row.get("result", {}))
+            element.state = _copy_state(row.get("state", {}))
+            element.iteration_guess = _copy_state(row.get("guess", {}))
+            element.result = _copy_state(row.get("result", {}))
             element.time = float(row.get("time", element.time))
             if "value" in row:
                 element.value = row["value"]
@@ -1635,8 +1637,8 @@ class CircuitSolver:
 
     def _restore_element_states(self, snapshot: list[dict[str, Any]]) -> None:
         for element, row in zip(self.elements, snapshot):
-            element.state = copy.deepcopy(row["state"])
-            element.iteration_guess = copy.deepcopy(row["guess"])
+            element.state = _copy_state(row["state"])
+            element.iteration_guess = _copy_state(row["guess"])
 
     # ---- 推进 -------------------------------------------------------------
     @timed("circuit.solver.step")

@@ -25,7 +25,7 @@ MAX_POINTS = 20_000
 #: 同步线程的采样节奏（秒）；前端实时重绘是 1Hz，这里 2Hz 足够，再快只是白烧 CPU
 SYNC_INTERVAL = 0.5
 #: 最多同时接多少个通道（probes 一次可能给 240 个）
-MAX_CHANNELS = 6
+MAX_CHANNELS = 64
 DEFAULT_WINDOW = 5.0   # 秒；与 netlab 老画布的「时间窗」默认值一致
 #: 探针曲线统一细实线（默认的「线 + 圆点」在高密度下会糊成一片）
 LINE_STYLE = {"mode": "lines", "width": 1.4, "marker": {"symbol": ""}}
@@ -127,7 +127,11 @@ def _layer_y(layer: dict[str, Any]) -> str:
 
 
 def set_channels(keys: list[str] | None) -> bool:
-    """只显示指定通道（None/空 = 恢复自动发现）；用于「选中节点 → 看它的探针」。"""
+    """登记要接入的通道（只登记数据源，不自动建图层）。
+
+    D-PlotView：接入 = 把探针列注册成 PlotKit 的数据集；画什么、怎么画由用户在
+    PlotKit 的图层面板里自己决定（拖拽/加图层），宿主不再替他生成曲线。
+    """
     figure = _STATE.get("figure")
     wanted = [str(k) for k in (keys or [])][:MAX_CHANNELS]
     _FORCED["keys"] = wanted or None
@@ -135,35 +139,29 @@ def set_channels(keys: list[str] | None) -> bool:
         return False
     try:
         names = set(figure.store.names())
-        keep = [layer for layer in figure.spec.get("layers") or [] if _layer_y(layer) == "t"]
-        figure.spec["layers"] = keep
-        targets = wanted or [k for k in names if k != "t"][:MAX_CHANNELS]
+        targets = wanted or [k for k in sorted(names) if k != "t"][:MAX_CHANNELS]
         for key in targets:
-            if key not in names:
+            if key in names:
                 continue
-            figure.add_plot(x="t", y=key, label=_label(key), style=LINE_STYLE)
+            if "t" in names:
+                import numpy as np
+                figure.add_data(key, np.full(len(figure.store.get("t")), np.nan), role="series",
+                                life="append", tags=[key.split(":")[0]])
     except Exception:
-        LOGGER.debug("切换 PlotKit 通道失败", exc_info=True)
+        LOGGER.debug("登记 PlotKit 通道失败", exc_info=True)
         return False
     return True
 
 
 def selected_channels() -> list[str]:
-    """当前图里真正在画的通道名（不含坐标 t）；供界面回显选中项。"""
+    """当前接入的通道名（不含坐标 t）；供界面回显选中项。
+
+    D-PlotView 起「接入」只登记数据集、不建图层，所以默认返回全部已登记通道。
+    """
     if _FORCED.get("keys"):
         return list(_FORCED["keys"])
-    figure = _STATE.get("figure")
-    if figure is None:
-        return []
-    try:
-        out: list[str] = []
-        for layer in figure.spec.get("layers") or []:
-            key = _layer_y(layer)
-            if key and key != "t" and key not in out:
-                out.append(key)
-        return out
-    except Exception:
-        return []
+    return channels()
+
 
 def channels() -> list[str]:
     """当前 figure 里可选的通道名（不含坐标 t）。"""
@@ -185,7 +183,7 @@ def build_figure(service: Any) -> Any:
     fig.add_data("t", [], unit="s", role="coord", life="append")
     for key in keys:
         fig.add_data(key, [], role="series", life="append", tags=[key.split(":")[0]])
-        fig.add_plot(x="t", y=key, label=_label(key), subplot=0, style=LINE_STYLE)
+    # D-PlotView：只登记数据源；曲线由用户在 PlotKit 图层面板里自己加
     fig.set_view(0, xlabel="t / s", grid=True)
     # 和老画布默认一致：只显示最近 5 秒（可在界面上改，回放时沿游标往回截）
     fig.window(DEFAULT_WINDOW)
@@ -264,10 +262,6 @@ def _ensure_channels(figure: Any, frames: list[dict[str, Any]], *, limit: int = 
             key, np.full(t_len, np.nan, dtype="float64"), role="series", life="append",
             tags=[key.split(":")[0]],
         )
-        try:
-            figure.add_plot(x="t", y=key, label=_label(key), style=LINE_STYLE)
-        except Exception:  # 通道名里有怪字符时宁可少画一条
-            LOGGER.debug("无法为通道 %s 建图层", key, exc_info=True)
 
 
 def _ingest(figure: Any, frames: list[dict[str, Any]], keys: list[str]) -> None:

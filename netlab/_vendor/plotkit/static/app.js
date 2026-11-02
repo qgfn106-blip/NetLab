@@ -42,6 +42,163 @@ const state = {
 
 const KIND_LABEL = { line: "折线", marker: "散点", bar: "柱状" };
 
+/* ---------------- 前端 2D 渲染（D-PlotView：数据与渲染解耦） ----------------
+ * 交互（缩放/平移/播放/拖时间轴）全部在浏览器 canvas 上重画，毫秒级；
+ * 服务端 matplotlib 只在导出 PNG/SVG/PDF 时用一次。
+ */
+
+const CLIENT_KINDS = new Set([
+  "line", "step", "stairs", "stem", "marker", "scatter", "points", "bar", "barh",
+  "segments", "area", "hist", "ecdf", "boxplot", "violinplot", "violin", "pie",
+  "hexbin", "quiver", "table", "heatmap", "image", "contour", "contourf",
+]);
+const SERIES_CACHE = new Map();   // name -> {values: Float32Array, total: int}
+state.clientZoom = {};            // slot -> {xlim, ylim}
+state.clientResult = null;
+
+function clientTokens() {
+  const cs = getComputedStyle(document.body);
+  const read = (key, fallback) => (cs.getPropertyValue(key) || "").trim() || fallback;
+  return {
+    paper: read("--bg", "#0f172a"),
+    plot: read("--bg-2", "#111827"),
+    text: read("--text", "#e2e8f0"),
+    muted: read("--muted", "#94a3b8"),
+    grid: read("--line", "#1f2937"),
+    accent: read("--accent", "#4fc3f7"),
+  };
+}
+
+function clientRenderable(spec) {
+  if (!spec || !spec.layers || !spec.layers.length) return false;
+  return spec.layers.every((layer) => CLIENT_KINDS.has(String(layer.kind || "line").toLowerCase()));
+}
+
+function datasetTotal(name) {
+  const item = (state.catalog.datasets || []).find((d) => d.name === name);
+  return item && typeof item.n === "number" ? item.n : null;
+}
+
+async function ensureSeries(name) {
+  const total = datasetTotal(name);
+  const cached = SERIES_CACHE.get(name);
+  if (cached && (total == null || cached.total === total)) return cached;
+  const res = await fetch(`api/column?name=${encodeURIComponent(name)}&pixels=8000`);
+  if (!res.ok) return null;
+  const buf = await res.arrayBuffer();
+  const view = new DataView(buf);
+  const metaLen = view.getUint32(4, true);
+  const n = view.getUint32(8, true);
+  const values = new Float32Array(n);
+  const base = 12 + metaLen;
+  for (let i = 0; i < n; i++) values[i] = view.getFloat32(base + i * 4, true);
+  const entry = { values, total: total == null ? n : total };
+  SERIES_CACHE.set(name, entry);
+  return entry;
+}
+
+async function renderClient(reason) {
+  const canvas = $("plotCanvas");
+  const img = $("plotImg");
+  const { w, h } = plotSize();
+  canvas.style.width = `${w}px`;
+  canvas.style.height = `${h}px`;
+  canvas.hidden = false;
+  img.style.display = "none";
+  $("empty").hidden = true;
+  const names = new Set();
+  for (const layer of state.spec.layers) {
+    const data = layer.data || {};
+    if (data.x || data.x0) names.add(data.x || data.x0);
+    if (data.y || data.y0) names.add(data.y || data.y0);
+  }
+  await Promise.all([...names].map((name) => ensureSeries(name)));
+  const store = { get: (name) => SERIES_CACHE.get(name) || null };
+  const head = state.playhead;
+  const win = parseFloat($("winSec").value);
+  const tMin = head != null && isFinite(win) && win > 0 ? head - win : null;
+  state.clientResult = window.Plot2D.render(canvas, state.spec, store, {
+    tokens: clientTokens(),
+    t: head == null ? Infinity : head,
+    tMin,
+    overrides: state.clientZoom,
+    dpr: window.devicePixelRatio || 1,
+  });
+}
+
+function resetClientZoom() { state.clientZoom = {}; }
+
+function bindClientInteractions() {
+  const canvas = $("plotCanvas");
+  if (!canvas || canvas.dataset.bound === "1") return;
+  canvas.dataset.bound = "1";
+
+  const axisAt = (px, py) => {
+    const res = state.clientResult;
+    if (!res) return null;
+    return res.axes.find((a) => px >= a.box.x && px <= a.box.x + a.box.w && py >= a.box.y && py <= a.box.y + a.box.h) || null;
+  };
+
+  canvas.addEventListener("wheel", (ev) => {
+    if (!state.clientResult) return;
+    ev.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const px = ev.clientX - rect.left, py = ev.clientY - rect.top;
+    const axis = axisAt(px, py);
+    if (!axis) return;
+    const factor = Math.exp(ev.deltaY * 0.0012);
+    const cur = state.clientZoom[axis.slot] || { xlim: axis.xlim.slice(), ylim: axis.ylim.slice() };
+    const xv = axis.sx.from(px), yv = axis.sy.from(py);
+    state.clientZoom[axis.slot] = {
+      xlim: [xv + (cur.xlim[0] - xv) * factor, xv + (cur.xlim[1] - xv) * factor],
+      ylim: [yv + (cur.ylim[0] - yv) * factor, yv + (cur.ylim[1] - yv) * factor],
+    };
+    renderClient("缩放");
+  }, { passive: false });
+
+  let drag = null;
+  let raf = 0;
+  canvas.addEventListener("pointerdown", (ev) => {
+    if (ev.button !== 0 || !state.clientResult) return;
+    const rect = canvas.getBoundingClientRect();
+    const axis = axisAt(ev.clientX - rect.left, ev.clientY - rect.top);
+    if (!axis) return;
+    drag = { axis, x: ev.clientX, y: ev.clientY, cur: state.clientZoom[axis.slot] || { xlim: axis.xlim.slice(), ylim: axis.ylim.slice() } };
+    canvas.setPointerCapture(ev.pointerId);
+    canvas.style.cursor = "grabbing";
+  });
+  canvas.addEventListener("pointermove", (ev) => {
+    const rect = canvas.getBoundingClientRect();
+    if (drag) {
+      const dxData = drag.axis.sx.from(drag.axis.box.x) - drag.axis.sx.from(drag.axis.box.x + (ev.clientX - drag.x));
+      const dyData = drag.axis.sy.from(drag.axis.box.y) - drag.axis.sy.from(drag.axis.box.y + (ev.clientY - drag.y));
+      state.clientZoom[drag.axis.slot] = {
+        xlim: [drag.cur.xlim[0] + dxData, drag.cur.xlim[1] + dxData],
+        ylim: [drag.cur.ylim[0] + dyData, drag.cur.ylim[1] + dyData],
+      };
+      if (!raf) raf = requestAnimationFrame(() => { raf = 0; renderClient("平移"); });
+      return;
+    }
+    const hit = window.Plot2D.pick(state.clientResult, ev.clientX - rect.left, ev.clientY - rect.top);
+    const hover = $("plotHover");
+    if (!hit) { hover.hidden = true; return; }
+    hover.hidden = false;
+    hover.style.left = `${ev.clientX - rect.left + 12}px`;
+    hover.style.top = `${ev.clientY - rect.top + 12}px`;
+    hover.textContent = `${hit.item.series.yName || "y"} = ${(+hit.y.toPrecision(4))}  ·  x = ${(+hit.x.toPrecision(4))}`;
+  });
+  const end = (ev) => {
+    if (!drag) return;
+    drag = null;
+    canvas.style.cursor = "";
+    try { canvas.releasePointerCapture(ev.pointerId); } catch (err) { /* ignore */ }
+  };
+  canvas.addEventListener("pointerup", end);
+  canvas.addEventListener("pointercancel", end);
+  canvas.addEventListener("dblclick", () => { state.clientZoom = {}; renderClient("复位缩放"); });
+}
+
+
 /* ---------------- 网络 ---------------- */
 
 async function api(path, options) {
@@ -64,6 +221,33 @@ function setStatus(text, tone) {
 
 /* ---------------- 启动 ---------------- */
 
+function bindFigureFields() {
+  const fig = () => state.spec.figure;
+  const set = (k, v) => { fig()[k] = v; commit("画布"); };
+  const subCount = () => (Number(state.spec.figure.subplots) || 1);
+  $("figTitle").onchange = (e) => set("title", e.target.value);
+  $("figNcols").onchange = (e) => set("ncols", +e.target.value || 1);
+  $("figXlabel").onchange = (e) => set("xlabel", e.target.value);
+  $("figYlabel").onchange = (e) => set("ylabel", e.target.value);
+  $("figSubplots").onchange = (e) => {
+    const n = Math.max(1, +e.target.value || 1);
+    // figure.subplots 是「子图数量」（整数），槽号 0..n-1
+    state.spec.figure.subplots = n;
+    state.spec.layers.forEach((l) => { if ((l.subplot | 0) >= n) l.subplot = n - 1; });
+    commit("子图数");
+  };
+  const sync = () => {
+    const f = state.spec.figure;
+    $("figTitle").value = f.title || "";
+    $("figNcols").value = String(f.ncols || 1);
+    $("figXlabel").value = f.xlabel || "";
+    $("figYlabel").value = f.ylabel || "";
+    $("figSubplots").value = String(subCount());
+  };
+  sync();
+  state.syncFigureFields = sync;
+}
+
 async function boot() {
   try {
     const [meta, spec, catalog, layout] = await Promise.all([
@@ -79,7 +263,9 @@ async function boot() {
     initPlayback(meta);
     renderLayoutControls();
     renderDatasets();
+    bindFigureFields();
     renderLayers();
+    bindClientInteractions();
     await redraw("首次绘制");
     // performance.now() 从导航开始计时，所以这个数就是"打开页面到图出来"
     pushTiming("首帧（含引擎解析）", performance.now());
@@ -182,6 +368,10 @@ function datasetsByRole(role) {
 /* ---------------- 图层编辑器 ---------------- */
 
 function makeLayerCard(layer, index) {
+  // 容错：spec 可能只写了 id/kind/data（API 或老文件），编辑控件要能补默认值
+  if (!layer.style) layer.style = {};
+  if (!layer.data) layer.data = {};
+  if (!layer.style.marker) layer.style.marker = { symbol: "circle", size: 6 };
   const card = document.createElement("div");
   card.className = "layer";
   card.draggable = true;
@@ -217,7 +407,14 @@ function makeLayerCard(layer, index) {
 
   const fields = document.createElement("div");
   fields.className = "fields";
-  fields.appendChild(selectField("图型", ["line", "marker", "bar"], layer.kind, (v) => {
+  const allMeta = (state.meta && state.meta.kinds) || [];
+  const flat = allMeta.filter((k) => k.dimension !== 3).map((k) => ({ value: k.kind, label: `${k.description || k.kind} · ${k.kind}` }));
+  const deep = allMeta.filter((k) => k.dimension === 3).map((k) => ({ value: k.kind, label: `${k.description || k.kind} · ${k.kind}（3D）` }));
+  const kindPairs = flat.concat(deep);
+  if (layer.kind && !kindPairs.some((p) => p.value === layer.kind)) {
+    kindPairs.unshift({ value: layer.kind, label: layer.kind });
+  }
+  fields.appendChild(selectPairs("图型", kindPairs, layer.kind, (v) => {
     layer.kind = v;
     commit("改图型");
   }));
@@ -225,15 +422,16 @@ function makeLayerCard(layer, index) {
     layer.style.color = v || null;
     commit("改颜色");
   }, true));
-  fields.appendChild(selectField("子图槽", range(state.spec.figure.subplots).map(String), String(layer.subplot), (v) => {
+  fields.appendChild(selectPairs("子图槽", range(state.spec.figure.subplots).map((i) => ({ value: String(i), label: `槽 ${i}` })), String(layer.subplot), (v) => {
     layer.subplot = Number(v);
     commit("换子图");
   }));
-  fields.appendChild(selectField("X 数据", datasetsByRole("coord").map((d) => d.name), layer.data.x, (v) => {
+  const allNames = (state.catalog.datasets || []).map((d) => ({ value: d.name, label: d.name }));
+  fields.appendChild(selectPairs("X 数据", allNames, layer.data.x || "", (v) => {
     layer.data.x = v;
     commit("改 X");
   }));
-  fields.appendChild(selectField("Y 数据", datasetsByRole("series").map((d) => d.name), layer.data.y, (v) => {
+  fields.appendChild(selectPairs("Y 数据", allNames, layer.data.y || "", (v) => {
     layer.data.y = v;
     commit("改 Y");
   }));
@@ -241,6 +439,48 @@ function makeLayerCard(layer, index) {
     layer.label = v || null;
     commit("改图例");
   }));
+  fields.appendChild(numberField("线宽", layer.style.width == null ? 1.6 : layer.style.width, 0, 12, 0.2, (v) => {
+    layer.style.width = v;
+    commit("改线宽");
+  }));
+  fields.appendChild(selectField("线型", ["solid", "dash", "dot", "dashdot", "longdash"], layer.style.dash || "solid", (v) => {
+    layer.style.dash = v;
+    commit("改线型");
+  }));
+  if (!layer.style.marker) layer.style.marker = { symbol: "circle", size: 6 };
+  fields.appendChild(selectField("点形", ["circle", "square", "diamond", "triangle", "cross"], layer.style.marker.symbol || "circle", (v) => {
+    layer.style.marker.symbol = v;
+    commit("改点形");
+  }));
+  fields.appendChild(numberField("点大小", layer.style.marker.size == null ? 6 : layer.style.marker.size, 1, 30, 1, (v) => {
+    layer.style.marker.size = v;
+    commit("改点大小");
+  }));
+  fields.appendChild(numberField("不透明度", layer.style.opacity == null ? 1 : layer.style.opacity, 0, 1, 0.05, (v) => {
+    layer.style.opacity = v;
+    commit("改不透明度");
+  }));
+  fields.appendChild(selectField("图例", ["显示", "隐藏"], layer.legend === false ? "隐藏" : "显示", (v) => {
+    layer.legend = v === "显示";
+    commit("改图例开关");
+  }));
+  // —— 视图：每个图层可单独设定坐标范围与刻度 ——
+  layer.view = layer.view || {};
+  const rangeText = (v) => (Array.isArray(v) && v.length === 2 ? v.join(", ") : "");
+  const parseRange = (txt) => {
+    const parts = String(txt).split(/[,，\s]+/).map(Number).filter((x) => isFinite(x));
+    return parts.length === 2 ? parts : null;
+  };
+  fields.appendChild(textField("X 范围", rangeText(layer.view.xlim), (v) => {
+    layer.view.xlim = parseRange(v); commit("X 范围");
+  }));
+  fields.appendChild(textField("Y 范围", rangeText(layer.view.ylim), (v) => {
+    layer.view.ylim = parseRange(v); commit("Y 范围");
+  }));
+  fields.appendChild(selectPairs("X 刻度", [["linear", "线性"], ["log", "对数"]], layer.view.xscale || "linear", (v) => { layer.view.xscale = v; commit("X 刻度"); }));
+  fields.appendChild(selectPairs("Y 刻度", [["linear", "线性"], ["log", "对数"]], layer.view.yscale || "linear", (v) => { layer.view.yscale = v; commit("Y 刻度"); }));
+  fields.appendChild(selectPairs("网格", [[true, "显示"], [false, "隐藏"]], layer.view.grid !== false, (v) => { layer.view.grid = v; commit("网格"); }));
+  fields.appendChild(selectPairs("Y 轴", [[false, "正常"], [true, "翻转"]], !!layer.view.invert_y, (v) => { layer.view.invert_y = v; commit("Y 轴"); }));
   body.appendChild(fields);
 
   const foot = document.createElement("div");
@@ -392,6 +632,49 @@ function colorEl(value) {
   return sel;
 }
 
+function selectPairs(labelText, pairs, value, onChange) {
+  const wrap = document.createElement("label");
+  wrap.textContent = labelText;
+  const sel = document.createElement("select");
+  let matched = false;
+  for (const pair of pairs) {
+    const opt = document.createElement("option");
+    opt.value = pair.value;
+    opt.textContent = pair.label;
+    if (String(pair.value) === String(value)) { opt.selected = true; matched = true; }
+    sel.appendChild(opt);
+  }
+  if (!matched && value != null && value !== "") {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = String(value);
+    opt.selected = true;
+    sel.appendChild(opt);
+  }
+  sel.onchange = () => onChange(sel.value);
+  wrap.appendChild(sel);
+  return wrap;
+}
+
+function numberField(labelText, value, min, max, step, onChange) {
+  const wrap = document.createElement("label");
+  wrap.textContent = labelText;
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = String(min);
+  input.max = String(max);
+  input.step = String(step);
+  input.value = String(value);
+  input.onchange = () => {
+    let v = parseFloat(input.value);
+    if (!isFinite(v)) v = min;
+    v = Math.max(min, Math.min(max, v));
+    onChange(v);
+  };
+  wrap.appendChild(input);
+  return wrap;
+}
+
 function textField(labelText, value, onChange) {
   const wrap = document.createElement("label");
   wrap.textContent = labelText;
@@ -409,6 +692,7 @@ async function commit(reason, { record = true } = {}) {
   if (state.busy) return;
   state.busy = true;
   const t0 = performance.now();
+  resetClientZoom();
   const snapshot = JSON.stringify(state.spec);
   if (record && state.committed && state.committed !== snapshot) {
     state.undo.push(state.committed);
@@ -448,10 +732,23 @@ async function redraw(reason) {
   if (!state.spec.layers.length) {
     img.removeAttribute("src");
     state.img = null;
+    $("plotCanvas").hidden = true;
+    img.style.display = "";
     $("empty").hidden = false;
     return;
   }
   $("empty").hidden = true;
+  if (clientRenderable(state.spec)) {
+    try {
+      await renderClient(reason);
+      pushTiming(reason || "渲染", performance.now() - t0, { 前端渲染: performance.now() - t0 });
+      return;
+    } catch (err) {
+      console.warn("前端渲染失败，回退服务端", err);
+    }
+  }
+  $("plotCanvas").hidden = true;
+  img.style.display = "";
   const { w, h } = plotSize();
   const res = await fetch(renderUrl(w, h));
   if (!res.ok) { setStatus(`渲染失败 HTTP ${res.status}`, "bad"); return; }
@@ -957,10 +1254,19 @@ function syncPlayheadUI() {
   if (document.activeElement !== $("winSec")) $("winSec").value = windowSec || "";
 }
 
+function replayRender(reason) {
+  // 回放/拖时间轴只重画 canvas：不重建 DOM 面板，也不请求服务端。
+  if (clientRenderable(state.spec)) {
+    renderClient(reason || "回放").catch(() => redraw("回放"));
+    return;
+  }
+  redraw(reason || "回放");
+}
+
 function setPlayhead(value) {
   state.playhead = value;
   syncPlayheadUI();
-  redraw("回放");
+  replayRender("回放");
 }
 
 function stopPlaying() {
@@ -983,11 +1289,11 @@ function tickPlay() {
     let next = base + playStep() * state.playSpeed * dt;
     if (max != null && next >= max) {
       if (state.playLoop) next = min;
-      else { state.playhead = max; syncPlayheadUI(); redraw("回放"); stopPlaying(); return; }
+      else { state.playhead = max; syncPlayheadUI(); replayRender("回放"); stopPlaying(); return; }
     }
     state.playhead = next;
     syncPlayheadUI();
-    redraw("回放");
+    replayRender("回放");
   }
   // 用 setTimeout 而不是 requestAnimationFrame：后者在无头/后台标签里会被暂停，
   // 回放看起来"点了没反应"。

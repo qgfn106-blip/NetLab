@@ -41,3 +41,30 @@ def test_channels_follow_recorder_and_can_be_selected():
     reset = c.post("/api/plotkit/channels", json={"keys": []}).json()
     assert reset["ok"] is True
     assert len(reset["selected"]) >= len(keys)
+
+
+def test_precompute_runs_and_records_frames():
+    """接入前预计算：0→T 一次算完并登记，仿真保持停止。"""
+    c = _client()
+    SERVICE.load_scene(build_template("rlc_series"))
+    SERVICE.pause()
+    resp = c.post("/api/plotkit/precompute", json={"seconds": 1.0})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is True, data
+    assert data["frames"] and data["frames"] > 10
+    assert data["seconds"] == 1.0
+    assert SERVICE.running is False
+    # 预计算后可列出通道
+    chans = c.get("/api/plotkit/channels").json()
+    assert chans["channels"]
+
+
+def test_precompute_rejects_absurd_duration():
+    c = _client()
+    resp = c.post("/api/plotkit/precompute", json={"seconds": 0})
+    data = resp.json()
+    # seconds<=0 会被兜底成 5s 并正常执行；真正超限（>120s）应报错而不是崩溃
+    resp2 = c.post("/api/plotkit/precompute", json={"seconds": 999})
+    assert resp2.status_code == 200
+    assert resp2.json()["ok"] is False

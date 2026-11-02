@@ -1,13 +1,13 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-02 19:20
+> 最后修改：2026-11-02 20:20
 
 | 项 | 内容 |
 | --- | --- |
 | 记录时间 | 2026-11-02 19:05（Asia/Shanghai） |
 | 当前阶段 | **P1–P4 主体完成；P7-01/02/03 完成；P7-05 完成（时间轴回放/过期标记/循环/时间窗/重置保留探针/求解窗口 0→T）；P0 求解可靠性完成 + P0 求解加固完成（失败事务/检查点回滚、行列均衡缩放、尺度无关残差、线性解质量、器件节点断点、超时回滚、BJT/LDO 猜测分层），Phase D 元件契约与 Phase E 信号/矢量整步事务完成；R26 求解器分析能力（DC 工作点/AC-Bode/Gear2/稀疏矩阵）完成；工程校验和二次校验修复（§7.10）；R27 回放/时间轴可用性完成（§7.11）、R29 回放速度滑块（§7.16），**343 passed**、静态 3.14.4（2026-10-29 P7-06 电路模块化 §7.21、P7-07 模块内部浮窗 §7.22、P7-08 电气直连展开 §7.23）；**R30/P10 UI 集中优化六票完成**（§7.17，引导页/右栏 4 组/设置抽屉/文档中心/9 项信息条/9 项菜单/外观三档/参数 `?`；2026-10-29 03:35 挂耳与右栏拖拽收尾 §7.24，静态 3.14.1）；**2026-10-30 01:50 封装报错修复 + 端口方向入口 + 模块库清理 + `MODULES_HOWTO.md`**（§7.25，静态 3.14.2）；公开仓库已上线（§7.13）；浏览器内演示曾发布到 GitHub Pages（§7.14），同日 21:15 用户要求删除、已撤销（§7.15，站点 404）；**R33 原生桌面外壳已实现**（§7.33/§7.33.1，385 passed）；主线待办见 [BACKLOG.md](BACKLOG.md)——下一步 P7-09/10/11 内置结构（R25，三批按 opamp/comparator → dff/counter/shift → 555/LDO/ADC/DAC）；R19 参考级图纸暂停；**2026-10-29 R31 并网逆变器电网控制立项**（P11-01…P11-07，见 §7.19，未开工） |
 | 基线 | 修改前 43 passed（2026-10-24 14:26） |
-| 当前测试 | **391 passed**（2026-11-02 19:20：D85 清理 shim，-7 条 shim 参数化 + 2 条结构护栏） |
+| 当前测试 | **393 passed**（2026-11-02 20:20：D86 PlotView —— 前端 2D 自绘 + 预计算门控 + 窗口缩放） |
 | 本地备份 | `netlab_20261101_2010`（本轮 7 源文件 + 5 文档 + 5 测试 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_20261024_142654`、`_1727`、`netlab_20261025_0125`、`netlab_20261025_1306`（P0-0）、`netlab_20261026_0348p1retry`（P1 收口）、`netlab_20261026_1240`（R15 收尾）、`netlab_20261026_1318`（R20 模型批基础层）、`netlab_20261026_1322`（R20 模型批功能完成）、`netlab_20261026_1330`（R20 UI 批）、`netlab_20261026_1335`（R20 UI 迁移动作）、`netlab_20261026_1340`（R20 信号端口）、`netlab_20261026_1415`（纯导线/共集示例）、`netlab_20261027_0150`（P7-01 前快照）、`netlab_20261027_1744`（P7-03 收尾）、`netlab_20261027_1753`（R22 参数放宽/单位）、`netlab_20261027_1856`（三极管型号预设）、`netlab_20261027_2218`（拐点拖动）、`netlab_20261027_2324`（P7-03/P7-05 收尾）、`netlab_20261027_2330`（P0 求解可靠性）、`netlab_20261028_0016`（P0 收尾/P7-05）、`netlab_20261028_0048`（电源波形界面）、`netlab_20261028_0103`（dt 精度预设）、`netlab_20261028_0114`（奇异阈值/步长原位微调）、`netlab_20261028_0318`（P0 求解加固：事务/均衡/断点/超时）、`netlab_20261028_0405`（Phase D/E 代码前快照）、`netlab_20261028_0434`（R26 代码前快照）、`netlab_20261028_1219`（工程校验和修复前 `project.py`）、`project_20261028_1219`（用户工程文件前快照）、`netlab_20261028_1855`（R27 后端/前端快照）、`docs_20261028_1932`（公开仓库文档前快照）、`docs_20261028_2108`（R28 文档前快照）、`web_20261028_2130`（演示页与 workflow 删除前快照）、`ui_20261028_2205`（R29 回放滑块前 static 快照）、`netlab_ui_20261028_2242`（R30 UI 集中优化前 netlab 全量）；文档快照见 `docs_20261026_*、docs_20261027_1744、netlab_docs_20261028_0420、netlab_docs_20261028_0445` |
 | 备份清单 | 各自目录下 `MANIFEST.sha256` |
 | 版本控制 | 用户已授权 GitHub `qgfn106-blip` 做版本管理/备份（2026-10-24）；本地仍保留备份，尚无 `.git` |
@@ -1522,3 +1522,25 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 **文档**：根 `ARCHITECTURE.md` 目录树与 §8 依赖规则、`netlab/docs/ARCHITECTURE.md` §2、`netlab/docs/CODE_GUIDE.md` §6 已同步改写（删掉“兼容 shim”口径）。
 
 **验收**：`pytest netlab/tests -q` → 391 passed。
+
+### 7.43 PlotView：PlotKit 改为「只登记数据 + 前端自绘 + 定格导出」（D86，2026-11-02）
+
+**背景**：用户反馈内嵌 PlotKit 有三个硬伤 —— ①回放/缩放走服务端 matplotlib，单帧 20 s 级；②接入后自动把曲线画出来，用户想自己拖图层；③2D 类型只接了 3 种、子图与图层参数不全。经 6 轮 grilling 定案（数据与渲染解耦、保留 PlotKit 前端但统一到 netlab 风格、接入前强制预计算、全部 2D 类型前端自绘）。
+
+**改动**
+- `PlotKit/src/plotkit/static/render2d.js`（新增，约 900 行，`window.Plot2D`）：canvas 2D 渲染器，负责坐标/刻度/网格/图例/轴标题与 23 种 kind（line step stairs stem marker scatter points bar barh segments area hist ecdf boxplot violinplot violin pie hexbin quiver table heatmap image contour contourf），`pick()` 支持悬停取值。
+- `PlotKit/src/plotkit/server/app.py`：新增 `GET /api/column?name=&pixels=`（单列 float32 + 保首尾抽稀，`_binary_field` 复用）。
+- `PlotKit/src/plotkit/static/{app.js,index.html,app.css}`：`#plotCanvas` + 前端渲染路径（`clientRenderable`/`ensureSeries`/`renderClient`/`replayRender`）；滚轮以光标为锚缩放、拖拽平移、双击复位；图层编辑器扩到「图型/颜色/子图/数据/图例/线宽/线型/点形/点大小/不透明度/图例开关/X-Y 范围/X-Y 刻度/网格/Y 轴翻转」；新增「画布与子图」组（标题/列数/子图数/X-Y 轴名）；design token 与 netlab 统一（纸色底、墨色字、赭石强调）。
+- `netlab/plotkit_bridge.py`：`MAX_CHANNELS 6→64`；`set_channels()` 只登记数据集、**不再自动建图层**；`build_figure/_ensure_channels` 去掉 `add_plot`。
+- `netlab/server.py`：新增 `POST /api/plotkit/precompute {seconds}`（内部 `Simulation.precompute`，按 duration/2000 放大步长避免爆步数），接入前强制预计算。
+- `netlab/frontend/app.js`：`applyPkChannels()` 先预计算再登记（按钮禁用 + 进度提示）；`analysisWarn()` 在 DC/AC 分析前弹提醒（不阻断）。
+
+**实测**
+- 前端渲染 20 次连续 `renderClient` 平均 **1.46 ms/帧**（旧服务端 72–308 ms/帧；回放单帧 20 s 级）；滚轮缩放 1.4 ms。
+- 23 种 kind 全部可渲染（无异常；heatmap/contourf 先修了 `item.min/max` 未赋值导致的 `stops[i].map` 崩溃）。
+- 双子图（`figure.subplots=2`）前端渲染出 2 个坐标轴；`/api/column` 二进制为 `PK01 + meta_len + n + meta + float32*n`，3 点抽稀保首尾。
+- netlab **393 passed**；PlotKit `tests/test_api.py` 17 passed + 新增 `tests/test_api_column.py` 3 passed。
+
+**边界**：contourf 目前按网格色块近似（无等值线路径）；streamplot/3D 系列仍回落服务端渲染（仅定格导出）。
+
+**坑**：PlotKit 静态文件改动后必须 `python -m netlab.plotkit_vendor install --src ../PlotKit/src/plotkit --force` 同步内置副本，否则 netlab 里加载的是旧 JS（现象：`window.Plot2D undefined`）。

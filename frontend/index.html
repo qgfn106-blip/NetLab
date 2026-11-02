@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Netlab · 可解释仿真环境</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23eae5e1'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23080a08' stroke-width='1.4'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%239b7247'/%3E%3Cpath d='M16 3v5M16 24v5M3 16h5M24 16h5' stroke='%23080a08'/%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="/static/style.css?v=3.15.8" />
+  <link rel="stylesheet" href="/static/style.css?v=3.16.0" />
 </head>
 <body>
   <header id="topbar">
@@ -47,8 +47,7 @@
 
     <div class="spacer"></div>
     <div class="session-meta"><i></i><span id="sessionClock">LOCAL SESSION</span></div>
-    <button id="btnHelp" class="btn ghost" title="快速上手与文档（H）">帮助</button>
-    <button id="btnExit" class="btn ghost exit" title="关闭服务进程并释放端口">退出</button>
+    <!-- 帮助/退出已收进菜单（帮助菜单、文件 → 退出服务）与窗口按钮，顶栏不再重复放置 -->
   </header>
 
   <nav id="menubar" class="menubar" aria-label="主菜单">
@@ -521,7 +520,7 @@
   </div>
 
   <!-- 文档中心（非模态浮窗，R30-5） -->
-  <div id="docWin" class="docwin" hidden role="dialog" aria-label="文档中心">
+  <div id="docWin" class="floatwin docwin" hidden role="dialog" aria-label="文档中心">
     <header class="floatwin-head">
       <b id="docWinTitle">NETLAB · 文档</b>
       <span class="floatwin-hint">非模态 · 拖动标题栏 · 双击标题栏最大化</span>
@@ -616,6 +615,6 @@
     <div class="modal-card" id="modalCard"></div>
   </div>
 
-  <script src="/static/app.js?v=3.15.8"></script>
+  <script src="/static/app.js?v=3.16.0"></script>
 </body>
 </html>

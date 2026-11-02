@@ -275,6 +275,25 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
         meta = {"x": x, "y": y, "i0": i0, "i1": (stop if stop is not None else int(xv.size))}
         return Response(content=_binary_series(xv, yv, meta), media_type="application/octet-stream")
 
+    @app.get("/api/column")
+    def column(name: str, pixels: int | None = None) -> Response:
+        """单列 float32 数据（前端 2D 渲染器用）。
+
+        与 /api/series 的区别：一个数据集只传一次，不重复传 x；按 `pixels` 等间隔抽稀，
+        并保证首尾点都在（缩放/回放时端点不丢）。
+        """
+        try:
+            values = np.asarray(figure.store.values(name)).ravel().astype(np.float64)
+        except KeyError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        total = int(values.size)
+        if pixels and total > int(pixels) > 1:
+            idx = np.linspace(0, total - 1, int(pixels)).astype(np.int64)
+            values = values[idx]
+        meta = {"name": name, "n": int(values.size), "total": total}
+        return Response(content=_binary_field(values, meta),
+                        media_type="application/octet-stream")
+
     @app.get("/api/xyz")
     def xyz(x: str, y: str, z: str, max: int = 200_000) -> Response:
         """三维视图的数据出口：float32 交错 (x,y,z)，前端直接塞进 WebGL 顶点缓冲。"""

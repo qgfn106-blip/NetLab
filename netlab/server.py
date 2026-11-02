@@ -384,7 +384,7 @@ def index() -> Response:
         if "desktop-shim.js" not in html:
             html = html.replace(
                 "</head>",
-                '  <script src="/static/desktop-shim.js"></script>\n</head>',
+                '  <script src="/static/desktop-shim.js?v=3.15.6"></script>\n</head>',
                 1,
             )
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})

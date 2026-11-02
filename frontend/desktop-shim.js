@@ -81,14 +81,80 @@
     var bar = document.getElementById('topbar');
     if (!bar) return;
 
-    // 1) 拖动区：品牌块及其所有子元素都带上拖拽类（direct-target-only 需要命中目标本身）
-    var brand = bar.querySelector('.brand');
-    if (brand) {
-      brand.classList.add('pywebview-drag-region');
-      var kids = brand.querySelectorAll('*');
-      for (var i = 0; i < kids.length; i++) kids[i].classList.add('pywebview-drag-region');
-      brand.addEventListener('dblclick', function () { toggleMax(); });
+    // 1) 拖动区：整个顶栏（除按钮/输入等交互控件）都能拖动窗口。
+    //    这里自己做指针拖动（调用 window_move_to），不依赖 pywebview 的 easy_drag，
+    //    以免 DRAG_REGION_DIRECT_TARGET_ONLY 命中判定导致"点哪都拖不动"。
+    var INTERACTIVE = 'button, input, select, textarea, a, label, [role="tab"], [contenteditable="true"], #nlWinCtl';
+    if (bar) {
+      bar.classList.add('pywebview-drag-region');
+      var all = bar.querySelectorAll('*');
+      for (var i = 0; i < all.length; i++) {
+        if (!all[i].closest(INTERACTIVE)) all[i].classList.add('pywebview-drag-region');
+      }
     }
+    (function installDrag() {
+      var api = function () { return window.pywebview && window.pywebview.api; };
+      var rect = null;      // {x, y} 窗口左上角
+      var origin = null;    // 按下时的指针 + 窗口位置
+      var pending = null;
+      var raf = 0;
+
+      function refreshRect() {
+        var a = api();
+        if (a && typeof a.window_rect === 'function') {
+          try {
+            a.window_rect().then(function (r) {
+              if (r && r.length >= 2) rect = { x: r[0], y: r[1] };
+            }).catch(function () {});
+          } catch (e) { /* noop */ }
+        }
+      }
+      refreshRect();
+      window.addEventListener('pywebviewready', refreshRect);
+      bar.addEventListener('pointerenter', refreshRect);
+
+      function flush() {
+        raf = 0;
+        if (!pending) return;
+        var a = api();
+        var x = pending[0], y = pending[1];
+        pending = null;
+        if (a && typeof a.window_move_to === 'function') {
+          try { a.window_move_to(x, y); rect = { x: x, y: y }; } catch (e) { /* noop */ }
+        }
+      }
+
+      bar.addEventListener('pointerdown', function (ev) {
+        if (ev.button !== 0) return;
+        if (ev.target && ev.target.closest && ev.target.closest(INTERACTIVE)) return;
+        origin = { sx: ev.screenX, sy: ev.screenY, wx: rect ? rect.x : null, wy: rect ? rect.y : null };
+        if (origin.wx === null) {
+          var a = api();
+          if (a && typeof a.window_rect === 'function') {
+            try {
+              a.window_rect().then(function (r) {
+                if (origin && r && r.length >= 2) { origin.wx = r[0]; origin.wy = r[1]; }
+              }).catch(function () {});
+            } catch (e) { /* noop */ }
+          }
+        }
+        try { bar.setPointerCapture(ev.pointerId); } catch (e) { /* noop */ }
+      });
+
+      bar.addEventListener('pointermove', function (ev) {
+        if (!origin || origin.wx === null || origin.wy === null) return;
+        pending = [origin.wx + (ev.screenX - origin.sx), origin.wy + (ev.screenY - origin.sy)];
+        if (!raf) raf = requestAnimationFrame(flush);
+      });
+
+      function endDrag() { origin = null; pending = null; }
+      bar.addEventListener('pointerup', endDrag);
+      bar.addEventListener('pointercancel', endDrag);
+      bar.addEventListener('dblclick', function (ev) {
+        if (ev.target && ev.target.closest && ev.target.closest(INTERACTIVE)) return;
+        toggleMax();
+      });
+    })();
 
     // 2) 窗口按钮，放在顶栏最右侧
     var style = document.createElement('style');

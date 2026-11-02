@@ -231,6 +231,22 @@ class WebviewBridge:
         except Exception:
             return False
 
+    def window_rect(self) -> list[int]:
+        """当前窗口位置与尺寸，供页面自绘拖动计算。"""
+        try:
+            w = self._window
+            return [int(w.x), int(w.y), int(w.width), int(w.height)]
+        except Exception:
+            return [0, 0, 0, 0]
+
+    def window_move_to(self, x: Any, y: Any) -> bool:
+        """把窗口左上角移到 (x, y)。页面自绘拖动时按指针位移调用。"""
+        try:
+            self._window.move(int(x), int(y))
+            return True
+        except Exception:
+            return False
+
     # ---- 供壳调用 -------------------------------------------------------
     def command(self, name: str, payload: Any = None) -> None:
         """把菜单/快捷键命令转给页面（页面侧 `window.netlabDesktopCommand`）。"""

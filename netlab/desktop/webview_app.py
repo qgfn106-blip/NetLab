@@ -263,8 +263,8 @@ def main(argv: list[str] | None = None) -> int:
     from .server_host import ServerHost
     from .webview_bridge import WebviewBridge
 
-    # 无边框窗口：只有带 `.pywebview-drag-region` 的元素能拖动窗口，
-    # 否则 easy_drag 会让画布/面板里任何一次拖拽都变成移动窗口。
+    # 无边框窗口：拖动区由页面自绘（desktop-shim.js），这里仍保留该设置，
+    # 万一页面垫片没加载，pywebview 的 drag-region 机制还能作为兜底。
     try:
         webview.settings["DRAG_REGION_DIRECT_TARGET_ONLY"] = True
     except Exception:
@@ -304,7 +304,9 @@ def main(argv: list[str] | None = None) -> int:
             hidden=True,
             background_color="#0e1116",
             frameless=True,   # 去掉系统标题栏/边框，只留网页自己的外观
-            easy_drag=True,   # 无边框时靠 .pywebview-drag-region 区域拖动窗口
+            # 拖窗由页面自绘实现（desktop-shim.js 的 pointer 拖动 + window_move_to），
+            # 因此关掉 pywebview 的 easy_drag，避免两套机制同时移动窗口互相打架。
+            easy_drag=False,
         )
         bridge.attach(window)
 

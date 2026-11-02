@@ -262,6 +262,7 @@
     docSlug: '',
     docGeo: null,
     plotkitGeo: null,
+    vscodeGeo: null,
     plotkitDock: false,
     settingsGeo: null,
     moduleGeo: null,
@@ -9805,6 +9806,8 @@
           { label: '连接函数', action: () => switchTab('edge-fn') },
           { label: '模块与扩展', action: () => switchTab('blocks') },
           { sep: true },
+          { label: '代码工作区（VS Code）', hint: '本地 IDE · 终端 / 扩展 / 调试', action: () => void openVscode() },
+          { sep: true },
           { label: '性能面板', action: () => switchTab('analysis') },
           { label: 'DC 工作点（.op）', hint: '不推进仿真，静默解一次静态电路', action: () => openAnalysis('op') },
           { label: 'AC 扫频（Bode）…', hint: '先求工作点再逐频点求解', action: () => openAnalysis('ac') },
@@ -11560,6 +11563,7 @@
     initGuide();
     initDocWin();
     initAnalWin();
+    initPlotkitDataBar();
     initModuleWindow();
     initFloatingMenu();
     initShellKeys();
@@ -12135,6 +12139,73 @@
     state.plotkitGeo = null;
   }
 
+  // ---- VS Code 代码工作区（非模态浮窗；iframe 直连本地 code server） ----------
+  let vscodeStarting = null;
+
+  async function ensureVscodeFrame() {
+    const frame = $('#vscodeFrame');
+    if (!frame) return null;
+    if (frame.dataset.ready === '1') return frame;
+    if (vscodeStarting) return vscodeStarting;
+    const status = $('#vscodeStatus');
+    if (status) {
+      status.hidden = false;
+      status.textContent = '正在启动 VS Code Server…';
+    }
+    vscodeStarting = (async () => {
+      try {
+        const info = await api('/api/vscode/status?start=1', { timeoutMs: 60000 });
+        if (!info || !info.url) {
+          throw new Error((info && info.error) || 'VS Code Server 不可用');
+        }
+        frame.src = info.url;
+        frame.dataset.ready = '1';
+        if (status) status.hidden = true;
+        try { localStorage.setItem('netlab.vscode.used', '1'); } catch (e) {}
+        return frame;
+      } catch (error) {
+        if (status) {
+          status.hidden = false;
+          status.textContent = `VS Code 启动失败：${error.message}`;
+        }
+        toast(`VS Code 启动失败：${error.message}`, 'warn', 5000);
+        return null;
+      } finally {
+        vscodeStarting = null;
+      }
+    })();
+    return vscodeStarting;
+  }
+
+  async function openVscode() {
+    const win = $('#vscodeWin');
+    if (!win) return;
+    win.hidden = false;
+    win.classList.remove('minimized');
+    placeFloatWindow(win, 'vscodeGeo');
+    raiseFloatWindow(win);
+    await ensureVscodeFrame();
+  }
+
+  function closeVscode() {
+    const win = $('#vscodeWin');
+    if (!win) return;
+    win.hidden = true;
+    win.classList.remove('minimized', 'maximized');
+    state.vscodeGeo = null;
+  }
+
+  // 用过一次 VS Code 后，下次启动应用时后台静默预热（拉起 server + 预载 21MB 包，
+  // 让下一次点开是热缓存 ~1.7s，而不是冷启动 5–8s）。仅对老用户生效，新人首次不预载。
+  function vscodeWasUsed() {
+    try { return localStorage.getItem('netlab.vscode.used') === '1'; } catch (e) { return false; }
+  }
+
+  function maybePrewarmVscode() {
+    if (!vscodeWasUsed()) return;
+    setTimeout(() => { void ensureVscodeFrame(); }, 2500);
+  }
+
   async function openDoc(slug = 'quickstart') {
     if (!ui.docWin) return;
     await ensureDocs();
@@ -12708,6 +12779,123 @@
     ctx.fillText('相位', 6, phaseTop + 10);
   }
 
+  // ---- PlotKit 数据接入：把探针通道挑给 PlotKit -------------------------
+  let pkChannelCache = [];
+
+  function pkKeyShort(key) {
+    const parts = String(key).split(':');
+    if (parts.length >= 3 && parts[0] === 'n') return parts.slice(1).join('.');
+    return String(key);
+  }
+
+  function pkCheckedKeys() {
+    return Array.from(document.querySelectorAll('#pkChannelList input[type=checkbox]'))
+      .filter((el) => el.checked).map((el) => el.value);
+  }
+
+  function renderPkChannels(selected) {
+    const box = $('#pkChannelList');
+    if (!box) return;
+    const want = new Set(selected && selected.length ? selected : pkCheckedKeys());
+    box.textContent = '';
+    if (!pkChannelCache.length) {
+      const empty = document.createElement('span');
+      empty.className = 'pk-empty';
+      empty.textContent = '还没有探针数据：先运行仿真，或打开带探针的工程。';
+      box.appendChild(empty);
+    } else {
+      pkChannelCache.forEach((key) => {
+        const label = document.createElement('label');
+        label.className = 'pk-ch';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.value = key;
+        input.checked = want.has(key);
+        const span = document.createElement('span');
+        span.textContent = pkKeyShort(key);
+        span.title = key;
+        label.appendChild(input);
+        label.appendChild(span);
+        box.appendChild(label);
+      });
+    }
+    const count = $('#pkDataCount');
+    if (count) count.textContent = String(pkChannelCache.length);
+  }
+
+  function refreshPkChannels(keepSelection) {
+    fetch('/api/plotkit/channels').then((r) => r.json()).then((data) => {
+      const hint = $('#pkDataHint');
+      if (!data || !data.mounted) {
+        pkChannelCache = [];
+        if (hint) hint.textContent = 'PlotKit 没挂载（找不到 plotkit 包）：可 pip install -e ../PlotKit。';
+        renderPkChannels([]);
+        return;
+      }
+      pkChannelCache = data.channels || [];
+      renderPkChannels(keepSelection ? null : (data.selected || []));
+      if (hint && pkChannelCache.length) {
+        hint.textContent = `可选 ${pkChannelCache.length} 条通道，当前画 ${(data.selected || []).length} 条。`;
+      }
+    }).catch(() => {});
+  }
+
+  function reloadPlotkitFrame() {
+    const frame = $('#plotkitFrame');
+    if (frame) frame.src = '/plotkit/?embed=1&r=' + Date.now();
+  }
+
+  function applyPkChannels() {
+    const keys = pkCheckedKeys();
+    fetch('/api/plotkit/channels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keys }),
+    }).then((r) => r.json()).then((data) => {
+      if (!data || !data.ok) { toast('接入失败：PlotKit 未就绪', 'warn', 3000); return; }
+      toast(`已接入 ${(data.selected || []).length} 条通道`, 'ok', 2600);
+      reloadPlotkitFrame();
+      refreshPkChannels();
+    }).catch(() => toast('接入失败', 'warn', 2600));
+  }
+
+  function pkKeysForSelectedNode() {
+    const node = selectedNode();
+    if (!node) { toast('先在画布上选中一个节点', 'warn', 2400); return null; }
+    const names = [node.id, node.name].filter(Boolean).map(String);
+    return pkChannelCache.filter((key) => names.some((name) => (
+      key === name || key.startsWith(name + ':') || key.indexOf(':' + name + ':') >= 0
+    )));
+  }
+
+  function initPlotkitDataBar() {
+    const all = $('#pkChAll');
+    const none = $('#pkChNone');
+    const nodeBtn = $('#pkChNode');
+    const apply = $('#pkChApply');
+    if (all) all.addEventListener('click', () => {
+      document.querySelectorAll('#pkChannelList input').forEach((i) => { i.checked = true; });
+    });
+    if (none) none.addEventListener('click', () => {
+      document.querySelectorAll('#pkChannelList input').forEach((i) => { i.checked = false; });
+    });
+    if (nodeBtn) nodeBtn.addEventListener('click', () => {
+      const keys = pkKeysForSelectedNode();
+      if (!keys) return;
+      if (!keys.length) { toast('这个节点没有探针通道', 'warn', 2400); return; }
+      document.querySelectorAll('#pkChannelList input').forEach((i) => { i.checked = keys.indexOf(i.value) >= 0; });
+      toast(`已勾选该节点的 ${keys.length} 条通道`, 'info', 2200);
+    });
+    if (apply) apply.addEventListener('click', applyPkChannels);
+    document.querySelectorAll('[data-sub="plotkit"]').forEach((btn) => {
+      btn.addEventListener('click', () => setTimeout(() => refreshPkChannels(true), 60));
+    });
+    setInterval(() => {
+      const pane = $('#tab-plotkit');
+      if (pane && !pane.hidden) refreshPkChannels(true);
+    }, 5000);
+  }
+
   function initAnalWin() {
     const win = $('#analWin');
     if (!win) return;
@@ -12758,6 +12946,12 @@
         closePlotkit();
         placePlotkit('popup');
       });
+    }
+    const vscodeWin = $('#vscodeWin');
+    if (vscodeWin) {
+      initFloatWindow(vscodeWin, 'vscodeGeo', { minWidth: 720, minHeight: 520 });
+      $('#vscodeWinClose')?.addEventListener('click', closeVscode);
+      maybePrewarmVscode();
     }
   }
 

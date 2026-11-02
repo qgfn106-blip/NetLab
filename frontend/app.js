@@ -12440,6 +12440,10 @@
   function openAnalysis(tab = 'op') {
     const win = $('#analWin');
     if (!win) return;
+    if ((state.scene?.mode || state.mode) !== 'circuit') {
+      toast('DC 工作点 / AC 扫频只在电路模式下可用', 'error', 4000);
+      return;
+    }
     win.hidden = false;
     raiseFloatWindow(win);
     fillAcSources();

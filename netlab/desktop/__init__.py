@@ -1,4 +1,4 @@
-"""Netlab 桌面运行时（Qt 原生界面；旧 pywebview 壳已于 2026-11-02 退役，D77）。
+"""Netlab 桌面运行时（PySide6 + QtWebEngine）。
 
 模块职责：
 

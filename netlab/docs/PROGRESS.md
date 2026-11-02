@@ -1486,3 +1486,22 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 真机 pywebview：`.nl-resize` 手柄 8 个；派发 `pointerdown`+`pointermove(+100,+80)` 于 `se` 手柄后窗口 `1186×763 → 1285×842`。
 - 前端：预载 `rlc_series` 跑 2672 步后，面板列出 6 条通道；勾 2 条点「接入」→ 提示「可选 6 条通道，当前画 2 条」。
 - 新增测试 `test_plotkit_channels.py` 2 条、`test_desktop_drag.py` +2 条。
+
+### 7.41 PlotKit 内置进 netlab + 开始页可拖动 + 控件悬停动效（D84，2026-11-02）
+
+**需求**：用户「plotkit 还要独立下载，请把 plotkit 包括在 netlab 的安装里面，并且可独立安装与卸载；开始界面还不可以拖拽；增加鼠标放在可动按键上的 UI 动效」。
+
+**1. PlotKit 内置（不再要求单独下载）**
+- 新模块 `netlab/plotkit_vendor.py`：`status() / install(src, force) / uninstall() / vendor_path()`；CLI `python -m netlab.plotkit_vendor status|install|uninstall [--src --force]`。
+- 内置目录 `netlab/_vendor/plotkit`（本次实装 54 文件 / 678 KB，版本 0.2.0，来源 `PlotKit/src/plotkit`）。
+- `plotkit_bridge.ensure_plotkit_importable()` 优先用内置副本（`vendor_path()` 排第一），其次 `NETLAB_PLOTKIT_SRC`、再仓库源码目录；`import plotkit` 实测解析到 `netlab/_vendor/plotkit/__init__.py`。
+- 卸载后自动退回「外部安装 PlotKit」模式；打包时把 `netlab/_vendor` 一起带上即可随安装包分发。
+
+**2. 开始页（引导卡）可拖动**
+- `initGuide()` 里给 `.guide-top` 绑定 pointer 拖动，位移写到 `.guide-card` 的 `transform: translate(...)`；排除按钮/链接/输入等交互元素，pointerup/cancel 收尾。无边框窗口下也能把挡住的地方挪开。
+
+**3. 控件悬停动效**
+- `style.css` 统一 `button/.btn/.ghost/.primary` 的 `transition`（background/border/color/shadow/transform）；hover 上浮 1px + 投影、active 回落 + 内投影、`:focus-visible` 描边；并补 `.ghost/.primary` 独立样式。
+- `html[data-motion="off"]` 下全部动效关闭（尊重设置里的「动效程度」）。
+
+**验证**：`test_plotkit_vendor.py` 3 条（状态/安装-覆盖-卸载/仓库确实自带副本）；静态版本 3.15.7→3.15.8。

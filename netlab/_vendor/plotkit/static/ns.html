@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>NS 涡旋 · 三维可视化</title>
+<style>
+  :root { --fg:#e8edf5; --dim:#8b98ad; --panel:rgba(12,16,24,0.72); --line:rgba(120,140,170,0.28); }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:#05070b; color:var(--fg);
+    font:13px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; overflow:hidden; }
+  #stage { position:fixed; inset:0; }
+  #gl { width:100%; height:100%; display:block; }
+  .panel { position:fixed; background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px; backdrop-filter:blur(6px); }
+  #formulas { top:14px; left:50%; transform:translateX(-50%); padding:6px 10px; max-width:min(760px,86vw); }
+  #formulas img { display:block; width:100%; height:auto; opacity:0.95; }
+  #clock { top:14px; right:16px; font-variant-numeric:tabular-nums; text-align:right; }
+  #clock b { color:#ffb04a; font-weight:600; }
+  #diag { left:14px; top:96px; width:270px; font-variant-numeric:tabular-nums; }
+  #diag table { width:100%; border-collapse:collapse; }
+  #diag td { padding:1px 0; }
+  #diag td:last-child { text-align:right; color:#cfe0ff; }
+  #diag .sec { color:var(--dim); font-size:11px; letter-spacing:.04em; text-transform:uppercase; }
+  #diag .note { color:var(--dim); font-size:11px; margin-top:6px; line-height:1.4; }
+  #knobs { right:16px; top:96px; width:238px;
+           max-height:calc(100vh - 210px); overflow-y:auto; overscroll-behavior:contain; }
+  #knobs::-webkit-scrollbar { width:6px; }
+  #knobs::-webkit-scrollbar-thumb { background:rgba(120,140,170,0.35); border-radius:3px; }
+  #knobs .phead { display:flex; justify-content:space-between; align-items:center;
+                  cursor:move; user-select:none; color:#8b98ad; font-size:11.5px;
+                  letter-spacing:.08em; padding-bottom:6px; margin-bottom:4px;
+                  border-bottom:1px solid var(--line); position:sticky; top:0;
+                  background:rgba(12,16,24,0.92); z-index:2; }
+  #knobs .phead b { color:#cfe0ff; font-weight:600; }
+  #knobs .phead span { cursor:pointer; color:#ff9c3a; }
+  #knobs.collapsed .kbody { display:none; }
+  #knobs label { display:block; margin:7px 0 2px; color:var(--dim); font-size:11.5px; }
+  #knobs input[type=range] { width:100%; accent-color:#ff9c3a; }
+  #knobs .val { float:right; color:#cfe0ff; }
+  #bar { left:50%; transform:translateX(-50%); bottom:16px; width:min(720px,80vw);
+    display:flex; align-items:center; gap:10px; }
+  #bar input[type=range] { flex:1; accent-color:#ff9c3a; }
+  button { background:#1b2433; color:var(--fg); border:1px solid var(--line);
+    border-radius:7px; padding:4px 10px; cursor:pointer; font:inherit; }
+  button:hover { border-color:#4b6a96; }
+  #legend { position:fixed; right:16px; bottom:78px; width:16px; height:180px;
+    border-radius:6px; border:1px solid var(--line);
+    background:linear-gradient(to top,#383f8f,#29b8a8 55%,#ffb84a); }
+  #legend span { position:absolute; right:22px; color:var(--dim); font-size:11px; white-space:nowrap; }
+  #mode { position:fixed; left:14px; bottom:16px; color:var(--dim); font-size:11px; max-width:340px; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="gl"></canvas></div>
+
+<div id="formulas" class="panel"><img id="fsvg" alt="公式"></div>
+
+<div id="clock" class="panel">
+  <div>τ = <b id="tau">0.500</b></div>
+  <div style="color:#8b98ad">t = <span id="tval">0.500</span> · 距奇异 <span id="tleft">0.500</span></div>
+</div>
+
+<div id="diag" class="panel">
+  <div class="sec">解析（连续场）</div>
+  <table id="ana"></table>
+  <div class="sec" style="margin-top:8px">网格 N³</div>
+  <table id="grd"></table>
+  <div class="note" id="note">前导阶自相似解：t→1 时解析量 ≍ τ^(−1/2−h) 发散，网格值受 N 限制。</div>
+</div>
+
+<div id="knobs" class="panel">
+  <div class="phead" id="khead"><b>参数</b><span id="kcollapse">收起</span></div>
+  <div class="kbody">
+  <label>数据源 <span class="val" id="vsrc">解析 A′</span></label>
+  <select id="ksrc" style="width:100%;margin:2px 0 6px;background:#151a22;color:#dfe7f3;
+          border:1px solid #2a3442;border-radius:6px;padding:4px">
+    <option value="analytic">解析场（模式 A′，瞬时）</option>
+    <option value="solver">数值解（模式 B，首次约 15 s）</option>
+  </select>
+  <div class="note" id="srcnote" style="margin:0 0 6px"></div>
+  <label>h <span class="val" id="vh">0.005</span></label>
+  <div class="row phys">
+      <span>Γ</span><input id="kgam" type="range" min="1" max="12" step="0.05" value="4.26">
+      <b id="vkgam">4.26</b>
+    </div>
+    <div class="row phys">
+      <span>a</span><input id="ka" type="range" min="0.2" max="1.5" step="0.01" value="0.6">
+      <b id="vka">0.60</b>
+    </div>
+    <div class="row phys">
+      <span>r<sub>c</sub></span><input id="krc" type="range" min="0.2" max="1.2" step="0.005" value="0.775">
+      <b id="vkrc">0.775</b>
+    </div>
+    <input id="kh" type="range" min="0" max="0.30" step="0.001" value="0.005">
+  <label>X₀ <span class="val" id="vx">0.60</span></label>
+  <input id="kx" type="range" min="0.1" max="3.0" step="0.05" value="0.6">
+  <label>η₀ <span class="val" id="ve">1.00</span></label>
+  <input id="ke" type="range" min="0.3" max="2.5" step="0.05" value="1.0">
+  <label>体积密度 <span class="val" id="vd">1.0</span></label>
+  <input id="kd" type="range" min="0.2" max="3.0" step="0.1" value="1.0">
+  <label>光柱随流 <span class="val" id="vs">0.80</span></label>
+  <input id="ks" type="range" min="0" max="1" step="0.05" value="0.8">
+  <label>螺旋缠绕 <span class="val" id="vw">2.0</span></label>
+  <input id="kw" type="range" min="0" max="6" step="0.25" value="2.0">
+  <label>轴向包络 <span class="val" id="vz">0.45</span></label>
+  <input id="kz" type="range" min="0" max="1" step="0.05" value="0.45">
+  <div class="note" style="margin:-4px 0 6px">显示包络（非物理）：0 = 直柱，1 = 薄盘</div>
+  <label>核心亮度 <span class="val" id="vcore">1.00</span></label>
+  <input id="kcore" type="range" min="0.3" max="3.0" step="0.05" value="1.0">
+  <label>辉光白点 <span class="val" id="vwhite">2.20</span></label>
+  <input id="kwhite" type="range" min="1.2" max="4.0" step="0.05" value="2.2">
+  <label>曝光（整体，慎调） <span class="val" id="vexp">1.00</span></label>
+  <input id="kexp" type="range" min="0.2" max="2.0" step="0.05" value="1.0">
+  <label>辉光强度 <span class="val" id="vb">0.45</span></label>
+  <input id="kb" type="range" min="0" max="2.5" step="0.05" value="0.45">
+  <label>箭头长度 <span class="val" id="val">0.10</span></label>
+  <input id="ka" type="range" min="0.02" max="0.30" step="0.01" value="0.10">
+  <label>播放倍速 <span class="val" id="vrt">1.0×</span></label>
+  <input id="kr" type="range" min="0.5" max="8" step="0.5" value="1">
+  <label>粒子数 <span class="val" id="vp">200000</span></label>
+  <input id="kp" type="range" min="20000" max="300000" step="20000" value="200000">
+  <label>粒子拖尾 <span class="val" id="vt">0.60</span></label>
+  <input id="kt" type="range" min="0" max="1" step="0.05" value="0.6">
+  <div style="margin-top:8px; display:flex; gap:6px">
+    <button id="btn-pt">粒子</button><button id="btn-tr">轨迹</button><button id="btn-ar">矢量</button><button id="btn-xi">ξ 相似</button><button id="btn-snap">快照</button><button id="btn-gif">导出 GIF</button>
+  <div style="margin-top:6px;color:#8b98ad">预设</div>
+  <button id="btn-paper">论文档</button><button id="btn-demo">演示档</button><button id="btn-ext">极端档</button><button id="btn-top">俯视环盘</button><button id="btn-side">侧视</button><button id="btn-reset">默认视角</button>
+  </div>
+  </div>
+</div>
+
+<div id="probe" class="panel" style="left:16px; bottom:96px; display:none; font-size:12px"></div>
+<div id="snaps" class="panel" style="right:16px; bottom:120px; max-height:36vh; overflow:auto; display:none">
+  <div style="color:#8b98ad;margin-bottom:4px">快照对比（点一条恢复参数与时刻）</div>
+  <div id="snaplist"></div>
+</div>
+<div id="bar" class="panel">
+  <button id="play">▶</button>
+  <input id="scrub" type="range" min="0" max="1000" value="0">
+  <span id="speed" style="color:#8b98ad; font-variant-numeric:tabular-nums">1.0×</span>
+</div>
+
+<div id="legend"><span style="bottom:-2px">低</span><span style="top:-2px">高 Ω</span></div>
+<div id="mode"></div>
+
+<script src="/nsview.js"></script>
+<script>
+// 支持 ?t=0.6&h=0.005&x0=0.6&eta0=1.0&particles=120000 直接打开到某一时刻（验收/出图用）
+const Q = new URLSearchParams(location.search);
+const qnum = (key, dflt) => (Q.has(key) ? Number(Q.get(key)) : dflt);
+const S = {
+  usePhys: false, gamma: 4.26, alpha: 0.6, rcore: 0.775,
+  t: Math.min(0.999, Math.max(0, qnum("t", 0.0))),
+  gifN: Math.max(4, Math.min(60, qnum("gifn", 24))),
+  xi: qnum("xi", 0) !== 0,          // 相似坐标：默认开（不然 τ→0 时粒子会挤出视野）
+  tauMin: 0.005,                    // 时间轴末端（奇异不可达）
+  simScale: 1,
+  playing: Q.get("play") === "1",
+  rate: qnum("rate", 1.0),
+  h: qnum("h", 0.005), x0: qnum("x0", 0.6), eta0: qnum("eta0", 1.0),
+  source: qstr("source", "analytic"),
+  particles: qnum("particles", 120000), gpuAdvect: qstr("gpu", "0") === "1", dirtyField: true, dirtyVel: true, lastVel: 0,
+};
+const $ = (id) => document.getElementById(id);
+let view = null;
+
+function fmt(v, d = 3) { return (v === null || v === undefined || Number.isNaN(v)) ? "—" : Number(v).toFixed(d); }
+
+async function getFrame(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(url + " → " + r.status);
+  const buf = await r.arrayBuffer();
+  const dv = new DataView(buf);
+  const mlen = dv.getUint32(4, true);
+  const meta = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, mlen)));
+  const data = new Float32Array(buf.slice(8 + mlen));
+  return { meta, data };
+}
+
+function params() {
+  // 数值解（模式 B）不吃 h/X₀/η₀，多传也无害；source 决定服务端取哪个场。
+  // 只有真的动过物理量滑条才带 phys —— 默认路径必须与旧版逐字节一致（见 docs/NS_INTEGRATION.md R3-3）。
+  const phys = S.usePhys ? `phys=${S.gamma},${S.alpha},${S.rcore}&` : "";
+  return `${phys}h=${S.h}&x0=${S.x0}&eta0=${S.eta0}&source=${S.source}`;
+}
+
+function qstr(key, fallback) {
+  const v = new URLSearchParams(location.search).get(key);
+  return v === null || v === "" ? fallback : v;
+}
+
+// 数值解首次要算 ~15 s：轮询 /state，进度写进面板
+async function waitSolver() {
+  const note = $("srcnote");
+  for (let i = 0; i < 240; i++) {
+    const st = await (await fetch("/api/ns/state")).json();
+    if (st.error) { note.textContent = "数值解失败：" + st.error; return false; }
+    if (st.ready) { note.textContent = `${st.label}（${st.n}³，t≤${st.t_end}）`; return true; }
+    note.textContent = `数值解准备中 ${(st.progress * 100).toFixed(0)}%…`;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  note.textContent = "数值解超时";
+  return false;
+}
+
+async function setSource(src) {
+  S.source = src;
+  $("vsrc").textContent = src === "solver" ? "数值解 B" : "解析 A′";
+  // 模式 B 下剖面参数没有意义：禁用三个旋钮，避免误导
+  for (const id of ["kh", "kx", "ke"]) $(id).disabled = src === "solver";
+  if (src === "solver") await waitSolver();
+  else $("srcnote").textContent = "前导阶自相似解：瞬时、可调剖面";
+  await loadMeta();
+  await scheduleRefresh("all");
+}
+
+async function loadMeta() {
+  const m = await (await fetch("/api/ns/meta")).json();
+  $("mode").textContent = m.label;
+  $("fsvg").src = "/api/ns/formula.svg";
+  S.tBlow = m.params.t_blow;
+}
+
+async function loadField() {
+  S.simScale = 1;
+  const rm = "0.5", zm = "1.2";
+  const { meta, data } = await getFrame(`/api/ns/slice?t=${S.t.toFixed(5)}&n_r=256&n_z=384&r_max=${rm}&z_max=${zm}&${params()}`);
+  view.setField(meta, data);
+  view.buildRings();
+  S.fieldMeta = meta;
+}
+
+async function loadVelocity() {
+  const { meta, data } = await getFrame(`/api/ns/velocity?t=${S.t.toFixed(5)}&n=48&extent=0.5&z_extent=1.2&${params()}`);
+  view.setVelocity(meta, data);
+}
+
+async function loadTrails() {
+  const t1 = Math.max(0.02, S.t);
+  const { meta, data } = await getFrame(`/api/ns/pathlines?t0=0&t1=${t1.toFixed(5)}&seeds=96&steps=150&${params()}`);
+  view.setTrails(meta, data);
+  if (view.trails) view.trails.head = 1.0;
+}
+
+async function loadArrows() {
+  const { meta, data } = await getFrame(`/api/ns/arrows?t=${S.t.toFixed(5)}&${params()}`);
+  S.arrowsMeta = meta; S.arrowsData = data;
+  view.setArrows(meta, data);
+}
+
+async function loadDiag() {
+  const d = await (await fetch(`/api/ns/diagnostics?t=${S.t.toFixed(5)}&${params()}&n=48`)).json();
+  const rows = (obj) => {
+    if (!obj) return "<tr><td>—</td><td></td></tr>";
+    const items = [
+      ["u_max", "|u|max", 3], ["omega_max", "|ω|max", 2],
+      ["enstrophy", "Enstrophy", 3], ["kinetic", "动能", 4],
+      ["core_radius", "涡核半径", 3], ["elongation", "长径比", 2],
+      ["divergence_rel", "‖∇·u‖", 3], ["re_theta", "Re_θ", 0],
+    ];
+    return items.map(([k, label, dg]) => `<tr><td>${label}</td><td>${fmt(obj[k], dg)}</td></tr>`).join("");
+  };
+  S.diag = d.analytic || {};
+  $("ana").innerHTML = rows(d.analytic);
+  $("grd").innerHTML = rows(d.grid) + `<tr><td>网格 N</td><td>${d.grid ? d.grid.n_grid : "—"}</td></tr>`;
+  // 数值解没有"解析/网格双列"之分，脚注要跟着换，不能继续挂着 A′ 的说明
+  $("note").textContent = d.note || "前导阶自相似解：t→1 时解析量 ≍ τ^(−1/2−h) 发散，网格值受 N 限制。";
+}
+
+function tOfSlider(v) {                 // v: 0..1000 -> t（对数 τ 刻度）
+  const u = Math.min(1, Math.max(0, v / 1000));
+  const tau = Math.pow(S.tauMin, u);    // 1 -> 0.005
+  return Math.max(0, Math.min(0.995, (S.tBlow || 1) - tau));
+}
+function sliderOfT(t) {                 // 反解
+  const tau = Math.max(S.tauMin, (S.tBlow || 1) - t);
+  return Math.round(1000 * Math.log(tau) / Math.log(S.tauMin));
+}
+function simScaleNow() {                // 相似坐标的采样盒缩放 L(τ)=τ^(1/2+h)
+  const tau = Math.max((S.tBlow || 1) - S.t, 1e-4), tau0 = 0.5;
+  return Math.max(0.02, Math.min(4, Math.pow(tau / tau0, 0.5 + S.h)));
+}
+
+function applyXi() {
+  if (!view) return;
+  if (!S.xi) { view.setZoomScale(1); return; }
+  // ξ 视图：相机按 L(τ) 拉近（限幅，别钻进涡柱里）；默认关闭时保持物理尺度，看得见"越缩越细"
+  view.setZoomScale(S.xi ? Math.max(0.35, Math.min(4, simScaleNow())) : 1);
+}
+
+function updateClock() {
+  if (view) view.setTime(S.t, S.tBlow);
+  applyXi();
+  $("tau").textContent = (S.tBlow - S.t).toFixed(3);
+  $("tval").textContent = S.t.toFixed(3);
+  $("tleft").textContent = (S.tBlow - S.t).toFixed(3);
+  $("scrub").value = sliderOfT(S.t);
+  const tauNow = Math.max((S.tBlow || 1) - S.t, 0);
+  $("tau").textContent = tauNow < S.tauMin ? "<" + S.tauMin : tauNow.toFixed(3);
+}
+
+let refreshTimer = null;
+let refreshQueued = null;
+// mode: true/"all" = 场+速度+诊断(+轨迹)；"field" = 只换纹理（播放时用）；"slow" = 速度+诊断
+function scheduleRefresh(mode) {
+  refreshQueued = refreshQueued === "all" ? "all" : (mode === true ? "all" : mode);
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(async () => {
+    const m = refreshQueued; refreshQueued = null;
+    if (S.busy) { scheduleRefresh(m); return; }   // 上一批还没回来，别叠加请求
+    S.busy = true;
+    try {
+      await loadField();
+      await loadArrows();
+      if (m !== "field") { await loadVelocity(); await loadDiag(); }
+      if (m === "all") await loadTrails();
+    } catch (e) { console.error(e); }
+    finally { S.busy = false; }
+  }, mode === "field" ? 60 : 90);
+}
+
+function setPhys() {
+  S.usePhys = true;
+  S.gamma = +$("kgam").value;
+  S.alpha = +$("ka").value;
+  S.rcore = +$("krc").value;
+  $("vkgam").textContent = S.gamma.toFixed(2);
+  $("vka").textContent = S.alpha.toFixed(2);
+  $("vkrc").textContent = S.rcore.toFixed(3);
+  scheduleRefresh("all");
+}
+
+function bind() {
+  ["kgam", "ka", "krc"].forEach((id) => {
+    const el = $(id);
+    if (el) el.addEventListener("input", setPhys);
+  });
+  const kh = $("kh"), kx = $("kx"), ke = $("ke"), kd = $("kd"), kp = $("kp"),
+        ks = $("ks"), kw = $("kw"), kb = $("kb"), kexp = $("kexp");
+  const kcore = $("kcore"), kwhite = $("kwhite");
+  const ksrc = $("ksrc");
+  if (ksrc) {
+    ksrc.value = S.source;
+    $("vsrc").textContent = S.source === "solver" ? "数值解 B" : "解析 A′";
+    if (S.source === "solver") for (const id of ["kh", "kx", "ke"]) $(id).disabled = true;
+    ksrc.onchange = () => { setSource(ksrc.value); };
+  }
+  kh.oninput = () => { S.h = +kh.value; $("vh").textContent = S.h.toFixed(3); scheduleRefresh(true); };
+  kx.oninput = () => { S.x0 = +kx.value; $("vx").textContent = S.x0.toFixed(2); scheduleRefresh(true); };
+  ke.oninput = () => { S.eta0 = +ke.value; $("ve").textContent = S.eta0.toFixed(2); scheduleRefresh(true); };
+  kd.oninput = () => { view.settings.density = +kd.value; $("vd").textContent = (+kd.value).toFixed(1); };
+  ks.oninput = () => { view.settings.streaks = +ks.value; $("vs").textContent = (+ks.value).toFixed(2); };
+  kw.oninput = () => { view.settings.spin = +kw.value; $("vw").textContent = (+kw.value).toFixed(1); };
+  kb.oninput = () => { view.settings.bloom = +kb.value; $("vb").textContent = (+kb.value).toFixed(2); };
+  kcore.oninput = () => {
+    view.settings.coreGain = +kcore.value;
+    $("vcore").textContent = (+kcore.value).toFixed(2);
+  };
+  kwhite.oninput = () => {
+    view.settings.white = +kwhite.value;
+    $("vwhite").textContent = (+kwhite.value).toFixed(2);
+  };
+  kexp.oninput = () => {
+    view.settings.exposure = +kexp.value;
+    $("vexp").textContent = (+kexp.value).toFixed(2);
+  };
+
+  // 面板：拖动标题栏可移动、点「收起」折叠（原来面板一长就顶出屏幕且动不了）
+  (() => {
+    const panel = $("knobs"), head = $("khead"), toggle = $("kcollapse");
+    toggle.onclick = (e) => {
+      e.stopPropagation();
+      panel.classList.toggle("collapsed");
+      toggle.textContent = panel.classList.contains("collapsed") ? "展开" : "收起";
+    };
+    let drag = null;
+    head.addEventListener("pointerdown", (e) => {
+      if (e.target === toggle) return;
+      const r = panel.getBoundingClientRect();
+      drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      panel.style.right = "auto"; panel.style.left = r.left + "px"; panel.style.top = r.top + "px";
+      head.setPointerCapture(e.pointerId);
+    });
+    head.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      panel.style.left = Math.max(4, Math.min(window.innerWidth - 120, e.clientX - drag.dx)) + "px";
+      panel.style.top = Math.max(4, Math.min(window.innerHeight - 60, e.clientY - drag.dy)) + "px";
+    });
+    head.addEventListener("pointerup", (e) => { drag = null; head.releasePointerCapture(e.pointerId); });
+  })();
+  $("kz").oninput = () => { view.settings.envelope = +$("kz").value; $("vz").textContent = (+$("kz").value).toFixed(2); };
+  kp.oninput = () => {
+    S.particles = +kp.value; $("vp").textContent = S.particles;
+    view.seedParticles(S.particles);
+  };
+  const kt = $("kt");
+  if (kt) {
+    kt.value = String(view.settings.trail ?? 0.6);
+    $("vt").textContent = (+kt.value).toFixed(2);
+    kt.oninput = () => {
+      view.settings.trail = +kt.value;
+      $("vt").textContent = (+kt.value).toFixed(2);
+    };
+  }
+  $("btn-pt").onclick = () => { view.settings.showParticles = !view.settings.showParticles; };
+  $("btn-tr").onclick = () => { view.settings.showTrails = !view.settings.showTrails; };
+  $("btn-ar").onclick = () => { view.settings.showArrows = !view.settings.showArrows; };
+  $("btn-snap").onclick = snapshot;
+  $("btn-paper").onclick = () => setParams(0.005, 0.6, 1.0);
+  $("btn-demo").onclick = () => setParams(0.08, 1.2, 1.2);
+  $("btn-ext").onclick = () => setParams(0.30, 2.5, 1.55);
+  (function bindProbe() {
+    const c = $("gl");
+    let down = null;
+    c.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY }; });
+    c.addEventListener("pointerup", (e) => {
+      if (!down) return;
+      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+      down = null;
+      if (moved < 4) probeAt(e.clientX, e.clientY);
+    });
+  })();
+  $("btn-gif").onclick = exportGif;
+  $("btn-xi").onclick = () => {
+    S.xi = !S.xi;
+    $("btn-xi").style.background = S.xi ? "#2b3a55" : "";
+    applyXi();
+  };
+  $("ka").oninput = () => {
+    view.settings.arrowLen = +$("ka").value; $("val").textContent = (+$("ka").value).toFixed(2);
+    if (S.fieldMeta) view.setArrows(S.arrowsMeta || S.fieldMeta, S.arrowsData || new Float32Array(0));
+  };
+  $("kr").oninput = () => { S.rate = +$("kr").value; $("vrt").textContent = (+$("kr").value).toFixed(1) + "×"; };
+  $("btn-top").onclick = () => view.setPreset("top");
+  $("btn-side").onclick = () => view.setPreset("side");
+  $("btn-reset").onclick = () => view.setPreset("home");
+
+  $("scrub").oninput = () => {
+    if (S.playing) { S.playing = false; $("play").textContent = "▶"; }
+    S.t = tOfSlider(+$("scrub").value);
+    updateClock(); scheduleRefresh(true);      // true: 轨迹也跟着走，画面与时钟才对齐
+  };
+  $("play").onclick = () => {
+    S.playing = !S.playing;
+    $("play").textContent = S.playing ? "❚❚" : "▶";
+  };
+}
+
+function tick(now) {
+  if (S.playing) {
+    S.t += (now - (S._prev || now)) / 1000 * 0.02 * S.rate * (S.tBlow || 1);
+    if (S.t >= 0.995 * (S.tBlow || 1)) S.t = 0.0;
+    updateClock();
+    // 播放时只刷"场纹理"，速度场/诊断放慢到 900ms —— 否则每 120ms 串三个请求会把
+    // requestAnimationFrame 饿死，看起来就是"时间轴不动、画面卡住"。
+    if (now - S.lastVel > 180) { S.lastVel = now; scheduleRefresh("field"); }
+    if (now - S.lastSlow > 900) { S.lastSlow = now; scheduleRefresh("slow"); }
+  }
+  S._prev = now;
+  requestAnimationFrame(tick);
+}
+
+const SNAPS = [];
+
+function snapshot() {
+  const d = S.diag || {};
+  const thumb = $("gl").toDataURL("image/jpeg", 0.6);
+  SNAPS.push({ h: S.h, x0: S.x0, eta0: S.eta0, t: S.t, thumb,
+               omega: d.omega_max, umax: d.u_max, core: d.core_radius });
+  renderSnaps();
+}
+
+function renderSnaps() {
+  const box = $("snaps");
+  box.style.display = SNAPS.length ? "block" : "none";
+  $("snaplist").innerHTML = SNAPS.map((s, i) =>
+    `<div class="snap" data-i="${i}" style="display:flex;gap:6px;align-items:center;cursor:pointer;padding:3px 0">
+       <img src="${s.thumb}" style="width:74px;border-radius:3px;border:1px solid #223">
+       <div style="font-size:11px;color:#b9c4d4;line-height:1.35">
+         h=${s.h} X₀=${s.x0} η₀=${s.eta0}<br>
+         t=${(+s.t).toFixed(3)} · ω<sub>max</sub>=${(s.omega ?? 0).toFixed(2)}<br>
+         |u|<sub>max</sub>=${(s.umax ?? 0).toFixed(2)} · r<sub>c</sub>=${(s.core ?? 0).toFixed(3)}
+       </div>
+     </div>`).join("");
+  [...document.querySelectorAll("#snaplist .snap")].forEach((el) => {
+    el.onclick = () => {
+      const s2 = SNAPS[+el.dataset.i];
+      S.h = s2.h; S.x0 = s2.x0; S.eta0 = s2.eta0; S.t = s2.t;
+      $("kh").value = s2.h; $("vh").textContent = (+s2.h).toFixed(3);
+      $("kx").value = s2.x0; $("vx").textContent = (+s2.x0).toFixed(2);
+      $("ke").value = s2.eta0; $("ve").textContent = (+s2.eta0).toFixed(2);
+      updateClock(); scheduleRefresh("all");
+    };
+  });
+}
+
+async function exportGif() {
+  if (S.exporting) return;
+  S.exporting = true;
+  $("btn-gif").textContent = "导出中…";
+  const wasPlaying = S.playing; S.playing = false;
+  const saved = S.t;
+  const N = Math.max(4, +(S.gifN || 24)), t0 = 0.02 * (S.tBlow || 1), t1 = 0.98 * (S.tBlow || 1);
+  const frames = [];
+  try {
+    for (let i = 0; i < N; i++) {
+      S.t = t0 + (t1 - t0) * i / (N - 1);
+      updateClock();
+      await loadField(); await loadArrows();
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      frames.push($("gl").toDataURL("image/jpeg", 0.85));
+    }
+    const res = await fetch("/api/ns/export", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ frames, fps: 12, fmt: "gif", width: 900 }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const blob = await res.blob();
+    if (window.__nsTest) { window.__nsOut = { size: blob.size, type: blob.type }; return; }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "ns_vortex.gif";
+    a.click();
+  } catch (e) {
+    (window.__nsErr = window.__nsErr || []).push("export: " + e);
+  } finally {
+    S.t = saved; updateClock(); scheduleRefresh("all");
+    S.exporting = false; S.playing = wasPlaying;
+    $("btn-gif").textContent = "导出 GIF";
+  }
+}
+
+function setParams(h, x0, eta0, t) {
+  S.h = h; S.x0 = x0; S.eta0 = eta0;
+  $("kh").value = h; $("vh").textContent = (+h).toFixed(3);
+  $("kx").value = x0; $("vx").textContent = (+x0).toFixed(2);
+  $("ke").value = eta0; $("ve").textContent = (+eta0).toFixed(2);
+  if (t !== undefined) S.t = t;
+  updateClock(); scheduleRefresh("all");
+}
+
+// 点选探针：把最近的箭头点投到屏幕上比对，读出 u_r/u_θ/u_z（真实场值）
+function probeAt(clientX, clientY) {
+  const v = view;
+  if (!v || !v.arrowsRaw || !v._vp) return;
+  const rect = $("gl").getBoundingClientRect();
+  const px = (clientX - rect.left) / rect.width * 2 - 1;
+  const py = 1 - (clientY - rect.top) / rect.height * 2;
+  let best = -1, bestD = 1e9;
+  for (let i = 0; i < v.arrowsN; i++) {
+    const x = v.arrowsRaw[i * 6], y = v.arrowsRaw[i * 6 + 1], z = v.arrowsRaw[i * 6 + 2];
+    if (Math.hypot(x, y) < 0.02 * (v.extent ? v.extent[0] : 0.5)) continue;
+    const m = v._vp;
+    const cx = m[0] * x + m[4] * y + m[8] * z + m[12];
+    const cy = m[1] * x + m[5] * y + m[9] * z + m[13];
+    const cw = m[3] * x + m[7] * y + m[11] * z + m[15];
+    if (cw <= 1e-6) continue;
+    const d = Math.hypot(cx / cw - px, cy / cw - py);
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  if (best < 0 || bestD > 0.12) { $("probe").style.display = "none"; return; }
+  const x = v.arrowsRaw[best * 6], y = v.arrowsRaw[best * 6 + 1], z = v.arrowsRaw[best * 6 + 2];
+  const vx = v.arrowsRaw[best * 6 + 3], vy = v.arrowsRaw[best * 6 + 4], vz = v.arrowsRaw[best * 6 + 5];
+  const r = Math.hypot(x, y) || 1e-9;
+  const ur = (vx * x + vy * y) / r;
+  const ut = (-vx * y + vy * x) / r;
+  const sp = Math.hypot(vx, vy, vz);
+  $("probe").style.display = "block";
+  $("probe").innerHTML =
+    `探针 r=${r.toFixed(3)} z=${z.toFixed(3)}<br>` +
+    `u<sub>r</sub>=${ur.toFixed(4)} · u<sub>θ</sub>=${ut.toFixed(4)} · u<sub>z</sub>=${vz.toFixed(4)}<br>` +
+    `|u|=${sp.toFixed(4)} · Ω=u<sub>θ</sub>/r=${(ut / r).toFixed(3)}`;
+}
+
+(async function main() {
+  view = new NS.NSView($("gl"));
+  view.onStats = (s) => { S.fps = s.fps; };
+  view.settings.gpuAdvect = !!S.gpuAdvect; view.settings.gpuFrozen = qstr('gf','') === '1';   // ?gpu=1 才启用实验性的 GPU 推进
+  window.__ns = { view, S };
+  bind();
+  const guard = async (name, fn) => { try { await fn(); } catch (e) { (window.__nsErr = window.__nsErr || []).push(name + ": " + e); console.error(name, e); } };
+  await guard("meta", loadMeta);
+  if (S.source === "solver") await guard("solver", waitSolver);
+  await guard("field", loadField);
+  await guard("velocity", loadVelocity);
+  await guard("arrows", loadArrows);
+  await guard("trails", loadTrails);
+  await guard("diag", loadDiag);
+  view.seedParticles(S.particles);
+  updateClock();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

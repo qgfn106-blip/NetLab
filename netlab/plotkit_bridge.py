@@ -59,7 +59,14 @@ def ensure_plotkit_importable() -> bool:
     except Exception:
         pass
     override = os.environ.get("NETLAB_PLOTKIT_SRC")
-    candidates = ([Path(override)] if override else []) + _plotkit_src_candidates()
+    vendored = None
+    try:  # 内置副本（netlab/_vendor/plotkit）优先：装好 netlab 就带着 PlotKit
+        from . import plotkit_vendor
+
+        vendored = plotkit_vendor.vendor_path()
+    except Exception:
+        vendored = None
+    candidates = ([vendored] if vendored else []) + ([Path(override)] if override else []) + _plotkit_src_candidates()
     for path in candidates:
         try:
             if (path / "plotkit" / "__init__.py").is_file():

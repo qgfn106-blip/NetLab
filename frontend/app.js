@@ -11996,6 +11996,31 @@
     $$('.guide-mode').forEach((node) => {
       node.addEventListener('click', () => selectGuideMode(node.dataset.mode));
     });
+    // 开始页卡片可以按住标题区拖动（无边框窗口下也能挪开挡住的地方）
+    (() => {
+      const card = document.querySelector('#guide .guide-card');
+      const handle = document.querySelector('#guide .guide-top');
+      if (!card || !handle) return;
+      let drag = null;
+      const offset = { x: 0, y: 0 };
+      handle.style.cursor = 'grab';
+      handle.addEventListener('pointerdown', (ev) => {
+        if (ev.button !== 0) return;
+        if (ev.target.closest('button, a, input, select, textarea, [role="tab"]')) return;
+        drag = { x: ev.clientX, y: ev.clientY, ox: offset.x, oy: offset.y };
+        handle.style.cursor = 'grabbing';
+        try { handle.setPointerCapture(ev.pointerId); } catch (err) { /* noop */ }
+      });
+      handle.addEventListener('pointermove', (ev) => {
+        if (!drag) return;
+        offset.x = drag.ox + ev.clientX - drag.x;
+        offset.y = drag.oy + ev.clientY - drag.y;
+        card.style.transform = `translate(${offset.x}px, ${offset.y}px)`;
+      });
+      const stop = () => { drag = null; handle.style.cursor = 'grab'; };
+      handle.addEventListener('pointerup', stop);
+      handle.addEventListener('pointercancel', stop);
+    })();
     ui.guideEnter?.addEventListener('click', () => void enterGuideScene());
     ui.guideClose?.addEventListener('click', hideGuide);
     ui.guideDocs?.addEventListener('click', () => {

@@ -1,0 +1,500 @@
+:root {
+  --bg: #0f172a;
+  --bg-2: #111827;
+  --panel: #131c2e;
+  --line: #1f2937;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #4fc3f7;
+  --accent-2: #ff8a65;
+  --ok: #aed581;
+  --radius: 10px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+}
+
+body[data-theme="light"] {
+  --bg: #f8fafc;
+  --bg-2: #ffffff;
+  --panel: #ffffff;
+  --line: #e5e7eb;
+  --text: #1f2937;
+  --muted: #64748b;
+  --accent: #0284c7;
+  --accent-2: #ea580c;
+  --shadow: 0 10px 24px rgba(15, 23, 42, .08);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.5 system-ui, "Microsoft YaHei", sans-serif;
+}
+
+body { display: flex; flex-direction: column; }
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.brand .logo { color: var(--accent); font-size: 16px; }
+.brand .tag {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.title { flex: 1; color: var(--muted); }
+.actions { display: flex; gap: 8px; }
+
+.btn {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font: inherit;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.ghost { padding: 6px 10px; }
+.btn.danger:hover { border-color: var(--accent-2); color: var(--accent-2); }
+
+.stage { flex: 1; display: flex; min-height: 0; }
+.plotwrap { flex: 1; position: relative; min-width: 0; padding: 8px; }
+.plot { width: 100%; height: 100%; position: relative; overflow: hidden; }
+.plot img { width: 100%; height: 100%; display: block; transform-origin: 50% 50%; user-select: none; }
+.plot img:not([src]) { display: none; }
+.plot.dragging { cursor: grabbing; }
+.plot-hover {
+  position: absolute; z-index: 3; pointer-events: none;
+  padding: 2px 6px; font-size: 11px; line-height: 1.5;
+  background: var(--panel, #1b2429); color: var(--text, #e0e3dc);
+  border: 1px solid var(--line, #3a464c); border-radius: 2px;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+.empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  pointer-events: none;
+}
+.empty .hint { font-size: 12px; opacity: .8; }
+/* [hidden] 的 UA 规则是 display:none，但被 .empty{display:flex} 盖掉过 —— 必须显式恢复 */
+.empty[hidden] { display: none; }
+
+.panel {
+  position: relative;
+  width: var(--panel-w, 380px);
+  flex: 0 0 var(--panel-w, 380px);
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;   /* 滚动交给各分组自己管，整栏不滚 */
+  transition: margin-right .18s ease;
+}
+.panel.collapsed { margin-right: calc(-1 * var(--panel-w, 380px)); }
+
+/* 收放/调宽的挂耳：贴在面板左缘、向外凸出，不占用内容区 */
+.panel-grip {
+  position: absolute;
+  left: -7px;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 5;
+}
+.panel-grip::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 44px;
+  border-radius: 3px;
+  background: var(--line);
+  transition: background .15s ease;
+}
+.panel-grip:hover::after { background: var(--accent); }
+.panel.collapsed .panel-grip { left: -14px; }
+.panel.collapsed .panel-grip::after { background: var(--accent); }
+
+.panel > * { min-height: 0; }
+.pgroup { flex: 0 0 auto; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+/* 三块各自滚动：布局固定、数据集按内容（最多 160px）、图层吃掉剩余高度 */
+.pgroup.dsgroup { flex: 0 0 auto; }
+.pgroup.grow { flex: 1 1 auto; min-height: 180px; overflow: auto; }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.field > span { font-size: 11px; color: var(--muted); }
+.field input[type="number"], .field select {
+  width: 100%;
+  padding: 5px 7px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  color: var(--text);
+  font: inherit;
+}
+.field.check { flex-direction: row; align-items: center; gap: 6px; }
+.field.check > span { flex: 1; }  /* 图层多时自己滚，别压住下面的计时块 */
+.pgroup.sect > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.pgroup.sect > summary::-webkit-details-marker { display: none; }
+.pgroup.sect > summary::after {
+  content: "⌄";
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 13px;
+  transition: transform .15s ease;
+}
+.pgroup.sect[open] > summary::after { transform: rotate(180deg); }
+.sect-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  font-weight: 600;
+}
+/* 折叠时只留标题条，把高度让给「图层」 */
+.pgroup.sect.grow { display: flex; flex-direction: column; }
+.pgroup.sect.grow > .sect-body { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.pgroup.sect.grow > .sect-body > .layers { overflow: auto; flex: 1 1 auto; }
+
+.pgroup h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.pgroup.sect > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.pgroup.sect > summary::-webkit-details-marker { display: none; }
+.pgroup.sect > summary::after {
+  content: "⌄";
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 13px;
+  transition: transform .15s ease;
+}
+.pgroup.sect[open] > summary::after { transform: rotate(180deg); }
+.sect-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  font-weight: 600;
+}
+/* 折叠时只留标题条，把高度让给「图层」 */
+.pgroup.sect.grow { display: flex; flex-direction: column; }
+.pgroup.sect.grow > .sect-body { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.pgroup.sect.grow > .sect-body > .layers { overflow: auto; flex: 1 1 auto; }
+
+.pgroup h3 .count { color: var(--accent); font-weight: 400; }
+
+.row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; }
+.row > span { color: var(--muted); }
+input[type="number"], input[type="text"], select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font: inherit;
+  width: 120px;
+}
+input[type="checkbox"] { accent-color: var(--accent); }
+
+.hint { color: var(--muted); font-size: 11px; margin: 8px 0 0; }
+.hint code { color: var(--accent); }
+
+.datasets { display: flex; flex-wrap: wrap; gap: 6px; }
+.ds {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 9px;
+  cursor: pointer;
+  color: var(--muted);
+  background: var(--bg);
+  font-size: 12px;
+}
+.ds:hover { color: var(--text); border-color: var(--accent); }
+.ds.active { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+.ds .u { opacity: .7; font-size: 10px; }
+
+.layers { display: flex; flex-direction: column; gap: 8px; }
+.layer {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  background: var(--bg);
+}
+.layer .head { display: flex; align-items: center; gap: 6px; cursor: grab; }
+.layer .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.layer .name { flex: 1; font-weight: 600; }
+.layer .sub { color: var(--muted); font-size: 11px; }
+.layer .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.layer .fields label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--muted); }
+.layer .fields select, .layer .fields input { width: 100%; }
+.layer .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.layer.dragover { border-color: var(--accent); box-shadow: var(--shadow); }
+
+.timing { display: grid; gap: 4px; font-size: 11px; color: var(--muted); }
+.timing b { color: var(--text); font-weight: 600; }
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--bg-2);
+  color: var(--muted);
+  font-size: 12px;
+}
+.status .spacer { flex: 1; }
+.status .bad { color: var(--accent-2); }
+.status .good { color: var(--ok); }
+button.small { padding: 2px 8px; font-size: 11px; border-radius: 6px; }
+
+/* 内嵌子图的拖拽覆盖层：只画框和把手，不接管底图的交互 */
+.inset-overlay { position: absolute; inset: 8px; pointer-events: none; }
+.inset-box {
+  position: absolute;
+  pointer-events: auto;
+  border: 1px dashed var(--accent);
+  border-radius: 3px;
+  background: transparent;
+  cursor: move;
+  touch-action: none;
+}
+.inset-box.dragging { border-style: solid; background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.inset-box .inset-handle {
+  position: absolute;
+  right: -5px; bottom: -5px;
+  width: 12px; height: 12px;
+  border-radius: 2px;
+  background: var(--accent);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+.inset-box .inset-tag {
+  position: absolute;
+  left: 2px; top: -18px;
+  font-size: 10px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* 内嵌图 / 图层卡片里的四格参数用两列网格，省纵向空间 */
+.pgroup .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.pgroup .fields.four { grid-template-columns: repeat(4, 1fr); gap: 6px 8px; }
+.pgroup .fields.four .field > span { text-align: center; }
+/* 数据集 chips 排成一行横向滚，纵向只占一条，把高度让给图层区 */
+.pgroup.dsgroup .datasets {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 6px;
+  padding-bottom: 4px;
+}
+.pgroup.dsgroup .datasets .chip { flex: 0 0 auto; white-space: nowrap; }
+.pgroup .fields .field input { width: 100%; }
+
+/* 图层卡片：默认只显示一行摘要，点行头展开参数 */
+.layer .head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.layer .head .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layer .head .kindtag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.layer .head .sub { margin-left: auto; font-size: 11px; color: var(--muted); }
+.layer .head .caret { color: var(--muted); transition: transform .15s ease; }
+.layer.open .head .caret { transform: rotate(180deg); }
+.layer .head .grip { cursor: grab; color: var(--muted); padding: 0 2px; }
+.layer .body { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
+.layer .body[hidden] { display: none; }  /* display:flex 会盖掉 [hidden]，必须显式关 */
+.layer:not(.open) { padding: 6px 10px; }
+
+/* ---------- 菜单栏（参照 netlab：紧凑、无边框、hover 高亮） ---------- */
+.menubar { display: flex; gap: 2px; margin-left: 14px; }
+.menubar .menu {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.menubar .menu:hover, .menubar .menu.open { background: var(--bg-2); }
+
+.menu-pop {
+  position: fixed;
+  z-index: 40;
+  min-width: 190px;
+  padding: 5px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .28);
+}
+.menu-pop button {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 9px;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: left;
+}
+.menu-pop button:hover { background: var(--bg-2); }
+.menu-pop button:disabled { opacity: .42; cursor: default; }
+.menu-pop .kbd { margin-left: auto; color: var(--muted); font-size: 11px; }
+.menu-pop .sep { height: 1px; margin: 4px 6px; background: var(--line); }
+
+/* ---------- 图层分组 ---------- */
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  margin: 6px 0 4px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  border: 1px dashed transparent;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.group-head.dragover { border-color: var(--accent); color: var(--accent); }
+.group-head .gname { font-weight: 600; color: var(--text); }
+.group-head .gnum { margin-left: auto; }
+.group-head .gdel { border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.layer.selected { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+/* 嵌入宿主（如 netlab 浮窗）时的紧凑形态：菜单矮一点、留白小一点 */
+body.embed .menubar { height: 34px; }
+body.embed .brand { font-size: 13px; }
+body.embed .stage { padding: 4px 6px 0; }
+
+/* 窄宿主（<720px）只留必要控件，避免顶栏把标题挤成竖排 */
+body.embed .bar { gap: 8px; padding: 0 8px; }
+body.embed .brand .tag, body.embed .brand .name { display: none; }
+body.embed .title { font-size: 12px; max-width: 38%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.embed .menubar { gap: 2px; flex: 0 0 auto; }
+body.embed .menubar .menu { padding: 0 6px; font-size: 12px; }
+body.embed .actions .btn { padding: 0 6px; }
+body.embed #btn-png { display: none; }
+@media (max-width: 720px) {
+  body.embed .title { display: none; }
+}
+
+/* 顶栏不许换行：窄宿主里让它横向挤，也不要竖排 */
+body.embed .bar { flex-wrap: nowrap; }
+body.embed .menubar { flex-wrap: nowrap; }
+body.embed .menubar .menu { white-space: nowrap; }
+body.embed .actions { flex-wrap: nowrap; }
+body.embed .actions .btn { white-space: nowrap; }
+body.embed .brand { flex: 0 0 auto; }
+
+/* 嵌在浮窗里时不要出现横向滚动条（stage 有内边距，容易溢出 4~8px） */
+body.embed { overflow: hidden; }
+body.embed .stage { overflow: hidden; }
+
+/* 工具条：时间窗 + 回放（对齐 netlab 老画布的工具栏） */
+.toolbar { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted); flex: 0 0 auto; flex-wrap: nowrap; overflow: hidden; }
+.toolbar .inline { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.toolbar .inline.grow { flex: 1 1 auto; min-width: 120px; }
+.toolbar input[type="number"] { width: 64px; }
+.toolbar input[type="range"] { flex: 1 1 auto; min-width: 80px; accent-color: var(--accent); }
+.toolbar em { font-style: normal; color: var(--text); min-width: 44px; }
+.toolbar .btn { padding: 2px 8px; font-size: 12px; }
+.toolhint { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.embed .toolbar { padding: 4px 8px; gap: 8px; }
+
+.dsbar { display: flex; gap: 6px; margin-bottom: 6px; }
+.dsbar input[type="search"] { flex: 1 1 auto; min-width: 0; }
+.dsbar .btn { flex: 0 0 auto; padding: 2px 8px; font-size: 12px; }
+
+/* 3D 视图：canvas 与静态图共用一块舞台，切换时互相隐藏 */
+#plot3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#plot3d[hidden] { display: none; }
+/* 装饰层：轴/刻度/色标/标题由 2D 画布画在 WebGL 上面，不拦截鼠标 */
+#plot3d-deco { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+#plot3d-deco[hidden] { display: none; }
+#plot3d-region { position: absolute; right: 12px; top: 12px; max-width: 280px;
+  white-space: pre; line-height: 1.55; font-variant-numeric: tabular-nums; }
+.plot.mode-3d #plotImg { visibility: hidden; }
+
+/* 三维时间轴：拖动只改前端标记点，不请求服务端 */
+#plot3d-timeline {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; padding: 6px 12px;
+  background: rgba(12, 16, 22, 0.86); border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 10px; backdrop-filter: blur(6px); z-index: 4;
+}
+#plot3d-timeline[hidden] { display: none; }
+#plot3d-timeline input[type="range"] { width: 320px; accent-color: #60a5fa; }
+#plot3d-timeline button {
+  width: 26px; height: 26px; border-radius: 6px; cursor: pointer;
+  border: 1px solid rgba(148, 163, 184, 0.35); background: rgba(30, 41, 59, 0.9);
+  color: #e2e8f0; font-size: 12px; line-height: 1;
+}
+#plot3d-timeline button:hover { background: rgba(51, 65, 85, 0.95); }
+#plot3d-time { font-variant-numeric: tabular-nums; color: #94a3b8; font-size: 12px; min-width: 74px; }

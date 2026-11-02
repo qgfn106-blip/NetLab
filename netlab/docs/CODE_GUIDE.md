@@ -134,8 +134,8 @@ NetlabHome/
 | `netlab/desktop/webview_bridge.py` | 246 | pywebview 原生桥：文件对话框、工程读写、窗口状态。 |
 | `netlab/desktop/server_host.py` | 97 | 在后台线程启动现有 uvicorn/FastAPI，选择空闲端口。 |
 | `netlab/desktop/app.py` | 80 | 遗留 Qt 入口（PySide6），当前不被 `__main__` 使用。 |
-| `netlab/desktop/bridge.py` | 282 | 遗留 Qt `QWebChannel` 桥。 |
-| `netlab/desktop/main_window.py` | 261 | 遗留 Qt 主窗口。 |
+| `netlab/desktop/bridge.py` | 282 | Qt 回退壳的 `QWebChannel` 桥（默认不加载，仅 `python -m netlab.desktop.app` 用）。 |
+| `netlab/desktop/main_window.py` | 261 | Qt 回退壳主窗口（默认不加载）。 |
 | `netlab/desktop/selftest.py` | 111 | 无人工点击的后端/前端冒烟检查。 |
 
 > 桌面壳现状：`netlab/desktop/__init__.py` 的 docstring 仍写着 PySide6/QtWebEngine，但 `__main__.py:15` 实际导入的是 `webview_app.main`（pywebview）。Qt 原生界面已于 2026-11-02 备份到分支后删除。读代码以 `webview_app.py` / `webview_bridge.py` 为准。

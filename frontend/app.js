@@ -16,7 +16,7 @@
 
   // 界面版本号：必须与 index.html 的 ?v= 和 netlab/server.py 的 APP_BUILD 一致。
   // 用来识别「前端文件已更新、后端进程还是旧的」这种只关窗口不重启的情况。
-  const UI_BUILD = '3.16.3';
+  const UI_BUILD = '3.16.4';
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -2823,8 +2823,10 @@
     const w = Math.abs(drag.x - drag.startX);
     const h = Math.abs(drag.y - drag.startY);
     ctx.save();
-    ctx.fillStyle = C('rgba(168, 84, 31, .08)');
-    ctx.strokeStyle = C('rgba(168, 84, 31, .65)');
+    // 固定半透明：深色主题下若走 C() 的 legacy 映射，某些 token 会退化成近黑实心
+    const dark = themeKey() === 'dark';
+    ctx.fillStyle = dark ? 'rgba(197, 161, 107, .16)' : 'rgba(168, 84, 31, .10)';
+    ctx.strokeStyle = dark ? 'rgba(197, 161, 107, .70)' : 'rgba(168, 84, 31, .65)';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 3]);
     ctx.fillRect(x, y, w, h);
@@ -9719,7 +9721,8 @@
   async function control(action, steps, opts) {
     // 运行前提示：建议先预计算，否则 PlotKit 面板拿不到整段数据（只能边跑边截断）
     const running = !!(state.sim && state.sim.running);
-    if ((action === 'toggle' || action === 'run') && !running && !(opts && opts.skipWarn) && state.prefs.runWarn !== false) {
+    if ((action === 'toggle' || action === 'run') && !running && !(opts && opts.skipWarn)
+        && state.prefs.runWarn !== false && !hasPrecomputed()) {
       openRunWarn();
       return;
     }
@@ -9728,6 +9731,16 @@
       return;
     }
     await networkControl(action, steps);
+  }
+
+  // 已有预计算数据（整段 0→T 已在录制缓冲里）就不再打扰用户
+  function hasPrecomputed() {
+    if (state.precomputedSeconds != null) return true;
+    const frames = state.frames || [];
+    if (frames.length < 2) return false;
+    const span = frames[frames.length - 1].t - frames[0].t;
+    const need = Number((state.chart && state.chart.window) || 5);
+    return span >= need * 0.9;
   }
 
   // ---- 运行前「建议预计算」对话框 -------------------------------------------
@@ -9747,7 +9760,7 @@
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
         <span>预计算时间窗</span>
         <input id="runWarnSec" type="number" min="1" max="120" step="1" value="${Math.max(1, Math.min(120, Math.round(Number((state.chart && state.chart.window) || 5))))}"
-          style="width:84px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:8px;background:var(--panel,#fff);color:inherit;font:inherit;" />
+          style="width:84px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:8px;background:#ffffff;color:#111814;-webkit-text-fill-color:#111814;font:600 14px/1.4 'Microsoft YaHei UI',sans-serif;" />
         <span>s</span>
         <span id="runWarnChips" style="display:flex;gap:6px;margin-left:6px;"></span>
       </div>
@@ -9792,6 +9805,7 @@
             info.textContent = '预计算失败：' + ((pre && pre.error) || '未知错误') + '，可直接运行或缩小时间窗重试。';
             return;
           }
+          state.precomputedSeconds = seconds;
           info.textContent = `完成：${seconds}s / ${pre.frames ?? '?'} 帧 / ${Math.round(pre.elapsed_ms || 0)} ms`;
           toast(`预计算完成：${pre.frames ?? '?'} 帧，去「绘图」页勾选探针后点「接入」`, 'ok', 4200);
           close();
@@ -9933,6 +9947,7 @@
         label: '仿真',
         items: [
           { label: '运行 / 暂停', hint: '空格', action: () => void control('toggle') },
+          { label: '预计算数据…', hint: '先算 0→T，再在绘图页回放/接入', action: () => openRunWarn() },
           { label: '单步', hint: 'S', action: () => void control('step') },
           { label: '时间归零', hint: '只归零计时与录制，不清状态', action: () => void control('zero') },
           { label: '重置', hint: '清除状态与时间', action: () => void control('reset') },

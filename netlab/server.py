@@ -25,7 +25,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .core.compute.fem import FemSimulation
 
 #: 服务端代码版本（与 frontend/index.html 的 ?v= 对齐）；用于检测「前端已更新、后端进程仍是旧的」
-APP_BUILD = "3.16.4"
+APP_BUILD = "3.16.5"
 from .core.common.limits import ConflictError, NetlabError, NotFoundError, ValidationError
 from .core.model.networks import NetworkContainer
 from .core.model.project import (
@@ -398,7 +398,7 @@ def index() -> Response:
         if "desktop-shim.js" not in html:
             html = html.replace(
                 "</head>",
-                '  <script src="/static/desktop-shim.js?v=3.16.4"></script>\n</head>',
+                '  <script src="/static/desktop-shim.js?v=3.16.5"></script>\n</head>',
                 1,
             )
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})

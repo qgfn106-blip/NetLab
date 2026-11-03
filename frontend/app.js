@@ -16,7 +16,7 @@
 
   // 界面版本号：必须与 index.html 的 ?v= 和 netlab/server.py 的 APP_BUILD 一致。
   // 用来识别「前端文件已更新、后端进程还是旧的」这种只关窗口不重启的情况。
-  const UI_BUILD = '3.16.4';
+  const UI_BUILD = '3.16.5';
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -632,6 +632,11 @@
       if (ui.analWin && !ui.analWin.hidden) requestAnimationFrame(() => drawAcChart());
     }
     state.acRevision = nextRevision;
+    // 场景被重置或替换后，旧预计算数据不再对应，恢复“首次运行提示”
+    if (resetFrames || (state.precomputedRevision != null && nextRevision !== state.precomputedRevision)) {
+      state.precomputedSeconds = null;
+      state.precomputedRevision = null;
+    }
     if (snapshot.limits) state.limits = snapshot.limits;
     state.mode = state.scene.mode || state.mode;
 
@@ -9806,6 +9811,7 @@
             return;
           }
           state.precomputedSeconds = seconds;
+          state.precomputedRevision = state.scene?.revision ?? null;
           info.textContent = `完成：${seconds}s / ${pre.frames ?? '?'} 帧 / ${Math.round(pre.elapsed_ms || 0)} ms`;
           toast(`预计算完成：${pre.frames ?? '?'} 帧，去「绘图」页勾选探针后点「接入」`, 'ok', 4200);
           close();

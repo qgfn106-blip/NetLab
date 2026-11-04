@@ -49,3 +49,44 @@ def test_analysis_tf_accepts_network_input_output(client) -> None:
     body = response.json()
     assert body["ok"] is True
     assert "1/(s + 1)" in body["expression"]
+    assert body["state_space"]["order"] == 1
+    assert body["state_space"]["A"][0][0] == pytest.approx(-1.0)
+    assert body["state_space"]["D"] == [[0.0]]
+
+
+def test_analysis_tf_delay_pade_and_peak_time(client) -> None:
+    scene = Scene("signal")
+    source = scene.add_node(name="u", kind="manual", data={"value": 1.0})
+    gain = scene.add_node(name="gain", kind="gain", params={"gain": 2.0})
+    plant = scene.add_node(
+        name="plant", kind="transfer_function", params={"form": "expr", "expr": "1/(s+1)"}
+    )
+    scene.add_edge(source=source.id, target=gain.id, kind="pass")
+    scene.add_edge(source=gain.id, target=plant.id, kind="scale", delay=True)
+    loaded = client.post("/api/scene", json=scene.to_payload())
+    assert loaded.status_code == 200, loaded.text
+
+    response = client.post(
+        "/api/analysis/tf",
+        json={
+            "input_node": "u",
+            "output_node": "plant",
+            "points": 16,
+            "duration": 3.0,
+            "delay_pade_order": 1,
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["ok"] is True
+    assert "step" in body and "metrics" in body["step"]
+    assert body["step"]["metrics"]["peak_value"] is not None
+
+    query = client.get(
+        "/api/analysis/transfer",
+        params={"input": "u", "output": "plant", "delay_pade_order": 1},
+    )
+    assert query.status_code == 200, query.text
+    report = query.json()
+    assert report["ok"] is True
+    assert report["delay_pade_order"] == 1

@@ -113,6 +113,7 @@ def test_step_response_first_order_metrics():
     assert report["stable"] is True
     assert report["metrics"]["final"] == pytest.approx(1.0, abs=1e-3)
     assert report["metrics"]["rise_time"] == pytest.approx(2.197, abs=0.05)
+    assert report["metrics"]["peak_time"] is None
     assert report["metrics"]["settling_time"] == pytest.approx(3.91, abs=0.1)
     assert report["metrics"]["steady_state_error"] == pytest.approx(0.0)
 
@@ -124,6 +125,7 @@ def test_step_response_unstable_has_no_metrics():
     assert report["stable"] is False
     assert report["metrics"]["final"] is None
     assert report["metrics"]["rise_time"] is None
+    assert report["metrics"]["peak_time"] is None
     assert report["metrics"]["steady_state_error"] is None
 
 
@@ -267,6 +269,8 @@ def test_underdamped_step_overshoot_uses_response_peak():
     tf = transfer.parse_expression("1/(s^2+0.4*s+1)")
     result = transfer.step_response(tf, duration=20.0, dt=0.01)
     assert result["metrics"]["overshoot_pct"] == pytest.approx(52.66, abs=0.2)
+    assert result["metrics"]["peak_time"] == pytest.approx(3.21, abs=0.05)
+    assert result["metrics"]["peak_value"] == pytest.approx(1.5266, abs=0.005)
 
 
 def test_step_response_uses_actual_non_integral_grid():

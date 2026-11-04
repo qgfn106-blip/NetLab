@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from .blocks import BlockDef
+from .builtins import builtin_block, builtin_blocks, is_builtin
 from ..common.limits import LimitError, NotFoundError, ValidationError
 from .project import atomic_write, canonical_json
 
@@ -190,8 +191,10 @@ def _legacy_versions(library: str | Path, block_id: str) -> list[dict[str, Any]]
 
 
 def find_block_path(library: str | Path, block_id: str) -> Path | None:
-    """按 id 找模块文件：先扁平 ``<名字>.block``，再兼容旧的 ``<id>/v<N>.block``。"""
+    """按 id 找模块文件；内置块没有文件路径，返回 ``None``。"""
     _check_id(block_id)
+    if is_builtin(block_id):
+        return None
     for path in _flat_files(library):
         block = _read_quiet(path)
         if block is not None and block.id == block_id:
@@ -242,6 +245,11 @@ def name_taken(
     wanted = str(name or "").strip().casefold()
     if not wanted:
         return None
+    for block in builtin_blocks():
+        if block.id == ignore_id:
+            continue
+        if str(block.name).strip().casefold() == wanted:
+            return {"id": block.id, "name": block.name, "builtin": True}
     for path in _flat_files(library):
         block = _read_quiet(path)
         if block is None or block.id == ignore_id:
@@ -262,6 +270,9 @@ def _same_content(a: BlockDef, b: BlockDef) -> bool:
 
 
 def list_versions(library: str | Path, block_id: str) -> list[dict[str, Any]]:
+    builtin = builtin_block(block_id)
+    if builtin is not None:
+        return [{"version": 1, "path": "", "size": 0, "builtin": True}]
     path = find_block_path(library, block_id)
     if path is None:
         raise NotFoundError(f"模块 {block_id!r} 不在库中")
@@ -272,6 +283,8 @@ def list_versions(library: str | Path, block_id: str) -> list[dict[str, Any]]:
 def write_block(library: str | Path, block: BlockDef) -> Path:
     """写模块文件（一个模块一个文件、按名字命名）；内容变化时版本自动 +1。"""
     validate_block_structure(block)
+    if block.builtin or is_builtin(block.id):
+        raise ValidationError("内置模块只读，不能写入；请先另存为副本")
     block = copy.deepcopy(block)
     blocks_root(library).mkdir(parents=True, exist_ok=True)
     current = find_block_path(library, block.id)
@@ -314,6 +327,8 @@ def rename_block(
     from .blocks import check_name
 
     clean = check_name(name, "模块名称")
+    if is_builtin(block_id):
+        raise ValidationError("内置模块只读，不能重命名；请先另存为副本")
     path = find_block_path(library, block_id)
     if path is None:
         raise NotFoundError(f"模块 {block_id!r} 不在库中")
@@ -339,6 +354,8 @@ def overwrite_block(
     """覆盖已存在的模块文件；调用方负责引用扫描与用户确认（D6）。"""
     block = BlockDef.from_payload(payload)
     validate_block_structure(block)
+    if block.builtin or is_builtin(block.id):
+        raise ValidationError("内置模块只读，不能覆盖；请先另存为副本")
     path = find_block_path(library, block.id)
     if path is None:
         raise NotFoundError(f"模块 {block.id!r} 不在库中，不能覆盖")
@@ -357,6 +374,8 @@ def import_block(
     """导入模块：新 id 建 v1；已有 id 必须带更高版本（D5/D10）。"""
     block = payload if isinstance(payload, BlockDef) else BlockDef.from_payload(payload)
     validate_block_structure(block)
+    if block.builtin or is_builtin(block.id):
+        raise ValidationError("内置模块只读，不能导入覆盖；请使用新 id 另存为副本")
     latest = 0
     existing: BlockDef | None = None
     path = find_block_path(library, block.id)
@@ -385,6 +404,8 @@ def import_block(
 
 def remove_block(library: str | Path, block_id: str, version: int | None = None) -> list[int]:
     """删除模块文件（D6 的「真正删除」；引用扫描由调用方做）。"""
+    if is_builtin(block_id):
+        raise ValidationError("内置模块只读，不能删除")
     path = find_block_path(library, block_id)
     if path is None:
         raise NotFoundError(f"模块 {block_id!r} 不在库中")
@@ -405,6 +426,9 @@ def remove_block(library: str | Path, block_id: str, version: int | None = None)
 
 def load_block(library: str | Path, block_id: str, version: int | None = None) -> BlockDef:
     """按 id 读模块（库里只保留最新版；旧版本引用按最新版加载）。"""
+    builtin = builtin_block(block_id)
+    if builtin is not None:
+        return copy.deepcopy(builtin)
     path = find_block_path(library, block_id)
     if path is None:
         raise NotFoundError(f"模块 {block_id!r} 不在库中")
@@ -421,6 +445,9 @@ def ensure_blocks(library: str | Path, payloads: list[dict[str, Any]]) -> list[d
     refs: list[dict[str, Any]] = []
     for payload in payloads:
         block = BlockDef.from_payload(payload)
+        if block.builtin or is_builtin(block.id):
+            refs.append(block_ref(payload))
+            continue
         path = find_block_path(library, block.id)
         if path is not None:
             existing = read_block_file(path)
@@ -593,13 +620,29 @@ def resolve_refs(library: str | Path | None, refs: Any) -> list[dict[str, Any]]:
     return payloads
 
 
-def scan_library(library: str | Path) -> list[dict[str, Any]]:
-    """列出库中所有模块（文件名 = 模块名）；不加载执行。"""
+def scan_library(
+    library: str | Path, *, include_builtin: bool = False
+) -> list[dict[str, Any]]:
+    """列出库中所有模块（文件名 = 模块名）；不加载执行。
+
+    ``include_builtin=True`` 时把 R25 只读内置结构合并到结果前面；默认不合并，
+    供只关心用户库文件数量的底层测试/工具使用。API 与前端统一传 True。
+    """
     try:
         migrate_library(library)
     except (ValidationError, NotFoundError, LimitError, OSError):
         pass
     items: list[dict[str, Any]] = []
+    builtin_ids = set()
+    if include_builtin:
+        for block in builtin_blocks():
+            summary = block.summary()
+            summary["versions"] = [1]
+            summary["path"] = ""
+            summary["file"] = ""
+            summary["builtin"] = True
+            builtin_ids.add(block.id)
+            items.append(summary)
     for path in _flat_files(library):
         block = _read_quiet(path)
         if block is None:
@@ -613,6 +656,8 @@ def scan_library(library: str | Path) -> list[dict[str, Any]]:
                     "path": str(path),
                 }
             )
+            continue
+        if block.id in builtin_ids:
             continue
         summary = block.summary()
         summary["versions"] = [int(block.version)]

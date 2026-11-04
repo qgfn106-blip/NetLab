@@ -180,11 +180,13 @@ def test_blocks_api_scan_import_and_detail(client, tmp_path):
     body = imported.json()
     assert body["version"] == 1
     assert body["library"] == str(library)
-    assert len(body["blocks"]) == 1
+    user_blocks = [item for item in body["blocks"] if not item.get("builtin")]
+    assert len(user_blocks) == 1
 
     listed = client.get("/api/blocks", params={"library": str(library)})
     assert listed.status_code == 200
-    assert listed.json()["blocks"][0]["id"] == "aaaaaaaaaaaa"
+    listed_user = [item for item in listed.json()["blocks"] if not item.get("builtin")]
+    assert listed_user[0]["id"] == "aaaaaaaaaaaa"
 
     detail = client.get(
         f"/api/blocks/aaaaaaaaaaaa", params={"library": str(library)}

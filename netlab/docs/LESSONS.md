@@ -694,3 +694,11 @@ window.dispatchEvent(new Event('netlab-desktop-ready'));
 2. **接口参数必须和函数签名同批改**：`tf_analysis()` 增加 `input_node/output_node` 后，`AnalysisTFRequest` 和 `/api/analysis/tf` 必须同步；否则后端能跑、HTTP 仍用旧路径。新增 `test_analysis_api.py` 直接打 HTTP，比只测 Python 函数更能发现断链。
 3. **精度验收要看两档 dt 的差**：只测单档 `dt` 无法区分「时间标签错」和「数值收敛」；欠阻尼工程 12 s、dt 0.01→0.002 的超调 39.15%→37.53%，差 1.62 pt，才说明离散化在收敛。
 4. **无状态通道要给人话**：相图选区没有 `state:` 键时不要留空白画布，提示「先运行预计算，或选择传递函数 / 积分器节点」，比只画坐标轴有用。
+
+## 2026-11-05 全局传函延迟 / 峰值 / PlotKit / R25（§7.69）
+
+1. **Padé 的 x 必须用有理数**：`x=s*sp.Rational(str(dt))`，不要用浮点 `dt` 直接乘 s，否则系数会出现 `0.0200000000000000` 这类长尾，阶数一高就难以化简/比较。
+2. **峰值时间只在真有超调时给**：按终值方向取 argmax/argmin，只有 `overshoot_pct>0.05` 才回填 `peak_time`；单调/过阻尼返回 `None`，不要拿最后一个采样点冒充峰值。
+3. **PlotKit 分析曲线必须独立命名空间**：`analysis:<slug>:x/:y` + `life=replace`；`_ingest` 要跳过该前缀，否则 recorder 的 `t` 会把分析曲线按帧追加，x 轴直接被污染。
+4. **内置块先做虚拟注册表**：`builtin=True` 的 BlockDef 由代码生成，`scan_library(include_builtin=True)` 合并摘要、`load_block` 深拷贝回退、写/删/改名统一拒绝；不要拷贝到用户 `library/blocks`，否则库缺失/升级时会出现重复与版本漂移。
+5. **宏模型要如实标注**：R25 当前 9 个块是 signal 宏模型，不是完整电路级器件；文档和 UI 必须写「宏模型/电路级待后续」，不能把「能打开内部结构」说成「已实现完整内部电路」。

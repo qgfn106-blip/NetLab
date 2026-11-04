@@ -617,6 +617,8 @@ def _step_metrics(
             "final": None,
             "overshoot_pct": None,
             "rise_time": None,
+            "peak_time": None,
+            "peak_value": None,
             "settling_time": None,
             "steady_state_error": None,
         }
@@ -633,6 +635,18 @@ def _step_metrics(
         overshoot = max(0.0, (final - float(np.min(values))) / magnitude * 100.0)
     else:
         overshoot = 0.0
+    if final > 0.0:
+        peak_index = int(np.argmax(values))
+        peak_value = float(values[peak_index])
+    elif final < 0.0:
+        peak_index = int(np.argmin(values))
+        peak_value = float(values[peak_index])
+    else:
+        peak_index = 0
+        peak_value = float(values[0])
+    # 单调/过阻尼响应没有“峰值时刻”；只有出现明显超调时才给出，
+    # 避免把阶跃终点的采样时刻误报成峰值时间。
+    peak_time = float(time[peak_index]) if overshoot > 0.05 else None
 
     def crossing(level: float) -> float | None:
         target = final * level
@@ -664,6 +678,8 @@ def _step_metrics(
         "final": final,
         "overshoot_pct": float(overshoot),
         "rise_time": rise,
+        "peak_time": peak_time,
+        "peak_value": peak_value,
         "settling_time": settled,
         "steady_state_error": steady_state_error,
     }

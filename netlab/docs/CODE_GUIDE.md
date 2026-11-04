@@ -33,7 +33,7 @@ frontend/app.js  ──HTTP──▶  netlab/server.py (SERVICE)  ──▶  Sim
 NetlabHome/
 ├─ frontend/                 # 纯静态前端（无构建）：index.html / app.js / style.css / desktop-shim.js
 │  ├─ index.html             # 单页骨架：各 tab-pane 容器、脚本入口
-│  ├─ app.js                 # 全部前端逻辑（≈14.1k 行）：画布、面板、轮询、绘图、相图播放
+│  ├─ app.js                 # 全部前端逻辑（≈14.3k 行）：画布、面板、轮询、绘图、相图播放
 │  ├─ style.css              # 全部样式
 │  └─ desktop-shim.js        # 桌面壳（pywebview）注入的 Promise→QWebChannel 风格原生桥适配
 │
@@ -43,7 +43,7 @@ NetlabHome/
 │  │  ├─ model/              # 连接与网络：Scene、图、功能块、工程文件、模板、工作区
 │  │  └─ common/             # 公共：limits（上限、错误类型、类型转换）
 │  ├─ desktop/               # 桌面壳：当前入口是 pywebview + WebView2（另有遗留 Qt 文件）
-│  ├─ tests/                 # pytest 测试（44 个 .py 文件）
+│  ├─ tests/                 # pytest 测试（46 个 .py 文件）
 │  ├─ docs/                  # 文档（需求/决策/进度/本导读都在这里）
 │  ├─ server.py              # FastAPI 应用与全部 /api 端点（≈2.0k 行）
 │  ├─ run.py                 # 一键启动：uvicorn + 自动开浏览器
@@ -74,7 +74,7 @@ NetlabHome/
 
 > 行数为 `wc -l` 实测。`__init__.py` 均为 1 行说明，不单列。
 
-### 2.1 计算（`netlab/core/compute/`，合计 ≈ 10,938 行）
+### 2.1 计算（`netlab/core/compute/`，合计 ≈ 11,038 行）
 
 | 模块 | 行数 | 职责 |
 | --- | ---: | --- |
@@ -84,7 +84,7 @@ NetlabHome/
 | `methods.py` | 670 | 信号层**连接（边）**计算方式注册表（`METHOD_SPECS`）。 |
 | `fem.py` | 667 | 二维有限元瞬态热传导（双线性单元）。 |
 | `simulation.py` | 646 | 固定步长仿真循环、配置、录制缓冲、后台线程。 |
-| `analysis.py` | 706 | 分析旁路：指标、频谱、周期推荐、传递函数（支持线性网络节点方程 + 反馈环）、s 域 TF 分析、网络 Bode、相平面指标、CSV 导出。 |
+| `analysis.py` | 790 | 分析旁路：指标、频谱、周期推荐、传递函数（支持线性网络节点方程 + 反馈环、s 域延迟 Padé、z 域显式延迟）、s 域 TF 分析、网络 Bode、相平面指标、A/B/C/D 导出、CSV 导出。 |
 | `transistors.py` | 453 | 三极管/MOS 行为模型及其元件规格。 |
 | `digital.py` | 368 | 4 位计数器、4 位 DAC 等行为级数字/模拟接口。 |
 | `magnetics.py` | 299 | 变压器与互感线圈（双端口磁耦合）。 |
@@ -94,14 +94,14 @@ NetlabHome/
 | `params.py` | 215 | **`ParamSpec`**：节点/元件参数的统一定义、校验、序列化。 |
 | `statespace.py` | 203 | 连续/离散状态空间模型与离散化。 |
 | `fields.py` | 100 | 读取端字段兼容层：`value` 优先、显式键优先、歧义报错；节点/边/状态空间/块端口共用。 |
-| `transfer.py` | 818 | s 域传递函数：表达式解析、TF→可控标准型、Bode、阶跃、零极点分析。 |
+| `transfer.py` | 834 | s 域传递函数：表达式解析、TF→可控标准型、Bode、阶跃（含峰值时间/峰值）、零极点分析。 |
 | `logic.py` | 190 | 逻辑门行为模型。 |
 | `timers.py` | 174 | 555 定时器与 LDO 行为模型。 |
 | `profiling.py` | 162 | 计时装饰器与环形采样。 |
 | `waveform.py` | 91 | 标准波形发生器（电压源/电流源/信号节点共用）。 |
 | `introspection.py` | 68 | 规格自省：把注册表条目转成前端可展示的公式/源码/参数说明。 |
 
-### 2.2 连接与网络（`netlab/core/model/`，合计 ≈ 9,161 行）
+### 2.2 连接与网络（`netlab/core/model/`，合计 ≈ 9,721 行）
 
 | 模块 | 行数 | 职责 |
 | --- | ---: | --- |
@@ -109,7 +109,8 @@ NetlabHome/
 | `templates.py` | 1193 | 内置模板（信号链、控制环、RC/RLC、运放、三极管……）与目录。 |
 | `project.py` | 958 | `.netlab` 工程文件的构建、校验、迁移、checksum、原子保存/加载。 |
 | `blocks.py` | 976 | 功能块系统：`BlockDef`/`PortDef`，把网络封装成带端口的节点。 |
-| `blocklib.py` | 655 | 模块库文件层：模块文件的读写、版本、扁平/目录布局。 |
+| `blocklib.py` | 700 | 模块库文件层：模块文件读写、版本、扁平/目录布局；R25 内置块虚拟注册表与只读保护。 |
+| `builtins.py` | 515 | R25 内置只读 structural 块（opamp/comparator/dff/counter4/shift4/timer555/ldo/adc4/dac4），随代码发布、空库可打开。 |
 | `extensions.py` | 602 | 应用内 Python 扩展：节点、连接函数与参数声明。 |
 | `graph.py` | 1129 | **`Network`**（有向节点/连接图）、`Node`、`Connection`、`ComputeContext`、`SolverPlan`（R36/P1 断点 + SCC）与 `_step_solved()`（R36/P2 线性 SCC / P3 阻尼 Newton）。 |
 | `workspace.py` | 533 | 工作区：工程目录、共享库、用户设置、快照。 |
@@ -128,9 +129,9 @@ NetlabHome/
 
 | 模块 | 行数 | 职责 |
 | --- | ---: | --- |
-| `netlab/server.py` | 1972 | FastAPI 应用：静态前端、全部 `/api/*` 端点、`SERVICE` 单例、PlotKit 挂载。 |
+| `netlab/server.py` | 2001 | FastAPI 应用：静态前端、全部 `/api/*` 端点、`SERVICE` 单例、PlotKit 挂载。 |
 | `netlab/run.py` | 116 | 启动器：解析 `--host/--port`，起 uvicorn，健康检查后开浏览器。 |
-| `netlab/plotkit_bridge.py` | 298 | 把 PlotKit 子应用挂到 `/plotkit`，并起同步线程把探针帧推入 figure。 |
+| `netlab/plotkit_bridge.py` | 728 | 把 PlotKit 子应用挂到 `/plotkit`；探针帧同步 + `analysis:` 独立分析曲线数据集（不随 recorder t 追加）。 |
 | `netlab/desktop/__main__.py` | 24 | 桌面入口：`python -m netlab.desktop` → `webview_app.main()`。 |
 | `netlab/desktop/webview_app.py` | 406 | **当前桌面壳**：pywebview + WebView2，注入 `desktop-shim.js`。 |
 | `netlab/desktop/webview_bridge.py` | 246 | pywebview 原生桥：文件对话框、工程读写、窗口状态。 |
@@ -146,8 +147,8 @@ NetlabHome/
 
 | 文件 | 行数 | 职责 |
 | --- | ---: | --- |
-| `frontend/app.js` | 14169 | 全部前端逻辑：API 封装、画布、面板渲染、实时轮询、图表绘制、相图播放条与 CSV 导出。 |
-| `frontend/index.html` | 633 | 单页骨架：各 `tab-pane` 容器与脚本入口。 |
+| `frontend/app.js` | 14338 | 全部前端逻辑：API 封装、画布、面板渲染、实时轮询、图表绘制、相图播放条、CSV/A-B-C-D 导出、PlotKit 发送。 |
+| `frontend/index.html` | 634 | 单页骨架：各 `tab-pane` 容器与脚本入口。 |
 | `frontend/style.css` | 2136 | 全部样式（含主题变量）。 |
 | `frontend/desktop-shim.js` | 139 | 桌面模式下把 Promise 风格原生桥映射成 QWebChannel 风格。 |
 

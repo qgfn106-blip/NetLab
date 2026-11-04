@@ -311,6 +311,26 @@ def _number(value: Any) -> str:
     return str(int(number)) if number.is_integer() else repr(number)
 
 
+def _state_space_payload(tf: Any) -> dict[str, Any] | None:
+    """把 ``TransferFunction`` 转成可控标准型 A/B/C/D（只读呈现）。"""
+    try:
+        state_space = tf.to_state_space()
+    except Exception:
+        return None
+    if state_space is None:
+        return None
+    a, b, c, d = state_space
+    return {
+        "realization": "controllable_canonical",
+        "order": int(a.shape[0]),
+        "A": [[float(value) for value in row] for row in a],
+        "B": [[float(value) for value in row] for row in b],
+        "C": [[float(value) for value in row] for row in c],
+        "D": [[float(value) for value in row] for row in d],
+        "note": "由总传函系数构造的可控标准型；仅用于导出/复核，不改变求解器内部状态",
+    }
+
+
 def _node_tf(kind: str, params: dict[str, Any]) -> str | None:
     if kind == "gain":
         return _number(params.get("gain", 1.0))
@@ -336,12 +356,31 @@ def transfer_function(
     input_field: str = "voltage",
     output_field: str = "voltage",
     domain: str = "s",
+    delay_pade_order: int = 3,
 ) -> dict[str, Any]:
-    """线性网络符号传递函数（sympy 可选）；``domain='z'`` 支持显式 z⁻¹。"""
+    """线性网络符号传递函数（sympy 可选）；``domain='z'`` 支持显式 z⁻¹。
+
+    ``domain='s'`` 时，单步延迟边按 ``e^{-s·dt}`` 的 ``delay_pade_order``
+    阶 Padé 有理近似处理（默认 3 阶）；``domain='z'`` 保持精确 ``z⁻¹``。
+    """
     if domain not in {"s", "z"}:
         return {
             "ok": False,
             "reason": f"未知传递函数域 {domain!r}（只支持 s / z）",
+            "source": "symbolic",
+        }
+    try:
+        delay_pade_order = int(delay_pade_order)
+    except (TypeError, ValueError):
+        return {
+            "ok": False,
+            "reason": f"延迟 Padé 阶数必须是整数，收到 {delay_pade_order!r}",
+            "source": "symbolic",
+        }
+    if not 1 <= delay_pade_order <= 8:
+        return {
+            "ok": False,
+            "reason": "延迟 Padé 阶数必须在 1–8 之间",
             "source": "symbolic",
         }
     try:
@@ -362,6 +401,31 @@ def transfer_function(
     s = sp.Symbol("s")
     z = sp.Symbol("z")
     variable = z if domain == "z" else s
+    try:
+        delay_seconds = float(getattr(sim.config, "dt", 0.0))
+    except (AttributeError, TypeError, ValueError):
+        delay_seconds = 0.0
+
+    def pade_delay() -> Any:
+        """e^{-sT} 的 [p/p] Padé 有理近似（T=一个仿真步长）。"""
+        if domain != "s":
+            return sp.Integer(1)
+        if not math.isfinite(delay_seconds) or delay_seconds <= 0.0:
+            raise AnalysisError("s 域延迟近似需要正数仿真步长 dt")
+        x = s * sp.Rational(str(delay_seconds))
+        numerator = sp.Integer(0)
+        denominator = sp.Integer(0)
+        order = delay_pade_order
+        for k in range(order + 1):
+            coefficient = (
+                sp.factorial(2 * order - k)
+                * sp.factorial(order)
+                / (sp.factorial(2 * order) * sp.factorial(k) * sp.factorial(order - k))
+            )
+            numerator += coefficient * (-x) ** k
+            denominator += coefficient * x**k
+        return sp.cancel(numerator / denominator)
+
     nonlinear_kinds = {
         "expression",
         "clip",
@@ -424,11 +488,7 @@ def transfer_function(
     def edge_weight(edge: Any, target_node: Any) -> Any:
         delay_factor = sp.Integer(1)
         if edge.delay:
-            if domain == "s":
-                raise AnalysisError(
-                    f"连接 {edge.name!r} 带单步延迟，连续 s 域总传函未支持（需 domain='z'）"
-                )
-            delay_factor = 1 / variable
+            delay_factor = pade_delay() if domain == "s" else 1 / variable
         if edge.kind == "pass":
             base = sp.Integer(1)
         elif edge.kind == "scale":
@@ -488,6 +548,14 @@ def transfer_function(
         den_coeffs = [float(item) for item in den_poly.all_coeffs()][::-1]
     except Exception:
         num_coeffs, den_coeffs = [], []
+    state_space = None
+    if domain == "s":
+        try:
+            state_space = _state_space_payload(
+                transfer_math.parse_expression(str(expr).replace("**", "^"))
+            )
+        except Exception:
+            state_space = None
     return {
         "ok": True,
         "domain": domain,
@@ -500,9 +568,16 @@ def transfer_function(
         "numerator_coeffs": num_coeffs,
         "denominator_coeffs": den_coeffs,
         "order": max(0, len(den_coeffs) - 1),
+        "state_space": state_space,
+        "delay_pade_order": delay_pade_order if domain == "s" else 0,
+        "delay_seconds": delay_seconds if domain == "s" else 0.0,
         "assumptions": [
             "线性节点：gain/sum/lag/integrate/transfer_function/state_space，pass/scale 连接；忽略偏置、限幅、初值",
-            "支持反馈环（节点方程联立消元）；delay 连接（z⁻¹）需 z 域分析，连续 s 域报错",
+            (
+                f"z 域延迟边为精确 z⁻¹；s 域延迟边按 e^(-s·{delay_seconds:g}) 的 {delay_pade_order} 阶 Padé 近似"
+                if domain == "s"
+                else "z 域延迟边为精确 z⁻¹"
+            ),
             "输入节点以外的独立源按 0 处理；非线性节点明确报错，不静默线性化",
             "结果只作数学形式呈现，不参与求解",
         ],
@@ -527,6 +602,7 @@ def tf_analysis(
     dt: float | None = None,
     duration: float | None = None,
     points: int = 240,
+    delay_pade_order: int = 3,
 ) -> dict[str, Any]:
     """s 域传递函数分析：Bode、阶跃、零极点、稳定性。
 
@@ -538,10 +614,17 @@ def tf_analysis(
         if input_node is not None or output_node is not None:
             if sim is None or not input_node or not output_node:
                 raise AnalysisError("网络总传函必须同时提供 input_node 与 output_node")
-            network_report = transfer_function(sim, input_node, output_node)
+            network_report = transfer_function(
+                sim,
+                input_node,
+                output_node,
+                delay_pade_order=delay_pade_order,
+            )
             if not network_report.get("ok"):
                 raise AnalysisError(str(network_report.get("reason") or "网络总传函失败"))
-            tf = transfer_math.parse_expression(str(network_report["expression"]))
+            tf = transfer_math.parse_expression(
+                str(network_report["expression"]).replace("**", "^")
+            )
             if field is None:
                 field = "value"
         elif node is not None:
@@ -588,6 +671,7 @@ def tf_analysis(
         raise AnalysisError(f"传递函数分析失败：{exc}") from exc
 
     result["node"] = node
+    result["state_space"] = _state_space_payload(tf)
     if field is not None:
         result["field"] = field
     result["assumptions"] = [

@@ -16,7 +16,7 @@
 
   // 界面版本号：必须与 index.html 的 ?v= 和 netlab/server.py 的 APP_BUILD 一致。
   // 用来识别「前端文件已更新、后端进程还是旧的」这种只关窗口不重启的情况。
-  const UI_BUILD = '3.16.17';
+  const UI_BUILD = '3.17.0';
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -159,6 +159,7 @@
     phasePlay: $('#phasePlay'),
     phaseStep: $('#phaseStep'),
     phaseExport: $('#phaseExport'),
+    phasePlotkit: $('#phasePlotkit'),
     phaseLoop: $('#phaseLoop'),
     phaseFrame: $('#phaseFrame'),
     phaseFrameLabel: $('#phaseFrameLabel'),
@@ -10653,13 +10654,15 @@
    * ==================================================================== */
 
   function blockBadges(spec) {
-    return [
+    const badges = [
       spec.mode,
       spec.model || 'behavioral',
       `v${spec.version}`,
       `${spec.node_count} 节点`,
       `${(spec.inputs || []).length} 入 / ${(spec.outputs || []).length} 出`,
     ];
+    if (spec.builtin) badges.unshift('内置');
+    return badges;
   }
 
   async function refreshBlocks() {
@@ -10974,7 +10977,14 @@
       state.moduleBlock = target;
       if (ui.moduleWinTitle) ui.moduleWinTitle.textContent = target.name || target.id || '模块内部';
       if (ui.moduleWinHint) {
-        ui.moduleWinHint.textContent = `MODULE · ${(target.nodes || []).length} 节点 · v${Number(target.version || 1)}`;
+        const suffix = target.builtin
+          ? ' · 内置结构只读，可另存副本'
+          : '';
+        ui.moduleWinHint.textContent =
+          `MODULE · ${(target.nodes || []).length} 节点 · v${Number(target.version || 1)}${suffix}`;
+      }
+      if (ui.moduleEdit) {
+        ui.moduleEdit.textContent = target.builtin ? '在临时网络中另存副本' : '在临时网络中编辑';
       }
       renderModuleSide(target);
       ui.moduleWin.hidden = false;
@@ -11176,12 +11186,32 @@
     const input = $('#analysisInputNode')?.value?.trim();
     const output = $('#analysisOutputNode')?.value?.trim();
     if (!input || !output) return toast('填写输入/输出节点名', 'info', 2400);
-    const response = await analysisGet('/api/analysis/transfer', { input, output });
-    if (!response) return;
-    if (!response.ok) { setAnalysisOutput(`传递函数：无法解析\n原因：${response.reason}`); return; }
-    setAnalysisOutput(
-      [`H(s) = ${response.expression}`, `阶数 ${response.order}`, ...(response.assumptions || []).map((item) => `假设：${item}`), `来源：${response.source}`].join('\n'),
-    );
+    const out = $('#analysisTFOut');
+    if (out) out.textContent = '分析中…';
+    try {
+      const response = await jsonRequest('/api/analysis/tf', 'POST', {
+        input_node: input,
+        output_node: output,
+        points: 240,
+      });
+      if (!response.ok) {
+        const reason = `传递函数：无法解析\n原因：${response.reason || '未知原因'}`;
+        if (out) out.textContent = reason;
+        setAnalysisOutput(reason);
+        return;
+      }
+      state.analysisTF = response;
+      const summary = analysisTFSummary(response);
+      if (out) out.textContent = summary;
+      setAnalysisOutput([`网络总传函（${input} → ${output}）`, summary].join('\n'));
+      drawAnalysisTF();
+    } catch (error) {
+      const reason = `传递函数：失败\n原因：${error?.message || error}`;
+      if (out) out.textContent = reason;
+      setAnalysisOutput(reason);
+      state.analysisTF = null;
+      drawAnalysisTF();
+    }
   }
 
   function fmtComplex(value) {
@@ -11208,7 +11238,7 @@
     ];
     if (metrics.final !== null && metrics.final !== undefined) {
       lines.push(
-        `阶跃：终值 ${fmt(metrics.final, 5)}，超调 ${fmt(metrics.overshoot_pct, 2)}%，上升 ${fmt(metrics.rise_time, 3)} s，调节 ${fmt(metrics.settling_time, 3)} s，稳态误差 ${fmt(metrics.steady_state_error, 4)}`,
+        `阶跃：终值 ${fmt(metrics.final, 5)}，峰值 ${fmt(metrics.peak_value, 5)} @ ${fmt(metrics.peak_time, 3)} s，超调 ${fmt(metrics.overshoot_pct, 2)}%，上升 ${fmt(metrics.rise_time, 3)} s，调节 ${fmt(metrics.settling_time, 3)} s，稳态误差 ${fmt(metrics.steady_state_error, 4)}`,
       );
     } else if (step.stable === false) {
       lines.push('阶跃：系统不稳定，时域指标不适用');
@@ -11425,6 +11455,27 @@
       }
     }
     ctx.stroke();
+    if (Number.isFinite(metrics.peak_value) && Number.isFinite(metrics.peak_time)) {
+      let peakIndex = 0;
+      let best = Infinity;
+      for (let index = 0; index < Math.min(time.length, values.length); index += 1) {
+        if (!Number.isFinite(time[index])) continue;
+        const distance = Math.abs(time[index] - metrics.peak_time);
+        if (distance < best) { best = distance; peakIndex = index; }
+      }
+      const px = xAt(peakIndex);
+      const py = yAt(metrics.peak_value);
+      ctx.fillStyle = C('#8a4b12');
+      ctx.beginPath();
+      ctx.arc(px, py, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.textAlign = px > left + plotWidth * 0.66 ? 'right' : 'left';
+      ctx.fillText(
+        `峰值 ${fmt(metrics.peak_value, 3)} @ ${fmt(metrics.peak_time, 3)} s`,
+        px + (ctx.textAlign === 'right' ? -5 : 5),
+        Math.max(top + 9, py - 6),
+      );
+    }
     ctx.fillStyle = C('#7b7266');
     ctx.textAlign = 'left';
     ctx.fillText('0 s', left, height - 5);
@@ -11500,6 +11551,85 @@
     ctx.fillStyle = C('#7b7266');
     ctx.textAlign = 'left';
     ctx.fillText('× 极点   ○ 零点', left + 2, top + 9);
+  }
+
+  function exportTFStateSpace() {
+    const space = state.analysisTF?.state_space;
+    if (!space) {
+      toast('当前传递函数没有 A/B/C/D（静态增益或 z 域结果）', 'info', 3200);
+      return;
+    }
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    downloadText(JSON.stringify({ version: 1, state_space: space }, null, 2), `netlab-state-space-${stamp}.json`);
+    toast(`已导出 ${space.order} 阶 A/B/C/D`, 'ok', 2600);
+  }
+
+  async function sendCurveToPlotKit(name, x, y, xLabel, yLabel) {
+    if (!Array.isArray(x) || !Array.isArray(y) || x.length < 2 || x.length !== y.length) {
+      toast('这条曲线为空，无法发送到 PlotKit', 'info', 2800);
+      return null;
+    }
+    try {
+      const response = await jsonRequest('/api/plotkit/analysis', 'POST', {
+        name, x, y, x_label: xLabel, y_label: yLabel,
+      });
+      if (!response?.ok) {
+        toast(`PlotKit 接收失败：${response?.reason || '未挂载'}`, 'error', 4200);
+        return null;
+      }
+      toast(`已发送「${response.label}」到 PlotKit（${response.points} 点）`, 'ok', 3200);
+      return response;
+    } catch (error) {
+      toast(`PlotKit 接收失败：${error.message}`, 'error', 4200);
+      return null;
+    }
+  }
+
+  async function sendTFToPlotKit() {
+    const step = state.analysisTF?.step;
+    if (!step?.t || !step?.y) {
+      toast('先推导一条传递函数阶跃响应', 'info', 3000);
+      return;
+    }
+    await sendCurveToPlotKit('TF 阶跃响应', step.t, step.y, 't / s', '幅值');
+  }
+
+  function phaseSeriesForPlotKit() {
+    const node = nodeByName(state.phaseNode);
+    if (!node) return null;
+    const frames = state.frames || [];
+    const pairs = [];
+    const stateKeys = phaseStateKeys(node);
+    if (stateKeys.length >= 2) pairs.push([stateKeys[0], stateKeys[1]]);
+    pairs.push(
+      [`n:${node.name}:x`, `n:${node.name}:y`],
+      [`n:${node.name}:vx`, `n:${node.name}:vy`],
+      [`n:${node.name}:x1`, `n:${node.name}:x2`],
+    );
+    for (const [keyX, keyY] of pairs) {
+      const points = frames.filter(
+        (frame) => typeof frame.v?.[keyX] === 'number' && typeof frame.v?.[keyY] === 'number',
+      );
+      if (points.length >= 2) {
+        return {
+          name: `相图 ${node.name}`,
+          x: points.map((frame) => frame.v[keyX]),
+          y: points.map((frame) => frame.v[keyY]),
+          xLabel: keyX.split(':').pop(),
+          yLabel: keyY.split(':').pop(),
+        };
+      }
+    }
+    return null;
+  }
+
+  async function sendPhaseToPlotKit() {
+    const series = phaseSeriesForPlotKit();
+    if (!series) {
+      toast('当前相图没有可发送的轨迹', 'info', 3000);
+      return;
+    }
+    await sendCurveToPlotKit(series.name, series.x, series.y, series.xLabel, series.yLabel);
   }
 
   async function exportAnalysisCsv(keys = null, defaultName = 'analysis') {
@@ -11597,7 +11727,11 @@
     outputNode.id = 'analysisOutputNode';
     outputNode.placeholder = '输出节点名';
     outputNode.value = state.scene?.nodes?.[state.scene.nodes.length - 1]?.name || '';
-    transferRow.append(el('label', null, '传递函数'), inputNode, outputNode, button('推导', 'btn tiny', () => void runAnalysisTransfer()));
+    transferRow.append(
+      el('label', null, '传递函数'), inputNode, outputNode,
+      button('推导', 'btn tiny', () => void runAnalysisTransfer()),
+      button('导出 A/B/C/D', 'btn tiny', () => exportTFStateSpace()),
+    );
     host.appendChild(transferRow);
 
     const tfSection = div('insp-section');
@@ -11639,6 +11773,7 @@
     const tfTools = div('field-row');
     tfTools.append(
       button('分析', 'btn tiny primary', () => void runAnalysisTF()),
+      button('发送到 PlotKit', 'btn tiny', () => void sendTFToPlotKit()),
       el('label', null, '视图'),
       tfView,
     );
@@ -11677,13 +11812,42 @@
     const perfRow = div('field-row');
     perfRow.append(el('label', null, '单步上限 ms'), timeoutInput, apply);
     perf.appendChild(perfRow);
+    const profileToggle = el('input');
+    profileToggle.type = 'checkbox';
+    profileToggle.id = 'analysisProfileEnabled';
+    const profileButtons = div('field-row');
+    profileButtons.append(
+      el('label', null, '计时开关'), profileToggle,
+      button('应用', 'btn tiny', async () => {
+        const response = await task(() => jsonRequest('/api/profile', 'PATCH', {
+          enabled: Boolean(profileToggle.checked),
+        }));
+        if (response) {
+          profileToggle.checked = Boolean(response.enabled);
+          toast(response.enabled ? '性能计时已开启' : '性能计时已关闭', 'ok', 2200);
+        }
+      }),
+      button('清空', 'btn tiny', async () => {
+        const response = await task(() => jsonRequest('/api/profile', 'PATCH', { reset: true }));
+        if (response) toast('性能采样已清空', 'ok', 2000);
+      }),
+    );
+    perf.appendChild(profileButtons);
     const profileOut = el('pre', 'analysis-out');
     profileOut.id = 'analysisProfile';
     profileOut.textContent = '点击刷新读取 /api/profile（默认关闭，开销可忽略）';
     perf.appendChild(
       button('刷新性能', 'btn tiny', async () => {
-        const response = await task(() => jsonRequest('/api/profile', 'GET'), { dirty: false });
-        if (response) profileOut.textContent = JSON.stringify(response, null, 2).slice(0, 4000);
+        const response = await task(() => jsonRequest('/api/profile?top=20', 'GET'), { dirty: false });
+        if (!response) return;
+        profileToggle.checked = Boolean(response.enabled);
+        const rows = (response.entries || []).map(
+          (item) => `${item.name}\t${item.count} 次\t总 ${item.total_ms} ms\t均 ${item.mean_ms} ms\t峰 ${item.max_ms} ms`,
+        );
+        profileOut.textContent = [
+          `计时：${response.enabled ? '开' : '关'}  样本 ${response.samples}/${response.capacity}`,
+          ...(rows.length ? rows : ['（暂无采样，开启计时后运行仿真）']),
+        ].join('\n');
       }),
     );
     perf.appendChild(profileOut);
@@ -11765,10 +11929,12 @@
         : '在内部浮窗中预览模块结构';
       actions.appendChild(openBtn);
       const renameBtn = button('改名', 'btn tiny', () => void renameLibraryBlock(spec));
-      renameBtn.title = '改模块名字（文件名同步改，引用不变）';
+      renameBtn.title = spec.builtin ? '内置模块只读，请先另存为副本' : '改模块名字（文件名同步改，引用不变）';
+      renameBtn.disabled = Boolean(spec.builtin);
       actions.appendChild(renameBtn);
       const deleteBtn = button('删除', 'btn tiny danger', () => void deleteLibraryBlock(spec));
-      deleteBtn.title = '从库里删掉这个模块文件';
+      deleteBtn.disabled = Boolean(spec.builtin);
+      deleteBtn.title = spec.builtin ? '内置模块只读，不能删除' : '从库里删掉这个模块文件';
       actions.appendChild(deleteBtn);
       item.append(info, actions);
       list.appendChild(item);
@@ -12089,6 +12255,9 @@
           : (node ? [`n:${node.name}:x`, `n:${node.name}:y`] : null);
         void exportAnalysisCsv(keys, 'phase');
       });
+    }
+    if (ui.phasePlotkit) {
+      ui.phasePlotkit.addEventListener('click', () => void sendPhaseToPlotKit());
     }
     if (ui.phaseFrame) {
       ui.phaseFrame.addEventListener('input', () => {

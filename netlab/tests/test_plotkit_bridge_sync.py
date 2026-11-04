@@ -7,7 +7,12 @@ from __future__ import annotations
 
 import pytest
 
-from netlab.plotkit_bridge import _ensure_channels, _ingest, ensure_plotkit_importable
+from netlab.plotkit_bridge import (
+    _ensure_channels,
+    _ingest,
+    add_analysis_curve,
+    ensure_plotkit_importable,
+)
 
 ensure_plotkit_importable()  # 同仓库并列布局时把 ../PlotKit/src 加进 sys.path
 pk = pytest.importorskip("plotkit")
@@ -48,4 +53,19 @@ def test_ingest_survives_misaligned_store_and_render_does_not_raise():
     _ingest(fig, [{"t": 0.4, "v": {"a": 4.0}}], [])
     lengths = {name: len(fig.store.get(name)) for name in fig.store.names()}
     assert len(set(lengths.values())) == 1, lengths
+    fig.render(width=600, height=380, dpi=80, fmt="png")
+
+
+def test_analysis_curve_keeps_its_own_x_axis():
+    """分析曲线不能被 recorder 的 t 追加/补齐，否则阶跃曲线会被拉成长条。"""
+    fig = _figure()
+    fig.add_data("a", [], role="series", life="append")
+    result = add_analysis_curve("阶跃", [0.0, 0.1, 0.2], [1.0, 2.0, 3.0], figure=fig)
+    assert result["ok"] is True
+    key = result["dataset"]
+    _ingest(fig, [{"t": 0.3, "v": {"a": 3.0}}], [])
+    store = fig.store
+    assert len(store.get(f"{key}:x")) == 3
+    assert len(store.get(f"{key}:y")) == 3
+    assert len(store.get("t")) == 1
     fig.render(width=600, height=380, dpi=80, fmt="png")

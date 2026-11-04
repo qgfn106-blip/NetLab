@@ -1263,6 +1263,68 @@ def _draw_decorations(fig, spec, axes: Mapping[int, Any], views: Mapping[int, Ma
         # path（任意 SVG 路径）在 matplotlib 侧没有等价物，静默跳过
 
 
+def _draw_notes(fig, spec, axes: Mapping[int, Any], *, theme, fonts) -> None:
+    """画布批注（PK-R21）：文字框 / 箭头 / 框选区域 / 数据标注。"""
+    from matplotlib.patches import FancyArrowPatch, Rectangle
+
+    notes = spec.get("figure", {}).get("notes") or []
+    if not notes:
+        return
+    fs = float(fonts.get("annotation", 11))
+    paper = theme.get("paper", "#ffffff")
+    for note in notes:
+        kind = note.get("kind")
+        text = str(note.get("text") or "")
+        color = str(note.get("color") or "#0f766e")
+        size = float(note.get("size") or fs)
+        if kind == "text":
+            x, y = (float(v) for v in note.get("pos", (0.5, 0.5)))
+            fig.text(x, y, text, transform=fig.transFigure, color=color, fontsize=size,
+                     va="top", ha="left", zorder=50,
+                     bbox=dict(boxstyle="round,pad=0.45", facecolor=paper,
+                               edgecolor=color, linewidth=1.0, alpha=0.92))
+        elif kind == "region":
+            x, y, w, h = (float(v) for v in note["rect"])
+            fig.add_artist(Rectangle((x, y), w, h, transform=fig.transFigure, fill=False,
+                                     edgecolor=color, linewidth=1.2,
+                                     linestyle=(0, (4, 3)), zorder=50))
+            if text:
+                fig.text(x + 0.006, y + h - 0.006, text, transform=fig.transFigure,
+                         color=color, fontsize=size, va="top", ha="left", zorder=51)
+        elif kind == "arrow":
+            start = tuple(float(v) for v in note.get("start", (0.2, 0.2)))
+            end = tuple(float(v) for v in note.get("end", (0.4, 0.4)))
+            fig.add_artist(FancyArrowPatch(start, end, transform=fig.transFigure,
+                                           arrowstyle="-|>", mutation_scale=12,
+                                           color=color, linewidth=1.4, zorder=50))
+            if text:
+                fig.text(end[0], end[1], text, transform=fig.transFigure, color=color,
+                         fontsize=size, va="bottom", ha="left", zorder=51)
+        elif kind == "mark":
+            ax = axes.get(int(note.get("subplot", 0)))
+            if ax is None:
+                continue
+            try:
+                ax.annotate(text or "标注", xy=(float(note["x"]), float(note["y"])),
+                            xycoords="data", textcoords="offset points", xytext=(14, 14),
+                            color=color, fontsize=size, zorder=50,
+                            arrowprops=dict(arrowstyle="-|>", color=color, lw=1.2,
+                                            shrinkA=0, shrinkB=3))
+            except (KeyError, TypeError, ValueError):
+                continue
+
+
+def _grid_rect(index: int, ncols: int, nrows: int, *, top: float = 0.95) -> list[float]:
+    """网格槽位在 figure 里的归一化矩形（自由布局时给没指定 rect 的槽位兜底）。"""
+    left, right, bottom = 0.085, 0.97, 0.10
+    cols = max(1, int(ncols))
+    rows = max(1, int(nrows))
+    cw = (right - left) / cols
+    ch = (top - bottom) / rows
+    row, col = divmod(int(index), cols)
+    return [left + col * cw + cw * 0.02, top - (row + 1) * ch + ch * 0.03, cw * 0.96, ch * 0.94]
+
+
 def to_figure(
     spec: Mapping[str, Any],
     store: DataStore,
@@ -1308,14 +1370,42 @@ def to_figure(
         slot_is_3d[slot] = 3 in dims
 
     insets = {int(ins.get("subplot", -1)): ins for ins in (fig_cfg.get("insets") or [])}
+    # PK-R20 自由布局：figure.layout = [{slot, rect:[x,y,w,h]}]，rect 是 figure 比例（y 从下往上）。
+    # 允许互相重叠；没写进 layout 的槽位退回网格位置。
+    layout_map: dict[int, list[float]] = {}
+    for item in (fig_cfg.get("layout") or []):
+        if not isinstance(item, Mapping):
+            continue
+        try:
+            slot = int(item.get("slot"))
+            rect = [float(v) for v in (item.get("rect") or ())]
+        except (TypeError, ValueError):
+            continue
+        if len(rect) == 4 and rect[2] > 0 and rect[3] > 0:
+            layout_map[slot] = rect
+    if layout_map:
+        subplots = max(subplots, max(layout_map) + 1)
+    free = bool(layout_map)
+    if free:
+        # 自由布局必须关掉 constrained_layout，否则它会把 add_axes 的位置重新排一遍
+        try:
+            fig.set_layout_engine("none")
+        except (AttributeError, ValueError):
+            fig.set_constrained_layout(False)
+
     grid_slots = [i for i in range(subplots) if i not in insets]
     gcols = max(1, min(ncols, len(grid_slots)))
     grows = max(1, -(-len(grid_slots) // gcols))
+    grid_top = 0.90 if fig_cfg.get("title") else 0.95
 
     axes: dict[int, Any] = {}
     for index, slot in enumerate(grid_slots):
         kwargs = {"projection": "3d"} if slot_is_3d.get(slot) else {}
-        axes[slot] = fig.add_subplot(grows, gcols, index + 1, **kwargs)
+        if free:
+            rect = layout_map.get(slot) or _grid_rect(index, gcols, grows, top=grid_top)
+            axes[slot] = fig.add_axes(rect, **kwargs)
+        else:
+            axes[slot] = fig.add_subplot(grows, gcols, index + 1, **kwargs)
 
     # inset 轴：位置按父轴绘图区的比例给（与 plotly 后端同一套 rect 语义）
     for slot, ins in insets.items():
@@ -1402,6 +1492,7 @@ def to_figure(
         _ = view
 
     _draw_decorations(fig, spec, axes, views, theme=theme, fonts=fonts)
+    _draw_notes(fig, spec, axes, theme=theme, fonts=fonts)
     fig._plotkit_artists = artists
     return fig
 

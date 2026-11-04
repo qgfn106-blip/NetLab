@@ -26,3 +26,30 @@ def client():
         payload["blocks"] = []  # 块定义在场景间持久，测试间必须清掉
         test_client.post("/api/scene", json=payload)
         yield test_client
+
+
+
+@pytest.fixture(autouse=True)
+def _clean_plotkit_bridge_state():
+    """PlotKit 桥是进程级单例；清掉上个用例留下的通道/可见性状态。
+
+    只清状态，不停线程：lifespan 退出时 ``stop()`` 会结束采样线程，后续用例
+    打开面板时由 ``_ensure_sync_thread()`` 重建。
+    """
+    from netlab import plotkit_bridge as bridge
+
+    bridge.set_active(False)
+    figure = bridge.figure()
+    if figure is not None:
+        from plotkit.store.registry import DATA_LOCK
+
+        with DATA_LOCK:
+            for name in list(bridge._REGISTERED):
+                try:
+                    figure.store.remove(name)
+                except KeyError:
+                    pass
+    bridge._REGISTERED.clear()
+    bridge._FORCED["keys"] = None
+    bridge._FORCED["theme"] = None
+    yield

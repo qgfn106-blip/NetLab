@@ -107,8 +107,24 @@ def _step(value: float, scale: str, decades: float) -> float:
     return float(value) * (10.0 ** decades) if scale == "log" else float(value) + decades
 
 
-def time_bounds(spec: Mapping[str, Any], store: DataStore) -> tuple[float | None, float | None]:
-    """所有图层的 x 数据的 (最小, 最大)，用来实现"最近 N 秒"窗口。"""
+def _numeric_bounds(values: Any) -> tuple[float | None, float | None]:
+    """把一组数据压成 (最小, 最大)；非数值 / 全 NaN 时返回 (None, None)。"""
+    array = np.asarray(values).ravel()
+    if array.size == 0:
+        return None, None
+    try:
+        numeric = array.astype(float)
+    except (TypeError, ValueError):
+        return None, None
+    numeric = numeric[np.isfinite(numeric)]
+    if numeric.size == 0:
+        return None, None
+    return float(numeric.min()), float(numeric.max())
+
+
+def _layer_time_bounds(
+    spec: Mapping[str, Any], store: DataStore
+) -> tuple[float | None, float | None]:
     lo: float | None = None
     hi: float | None = None
     for layer in spec_layers(spec):
@@ -116,17 +132,37 @@ def time_bounds(spec: Mapping[str, Any], store: DataStore) -> tuple[float | None
         name = data.get("x")
         if not name or name not in store:
             continue
-        values = np.asarray(store.values(name)).ravel()
-        if values.size == 0:
+        low, high = _numeric_bounds(store.values(name))
+        if low is None or high is None:
             continue
-        try:
-            numeric = values.astype(float)
-        except (TypeError, ValueError):
-            continue
-        numeric = numeric[np.isfinite(numeric)]
-        if numeric.size == 0:
-            continue
-        low, high = float(numeric.min()), float(numeric.max())
         lo = low if lo is None else min(lo, low)
         hi = high if hi is None else max(hi, high)
     return lo, hi
+
+
+def _coord_time_bounds(store: DataStore) -> tuple[float | None, float | None]:
+    """坐标数据集（role="coord"）的取值范围，作为没有图层时的回退。"""
+    lo: float | None = None
+    hi: float | None = None
+    for name in store.names():
+        if store.meta(name).get("role") != "coord":
+            continue
+        low, high = _numeric_bounds(store.values(name))
+        if low is None or high is None:
+            continue
+        lo = low if lo is None else min(lo, low)
+        hi = high if hi is None else max(hi, high)
+    return lo, hi
+
+
+def time_bounds(spec: Mapping[str, Any], store: DataStore) -> tuple[float | None, float | None]:
+    """回放要用的时间范围 (最小, 最大)。
+
+    优先用图层 x 数据的范围；没有图层时回退到 ``role="coord"`` 的数据集：
+    宿主可能只登记数据、图层由用户自己加（netlab D-PlotView），此时回放滑杆
+    与"最近 N 秒"窗口仍然要有范围，否则有数据也点不动播放。
+    """
+    lo, hi = _layer_time_bounds(spec, store)
+    if lo is not None and hi is not None:
+        return lo, hi
+    return _coord_time_bounds(store)

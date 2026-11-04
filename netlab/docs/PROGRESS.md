@@ -1,19 +1,19 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-03 12:30
+> 最后修改：2026-11-05 02:15
 
 | 项 | 内容 |
 | --- | --- |
-| 记录时间 | 2026-11-02 19:05（Asia/Shanghai） |
-| 当前阶段 | **P1–P4 主体完成；P7-01/02/03 完成；P7-05 完成（时间轴回放/过期标记/循环/时间窗/重置保留探针/求解窗口 0→T）；P0 求解可靠性完成 + P0 求解加固完成（失败事务/检查点回滚、行列均衡缩放、尺度无关残差、线性解质量、器件节点断点、超时回滚、BJT/LDO 猜测分层），Phase D 元件契约与 Phase E 信号/矢量整步事务完成；R26 求解器分析能力（DC 工作点/AC-Bode/Gear2/稀疏矩阵）完成；工程校验和二次校验修复（§7.10）；R27 回放/时间轴可用性完成（§7.11）、R29 回放速度滑块（§7.16），**343 passed**、静态 3.14.4（2026-10-29 P7-06 电路模块化 §7.21、P7-07 模块内部浮窗 §7.22、P7-08 电气直连展开 §7.23）；**R30/P10 UI 集中优化六票完成**（§7.17，引导页/右栏 4 组/设置抽屉/文档中心/9 项信息条/9 项菜单/外观三档/参数 `?`；2026-10-29 03:35 挂耳与右栏拖拽收尾 §7.24，静态 3.14.1）；**2026-10-30 01:50 封装报错修复 + 端口方向入口 + 模块库清理 + `MODULES_HOWTO.md`**（§7.25，静态 3.14.2）；公开仓库已上线（§7.13）；浏览器内演示曾发布到 GitHub Pages（§7.14），同日 21:15 用户要求删除、已撤销（§7.15，站点 404）；**R33 原生桌面外壳已实现**（§7.33/§7.33.1，385 passed）；主线待办见 [BACKLOG.md](BACKLOG.md)——下一步 P7-09/10/11 内置结构（R25，三批按 opamp/comparator → dff/counter/shift → 555/LDO/ADC/DAC）；R19 参考级图纸暂停；**2026-10-29 R31 并网逆变器电网控制立项**（P11-01…P11-07，见 §7.19，未开工） |
+| 记录时间 | 2026-11-05 02:15（Asia/Shanghai） |
+| 当前阶段 | **2026-11-05 最终集成检查（§7.68）**：R37 对外总传函/Bode（含 z 域纯 gain/sum 显式延迟）与 R38 状态通道/播放/指标/CSV/dt 收敛完成；API 契约、闭环精度与性能检查通过；静态 3.16.17，525 passed。上一阶段 **2026-11-05 R38 相图指标与 CSV 补充（§7.67）**：相图读数补峰值/超调/稳态/调节时间，工具栏加导出 CSV；静态 3.16.16，521 passed。上一阶段 **2026-11-05 R36 P5 相平面状态通道与独立播放（§7.66）**：`SignalEngine.probes()` 暴露 `state:<node>:<index>` 状态通道；`analysis.phase_metrics()` 输出轨迹长度/包围面积/极值/超调；`/api/analysis/phase` 与 `/api/analysis/tf` 网络参数对齐；前端相图支持状态通道、独立播放/步进/循环/帧滑块与 L/A 读数；新增 3 条 `test_state_channels.py`，全量 **521 passed**。上一阶段 **2026-11-05 R36 P4 线性网络总传函与 Bode（§7.65）**：`analysis.transfer_function` 用线性网络节点方程消元求总传函，支持串联/并联/反馈环；`analysis.tf_analysis(input_node=..., output_node=...)` 直接算网络 Bode；新增 4 条 `test_network_tf.py`，全量 **518 passed**；R36 P5 待实现。上一阶段 **2026-11-05 R36 P3 非线性 / 时变 Newton（§7.64）**：`Network(solve_algebraic=True)` 的非线性直接馈通 SCC 走阻尼 Newton（有限差分雅可比 + 线搜索 + 失败诊断），表达式保留 `t`/`time` 变量；新增 3 条测试（`test_algebraic_solver.py` 共 6 条），全量 **514 passed**。上一阶段 **2026-11-05 R36 P2 线性 SCC 求解（§7.63）**：直接馈通 SCC 解 `(I-A)y=b`；`Scene.set_algebraic_solver()` 开启后不再自动 `z⁻¹`；3 条测试、511 passed。上一阶段 **2026-11-05 R36 P1 执行图标签与 SCC 检测（§7.62）**：节点求解语义标签、`Network.solver_plan()`、自动延迟可见记录；新增 4 条测试，全量 **508 passed**。上一阶段 **2026-11-04 控制链路补强与欠阻尼工程（§7.61）**：修复超调指标、离散纯延迟、`reset_state` 初值污染、`output=auto`、非整数步长时间网格；交付 `MyProject/underdamped_control.netlab`（G(s)=4/(s(s+1.2)) 单位负反馈，dt=0.01 实测约 39% 超调）。上一阶段 **2026-11-04 导入优先级 / 环境噪声 / 多工作树（§7.60）**：PlotKit 导入优先级统一（内置副本优先、`NETLAB_PLOTKIT_SRC` 最高）并加 2 条子进程测试；卸载 DLL 损坏的 gmpy2 后全量 0 次 `0xc0000139`；新增 `tools/new_worktree.sh` + `docs/WORKTREE_RULES.md`。上一轮 **2026-11-04 结构护栏补齐相对导入（§7.59）**：`test_structure_layout.py` 按所在包解析 `...` 相对导入与 `netlab.*` 形式（含 `from netlab import desktop`），新增 8 条参数化自测，core 层无越界 import。上一轮 §7.58：预计算反馈环首拍延迟边空载荷按 0、`pass` 空 dict 不注入。上一轮 §7.57 菜单分类：`frontend/app.js` 的 `buildAddMenuItems()` 在非电路模式按 catalog `group` 生成「节点 · 基础/动态/高级/矢量/模块/接口」子菜单，矢量模式矢量组置顶，电路菜单不变。上一轮 §7.56 输入字段自动匹配（R35/D91：`fields.py`、value 优先、旧 voltage 兼容、块端口别名）已完成。功能主线：R34 s 域传递函数（D90，§7.54）、R35 字段匹配（D91，§7.56）与 PlotKit P1–P5 完成；未完成主线见 [BACKLOG.md](BACKLOG.md)（R25 P7-09/10/11、R31 P11-01…07；R19 暂停） |
 | 基线 | 修改前 43 passed（2026-10-24 14:26） |
-| 当前测试 | **409 passed**（2026-11-03 12:36：D90 运行/预计算分离 + 输入框与框选配色修正） |
-| 本地备份 | `netlab_20261101_2010`（本轮 7 源文件 + 5 文档 + 5 测试 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_20261024_142654`、`_1727`、`netlab_20261025_0125`、`netlab_20261025_1306`（P0-0）、`netlab_20261026_0348p1retry`（P1 收口）、`netlab_20261026_1240`（R15 收尾）、`netlab_20261026_1318`（R20 模型批基础层）、`netlab_20261026_1322`（R20 模型批功能完成）、`netlab_20261026_1330`（R20 UI 批）、`netlab_20261026_1335`（R20 UI 迁移动作）、`netlab_20261026_1340`（R20 信号端口）、`netlab_20261026_1415`（纯导线/共集示例）、`netlab_20261027_0150`（P7-01 前快照）、`netlab_20261027_1744`（P7-03 收尾）、`netlab_20261027_1753`（R22 参数放宽/单位）、`netlab_20261027_1856`（三极管型号预设）、`netlab_20261027_2218`（拐点拖动）、`netlab_20261027_2324`（P7-03/P7-05 收尾）、`netlab_20261027_2330`（P0 求解可靠性）、`netlab_20261028_0016`（P0 收尾/P7-05）、`netlab_20261028_0048`（电源波形界面）、`netlab_20261028_0103`（dt 精度预设）、`netlab_20261028_0114`（奇异阈值/步长原位微调）、`netlab_20261028_0318`（P0 求解加固：事务/均衡/断点/超时）、`netlab_20261028_0405`（Phase D/E 代码前快照）、`netlab_20261028_0434`（R26 代码前快照）、`netlab_20261028_1219`（工程校验和修复前 `project.py`）、`project_20261028_1219`（用户工程文件前快照）、`netlab_20261028_1855`（R27 后端/前端快照）、`docs_20261028_1932`（公开仓库文档前快照）、`docs_20261028_2108`（R28 文档前快照）、`web_20261028_2130`（演示页与 workflow 删除前快照）、`ui_20261028_2205`（R29 回放滑块前 static 快照）、`netlab_ui_20261028_2242`（R30 UI 集中优化前 netlab 全量）；文档快照见 `docs_20261026_*、docs_20261027_1744、netlab_docs_20261028_0420、netlab_docs_20261028_0445` |
+| 当前测试 | **525 passed**（2026-11-05 02:10 全量复验 `python -m pytest netlab/tests -q`，3 warnings，80.46 s，退出码 0；stderr **0 次** `0xc0000139`）。本轮（§7.68）+2 条分析 API 契约测试（`test_analysis_api.py`）、+1 条 z 域总传函测试（`test_network_tf.py`）、+1 条 dt 收敛测试（`test_control_project.py`）；上一轮（§7.66）+3 条状态通道/相平面测试（`test_state_channels.py`）；上一轮（§7.65）+4 条网络总传函测试（`test_network_tf.py`）；上一轮（§7.64）+3 条 Newton 测试（`test_algebraic_solver.py` 总计 6 条）；再上一轮（§7.63）+3 条线性 SCC 测试；上一轮（§7.62）+4 条执行图测试（`test_solver_plan.py`）；再上一轮（§7.61）+7 条控制链路测试（3 fields + 2 transfer + 2 project）；再上一轮（§7.60）+2 条导入优先级测试；再上一轮（§7.59）`test_structure_layout.py` 6→14 条（新增 8 条参数化越界导入断言）；§7.57 新增 2 条 `test_frontend_menus.py`，R35 新增 22 条 `test_fields.py`） |
+| 本地备份 | `NetlabExtras/backups/ProjectPoint_backups/netlab_final_20261105_0205`（14 文件 + MANIFEST.sha256，§7.68 最终集成检查）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_r38_20261105_0155`（9 文件 + MANIFEST.sha256，§7.67 相图指标/CSV）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p5_20261105_0140`（12 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p4_20261105_0125`（本轮 §7.65 的 analysis.py / test_network_tf.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p3_20261105_0110`（§7.64 的 graph.py / computes.py / scene.py / test_algebraic_solver.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p2_20261105_0055`（§7.63 的 graph.py / scene.py / test_algebraic_solver.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p1_20261105_0040`（§7.62 的 graph.py / computes.py / scene.py / test_solver_plan.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_plan_20261104_2355`（本轮规划文档 4 文件 + MANIFEST.sha256，R36–R38/D92–D94）、`NetlabExtras/backups/ProjectPoint_backups/netlab_control_20261104_1815`（本轮 14 文件 + MANIFEST.sha256，§7.61）、`NetlabExtras/backups/ProjectPoint_backups/netlab_import_20261104_1423`（§7.60 10 文件 + MANIFEST.sha256，§7.60）、`NetlabExtras/backups/ProjectPoint_backups/netlab_guard_20261104_1356`（本轮 5 文件 + MANIFEST.sha256，§7.59）、`NetlabExtras/backups/ProjectPoint_backups/netlab_delayfix_20261104_1315`（本轮 7 文件 + MANIFEST.sha256，§7.58）、`NetlabExtras/backups/ProjectPoint_backups/netlab_menu_20261104_0756`（§7.57 7 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_fields_20261104_0225`（21 文件 + MANIFEST.sha256，R35/D91）、`NetlabExtras/backups/ProjectPoint_backups/netlab_audit_20261103_1920`（15 文件 + MANIFEST.sha256，架构审计 §7.55）、`NetlabExtras/backups/ProjectPoint_backups/netlab_transfer_20261103_1602`（14 文件 + MANIFEST.sha256，R34/D90）、`netlab_20261101_2010`（本轮 7 源文件 + 5 文档 + 5 测试 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_plotkit_token_20261103_1253`（8 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_free_layout_20261103_1430`（P4 自由布局）、`NetlabExtras/backups/ProjectPoint_backups/netlab_layer_window_20261103_1450`（P3 图层浮窗）、`NetlabExtras/backups/ProjectPoint_backups/netlab_notes_20261103_1508`（P5 批注）、`NetlabExtras/backups/ProjectPoint_backups/netlab_precision_20261103_1552`（PlotKit 预览精度 §7.53）、`NetlabExtras/backups/ProjectPoint_backups/netlab_20261024_142654`、`_1727`、`netlab_20261025_0125`、`netlab_20261025_1306`（P0-0）、`netlab_20261026_0348p1retry`（P1 收口）、`netlab_20261026_1240`（R15 收尾）、`netlab_20261026_1318`（R20 模型批基础层）、`netlab_20261026_1322`（R20 模型批功能完成）、`netlab_20261026_1330`（R20 UI 批）、`netlab_20261026_1335`（R20 UI 迁移动作）、`netlab_20261026_1340`（R20 信号端口）、`netlab_20261026_1415`（纯导线/共集示例）、`netlab_20261027_0150`（P7-01 前快照）、`netlab_20261027_1744`（P7-03 收尾）、`netlab_20261027_1753`（R22 参数放宽/单位）、`netlab_20261027_1856`（三极管型号预设）、`netlab_20261027_2218`（拐点拖动）、`netlab_20261027_2324`（P7-03/P7-05 收尾）、`netlab_20261027_2330`（P0 求解可靠性）、`netlab_20261028_0016`（P0 收尾/P7-05）、`netlab_20261028_0048`（电源波形界面）、`netlab_20261028_0103`（dt 精度预设）、`netlab_20261028_0114`（奇异阈值/步长原位微调）、`netlab_20261028_0318`（P0 求解加固：事务/均衡/断点/超时）、`netlab_20261028_0405`（Phase D/E 代码前快照）、`netlab_20261028_0434`（R26 代码前快照）、`netlab_20261028_1219`（工程校验和修复前 `project.py`）、`project_20261028_1219`（用户工程文件前快照）、`netlab_20261028_1855`（R27 后端/前端快照）、`docs_20261028_1932`（公开仓库文档前快照）、`docs_20261028_2108`（R28 文档前快照）、`web_20261028_2130`（演示页与 workflow 删除前快照）、`ui_20261028_2205`（R29 回放滑块前 static 快照）、`netlab_ui_20261028_2242`（R30 UI 集中优化前 netlab 全量）；文档快照见 `docs_20261026_*、docs_20261027_1744、netlab_docs_20261028_0420、netlab_docs_20261028_0445` |
 | 备份清单 | 各自目录下 `MANIFEST.sha256` |
-| 版本控制 | 用户已授权 GitHub `qgfn106-blip` 做版本管理/备份（2026-10-24）；本地仍保留备份，尚无 `.git` |
+| 版本控制 | 用户已授权 GitHub `qgfn106-blip` 做版本管理/备份（2026-10-24）；仓库在 `NetlabHome/.git`，本地备份同时保留；最近提交 `2504a55`（feat: complete R36-R38 signal solver and analysis） |
 | 速查文档 | **[AGENT_GUIDE.md](AGENT_GUIDE.md)（开工先读）**、**[UI_SPEC.md](UI_SPEC.md)（UI 设计语言/组件/接口）**、[FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md)、[LESSONS.md](LESSONS.md)、[REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)、[SOLVER_CODE_MAP.md](SOLVER_CODE_MAP.md)；仓库根 `AGENTS.md` 指向本套文档 |
-| 下一步 | 主线待办见 [BACKLOG.md](BACKLOG.md)；本轮已完成：PlotKit 三形态、D79 结构整理、D80 数据通路优化、R26 UI 入口（DC 工作点 / AC 扫频浮窗，§7.37）、**D81 PlotKit 卡顿修复（§7.38）**；接下来是 R25 P7-09 内置内部结构（需多天设计晶体管级内部电路） |
-| 需求口径 | **以 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) 的 R01–R33 + D1–D80 为准**；本文档 §7 为执行进度视图 |
+| 下一步 | 主线待办见 [BACKLOG.md](BACKLOG.md)；**R36 P1–P5、R37 对外总传函/Bode、R38 状态通道/播放/指标/CSV 均已完成**（§7.62–§7.68）；R37 内部 A/B/C/D 导出保留为优化项；现在的主线是 R25 P7-09 内置内部结构，随后 R31 P11-01；R19 参考级图纸暂停 |
+| 需求口径 | **以 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) 的 R01–R38 + D1–D94 为准**；本文档 §7 为执行进度视图 |
 
 > 本文件只记录**已实际验证**的内容；未完成的能力明确标为“未接通/未实现”，
 > 不把计划写成已完成。
@@ -1589,7 +1589,6 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 三个出口：**预计算并接入**（`POST /api/plotkit/precompute {seconds}`，显示耗时/帧数，完成后自动切到「绘图」页并刷新通道）、**直接运行**、**取消**。
 - 勾「以后不再提示」写 localStorage 偏好 `runWarn=false`（`state.prefs`，不入服务端 settings）；「重新求解」内部流程用 `control('run', undefined, {skipWarn:true})` 绕过。
 - 实测：3 s 窗预计算 → 自动跳页、16 条通道可画；「直接运行」→ `/api/health` running=true；409 passed。版本 3.16.3。
-
 ### 7.47 运行/预计算分离 + 两处配色修正（D90，2026-11-03）
 
 用户：「运行与预计算分开，若已经有了预计算数据，有了对应时间轴数据，运行不再报弹窗，并且写时间的输入口字体颜色过淡，看不清；还有拖拽选中区域的框是全黑的，请改成有大约 70–80% 的透明度类似的」。
@@ -1598,3 +1597,323 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 预计算时间窗输入框：显式 `background:#fff; color:#111814; -webkit-text-fill-color:#111814; font:600 14px`，不再继承主题浅色。
 - `drawSelectionBox()`：改为固定半透明（深色主题 `rgba(197,161,107,.16)` / 浅色 `rgba(168,84,31,.10)`，边线 .70/.65），不再走 `C()` 的 legacy 映射（该映射在深色下会退化为近黑实心）。
 - 实测：点运行弹窗、填 3 s 预计算后再次点运行 **不再弹窗**（`dialogAfter:false`）；输入框 computed `color rgb(17,24,20)`、`font-weight 600`；深色主题框选区域中心像素 `rgba(199,162,106,41)`（约 16% 透明叠加，非黑）。另补：场景被重置/替换（`resetFrames` 或 `scene.revision` 变化）时清 `state.precomputedSeconds`，恢复首次运行提示——实测 `afterPre:false`、`afterReset:true`。版本 3.16.5；全量 **409 passed**。
+
+### 7.48 PlotKit 桌面 token 误报修复（2026-11-03）
+
+**症状与根因**：桌面 API 由 `X-Netlab-Token` 守卫保护；PlotKit 数据条此前有原生 `fetch('/api/plotkit/...')` 绕过 `api()`，导致请求收到 403，却在刷新/重试中被解释为未挂载或空列表。
+
+**改动**
+- `frontend/app.js`：通道刷新、重试、预计算、POST 接入与运行前预计算统一经 `api()`，复用桌面 token；刷新/重试失败显示明确错误，空缓存时列表显示加载失败态，不再误报真实无探针；刷新返回明确结果，避免二次刷新失败后仍 toast「PlotKit 已就绪」；保留服务端真实 `mounted:false` 诊断。
+- 独立只读审查发现重试流程有“刷新失败仍提示就绪”的边界错误，已添加 `test_retry_does_not_report_ready_when_channel_refresh_fails` 回归测试并修正。
+- 新增 `netlab/tests/test_plotkit_frontend_auth.py`：静态护栏检查 helper/token、无 PlotKit 原生 fetch、错误/空态文案；集成验证 token 缺失为 403、携 token 可读取 mounted/available。
+- `netlab/tests/test_run_warn.py`：确认运行前预计算走 helper 且显示失败原因。
+- 静态资源版本同步到 3.16.6（`UI_BUILD`、`APP_BUILD`、`index.html` 两处 query）。规格见 `docs/specs/2026-11-03-plotkit-desktop-token.md`。
+
+**验证**
+- 定向：`python -m pytest netlab/tests/test_plotkit_frontend_auth.py netlab/tests/test_plotkit_channels.py netlab/tests/test_run_warn.py -q` → 14 passed, 1 warning。
+- 全量：`python -m pytest netlab/tests -q` → 413 passed, 3 warnings；pytest 结束阶段可重复输出 Windows `fatal exception: code 0xc0000139`，堆栈涉及 `plotkit_bridge._sync_loop` 与 sympy/gmpy2 导入，命令退出码 0，但进程关闭异常仍未解决。
+- 已完成收尾：`python -m compileall -q netlab` 退出 0（仅有 vendored PlotKit `SyntaxWarning: invalid escape sequence '\s'`）；`python -m netlab.desktop --selftest` 退出 0，后端 URL status 200、shim 注入及 status 均 200；备份 8 个本次修改文件及 `MANIFEST.sha256` 至 `NetlabExtras/backups/ProjectPoint_backups/netlab_plotkit_token_20261103_1253/`。
+
+### 7.49 PlotKit 预计算后无法播放 + 拖拽打断播放（2026-11-03）
+
+**症状**：netlab 预计算完成、PlotKit 数据条也能列出通道，但点播放游标不动。
+
+**根因（实测）**：`PlotKit/src/plotkit/backends/series.py::time_bounds()` 只遍历图层 `x` 数据算时间范围；netlab 按 D-PlotView 只登记数据集、不自动建图层，于是 `/plotkit/api/meta` 返回 `time: {min: null, max: null, count: 600}`，前端 `playStep()` 在 `min == null` 时恒返回 0。
+
+**改动**
+- `PlotKit/src/plotkit/backends/series.py`：`time_bounds()` 在图层范围为空时回退到 `role="coord"` 数据集（新增 `_numeric_bounds` / `_layer_time_bounds` / `_coord_time_bounds`）。
+- `PlotKit/src/plotkit/static/app.js`：拖动面板宽度时只改 CSS 不再逐帧重绘（重绘占 `state.busy`，`tickPlay` 在 busy 时跳过推进，表现为"一拖就断播"），松手后重绘一次。
+- `PlotKit/src/plotkit/static/index.html` + `app.js`：「布局」分组新增「复位面板宽度」按钮，等价于原来隐藏的双击 grip。
+- 版本 3.16.6 → **3.16.7**（`frontend/app.js` UI_BUILD、`netlab/server.py` APP_BUILD、`frontend/index.html` 两处 query）；`python -m netlab.plotkit_vendor install --force` 已同步内置 PlotKit（55 文件）。
+- 规格与后续四件（独立图层面板 / 子图自由布局可重叠 / 批注）见 `PlotKit/docs/specs/2026-11-03-canvas-free-layout-annotations.md`；PlotKit 需求表新增 PK-R17…PK-R21。
+
+**验证**
+- 新回归（先红后绿）：`PlotKit/tests/test_window.py::test_time_bounds_falls_back_to_coord_data_without_layers`（红：`Obtained: None`；绿：`(0.0, 2.0)`）；`netlab/tests/test_plotkit_channels.py::test_plotkit_meta_has_time_range_after_precompute`。
+- 实测：预计算 1 s → `/plotkit/api/meta` 的 `time = {'min': 0.0005, 'max': 1.0, 'count': 600}`。
+- 定向：`python -m pytest netlab/tests/test_run_warn.py netlab/tests/test_plotkit_channels.py netlab/tests/test_plotkit_frontend_auth.py -q` → 15 passed, 1 warning。
+- 全量：`python -m pytest netlab/tests -q` → **414 passed, 3 warnings**，退出码 0；结束阶段仍输出 Windows `fatal exception: code 0xc0000139`（§7.48 已记录的既有问题，未解决）。
+
+### 7.50 PlotKit 子图自由布局（PK-R20）+ 桌面垫片版本号单一来源（2026-11-03）
+
+**用户要求**（原话，`PlotKit/docs/specs/2026-11-03-canvas-free-layout-annotations.md`）：「先P4 ，然后3，最后5，记得更新文档」——本轮做 P4 子图自由拖拽/可重叠。
+
+**改动**
+- `PlotKit/src/plotkit/backends/mpl_backend.py`：抽出模块级 `_grid_rect(index, ncols, nrows, *, top=0.95)`（left=0.085/right=0.97/bottom=0.10）；`to_figure()` 解析可选 `figure.layout = [{slot, rect:[x,y,w,h]}]`（figure 比例，y 从下往上，允许重叠），命中槽位走 `fig.add_axes(rect)` 并 `set_layout_engine("none")`；没写 layout 时仍 `add_subplot`，渲染与改前一致。
+- `PlotKit/src/plotkit/spec/validate.py`：`KNOWN_FIGURE_KEYS` 加 `layout`，并校验数组/项/slot 非负整数不重复/rect 4 数且 w、h>0/范围 -0.5…1.5。
+- `PlotKit/src/plotkit/api/native.py:319`：`update_layout` 白名单加 `layout`。
+- `PlotKit/src/plotkit/static/app.js`：「布局」组新增 `#btn-free-layout` / `#btn-grid-layout`；`layoutList()`、`gridRectFor()`、`enableFreeLayout()`（优先用服务端 `X-PlotKit-Axes` 包围盒 materialize）、`disableFreeLayout()`、`trimLayoutTo()`、`renderLayoutOverlay()`（虚线框拖动/拖角缩放，松手 `commit("拖拽子图"/"缩放子图")`，三位小数）；关键坑：前端 canvas 渲染不写 `state.img`，自由布局必须强制走服务端渲染（`redraw()` / `replayRender()` 的 `clientRenderable(state.spec) && !layoutList().length`），`renderClient` 成功后补 `renderLayoutOverlay()` 防「回到网格」后残框。
+- `PlotKit/src/plotkit/static/index.html` / `app.css`：`#layout-overlay`、`.layout-box` 等样式与提示。
+- `NetlabHome/netlab/server.py:401`：desktop-shim 的 `?v=` 改为 `f"...?v={APP_BUILD}"`——此前写死 `3.16.5`，每次 bump 都会漏改（P4 全量跑出红测才发现）。
+- 版本 3.16.7 → **3.16.8**（`frontend/app.js` UI_BUILD、`netlab/server.py` APP_BUILD、`frontend/index.html` 两处 query、server.py shim 注入）；`python -m netlab.plotkit_vendor install --force` 已同步内置 PlotKit（55 文件）。
+
+**验证**
+- 新回归 `PlotKit/tests/test_free_layout.py` 11 项：重叠摆位、无 layout 时网格不变、缺项退回网格、6 组非法 layout 校验、服务端渲染回报 boxes、静态页控件存在。用旧 vendored 代码跑同测试 **8 failed**，确认能红。
+- UI 冒烟（无头 Edge + CDP，临时脚本已删）：开启 → `layout=[{slot:0,rect:[0.09385,0.124,0.4248,0.752]},{slot:1,rect:[0.53635,0.124,0.4248,0.752]}]`；拖 40/20px → `[0.208,0.042,0.425,0.752]` 并持久化；把槽 0 拖到槽 1 → 两 rect 完全相同（重叠成立）；回到网格 → `layout=null`、overlay 隐藏、`plotImg.naturalWidth>0`。
+- `test_desktop_drag.py` 新增 `test_shim_script_tag_renders_numeric_version`（pywebview 壳下 HTML 里出现 `desktop-shim.js?v={APP_BUILD}` 实际值），并收紧 `test_shim_script_tag_is_versioned`（必须是 `{APP_BUILD}`，禁止写死数字）。
+- PlotKit 全量：`PYTHONPATH=src python -m pytest -q` → **451 项全绿**（42.3 s）。
+- netlab 全量：`python -m pytest netlab/tests -q` → **415 passed, 3 warnings**，退出码 0；结束阶段仍输出 Windows `fatal exception: code 0xc0000139`（`netlab/plotkit_bridge.py:223 _sync_loop` + sympy/gmpy2 native 导入，§7.48 既有问题，未解决）。
+- `python -m compileall -q netlab` 退出 0（仅 vendored PlotKit `SyntaxWarning`）；`python -m netlab.desktop --selftest` 退出 0（status 200、shim_injected True、shim_status 200）。
+- 备份：`NetlabExtras/backups/ProjectPoint_backups/netlab_free_layout_20261103_1430/`。
+
+**下一步**：P3 图层设置独立窗口 → P5 画布批注（文字框/数据标注/箭头）。
+
+### 7.51 PlotKit 图层独立窗口（PK-R19 / P3 方案 A）（2026-11-03）
+
+**用户要求**（m00970 原话）：「先P4 ，然后3，最后5，记得更新文档」——P4 完成后本轮做 P3。
+
+**改动**
+- `PlotKit/src/plotkit/static/index.html`：图层 `<details>` 加 `id="layerSect"` 便于整体搬家；「布局」组加 `#btn-layer-pop`；`.plotwrap` 内加浮窗 `#layerWin`（标题栏 `#layerWinBar`、`#layerWinBody`、`.layerwin-resize`、`#btn-layer-close`）。
+- `PlotKit/src/plotkit/static/app.js`：新增 `layerWinState`、`layerWinWrap()`、`clampLayerWinRect()`、`defaultLayerWinRect()`、`applyLayerWinRect()`、`saveLayerWinRect()`、`readLayerWinSaved()`、`popLayers()`、`dockLayers()` 与 `bindLayerWindow()`。浮出把 `#layerSect` 搬进 `#layerWinBody`，收起插回 `#panel`（内嵌图分组前）；拖动/缩放走 pointer 事件，最小 260×180；`localStorage["pk.layerWin"]={popped,rect}` 记住位置与浮出状态，只有 `popped:true` 才在刷新后还原；标题栏上的按钮不触发拖窗。
+- `PlotKit/src/plotkit/static/app.css`：`.layerwin`（absolute, z-index 30, 圆角阴影）、`.layerwin-bar`（move 光标）、`.layerwin-body`、`.layerwin-resize`、`.layerwin[hidden]`。
+- 版本 3.16.8 → **3.16.9**（UI_BUILD / APP_BUILD / index 两处 query；shim 注入已走 `{APP_BUILD}` 单一来源）；`python -m netlab.plotkit_vendor install --force` 已同步内置 PlotKit（55 文件）。
+
+**验证**
+- 新回归 `PlotKit/tests/test_layer_window.py` 5 项静态护栏（结构 id、pop/dock 的 DOM 搬运、拖动/缩放的 clamp 与按钮排除、持久化与还原条件、CSS 存在）。用 P4 备份的旧静态文件对照，8 个关键标记全部缺失 → 断言在改前是红的。
+- UI 冒烟（无头 Edge + CDP，临时脚本已删，15 项断言全 PASS）：浮出后图层分组在 `#layerWinBody`、面板内查不到；初始 rect 380×418 → 拖标题栏 −120/+80 位置同步变化；拖右下角 → 450×468；收起后归位且 `popped:false`；刷新保持收起；再浮出后刷新还原 450×468。
+- PlotKit 全量：`PYTHONPATH=src python -m pytest -q` → **456 项全绿**（46.2 s）。
+- netlab 全量：`python -m pytest netlab/tests -q` → **415 passed, 3 warnings**，退出码 0；stderr 仍有 `Windows fatal exception: code 0xc0000139`（§7.48 既有问题）。
+- `python -m compileall -q netlab` 退出 0；`python -m netlab.desktop --selftest` 退出 0（status 200、shim_injected True、shim_status 200）。
+- 备份：`NetlabExtras/backups/ProjectPoint_backups/netlab_layer_window_20261103_1450/`。
+
+**下一步**：P5 画布批注（文字框/数据标注/箭头）。
+
+### 7.52 PlotKit 画布批注（PK-R21 / P5）（2026-11-03）
+
+**用户要求**（m00699 第 5 条原话）：「不能自行放置文字框，数据标注，箭头等类似于笔记功能」。按用户定序（m00970）「先P4 ，然后3，最后5，记得更新文档」，这是本轮最后一票。
+
+**设计**：批注单独放 `figure.notes`，不复用 `figure.shapes`（只有数据坐标、无文字框语义），也不复用图层级 `annotations`（那是 hline/vline/band/text 的轴级标注）。条目 `{id, kind, text, color, size, …}`，`kind` ∈ `text`（`pos`，figure 比例）/ `arrow`（`start`→`end`，figure 比例）/ `region`（`rect`，figure 比例虚线框）/ `mark`（`subplot` + 数据坐标 `x`/`y`，缩放平移后仍指向同一数据点）。
+
+**改动**
+- `PlotKit/src/plotkit/spec/model.py`：`NOTE_TYPES` + `new_note()`（默认 `color="#0f766e"`、`size=11.0`、`id="n"+uuid4[:8]`，未知 kind 抛 ValueError）。
+- `PlotKit/src/plotkit/spec/validate.py`：`KNOWN_FIGURE_KEYS` 加 `notes`；逐条校验 kind、text、size、pos/start/end 两数、rect 四数且 w/h>0、mark 的 subplot 与 x/y。
+- `PlotKit/src/plotkit/backends/mpl_backend.py`：`_draw_notes()` 用 `fig.text`（圆角底框）/ `FancyArrowPatch` / `Rectangle`（虚线）/ `ax.annotate`（数据标注引线）绘制，在 `_draw_decorations()` 之后调用。
+- `PlotKit/src/plotkit/api/native.py`：`update_layout` 白名单加 `notes`。
+- `PlotKit/src/plotkit/static/index.html`：「布局」组加「文字框 / 箭头 / 框选 / 数据标注 / 删除批注」与 `#note-overlay` 覆盖层。
+- `PlotKit/src/plotkit/static/app.js`：`noteState`、`noteList()`、`noteImageRect()`、`setNoteTool()`、`addNote()`、`deleteSelectedNote()`、`editNoteText()`、`renderNoteOverlay()`、`bindNoteOverlay()`（点击/拖拽建批注、拖动移动、双击改字、Delete 删除、Esc 退工具）。
+- `PlotKit/src/plotkit/static/app.css`：`.note-overlay`（默认 `pointer-events:none`，选工具后 `.armed` 接管）、`.note-item`、`.note-text`、`.note-mark`、`.note-region`、`.note-arrow`、`.note-preview`。
+- 关键约束：批注覆盖层要 `state.img` 几何，而前端 canvas 渲染路径不写 `state.img` → `redraw()`/`replayRender()` 的条件再加 `!noteList().length && !noteState.tool`，有批注或开着工具时强制服务端渲染；`renderLayoutOverlay()` 开头顺带 `renderNoteOverlay()`，保证所有既有重绘入口都会刷批注层。
+- 版本 3.16.9 → **3.16.10**（UI_BUILD / APP_BUILD / index 两处 query）；`python -m netlab.plotkit_vendor install --force` 已同步内置 PlotKit（55 文件）。
+
+**验证**
+- 新回归 `PlotKit/tests/test_notes.py` 14 项：`new_note` 默认值/未知类型、合法 spec、7 组非法条目（未知 kind、缺 pos、arrow 缺 end、region 零宽/3 元 rect、mark 缺 y、size=0）、notes 非数组、渲染像素确实变化、mark 指向不存在子图不崩、服务端 PUT→render 往返、静态页控件。改前端前静态护栏断言为红（`note-overlay` 不存在）。
+- UI 冒烟（无头 Edge + CDP，临时脚本与截图已删）：文字框/箭头/框选/数据标注依次建成，`GET /api/spec` 读到 4 条（持久化），数据标注落在 `x=1.4349, y=2.5064`；双击文字框改为「改过的批注」；删除后剩 `arrow/region/mark`；截图确认四类批注都进了 PNG。
+- PlotKit 全量：**470 项全绿**（46.5 s，456→470）。
+- netlab 全量：`python -m pytest netlab/tests -q` → **415 passed, 3 warnings**，退出码 0；stderr 仍有 2 行 `Windows fatal exception: code 0xc0000139`（§7.48 既有问题，未解决）。
+- `python -m compileall -q netlab` 退出 0；`python -m netlab.desktop --selftest` 退出 0（status 200、shim_injected True、shim_status 200）。
+- 备份：`NetlabExtras/backups/ProjectPoint_backups/netlab_notes_20261103_1508/`。
+
+**P4→P3→P5 收尾**：用户 m00699 的 5 条反馈全部落地——①预计算后无法播放（§7.49）②拖画布不合理/难复位/打断播放（§7.49）③图层设置独立窗口（§7.51）④子图自由拖拽且可重叠（§7.50）⑤画布批注（本节）。
+
+### 7.53 PlotKit 预览精度不随仿真精度变化（2026-11-03）
+
+**用户反馈**（m01696 原话）：「为什么即使我在netlab提高了仿真精度，在plotkit里精度依然没有提高，请修复这个问题，并且继续完成任务」。截图里 dt 已设 1e-6、电路模式、120 fps、每帧 1 步，PlotKit 预览 0.5 s 窗口只有约 20 个折点。
+
+**根因（三层，全部与 dt 无关）**
+1. `netlab/server.py` 的 `plotkit_precompute` 写死 `step_dt = max(dt, seconds / 2000.0)`：请求 `dt=1e-4` 或 `1e-5`，实测响应都是 `dt: 0.00025, frames: 2000`。
+2. `netlab/core/compute/simulation.py` 的 `Simulation.live()` 把 `limit` 钳到 600，桥接每次最多取 600 点。
+3. 同文件 `RECORDER_CAPACITY = 1200`，`precompute()` 用 `sample = max(sample, ceil(count / RECORDER_CAPACITY))` 反推采样间隔，点数只跟容量走（1e-4 → 1001 帧、1e-5 → 1191 帧）。
+
+**改动**
+- `netlab/server.py`：新增 `PRECOMPUTE_MAX_STEPS = 200_000` 与纯函数 `precompute_step_dt(seconds, requested_dt, *, max_steps)`，返回 `(step_dt, degraded)`；`plotkit_precompute` 改为读 `payload["dt"]`（缺省 `cfg["dt"]`，越界回落 0.01），响应带 `requested_dt` / `dt_used` / `degraded`。
+- `netlab/core/compute/simulation.py`：`RECORDER_CAPACITY` 1200 → **6000**（注释写明它同时是单次预计算的采样点上上限）；`live()` 钳制改为 `min(RECORDER_CAPACITY, int(limit))`。
+- `netlab/plotkit_bridge.py`：新增 `SYNC_PULL_LIMIT = 6000` 并用于 `_sync_loop`，与录制容量绑定。
+- `frontend/app.js`：两个预计算入口（运行前弹窗、数据条「接入」前）显示降级说明与实际步长，并按 warn 级别 toast。
+- 版本 3.16.10 → **3.16.11**（UI_BUILD / APP_BUILD / index 两处 query）。本次只改 netlab 侧，无需重新 vendor PlotKit。
+
+**验证**
+- 新回归（`netlab/tests/test_plotkit_channels.py`）：`test_precision_increases_points_in_plotkit_preview`（0.05 s 下 1e-5 点数远多于 1e-4；改前红在 600/1001）、`test_precompute_honors_requested_dt`（响应 `dt==1e-5`、`degraded False`、`frames>3000`）、`test_precompute_uses_scene_dt_when_caller_omits_it`（前端只发 seconds 时取场景 dt）、`test_precompute_step_dt_degrades_openly`（纯函数验证超上限降级）。
+- `netlab/tests/test_plotkit_frontend_auth.py::test_precompute_degradation_is_surfaced_in_both_call_sites`：两个调用点都显示降级信息。
+- `netlab/tests/test_recorder_sampling.py`：两条写死旧容量的断言改为按容量常量与待读帧数计算，预计算用例改 12 s/1e-3 触发降采样。
+- 实测：0.5 s@1e-4 → `frames 5000, sample_every 1`、store 5000 点、gap 1e-4；0.5 s@1e-5 → `frames 5556, sample_every 9`、5556 点、gap 9e-5；接口级 0.05 s 时 1e-4 得约 500 点、1e-5 得 5000 点；`dt=1e-6` 在 1 s 窗口触发 20 万步上限，返回 `degraded: true` 并提示缩小时间窗。
+- netlab 全量：**447 passed, 3 warnings**（61.31 s），退出码 0；stderr 仍有 2 行 `Windows fatal exception: code 0xc0000139`（§7.48 既有问题，未解决）。注：15:48 有并行会话在改 `netlab/tests/test_transfer.py`，中途一次全量出现 2 个瞬时失败（445 passed），文件稳定后复跑 447 全绿。
+- `python -m compileall -q netlab` 退出 0；`python -m netlab.desktop --selftest` 退出 0（status 200、shim_injected True、shim_status 200）。
+- 规格：`netlab/docs/specs/2026-11-03-plotkit-precision.md`。
+
+### 7.54 R34 s 域传递函数节点与分析（D90）（2026-11-03）
+
+**用户要求**（2026-11-03 原话）：「优化信号流的功能，可以直接用频域s方程写传递函数，并计算，参考matlab simulink里的功能」；参考实现点名 xcos、pathsim、pathview、petercorke/bdsim、python-control。要求「完善功能 并且严格按照文档规则更新记录文档，并吸取经验」。
+
+**设计**：连续 TF 用降幂系数构造、内部升幂运算；解析 `s` 表达式（`s`、数字、`+ - * / ^`、括号、隐式乘法、整数幂/负指数）；真分式转可控标准型后复用既有 `StateSpaceModel` 的 zoh/tustin/backward/forward 离散推进，静态增益直接乘；分析旁路只读不写场景。
+
+**改动**
+- 新增 `netlab/core/compute/transfer.py`（803 行）：`TransferFunction`、`parse_expression`、`from_coefficients/from_zpk/from_params`、`to_state_space`、`poles/zeros/stability/at/frequency_response`、`bode_data`、`step_response`、`analyze`。
+- `netlab/core/compute/computes.py`：注册 `transfer_function`（「传递函数 G(s)」，组「高级」），参数 `form/expr/numerator/denominator/zeros/poles/gain/field/output/method/x0`；静态增益分支；`COMPUTE_FORMULAS` 加公式行。
+- `netlab/core/compute/analysis.py`：`_node_tf` 识别 `transfer_function`（sympy 用 `**`）；新增 `tf_analysis`（node > expr > num/den > zpk，返回 Bode/阶跃/零极点/DC/稳定性/assumptions）。
+- `netlab/server.py`：`AnalysisTFRequest` + `POST /api/analysis/tf`（422 走既有 `_analysis_call`）。
+- `frontend/app.js` / `index.html`：分析面板新增「传递函数分析（s 域）」——节点下拉 + 表达式 + Bode/阶跃/零极点三视图 + 文本摘要；`state.analysisTF` 保留结果并在重渲染后重绘。
+- 版本戳：`UI_BUILD` / `APP_BUILD` / `index.html` 两处 `?v=` 全部 3.16.12。
+- 文档：新增规格 `netlab/docs/specs/2026-11-03-s-domain-transfer-function.md`；REQUIREMENTS 新增 **R34** 与 **D90**、§9 增量行；MATH 新增 §6.3；CODE_GUIDE 增 `transfer.py` 与 `tf_analysis` 索引；LESSONS 增「s 域解析/因果性/静态增益/稳态误差」四条；BACKLOG 更新到 R34/D90。
+
+**测试与证据**
+- 定向：`python -m pytest netlab/tests/test_transfer.py -q` → **27 passed, 1 warning in 2.11 s**。
+- 全量：`python -m pytest netlab/tests -q` → **449 passed, 3 warnings in 65.09 s**，退出码 0；stderr 仍有 `Windows fatal exception: code 0xc0000139`（§7.48 既有环境噪声，测试不受影响）。
+- 数值验收：`1/(s+1)` Bode 在 `ω=1` 为 `-3.0103 dB / -45°`；阶跃 `rise≈2.197`、`settling≈3.91`、稳态误差 0；TF→SS 在 `0.3+0.7j` 与解析值误差 <1e-15；节点 1000×0.01 s 终值≈1；静态增益 `3×2=6`。
+- `python -m compileall -q netlab` 退出 0；`python -m netlab.desktop --selftest` 退出 0（status 200、shim_injected True、shim_status 200）。
+- 备份：`NetlabExtras/backups/ProjectPoint_backups/netlab_transfer_20261103_1602/`（源码/测试/前端/文档 + MANIFEST.sha256）。
+
+**下一步**：R25 P7-09（opamp/comparator 内置结构）仍是主线；R34 的可选增强（Bode 光标、零极点拖动、MIMO）不阻塞。
+
+
+
+### 7.55 架构审计：跨挂载鉴权、直播代次与 PlotKit 生命周期（2026-11-03）
+
+**起因**：用户要求按既有文档与经验做一次证据驱动的架构/代码审计（冗余、数据与接口错位、新旧代码冲突、嵌套过深、运行效率/延迟/内存/安全），只实施已确认的安全改进，并同步测试与文档。
+
+**已确认并修复的问题**
+
+1. **PlotKit 子应用绕过桌面 token**：宿主 `desktop_token_guard` 原先只匹配 `/api/`，挂在 `/plotkit` 的子应用 `PUT /api/spec`、`POST /api/clear`、`PUT /api/layout` 无 token 即可访问（TestClient 实测 200）。现在 `is_guarded_api_path()` 同时覆盖 `/plotkit/api` 与 `/plotkit/api/`，仍豁免 `/api/health`；子应用根页与静态资源保持公开。
+2. **iframe/popup 拿不到 token**：新增宿主 shim——`GET /plotkit`、`GET /plotkit/` 由宿主在 vendor `index.html` 第一条 `<script src>` 前注入；主前端 `plotkitFrameUrl()` 只在 URL fragment 传 token，shim 读取后立即 `history.replaceState` 抹掉，并仅对同源 `/plotkit/api…` 的 `fetch` 追加 `X-Netlab-Token`（保留 Request/Headers/二进制语义）；`window.open('api/png')` 例外改为带 token 的 fetch→blob（否则导出按钮会 403）。
+3. **清零/换网后曲线混线**：`Recorder.clear()` 把 `seq` 归零，桥只按 cursor 变小判断重置，新旧记录同号时会漏帧或把新数据接在旧时间轴上（复现：旧 `y=1` 与新 `y=3` 混成 `[1,1,1,3,3]`）。记录器新增 `generation`（clear/重建即轮换），`Simulation.live` 原子返回；桥检测代次变化或 cursor 回退时重读 `live(0, limit)`，在同一把 `DATA_LOCK` 内 `_reset` + 灌入新数据，空帧也提交新代次。
+4. **通道上限无效**：`_ensure_channels` 用 `len(figure.spec['layers'])` 判断，而 D-PlotView 正常 0 图层，80 通道能全部登记。改为按已登记数据集（排除 `t`）计数，最多 64；仍不自动建图层。
+5. **`_reset` 残留旧状态**：不再强制 `subplots=1`（保留用户版式）；清空 `t`（否则新时间轴接在旧轴后）；按当前探针键剪枝旧数据集与 `_FORCED['keys']`，用户自建图层不动。
+6. **生命周期**：`stop()` 现在清 `_ACTIVE`、set event、join 2 s（同线程跳过）、清空 thread/stop；`set_active(True)`/`set_channels` 可重建同步线程；server lifespan 先停桥再停 SERVICE（桥线程持 `DATA_LOCK`）。
+7. **预计算假成功**：`SERVICE.precompute()` 返回 `{frames, error}` 时路由原先仍 `ok=True`。现在 `ok = not result.get("error")`，前端既有 `pre.ok === false` 分支生效。
+8. **接入顺序**：`applyPkChannels` 先 POST `/api/plotkit/channels` 设好选中键，再预计算，避免桥用旧选择消费掉帧、新通道全 NaN。
+
+**测试与证据**
+
+- 新增 `netlab/tests/test_plotkit_bridge_lifecycle.py`（11 条，无 sleep）：代次轮换/实例独立、同 cursor 代次重置只留新数据、cursor 回退重置、`_reset` 清 `t`/剪枝但保留用户数据集与版式、80→64 上限、`set_channels` 剪枝、stop 后 `set_active` 重启。
+- `test_plotkit_frontend_auth.py` 增 4 条：跨挂载缺 token/wrong token 403、`/plotkit/api` 403、query token 不生效、child root 公开且 shim 在 vendor 脚本前、HTML 不含真 token、浏览器模式 200、precompute `ok=false`。
+- `test_plotkit_bridge_trim.py` 调整为先 `ensure_plotkit_importable()` 再判断 `HAS_PLOTKIT`（单跑不再 skip）；`conftest.py` 增 autouse 清理（数据集/`_REGISTERED`/`_FORCED`，不停线程）。
+- 定向：24 passed（lifecycle + auth + bridge sync + trim）；扩大：59 passed / 2 warnings / 49 s；`node --check frontend/app.js` OK；`python -m compileall -q netlab` OK；`python -m netlab.desktop --selftest` → status 200 / `shim_injected: true`。
+- 全量：`python -m pytest netlab/tests -q` → **462 passed, 3 warnings, 64.82 s，退出码 0**；运行中仍打印 2 次 `Windows fatal exception: code 0xc0000139`（gmpy2 native import 线程，既有环境问题，未定位）。
+
+### 7.56 R35 输入字段自动匹配 + value 优先（2026-11-04）
+
+**起因**：用户截图里运行前预计算报 `连接 'tf-5' 计算失败：“节点 'transfer_function2' 没有数据字段 'voltage'”`——上游写 `value`、下游默认 `voltage`，字段名不一致直接断链。用户要求「自匹配输入对象的键，输入输出优先统一为 value，再此之外可以自定义键名」。
+
+**设计**：新增 `netlab/core/compute/fields.py` 作为唯一读取层：
+- `resolve_field`：显式请求的键存在就用；否则优先数值型 `value`，再 `voltage`，再唯一数值键；歧义或无匹配抛 `ComputeError`，消息列可用键。
+- `read_numeric` / `read_node_numeric` / `resolve_output`：数值与有限性校验、输出键默认 `value`。
+- 接入点：`computes._numeric`/`_sum_inputs`（逐入边解析，支持 value/voltage 混接）、表达式 `resolve`（不带点号自动匹配，`data` 仍要求显式键）、`methods._read` 与 5 个 signal 工厂（`output_key` 归一）、`statespace.resolve_inputs`、`blocks.py` 单字段端口别名读写。
+- 默认值：sum/gain/lag/integrate/transfer_function/clip 的 `field`/`output`、signal 边的 `input_key`/`output_key` 全部改 `value`，留空或 `auto` 时自动匹配；显式键（如 `current`）和旧 `voltage` 参数仍兼容。
+
+**测试与证据**：
+- 新增 `tests/test_fields.py` 22 条：优先级/显式键/唯一键/歧义/非数值、`mappingproxy`、`resolve_output`、gain/sum/TF/state_space 集成。
+- 块封装仍 0.0 的根因是父场景端口数据是 `voltage`、块内声明 `value`；`blocks.py` 单字段别名后 `test_blocks`/`test_project`/`test_solver_transactions`/`test_block_validate` 37 条通过。
+- 全量：`python -m pytest netlab/tests -q` → **484 passed, 3 warnings, 70.77 s，退出码 0**；stderr 仍有 `0xc0000139` 噪声。
+- 静态版本 3.16.13（app.js/server.py/index.html 两处）；备份 `netlab_fields_20261104_0225`。
+
+**经验**：读取端兼容层要放在最靠近 payload 的地方，别在每个节点/工厂里各写一份；`NodeView.data` 是 `mappingproxy`，用 `collections.abc.Mapping` 判断而不是 `dict`；块端口有「声明字段」和「实际字段」两套键，单字段必须做别名，否则封装块内外部永远对不上。
+
+## §7.57 信号流右键「添加」菜单按节点组分类（2026-11-04）
+
+**起因**：电路画布的右键「添加电学节点/器件」已经按「器件 · 组」下钻；信号流仍把所有计算节点平铺成一长串，节点种类变多后很难找。
+
+**改动**：
+- `frontend/app.js` 新增 `COMPUTE_GROUP_ORDER = ['基础', '动态', '高级', '矢量', '模块', '接口']`。
+- `buildAddMenuItems()` 在非电路模式按 `state.catalog.computes[].group` 分组，生成「节点 · 基础/动态/高级/矢量/模块/接口」子菜单，叶子仍是原来的 `addNodeAt(kind, x, y)`；`addable === false` 的模块实例/端口节点继续过滤。
+- 矢量模式把「矢量」组提到最前；catalog 里未列出的组按首次出现顺序补在最后，不丢节点。
+- 电路分支保持原样：平铺 `circuit_nodes` + 「器件 · 组」子菜单；代码路径不变。
+
+**测试与证据**：
+- 新增 `netlab/tests/test_frontend_menus.py` 2 条静态契约：分组常量/`节点 · ${group}` 子菜单结构、矢量组置顶。
+- `node --check frontend/app.js` 通过。
+- 全量：`python -m pytest netlab/tests -q` → **486 passed, 3 warnings, 66.22 s，退出码 0**；stderr 仍是 `0xc0000139` 既有噪声。
+- 静态版本 3.16.14（app.js/server.py/index.html 两处）；备份 `netlab_menu_20261104_0756`。
+
+## §7.58 预计算反馈环首拍报错修复（2026-11-04）
+
+**现象**：运行前预计算 0→5 s 中断：`节点 'transfer_function2' 没有可用字段 'voltage'，也无法自动匹配（可用字段：〈空〉）`；图上 `sum1` 与 `transfer_function2` 之间有 dashed `tf-5 z^-1` 反馈边。
+
+**根因**：`Network.step` 在步首统一求值延迟边，此时源节点还没算过，`data` 为 `{}`；`methods._read` 直接 `read_node_numeric` 抛 `ComputeError`。`pass` 边更直接，把空 dict 原样传给目标。
+
+**修复**：
+- `netlab/core/compute/methods.py` 的 `_read`：`node.data` 为空时返回 0.0（z⁻¹ 首拍默认零）；非空但字段不对仍走读取层报错。
+- `netlab/core/model/graph.py` 的 `step`：延迟边求值结果为空 dict 时不注入，目标节点按「无该路输入」处理（等价 0），避免 `pass` 空载荷被当成字段错误。
+- 新增 `test_fields.py::test_delayed_edge_uses_zero_before_source_is_computed`：sum + TF 反馈环，首拍不抛错、第二拍输出 >0。
+
+**验证**：全量 487 passed, 3 warnings, 61.86 s, exit 0；stderr 仍是 `0xc0000139` 既有噪声。静态版本不变（3.16.14，后端修复无需 bump 前端戳）；重启后端进程生效。
+
+### 7.59 结构护栏补齐相对导入（2026-11-04）
+
+- **问题**：`test_structure_layout.py::test_core_does_not_import_outer_layers` 只看 `Import` 与 `level=0` 的 `ImportFrom`，`from ..server import x`、`from ... import desktop`、`from netlab import desktop` 都能绕过，core 层的依赖方向护栏形同虚设。
+- **修复**：新增 `_outer_layer_imports()`：按文件所在包解析 `node.level`（`core/demo.py` 的 `..server` → `netlab.server`；`core/compute/demo.py` 的 `...server` → `netlab.server`），并把 `from pkg import name` 的 alias 当作潜在子模块；`_is_outer_layer()` 统一判定 `server` / `desktop`。
+- **自测**：新增 8 条参数化用例（相对与绝对形式必须命中、合法 core 引用不得误报），防止解析逻辑回退。
+- **现状**：core 层扫描无越界 import；全量 **495 passed**（2026-11-04 13:55，3 warnings，61.38 s，exit 0；stderr 仍有 2 次 Windows `0xc0000139`，既有环境噪声）。
+- **未做**：VS Code 自定义数据目录（未复现）、WebView2 真机 shim 端到端（需真实桌面交互），见 BACKLOG 待拍板。
+
+### 7.60 导入优先级、环境噪声与多工作树（2026-11-04）
+
+- **PlotKit 导入优先级统一**（`netlab/plotkit_bridge.py`）：此前 `plotkit_vendor.py` 的文档说内置副本优先，`ensure_plotkit_importable()` 却先 `import plotkit`（环境里的旧安装先命中）。现按「已导入 → `NETLAB_PLOTKIT_SRC` → 内置副本 `netlab/_vendor/plotkit` → 已安装 wheel → 同仓库 `PlotKit/src`」解析；某来源失败时移除临时 `sys.path` 项再退回下一来源。新增 `last_error()` 访问器。新增 `netlab/tests/test_plotkit_import_priority.py` 2 条子进程测试（内置副本命中、env 覆盖最高优先级）。
+- **`0xc0000139` 定位与消除**（环境问题，不改仓库代码）：根因是本机 `gmpy2 2.2.1`（Anaconda Python 3.13）DLL 入口缺失——`python -c "import gmpy2"` 直接 `ImportError: DLL load failed`；sympy/mpmath 在测试线程懒加载它时触发 Windows fatal exception。`python -m pip uninstall -y gmpy2` 后全量 497 passed、**0 次 fatal exception**、退出码 0（72.24 s）。换机复现时先单查 `import gmpy2`。
+- **多工作树规范**：新增 `tools/new_worktree.sh`（在 `../ProjectPoint-worktrees/<名称>` 建 `wt/<名称>` 工作树；未提交改动不会带过去）与 `netlab/docs/WORKTREE_RULES.md`（一树一会话、不 reset 他人改动、共享数据复制、合并由 owner、收尾清理）。`.gitignore` 忽略本地产物 `NetlabExtras/` 与 `layout.json`。
+- **验证**：目标测试 17 passed（导入优先级 2 + 桥接同步 2 + 生命周期 11 + PlotKit 页签 2）；全量 `python -m pytest netlab/tests -q` → 497 passed / 3 warnings / 72.24 s / exit 0 / 0 次 `0xc0000139`。工作树脚本做过一次真实「创建 → 校验 → 删除」冒烟测试，`git worktree list` 恢复单工作树。
+
+### 7.61 控制链路补强与欠阻尼工程（2026-11-04）
+
+**起因**：用户要求修复信号流传入值匹配、检查控制系统链路，并交付一个能展示欠阻尼二阶阶跃瞬态的 Netlab 工程。R35 已统一 `value` 优先，但控制链路仍暴露五个数值/状态问题。
+
+**修复**：
+- `netlab/core/compute/transfer.py` 的 `_step_metrics`：稳态优先取有限 `dc_gain`，超调按最终值方向取峰值，避免初始 0 被当成峰值；`1/(s²+0.4s+1)` 的超调由误报 0 修正为 **52.66%**。
+- `netlab/core/compute/transfer.py` 的 `step_response`：按实际步长推进；`duration/dt` 非整数时末段单独离散，时间标签与推进一致（例 `[0, 0.3, 0.6, 0.9, 1.0]`）。
+- `netlab/core/compute/methods.py` 的 `_tf_factory`：离散分子按分母阶数**左补零**，`H(z)=1/z` 的单位阶跃为 `[0, 1, 1]`；分子阶数高于分母抛 `ComputeError`。
+- `netlab/core/model/graph.py`：`Node` 保存 `_initial_data` 建模快照；`reset_state` 恢复计算节点初值，手动源保留当前值；重复预计算不再读到上次末值。
+- `netlab/core/compute/computes.py`：sum/gain/lag/integrate/expression/transfer_function 统一用 `resolve_output`，`output=auto`/空/`*` 写 `value`，自定义键保留。
+
+**工程**：`MyProject/underdamped_control.netlab`（v5，checksum `0002a6aa…`）。结构：signal 阶跃 → sum（`ref` + `feedback`）→ `transfer_function` `G(s)=4/(s²+1.2s)`；反馈边 `scale gain=-1` 自动 `z^-1`。闭环理想 `4/(s²+1.2s+4)`（ωn=2、ζ=0.3）；dt=0.01、12 s 实测峰值 1.393、终值 1.0009、超调 **39.18%**（连续理想 37.2%，反馈 `z^-1` 带来约 2 个点的相位滞后）。用 `Scene.load_payload` 重放验证通过。
+
+**测试与证据**：
+- 新增 7 条：`test_fields.py` 的 `output=auto`、`1/z`、`reset_state`；`test_transfer.py` 的超调与非整数网格；`test_control_project.py` 的闭环瞬态与工程 roundtrip。
+- 全量：`python -m pytest netlab/tests -q` → **504 passed, 3 warnings, 73.36 s，退出码 0**；stderr **0 次** `0xc0000139`（gmpy2 已卸载）。
+- 收尾复验：`python -m compileall -q netlab` 退出码 0；`python -m netlab.desktop --selftest` → status 200、`shim_injected=True`、`shim_status=200`；静态版本保持 3.16.14（本轮无前端改动）。
+- 备份 `netlab_control_20261104_1815`（14 文件 + `MANIFEST.sha256`）。
+
+### 7.62 R36 P1 执行图标签与 SCC 检测（2026-11-05）
+
+- **目标**：在不动默认 `Network.step` 行为的前提下，先给求解器建立可检查的执行图：有状态节点作断点，直接馈通子图识别 SCC，自动 `z⁻¹` 可见记录，为后续线性 SCC 解与 Newton 提供接口。
+- **节点语义**：`Node` 增加 `linear` / `stateful` / `direct_feedthrough` / `time_varying` / `nonlinear`；`compute.solver_traits(kind, params)` 按节点类型给出默认标签（signal/manual 不直接馈通，signal/lag/integrate/block 有状态，TF/state_space 按 `D` 判直接馈通，expression/nonlinear 保守标非线性）。
+- **执行图**：新增 `SolverStage` / `SolverPlan`；`Network.solver_plan()` 以「`stateful and not direct_feedthrough`」为断点，把直接馈通节点构成子图，Tarjan SCC 缩点后按 DAG 拓扑排序；`Network.auto_delayed_connections()` 与 `Connection.auto_delay` 记录自动延迟边。
+- **兼容**：默认 `step` 仍走原拓扑路径，不启用新求解；旧工程与既有测试不变；`EdgeRecord.auto_delay` 不写入工程快照。
+- **测试**：新增 `netlab/tests/test_solver_plan.py` 4 条（traits、双增益直接馈通 SCC、TF 状态断点、Scene 自动延迟记录）；全量 **508 passed, 3 warnings, 59.36 s, exit 0**，无 `0xc0000139`。
+- **状态**：R36 **P1 完成**；P2 线性 SCC 解、P3 Newton、P4 总传函/Bode、P5 相平面/播放仍待实现；R37/R38 未开工。静态版本保持 3.16.14（本轮后端改动）。
+
+### 7.63 R36 P2 线性 SCC 求解（2026-11-05）
+
+- **目标**：让纯线性直接馈通环不再依赖自动 `z⁻¹`，而是在同一拍内解代数方程；默认仍保留旧路径，显式开启后生效。
+- **执行路径**：`Network.__init__(solve_algebraic=False)`；开启时 `Network.step()` 走 `_step_solved()`，按 `solver_plan().stages` 逐阶段推进；先求显式延迟边，代数阶段解 `(I-A)y=b`，其余阶段复用原节点 `update` 逻辑。失败时用 `capture_step_state`/`restore_step_state` 回滚。
+- **节点/边范围**：P2 只解 `sum` / `gain` 节点与 `pass` / `scale` 边；奇异矩阵、暂不支持的节点/边抛 `AlgebraicLoopError`，消息带节点/边名，不静默改成延迟。
+- **场景接口**：`Scene.solve_algebraic=False`；`Scene.set_algebraic_solver(True)` 后 `SignalEngine` 构造 `Network(solve_algebraic=True)`，`add_edge` 遇环不再自动加 `z⁻¹`（显式 `delay=True` 仍优先）。
+- **测试**：新增 `netlab/tests/test_algebraic_solver.py` 3 条——双增益环解析解（a=-0.2、b=-0.6）、自环奇异报错、带外部输入的和/增益环（2/3、-1/3）；全量 **511 passed, 3 warnings, 64.56 s, exit 0**，无 `0xc0000139`。
+- **状态**：R36 **P1–P2 完成**；P3 Newton、P4 总传函/Bode、P5 相平面/播放仍待实现；静态版本保持 3.16.14。
+
+### 7.64 R36 P3 非线性 / 时变 Newton（2026-11-05）
+
+- **目标**：让含非线性表达式或时变表达式的直接馈通 SCC 在同一拍内用阻尼 Newton 求解，不自动加 `z⁻¹`，失败时明确报错而不是返回伪值。
+- **执行路径**：`_step_solved()` 对 `stage.nonlinear` 调 `_solve_nonlinear_stage()`；`_evaluate_node()` 用候选输出值构造 `ComputeContext` 并调用节点 handler（不写回节点），支持 `sum`/`gain`/`expression` 等无状态节点；外部入边照常求值，延迟边用本拍延迟载荷。
+- **Newton**：残差 `F(y)=handler(y)-y`，有限差分雅可比（`1e-6*max(1,|y|)`），`np.linalg.solve` 求步长，线搜索从 `α=1` 起最多减半 8 次，`tol=1e-9`、`max_iter=50`；零初值分量给非零起点避免落在雅可比奇异点；失败抛 `NewtonConvergenceError`（带节点、残差、迭代次数）。
+- **时变**：`expression` 节点每拍自动注入保留变量 `t` 与 `time`（用户显式映射同名变量时以映射为准）；Newton 迭代内部冻结该拍时间。
+- **测试**：`test_algebraic_solver.py` 新增 3 条——`y=tanh(y)+u` 收敛到残差 ≤1e-8、时变 `0.5*y+t` 两拍为 0.2/0.4、无解 `y*y+1` 抛 `NewtonConvergenceError`；该文件共 6 条。全量 **514 passed, 3 warnings, 61.91 s, exit 0**，无 `0xc0000139`。
+- **状态**：R36 **P1–P3 完成**；P4 总传函/Bode、P5 相平面/播放待实现；静态版本保持 3.16.14（后端改动）。
+
+### 7.65 R36 P4 线性网络总传函与 Bode（2026-11-05）
+
+- **目标**：从整张信号流网络直接得到输入到输出的总传函，支持串联/并联/反馈，并复用现有 Bode/阶跃分析；不再要求手工拼接公式。
+- **实现**：重写 `analysis.transfer_function()` 为线性网络节点方程 `(I-W)y=b` 的符号消元。节点支持 `gain`/`sum`/`lag`/`integrate`/`transfer_function`/`state_space`；边支持 `pass`/`scale`；反馈环直接联立求解，非线性节点明确返回“不支持线性总传函”，不静默线性化。`tf_analysis()` 新增 `input_node`/`output_node`，网络总传函可直接走 Bode/阶跃/零极点分析。
+- **测试**：新增 `netlab/tests/test_network_tf.py` 4 条——串联 `2/(s+1)`、并联 `5`、单位负反馈 `1/(s+2)` 及 Bode 幅相、非线性网络报错；全量 **518 passed, 3 warnings, 71.61 s, exit 0**，无 `0xc0000139`。
+- **状态**：R36 **P1–P4 完成**；P5 相平面/播放待实现；R37 的 s 域总传函/Bode 基础已由 P4 提供，连续延迟 s 域近似与 R38 仍待后续。静态版本保持 3.16.14（后端改动）。
+
+### 7.66 R36 P5 相平面状态通道、独立播放与数据分析（2026-11-05）
+
+- **目标**：让相平面不再只认矢量模式的人工 `x/y` 字段，而是直接读取信号流节点的真实内部状态；相图拥有独立于主仿真的播放条，并给出轨迹指标。
+- **状态通道**：`SignalEngine.probes()` 遍历 `node.state`：list/tuple 按索引输出 `state:<node>:<index>`（状态空间 `x` 列表自动成为 `:0/:1`），标量数值输出 `state:<node>:<key>`；只接受有限数值、排除 bool。预计算录制自然把这些键写进 frames。
+- **分析**：`analysis.phase_metrics(xs, ys, times=None)` 输出点数、`path_length`、`enclosed_area`（鞋带公式）、x/y 极值与终值、`y_peak`、相对 y 终值的 `overshoot_pct`、可选起止时间；长度不一致/无效点抛 `AnalysisError`。新增 `POST /api/analysis/phase`；`/api/analysis/tf` 请求补上 `input_node`/`output_node` 并传给 `tf_analysis`，P4 网络 Bode 的 API 对齐。
+- **前端**：`vectorCandidates()` 增加 `state:<node>:<index>` 候选；`drawPhase()` 在 x/y、vx/vy、x1/x2 之后回退到状态通道；相图工具栏新增播放/暂停、步进、循环、当前帧滑块（`phasePlay`/`phaseStep`/`phaseLoop`/`phaseFrame`），播放定时器只驱动相图、不影响主仿真；读数增加轨迹长度 `L` 与包围面积 `A`。
+- **测试**：新增 `netlab/tests/test_state_channels.py` 3 条——TF 节点暴露 `state:g:0/1`、单位圆轨迹长度≈2π/面积≈π、x/y 长度不一致报错；全量 **521 passed, 3 warnings, 59.68 s, exit 0**，无 `0xc0000139`。
+- **状态**：R36 **P1–P5 完成**（求解器主线）；R37 全局状态空间装配/延迟 z 域、R38 完整验收（dt 收敛、非线性相图提示）仍待后续；CSV 导出与指标读数已在 §7.67 补全。由于本轮改了前端静态资源，版本戳升 **3.16.15**（`app.js` UI_BUILD、`index.html` 两处 `?v=`、`server.py` APP_BUILD）。
+
+### 7.67 R38 相图数据分析与 CSV 补全（2026-11-05）
+
+- **目标**：让相图读数不止 L/A，直接给出峰值、超调、稳态值、调节时间，并能把当前相图两个状态通道导出为 CSV。
+- **前端**：`drawPhase()` 在轨迹块中计算 `y` 峰值、相对 `y` 终值的超调、末值与 2% 调节时间；读数追加 `峰值/超调/稳态/调节`。相图工具栏新增 `phaseExport` 按钮，复用 `exportAnalysisCsv(keys, defaultName)`，优先导出 `state:<node>:<index>`，无状态通道时回退 `n:<node>:x/y`。
+- **后端**：不新增接口；继续使用 `POST /api/analysis/export` 的 `keys` 参数。`phase_metrics` 的同一套指标已由 `/api/analysis/phase` 提供。
+- **验证**：`node --check frontend/app.js` 通过；`python -m pytest netlab/tests/test_state_channels.py -q` 3 passed；全量 **521 passed, 3 warnings, 61.01 s, exit 0**；`compileall` 通过；selftest status 200、shim 200。静态版本升 **3.16.16**（四处同步）。
+
+### 7.68 最终集成检查、R37 延迟 z 域与 R38 dt 收敛（2026-11-05）
+
+- **目标**：在 R36 P1–P5 之后补齐 R37 对外总传函/延迟 z 域和 R38 的 dt 收敛/无状态提示，并做一次接口、闭环、精度、性能与结构检查，统一整理文档后提交 git。
+- **R37**：`analysis.transfer_function(..., domain='z')` 支持纯 `gain`/`sum` 网络的显式 `z⁻¹`（回归 `2/z`），`domain='s'` 遇到延迟明确报错；`/api/analysis/transfer` 增加 `domain` 参数，`/api/analysis/tf` 补 `input_node`/`output_node`。内部仍用符号节点方程消元，全局 `A/B/C/D` 导出保留为后续优化项。
+- **R38**：`test_control_project.py` 新增 dt 收敛测试：12 s、dt=0.01 → 0.002，超调 39.15% → 37.53%（差 1.62 个百分点），终值差 <0.005；`drawPhase()` 对无状态通道的信号流节点给中文提示。
+- **接口**：新增 `test_analysis_api.py` 2 条，覆盖 `POST /api/analysis/phase` 与 `POST /api/analysis/tf` 的 `input_node`/`output_node`；前端仍走 `api()` token 封装，无新增直连 fetch。
+- **性能**：同一欠阻尼工程预计算 12 s：dt=0.01 1200 帧 115 ms、dt=0.002 6000 帧 546 ms（约 11k 步/s）；总传函符号消元与相图指标均为毫秒级，无新增热点。
+- **状态**：R36 P1–P5、R37 对外能力、R38 完成；全量 **525 passed, 3 warnings, 80.46 s, exit 0**；静态版本 **3.16.17**（四处同步）；备份 `netlab_final_20261105_0205`（14 文件 + MANIFEST）；工作树并行改动保留，提交前统一整理。

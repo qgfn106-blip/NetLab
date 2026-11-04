@@ -57,7 +57,7 @@ def test_pass_method_copies_numeric_fields_only():
 def test_encapsulation_matches_flat_network():
     flat = build_flat()
     flat.step(0.01)
-    expected = node_by_name(flat, "c").data["voltage"]
+    expected = node_by_name(flat, "c").data["value"]
     assert expected == pytest.approx(6.0)
 
     scene = build_flat()
@@ -65,7 +65,7 @@ def test_encapsulation_matches_flat_network():
     assert {port.direction for port in block.ports} == {"input", "output"}
     assert len(block.nodes) == 3  # b + 两个接口节点
     scene.step(0.01)
-    assert node_by_name(scene, "c").data["voltage"] == pytest.approx(expected)
+    assert node_by_name(scene, "c").data["value"] == pytest.approx(expected)
     assert scene.stats().get("blocks") == 1
 
     # 端口节点与块节点都在父场景里，且端口节点不带 state。
@@ -117,16 +117,16 @@ def test_two_instances_keep_state_isolated():
     scene = build_two_instances(block)
     for _ in range(5):
         scene.step(0.1)
-    assert node_by_name(scene, "t1").data["voltage"] == pytest.approx(0.5)
-    assert node_by_name(scene, "t2").data["voltage"] == pytest.approx(1.0)
+    assert node_by_name(scene, "t1").data["value"] == pytest.approx(0.5)
+    assert node_by_name(scene, "t2").data["value"] == pytest.approx(1.0)
 
     # 改一个实例的输入不应影响另一个实例的内部 state。
     src1 = node_by_name(scene, "src1")
     scene.update_node(src1.id, {"data": {"voltage": 5.0}})
     for _ in range(2):
         scene.step(0.1)
-    assert node_by_name(scene, "t1").data["voltage"] == pytest.approx(1.5)
-    assert node_by_name(scene, "t2").data["voltage"] == pytest.approx(1.4)
+    assert node_by_name(scene, "t1").data["value"] == pytest.approx(1.5)
+    assert node_by_name(scene, "t2").data["value"] == pytest.approx(1.4)
 
 
 def test_scene_reset_clears_block_state():
@@ -134,11 +134,11 @@ def test_scene_reset_clears_block_state():
     scene = build_two_instances(block)
     for _ in range(4):
         scene.step(0.1)
-    assert node_by_name(scene, "t1").data["voltage"] == pytest.approx(0.4)
+    assert node_by_name(scene, "t1").data["value"] == pytest.approx(0.4)
     scene.reset()
     for _ in range(2):
         scene.step(0.1)
-    assert node_by_name(scene, "t1").data["voltage"] == pytest.approx(0.2)
+    assert node_by_name(scene, "t1").data["value"] == pytest.approx(0.2)
 
 
 # ---------------------------------------------------------------------------
@@ -158,8 +158,8 @@ def test_block_scene_payload_roundtrip():
     for _ in range(2):
         restored.step(0.1)
     # 状态不随工程保存：恢复后重新累计 2 步。
-    assert node_by_name(restored, "t1").data["voltage"] == pytest.approx(0.2)
-    assert node_by_name(restored, "t2").data["voltage"] == pytest.approx(0.4)
+    assert node_by_name(restored, "t1").data["value"] == pytest.approx(0.2)
+    assert node_by_name(restored, "t2").data["value"] == pytest.approx(0.4)
     assert restored.stats().get("blocks") == 2
 
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import secrets
 import threading
 import time
 from contextlib import asynccontextmanager
@@ -25,7 +26,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .core.compute.fem import FemSimulation
 
 #: 服务端代码版本（与 frontend/index.html 的 ?v= 对齐）；用于检测「前端已更新、后端进程仍是旧的」
-APP_BUILD = "3.16.5"
+APP_BUILD = "3.16.17"
 from .core.common.limits import ConflictError, NetlabError, NotFoundError, ValidationError
 from .core.model.networks import NetworkContainer
 from .core.model.project import (
@@ -88,6 +89,12 @@ async def lifespan(_app: FastAPI):
     try:
         yield
     finally:
+        # PlotKit 同步线程持有全局 DATA_LOCK，必须在 SERVICE 之前停掉并 join，
+        # 否则进程退出时它可能还在读已销毁的仿真对象。
+        try:
+            plotkit_bridge.stop()
+        except Exception:  # pragma: no cover - plotkit 未安装或已停止
+            pass
         vscode_bridge.shutdown()
         SERVICE.shutdown()
         FEM.shutdown()
@@ -154,14 +161,30 @@ def vscode_status(start: bool = Query(default=False)) -> dict[str, Any]:
     return vscode_bridge.status(start_request=start)
 
 
+def is_guarded_api_path(path: str) -> bool:
+    """桌面 token 需要覆盖的 API 路径。
+
+    2026-11-03 修复：绘图子应用挂在 ``/plotkit``，它的 ``/plotkit/api/*`` 与宿主
+    ``/api/*`` 一样是可写接口（改 spec / 清空 / 导出）。此前守卫只判断 ``/api/``，
+    子应用整套接口在桌面模式下无 token 也能调用。首页与静态资源保持公开，否则
+    iframe 连页面都加载不了。
+    """
+    return (
+        path.startswith("/api/")
+        or path == "/plotkit/api"
+        or path.startswith("/plotkit/api/")
+    )
+
+
 @app.middleware("http")
 async def desktop_token_guard(request: Request, call_next):
     """桌面模式下只允许携带会话 token 的本地页面调用 API。"""
+    path = request.url.path
     if (
         _DESKTOP_TOKEN
-        and request.url.path.startswith("/api/")
-        and request.url.path != "/api/health"
-        and request.headers.get("x-netlab-token") != _DESKTOP_TOKEN
+        and is_guarded_api_path(path)
+        and path != "/api/health"
+        and not secrets.compare_digest(request.headers.get("x-netlab-token") or "", _DESKTOP_TOKEN)
     ):
         return JSONResponse(
             status_code=403,
@@ -398,7 +421,7 @@ def index() -> Response:
         if "desktop-shim.js" not in html:
             html = html.replace(
                 "</head>",
-                '  <script src="/static/desktop-shim.js?v=3.16.5"></script>\n</head>',
+                f'  <script src="/static/desktop-shim.js?v={APP_BUILD}"></script>\n</head>',
                 1,
             )
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})
@@ -499,6 +522,29 @@ def plotkit_active(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     return {"mounted": True, "active": plotkit_bridge.is_active()}
 
 
+#: PlotKit 预计算的步数上限：超过就把步长降级，并把 ``degraded`` 告诉界面。
+PRECOMPUTE_MAX_STEPS = 200_000
+
+
+def precompute_step_dt(
+    seconds: float,
+    requested_dt: float,
+    *,
+    max_steps: int = PRECOMPUTE_MAX_STEPS,
+) -> tuple[float, bool]:
+    """选预计算的实际步长；返回 ``(step_dt, degraded)``。
+
+    2026-11-03 修复：这里以前写死 ``max(dt, seconds / 2000)``，于是不管用户把 dt
+    调多小，预计算都用 seconds/2000 跑出恰好 2000 帧，曲线点数不随精度变化——
+    用户看到的「在 netlab 提高仿真精度，PlotKit 里精度依然没提高」。
+    现在尊重请求的 dt，只有超过步数上限时才降级，且降级必须能被界面看见。
+    """
+    step_dt = float(requested_dt)
+    if seconds / step_dt > max_steps:
+        return seconds / max_steps, True
+    return step_dt, False
+
+
 @app.post("/api/plotkit/precompute")
 def plotkit_precompute(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     """接入 PlotKit 前先把 0→T 的整段数据算出来并登记（仿真保持停止）。
@@ -510,18 +556,32 @@ def plotkit_precompute(payload: dict[str, Any] | None = None) -> dict[str, Any]:
         seconds = 5.0
     started = time.perf_counter()
     try:
-        # 步数上限保护：场景 dt 很小时按 duration/2000 放大步长，避免一次算几十万步
         try:
             cfg = (SERVICE.snapshot().get("sim") or {}).get("config") or {}
         except Exception:
             cfg = {}
-        step_dt = float(cfg.get("dt") or 0.01)
-        step_dt = max(step_dt, seconds / 2000.0)
+        raw_dt = (payload or {}).get("dt")
+        requested_dt = float(raw_dt) if raw_dt is not None else float(cfg.get("dt") or 0.01)
+        if not (1.0e-9 <= requested_dt <= 10.0):
+            requested_dt = 0.01
+        step_dt, degraded = precompute_step_dt(seconds, requested_dt)
         result = SERVICE.precompute(seconds, dt=step_dt) or {}
+        result.update(
+            {
+                "requested_dt": requested_dt,
+                "dt_used": step_dt,
+                "degraded": degraded,
+            }
+        )
     except Exception as exc:  # pragma: no cover - 取决于场景
         return {"ok": False, "seconds": seconds, "error": str(exc)}
     elapsed = (time.perf_counter() - started) * 1000.0
-    return {"ok": True, "seconds": seconds, "elapsed_ms": round(elapsed, 1), **result}
+    merged = {"seconds": seconds, "elapsed_ms": round(elapsed, 1), **result}
+    # SERVICE.precompute 在求解中途失败时会返回带 error 的部分结果（前面几帧已
+    # 登记）。以前这里无条件写 ok=True，界面据此认为预计算成功并压住后续报错。
+    merged["ok"] = not result.get("error")
+    return merged
+
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
@@ -1184,6 +1244,33 @@ class AnalysisExportRequest(BaseModel):
     name: str = "analysis"
 
 
+class AnalysisTFRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    node: str | None = None
+    input_node: str | None = None
+    output_node: str | None = None
+    field: str | None = None
+    expr: str | None = None
+    numerator: list[float] | None = None
+    denominator: list[float] | None = None
+    zeros: list[float] | None = None
+    poles: list[float] | None = None
+    gain: float = 1.0
+    method: str = "zoh"
+    dt: float | None = None
+    duration: float | None = None
+    points: int = 240
+
+
+class AnalysisPhaseRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    xs: list[float]
+    ys: list[float]
+    times: list[float] | None = None
+
+
 def _analysis_call(function, label: str):
     try:
         return analysis.run_with_timeout(function, label=label)
@@ -1245,6 +1332,7 @@ def analysis_transfer(
     output: str = Query(...),
     input_field: str = "voltage",
     output_field: str = "voltage",
+    domain: str = "s",
 ) -> dict[str, Any]:
     return _analysis_call(
         lambda: analysis.transfer_function(
@@ -1253,8 +1341,41 @@ def analysis_transfer(
             output,
             input_field=input_field,
             output_field=output_field,
+            domain=domain,
         ),
         "传递函数推导",
+    )
+
+
+@app.post("/api/analysis/tf")
+def analysis_tf(request: AnalysisTFRequest) -> dict[str, Any]:
+    return _analysis_call(
+        lambda: analysis.tf_analysis(
+            SERVICE.current,
+            node=request.node,
+            input_node=request.input_node,
+            output_node=request.output_node,
+            field=request.field,
+            expr=request.expr,
+            numerator=request.numerator,
+            denominator=request.denominator,
+            zeros=request.zeros,
+            poles=request.poles,
+            gain=request.gain,
+            method=request.method,
+            dt=request.dt,
+            duration=request.duration,
+            points=request.points,
+        ),
+        "传递函数分析",
+    )
+
+
+@app.post("/api/analysis/phase")
+def analysis_phase(request: AnalysisPhaseRequest) -> dict[str, Any]:
+    return _analysis_call(
+        lambda: analysis.phase_metrics(request.xs, request.ys, request.times),
+        "相平面指标",
     )
 
 

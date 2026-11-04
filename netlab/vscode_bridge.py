@@ -25,6 +25,7 @@ origin、缓存全部失效，workbench 的 ~21.5MB 前端包每次都要重新�
 from __future__ import annotations
 
 import atexit
+import json
 import os
 import shutil
 import socket
@@ -83,6 +84,100 @@ def _node_exec(server_dir: Path) -> str | None:
     if bundled.is_file():
         return str(bundled)
     return shutil.which("node")
+
+
+def _bundled_extension_root() -> Path | None:
+    """仓库内置的 VS Code 扩展源目录（NetlabHome/vscode-extensions）。"""
+    root = Path(__file__).resolve().parents[1] / "vscode-extensions"
+    return root if root.is_dir() else None
+
+
+def _extensions_dir() -> Path:
+    """VS Code Server 默认扩展目录（与服务端默认 server-data-dir 对应）。"""
+    data = os.environ.get("NETLAB_VSCODE_DATA_DIR")
+    if data:
+        return Path(data) / "extensions"
+    return Path.home() / ".vscode-server" / "extensions"
+
+
+def _bundled_vsix() -> Path | None:
+    root = _bundled_extension_root()
+    if root is None:
+        return None
+    found = sorted(root.glob("*.vsix"))
+    return found[-1] if found else None
+
+
+def _install_bundled_extensions(server_dir: Path, node: str) -> None:
+    """安装仓库内置的 VS Code 扩展。
+
+    优先用官方 CLI ``--install-extension <vsix>``：只有这样写出的
+    ``extensions.json`` 条目才带 ``metadata``，VS Code 才会真正加载扩展
+    （纯目录复制会被当成 external source，活动栏不出现）。成功后写一个
+    marker，避免每次启动都重新安装；失败则回退到目录复制。
+    """
+    vsix = _bundled_vsix()
+    dest_root = _extensions_dir()
+    try:
+        dest_root.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        return
+    if vsix is not None:
+        marker = dest_root / (".netlab-ext-" + vsix.stem)
+        if marker.is_file():
+            return
+        cmd = [
+            node,
+            str(server_dir / "out" / "server-main.js"),
+            "--install-extension",
+            str(vsix),
+            "--extensions-dir",
+            str(dest_root),
+            "--accept-server-license-terms",
+            "--disable-telemetry",
+        ]
+        kwargs: dict[str, Any] = {}
+        if os.name == "nt":
+            kwargs["creationflags"] = 0x08000000
+        try:
+            proc = subprocess.run(
+                cmd,
+                cwd=str(server_dir),
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=180,
+                **kwargs,
+            )
+            if proc.returncode == 0:
+                marker.write_text(vsix.name, encoding="utf-8")
+                return
+        except Exception:
+            pass
+
+    root = _bundled_extension_root()
+    if root is None:
+        return
+    for src in root.iterdir():
+        pkg = src / "package.json"
+        if not (src.is_dir() and pkg.is_file()):
+            continue
+        try:
+            meta = json.loads(pkg.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        folder = "{}.{}-{}".format(
+            meta.get("publisher", "netlab"),
+            meta.get("name", src.name),
+            meta.get("version", "0.0.1"),
+        )
+        dest = dest_root / folder
+        if dest.exists():
+            continue
+        try:
+            shutil.copytree(src, dest)
+        except Exception:
+            pass
 
 
 def _free_port() -> int:
@@ -191,6 +286,7 @@ def start() -> dict[str, Any]:
             return _snapshot()
 
         port = preferred if _bindable(preferred) else _free_port()
+        _install_bundled_extensions(server_dir, node)
         cmd = [
             node,
             str(server_dir / "out" / "server-main.js"),
@@ -203,6 +299,7 @@ def start() -> dict[str, Any]:
             _BASE_PATH,
             "--disable-telemetry",
             "--accept-server-license-terms",
+            "--disable-workspace-trust",
             "--default-folder",
             str(_default_folder()),
         ]

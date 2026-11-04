@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import pytest
 
 from netlab.core.common.limits import ValidationError
@@ -24,7 +26,9 @@ def test_recorder_resamples_pending_frames_instead_of_truncating():
     assert frames[-1]["v"]["x"] == pytest.approx(2999.0)
     gaps = {b - a for a, b in zip(seqs, seqs[1:])}
     assert len(gaps) <= 2, gaps
-    assert max(gaps) <= 3, "必须等间隔抽样，不能整段跳过"
+    # 抽样步长由「待读帧数 / limit」决定（3000/600 = 5），不能整段跳过。
+    step = math.ceil(3000 / 600)
+    assert max(gaps) <= step + 1, f"必须等间隔抽样，不能整段跳过：{gaps}"
     assert max(gaps) - min(gaps) <= 1, gaps
 
 
@@ -44,15 +48,16 @@ def test_precompute_covers_whole_window_within_capacity():
     scene.add_edge(source=src.id, target=acc.id, kind="scale", params={"gain": 1.0})
     sim = Simulation(scene)
     try:
-        result = sim.precompute(2.0, dt=1e-3, sample_every=1)
+        # 12 s / 1e-3 = 12000 步，超过 RECORDER_CAPACITY，必须自动降采样。
+        result = sim.precompute(12.0, dt=1e-3, sample_every=1)
     finally:
         sim.shutdown()
 
     assert result["error"] is None
     assert result["frames"] <= RECORDER_CAPACITY
-    assert result["sample_every"] >= 2, "2000 步超过容量时必须自动降采样"
+    assert result["sample_every"] >= 2, "12000 步超过容量时必须自动降采样"
     assert result["first_time"] <= 2e-3, "预计算的起点必须仍在 0 附近"
-    assert result["last_time"] == pytest.approx(2.0, abs=1e-9)
+    assert result["last_time"] == pytest.approx(12.0, abs=1e-9)
     assert len(sim.recorder) == result["frames"]
 
 

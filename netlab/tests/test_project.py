@@ -132,7 +132,7 @@ def test_project_with_block_roundtrip():
             target = next(
                 item for item in restored.scene.nodes.values() if item.name == "c"
             )
-            assert target.data["voltage"] == pytest.approx(6.0)
+            assert target.data["value"] == pytest.approx(6.0)
         finally:
             restored.shutdown()
     finally:

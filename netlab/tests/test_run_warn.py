@@ -12,6 +12,12 @@ def test_run_warn_dialog_hooks():
     assert "runWarnWin" in src
     assert "/api/plotkit/precompute" in src
     assert "skipWarn" in src
+    start = src.index("card.querySelector('#runWarnPre').onclick")
+    end = src.index("    sec.focus();", start)
+    handler = src[start:end]
+    assert "api('/api/plotkit/precompute'" in handler
+    assert "catch (error)" in handler
+    assert "error.message" in handler
 
 
 def test_build_stamp_matches_index_version():

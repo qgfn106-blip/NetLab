@@ -13,6 +13,7 @@ from typing import Any
 import numpy as np
 
 from ..common.limits import ComputeError
+from .fields import read_numeric
 from .linalg import as_array, cont2discrete
 from .params import ParamSpec, choice_param, json_param, list_param, matrix_param
 
@@ -150,17 +151,14 @@ class StateSpaceModel:
             if "." in spec:
                 connection, field_name = spec.split(".", 1)
             else:
-                connection, field_name = spec, "voltage"
+                connection, field_name = spec, None
             payload = inputs.get(connection)
-            value = 0.0
-            if payload is not None and field_name in payload:
-                raw = payload[field_name]
-                if isinstance(raw, bool) or not isinstance(raw, (int, float)):
-                    raise ComputeError(
-                        f"输入映射 {spec!r} 指向的不是数值字段"
-                    )
-                value = float(raw)
-            values.append(value)
+            if payload is None:
+                values.append(0.0)
+                continue
+            values.append(
+                read_numeric(payload, field_name, source=connection)
+            )
         return np.asarray(values, dtype=float)
 
     def state_from(self, state: dict[str, Any]) -> np.ndarray:

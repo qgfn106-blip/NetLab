@@ -16,7 +16,7 @@
 
   // 界面版本号：必须与 index.html 的 ?v= 和 netlab/server.py 的 APP_BUILD 一致。
   // 用来识别「前端文件已更新、后端进程还是旧的」这种只关窗口不重启的情况。
-  const UI_BUILD = '3.16.5';
+  const UI_BUILD = '3.16.17';
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -156,6 +156,12 @@
     phaseReadout: $('#phaseReadout'),
     vectorNode: $('#vectorNode'),
     vectorTrail: $('#vectorTrail'),
+    phasePlay: $('#phasePlay'),
+    phaseStep: $('#phaseStep'),
+    phaseExport: $('#phaseExport'),
+    phaseLoop: $('#phaseLoop'),
+    phaseFrame: $('#phaseFrame'),
+    phaseFrameLabel: $('#phaseFrameLabel'),
     workspaceSwitch: $('#workspaceSwitch'),
     sessionClock: $('#sessionClock'),
     exitBtn: $('#btnExit'),
@@ -245,6 +251,7 @@
     blocksStructural: false,
     analysisLast: '',
     analysisSpectrum: null,
+    analysisTF: null,
     degradedBanner: false,
     ui: {
       snap: true,
@@ -296,6 +303,10 @@
     phaseSize: { w: 1, h: 1, dpr: 1 },
     phaseNode: '',
     phaseTrail: 900,
+    phaseIndex: null,
+    phasePlaying: false,
+    phaseLoop: true,
+    phasePlayTimer: 0,
     phaseTimer: 0,
     shuttingDown: false,
     project: {
@@ -552,6 +563,16 @@
 
   function jsonRequest(path, method, body) {
     return api(path, { method, body: body === undefined ? undefined : JSON.stringify(body) });
+  }
+
+  // PlotKit 子应用是独立页面，拿不到 api() 的请求头；桌面 token 只放在 URL 片段里，
+  // 由宿主注入子应用首页的 shim 读取后立即抹掉，再给同源 /plotkit/api/ 请求补头。
+  // 不要改成查询串：查询串会进日志/Referer，也会被服务端访问日志记下来。
+  function plotkitFrameUrl(extra) {
+    const params = new URLSearchParams(extra || {});
+    const query = params.toString();
+    const hash = DESKTOP_TOKEN ? `#netlabToken=${encodeURIComponent(DESKTOP_TOKEN)}` : '';
+    return `/plotkit/${query ? `?${query}` : ''}${hash}`;
   }
 
   function toast(message, type = 'info', timeout = 4200) {
@@ -4107,9 +4128,43 @@
     '放大与比较', '晶体管', '数字与逻辑', '计时与电源管理', '磁性',
   ];
 
+  // 信号流/矢量场的计算节点分类顺序；未列出的组按 catalog 出现顺序补在后面。
+  const COMPUTE_GROUP_ORDER = ['基础', '动态', '高级', '矢量', '模块', '接口'];
+
   function buildAddMenuItems(placeX, placeY) {
     const list = kindListFor('node');
     const items = [];
+    if (state.mode !== 'circuit') {
+      const byGroup = new Map();
+      for (const spec of list) {
+        // 模块实例/端口节点只能由模块库实例化或封装生成，手动添加会得到
+        // 没有 block_id 的坏节点（P0-0），所以按 catalog 的 addable 过滤。
+        if (spec.addable === false) continue;
+        const group = String(spec.group || '未分类');
+        if (!byGroup.has(group)) byGroup.set(group, []);
+        byGroup.get(group).push(spec);
+      }
+      const order = state.mode === 'vector'
+        ? ['矢量', ...COMPUTE_GROUP_ORDER.filter((group) => group !== '矢量')]
+        : COMPUTE_GROUP_ORDER;
+      const emitted = new Set();
+      for (const group of [...order, ...byGroup.keys()]) {
+        if (emitted.has(group)) continue;
+        const specs = byGroup.get(group);
+        if (!specs || !specs.length) continue;
+        emitted.add(group);
+        items.push({
+          label: `节点 · ${group}`,
+          hint: `${specs.length} 种`,
+          children: specs.map((spec) => ({
+            label: spec.label,
+            hint: spec.description,
+            action: () => addNodeAt(spec.kind, placeX, placeY),
+          })),
+        });
+      }
+      return items;
+    }
     for (const spec of list) {
       // 模块实例/端口节点只能由模块库实例化或封装生成，手动添加会得到
       // 没有 block_id 的坏节点（P0-0），所以按 catalog 的 addable 过滤。
@@ -8112,6 +8167,18 @@
   }
 
   /* ---- 相图 ------------------------------------------------------------ */
+  function phaseStateKeys(node) {
+    const prefix = `state:${node.name}:`;
+    return (state.probeKeys || [])
+      .filter((key) => key.startsWith(prefix))
+      .sort((left, right) => {
+        const a = Number(left.slice(prefix.length));
+        const b = Number(right.slice(prefix.length));
+        if (Number.isFinite(a) && Number.isFinite(b)) return a - b;
+        return left.localeCompare(right);
+      });
+  }
+
   function vectorCandidates() {
     const nodes = state.scene?.nodes || [];
     return nodes.filter((node) => {
@@ -8119,7 +8186,7 @@
       const hasX = typeof data.x === 'number' && typeof data.y === 'number';
       const hasV = typeof data.vx === 'number' && typeof data.vy === 'number';
       const hasState = typeof data.x1 === 'number' && typeof data.x2 === 'number';
-      return hasX || hasV || hasState;
+      return hasX || hasV || hasState || phaseStateKeys(node).length >= 2;
     });
   }
 
@@ -8190,7 +8257,11 @@
     }
 
     const trail = clamp(Number(state.phaseTrail) || 360, 20, 1200);
-    const frames = state.frames.slice(-trail);
+    const total = state.frames.length;
+    const cursor = state.phaseIndex == null
+      ? Math.max(0, total - 1)
+      : clamp(Math.round(Number(state.phaseIndex) || 0), 0, Math.max(0, total - 1));
+    const frames = state.frames.slice(Math.max(0, cursor - trail + 1), cursor + 1);
     const keyX = `n:${node.name}:x`;
     const keyY = `n:${node.name}:y`;
     const keyVX = `n:${node.name}:vx`;
@@ -8222,7 +8293,23 @@
         .filter((frame) => typeof frame.v[keyX1] === 'number' && typeof frame.v[keyX2] === 'number')
         .map((frame) => ({ x: frame.v[keyX1], y: frame.v[keyX2], t: frame.t }));
     }
+    if (points.length < 2) {
+      const stateKeys = phaseStateKeys(node);
+      if (stateKeys.length >= 2) {
+        fieldX = stateKeys[0];
+        fieldY = stateKeys[1];
+        labelX = fieldX.slice(`state:${node.name}:`.length);
+        labelY = fieldY.slice(`state:${node.name}:`.length);
+        points = frames
+          .filter((frame) => typeof frame.v[fieldX] === 'number' && typeof frame.v[fieldY] === 'number')
+          .map((frame) => ({ x: frame.v[fieldX], y: frame.v[fieldY], t: frame.t }));
+      }
+    }
     if (!points.length) {
+      if (state.sim?.mode === 'signal' && !phaseStateKeys(node).length) {
+        ui.phaseReadout.textContent = '该信号流节点暂无状态通道：先运行预计算，或选择传递函数 / 积分器节点。';
+        return;
+      }
       const data = nodeDisplayData(node);
       if (typeof data.x === 'number' && typeof data.y === 'number') {
         points = [{ x: data.x, y: data.y, t: state.sim?.time || 0 }];
@@ -8351,10 +8438,100 @@
     const current = points[points.length - 1];
     if (current) {
       const magnitude = Math.hypot(current.x, current.y);
+      let pathLength = 0;
+      let area = 0;
+      for (let index = 1; index < points.length; index += 1) {
+        pathLength += Math.hypot(points[index].x - points[index - 1].x, points[index].y - points[index - 1].y);
+        area += points[index - 1].x * points[index].y - points[index].x * points[index - 1].y;
+      }
+      const ys = points.map((point) => point.y);
+      const finalY = current.y;
+      const peakY = finalY >= 0 ? Math.max(...ys) : Math.min(...ys);
+      const overshoot = Math.abs(finalY) > 1e-12
+        ? Math.max(0, (peakY - finalY) / Math.abs(finalY) * 100)
+        : 0;
+      const band = Math.abs(finalY) * 0.02;
+      let lastOutside = -1;
+      for (let index = 0; index < points.length; index += 1) {
+        if (Math.abs(points[index].y - finalY) > band) lastOutside = index;
+      }
+      const settling = lastOutside >= 0 && lastOutside + 1 < points.length
+        ? Math.max(0, current.t - points[lastOutside].t)
+        : 0;
       ui.phaseReadout.textContent =
         `${node.kind}  ${labelX}=${fmt(current.x, 5)}  ${labelY}=${fmt(current.y, 5)}  `
-        + `|r|=${fmt(magnitude, 5)}  t=${fmt(current.t, 4)} s`;
+        + `|r|=${fmt(magnitude, 5)}  t=${fmt(current.t, 4)} s  `
+        + `L=${fmt(pathLength, 4)}  A=${fmt(Math.abs(area) / 2, 4)}  `
+        + `峰值=${fmt(peakY, 5)}  超调=${fmt(overshoot, 2)}%  `
+        + `稳态=${fmt(finalY, 5)}  调节=${fmt(settling, 4)} s`;
     }
+    syncPhaseControls();
+  }
+
+  function phaseFrameCount() {
+    return state.frames.length;
+  }
+
+  function syncPhaseControls() {
+    const total = phaseFrameCount();
+    const cursor = state.phaseIndex == null
+      ? Math.max(0, total - 1)
+      : clamp(Math.round(Number(state.phaseIndex) || 0), 0, Math.max(0, total - 1));
+    if (ui.phaseFrame) {
+      ui.phaseFrame.max = String(Math.max(0, total - 1));
+      ui.phaseFrame.value = String(cursor);
+      ui.phaseFrame.disabled = total === 0;
+    }
+    if (ui.phaseFrameLabel) {
+      ui.phaseFrameLabel.textContent = total ? `${cursor + 1}/${total}` : '0/0';
+    }
+    if (ui.phasePlay) {
+      ui.phasePlay.textContent = state.phasePlaying ? '暂停' : '播放';
+    }
+  }
+
+  function setPhaseIndex(index) {
+    const total = phaseFrameCount();
+    if (!total) return;
+    state.phaseIndex = clamp(Math.round(Number(index) || 0), 0, total - 1);
+    drawPhase();
+  }
+
+  function stopPhasePlay() {
+    state.phasePlaying = false;
+    if (state.phasePlayTimer) {
+      clearInterval(state.phasePlayTimer);
+      state.phasePlayTimer = 0;
+    }
+    syncPhaseControls();
+  }
+
+  function togglePhasePlay() {
+    if (state.phasePlaying) {
+      stopPhasePlay();
+      return;
+    }
+    if (phaseFrameCount() < 2) return;
+    state.phasePlaying = true;
+    if (state.phaseIndex == null) state.phaseIndex = phaseFrameCount() - 1;
+    state.phasePlayTimer = setInterval(() => {
+      const total = phaseFrameCount();
+      if (!total) {
+        stopPhasePlay();
+        return;
+      }
+      let next = (state.phaseIndex == null ? total - 1 : state.phaseIndex) + 1;
+      if (next >= total) {
+        if (!state.phaseLoop) {
+          stopPhasePlay();
+          return;
+        }
+        next = 0;
+      }
+      state.phaseIndex = next;
+      drawPhase();
+    }, 90);
+    syncPhaseControls();
   }
 
   // ---------------- 仪器面板（R23 / D47，P7-04） ----------------
@@ -9798,27 +9975,44 @@
       close();
       void control('toggle', undefined, { skipWarn: true });
     };
-    card.querySelector('#runWarnPre').onclick = () => {
+    card.querySelector('#runWarnPre').onclick = async () => {
       const seconds = Math.max(1, Math.min(120, Math.round(Number(sec.value) || 5)));
       if (card.querySelector('#runWarnNever').checked) void setPref('runWarn', false);
       const btn = card.querySelector('#runWarnPre');
       btn.disabled = true; btn.textContent = '预计算中…'; info.textContent = `正在计算 0→${seconds}s…`;
-      fetch('/api/plotkit/precompute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seconds }) })
-        .then((r) => r.json()).catch(() => null).then((pre) => {
-          btn.disabled = false; btn.textContent = '预计算并接入';
-          if (!pre || pre.ok === false) {
-            info.textContent = '预计算失败：' + ((pre && pre.error) || '未知错误') + '，可直接运行或缩小时间窗重试。';
-            return;
-          }
-          state.precomputedSeconds = seconds;
-          state.precomputedRevision = state.scene?.revision ?? null;
-          info.textContent = `完成：${seconds}s / ${pre.frames ?? '?'} 帧 / ${Math.round(pre.elapsed_ms || 0)} ms`;
-          toast(`预计算完成：${pre.frames ?? '?'} 帧，去「绘图」页勾选探针后点「接入」`, 'ok', 4200);
-          close();
-          const tab = document.querySelector('[data-sub="plotkit"]');
-          if (tab) tab.click();
-          setTimeout(() => refreshPkChannels(true), 400);
+      try {
+        const pre = await api('/api/plotkit/precompute', {
+          method: 'POST',
+          body: JSON.stringify({ seconds }),
         });
+        if (!pre || pre.ok === false) {
+          info.textContent = '预计算失败：' + ((pre && pre.error) || '未知错误') + '，可直接运行或缩小时间窗重试。';
+          return;
+        }
+        state.precomputedSeconds = seconds;
+        state.precomputedRevision = state.scene?.revision ?? null;
+        // 2026-11-03：预计算现在按当前仿真 dt 采样，只有超过步数上限才会降级；
+        // 降级必须说清楚，否则用户会以为「调高精度没生效」。
+        const preNote = pre.degraded
+          ? `（步长受 20 万步上限限制：请求 ${Number(pre.requested_dt).toExponential(1)}s，实际 ${Number(pre.dt_used).toExponential(1)}s）`
+          : '';
+        info.textContent = `完成：${seconds}s / ${pre.frames ?? '?'} 帧 / ${Math.round(pre.elapsed_ms || 0)} ms${preNote}`;
+        toast(
+          pre.degraded
+            ? `预计算完成但已降级步长（${Number(pre.dt_used).toExponential(1)}s）：${pre.frames ?? '?'} 帧，缩小时间窗可提高精度`
+            : `预计算完成：${pre.frames ?? '?'} 帧，去「绘图」页勾选探针后点「接入」`,
+          pre.degraded ? 'warn' : 'ok',
+          pre.degraded ? 5200 : 4200,
+        );
+        close();
+        const tab = document.querySelector('[data-sub="plotkit"]');
+        if (tab) tab.click();
+        setTimeout(() => refreshPkChannels(true), 400);
+      } catch (error) {
+        info.textContent = `预计算失败：${error.message || '请求失败'}；可直接运行或检查桌面会话。`;
+      } finally {
+        btn.disabled = false; btn.textContent = '预计算并接入';
+      }
     };
     sec.focus();
   }
@@ -10990,12 +11184,331 @@
     );
   }
 
-  async function exportAnalysisCsv() {
-    const name = window.prompt('CSV 文件名（写入 exports/，同名自动加序号）', 'analysis');
+  function fmtComplex(value) {
+    const real = Number(value?.real ?? value?.re ?? 0);
+    const imag = Number(value?.imag ?? value?.im ?? 0);
+    if (!Number.isFinite(real) || !Number.isFinite(imag)) return '—';
+    if (Math.abs(imag) < 1e-9) return fmt(real, 4);
+    const sign = imag < 0 ? '−' : '+';
+    return `${fmt(real, 4)} ${sign} ${fmt(Math.abs(imag), 4)}j`;
+  }
+
+  function analysisTFSummary(data) {
+    const step = data.step || {};
+    const metrics = step.metrics || {};
+    const stability =
+      { stable: '稳定', marginal: '临界稳定', unstable: '不稳定' }[data.stability] || data.stability || '未知';
+    const lines = [
+      `G(s) = ${data.expression}`,
+      `阶数 ${data.order}，相对阶 ${data.relative_order}`,
+      `极点：${(data.poles || []).map(fmtComplex).join(', ') || '无'}`,
+      `零点：${(data.zeros || []).map(fmtComplex).join(', ') || '无'}`,
+      `DC 增益：${data.dc_gain_finite ? fmt(data.dc_gain, 5) : '∞（含积分环节）'}`,
+      `稳定性：${stability}`,
+    ];
+    if (metrics.final !== null && metrics.final !== undefined) {
+      lines.push(
+        `阶跃：终值 ${fmt(metrics.final, 5)}，超调 ${fmt(metrics.overshoot_pct, 2)}%，上升 ${fmt(metrics.rise_time, 3)} s，调节 ${fmt(metrics.settling_time, 3)} s，稳态误差 ${fmt(metrics.steady_state_error, 4)}`,
+      );
+    } else if (step.stable === false) {
+      lines.push('阶跃：系统不稳定，时域指标不适用');
+    }
+    for (const item of data.assumptions || []) lines.push(`假设：${item}`);
+    return lines.join('\n');
+  }
+
+  async function runAnalysisTF() {
+    const node = $('#analysisTFNode')?.value?.trim() || '';
+    const expr = $('#analysisTFExpr')?.value?.trim() || '';
+    if (!node && !expr) return toast('选择传递函数节点或输入 s 域表达式', 'info', 2400);
+    const out = $('#analysisTFOut');
+    if (out) out.textContent = '分析中…';
+    try {
+      const response = await jsonRequest('/api/analysis/tf', 'POST', {
+        node: node || null,
+        expr: node ? null : expr,
+        points: 240,
+      });
+      state.analysisTF = response;
+      if (out) out.textContent = analysisTFSummary(response);
+      drawAnalysisTF();
+    } catch (error) {
+      state.analysisTF = null;
+      const text = `传递函数分析：失败\n原因：${error?.message || error}`;
+      if (out) out.textContent = text;
+      drawAnalysisTF();
+    }
+  }
+
+  function drawAnalysisTF() {
+    const canvas = $('#analysisTFChart');
+    const data = state.analysisTF;
+    if (!canvas || !data) return;
+    const dpr = window.devicePixelRatio || 1;
+    const width = canvas.clientWidth || 360;
+    const height = canvas.clientHeight || 210;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    const view = $('#analysisTFView')?.value || 'bode';
+    if (view === 'step') drawTFStep(ctx, data, width, height);
+    else if (view === 'poles') drawTFPoles(ctx, data, width, height);
+    else drawTFBode(ctx, data, width, height);
+  }
+
+  function tfRange(values) {
+    const finite = values.filter((value) => Number.isFinite(value));
+    if (!finite.length) return [0, 1];
+    let low = Math.min(...finite);
+    let high = Math.max(...finite);
+    if (high - low < 1e-9) {
+      low -= 1;
+      high += 1;
+    }
+    const pad = (high - low) * 0.1;
+    return [low - pad, high + pad];
+  }
+
+  function drawTFBode(ctx, data, width, height) {
+    const bode = data.bode || {};
+    const omega = (bode.omega || []).map(Number);
+    const magnitude = (bode.magnitude_db || []).map(Number);
+    const phase = (bode.phase_deg || []).map(Number);
+    if (omega.length < 2 || !magnitude.some(Number.isFinite)) return;
+    const left = 44;
+    const right = 10;
+    const top = 12;
+    const bottom = 20;
+    const gap = 16;
+    const plotWidth = Math.max(24, width - left - right);
+    const plotHeight = Math.max(28, (height - top - bottom - gap) / 2);
+    const phaseTop = top + plotHeight + gap;
+    const logMin = Math.log10(Math.max(omega[0], 1e-9));
+    const logMax = Math.log10(Math.max(omega[omega.length - 1], 1e-8));
+    const logSpan = Math.max(logMax - logMin, 1e-9);
+    const xAt = (index) => left + plotWidth * ((Math.log10(Math.max(omega[index], 1e-9)) - logMin) / logSpan);
+    const grid = 'rgba(104, 94, 78, 0.18)';
+    const axis = 'rgba(104, 94, 78, 0.42)';
+    ctx.font = '9px "Cascadia Code", Consolas, monospace';
+
+    const panel = (base, values, color, unit) => {
+      const [low, high] = tfRange(values);
+      ctx.strokeStyle = grid;
+      ctx.fillStyle = C('#7b7266');
+      ctx.textAlign = 'right';
+      for (let index = 0; index <= 3; index += 1) {
+        const y = base + (plotHeight * index) / 3;
+        ctx.beginPath();
+        ctx.moveTo(left, y);
+        ctx.lineTo(left + plotWidth, y);
+        ctx.stroke();
+        ctx.fillText(fmt(high - ((high - low) * index) / 3, 2), left - 4, y + 3);
+      }
+      ctx.textAlign = 'left';
+      ctx.fillText(unit, 3, base + 8);
+      ctx.strokeStyle = axis;
+      ctx.beginPath();
+      ctx.moveTo(left, base + plotHeight + 0.5);
+      ctx.lineTo(left + plotWidth, base + plotHeight + 0.5);
+      ctx.stroke();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      let started = false;
+      for (let index = 0; index < Math.min(omega.length, values.length); index += 1) {
+        const value = values[index];
+        if (!Number.isFinite(value)) {
+          started = false;
+          continue;
+        }
+        const x = xAt(index);
+        const y = base + plotHeight * (1 - (value - low) / Math.max(high - low, 1e-9));
+        if (!started) {
+          ctx.moveTo(x, y);
+          started = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+    };
+
+    panel(top, magnitude, C('#a8541f'), 'dB');
+    panel(phaseTop, phase, C('#3f6f8f'), 'deg');
+
+    ctx.strokeStyle = grid;
+    ctx.fillStyle = C('#7b7266');
+    ctx.textAlign = 'center';
+    let decades = 0;
+    for (let exponent = Math.ceil(logMin); exponent <= Math.floor(logMax); exponent += 1) {
+      const x = left + plotWidth * ((exponent - logMin) / logSpan);
+      ctx.beginPath();
+      ctx.moveTo(x, top);
+      ctx.lineTo(x, phaseTop + plotHeight);
+      ctx.stroke();
+      ctx.fillText(`10^${exponent}`, x, height - 5);
+      decades += 1;
+    }
+    if (!decades) {
+      ctx.textAlign = 'left';
+      ctx.fillText(fmt(omega[0], 2), left, height - 5);
+      ctx.textAlign = 'right';
+      ctx.fillText(fmt(omega[omega.length - 1], 2), left + plotWidth, height - 5);
+    }
+    ctx.textAlign = 'left';
+    ctx.fillStyle = C('#7b7266');
+    ctx.fillText('rad/s', left + plotWidth - 34, height - 5);
+  }
+
+  function drawTFStep(ctx, data, width, height) {
+    const step = data.step || {};
+    const time = (step.t || []).map(Number);
+    const values = (step.y || []).map(Number);
+    if (time.length < 2 || !values.some(Number.isFinite)) return;
+    const left = 46;
+    const right = 10;
+    const top = 12;
+    const bottom = 20;
+    const plotWidth = Math.max(24, width - left - right);
+    const plotHeight = Math.max(24, height - top - bottom);
+    const [low, high] = tfRange(values);
+    const xAt = (index) => left + plotWidth * ((time[index] - time[0]) / Math.max(time[time.length - 1] - time[0], 1e-9));
+    const yAt = (value) => top + plotHeight * (1 - (value - low) / Math.max(high - low, 1e-9));
+    const grid = 'rgba(104, 94, 78, 0.18)';
+    const axis = 'rgba(104, 94, 78, 0.42)';
+    ctx.font = '9px "Cascadia Code", Consolas, monospace';
+    ctx.strokeStyle = grid;
+    ctx.fillStyle = C('#7b7266');
+    ctx.textAlign = 'right';
+    for (let index = 0; index <= 3; index += 1) {
+      const y = top + (plotHeight * index) / 3;
+      ctx.beginPath();
+      ctx.moveTo(left, y);
+      ctx.lineTo(left + plotWidth, y);
+      ctx.stroke();
+      ctx.fillText(fmt(high - ((high - low) * index) / 3, 3), left - 4, y + 3);
+    }
+    ctx.strokeStyle = axis;
+    ctx.beginPath();
+    ctx.moveTo(left, top + plotHeight + 0.5);
+    ctx.lineTo(left + plotWidth, top + plotHeight + 0.5);
+    ctx.stroke();
+    const metrics = step.metrics || {};
+    if (Number.isFinite(metrics.final)) {
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = 'rgba(63, 111, 143, 0.55)';
+      ctx.beginPath();
+      ctx.moveTo(left, yAt(metrics.final));
+      ctx.lineTo(left + plotWidth, yAt(metrics.final));
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.strokeStyle = C('#a8541f');
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    let started = false;
+    for (let index = 0; index < Math.min(time.length, values.length); index += 1) {
+      const value = values[index];
+      if (!Number.isFinite(value)) {
+        started = false;
+        continue;
+      }
+      const x = xAt(index);
+      const y = yAt(value);
+      if (!started) {
+        ctx.moveTo(x, y);
+        started = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+    ctx.fillStyle = C('#7b7266');
+    ctx.textAlign = 'left';
+    ctx.fillText('0 s', left, height - 5);
+    ctx.textAlign = 'right';
+    ctx.fillText(`${fmt(time[time.length - 1], 3)} s`, left + plotWidth, height - 5);
+  }
+
+  function drawTFPoles(ctx, data, width, height) {
+    const poles = data.poles || [];
+    const zeros = data.zeros || [];
+    const left = 18;
+    const right = 10;
+    const top = 12;
+    const bottom = 18;
+    const plotWidth = Math.max(24, width - left - right);
+    const plotHeight = Math.max(24, height - top - bottom);
+    const all = [...poles, ...zeros];
+    let extent = 1;
+    for (const point of all) {
+      extent = Math.max(extent, Math.abs(Number(point.real) || 0), Math.abs(Number(point.imag) || 0));
+    }
+    extent *= 1.15;
+    const cx = left + plotWidth / 2;
+    const cy = top + plotHeight / 2;
+    const scale = Math.min(plotWidth / (2 * extent), plotHeight / (2 * extent));
+    const xAt = (real) => cx + real * scale;
+    const yAt = (imag) => cy - imag * scale;
+    ctx.fillStyle = 'rgba(63, 111, 143, 0.08)';
+    ctx.fillRect(left, top, plotWidth / 2, plotHeight);
+    const grid = 'rgba(104, 94, 78, 0.18)';
+    const axis = 'rgba(104, 94, 78, 0.5)';
+    ctx.strokeStyle = grid;
+    ctx.beginPath();
+    ctx.moveTo(cx, top);
+    ctx.lineTo(cx, top + plotHeight);
+    ctx.moveTo(left, cy);
+    ctx.lineTo(left + plotWidth, cy);
+    ctx.stroke();
+    ctx.strokeStyle = axis;
+    ctx.beginPath();
+    ctx.moveTo(cx, top);
+    ctx.lineTo(cx, top + plotHeight);
+    ctx.moveTo(left, cy);
+    ctx.lineTo(left + plotWidth, cy);
+    ctx.stroke();
+    ctx.font = '9px "Cascadia Code", Consolas, monospace';
+    ctx.fillStyle = C('#7b7266');
+    ctx.textAlign = 'center';
+    ctx.fillText('Re', left + plotWidth - 10, cy - 4);
+    ctx.textAlign = 'left';
+    ctx.fillText('Im', cx + 4, top + 8);
+    for (const point of zeros) {
+      const x = xAt(Number(point.real) || 0);
+      const y = yAt(Number(point.imag) || 0);
+      ctx.strokeStyle = C('#3f6f8f');
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    for (const point of poles) {
+      const x = xAt(Number(point.real) || 0);
+      const y = yAt(Number(point.imag) || 0);
+      ctx.strokeStyle = C('#a8541f');
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(x - 4, y - 4);
+      ctx.lineTo(x + 4, y + 4);
+      ctx.moveTo(x + 4, y - 4);
+      ctx.lineTo(x - 4, y + 4);
+      ctx.stroke();
+    }
+    ctx.fillStyle = C('#7b7266');
+    ctx.textAlign = 'left';
+    ctx.fillText('× 极点   ○ 零点', left + 2, top + 9);
+  }
+
+  async function exportAnalysisCsv(keys = null, defaultName = 'analysis') {
+    const name = window.prompt('CSV 文件名（写入 exports/，同名自动加序号）', defaultName);
     if (name === null) return;
     const key = analysisSignalKey();
+    const wanted = Array.isArray(keys) && keys.length ? keys : (key ? [key] : null);
     const response = await task(() =>
-      jsonRequest('/api/analysis/export', 'POST', { name: name || 'analysis', keys: key ? [key] : null, decimate: 1 }),
+      jsonRequest('/api/analysis/export', 'POST', { name: name || defaultName, keys: wanted, decimate: 1 }),
     );
     if (!response) return;
     setAnalysisOutput(`已导出 ${response.rows} 行 → ${response.path}\n列：${(response.columns || []).join(', ')}`);
@@ -11087,6 +11600,63 @@
     transferRow.append(el('label', null, '传递函数'), inputNode, outputNode, button('推导', 'btn tiny', () => void runAnalysisTransfer()));
     host.appendChild(transferRow);
 
+    const tfSection = div('insp-section');
+    tfSection.appendChild(el('h3', null, '传递函数分析（s 域）'));
+    const tfNodes = (state.scene?.nodes || []).filter((node) => node.kind === 'transfer_function');
+    const tfNode = el('select', 'input');
+    tfNode.id = 'analysisTFNode';
+    const tfDirect = el('option', null, '（用表达式）');
+    tfDirect.value = '';
+    tfNode.appendChild(tfDirect);
+    for (const node of tfNodes) {
+      const option = el('option', null, node.name);
+      option.value = node.name;
+      tfNode.appendChild(option);
+    }
+    const tfExpr = el('input', 'input');
+    tfExpr.id = 'analysisTFExpr';
+    tfExpr.placeholder = '如 (2*s+1)/(s^2+3*s+2)';
+    tfExpr.value = '1/(s+1)';
+    tfNode.addEventListener('change', () => {
+      tfExpr.disabled = Boolean(tfNode.value);
+    });
+    const tfRow = div('field-row');
+    tfRow.append(el('label', null, '节点 / 表达式'), tfNode, tfExpr);
+    tfSection.appendChild(tfRow);
+
+    const tfView = el('select', 'input');
+    tfView.id = 'analysisTFView';
+    for (const [value, label] of [
+      ['bode', 'Bode 图'],
+      ['step', '阶跃响应'],
+      ['poles', '零极点图'],
+    ]) {
+      const option = el('option', null, label);
+      option.value = value;
+      tfView.appendChild(option);
+    }
+    tfView.addEventListener('change', () => drawAnalysisTF());
+    const tfTools = div('field-row');
+    tfTools.append(
+      button('分析', 'btn tiny primary', () => void runAnalysisTF()),
+      el('label', null, '视图'),
+      tfView,
+    );
+    tfSection.appendChild(tfTools);
+
+    const tfCanvas = el('canvas', 'analysis-chart');
+    tfCanvas.id = 'analysisTFChart';
+    tfCanvas.style.height = '210px';
+    tfSection.appendChild(tfCanvas);
+
+    const tfOut = el('pre', 'analysis-out');
+    tfOut.id = 'analysisTFOut';
+    tfOut.textContent = state.analysisTF
+      ? analysisTFSummary(state.analysisTF)
+      : '选传递函数节点或直接写 s 表达式，点「分析」得到 Bode / 阶跃 / 零极点。';
+    tfSection.appendChild(tfOut);
+    host.appendChild(tfSection);
+
     const out = el('pre', 'analysis-out');
     out.id = 'analysisOut';
     out.textContent = state.analysisLast || '选信号后运行指标/频谱/周期/数学形式；传递函数填节点名。';
@@ -11121,6 +11691,7 @@
 
     pane.replaceChildren(host);
     if (state.analysisSpectrum) drawAnalysisSpectrum();
+    if (state.analysisTF) drawAnalysisTF();
   }
 
   function renderBlocksPanel() {
@@ -11478,6 +12049,8 @@
     if (ui.vectorNode) {
       ui.vectorNode.addEventListener('change', () => {
         state.phaseNode = ui.vectorNode.value;
+        state.phaseIndex = null;
+        stopPhasePlay();
         drawPhase();
       });
     }
@@ -11488,6 +12061,39 @@
         state.phaseTrail = clamp(Math.round(value), 20, 1200);
         ui.vectorTrail.value = String(state.phaseTrail);
         drawPhase();
+      });
+    }
+    if (ui.phasePlay) {
+      ui.phasePlay.addEventListener('click', togglePhasePlay);
+    }
+    if (ui.phaseStep) {
+      ui.phaseStep.addEventListener('click', () => {
+        const total = phaseFrameCount();
+        if (!total) return;
+        stopPhasePlay();
+        const current = state.phaseIndex == null ? total - 1 : state.phaseIndex;
+        setPhaseIndex(current + 1 >= total ? 0 : current + 1);
+      });
+    }
+    if (ui.phaseLoop) {
+      ui.phaseLoop.addEventListener('change', () => {
+        state.phaseLoop = Boolean(ui.phaseLoop.checked);
+      });
+    }
+    if (ui.phaseExport) {
+      ui.phaseExport.addEventListener('click', () => {
+        const node = (state.scene?.nodes || []).find((item) => item.name === state.phaseNode);
+        const stateKeys = node ? phaseStateKeys(node) : [];
+        const keys = stateKeys.length >= 2
+          ? stateKeys.slice(0, 2)
+          : (node ? [`n:${node.name}:x`, `n:${node.name}:y`] : null);
+        void exportAnalysisCsv(keys, 'phase');
+      });
+    }
+    if (ui.phaseFrame) {
+      ui.phaseFrame.addEventListener('input', () => {
+        stopPhasePlay();
+        setPhaseIndex(Number(ui.phaseFrame.value));
       });
     }
     femCanvas.addEventListener('pointermove', (event) => {
@@ -12264,7 +12870,7 @@
   function ensurePlotkitFrame() {
     const frame = $('#plotkitFrame');
     if (frame && !plotkitReady) {
-      frame.src = '/plotkit/?embed=1';
+      frame.src = plotkitFrameUrl({ embed: '1' });
       plotkitReady = true;
     }
     return frame;
@@ -12294,7 +12900,7 @@
       if (floatBody) floatBody.appendChild(frame);
       openPlotkit();
     } else if (mode === 'popup') {
-      const url = '/plotkit/?embed=1';
+      const url = plotkitFrameUrl({ embed: '1' });
       const popup = window.open(url, 'netlab-plotkit', 'width=1180,height=820');
       if (popup) {
         toast('已在独立窗口打开绘图', 'ok', 2400);
@@ -13014,23 +13620,37 @@
     if (count) count.textContent = String(pkChannelCache.length);
   }
 
-  function refreshPkChannels(keepSelection) {
-    fetch('/api/plotkit/channels').then((r) => r.json()).then((data) => {
-      const hint = $('#pkDataHint');
+  function showPkChannelLoadError(message) {
+    const hint = $('#pkDataHint');
+    const box = $('#pkChannelList');
+    const text = message || '请求失败';
+    if (hint) hint.textContent = `数据刷新失败：${text}；现有通道列表未清除，可点击「重试」。`;
+    if (pkChannelCache.length || !box) return;
+    box.textContent = '';
+    const empty = document.createElement('span');
+    empty.className = 'pk-empty';
+    empty.textContent = `探针列表加载失败：${text}`;
+    box.appendChild(empty);
+  }
+
+  async function refreshPkChannels(keepSelection) {
+    const hint = $('#pkDataHint');
+    try {
+      const data = await api('/api/plotkit/channels');
       const avail = (data && data.available) || [];
       const registered = (data && data.channels) || [];
       if (data && data.build && data.build !== UI_BUILD) {
         pkChannelCache = avail;
         renderPkChannels([]);
         if (hint) hint.textContent = `服务端进程还是旧版本（后端 ${data.build} / 界面 ${UI_BUILD}）——请完全退出应用后重新启动；只关闭窗口可能残留旧进程。`;
-        return;
+        return false;
       }
       if (!data || !data.mounted) {
         pkChannelCache = avail;
         renderPkChannels([]);
         const why = (data && data.diag && data.diag.last_error) || '找不到 plotkit 包';
         if (hint) hint.textContent = `PlotKit 未挂载：${why}`;
-        return;
+        return false;
       }
       // 优先列「场景里的探针」（不运行也能选），已登记的也算
       pkChannelCache = avail.length ? avail : registered;
@@ -13040,66 +13660,93 @@
           ? `场景共 ${avail.length} 条探针，已登记 ${registered.length} 条，当前画 ${(data.selected || []).length} 条；勾选后点「接入」。`
           : '当前场景没有探针：先放探针节点或打开带探针的工程。';
       }
-    }).catch(() => {});
+      return true;
+    } catch (error) {
+      showPkChannelLoadError(error.message);
+      return false;
+    }
   }
 
-  function retryPlotkit() {
+  async function retryPlotkit() {
     const hint = $('#pkDataHint');
     if (hint) hint.textContent = '正在重新检测 PlotKit…';
-    fetch('/api/plotkit/channels').then((r) => r.json()).then((data) => {
+    try {
+      const data = await api('/api/plotkit/channels');
       if (data && data.mounted) {
         reloadPlotkitFrame();
-        refreshPkChannels(true);
+        const refreshed = await refreshPkChannels(true);
+        if (!refreshed) {
+          toast('通道刷新失败，请查看提示', 'warn', 4000);
+          return;
+        }
         toast('PlotKit 已就绪', 'info', 1800);
       } else {
         const why = (data && data.diag && data.diag.last_error) || '未知原因';
         if (hint) hint.textContent = `仍然未挂载：${why}`;
         toast('PlotKit 仍未挂载，请看提示', 'warn', 4000);
       }
-    }).catch(() => {});
+    } catch (error) {
+      showPkChannelLoadError(error.message);
+      toast('重新检测失败，请查看提示', 'warn', 4000);
+    }
   }
 
   function reloadPlotkitFrame() {
     const frame = $('#plotkitFrame');
-    if (frame) frame.src = '/plotkit/?embed=1&r=' + Date.now();
+    if (frame) frame.src = plotkitFrameUrl({ embed: '1', r: String(Date.now()) });
   }
 
-  function applyPkChannels() {
+  async function applyPkChannels() {
     const keys = pkCheckedKeys();
     const hint = $('#pkDataHint');
     const applyBtn = $('#pkChApply');
-    // 接入前先强制预计算：把 0→T 的整段数据算完再登记，避免边跑边画导致的卡顿
     const seconds = Math.max(1, Math.min(120, Number(state.chart && state.chart.window) || 5));
-    if (hint) hint.textContent = `正在预计算 0→${seconds}s 的数据…`;
     if (applyBtn) applyBtn.disabled = true;
-    fetch('/api/plotkit/precompute', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ seconds }),
-    }).then((r) => r.json()).catch(() => null).then((pre) => {
-      if (applyBtn) applyBtn.disabled = false;
-      if (pre && pre.ok === false) {
-        toast('预计算失败：' + (pre.error || '未知错误'), 'warn', 4000);
-        if (hint) hint.textContent = '预计算失败，可重试或检查场景。';
-        return null;
-      }
-      if (pre && pre.elapsed_ms) {
-        if (hint) hint.textContent = `预计算完成：${seconds}s / ${pre.frames ?? pre.frames_recorded ?? '?'} 帧 / ${Math.round(pre.elapsed_ms)} ms`;
-      }
-      return fetch('/api/plotkit/channels', {
+    try {
+      // 先登记选中通道，再预计算：桥的同步线程可能在预计算期间就消费帧，顺序反过来
+      // 会让旧选择吃掉整段预计算，新选中的通道则永远停在 NaN（2026-11-03 修复）。
+      if (hint) hint.textContent = '正在登记选中通道…';
+      const data = await api('/api/plotkit/channels', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keys }),
       });
-    }).then((res) => {
-      if (!res) return;
-      return res.json().then((data) => {
-        if (!data || !data.ok) { toast('接入失败：PlotKit 未就绪', 'warn', 3000); return; }
-        toast(`已接入 ${(data.selected || []).length} 条通道`, 'ok', 2600);
-        reloadPlotkitFrame();
-        refreshPkChannels();
+      if (!data || !data.ok) {
+        const message = (data && data.error) || (data && data.mounted === false ? 'PlotKit 未挂载' : '未知原因');
+        if (hint) hint.textContent = `接入失败：${message}`;
+        toast(`接入失败：${message}`, 'warn', 4000);
+        return;
+      }
+      // 接入前先强制预计算：把 0→T 的整段数据算完再登记，避免边跑边画导致的卡顿
+      if (hint) hint.textContent = `正在预计算 0→${seconds}s 的数据…`;
+      const pre = await api('/api/plotkit/precompute', {
+        method: 'POST',
+        body: JSON.stringify({ seconds }),
       });
-    }).catch(() => toast('接入失败', 'warn', 2600));
+      if (pre && pre.ok === false) {
+        toast('预计算失败：' + (pre.error || '未知错误'), 'warn', 4000);
+        if (hint) hint.textContent = `预计算失败：${pre.error || '未知错误'}；可重试或检查场景。`;
+        return;
+      }
+      if (pre && pre.elapsed_ms) {
+        // 2026-11-03：降级（步数超上限）要说清楚，否则看起来像「提高精度没生效」。
+        const degradedNote = pre.degraded
+          ? `；步长已降级为 ${Number(pre.dt_used).toExponential(1)}s（请求 ${Number(pre.requested_dt).toExponential(1)}s，受 20 万步上限限制）`
+          : '';
+        if (hint) hint.textContent = `预计算完成：${seconds}s / ${pre.frames ?? pre.frames_recorded ?? '?'} 帧 / ${Math.round(pre.elapsed_ms)} ms${degradedNote}`;
+        if (pre.degraded) {
+          toast(`预计算已降级步长 ${Number(pre.dt_used).toExponential(1)}s，缩小时间窗可提高精度`, 'warn', 5200);
+        }
+      }
+      toast(`已接入 ${(data.selected || []).length} 条通道`, 'ok', 2600);
+      reloadPlotkitFrame();
+      await refreshPkChannels();
+    } catch (error) {
+      const message = error.message || '请求失败';
+      if (hint) hint.textContent = `接入失败：${message}`;
+      toast(`接入失败：${message}`, 'warn', 4000);
+    } finally {
+      if (applyBtn) applyBtn.disabled = false;
+    }
   }
 
   function pkKeysForSelectedNode() {
@@ -13421,7 +14068,7 @@
     const body = document.getElementById('cacheBody');
     if (!body) return;
     body.textContent = '正在扫描…';
-    fetch('/api/cache/status').then((r) => r.json()).then((data) => {
+    api('/api/cache/status').then((data) => {
       body.textContent = '';
       const entries = (data.entries || []).filter((e) => e.exists);
       if (!entries.length) {
@@ -13461,27 +14108,32 @@
       body.appendChild(total);
       const msg = document.getElementById('cacheMsg');
       if (msg) msg.textContent = '只清理可再生成的缓存；工程、自动保存、导出的图都不会被删。';
-    }).catch(() => { body.textContent = '扫描失败：后端未响应。'; });
+    }).catch((error) => {
+      body.textContent = `扫描失败：${error?.message || error}`;
+      const msg = document.getElementById('cacheMsg');
+      if (msg) msg.textContent = '缓存状态读取失败，请检查桌面会话或后端连接。';
+    });
   }
 
   function cleanCache(withCaution) {
     const msg = document.getElementById('cacheMsg');
     if (withCaution && !window.confirm('谨慎档会删掉浏览器用户数据（面板宽度等界面偏好会重置）。继续？')) return;
     if (msg) msg.textContent = '正在清理…';
-    fetch('/api/cache/clean', {
+    api('/api/cache/clean', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ dry_run: false, caution: !!withCaution }),
-    }).then((r) => r.json()).then((data) => {
+    }).then((data) => {
       const freed = cacheHuman(data.freed_bytes || 0);
       const skipped = (data.skipped || []).length;
       toast(`已清理 ${freed}${skipped ? `，${skipped} 项被跳过（占用/受保护）` : ''}`, 'info', 3200);
       renderCacheBody();
-    }).catch(() => { if (msg) msg.textContent = '清理失败：后端未响应。'; });
+    }).catch((error) => {
+      if (msg) msg.textContent = `清理失败：${error?.message || error}`;
+    });
   }
 
   function checkCacheQuietly() {
-    fetch('/api/cache/status').then((r) => r.json()).then((data) => {
+    api('/api/cache/status').then((data) => {
       const safe = (data.totals && data.totals.safe) || 0;
       if (safe > 300 * 1048576) {
         toast(`缓存已占 ${cacheHuman(safe)}，可在 工具 → 缓存体检与清理 里释放`, 'info', 6000);

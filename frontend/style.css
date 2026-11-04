@@ -2250,3 +2250,30 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ghost[disabled], .primary[disabled] { opacity: .45; transform: none; box-shadow: none; }
 html[data-motion="off"] button, html[data-motion="off"] .btn, html[data-motion="off"] .ghost, html[data-motion="off"] .primary { transition: none; }
 html[data-motion="off"] button:hover, html[data-motion="off"] .btn:hover { transform: none; box-shadow: none; }
+
+/* ---- 顶栏布局加固：窄窗口不换行、不重叠 ----
+   顶栏是一行 flex，且窗口右侧还有桌面壳追加的 #nlWinCtl。此前按钮与读数没有
+   nowrap/shrink 约束，整行被挤爆时“单步/重置/帮助/退出”会竖排换行，时间轴里的
+   “t x / y s”也会溢出并压到 LOCAL SESSION 上。
+   策略：除时间轴与 spacer 外一律不收缩；时间轴是唯一弹性项，窄窗口收起其数值文字。 */
+#topbar > * { flex-shrink: 0; }
+#topbar > .spacer { flex: 1 1 auto; }
+#topbar > .top-timeline { flex: 0 1 auto; }
+.btn { white-space: nowrap; }
+.readout, .session-meta { white-space: nowrap; }
+.top-timeline { min-width: 0; overflow: hidden; }
+.top-timeline input { min-width: 0; }
+.top-timeline span { flex: 0 0 auto; }
+#nlWinCtl { flex: 0 0 auto; }
+
+@media (max-width: 1440px) {
+  #topbar { gap: 14px; }
+}
+@media (max-width: 1180px) {
+  #topbar { gap: 9px; }
+  .top-timeline span { display: none; }   /* 窄窗口保留滑块，数值看左侧 t 读数 */
+  .top-timeline input { width: clamp(80px, 16vw, 180px); }
+}
+@media (max-width: 1040px) {
+  .readouts { display: none; }
+}

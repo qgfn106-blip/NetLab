@@ -76,21 +76,66 @@ def test_all_imports_use_canonical_core_paths():
     assert not offenders, "仍引用已删除的旧路径：\n" + "\n".join(offenders)
 
 
+def _outer_layer_imports(rel: Path, tree: ast.AST) -> list[str]:
+    """返回文件里所有 import 的全名（相对导入按所在包解析成 netlab.*）。"""
+    package = list(rel.with_suffix("").parts[:-1])   # 相对 netlab/ 的包路径
+    found = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            found.extend(alias.name for alias in node.names)
+            continue
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        if node.level == 0:
+            base = node.module or ""
+        else:
+            drop = node.level - 1
+            if drop > len(package):
+                continue
+            prefix = package[: len(package) - drop]
+            base = ".".join(prefix + ([node.module] if node.module else []))
+            base = f"netlab.{base}" if base else "netlab"
+        found.append(base)
+        # from pkg import name 里的 name 可能是子模块（如 from netlab import desktop）
+        found.extend(f"{base}.{alias.name}" for alias in node.names if base)
+    return found
+
+
+def _is_outer_layer(name: str) -> bool:
+    parts = name.split(".")
+    if parts[0] in {"server", "desktop"}:
+        return True
+    return parts[0] == "netlab" and len(parts) > 1 and parts[1] in {"server", "desktop"}
+
+
 def test_core_does_not_import_outer_layers():
-    """core 层不得 import server / desktop / frontend。"""
+    """core 层不得 import server / desktop / frontend（含相对导入与 netlab.* 形式）。"""
     offenders = []
     for path in (PKG / "core").rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        for node in ast.walk(tree):
-            names = []
-            if isinstance(node, ast.Import):
-                names = [a.name for a in node.names]
-            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-                names = [node.module]
-            for name in names:
-                if name.split(".")[0] in {"server", "desktop"} or name.startswith("netlab.server"):
-                    offenders.append(f"{path.relative_to(ROOT)}: {name}")
+        for name in _outer_layer_imports(path.relative_to(PKG), tree):
+            if _is_outer_layer(name):
+                offenders.append(f"{path.relative_to(ROOT)}: {name}")
     assert not offenders, "core 层出现了越界 import：" + "; ".join(offenders)
+
+
+@pytest.mark.parametrize(
+    ("rel", "source", "expected"),
+    [
+        ("core/demo.py", "from ..server import app\n", True),
+        ("core/demo.py", "from .. import desktop\n", True),
+        ("core/compute/demo.py", "from ...server.x import y\n", True),
+        ("core/compute/demo.py", "from ... import desktop\n", True),
+        ("core/demo.py", "from netlab.server import app\n", True),
+        ("core/demo.py", "from netlab import desktop\n", True),
+        ("core/demo.py", "from ..compute import simulation\n", False),
+        ("core/compute/demo.py", "from ..model import graph\n", False),
+    ],
+)
+def test_outer_layer_import_guard_detects_known_forms(rel, source, expected):
+    """护栏自测：相对导入/`netlab.*` 必须能被识别，合法的 core 内引用不得误报。"""
+    hits = [n for n in _outer_layer_imports(Path(rel), ast.parse(source)) if _is_outer_layer(n)]
+    assert bool(hits) is expected, hits
 
 
 def test_plotkit_bridge_mounts_route():

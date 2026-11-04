@@ -15,7 +15,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .blocks import BlockRuntime, BlockStore
-from ..compute.computes import compute_catalog, get_compute_spec, prepare_compute
+from ..compute.computes import (
+    compute_catalog,
+    get_compute_spec,
+    prepare_compute,
+    solver_traits,
+)
 from .graph import Network, Node
 from ..common.limits import (
     MAX_EDGES,
@@ -107,6 +112,8 @@ class EdgeRecord:
     params: dict[str, Any] = field(default_factory=dict)
     state: dict[str, Any] = field(default_factory=dict)
     delay: bool = False
+    #: 是否由 add_edge 的自动防代数环逻辑加上；只作运行期提示，不写入工程快照。
+    auto_delay: bool = False
     enabled: bool = True
     #: 连线几何（R09/D24）：路由方式、手动拐点（世界坐标）、两端锚点。
     route: str = "auto"
@@ -166,7 +173,9 @@ class _Engine:
 
 class SignalEngine(_Engine):
     def __init__(self, scene: "Scene") -> None:
-        self.network = Network()
+        self.network = Network(
+            solve_algebraic=bool(getattr(scene, "solve_algebraic", False))
+        )
         self.node_map: dict[str, Node] = {}
         self.edge_map: dict[str, Any] = {}
         self.scene = scene
@@ -180,6 +189,7 @@ class SignalEngine(_Engine):
                 raise ComputeError(
                     f"节点 {record.name!r} 的计算方式无法装配：{exc}"
                 ) from exc
+            traits = solver_traits(record.kind, params)
             node = Node(
                 name=record.name,
                 data=record.data,
@@ -189,6 +199,7 @@ class SignalEngine(_Engine):
                 inputs=record.inputs,
                 handler=handler,
                 trusted=not record.kind.startswith("user."),
+                **traits,
             )
             self.network.add_node(node)
             self.node_map[record.id] = node
@@ -212,6 +223,7 @@ class SignalEngine(_Engine):
                 self.node_map[record.target],
                 method,
                 delay=record.delay,
+                auto_delay=record.auto_delay,
                 enabled=record.enabled,
                 kind=record.kind,
                 state=record.state,
@@ -457,6 +469,27 @@ class SignalEngine(_Engine):
                 ):
                     values[f"e:{record.name}:{key}"] = float(value)
                     count += 1
+        # R36/P5：把节点内部状态暴露成相平面可选通道。状态空间用
+        # state:<node>:<index>，积分器/延迟等标量状态用 state:<node>:<key>。
+        for record in self.scene.nodes.values():
+            node = self.node_map.get(record.id)
+            if node is None:
+                continue
+            for key, value in node.state.items():
+                if isinstance(value, (list, tuple)):
+                    for index, item in enumerate(value):
+                        if (
+                            isinstance(item, (int, float))
+                            and not isinstance(item, bool)
+                            and math.isfinite(float(item))
+                        ):
+                            values[f"state:{record.name}:{index}"] = float(item)
+                elif (
+                    isinstance(value, (int, float))
+                    and not isinstance(value, bool)
+                    and math.isfinite(float(value))
+                ):
+                    values[f"state:{record.name}:{key}"] = float(value)
         return values
 
     def stats(self) -> dict[str, Any]:
@@ -780,6 +813,8 @@ class Scene:
         self.mode = mode
         self.integration = "trapezoidal"
         self.solver_options = None
+        #: R36/P2：信号流是否启用直接馈通 SCC 线性求解（默认关闭，保持旧行为）。
+        self.solve_algebraic = False
         self.nodes: dict[str, NodeRecord] = {}
         self.edges: dict[str, EdgeRecord] = {}
         # 功能块定义；BlockRuntime 的内部场景共享同一份定义表。
@@ -810,6 +845,11 @@ class Scene:
         """P0：更新求解器选项；下次 ensure_engine 时生效。"""
         self.solver_options = options
         self.revision += 1
+
+    def set_algebraic_solver(self, enabled: bool) -> None:
+        """R36/P2：开启/关闭信号流直接馈通 SCC 线性求解。"""
+        self.solve_algebraic = bool(enabled)
+        self._touch()
         self._dirty = True
 
     def capture_checkpoint(self) -> dict[str, Any]:
@@ -1532,6 +1572,7 @@ class Scene:
         )
         self._unique_edge_name(clean_name)
 
+        auto_delay_applied = False
         if self.mode == "circuit":
             if delay:
                 raise ValidationError("电路模式使用节点电压法求解，不支持延迟连接")
@@ -1539,8 +1580,12 @@ class Scene:
                 raise ValidationError("元件两端不能是同一个节点")
             delay = False
         elif not delay and self._would_cycle(source_id, target_id):
-            if auto_delay:
+            if getattr(self, "solve_algebraic", False):
+                # R36/P2：代数环交给 solver_plan/SCC 求解，不再自动改写为 z⁻¹。
+                pass
+            elif auto_delay:
                 delay = True
+                auto_delay_applied = True
             else:
                 raise ConflictError("这条连接会形成代数环，请改用单步延迟连接")
 
@@ -1561,6 +1606,7 @@ class Scene:
             params=params_clean,
             state={},
             delay=bool(delay),
+            auto_delay=auto_delay_applied,
             enabled=bool(enabled),
             route=self._edge_route(route),
             waypoints=self._edge_waypoints(waypoints),

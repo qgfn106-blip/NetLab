@@ -133,8 +133,9 @@ KNOWN_STYLE_KEYS = {
 KNOWN_FIGURE_KEYS = {
     "window",
     "size", "dpi", "ncols", "subplots", "theme", "title", "link_x",
-    "fonts", "shapes", "insets", "anim",
+    "fonts", "shapes", "insets", "anim", "layout", "notes",
 }
+NOTE_KINDS = {"text", "arrow", "region", "mark"}
 KNOWN_TOP_KEYS = {"spec_version", "figure", "layers"}
 ANNOTATION_TYPES = {"text", "hline", "vline", "band"}
 MODES = {"lines", "markers", "lines+markers", "bars"}
@@ -271,6 +272,85 @@ def validate_spec(
     window = fig.get("window")
     if window is not None and not (_is_number(window) and float(window) > 0):
         report.add("figure.window", "$.figure.window", "window 必须是正数（秒）或 null")
+
+    layout = fig.get("layout")
+    if layout is not None:
+        if not isinstance(layout, list):
+            report.add("figure.layout", "$.figure.layout", "layout 必须是 [{slot, rect}] 数组")
+        else:
+            seen_slots: set[int] = set()
+            for i, item in enumerate(layout):
+                path = f"$.figure.layout[{i}]"
+                if not isinstance(item, Mapping):
+                    report.add("figure.layout.item", path, "布局项必须是 {slot, rect} 对象")
+                    continue
+                slot = item.get("slot")
+                if not isinstance(slot, int) or isinstance(slot, bool) or slot < 0:
+                    report.add("figure.layout.slot", f"{path}.slot", "slot 必须是 >=0 的整数")
+                elif slot in seen_slots:
+                    report.add("figure.layout.duplicate", f"{path}.slot", f"slot 重复: {slot}")
+                else:
+                    seen_slots.add(slot)
+                rect = item.get("rect")
+                if (not isinstance(rect, (list, tuple)) or len(rect) != 4
+                        or not all(_is_number(v) for v in rect)):
+                    report.add("figure.layout.rect", f"{path}.rect", "rect 必须是 4 个数 [x, y, w, h]")
+                    continue
+                x, y, w, h = (float(v) for v in rect)
+                if w <= 0 or h <= 0:
+                    report.add("figure.layout.rect", f"{path}.rect", "rect 的宽高必须大于 0")
+                elif x < -0.5 or y < -0.5 or x + w > 1.5 or y + h > 1.5:
+                    report.add("figure.layout.rect", f"{path}.rect", "rect 超出画布太多（允许 -0.5…1.5 的出血）")
+
+    notes = fig.get("notes")
+    if notes is not None:
+        if not isinstance(notes, list):
+            report.add("figure.notes", "$.figure.notes", "notes 必须是批注数组")
+        else:
+            for i, note in enumerate(notes):
+                path = f"$.figure.notes[{i}]"
+                if not isinstance(note, Mapping):
+                    report.add("figure.notes.item", path, "批注必须是对象")
+                    continue
+                kind = note.get("kind")
+                if kind not in NOTE_KINDS:
+                    report.add("figure.notes.kind", f"{path}.kind",
+                               f"批注类型必须是 {'/'.join(sorted(NOTE_KINDS))}")
+                    continue
+                if "text" in note and not isinstance(note.get("text"), str):
+                    report.add("figure.notes.text", f"{path}.text", "text 必须是字符串")
+                size = note.get("size")
+                if size is not None and not (_is_number(size) and float(size) > 0):
+                    report.add("figure.notes.size", f"{path}.size", "size 必须是正数")
+
+                def _pair(key: str) -> tuple[float, float] | None:
+                    value = note.get(key)
+                    if (not isinstance(value, (list, tuple)) or len(value) != 2
+                            or not all(_is_number(v) for v in value)):
+                        report.add("figure.notes.point", f"{path}.{key}", f"{key} 必须是两个数 [x, y]")
+                        return None
+                    return float(value[0]), float(value[1])
+
+                if kind == "text":
+                    _pair("pos")
+                elif kind == "arrow":
+                    _pair("start")
+                    _pair("end")
+                elif kind == "region":
+                    rect = note.get("rect")
+                    if (not isinstance(rect, (list, tuple)) or len(rect) != 4
+                            or not all(_is_number(v) for v in rect)):
+                        report.add("figure.notes.rect", f"{path}.rect", "rect 必须是 4 个数 [x, y, w, h]")
+                    elif float(rect[2]) <= 0 or float(rect[3]) <= 0:
+                        report.add("figure.notes.rect", f"{path}.rect", "rect 的宽高必须大于 0")
+                elif kind == "mark":
+                    subplot = note.get("subplot", 0)
+                    if not isinstance(subplot, int) or isinstance(subplot, bool) or subplot < 0:
+                        report.add("figure.notes.subplot", f"{path}.subplot", "subplot 必须是 >=0 的整数")
+                    x = note.get("x")
+                    y = note.get("y")
+                    if not (_is_number(x) and _is_number(y)):
+                        report.add("figure.notes.point", f"{path}.x", "数据标注必须带数值 x / y")
 
     lay = spec.get("layers")
     if not isinstance(lay, list):

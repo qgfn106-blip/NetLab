@@ -1,6 +1,6 @@
 # Netlab 经验与踩坑手册（避免重复错误 / 少花 token）
 
-> 最后修改：2026-11-01 20:08
+> 最后修改：2026-11-05 02:05（新增末节「最终集成检查：z 域、API 契约与 dt 收敛」，沉淀 z 域边界、HTTP 契约与两档 dt 验收经验）
 > 用途：动手前先扫一遍相关小节；遇到同样的报错直接照「处理」执行，**不要再从头调试一遍**。
 > 每条都是实测过的现象；标 ⚠ 的是容易反复踩的坑。
 
@@ -69,7 +69,7 @@
 - **现象**：跑 `test_analysis.py` 或全量测试时 stderr 出现 `Windows fatal exception: code 0xc0000139`
   与 gmpy2 导入栈，但测试仍全绿（2026-10-26 实测）。
 - **原因**：本机 gmpy2 的 DLL 入口点问题，sympy 的 mpmath 后端触发；与项目代码无关（只跑 analysis 测试也复现）。
-- **处理**：不影响结果，不要为此改依赖；报告里说明"环境告警、非本次改动引入"即可。
+- **处理**：2026-11-04 已定位并消除——本机 gmpy2 的 DLL 入口缺失，`python -c "import gmpy2"` 直接失败；`python -m pip uninstall -y gmpy2` 后全量 497 passed、0 次异常。换机复现先单查 `import gmpy2`。（旧结论「不影响结果、不要改依赖」已修正。）
 
 ## 2. 测试与断言
 
@@ -573,3 +573,124 @@ window.dispatchEvent(new Event('netlab-desktop-ready'));
 - 稳妥做法是自绘：`pointerdown` 记 `screenX/screenY` 与窗口 rect，`pointermove` 调 `window_move_to(x0+dx, y0+dy)`，并用 `rAF` 合并；必须排除 `button/input/select/textarea/a/label/[role=tab]` 等交互控件，否则点按钮变成拖窗。
 - 页面垫片在 `DOMContentLoaded` 时 `window.pywebview` 往往还不存在，`window_rect()` 拿不到值；要监听 `pywebviewready`（以及 `pointerenter`）再刷新缓存。
 - `hidden=True` 的窗口里 `requestAnimationFrame` 不跑，用 rAF 合并的拖动在这种窗口上验证会"纹丝不动"——验证要用可见窗口。
+
+## PlotKit 桌面 token 误报「没有探针数据 / 未挂载」（2026-11-03，§7.48）
+
+**现象**：仿真已经跑起来、探针也有数据，绘图数据条仍显示「还没有探针数据」「PlotKit 未挂载：找不到 plotkit 包」，点刷新/重试/接入都没反应，且没有任何错误提示。
+
+**根因**：桌面模式的服务端 `desktop_token_guard`（`netlab/server.py:157-165`）对所有 `/api/` 要求 `X-Netlab-Token`；前端统一 helper `api(path, options)`（`frontend/app.js:512-551`）会自动附 token，但 PlotKit 数据条那段是独立写的原生 `fetch('/api/plotkit/channels')`，**既不带 token，又 `catch` 后静默**。于是 403 的 JSON 被当成「没有 mounted 字段」，一路降级成「未挂载 / 空数据」。数据管线本身没问题，是三层之间的契约缺口。
+
+**规则（后续 agent 直接照做）**：
+
+1. **前端一切 `/api/` 请求必须走 `api()` helper，禁止裸 `fetch('/api/...')`**。新建 PlotKit/面板类代码前先 `grep -n "fetch('/api" frontend/app.js`，命中就说明有绕过鉴权的入口。静态护栏：`netlab/tests/test_plotkit_frontend_auth.py` 断言不存在 `fetch('/api/plotkit/`。
+2. **错误 ≠ 空态**。加载失败（403/断网/5xx）与「真的没有探针」「真的没挂载」是三种状态，必须三种文案：失败显示「探针列表加载失败：<原因>」，并且**保留已有缓存列表**不清空；只有后端明确 `mounted:false` 才显示未挂载诊断。禁止 `catch(() => {})` 后继续走正常分支。
+3. **异步重试要返回布尔，不能靠"没抛异常"判断成功**。`refreshPkChannels()` 在「build 不一致 / 未挂载 / 异常」出口 `return false`，成功 `return true`；`retryPlotkit()` 必须 `if (!refreshed) { toast('通道刷新失败…'); return; }` 才提示「已就绪」。典型 bug：下层 catch 吞掉异常后正常返回，上层把 return 当业务成功，用户看到「已就绪」但界面没数据。
+4. **测试要能红**。只断言源码里有某个字符串（如「包含 api(」）挡不住回归：必须补真实 endpoint 测试（缺 token → 403，带 token → 200 且 `mounted/available` 非空，夹具用 `build_template('rlc_series')` 加载场景），并把「错误文案 vs 空态文案」写成断言。浏览器内运行时（token 是否真送出、缓存是否保留、按钮是否复位）目前仍是缺口，动这块时要补。
+5. **版本戳不是单一来源，改一处必须全改**：`frontend/app.js` 的 `UI_BUILD`、`netlab/server.py` 的 `APP_BUILD`、`frontend/index.html` 两处 `?v=`，另有 `netlab/server.py:401` 的 desktop-shim query（本次仍停在 3.16.5，属已知未收口的一致性风险）。`test_build_stamp_matches_index_version` 只校验 index 至少一处匹配，防不住漏升，改完自己 grep 全部版本号。
+6. **全量 pytest 退出期的 `Windows fatal exception: code 0xc0000139` 要如实报告**：413 passed、退出码 0，但 stderr 栈含 `netlab/plotkit_bridge.py:223 _sync_loop` 后台线程与 sympy/gmpy2 native import，多次重跑可复现，尚未定位。不要因为「测试全绿」就写「无异常」。
+7. **改结构化代码不要用极短 old_string**。本次往 `test_plotkit_frontend_auth.py` 插新测试时，拿另一个测试的 `def` 行当锚点，只换了签名，旧函数体留在新函数作用域，直接 `NameError: name 'monkeypatch' is not defined`。规则：锚点至少包含「签名 + 首行函数体」或整段；改完立刻读回函数边界（`def` 到下一个 `def`）再跑测试。
+8. **验收口径**：定向 14 passed（`test_plotkit_frontend_auth.py` + `test_plotkit_channels.py` + `test_run_warn.py`），全量 413 passed / 22.35s，`compileall` 与 `--selftest` 均退出 0；规格 `netlab/docs/specs/2026-11-03-plotkit-desktop-token.md`、PROGRESS §7.48、REQUIREMENTS §9 增量行同步。
+
+## s 域传递函数：解析与数值的四个坑（D90，2026-11-03）
+
+1. **表达式输出必须给分子也加括号**：`to_expression` 最初只包分母，`(2s+1)/(s^2+3s+2)` 会输出成 `2*s + 1/(s**2+3*s+2)`——数学含义完全变了。规则：分子/分母各自判断是否需要括号（多于一项就加），并用 `sympy.simplify(expr - 原式) == 0` 做回代校验。
+2. **非因果要在构造期拒绝，不要等到仿真**：`deg(num) > deg(den)` 没有物理实现，也不能转可控标准型。报「传递函数不是真有理式（分子阶数高于分母）」比让 `cont2discrete` 抛矩阵维数错更可诊断。
+3. **静态增益 `n=0` 单独走乘法**：`to_state_space()` 返回 `None`，节点直接 `gain * u`。硬塞 0 维状态空间会在 `StateSpaceModel` 的维数校验/缓存键上触发边界问题，收益为零。
+4. **稳态误差用 `1 - G(0)`，不要用有限时长末值**：阶跃仿真只跑到 `6/最慢极点`（上限 120 s），末值天然差一点（实测 `1/(s+1)` 为 0.99994）；拿它算误差会把「截断」误报成「稳态误差」。不稳定/临界系统不要编造 rise/settling/overshoot，统一 `None`。
+
+## 2026-11-04 延迟边首拍空载荷（§7.58）
+
+1. **延迟边在步首先求值，首拍源节点还没算过**：`Network.step` 先遍历 `_delayed` 边，再按拓扑序更新节点；此时源节点 `data` 还是 `{}`。`methods._read` 直接读会抛「没有可用字段」——这不是字段配置错，是 z⁻¹ 的初始条件。
+2. **空载荷按 0，不要注入空 dict**：边方法对空源返回 0；`graph.step` 对 `payload == {}` 的延迟边直接跳过，避免目标节点把「无字段」误判成配置错误。`pass` 边尤其明显：它原样复制空 dict。
+3. **非空但字段不对仍要报错**：只在 `node.data` 为空时回退 0；有数据但字段缺失/歧义时继续走 `read_numeric` 的显式键/自动匹配/报错，别把真正的接线错误一起吞掉。
+4. **首拍 TF 输出为 0 是正常**：`StateSpaceModel.step` 是 `y[k]=C x[k]`、再 `x[k+1]=Ad x[k]+Bd u[k]`，零初值时第一拍 y=0、state 已更新；测试要跑到第二拍再断言输出 >0。
+
+**另一个运行时约定**：`scene.add_node` 不校验参数，`transfer_function` 的工厂在第一次 `scene.step` 才构造 TF；所以非法表达式/`x0` 长度错的报错点在 `step`（`ComputeError` 422），不在 `add_node`。写测试要按这个时序断言。
+
+## 2026-11-03 架构审计：跨挂载鉴权、直播代次与通道上限（§7.55）
+
+1. **子应用挂载不会继承宿主的 `/api/` 守卫**：`app.mount("/plotkit", sub)` 的请求路径仍是 `/plotkit/api/...`，只匹配 `startswith("/api/")` 的中间件完全看不到。新增受保护前缀时要按**实际 URL** 列（`/plotkit/api`、`/plotkit/api/`），并保留显式豁免（`/api/health`）。复现：带桌面 token 时 `PUT /plotkit/api/spec`、`POST /plotkit/api/clear` 无 token 也 200。
+2. **iframe/popup 的 token 放 fragment，不放 query**：fragment 不进 `Referer`、不发服务器；宿主在子应用 `index.html` 第一条 `<script src>` 前注入 shim，shim 同步读取 `#netlabToken=` 后 `history.replaceState` 抹掉，只对同源 `/plotkit/api…` 包装 `fetch`。vendor 有多处裸 `fetch`，只改它的 helper 不够。
+3. **`window.open('api/png')` 逃过 fetch 包装**：需要单独改成「先同步开 about:blank → 带 token fetch → blob URL → 回填」，否则导出 PNG 按钮 403。别把 token 加进所有 `window.open`。
+4. **`Recorder.clear()` 归零 seq 会把新旧记录混在一起**：桥只按 cursor 变小判重置，等号/回退不可靠。给记录器加 `generation`（clear 即轮换、重建也是新值），`live` 原子返回；桥见代次变化就重读 `live(0, limit)`，同一把 `DATA_LOCK` 内 `_reset` + 灌新数据；空帧也要提交代次，否则会永远重复重置。
+5. **`Figure.clear()` 只清图层，不清 DataStore**：`_reset` 要自己清 `t`（否则新数据接在旧时间轴后）、剪掉不在当前探针键里的旧数据集、剪 `_FORCED['keys']`；用户自建图层与 `subplots` 版式要保留，别为了「重置」把用户布局也重置。
+6. **「通道上限」按数据集计数，不按图层**：D-PlotView 正常 0 图层，用 `len(spec['layers'])` 判上限等于没判。应统计已登记数据集（排除 `t`），且不要自动建图层。
+7. **后台线程的 stop 只 set event 不够**：要 join；但测试的 lifespan 每次 `TestClient` 退出都会 stop 全局桥，所以 `set_active(True)`/`set_channels` 必须能重建线程，conftest 清理数据但不要停线程。
+8. **部分失败不能报成功**：`precompute` 返回 `{frames, error}` 时 `ok` 必须为 false；前端已有 `pre.ok === false` 分支，别在路由层无条件 `ok=True`。
+9. **缓存弹窗旧结论纠正**：`/api/cache/status|clean` 裸 `fetch` 在桌面模式 403，旧代码把 403 当「空缓存/清理成功 0 B」。现在统一走 `api()`，失败显示原因；`test_frontend_api_contract.py` 守护「只有 helper 和有意放行的 shutdown 能直接 fetch」。
+10. **Windows `0xc0000139`（2026-11-03 记录）**：当时全量 462 passed、运行期打印 2 次（gmpy2 native import 线程）；2026-11-04 已定位为 gmpy2 坏包并消除，见 §7.60。
+
+## 2026-11-04 输入字段自动匹配（R35 / §7.56）
+
+1. **读取端兼容层要放在最靠近 payload 的地方**：`resolve_field` 统一「显式键 > 数值型 value > voltage > 唯一数值键」，节点工厂、边方法、状态空间、块端口都调用它；否则每个入口各写一份，永远有一处漏掉。
+2. **`NodeView.data` 是 `mappingproxy`，不是 `dict`**：`isinstance(data, dict)` 会拒绝它，导致明明有字段却报「没有数据字段」。判 `collections.abc.Mapping`，并保留 `read_node_numeric` 的节点名上下文。
+3. **块端口有「声明字段」和「实际字段」两套键**：父场景端口节点可能写 `voltage`，生成块内部声明 `value`，只按 `port.fields` 读会得到 0。单字段端口要先用 `resolve_field` 找实际键，再别名到声明键；多字段端口不要猜。
+4. **默认值改 `value` 要同步旧断言**：`test_blocks`/`test_project`/`test_netlab`/`test_solver_transactions` 里写死的 `voltage` 都要改成「先 value 再 voltage」；否则会误判为功能回归。
+5. **歧义要报错，不要静默取第一个**：payload 同时有多个数值键且没有 `value`/`voltage` 时，必须抛 `ComputeError` 并列出可用键；静默选择会把接线错误藏起来。
+
+## 2026-11-04 结构护栏：解析后的目标模块才算数（§7.59）
+
+1. **AST 护栏不能只看顶层 `Import` / `level==0`**：`from ..server import x`、`from ... import desktop`、`from netlab import desktop` 都能绕过「core 不得 import server/desktop」。要按文件所在包把 `node.level` 解析成完整模块名，并把 `from pkg import name` 的 alias 当潜在子模块。
+2. **护栏自身要有负向用例**：本次补 8 条参数化断言（相对/绝对形式必须命中、合法 core 引用不误报），否则解析逻辑改坏了也发现不了。
+
+## 2026-11-04 坏本地依赖、导入优先级与多工作树（§7.60）
+
+1. **`0xc0000139` 不一定是应用代码**：本机 `gmpy2` 的 DLL 入口缺失，`import gmpy2` 直接失败；sympy/mpmath 在测试线程里懒加载它，Windows 就打印 `fatal exception`。先做最小验证（单跑 `import gmpy2`），坏包卸载或换匹配 wheel，别在 pytest/conftest 里静默压掉。
+2. **导入优先级只写一处**：`plotkit_vendor` 文档说内置副本优先、`ensure_plotkit_importable` 却先试已安装包，属于「注释与代码两套口径」。统一顺序并用子进程测试锁死（子进程避免 `sys.modules` 污染）。
+3. **多发并行的仓库先分工作树**：`tools/new_worktree.sh` 建 `../ProjectPoint-worktrees/<name>`；工作树根就是 NetlabHome 的等价物（路径不要再拼 `/NetlabHome`）。`git worktree remove` 不加 `--force`、分支用 `git branch -d`；被安全网挡住说明姿势对。
+
+## 2026-11-04 控制链路补强（§7.61）
+
+1. **超调不能用「离 0 最远的点」**：欠阻尼阶跃的初始值是 0，按绝对值找 peak 会把起点当峰值，超调永远 0。先定稳态 `final`（稳定系统优先 `dc_gain`，否则尾均值），再按 `final` 的正负只取同向极值；`1/(s²+0.4s+1)` 才会从 0 修正到 52.66%。
+2. **离散传递函数的分子要按分母阶数左补零**：`H(z)=1/z` 的分子 `[1]` 在分母 `[1,0]` 下是 `0·z^0 + 1·z^-1`，右补零会变成 `1 + 0·z^-1`，阶跃就提前一拍。先算 `lead=len(a)-len(b)`，分子左补 `lead` 个 0，再生成递推；分子阶数高于分母直接报错。
+3. **`reset_state` 只清运行时状态不够**：节点 `data` 同时承担「建模初值」和「上一拍输出」，全清会让手动源丢初值，不清会让延迟边读上次末值。给 `Node` 存 `_initial_data` 快照，重置时只恢复计算节点、手动源保留当前 data。
+4. **`output=auto` 必须在工厂里归一化**：读取端已有 `resolve_output`，但 sum/gain 等直接把 `params["output"]` 当键，`auto` 会变成真实字段名。输出工厂统一走 `resolve_output`，空/`auto`/`*` 写 `value`，自定义键不动。
+5. **`duration/dt` 非整数时不能只改时间标签**：`linspace` 生成的时间点与固定 `dt` 推进的状态不是同一组采样。按实际间隔逐步离散，末段用余量；时间数组和状态推进必须同源，否则指标看着对、物理时间错。
+
+## 2026-11-05 R36 P1 执行图：标签、SCC 与自动延迟（§7.62）
+
+1. **求解器语义先做标签，不先改步进**：`Node` 的 `linear/stateful/direct_feedthrough/time_varying/nonlinear` 与 `compute.solver_traits()` 是后续 P2–P5 的公共契约；P1 只让 `solver_plan()` 可读、可测，默认 `Network.step` 保持原路径，避免旧工程结果突变。
+2. **断点定义要写死**：`stateful and not direct_feedthrough` 才是断点；只看 `stateful` 会把 `D≠0` 的传函也切断，丢掉同拍直接馈通；只看 `direct_feedthrough` 会把积分器卷进代数环。
+3. **SCC 必须缩点后再拓扑**：直接馈通子图用 Tarjan 找 SCC，SCC 缩点成 DAG 后才能排序；不能对整个图直接 topo，否则环内节点顺序无定义。
+4. **自动延迟要可见**：`Connection.auto_delay` 只记录运行期事实，不写入工程快照；`auto_delayed_connections()` 让 UI/日志能标出「该环被自动 z⁻¹」，否则用户无法区分显式延迟与兼容回退。
+
+## 2026-11-05 R36 P2 线性 SCC 求解（§7.63）
+
+1. **代数环要按「节点方程」组矩阵，不按边逐条消元**：sum 的 `weights` 是边名到权重的映射，gain 有 `gain/offset`；统一写成 `y_i = b_i + Σ_j A_ij y_j`，再 `(I-A)y=b` 一次解，比逐条代入稳、也容易给奇异矩阵报节点名。
+2. **默认开关必须默认关**：`Network(solve_algebraic=False)` 保持旧拓扑路径；`Scene.set_algebraic_solver(True)` 才改变 `add_edge` 的防环行为。否则所有旧工程的自动 `z⁻¹` 结果会突变，回归无法解释。
+3. **求解前先拍事务快照**：`_step_solved` 开头 `capture_step_state()`，任何阶段异常 `restore_step_state()`；代数解写回 `node.data` 后再失败也要回滚，不能留下半拍结果。
+4. **P2 范围要窄且报错要具体**：只支持 `sum`/`gain` + `pass`/`scale`；遇到其他节点/边抛 `AlgebraicLoopError` 并带 SCC 节点/边名，绝不静默退回自动延迟。
+
+## 2026-11-05 R36 P3 非线性 / 时变 Newton（§7.64）
+
+1. **零初值可能正好是雅可比奇异点**：`y = tanh(y) + 0.5` 在 y=0 处 `F'(0)=0`，直接 Newton 会 `np.linalg.solve` 报奇异；对零初值分量给非零起点（如 1.0），不能把「初始猜测」当成模型初值写回。
+2. **Newton 评估必须不写回节点**：`_evaluate_node()` 用 `copy_state(node.data/state)` 构造 `ComputeContext`，候选值只进入入边 payload；否则迭代中间值会污染 `node.data` 和下游。
+3. **时变参数在每拍冻结**：`expression` 注入 `t`/`time`，Newton 内部同一拍的 `ctx.time` 不变；不要把 `t` 递推到迭代内部，否则雅可比与残差不在同一时刻。
+4. **失败要带诊断**：`NewtonConvergenceError` 记录节点、残差、迭代次数；无解 / 线搜索无法下降时明确报错，不返回「差不多」的值。
+
+## 2026-11-05 R36 P5 相平面状态通道（§7.66）
+
+1. **状态键要带节点名与索引**：`state:<node>:<index>` 与现有探针 `n:name:field` 分开；状态空间 `x` 是列表，按索引展开，标量状态按 key 展开，避免不同节点同名 `x` 冲突。
+2. **相图先认人工字段，再回落状态通道**：`x/y`、`vx/vy`、`x1/x2` 是矢量模式旧契约，不能删；状态通道只作第四优先级，旧工程行为不变。
+3. **播放条必须独立**：相图 `phaseIndex/phasePlaying` 不要复用主回放 `state.replay`，否则暂停/步进会互相抢时间轴；定时器只调 `drawPhase()`，不推进仿真。
+4. **API 与请求模型一起改**：`tf_analysis()` 新增 `input_node/output_node` 后必须同步 `AnalysisTFRequest` 与 `/api/analysis/tf`，否则后端能跑、HTTP 仍用不到；前端静态资源改动记得升四处版本戳（本轮 3.16.15）。
+
+## 2026-11-05 R36 P4 线性网络总传函与 Bode（§7.65）
+
+1. **网络总传函按节点方程联立，不按边逐条解释**：给每个节点写 `y_i = local_i * Σ_j w_ij y_j`，输入节点固定 `y=1`、其他独立源 `y=0`，再让 sympy 解线性方程组；反馈环自然消元，不再要求 DAG。
+2. **sum 的权重属于目标节点**：`weights[edge.name]` 是目标 sum 的参数，必须从目标节点取；从边参数取会把并联/反馈权重读错。
+3. **符号化要保持整数**：`float 2.0` 进 sympy 会打印成 `2.00000000000000`，用 `sp.Integer`/`sp.Rational` 保留精确系数；否则测试对比和用户阅读都糟。
+4. **Bode 频率点必须覆盖自然频率**：网络 `tf_analysis` 的频率范围要包含 `1/τ`、`ωn`、闭环带宽；只取默认 `1e-2…1e2` 可能在欠阻尼峰附近采样不足，至少按极点/零点尺度自适应加点。
+
+## 2026-11-05 R38 相图指标与 CSV（§7.67）
+
+1. **相图指标口径要写死在读数旁**：峰值按 y 终值方向取 max/min，超调相对 `|y_final|`，调节时间用 ±2% 带内最后一次越界；否则用户不知道 L/A 之外的数字是怎么算的。
+2. **CSV 导出复用现有分析导出**：`exportAnalysisCsv(keys, defaultName)` 接受显式 keys，优先导出 `state:<node>:<index>`；不要再造一条导出链路。
+3. **相图导出要跟随当前节点**：`phaseExport` 从 `state.phaseNode` 找节点与状态键，找不到时回退 `n:<node>:x/y`；按钮必须绑定在相图工具栏，不能只放在分析页。
+
+## 2026-11-05 最终集成检查：z 域、API 契约与 dt 收敛（§7.68）
+
+1. **z 域总传函只对静态网络开放**：`domain='z'` 只支持 `gain`/`sum` 与显式延迟边；动态节点（lag/integrate/transfer_function）必须明确报错，不能把 s 域表达式硬套 z。显式延迟边按 `z^-1` 乘在边上，先算 base/weight 再乘延迟因子。
+2. **接口参数必须和函数签名同批改**：`tf_analysis()` 增加 `input_node/output_node` 后，`AnalysisTFRequest` 和 `/api/analysis/tf` 必须同步；否则后端能跑、HTTP 仍用旧路径。新增 `test_analysis_api.py` 直接打 HTTP，比只测 Python 函数更能发现断链。
+3. **精度验收要看两档 dt 的差**：只测单档 `dt` 无法区分「时间标签错」和「数值收敛」；欠阻尼工程 12 s、dt 0.01→0.002 的超调 39.15%→37.53%，差 1.62 pt，才说明离散化在收敛。
+4. **无状态通道要给人话**：相图选区没有 `state:` 键时不要留空白画布，提示「先运行预计算，或选择传递函数 / 积分器节点」，比只画坐标轴有用。

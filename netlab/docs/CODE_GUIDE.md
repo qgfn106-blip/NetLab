@@ -33,7 +33,7 @@ frontend/app.js  ──HTTP──▶  netlab/server.py (SERVICE)  ──▶  Sim
 NetlabHome/
 ├─ frontend/                 # 纯静态前端（无构建）：index.html / app.js / style.css / desktop-shim.js
 │  ├─ index.html             # 单页骨架：各 tab-pane 容器、脚本入口
-│  ├─ app.js                 # 全部前端逻辑（≈12.6k 行）：画布、面板、轮询、绘图
+│  ├─ app.js                 # 全部前端逻辑（≈14.1k 行）：画布、面板、轮询、绘图、相图播放
 │  ├─ style.css              # 全部样式
 │  └─ desktop-shim.js        # 桌面壳（pywebview）注入的 Promise→QWebChannel 风格原生桥适配
 │
@@ -45,7 +45,7 @@ NetlabHome/
 │  ├─ desktop/               # 桌面壳：当前入口是 pywebview + WebView2（另有遗留 Qt 文件）
 │  ├─ tests/                 # pytest 测试（44 个 .py 文件）
 │  ├─ docs/                  # 文档（需求/决策/进度/本导读都在这里）
-│  ├─ server.py              # FastAPI 应用与全部 /api 端点（≈1.7k 行）
+│  ├─ server.py              # FastAPI 应用与全部 /api 端点（≈2.0k 行）
 │  ├─ run.py                 # 一键启动：uvicorn + 自动开浏览器
 │  ├─ plotkit_bridge.py      # 把 PlotKit 作为子应用挂到 /plotkit（可选依赖）
 │  └─ （无 shim）             # D85：33 个转发 shim 已删除，引用全部用 netlab.core.*
@@ -74,17 +74,17 @@ NetlabHome/
 
 > 行数为 `wc -l` 实测。`__init__.py` 均为 1 行说明，不单列。
 
-### 2.1 计算（`netlab/core/compute/`，合计 ≈ 9,583 行）
+### 2.1 计算（`netlab/core/compute/`，合计 ≈ 10,938 行）
 
 | 模块 | 行数 | 职责 |
 | --- | ---: | --- |
 | `nodal.py` | 2429 | 节点电压法（MNA）瞬态电路求解器：元件、装配、Newton、AC/工作点。 |
-| `computes.py` | 1003 | 信号层**节点**计算方式注册表（`COMPUTE_SPECS`）。 |
+| `computes.py` | 1158 | 信号层**节点**计算方式注册表（`COMPUTE_SPECS`）与 `solver_traits()` 求解语义标签。 |
 | `circuit_modules.py` | 798 | 电路模块封装/实例化（把子电路变成可复用块）。 |
-| `methods.py` | 667 | 信号层**连接（边）**计算方式注册表（`METHOD_SPECS`）。 |
+| `methods.py` | 670 | 信号层**连接（边）**计算方式注册表（`METHOD_SPECS`）。 |
 | `fem.py` | 667 | 二维有限元瞬态热传导（双线性单元）。 |
-| `simulation.py` | 607 | 固定步长仿真循环、配置、录制缓冲、后台线程。 |
-| `analysis.py` | 496 | 分析旁路：指标、频谱、周期推荐、传递函数、CSV 导出。 |
+| `simulation.py` | 646 | 固定步长仿真循环、配置、录制缓冲、后台线程。 |
+| `analysis.py` | 706 | 分析旁路：指标、频谱、周期推荐、传递函数（支持线性网络节点方程 + 反馈环）、s 域 TF 分析、网络 Bode、相平面指标、CSV 导出。 |
 | `transistors.py` | 453 | 三极管/MOS 行为模型及其元件规格。 |
 | `digital.py` | 368 | 4 位计数器、4 位 DAC 等行为级数字/模拟接口。 |
 | `magnetics.py` | 299 | 变压器与互感线圈（双端口磁耦合）。 |
@@ -92,24 +92,26 @@ NetlabHome/
 | `accel.py` | 230 | 可选加速后端：NumPy / CuPy。 |
 | `linalg.py` | 228 | 数值内核：稳定求解、矩阵指数、连续系统离散化。 |
 | `params.py` | 215 | **`ParamSpec`**：节点/元件参数的统一定义、校验、序列化。 |
-| `statespace.py` | 205 | 连续/离散状态空间模型与离散化。 |
+| `statespace.py` | 203 | 连续/离散状态空间模型与离散化。 |
+| `fields.py` | 100 | 读取端字段兼容层：`value` 优先、显式键优先、歧义报错；节点/边/状态空间/块端口共用。 |
+| `transfer.py` | 818 | s 域传递函数：表达式解析、TF→可控标准型、Bode、阶跃、零极点分析。 |
 | `logic.py` | 190 | 逻辑门行为模型。 |
 | `timers.py` | 174 | 555 定时器与 LDO 行为模型。 |
 | `profiling.py` | 162 | 计时装饰器与环形采样。 |
 | `waveform.py` | 91 | 标准波形发生器（电压源/电流源/信号节点共用）。 |
 | `introspection.py` | 68 | 规格自省：把注册表条目转成前端可展示的公式/源码/参数说明。 |
 
-### 2.2 连接与网络（`netlab/core/model/`，合计 ≈ 8,563 行）
+### 2.2 连接与网络（`netlab/core/model/`，合计 ≈ 9,161 行）
 
 | 模块 | 行数 | 职责 |
 | --- | ---: | --- |
-| `scene.py` | 1956 | **`Scene`**：把可序列化的节点/边记录装配成可运行引擎（SignalEngine/CircuitEngine）。 |
+| `scene.py` | 2004 | **`Scene`**：把可序列化的节点/边记录装配成可运行引擎（SignalEngine/CircuitEngine）；`set_algebraic_solver()` 开启 R36 P2/P3 代数环求解；`SignalEngine.probes()` 暴露 `state:<node>:<index>` 状态通道。 |
 | `templates.py` | 1193 | 内置模板（信号链、控制环、RC/RLC、运放、三极管……）与目录。 |
 | `project.py` | 958 | `.netlab` 工程文件的构建、校验、迁移、checksum、原子保存/加载。 |
-| `blocks.py` | 957 | 功能块系统：`BlockDef`/`PortDef`，把网络封装成带端口的节点。 |
+| `blocks.py` | 976 | 功能块系统：`BlockDef`/`PortDef`，把网络封装成带端口的节点。 |
 | `blocklib.py` | 655 | 模块库文件层：模块文件的读写、版本、扁平/目录布局。 |
 | `extensions.py` | 602 | 应用内 Python 扩展：节点、连接函数与参数声明。 |
-| `graph.py` | 594 | **`Network`**（有向节点/连接图）、`Node`、`Connection`、`ComputeContext`。 |
+| `graph.py` | 1129 | **`Network`**（有向节点/连接图）、`Node`、`Connection`、`ComputeContext`、`SolverPlan`（R36/P1 断点 + SCC）与 `_step_solved()`（R36/P2 线性 SCC / P3 阻尼 Newton）。 |
 | `workspace.py` | 533 | 工作区：工程目录、共享库、用户设置、快照。 |
 | `schematic.py` | 374 | 图纸模型数据层：引脚表、边布局、确定性自动布局与校验。 |
 | `networks.py` | 324 | **`NetworkContainer`**：多网络容器，属性访问转发到当前网络。 |
@@ -126,7 +128,7 @@ NetlabHome/
 
 | 模块 | 行数 | 职责 |
 | --- | ---: | --- |
-| `netlab/server.py` | 1691 | FastAPI 应用：静态前端、全部 `/api/*` 端点、`SERVICE` 单例、PlotKit 挂载。 |
+| `netlab/server.py` | 1972 | FastAPI 应用：静态前端、全部 `/api/*` 端点、`SERVICE` 单例、PlotKit 挂载。 |
 | `netlab/run.py` | 116 | 启动器：解析 `--host/--port`，起 uvicorn，健康检查后开浏览器。 |
 | `netlab/plotkit_bridge.py` | 298 | 把 PlotKit 子应用挂到 `/plotkit`，并起同步线程把探针帧推入 figure。 |
 | `netlab/desktop/__main__.py` | 24 | 桌面入口：`python -m netlab.desktop` → `webview_app.main()`。 |
@@ -144,8 +146,8 @@ NetlabHome/
 
 | 文件 | 行数 | 职责 |
 | --- | ---: | --- |
-| `frontend/app.js` | 12596 | 全部前端逻辑：API 封装、画布、面板渲染、实时轮询、图表绘制。 |
-| `frontend/index.html` | 550 | 单页骨架：各 `tab-pane` 容器与脚本入口。 |
+| `frontend/app.js` | 14169 | 全部前端逻辑：API 封装、画布、面板渲染、实时轮询、图表绘制、相图播放条与 CSV 导出。 |
+| `frontend/index.html` | 633 | 单页骨架：各 `tab-pane` 容器与脚本入口。 |
 | `frontend/style.css` | 2136 | 全部样式（含主题变量）。 |
 | `frontend/desktop-shim.js` | 139 | 桌面模式下把 Promise 风格原生桥映射成 QWebChannel 风格。 |
 
@@ -193,14 +195,18 @@ NetlabHome/
 | `ComputeSpec` | `@dataclass class ComputeSpec` | 信号层节点算法描述：`kind/label/params/factory/inputs/…`。 | `netlab/core/compute/computes.py:34` |
 | `COMPUTE_SPECS` / `register` | `dict[str, ComputeSpec]` / `register(spec) -> ComputeSpec` | 节点算法注册表与注册函数（重复 kind 直接报错）。 | `computes.py:54` / `:57` |
 | `compute_catalog` | `compute_catalog() -> list[dict]` | 把注册表导出给前端。 | `computes.py:957` |
+| `fields.*` | `resolve_field(...) -> str` / `read_numeric(...) -> float` / `read_node_numeric(node, requested=None) -> float` / `resolve_output(requested=None) -> str` | 读取端字段兼容层：显式键优先，否则数值型 `value`→`voltage`→唯一数值键；歧义/无匹配报中文错误并列出可用键。 | `netlab/core/compute/fields.py:36/70/88/97` |
 | `ParamSpec` | `@dataclass(frozen=True) class ParamSpec` | 参数模式：`type/default/unit/min/max/choices/…` + `coerce()`。 | `netlab/core/compute/params.py:31` |
-| `analysis.*` | `analyze_metrics / spectrum / recommend_period / transfer_function / export_csv` | 分析旁路函数族。 | `netlab/core/compute/analysis.py:76/137/181/275/395` |
+| `analysis.*` | `analyze_metrics / spectrum / recommend_period / transfer_function / tf_analysis / phase_metrics / export_csv` | 分析旁路函数族；`tf_analysis` 支持表达式/系数/零极点/场景节点/线性网络总传函（输入/输出节点）五种输入；`phase_metrics` 输出轨迹长度、包围面积、极值/终值/超调。 | `netlab/core/compute/analysis.py:77/138/331/513` |
+| `TransferFunction` | `@dataclass class TransferFunction(num, den)` | s 域有理式：零极点、稳定性、TF→可控标准型、求值、频响、表达式输出。 | `netlab/core/compute/transfer.py:306` |
+| `parse_expression` / `from_params` | `parse_expression(text: str) -> TransferFunction` / `from_params(params) -> TransferFunction` | 解析 `s` 表达式（隐式乘法/整数幂/负指数）；按 `form=expr|coeff|zpk` 构造。 | `transfer.py:526` / `:546` |
+| `analyze` | `analyze(tf, dt=None, duration=None, method="zoh", points=240) -> dict` | 一次给出 Bode、阶跃、零极点、DC 增益与稳定性。 | `transfer.py:750` |
 
 ### 3.3 模型与工程
 
 | 符号 | 签名（摘） | 作用 | 位置 |
 | --- | --- | --- | --- |
-| `Node` / `Connection` / `Network` | `class Node` / `class Connection` / `class Network(*, auto_delay=False)` | 信号层图模型；`Network.step(dt)` 做拓扑推进。 | `netlab/core/model/graph.py:106` / `:225` / `:292`（`step` `:498`） |
+| `Node` / `Connection` / `Network` | `class Node` / `class Connection` / `class Network(*, auto_delay=False, solve_algebraic=False)` | 信号层图模型；`Network.step(dt)` 默认拓扑推进，`solve_algebraic=True` 时走 `_step_solved()` 解 SCC；`solver_plan()` 返回 R36/P1 的断点 + SCC 执行计划。 | `netlab/core/model/graph.py:146` / `:275` / `:297` |
 | `ComputeContext` / `NodeData` | `class ComputeContext` / `NodeData` | 计算 handler 的输入上下文与节点数据别名。 | `graph.py:91` / `:14` |
 | `PortDef` | `class PortDef` | 功能块端口定义（名称/方向）。 | `netlab/core/model/blocks.py:81` |
 | `BlockDef` | `@dataclass class BlockDef(id, name, mode, description, nodes, edges, ports, …)` | 功能块定义；`model` 取 `behavioral/structural`。 | `blocks.py:130` |
@@ -354,7 +360,7 @@ NetlabHome/
 
 | 步骤 | 文件 | 要点 |
 | --- | --- | --- |
-| 1. 纯计算函数 | `netlab/core/compute/analysis.py` | 入参用 `sim`/帧序列，返回可 JSON 化结构；参考 `analyze_metrics`（`:76`）、`spectrum`（`:137`）、`transfer_function`（`:275`）。 |
+| 1. 纯计算函数 | `netlab/core/compute/analysis.py` | 入参用 `sim`/帧序列，返回可 JSON 化结构；参考 `analyze_metrics`（`:77`）、`spectrum`（`:138`）、`transfer_function`（`:279`）。 |
 | 2. 路由 | `netlab/server.py` | 在“分析”分段（`:1066` 起）加 `@app.get("/api/analysis/<name>")`，从 `SERVICE` 取当前网络并调用。 |
 | 3. 前端面板 | `frontend/app.js` | 分析面板渲染在 `renderAnalysisPanel()`（`:10810`）；`index.html:270` 是 `tab-analysis` 容器。 |
 

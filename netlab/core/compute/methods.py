@@ -13,6 +13,7 @@ from typing import Any, Callable
 import numpy as np
 
 from ..common.limits import ComputeError
+from .fields import read_numeric, read_node_numeric, resolve_output
 from .linalg import tustin_tf
 from .params import ParamSpec, choice_param, float_param, matrix_param, validate_params
 
@@ -48,21 +49,18 @@ def register(spec: MethodSpec) -> MethodSpec:
 
 
 def _read(node: Any, field: str) -> float:
-    if field not in node.data:
-        raise KeyError(f"节点 {node.name!r} 没有数据字段 {field!r}")
-    raw = node.data[field]
-    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
-        raise TypeError(f"节点 {node.name!r} 的字段 {field!r} 不是数值")
-    number = float(raw)
-    if not math.isfinite(number):
-        raise ValueError(f"节点 {node.name!r} 的字段 {field!r} 不是有限数值")
-    return number
+    # 延迟边（z^-1）在每步开头先于节点求值，首拍拿到的源/目标可能还没算过，
+    # data 仍是空字典；信号流里未初始化的值按 0 处理。非空但字段不对时，
+    # 仍交给读取层按「显式键/自动匹配」规则报错，避免掩盖真正的字段问题。
+    if not getattr(node, "data", None):
+        return 0.0
+    return read_node_numeric(node, field)
 
 
 # ---- 通用信号处理 ----------------------------------------------------------
 def _scale_factory(params: dict[str, Any]) -> Method:
     input_key = params["input_key"]
-    output_key = params["output_key"]
+    output_key = resolve_output(params["output_key"])
     gain = params["gain"]
     offset = params["offset"]
 
@@ -80,8 +78,8 @@ register(
         group="信号",
         description="读取起点的一个字段，乘增益加偏置后传给终点。",
         params=(
-            ParamSpec("input_key", "输入字段", "text", "voltage"),
-            ParamSpec("output_key", "输出字段", "text", "voltage"),
+            ParamSpec("input_key", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
+            ParamSpec("output_key", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
             float_param("gain", "增益", 1.0, step=0.1),
             float_param("offset", "偏置", 0.0, step=0.1),
         ),
@@ -93,7 +91,7 @@ register(
 
 def _delay_factory(params: dict[str, Any]) -> Method:
     input_key = params["input_key"]
-    output_key = params["output_key"]
+    output_key = resolve_output(params["output_key"])
     initial = params["initial"]
 
     def method(source, target, _params, state, _dt) -> NodeData:
@@ -101,12 +99,15 @@ def _delay_factory(params: dict[str, Any]) -> Method:
         # 延迟边由 Network 在步首求值，源节点尚未更新，
         # 读到的是上一拍的值，直接输出即可实现 z⁻¹。
         fallback = float(state.get("value", initial))
-        raw = source.data.get(input_key, fallback)
-        if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        try:
+            current = read_numeric(
+                source.data,
+                input_key,
+                source=str(getattr(source, "name", "?")),
+                subject="节点",
+            )
+        except ComputeError:
             current = fallback
-        else:
-            number = float(raw)
-            current = number if math.isfinite(number) else fallback
         state["value"] = current
         return {output_key: current}
 
@@ -120,8 +121,8 @@ register(
         group="信号",
         description="输出上一步的输入值（z⁻¹）。用来切断代数环或构造离散反馈。",
         params=(
-            ParamSpec("input_key", "输入字段", "text", "voltage"),
-            ParamSpec("output_key", "输出字段", "text", "voltage"),
+            ParamSpec("input_key", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
+            ParamSpec("output_key", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
             float_param("initial", "初值", 0.0, step=0.1),
         ),
         factory=_delay_factory,
@@ -147,7 +148,7 @@ def _tf_factory(params: dict[str, Any]) -> Method:
     else:
         b = a = None  # type: ignore[assignment]
     input_key = params["input_key"]
-    output_key = params["output_key"]
+    output_key = resolve_output(params["output_key"])
     cache: dict[str, Any] = {"dt": None, "b": b, "a": a}
 
     def coefficients(dt: float) -> tuple[np.ndarray, np.ndarray]:
@@ -163,8 +164,11 @@ def _tf_factory(params: dict[str, Any]) -> Method:
     def compute(source, target, _params, state, dt) -> NodeData:
         del target
         coefficients_b, coefficients_a = coefficients(dt)
-        order = max(coefficients_b.size, coefficients_a.size) - 1
-        b_padded = np.pad(coefficients_b, (0, order + 1 - coefficients_b.size))
+        order = coefficients_a.size - 1
+        lead = order - (coefficients_b.size - 1)
+        if lead < 0:
+            raise ComputeError("传递函数的分子阶数不能高于分母")
+        b_padded = np.pad(coefficients_b, (lead, 0))
         a_padded = np.pad(coefficients_a, (0, order + 1 - coefficients_a.size))
 
         stored = state.get("s")
@@ -219,8 +223,8 @@ register(
                 (("tustin", "双线性 Tustin"),),
                 help="连续域目前使用双线性变换",
             ),
-            ParamSpec("input_key", "输入字段", "text", "voltage"),
-            ParamSpec("output_key", "输出字段", "text", "voltage"),
+            ParamSpec("input_key", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
+            ParamSpec("output_key", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
         ),
         factory=_tf_factory,
         outputs=("output_key",),
@@ -231,7 +235,7 @@ register(
 
 def _integrator_factory(params: dict[str, Any]) -> Method:
     input_key = params["input_key"]
-    output_key = params["output_key"]
+    output_key = resolve_output(params["output_key"])
     gain = params["gain"]
     initial = params["initial"]
     lower = params["lower"]
@@ -257,8 +261,8 @@ register(
         group="动态",
         description="对起点字段积分后传给终点，可限幅；用于构造连续状态的离散近似。",
         params=(
-            ParamSpec("input_key", "输入字段", "text", "voltage"),
-            ParamSpec("output_key", "输出字段", "text", "voltage"),
+            ParamSpec("input_key", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
+            ParamSpec("output_key", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
             float_param("gain", "增益", 1.0, step=0.1),
             float_param("initial", "初值", 0.0, step=0.1),
             float_param("lower", "下限", -1.0e6),
@@ -272,7 +276,7 @@ register(
 
 def _clamp_factory(params: dict[str, Any]) -> Method:
     input_key = params["input_key"]
-    output_key = params["output_key"]
+    output_key = resolve_output(params["output_key"])
     lower = params["minimum"]
     upper = params["maximum"]
     if lower > upper:
@@ -293,8 +297,8 @@ register(
         group="信号",
         description="把起点字段截断到上下限后传给终点。",
         params=(
-            ParamSpec("input_key", "输入字段", "text", "voltage"),
-            ParamSpec("output_key", "输出字段", "text", "voltage"),
+            ParamSpec("input_key", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
+            ParamSpec("output_key", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
             float_param("minimum", "下限", -10.0, step=0.5),
             float_param("maximum", "上限", 10.0, step=0.5),
         ),

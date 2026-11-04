@@ -234,6 +234,7 @@ function bindFigureFields() {
     // figure.subplots 是「子图数量」（整数），槽号 0..n-1
     state.spec.figure.subplots = n;
     state.spec.layers.forEach((l) => { if ((l.subplot | 0) >= n) l.subplot = n - 1; });
+    trimLayoutTo(n);
     commit("子图数");
   };
   const sync = () => {
@@ -738,9 +739,11 @@ async function redraw(reason) {
     return;
   }
   $("empty").hidden = true;
-  if (clientRenderable(state.spec)) {
+  // 自由布局要按服务端给的各槽位包围盒摆拖拽框，走服务端渲染（前端画布拿不到这些几何）
+  if (clientRenderable(state.spec) && !layoutList().length && !noteList().length && !noteState.tool) {
     try {
       await renderClient(reason);
+      renderLayoutOverlay();  // 没有 layout 时它会自己隐藏（防止「回到网格」后残留旧框）
       pushTiming(reason || "渲染", performance.now() - t0, { 前端渲染: performance.now() - t0 });
       return;
     } catch (err) {
@@ -770,6 +773,7 @@ async function redraw(reason) {
   };
   const t1 = performance.now();
   renderInsetOverlay();
+  renderLayoutOverlay();
   pushTiming(reason || "渲染", t1 - t0, { 服务端渲染: t1 - t0 });
 }
 
@@ -984,9 +988,11 @@ function applyPanelWidth(width) {
   });
   grip.addEventListener("pointermove", (ev) => {
     if (!dragging) return;
+    // 拖动过程中只改 CSS 宽度、不重绘图片：重绘会占住 state.busy，回放的
+    // tickPlay 在 busy 时跳过推进，看起来就像"拖一下就断播"。
     applyPanelWidth(startW - (ev.clientX - startX));
-    scheduleRender("面板宽度");
     renderInsetOverlay();
+  renderLayoutOverlay();
   });
   const stop = () => {
     if (!dragging) return;
@@ -994,16 +1000,187 @@ function applyPanelWidth(width) {
     document.body.style.cursor = "";
     const width = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--panel-w")) || 380;
     localStorage.setItem(PANEL_KEY, String(Math.round(width)));
+    scheduleRender("面板宽度");
   };
   grip.addEventListener("pointerup", stop);
   grip.addEventListener("pointercancel", stop);
-  grip.addEventListener("dblclick", () => {
+  const resetPanelWidth = () => {
     localStorage.removeItem(PANEL_KEY);
     applyPanelWidth(380);
     scheduleRender("面板复位");
     renderInsetOverlay();
-  });
+    renderLayoutOverlay();
+  };
+  grip.addEventListener("dblclick", resetPanelWidth);
+  $("btn-panel-reset").onclick = resetPanelWidth;
 })();
+
+// ---- 图层独立窗口（P3 方案 A：页内浮动卡）---------------------------------
+// 窄宿主（netlab 内嵌 iframe）里右侧面板会把画布挤成一条缝。把「图层」分组
+// 原样搬进一张浮动卡，拖标题栏移动、拖右下角缩放、收起后放回面板原位。
+const LAYERWIN_KEY = "pk.layerWin";
+const LAYERWIN_MIN_W = 260;
+const LAYERWIN_MIN_H = 180;
+const layerWinState = { popped: false, drag: null };
+
+function layerWinWrap() {
+  return document.querySelector(".plotwrap") || document.body;
+}
+
+function clampLayerWinRect(rect) {
+  const wrap = layerWinWrap();
+  const maxW = Math.max(LAYERWIN_MIN_W, wrap.clientWidth - 8);
+  const maxH = Math.max(LAYERWIN_MIN_H, wrap.clientHeight - 8);
+  const width = Math.max(LAYERWIN_MIN_W, Math.min(maxW, Math.round(rect.width)));
+  const height = Math.max(LAYERWIN_MIN_H, Math.min(maxH, Math.round(rect.height)));
+  const left = Math.max(0, Math.min(maxW - width, Math.round(rect.left)));
+  const top = Math.max(0, Math.min(maxH - height, Math.round(rect.top)));
+  return { left, top, width, height };
+}
+
+function defaultLayerWinRect() {
+  const wrap = layerWinWrap();
+  const width = Math.max(LAYERWIN_MIN_W, Math.min(380, Math.round(wrap.clientWidth * 0.46)));
+  const height = Math.max(LAYERWIN_MIN_H, Math.min(520, Math.round(wrap.clientHeight * 0.62)));
+  return { left: Math.max(8, wrap.clientWidth - width - 20), top: 12, width, height };
+}
+
+function applyLayerWinRect(rect) {
+  const r = clampLayerWinRect(rect);
+  const win = $("layerWin");
+  win.style.left = `${r.left}px`;
+  win.style.top = `${r.top}px`;
+  win.style.width = `${r.width}px`;
+  win.style.height = `${r.height}px`;
+  return r;
+}
+
+function saveLayerWinRect() {
+  const win = $("layerWin");
+  const rect = {
+    left: parseFloat(win.style.left) || 0,
+    top: parseFloat(win.style.top) || 0,
+    width: parseFloat(win.style.width) || LAYERWIN_MIN_W,
+    height: parseFloat(win.style.height) || LAYERWIN_MIN_H,
+  };
+  localStorage.setItem(LAYERWIN_KEY, JSON.stringify({ popped: layerWinState.popped, rect }));
+}
+
+function readLayerWinSaved() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LAYERWIN_KEY) || "null");
+    if (!saved || !saved.rect) return null;
+    return saved;
+  } catch (e) {
+    return null;
+  }
+}
+
+function popLayers() {
+  if (layerWinState.popped) return;
+  const sect = $("layerSect");
+  if (!sect) return;
+  const body = $("layerWinBody");
+  if (!body.contains(sect)) {
+    sect.dataset.home = "panel";
+    body.appendChild(sect);
+  }
+  sect.open = true;
+  $("layerWin").hidden = false;
+  layerWinState.popped = true;
+  $("btn-layer-pop").textContent = "图层已浮出";
+  const saved = readLayerWinSaved();
+  applyLayerWinRect(saved && saved.rect && saved.rect.width ? saved.rect : defaultLayerWinRect());
+  saveLayerWinRect();               // 记住"现在是浮出状态"，刷新后能还原
+  if (state.spec) renderLayers();   // 首次加载时 spec 还没到，等正常渲染流程填内容
+}
+
+function dockLayers() {
+  if (!layerWinState.popped) return;
+  const sect = $("layerSect");
+  const panel = $("panel");
+  const anchor = $("insetgroup");
+  if (sect && panel) panel.insertBefore(sect, anchor && anchor.parentNode === panel ? anchor : null);
+  $("layerWin").hidden = true;
+  layerWinState.popped = false;
+  $("btn-layer-pop").textContent = "图层独立窗口";
+  saveLayerWinRect();
+}
+
+(function bindLayerWindow() {
+  const bar = $("layerWinBar");
+  const win = $("layerWin");
+  if (!bar || !win) return;
+  $("btn-layer-pop").onclick = () => (layerWinState.popped ? dockLayers() : popLayers());
+  $("btn-layer-close").onclick = () => dockLayers();
+
+  const startDrag = (ev, mode) => {
+    if (ev.button !== undefined && ev.button !== 0) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const rect = win.getBoundingClientRect();
+    const wrap = layerWinWrap().getBoundingClientRect();
+    layerWinState.drag = {
+      mode,
+      pointerId: ev.pointerId,
+      startX: ev.clientX,
+      startY: ev.clientY,
+      left: rect.left - wrap.left,
+      top: rect.top - wrap.top,
+      width: rect.width,
+      height: rect.height,
+    };
+    win.classList.add("dragging");
+    if (ev.target.setPointerCapture) ev.target.setPointerCapture(ev.pointerId);
+  };
+
+  bar.addEventListener("pointerdown", (ev) => {
+    if (ev.target.closest("button")) return;   // 点「收起」不要当成拖窗
+    startDrag(ev, "move");
+  });
+  win.querySelector(".layerwin-resize").addEventListener("pointerdown", (ev) => startDrag(ev, "resize"));
+
+  const onMove = (ev) => {
+    const d = layerWinState.drag;
+    if (!d || ev.pointerId !== d.pointerId) return;
+    const dx = ev.clientX - d.startX;
+    const dy = ev.clientY - d.startY;
+    if (d.mode === "move") {
+      applyLayerWinRect({ left: d.left + dx, top: d.top + dy, width: d.width, height: d.height });
+    } else {
+      applyLayerWinRect({ left: d.left, top: d.top, width: d.width + dx, height: d.height + dy });
+    }
+  };
+  const onUp = (ev) => {
+    const d = layerWinState.drag;
+    if (!d || (ev.pointerId !== undefined && ev.pointerId !== d.pointerId)) return;
+    layerWinState.drag = null;
+    win.classList.remove("dragging");
+    saveLayerWinRect();
+  };
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+  window.addEventListener("pointercancel", onUp);
+
+  // 窗口大小变了：把浮出卡重新夹回画布内
+  window.addEventListener("resize", () => {
+    if (!layerWinState.popped) return;
+    const win2 = $("layerWin");
+    applyLayerWinRect({
+      left: parseFloat(win2.style.left) || 0,
+      top: parseFloat(win2.style.top) || 0,
+      width: parseFloat(win2.style.width) || LAYERWIN_MIN_W,
+      height: parseFloat(win2.style.height) || LAYERWIN_MIN_H,
+    });
+  });
+
+  // 上次退出时是浮出的，就还原浮出状态
+  const saved = readLayerWinSaved();
+  if (saved && saved.popped) {
+    try { popLayers(); } catch (e) { /* 首次加载失败就留在面板里 */ }
+  }
+})();
+
 
 // 嵌入模式：一进来就收面板，避免 500px 宽的宿主里图被挤成一条缝
 if (EMBED) {
@@ -1026,13 +1203,22 @@ $("theme").onchange = (ev) => {
 };
 
 $("ncols").onchange = (ev) => { state.spec.figure.ncols = Number(ev.target.value) || 1; commit("改列数"); };
-$("subplots").onchange = (ev) => { state.spec.figure.subplots = Number(ev.target.value) || 1; commit("改子图数"); };
+$("subplots").onchange = (ev) => {
+  const n = Math.max(1, Number(ev.target.value) || 1);
+  state.spec.figure.subplots = n;
+  state.spec.layers.forEach((l) => { if ((l.subplot | 0) >= n) l.subplot = n - 1; });
+  trimLayoutTo(n);
+  commit("改子图数");
+};
+$("btn-free-layout").onclick = enableFreeLayout;
+$("btn-grid-layout").onclick = disableFreeLayout;
 $("linkx").onchange = (ev) => { state.spec.figure.link_x = ev.target.checked; commit("改联动"); };
 
 window.addEventListener("resize", () => {
   if (state.spec && state.spec.layers.length) {
     scheduleRender("窗口尺寸");
     renderInsetOverlay();
+  renderLayoutOverlay();
   }
 });
 
@@ -1210,6 +1396,460 @@ function clamp01(value, lo = 0, hi = 1) {
   return Math.max(lo, Math.min(hi, value));
 }
 
+/* ---------------- 子图自由布局（PK-R20）：拖拽 / 缩放 / 允许重叠 ---------------- */
+
+const layoutState = { active: null };
+
+function layoutList() {
+  const fig = state.spec.figure;
+  return fig && Array.isArray(fig.layout) ? fig.layout : [];
+}
+
+function gridRectFor(index, cols, rows, top = 0.95) {
+  const left = 0.085;
+  const right = 0.97;
+  const bottom = 0.10;
+  const cw = (right - left) / Math.max(1, cols);
+  const ch = (top - bottom) / Math.max(1, rows);
+  const row = Math.floor(index / Math.max(1, cols));
+  const col = index % Math.max(1, cols);
+  return [left + col * cw + cw * 0.02, top - (row + 1) * ch + ch * 0.03, cw * 0.96, ch * 0.94];
+}
+
+function enableFreeLayout() {
+  const fig = state.spec.figure;
+  const count = Math.max(1, Number(fig.subplots) || 1);
+  const slots = (state.img && state.img.slots) || [];
+  // 优先用服务端刚渲染出来的包围盒，切过去时画面不跳
+  let layout = slots
+    .filter((s) => Number(s.slot) < count)
+    .map((s) => ({ slot: Number(s.slot), rect: s.box.map((v) => Math.round(v * 1000) / 1000) }));
+  if (!layout.length) {
+    const cols = Math.max(1, Number(fig.ncols) || 1);
+    const rows = Math.max(1, Math.ceil(count / cols));
+    const top = fig.title ? 0.90 : 0.95;
+    layout = Array.from({ length: count }, (_, i) => ({ slot: i, rect: gridRectFor(i, cols, rows, top) }));
+  }
+  fig.layout = layout;
+  fig.subplots = Math.max(count, ...layout.map((it) => Number(it.slot) + 1));
+  commit("启用自由布局");
+}
+
+function disableFreeLayout() {
+  if (!state.spec.figure) return;
+  delete state.spec.figure.layout;
+  commit("回到网格布局");
+}
+
+function trimLayoutTo(count) {
+  const layout = layoutList();
+  if (!layout.length) return;
+  state.spec.figure.layout = layout.filter((it) => Number(it.slot) < count);
+}
+
+/* ---------------- 画布批注（PK-R21）：文字框 / 箭头 / 框选 / 数据标注 ---------------- */
+
+const NOTE_TOOLS = { text: "文字框", arrow: "箭头", region: "框选", mark: "数据标注" };
+const NOTE_DEFAULT_COLOR = "#0f766e";
+const noteState = { tool: null, selected: null, drag: null };
+
+function noteList() {
+  const fig = state.spec && state.spec.figure;
+  return fig && Array.isArray(fig.notes) ? fig.notes : [];
+}
+
+function noteImageRect() {
+  const img = $("plotImg");
+  if (!state.img || !img || !state.img.px) return null;
+  const r = img.getBoundingClientRect();
+  return r.width && r.height ? r : null;
+}
+
+function setNoteTool(tool) {
+  noteState.tool = noteState.tool === tool ? null : tool;
+  for (const key of Object.keys(NOTE_TOOLS)) {
+    const btn = $(`btn-note-${key}`);
+    if (btn) btn.classList.toggle("on", noteState.tool === key);
+  }
+  const hint = $("noteHint");
+  if (hint) hint.hidden = !noteState.tool;
+  const overlay = $("note-overlay");
+  if (overlay) overlay.classList.toggle("armed", Boolean(noteState.tool));
+  if (noteState.tool) setStatus(`批注工具：${NOTE_TOOLS[noteState.tool]}（Esc 取消）`, "info");
+  renderNoteOverlay();
+  // 批注要按图像坐标定位，工具开启时强制走服务端渲染（前端 canvas 不写 state.img）
+  redraw("批注工具").catch((err) => console.warn("批注工具重绘失败", err));
+}
+
+function notePoint(ev) {
+  const r = noteImageRect();
+  if (!r) return null;
+  return {
+    x: clamp01((ev.clientX - r.left) / r.width),
+    y: clamp01(1 - (ev.clientY - r.top) / r.height),
+    w: r.width,
+    h: r.height,
+  };
+}
+
+function addNote(note) {
+  const fig = state.spec.figure;
+  const list = noteList().slice();
+  const item = {
+    id: `n${Math.random().toString(36).slice(2, 10)}`,
+    color: NOTE_DEFAULT_COLOR,
+    size: 11,
+    text: "",
+    ...note,
+  };
+  list.push(item);
+  fig.notes = list;
+  noteState.selected = list.length - 1;
+  commit("添加批注");
+  return item;
+}
+
+function deleteSelectedNote() {
+  const index = noteState.selected;
+  const list = noteList();
+  if (index == null || index < 0 || index >= list.length) return;
+  const next = list.slice();
+  next.splice(index, 1);
+  const fig = state.spec.figure;
+  if (next.length) fig.notes = next;
+  else delete fig.notes;
+  noteState.selected = null;
+  commit("删除批注");
+}
+
+function editNoteText(index) {
+  const note = noteList()[index];
+  if (!note) return;
+  const value = window.prompt("批注文字", note.text || "");
+  if (value == null) return;
+  note.text = value;
+  commit("修改批注");
+}
+
+function renderNoteOverlay() {
+  const overlay = $("note-overlay");
+  if (!overlay) return;
+  const notes = noteList();
+  const r = noteImageRect();
+  overlay.textContent = "";
+  if (!r || (!notes.length && !noteState.tool)) {
+    overlay.hidden = true;
+    return;
+  }
+  const wrap = overlay.parentElement.getBoundingClientRect();
+  overlay.hidden = false;
+  overlay.style.left = `${r.left - wrap.left}px`;
+  overlay.style.top = `${r.top - wrap.top}px`;
+  overlay.style.width = `${r.width}px`;
+  overlay.style.height = `${r.height}px`;
+
+  const W = r.width;
+  const H = r.height;
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "note-svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const defs = document.createElementNS(ns, "defs");
+  defs.innerHTML = '<marker id="note-arrow-head" viewBox="0 0 10 10" refX="9" refY="5"'
+    + ' markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
+    + '<path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/></marker>';
+  svg.appendChild(defs);
+  overlay.appendChild(svg);
+
+  notes.forEach((note, index) => {
+    const active = noteState.selected === index;
+    const color = note.color || NOTE_DEFAULT_COLOR;
+    const tag = (el) => {
+      el.dataset.note = String(index);
+      el.style.setProperty("--note-color", color);
+      el.classList.toggle("on", active);
+      return el;
+    };
+    if (note.kind === "arrow") {
+      const start = note.start || [0.2, 0.2];
+      const end = note.end || [0.4, 0.4];
+      const line = document.createElementNS(ns, "line");
+      line.setAttribute("x1", String(start[0] * W));
+      line.setAttribute("y1", String((1 - start[1]) * H));
+      line.setAttribute("x2", String(end[0] * W));
+      line.setAttribute("y2", String((1 - end[1]) * H));
+      line.setAttribute("stroke", "currentColor");
+      line.setAttribute("stroke-width", active ? "2.6" : "1.6");
+      line.setAttribute("marker-end", "url(#note-arrow-head)");
+      line.setAttribute("class", "note-arrow");
+      line.style.color = color;
+      line.dataset.note = String(index);
+      svg.appendChild(line);
+      if (note.text) {
+        const label = document.createElement("div");
+        label.className = "note-item note-label";
+        label.style.left = `${end[0] * W}px`;
+        label.style.top = `${(1 - end[1]) * H}px`;
+        label.textContent = note.text;
+        overlay.appendChild(tag(label));
+      }
+      return;
+    }
+    const box = document.createElement("div");
+    if (note.kind === "region") {
+      const [x, y, w, h] = note.rect || [0.3, 0.3, 0.3, 0.2];
+      box.className = "note-item note-region";
+      box.style.left = `${x * W}px`;
+      box.style.top = `${(1 - (y + h)) * H}px`;
+      box.style.width = `${w * W}px`;
+      box.style.height = `${h * H}px`;
+      box.textContent = note.text || "";
+    } else {
+      const pos = note.pos || [0.5, 0.5];
+      box.className = note.kind === "mark" ? "note-item note-mark" : "note-item note-text";
+      box.style.left = `${pos[0] * W}px`;
+      box.style.top = `${(1 - pos[1]) * H}px`;
+      box.textContent = note.text || (note.kind === "mark" ? "标注" : "（空批注）");
+    }
+    overlay.appendChild(tag(box));
+  });
+}
+
+function bindNoteOverlay() {
+  const overlay = $("note-overlay");
+  if (!overlay) return;
+
+  for (const key of Object.keys(NOTE_TOOLS)) {
+    const btn = $(`btn-note-${key}`);
+    if (btn) btn.onclick = () => setNoteTool(key);
+  }
+  const del = $("btn-note-del");
+  if (del) del.onclick = deleteSelectedNote;
+
+  overlay.addEventListener("pointerdown", (ev) => {
+    const p = notePoint(ev);
+    if (!p) return;
+    const hit = ev.target.closest("[data-note]");
+    if (hit && !noteState.tool) {
+      const index = Number(hit.dataset.note);
+      noteState.selected = index;
+      const note = noteList()[index];
+      if (!note) return;
+      ev.preventDefault();
+      noteState.drag = {
+        index,
+        x0: ev.clientX,
+        y0: ev.clientY,
+        origin: JSON.parse(JSON.stringify(note)),
+        moved: false,
+      };
+      try { overlay.setPointerCapture(ev.pointerId); } catch { /* 合成事件没有真实指针 */ }
+      renderNoteOverlay();
+      return;
+    }
+    if (!noteState.tool) {
+      noteState.selected = null;
+      renderNoteOverlay();
+      return;
+    }
+    ev.preventDefault();
+    noteState.drag = { create: noteState.tool, x0: ev.clientX, y0: ev.clientY, p0: p, moved: false };
+    try { overlay.setPointerCapture(ev.pointerId); } catch { /* 合成事件没有真实指针 */ }
+  });
+
+  overlay.addEventListener("pointermove", (ev) => {
+    const act = noteState.drag;
+    if (!act) return;
+    const dx = ev.clientX - act.x0;
+    const dy = ev.clientY - act.y0;
+    if (Math.abs(dx) + Math.abs(dy) > 3) act.moved = true;
+    if (act.origin) {
+      const r = noteImageRect();
+      if (!r) return;
+      const note = noteList()[act.index];
+      if (!note) return;
+      const fx = dx / r.width;
+      const fy = -dy / r.height;
+      if (note.kind === "arrow") {
+        note.start = act.origin.start.map((v, i) => clamp01(v + (i === 0 ? fx : fy)));
+        note.end = act.origin.end.map((v, i) => clamp01(v + (i === 0 ? fx : fy)));
+      } else {
+        const pos = act.origin.pos || [act.origin.rect[0], act.origin.rect[1]];
+        const moved = [clamp01(pos[0] + fx), clamp01(pos[1] + fy)];
+        if (note.kind === "region") note.rect = [moved[0], moved[1], act.origin.rect[2], act.origin.rect[3]];
+        else note.pos = moved;
+      }
+      renderNoteOverlay();
+      return;
+    }
+    if (act.create === "region" || act.create === "arrow") {
+      const p = notePoint(ev);
+      if (!p) return;
+      const x0 = Math.min(act.p0.x, p.x);
+      const y0 = Math.min(act.p0.y, p.y);
+      const w = Math.abs(p.x - act.p0.x);
+      const h = Math.abs(p.y - act.p0.y);
+      const preview = $("note-preview") || (() => {
+        const el = document.createElement("div");
+        el.id = "note-preview";
+        el.className = "note-item note-preview";
+        overlay.appendChild(el);
+        return el;
+      })();
+      preview.style.left = `${x0 * p.w}px`;
+      preview.style.top = `${(1 - (y0 + h)) * p.h}px`;
+      preview.style.width = `${Math.max(w * p.w, 1)}px`;
+      preview.style.height = `${Math.max(h * p.h, 1)}px`;
+    }
+  });
+
+  const finish = (ev) => {
+    const act = noteState.drag;
+    noteState.drag = null;
+    const preview = $("note-preview");
+    if (preview) preview.remove();
+    if (!act) return;
+    if (act.origin) {
+      if (act.moved) {
+        const note = noteList()[act.index];
+        if (note && note.pos) note.pos = note.pos.map((v) => Math.round(v * 1000) / 1000);
+        if (note && note.rect) note.rect = note.rect.map((v) => Math.round(v * 1000) / 1000);
+        commit("移动批注");
+      }
+      return;
+    }
+    const p = notePoint(ev) || act.p0;
+    const kind = act.create;
+    if (kind === "text") {
+      const value = window.prompt("批注文字", "笔记");
+      if (value == null) return;
+      addNote({ kind: "text", pos: [p.x, p.y], text: value });
+    } else if (kind === "arrow") {
+      if (!act.moved) return;
+      addNote({
+        kind: "arrow",
+        start: [act.p0.x, act.p0.y],
+        end: [p.x, p.y],
+        text: "",
+      });
+    } else if (kind === "region") {
+      const x = Math.min(act.p0.x, p.x);
+      const y = Math.min(act.p0.y, p.y);
+      const w = Math.abs(p.x - act.p0.x);
+      const h = Math.abs(p.y - act.p0.y);
+      if (w < 0.02 || h < 0.02) return;
+      addNote({ kind: "region", rect: [x, y, w, h], text: "" });
+    } else if (kind === "mark") {
+      const hit = axesFraction(ev);
+      if (!hit || !hit.inside || !state.img || !state.img.xlim || !state.img.ylim) {
+        toast("请在坐标轴内点数据点附近", "warn", 2400);
+        return;
+      }
+      const [x0, x1] = state.img.xlim;
+      const [y0, y1] = state.img.ylim;
+      const x = x0 + hit.fx * (x1 - x0);
+      const y = y0 + hit.fy * (y1 - y0);
+      const value = window.prompt("数据标注文字", `(${x.toPrecision(4)}, ${y.toPrecision(4)})`);
+      if (value == null) return;
+      addNote({ kind: "mark", subplot: 0, x, y, pos: [p.x, p.y], text: value });
+    }
+  };
+  overlay.addEventListener("pointerup", finish);
+  overlay.addEventListener("pointercancel", finish);
+  overlay.addEventListener("dblclick", (ev) => {
+    const hit = ev.target.closest("[data-note]");
+    if (!hit) return;
+    editNoteText(Number(hit.dataset.note));
+  });
+
+  window.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && noteState.tool) {
+      setNoteTool(noteState.tool);
+      return;
+    }
+    if (ev.key !== "Delete" && ev.key !== "Backspace") return;
+    const tag = (document.activeElement && document.activeElement.tagName) || "";
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (noteState.selected == null) return;
+    ev.preventDefault();
+    deleteSelectedNote();
+  });
+}
+
+bindNoteOverlay();
+
+function renderLayoutOverlay() {
+  renderNoteOverlay();  // 批注层与布局层同一批刷新
+  const overlay = $("layout-overlay");
+  if (!overlay) return;
+  const layout = layoutList();
+  const px = overlayPixels();
+  overlay.textContent = "";
+  const hint = $("layoutHint");
+  if (hint) hint.hidden = layout.length === 0;
+  overlay.hidden = layout.length === 0 || !px;
+  if (overlay.hidden) return;
+  const { size } = px;
+
+  layout.forEach((item) => {
+    const box = document.createElement("div");
+    box.className = "layout-box";
+    const place = () => {
+      const r = item.rect || [0, 0, 0.5, 0.5];
+      box.style.left = `${r[0] * size.w}px`;
+      box.style.top = `${(1 - (r[1] + r[3])) * size.h}px`;
+      box.style.width = `${r[2] * size.w}px`;
+      box.style.height = `${r[3] * size.h}px`;
+    };
+    place();
+
+    const tag = document.createElement("span");
+    tag.className = "inset-tag";
+    tag.textContent = `槽 ${item.slot}`;
+    const handle = document.createElement("span");
+    handle.className = "inset-handle";
+    box.append(tag, handle);
+
+    const start = (ev, mode) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const rect0 = [...(item.rect || [0, 0, 0.5, 0.5])];
+      layoutState.active = { item, rect0, size, mode, x0: ev.clientX, y0: ev.clientY, box };
+      box.classList.add("dragging");
+      try { box.setPointerCapture(ev.pointerId); } catch { /* 合成事件没有真实指针，忽略 */ }
+    };
+    box.addEventListener("pointerdown", (ev) => start(ev, "move"));
+    handle.addEventListener("pointerdown", (ev) => start(ev, "resize"));
+    box.addEventListener("pointermove", (ev) => {
+      const act = layoutState.active;
+      if (!act || act.box !== box) return;
+      const dx = (ev.clientX - act.x0) / act.size.w;
+      const dy = (ev.clientY - act.y0) / act.size.h;
+      const rect = [...act.rect0];
+      if (act.mode === "move") {
+        rect[0] = clamp01(act.rect0[0] + dx, 0, 1 - rect[2]);
+        rect[1] = clamp01(act.rect0[1] - dy, 0, 1 - rect[3]);
+      } else {
+        rect[2] = clamp01(act.rect0[2] + dx, 0.05, 1 - rect[0]);
+        rect[3] = clamp01(act.rect0[3] - dy, 0.05, 1 - rect[1]);
+      }
+      item.rect = rect;
+      place();
+    });
+    const finish = () => {
+      const act = layoutState.active;
+      if (!act || act.box !== box) return;
+      layoutState.active = null;
+      box.classList.remove("dragging");
+      item.rect = item.rect.map((v) => Math.round(v * 1000) / 1000);
+      commit(act.mode === "move" ? "拖拽子图" : "缩放子图");
+    };
+    box.addEventListener("pointerup", finish);
+    box.addEventListener("pointercancel", finish);
+    overlay.appendChild(box);
+  });
+}
+
 /* ---------------- 时间窗与回放（对齐 netlab 老画布：时间窗 / 回放 / 速度 / 循环 / 回到实时 / 清空） ---------------- */
 
 function fmtTime(value) {
@@ -1256,7 +1896,7 @@ function syncPlayheadUI() {
 
 function replayRender(reason) {
   // 回放/拖时间轴只重画 canvas：不重建 DOM 面板，也不请求服务端。
-  if (clientRenderable(state.spec)) {
+  if (clientRenderable(state.spec) && !layoutList().length && !noteList().length && !noteState.tool) {
     renderClient(reason || "回放").catch(() => redraw("回放"));
     return;
   }

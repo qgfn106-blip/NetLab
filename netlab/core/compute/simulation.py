@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 import threading
 import time
+import uuid
 from collections import deque
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable
@@ -23,7 +24,11 @@ from ..common.limits import (
 )
 from ..model.scene import Scene
 
-RECORDER_CAPACITY = 1200
+#: 录制环形缓冲的帧数上限。2026-11-03：1200 → 6000。
+#: 预计算按这个容量反推 ``sample_every``（整段 0→T 必须装得下），所以它同时
+#: 就是「一次预计算最多保留多少采样点」的上限：容量太小的话，把 dt 调小只会
+#: 让 sample_every 变大，曲线点数不变，用户看到的精度自然毫无变化。
+RECORDER_CAPACITY = 6000
 
 
 @dataclass
@@ -64,6 +69,14 @@ class Recorder:
     capacity: int = RECORDER_CAPACITY
     frames: deque = field(default_factory=deque)
     seq: int = 0
+    #: 记录器代次。``clear()`` 之后 seq 会从 0 重新开始，只看整数 cursor 无法区分
+    #: 「同一段记录的追加」和「换了一段新记录」；代次给增量读取方一个可靠的身份。
+    generation: str = field(
+        default_factory=lambda: uuid.uuid4().hex,
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     def __post_init__(self) -> None:
         self.frames = deque(maxlen=self.capacity)
@@ -137,6 +150,9 @@ class Recorder:
         self.frames.clear()
         self._keys = None
         self.seq = 0
+        # 每次清空都换一个代次：即使清空时一帧都没录过（seq 不变），下游也能
+        # 看出这是新的一段记录。
+        self.generation = uuid.uuid4().hex
 
     def __len__(self) -> int:
         return len(self.frames)
@@ -600,7 +616,7 @@ class Simulation:
     def live(self, cursor: int, limit: int = 400) -> dict[str, Any]:
         if not isinstance(cursor, int) or cursor < 0:
             raise ValidationError("cursor 必须是非负整数")
-        limit = max(1, min(600, int(limit)))
+        limit = max(1, min(RECORDER_CAPACITY, int(limit)))
         with self.lock:
             frames = self.recorder.since(cursor, limit)
             oldest = frames[0]["seq"] if frames else cursor
@@ -609,6 +625,8 @@ class Simulation:
                 "cursor": self.recorder.seq,
                 "oldest": oldest,
                 "keys": self.recorder.keys(),
+                # 同一把锁里取代次：调用方据此判断「这段增量属于哪一段记录」。
+                "generation": self.recorder.generation,
                 "sim": self._info_locked(),
             }
 

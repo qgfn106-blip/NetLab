@@ -1,6 +1,6 @@
 # Netlab 需求 · 决策 · 执行计划（2026-10-25 修订版）
 
-> 最后修改：2026-11-01 20:08
+> 最后修改：2026-11-05 00:55
 > 本版**取代** 2026-10-24 版的需求口径。旧条文不删除，凡被推翻或细化的条目一律进 §7「已废弃口径」。
 > 每条需求统一六段式：**原话 / 解读 / 拟改架构 / 验收 / 权重·期次 / 现状**。
 > **现状**一栏只写本次会话内读代码或跑测试能证明的事实；没有证据的一律标「待核实」。
@@ -12,8 +12,8 @@
 
 | 你想干什么 | 看哪一节 |
 | --- | --- |
-| 知道"为什么这么定" | §2 决策台账（D1–D76） |
-| 知道"要做什么、做到什么程度算完" | §3 需求清单（R01–R33） |
+| 知道"为什么这么定" | §2 决策台账（D1–D94） |
+| 知道"要做什么、做到什么程度算完" | §3 需求清单（R01–R38） |
 | 知道"先做哪个" | §4 权重与依赖、§5 分期 |
 | 知道"哪些明确不做" | §6 不做清单 |
 | 知道"旧文档哪句话作废了" | §7 已废弃口径 |
@@ -27,7 +27,7 @@
 
 1. 你 2026-10-25 提出的七大块新要求（模块化文件化、前端信息架构、场景重组、快捷键、多网络、连线与符号、时间与循环）全部并入，旧七项需求被**细化或取代**，映射见 §7。
 2. 新增三条你点名的横切要求：**数据依赖与数据保护**、**性能与计时**、**现代控制理论导向（仅呈现层）**。
-3. 所有决策从问答沉淀成 **D1–D59 台账**，每个决定都能追到当时的取舍。
+3. 所有决策从问答沉淀成决策台账（本版当时为 **D1–D59**，现已到 **D1–D94**），每个决定都能追到当时的取舍。
 4. 计划从旧的 V2-0…V2-7 改为 **P0–P6**，并明确：P0 是地基（数据模型 + 目录 + 菜单 + 交互基础）先做，且含一个**热修**（现网报错）。
 5. 新增 §6「不做清单」——把"以后再说"和"明确不做"分开写清，避免下个窗口又把它们当需求实现。
 
@@ -122,7 +122,7 @@
 | D81 | **修 PlotKit 面板卡顿（2026-11-02，用户原话「继续完成，并且检查解决plotkit卡顿的问题」）** | 根因三条并全修：①中途出现的探针从 0 长度追加，与 `t` 错位 → `render` 抛「x/y 长度不一致」，曲线永久卡死 → `_ensure_channels` 用 `np.full(len(t),nan)` 补齐、`_ingest` 每次 push 前对齐全部序列；②出图线程与 0.5s 同步线程并发读写 → 中间态同样错位 → `store/registry.py` 加 `DATA_LOCK`（RLock），`_ensure_channels/_ingest/_reset` 与 PlotKit `build()` 共用，渲染由此串行化；③出图贵（900×520=72ms、1200×700=149ms、1600×950=191ms、2400×1400=308ms，且持 GIL 把 step 从 122→138~207µs）→ `renderUrl` 面积上限 1400×1000、实时重绘节流 1Hz、轮询 500→1000ms、拖动预览 70→160ms、同步线程 0.2→0.5s；④面板隐藏仍出图 → `plotVisible()`+`document.hidden`+宿主 `postMessage` 三路判可见；⑤面板先于仿真打开永远 0 图层 → `poll` 在空图层时重取 `api/spec`。验收：面板可见 8 次渲染/8s、切走 0 次、浮窗关闭 0 次；netlab 385 passed（+2 条 `test_plotkit_bridge_sync.py`）、PlotKit 436 passed；静态 3.15.5。详见 PROGRESS §7.38。 |
 ---
 
-## 3. 需求清单（R01–R33）
+## 3. 需求清单（R01–R38）
 
 > 权重：⭐1（可延后）… ⭐5（不做完后面全是坑）。期次指向 §5。
 
@@ -455,6 +455,96 @@
 - **权重·期次**：⭐⭐⭐ / P0–P5（2026-11-02 实现完成，A4 已实机验证；待人工复验 A5/A13/A14/A18/A21）
 - **现状**：**已撤回（D78）**。`netlab/ui/` 与 `start_native.bat` 已于 2026-11-02 整体备份到 Git 分支 `backup/qt-native-2026-11-02`（标签 `qt-native-2026-11-02`）后从工作树删除，界面回到 web（`netlab/static`）。R33 状态改为「已实现但按用户决定撤回」，规格保留在 [QT_NATIVE_SPEC.md](QT_NATIVE_SPEC.md) 作历史依据。
 
+### R34 s 域传递函数节点与分析（Simulink 式）
+
+- **原话**（2026-11-03）：「优化信号流的功能，可以直接用频域s方程写传递函数，并计算，参考matlab simulink里的功能」；参考实现点名 xcos、pathsim、pathview、petercorke/bdsim、python-control。
+- **解读**：信号流里要能像 Simulink 的 Transfer Fcn 块一样，直接写连续域 s 有理式（`num/den`、表达式或零极点），运行时自动离散化并参与仿真；同时能对单个 TF 做 Bode、阶跃、零极点与稳定性分析，而不是只能对整张网络做符号推导。
+- **落地形态**：
+  - 数学层 `netlab/core/compute/transfer.py`：s 表达式解析（隐式乘法、整数幂、负指数）、`TransferFunction`（降幂入口 / 升幂内部）、TF→可控标准型、`bode_data` / `step_response` / `analyze`。
+  - 计算节点 `transfer_function`（「传递函数 G(s)」，组「高级」）：`form=expr|coeff|zpk`，单入单出，复用 `StateSpaceModel` 的 zoh/tustin/backward/forward 离散化；静态增益直接乘。
+  - 分析旁路 `analysis.tf_analysis` + `POST /api/analysis/tf`：支持直接表达式、系数、零极点或场景节点名。
+  - 前端分析面板「传递函数分析（s 域）」：节点下拉 + 表达式输入 + Bode / 阶跃 / 零极点三种视图 + 文本摘要。
+- **验收**：
+  - 三种输入形态对同一 TF 结果一致；TF→SS 在复点与 `tf.at()` 误差 <1e-15。
+  - 一阶 `1/(s+1)`：Bode 在 `ω=1` 为 `-3.0103 dB / -45°`；阶跃 `rise≈2.197`、`settling≈3.91`、稳态误差 0。
+  - 非因果（分子阶数 > 分母）、分母为零、非法字符均返回 422 与中文原因。
+  - 节点在信号流中运行，1000×0.01 s 后 `1/(s+1)` 终值≈1；静态增益 `3×2=6`。
+  - 全量 pytest 只增不减；前端版本戳四处一致。
+- **不做什么**：不做 MIMO TF、离散 `z` 表达式解析、零极点拖动编辑、Bode 光标读数、梅森增益（仍属 R17 L1/L3 与 P6）。
+- **权重·期次**：⭐⭐⭐ / P3（2026-11-03 实现完成，见 PROGRESS §7.54）。
+- **现状**：**已实现**。规格见 [docs/specs/2026-11-03-s-domain-transfer-function.md](specs/2026-11-03-s-domain-transfer-function.md)；定向 27 passed。
+
+### R35 输入字段自动匹配与 value 优先（兼容旧键）
+
+- **原话**（2026-11-04）：「帮我实现能够自匹配输入对象的键，并且将输入输出优先统一为value，再此之外可以自定义键名去传递，减少不匹配不兼容的问题」
+- **解读**：信号流里节点/边不应再因源节点写的是 `value`、下游默认 `voltage` 而报「没有数据字段」；读取端应自动匹配源 payload 的键，默认优先 `value`，显式自定义键仍然最高优先；旧工程里的 `voltage` 参数继续可用。
+- **落地形态**：
+  - 新模块 `netlab/core/compute/fields.py`：`resolve_field`（显式键存在→用；否则数值型 `value`→`voltage`→唯一数值键；歧义/无匹配抛 `ComputeError` 并列出可用字段）、`read_numeric`、`read_node_numeric`、`resolve_output`。
+  - `computes.py` 的 `_numeric`/`_sum_inputs`、`methods.py` 的 `_read` 与 signal 工厂、`statespace.py` 的 `resolve_inputs`、`blocks.py` 的模块端口读写统一走该层；节点与 signal 边的默认 `field`/`input_key`/`output_key` 改为 `value`，留空或 `auto` 时自动匹配。
+  - 显式键（如 `current`）和旧 `voltage` 参数保持兼容；`blocks.py` 对单字段端口做别名读写，解决封装块内外部键不一致。
+- **验收**：
+  - `value`/`voltage` 混接的 sum 正确求和；gain 默认输出 `value`；旧 `voltage` 参数仍得相同结果。
+  - 截图场景（`transfer_function` 输出 `value` + 边方法默认键）不再报「没有数据字段」。
+  - 歧义 payload（多个数值键且无 `value`/`voltage`）报中文错误并列出可用键；显式自定义键优先。
+  - 全量 pytest 只增不减；前端版本戳四处一致。
+- **不做什么**：不做跨类型自动换算（向量/矩阵键），不自动把非数值字段转数值，不改变电路域节点电压法。
+- **权重·期次**：⭐⭐ / P3（2026-11-04 实现完成，见 PROGRESS §7.56）。
+- **现状**：**已实现**。规格见 [docs/specs/2026-11-04-auto-field-matching.md](specs/2026-11-04-auto-field-matching.md)；定向 22 + 全量 484 passed。
+
+### R36 非线性 / 非定常闭环求解（状态断点 + SCC + Newton）
+
+- **原话**（2026-11-04）：「要做非线性，非定常系统所以加上newtone环，再加上之前的计划，同步文档需求，并且按照文档规划先计划规划好，还是先不开工」。
+- **解读**：当前信号流按拓扑序逐节点更新；没有状态节点的代数环只能靠自动 `z⁻¹` 打断，等于把「同一时刻的代数约束」悄悄改成「延迟一拍的动态」。要支持非线性、非定常闭环，必须把执行图改成「有状态节点断点 + 直接馈通子图 SCC + 环内求解」，线性环直接解方程，非线性 / 时变环用阻尼 Newton。2026-11-05 起按 P1–P5 分阶段实施，P1–P5 已完成。
+- **落地形态**：
+  - 节点语义标签：`linear`、`stateful`、`direct_feedthrough`、`time_varying`、`nonlinear`；`transfer_function` 的 `stateful=True`、`direct_feedthrough=(D != 0)`，积分器 / 延迟 `stateful=True`，`expression` 当前保守标非线性（AST 仿射判定留后续优化）。
+  - 执行图：有状态节点切分 → 直接馈通子图求 SCC → SCC DAG 拓扑执行；线性 SCC 解 `(I-A)y=b`，非线性 / 时变 SCC 用阻尼 Newton + 线搜索。
+  - 显式 `delay=True` 优先；自动 `z⁻¹` 只作旧工程兼容回退，并在 UI / 日志标记「该环被自动延迟」。
+  - 错误统一为 `AlgebraicLoopError` / `NewtonConvergenceError` / `UnsupportedLoopError`，消息带 SCC 节点、边、残差与建议。
+- **验收**：
+  - 两增益无状态环不再被自动延迟改写；线性解与解析值一致。
+  - 有状态节点参与的环仍按状态断点执行，结果与现有行为一致。
+  - 非线性单环（如 `y = tanh(y) + u`）Newton 收敛；无解 / 发散报中文错误，不返回伪值。
+  - 时变增益 `k(t)` 每拍变化，闭环响应随 `t` 改变。
+  - 全量 pytest 只增不减；旧工程默认结果不变。
+- **不做什么**：不做完整 DAE / 指标降阶 / 事件检测；不做任意代数环的唯一性证明；不把电路域 MNA 并入信号流求解器。
+- **权重·期次**：⭐⭐⭐⭐ / P13（2026-11-05 P1–P5 已开工）。
+- **现状**：**P1–P5 已完成**。P1 已落地节点求解语义标签（`linear`/`stateful`/`direct_feedthrough`/`time_varying`/`nonlinear`）、`Network.solver_plan()`（状态断点 + 直接馈通 Tarjan SCC + SCC DAG 拓扑）、`auto_delayed_connections()` 与 `Connection.auto_delay` 可见记录；P2 新增 `Network(solve_algebraic=True)` / `_step_solved()`：按执行图分阶段，直接馈通 SCC 解 `(I-A)y=b`，奇异矩阵 / 不支持节点抛 `AlgebraicLoopError`；`Scene.set_algebraic_solver(True)` 后不再自动 `z⁻¹`；P3 对非线性 / 时变 SCC 增加阻尼 Newton（有限差分雅可比、线搜索、`NewtonConvergenceError`），`expression` 每拍注入 `t`/`time` 变量；P4 线性网络 `analysis.transfer_function()` 支持串联/并联/反馈环，`tf_analysis()` 可直接算网络 Bode；P5 `SignalEngine.probes()` 暴露 `state:<node>:<index>`，`analysis.phase_metrics()` 与前端相图独立播放/步进/循环/帧滑块落地。默认 `solve_algebraic=False` 行为不变。新增 4+3+3+4+3 条测试，全量 **521 passed**。规划与进度见 [docs/specs/2026-11-04-nonlinear-time-varying-solver-plan.md](specs/2026-11-04-nonlinear-time-varying-solver-plan.md) 与 PROGRESS §7.66。
+
+### R37 线性网络总传函预计算与 Bode 相位
+
+- **原话**（2026-11-04 规划请求的组成部分）：把「之前的计划」——整张线性网络的总传函 / Bode 相位——一起纳入。
+- **解读**：单节点 `transfer_function` 已有 Bode / 阶跃 / 零极点；闭环设计需要直接从整张线性网络得到 `G(s)` 和相位，而不是手工串联 / 并联 / 反馈拼公式。
+- **落地形态**：
+  - 纯线性网络装配全局状态空间 `x' = A x + B u`、`y = C x + D u`；总传函 `G(s)=C(sI-A)^{-1}B+D`。
+  - Bode 幅值 + 相位同一套频点；离散网络用 `G(e^{jωdt})`；延迟边在 z 域精确，s 域标「含延迟，近似」。
+  - 有代数环时先走 R36 的 SCC 求解；纯线性环可直接消元。
+- **验收**：
+  - 串联 / 并联 / 单位负反馈三个标准网络的总传函与手工推导一致（误差 <1e-9）。
+  - 一阶 `1/(s+1)` 闭环 Bode 在 `ω=1` 的幅值 / 相位与单节点分析一致。
+  - 含显式 `z⁻¹` 的网络在 z 域 Bode 与逐拍仿真一致；s 域结果明确标注近似。
+  - 非线性网络调用总传函时返回「不支持 / 需先线性化」，不静默给线性化结果。
+- **不做什么**：不做 MIMO 总传函、非线性系统小信号自动线性化、频域描述函数。
+- **权重·期次**：⭐⭐⭐ / P13–P14（P4 已提供 s 域基础）。
+- **现状**：**已完成（2026-11-05，对外能力）**：`analysis.transfer_function()` 从线性网络节点方程求总传函（串联/并联/反馈环），`tf_analysis()` 支持网络 Bode 幅相；`domain='z'` 支持纯 `gain`/`sum` 网络的显式 `z⁻¹`（`2/z` 回归）。内部实现用符号节点方程消元，未单独导出全局 `A/B/C/D` 矩阵（保留为后续性能/结构优化项）；非线性网络明确报错。同上 spec。
+
+### R38 相平面状态预计算 + 独立播放条 + 数据分析
+
+- **原话**（2026-11-04 规划请求的组成部分）：把相平面、独立播放条与数据分析一起纳入「之前的计划」。
+- **解读**：相平面不是总传函的后处理，而是状态轨迹的几何；需要把网络内部状态暴露成可选通道，预计算轨迹，再用独立播放条与数据分析查看。
+- **落地形态**：
+  - 状态通道注册：`state:<node>:<index>`，覆盖 `StateSpaceModel.state`、积分器状态、延迟历史；信号流节点默认仍只暴露 `value`。
+  - 预计算所选状态对与时间；支持 `x/y`、`vx/vy`；不要求用户改成矢量模式。
+  - 独立播放条：播放 / 暂停 / 步进 / 循环、当前帧数值；与主仿真时间轴解耦。
+  - 数据分析：峰值、超调、稳态、调节时间、相图轨迹长度 / 包围面积；导出 CSV。
+- **验收**：
+  - 欠阻尼二阶 `4/(s²+1.2s+4)` 的相图与解析椭圆（无阻尼）或收敛螺旋（有阻尼）一致。
+  - 同一工程切换 `dt` 后相图轨迹随步长收敛。
+  - 播放条可独立暂停 / 步进；数据面板数值与录制帧一致。
+  - 无状态通道的节点给出中文提示，不显示空白图。
+- **不做什么**：不做由 `H(s)` 反推相图；不把总传函当作状态几何来源；不做 3D 相图。
+- **权重·期次**：⭐⭐⭐ / P13–P14（2026-11-05 P5 基础已落地）。
+- **现状**：**已完成（2026-11-05）**：`state:<node>:<index>` 状态通道、`analysis.phase_metrics()`、`/api/analysis/phase`、前端相图状态通道 + 独立播放/步进/循环/帧滑块 + L/A/峰值/超调/稳态/调节时间读数 + 导出 CSV；`dt` 减半收敛测试通过；无状态通道节点显示中文提示。
+
 ## 4. 权重与依赖
 
 ### 4.1 权重排序（高→低）
@@ -467,6 +557,9 @@
 | ⭐⭐⭐⭐ | R31 并网逆变器电网控制（P11） | 2026-10-29 用户新提；L1 两天内可出可跑示例，L2 才动核心求解顺序 |
 | ⭐⭐ | R17 控制理论呈现 | 锦上添花，且明确只做呈现层 |
 | ⭐⭐⭐ | R32 论文级绘图子系统（P12） | 2026-10-30 用户新提；替代手绘 canvas 的长期方案，交互与出图两条腿 |
+| ⭐⭐⭐⭐ | R36 非线性 / 非定常闭环求解 | 控制链路正确性的前提；决定 R37/R38 能否验收；P1–P5 已完成 |
+| ⭐⭐⭐ | R37 线性网络总传函预计算与 Bode 相位 | 闭环设计验收；对外 s/z 域能力已完成；内部 A/B/C/D 导出为优化项 |
+| ⭐⭐⭐ | R38 相平面 + 独立播放 + 数据分析 | 呈现层增强；状态通道/播放/指标/CSV/dt 收敛已完成 |
 
 
 ### 4.2 依赖关系
@@ -670,6 +763,18 @@ L3 状态空间一等公民、自定义快捷键、分屏、自定义符号、�
 
 | 日期 | 变更 |
 | --- | --- |
+| 2026-11-05 | **最终集成检查（§7.68）**：R37 `domain='z'` 纯 gain/sum 显式延迟（`2/z`）、`/api/analysis/tf` 网络参数与 `/api/analysis/phase` 契约测试；R38 dt 收敛（39.15%→37.53%）、无状态通道提示；静态 **3.16.17**，全量 **525 passed**；R36 P1–P5、R37 对外、R38 完成，内部 A/B/C/D 导出为优化项 |
+| 2026-11-05 | **R38 相图指标/CSV 补全（§7.67）**：`drawPhase` 读数增加峰值/超调/稳态/调节时间，工具栏 `phaseExport` 复用 `/api/analysis/export`；静态 **3.16.16**，521 passed |
+| 2026-11-05 | **R36 P5 相平面状态通道与独立播放（§7.66）**：`SignalEngine.probes()` 暴露 `state:<node>:<index>`；`analysis.phase_metrics()` + `/api/analysis/phase`；`/api/analysis/tf` 补 `input_node`/`output_node`；前端相图状态通道 + 播放/步进/循环/帧滑块；新增 3 条测试，全量 **521 passed**，静态 **3.16.15** |
+| 2026-11-05 | **R36 P4 线性网络总传函与 Bode（§7.65）**：`analysis.transfer_function()` 改为线性网络节点方程求解，支持串联/并联/反馈环；`tf_analysis()` 新增 `input_node`/`output_node`；新增 `test_network_tf.py` 4 条，全量 **518 passed**，静态 3.16.14；R36 P5 待做，R37 基础完成 |
+| 2026-11-05 | **R36 P3 非线性 / 时变 Newton（§7.64）**：`_solve_nonlinear_stage()` 阻尼 Newton（有限差分雅可比、线搜索、`NewtonConvergenceError`）；`expression` 注入 `t`/`time`；新增 3 条测试，全量 **514 passed**，静态 3.16.14；R36 P4–P5 待做 |
+| 2026-11-05 | **R36 P2 线性 SCC 求解（§7.63）**：`Network(solve_algebraic=True)` / `_step_solved()` 按 `solver_plan()` 分阶段，直接馈通 SCC 解 `(I-A)y=b`；`AlgebraicLoopError` 带节点/边；`Scene.set_algebraic_solver(True)` 后不再自动 `z⁻¹`；P2 只支持 sum/gain + pass/scale。新增 `test_algebraic_solver.py` 3 条，全量 **511 passed**，静态 3.16.14；R36 P3–P5 待做 |
+| 2026-11-05 | **R36 P1 执行图标签与 SCC 检测（§7.62）**：`Node` 增加 `linear/stateful/direct_feedthrough/time_varying/nonlinear`，新增 `compute.solver_traits()`、`Network.solver_plan()`（状态断点 + 直接馈通 Tarjan SCC + SCC DAG 拓扑）与 `auto_delayed_connections()`/`Connection.auto_delay`；默认 `Network.step` 不变。新增 `test_solver_plan.py` 4 条，全量 **508 passed**，静态 3.16.14；R36 P2–P5 待做 |
+| 2026-11-04 | **非线性 / 非定常求解与网络分析规划（R36–R38 / D92–D94）**：新增规划 spec `docs/specs/2026-11-04-nonlinear-time-varying-solver-plan.md`；明确线性网络总传函（串联 / 并联 / 反馈环，延迟边 z 域精确、s 域标近似，输出总传函与 Bode 幅相）、相平面直接取网络真实状态（不从总传函反推）、独立播放条与数据分析；本轮只规划，代码零改动，基线 504 passed |
+| 2026-11-04 | **R35 后续补强：控制链路五项缺陷 + 欠阻尼工程（§7.61）**：超调按最终值方向取峰（`1/(s²+0.4s+1)` 52.66%）、离散 `tf` 分子按分母阶数左补零（`1/z` → `[0,1,1]`）、`reset_state` 恢复计算节点建模初值、`output=auto`/空/`*` 归一为 `value`、`step_response` 非整数 `duration/dt` 按实际步长推进；交付 `MyProject/underdamped_control.netlab`（实测超调 39.18%）。新增 7 条测试，全量 **504 passed**，静态 3.16.14；规格 `docs/specs/2026-11-04-control-transient-feedback.md` |
+| 2026-11-04 | **信号流右键「添加」菜单按节点组分类（R22 / §7.57）**：非电路模式按 catalog `group` 生成「节点 · 基础/动态/高级/矢量/模块/接口」子菜单，矢量模式矢量组置顶，未分类组按出现顺序补后；电路菜单不变。新增 2 条前端静态契约测试，全量 **486 passed**，静态 3.16.14 |
+| 2026-11-04 | **R35 输入字段自动匹配（D91）**：新增 `core/compute/fields.py`（显式键优先，否则数值型 `value`→`voltage`→唯一数值键；歧义报中文错误并列出可用键）；节点与 signal 边默认 `field`/`input_key`/`output_key` 改 `value`，`computes._sum_inputs`、`methods._read`、`statespace.resolve_inputs`、`blocks.py` 单字段端口统一走该层；显式自定义键与旧 `voltage` 参数兼容。定向 22 + 块相关 37 passed，全量 **484 passed**，静态 3.16.13；规格 `docs/specs/2026-11-04-auto-field-matching.md`，详见 PROGRESS §7.56 |
+| 2026-11-03 | **R34 s 域传递函数节点与分析（D90）**：新增 `transfer_function` 节点（`expr/coeff/zpk` 三形态，s 表达式支持隐式乘法/整数幂/负指数，TF→可控标准型后复用 zoh/tustin/backward/forward）；新增 `analysis.tf_analysis` + `POST /api/analysis/tf`（Bode/阶跃/零极点/稳定性/DC 增益）；前端分析面板加 s 域三视图。定向 27 passed，全量 **449 passed**，静态 3.16.12；规格 `docs/specs/2026-11-03-s-domain-transfer-function.md`，详见 PROGRESS §7.54 |
 | 2026-11-01 | **审查加固（D7 / D48 / R16 / D2 / P7-06 / R01）**：多网络保存统一走 `build_project_for()`（保存与新建工程都不再压成单网络）；降级只读覆盖 `load_scene`、网络增删改与保存；预计算超 20 万步硬拒绝且校验前移不破坏已有录制；电路封装合并组按稳定规则选代表、冲突端口名报错；节点端点校验含 id；打开/恢复工程成功后才更新 `CURRENT_WORKSPACE`，恢复快照补传工作区库路径。净增 5 项测试，全库 **356 passed / 3 skipped**；`--selftest` 退出 0（status 200 / shim 200）。详见 PROGRESS §7.32；提交 `a40dba6` |
 | 2026-10-31 | **绘图子系统与原生绘图并行（D68 / PlotKit D37）**：用户决定「先不要将原生绘图分析删掉」→ 取消 P12-07「删旧 canvas」，原四项删旧前置降级为可选增强；R32 现状与退出条件同步修订；PlotKit 侧新增 D37 |
 | 2026-10-30 | **R32 现状补指针**：PlotKit 的图表能力扩展（18 种图层 + matplotlib 方法表）需求、决策与进度全部记在 `PlotKit/docs/REQUIREMENTS_AND_PROGRESS.md`，netlab 侧不再复制（见 R32 现状） |
@@ -1131,4 +1236,11 @@ MOSFET。
 | D87 | 2026-11-02 | 性能减负：网格 CanvasPattern 化、帧上限按探针数自适应、不可见面板跳 DOM 更新、页面隐藏降频、PlotKit 采样按可见性开关 | 用户原话：「继续检查优化代码，提升性能，完成需求，并且检查是否存在冗余部分，重复执行拖累性能」 | `frontend/app.js` 的 `gridPattern/frameCap/pollLoop`；`plotkit_bridge._ACTIVE` + `POST /api/plotkit/active` | 不做：把渲染搬到 worker / 重写图表管线 | drawGraph 20.6→8.8 ms（127 节点）、面板关闭零采样、396 passed | 3 / R33 期 / 完成 |
 | D88 | 2026-11-02 | PlotKit 接入修复（列出场景探针 `available`、`/api/plotkit/diag`、运行时 `remount` 自愈、面板「重试」按钮）+ 缓存体检与安全清理（三档 safe/caution/protected，默认 dry-run，CLI `python -m netlab.cache_guard`，`/api/cache/status|clean`，工具菜单弹窗） | 用户原话：「这个怎么还是不行，还是不能接入节点，先修复这个bug」「能不能自动检查清理缓存，但是保证数据安全」 | `server.py` 的 `/api/plotkit/channels(diag)` + `plotkit_bridge.diagnose/remount`；`netlab/cache_guard.py`；前端数据接入条与缓存弹窗 | 不做：自动静默删除（必须用户确认；启动只提示不删） | 停止态可列出探针、接入 16 条成功；缓存默认 dry-run；405 passed | 3 / R33 期 / 完成 |
 | D89 | 2026-11-02 | 点「运行」先弹「建议先预计算」对话框：可设预计算时间窗（1–120 s，快捷 1/5/10/30）、「预计算并接入」直接跑 0→T 并跳到绘图页、「直接运行」照旧、可勾「以后不再提示」（localStorage 偏好 `runWarn`） | 用户原话：「这里点击运行后先弹出警告，建议预计算，并且在里面可以设置预计算的时间窗口」 | `frontend/app.js` 的 `openRunWarn()` + `control(action, steps, opts)` 拦截；沿用 `/api/plotkit/precompute`；`skipWarn` 供「重新求解」内部流程绕过 | 不做：强制阻断（用户可一键直接运行） | 实测：点运行弹窗→3s 预计算→自动跳绘图页并 16 条通道可画；直接运行 → sim running；409 passed | 3 / R33 期 / 完成 |
-| D90 | 2026-11-03 | 运行与预计算分开：已有预计算数据（或录制帧已覆盖时间窗）时点「运行」不再弹预计算对话框；仿真菜单新增独立「预计算数据…」入口 | 用户原话：「运行与预计算分开，若已经有了预计算数据，有了对应时间轴数据，运行不在报弹窗」 | `frontend/app.js` 的 `hasPrecomputed()` + `control()` 条件；预计算成功后写 `state.precomputedSeconds` | 不做：删除对话框（仍需首次提示） | 实测 dialogAfter=false；409 passed；3.16.4 | 3 / R33 期 / 完成 |
+| 2026-11-03 | **PlotKit 桌面 token 误报修复（增量实现，不新增 D 号）**：PlotKit 通道刷新、重试、预计算、接入与运行前预计算统一改用带 `X-Netlab-Token` 的 `api()`；鉴权/网络错误不再误显示为「没有探针数据」或「PlotKit 未挂载」；静态资源同步 3.16.6。规格见 `docs/specs/2026-11-03-plotkit-desktop-token.md`；定向 14 passed，全量 413 passed（退出阶段重复出现 Windows `fatal exception: code 0xc0000139`，需后续调查） | 用户反馈「即使运行了，有数据了依然报错，这里依然显示没有探针数据与Plotkit未挂载，但是明明已经加载了」 | `frontend/app.js` 的 `api()` 与 PlotKit 数据条错误分支；`test_plotkit_frontend_auth.py`、`test_run_warn.py`；重试二次刷新结果护栏 | 不改服务端鉴权、recorder、探针发现与 PlotKit 绘图逻辑 | 定向 14 passed；全量 413 passed；compileall 与 desktop selftest 退出 0；备份及 manifest 已完成 | 3 / R33 期 / 实现完成，收尾验证已完成 |
+| 2026-11-03 | **PlotKit 预览精度不随仿真精度变化（增量实现，不新增 D 号）**：`plotkit_precompute` 不再把 dt 抬成 `seconds/2000`，改为尊重请求/配置的 dt，仅在超过 20 万步上限时降级并回传 `requested_dt`/`dt_used`/`degraded`；`RECORDER_CAPACITY` 1200→6000、`Simulation.live` 钳制跟随容量、桥接 `SYNC_PULL_LIMIT` 同步 6000；两个预计算入口显示降级提示；静态资源 3.16.11。规格见 `docs/specs/2026-11-03-plotkit-precision.md`；全量 447 passed（退出阶段仍有 Windows `fatal exception: code 0xc0000139`，既有未解决） | 用户反馈「为什么即使我在netlab提高了仿真精度，在plotkit里精度依然没有提高，请修复这个问题」 | `netlab/server.py` 的 `precompute_step_dt`；`netlab/core/compute/simulation.py`；`netlab/plotkit_bridge.py`；`frontend/app.js` 两个预计算入口；`test_plotkit_channels.py` 4 条新回归 + `test_plotkit_frontend_auth.py` + `test_recorder_sampling.py` | 不改求解器精度语义与 PlotKit 绘制/降采样策略 | 全量 447 passed；compileall 与 desktop selftest 退出 0；实测 0.5 s@1e-5 由 1191 点提升到 5556 点 | 3 / R33 期 / 实现完成，收尾验证已完成 |
+| D90 | 2026-11-03 | **s 域传递函数节点与分析**：新增 `transfer_function` 节点（`form=expr|coeff|zpk`，表达式支持隐式乘法/整数幂/负指数），连续 TF 转可控标准型后复用 `StateSpaceModel` 的 zoh/tustin/backward/forward 离散推进；静态增益直接乘；分析旁路新增 `analysis.tf_analysis` + `POST /api/analysis/tf`（Bode/阶跃/零极点/稳定性/DC 增益）；前端分析面板加 s 域三视图 | 用户原话：「优化信号流的功能，可以直接用频域s方程写传递函数，并计算，参考matlab simulink里的功能」 | `netlab/core/compute/transfer.py`；`computes.py` 的 `transfer_function`；`analysis.py` 的 `_node_tf`/`tf_analysis`；`server.py` 的 `AnalysisTFRequest` + `POST /api/analysis/tf`；`frontend/app.js` 的 `analysisTF` 区 | 不做：MIMO TF、离散 z 表达式、零极点拖动、Bode 光标、梅森增益 | 定向 27 passed；一阶 Bode -3.0103 dB/-45°、rise 2.197/settling 3.91；全量结果见 PROGRESS §7.54 | 3 / P3 / 完成 |
+| 2026-11-03 | **架构审计增量修复（不新增 D 号，见 PROGRESS §7.55）**：`/plotkit/api…` 纳入桌面 token 守卫；宿主 shim + fragment token（同源 fetch 注入、PNG 改 blob）；Recorder `generation` 修复清零/换网混线；通道上限按数据集计数（64）；`_reset` 清 `t`/剪枝旧通道/保留版式；桥 stop 可 join、可重启，lifespan 先停桥；`precompute` 部分失败时 `ok=false`；前端接入顺序改为先选通道再预计算；缓存状态/清理统一走 `api()` | 用户要求按文档与经验做证据驱动的架构/性能/安全审计，只实施已确认且安全的改进（原话：「继续完成」） | `netlab/server.py`、`netlab/plotkit_bridge.py`、`netlab/core/compute/simulation.py`、`frontend/app.js`；新增 `test_plotkit_bridge_lifecycle.py`、扩充 `test_plotkit_frontend_auth.py`、`conftest.py`、`test_frontend_api_contract.py` | 不改 vendor PlotKit 源码、不换鉴权模型（仍为 header token，不用 cookie/query）、不重写求解器 | 全量 462 passed / 3 warnings / 64.82 s / 退出码 0；定向 24 passed；`node --check` 与 compileall OK；运行期仍有 2 次 `0xc0000139` 打印 | 3 / 全局架构 / 实现完成，收尾验证已完成 |
+| D91 | 2026-11-04 | **输入字段自动匹配 + value 优先**：新增 `core/compute/fields.py`（`resolve_field` 显式键优先，否则数值型 `value`→`voltage`→唯一数值键；`read_numeric`/`read_node_numeric`/`resolve_output`）；节点与 signal 边的默认 `field`/`input_key`/`output_key` 改为 `value`（空/auto 自动匹配）；`computes._sum_inputs`、`methods._read`、`statespace.resolve_inputs`、`blocks.py` 单字段端口统一走该层；显式自定义键与旧 `voltage` 参数保留兼容 | 用户原话：「帮我实现能够自匹配输入对象的键，并且将输入输出优先统一为value，再此之外可以自定义键名去传递，减少不匹配不兼容的问题」 | `netlab/core/compute/fields.py`、`computes.py`、`methods.py`、`statespace.py`、`netlab/core/model/blocks.py`；`tests/test_fields.py` 及 test_blocks/test_project/test_netlab/test_solver_transactions/test_block_validate 断言更新 | 不做：跨类型自动换算、非数值自动转换、电路域节点电压法改动 | 定向 22 + 块相关 37 passed；全量 484 passed / 3 warnings / 70.77 s / 退出码 0；静态 3.16.13；备份 netlab_fields_20261104_0225 | 3 / P3 / 实现完成，收尾验证已完成 |
+| D92 | 2026-11-04 | **非线性 / 非定常求解器路线：状态断点优先 + SCC 线性解 + Newton，暂不上全 DAE**：有状态节点作断点，直接馈通子图求 SCC；线性环解 `(I-A)y=b`，非线性 / 时变环阻尼 Newton；显式 `delay=True` 优先，自动 `z⁻¹` 仅作旧工程兼容回退并可见标记 | 用户原话：「要做非线性，非定常系统所以加上newtone环，再加上之前的计划，同步文档需求，并且按照文档规划先计划规划好，还是先不开工」 | 规划见 `docs/specs/2026-11-04-nonlinear-time-varying-solver-plan.md`；节点语义标签、SCC、线性解、Newton、错误类型 | 不做：完整 DAE / 指标降阶 / 事件检测 / 任意代数环唯一性证明 / 电路 MNA 并入 | P1–P5 已完成：节点语义标签、`solver_plan()` 的 SCC/断点划分、线性 SCC 解 `(I-A)y=b`、阻尼 Newton + 时变 `t`、网络总传函/Bode、状态通道/相图播放，521 passed | 3 / P13 / P5 完成 |
+| D93 | 2026-11-04 | **线性网络总传函走网络节点方程消元（与全局状态空间等价），不靠纯符号梅森**：纯线性网络节点方程求 `G(s)`，Bode 幅值 + 相位；`domain='z'` 支持纯 `gain`/`sum` 网络的显式 `z⁻¹`，s 域标近似 | 用户此前要求把整张网络的传递函数 / Bode 纳入「之前的计划」（2026-11-04 规划请求） | 规划见同一 spec；节点方程消元、频点、极点稳定性 | 不做：MIMO 总传函、非线性小信号自动线性化、频域描述函数 | 2026-11-05 完成对外能力：串联/并联/反馈、网络 Bode、z 域纯增益/求和+显式延迟；内部未单独导出 A/B/C/D | 3 / P13 / 完成（对外） |
+| D94 | 2026-11-04 | **相平面从网络状态直接预计算，不从总传函反推**：暴露 `state:<node>:<index>` 状态通道，预计算轨迹；独立播放条与数据分析；线性系统可选规范型坐标并标注；2026-11-05 P5 已落地状态通道/播放/L-A/峰值-超调-稳态-调节/CSV | 用户此前问「相图为什么必须用矢量系统」「相图能不能用拉氏 / 傅里叶画」，并要求纳入「之前的计划」 | 规划见同一 spec；状态通道、播放条、峰值/超调/稳态/调节时间/CSV | 不做：由 `H(s)` 反推相图、3D 相图、把总传函当状态几何来源 | P5 基础完成：`state:<node>:<index>`、相图独立播放/步进/循环/帧滑块、L/A 指标；CSV、dt 收敛与完整 UI 验收后续 | 3 / P13 / 完成 |

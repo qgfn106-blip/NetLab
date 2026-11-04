@@ -386,7 +386,32 @@ $$
 
 离散化结果按键 $(\Delta t,\text{method})$ 缓存（statespace.py:139-145）。
 
-### 6.3 推进一步
+### 6.3 s 域传递函数（`core/compute/transfer.py`）
+
+连续有理式按降幂系数表示：
+
+$$
+G(s)=\frac{N(s)}{D(s)}=\frac{b_n s^n+\cdots+b_1 s+b_0}{s^m+a_{m-1}s^{m-1}+\cdots+a_1 s+a_0}.
+$$
+
+分母首一化；`deg N > deg D` 视为非因果拒绝。真分式（$n<m$）转可控标准型：
+
+$$
+\mathbf{A}=\begin{bmatrix}0&1&0&\cdots&0\\ \vdots&&\ddots&&\vdots\\0&0&\cdots&0&1\\-a_0&-a_1&\cdots&-a_{m-2}&-a_{m-1}\end{bmatrix},\quad
+\mathbf{B}=\begin{bmatrix}0\\\vdots\\0\\1\end{bmatrix},
+$$
+
+$$
+\mathbf{C}=\begin{bmatrix}b_0-a_0 b_m&\cdots&b_{m-1}-a_{m-1}b_m\end{bmatrix},\quad D=b_m
+$$
+
+（biproper 时 $D=b_m$；$m=0$ 的静态增益直接 $y=G\,u$，不建状态）。随后复用 §6.2 的 `cont2discrete` 与 §6.4 的推进一步。
+
+**频响**：$G(j\omega)$ 逐点求值，幅值 $20\log_{10}|G(j\omega)|$ dB，相位取 `unwrap(∠G)`；频率范围按零极点模长的 $1/100\ldots100$ 自动铺开（无零极点取 $0.1\ldots100$ rad/s），限 $10^{-6}\ldots10^{9}$。
+
+**阶跃指标**：终值 $y_\infty$；超调 $(y_{\max}-y_\infty)/y_\infty$；上升时间取 10%→90%；调节时间取进入并保持 $\pm2\%$ 带的时间；稳态误差用 $1-G(0)$（不用有限时长末值，避免把仿真截断误判成误差）。不稳定/临界系统只给稳定性结论，不给上升/调节/超调。
+
+### 6.4 推进一步
 
 $$
 \mathbf{x}_{k+1}=\mathbf{A}_d\mathbf{x}_k+\mathbf{B}_d\mathbf{u}_k,\qquad

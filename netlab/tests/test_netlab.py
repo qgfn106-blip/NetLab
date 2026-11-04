@@ -627,7 +627,7 @@ def test_node_crud_and_positions(client):
     body = created.json()
     node_id = body["node"]["id"]
     assert len(body["scene"]["nodes"]) == 5
-    assert body["node"]["params"]["field"] == "voltage"
+    assert body["node"]["params"]["field"] == "value"
 
     patched = client.patch(
         f"/api/nodes/{node_id}",

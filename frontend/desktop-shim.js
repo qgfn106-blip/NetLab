@@ -76,6 +76,100 @@
    * 依赖 webview.settings['DRAG_REGION_DIRECT_TARGET_ONLY'] = True
    * 与 `.pywebview-drag-region` 类（pywebview 内置的拖拽机制）。
    * ------------------------------------------------------------------ */
+  function callApi(name, args) {
+    var a = window.pywebview && window.pywebview.api;
+    if (a && typeof a[name] === 'function') {
+      try { return a[name].apply(a, args || []); } catch (e) { return null; }
+    }
+    return null;
+  }
+
+  function toggleMaximize() {
+    var p = callApi('window_toggle_maximize');
+    if (p && p.then) p.catch(function () {});
+  }
+
+  /**
+   * 把元素变成窗口拖动柄：按住它（交互控件除外）移动整个窗口。
+   * 顶栏与开始页共用；浏览器模式没有 pywebview，调用方需先判断 window.netlabDesktop。
+   * opts: { interactive: cssSelector, dblclick: bool, onStart, onEnd }
+   */
+  function attachWindowDrag(el, opts) {
+    if (!el) return null;
+    opts = opts || {};
+    var interactive = opts.interactive ||
+      'button, input, select, textarea, a, label, [role="tab"], [contenteditable="true"], #nlWinCtl';
+    var rect = null;      // {x, y} 窗口左上角
+    var origin = null;    // 按下时的指针 + 窗口位置
+    var pending = null;
+    var raf = 0;
+
+    function refreshRect() {
+      var p = callApi('window_rect');
+      if (p && p.then) {
+        p.then(function (r) {
+          if (r && r.length >= 2) rect = { x: r[0], y: r[1] };
+        }).catch(function () {});
+      }
+    }
+    refreshRect();
+    window.addEventListener('pywebviewready', refreshRect);
+    el.addEventListener('pointerenter', refreshRect);
+
+    function flush() {
+      raf = 0;
+      if (!pending) return;
+      var x = pending[0], y = pending[1];
+      pending = null;
+      var p = callApi('window_move_to', [x, y]);
+      if (p && p.then) p.catch(function () {});
+      rect = { x: x, y: y };
+    }
+
+    function start(ev) {
+      if (ev.button !== 0) return;
+      if (ev.target && ev.target.closest && ev.target.closest(interactive)) return;
+      origin = { sx: ev.screenX, sy: ev.screenY, wx: rect ? rect.x : null, wy: rect ? rect.y : null };
+      if (origin.wx === null) {
+        var p = callApi('window_rect');
+        if (p && p.then) {
+          p.then(function (r) {
+            if (origin && r && r.length >= 2) { origin.wx = r[0]; origin.wy = r[1]; }
+          }).catch(function () {});
+        }
+      }
+      try { el.setPointerCapture(ev.pointerId); } catch (e) { /* noop */ }
+      if (typeof opts.onStart === 'function') opts.onStart(ev);
+    }
+
+    function move(ev) {
+      if (!origin || origin.wx === null || origin.wy === null) return;
+      pending = [origin.wx + (ev.screenX - origin.sx), origin.wy + (ev.screenY - origin.sy)];
+      if (!raf) raf = requestAnimationFrame(flush);
+    }
+
+    function end() {
+      origin = null;
+      pending = null;
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      if (typeof opts.onEnd === 'function') opts.onEnd();
+    }
+
+    el.addEventListener('pointerdown', start);
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+    if (opts.dblclick) {
+      el.addEventListener('dblclick', function (ev) {
+        if (ev.target && ev.target.closest && ev.target.closest(interactive)) return;
+        toggleMaximize();
+      });
+    }
+    return { refresh: refreshRect };
+  }
+
+  window.netlabDesktop.attachWindowDrag = attachWindowDrag;
+
   function mountWindowChrome() {
     if (document.getElementById('nlWinCtl')) return;
     var bar = document.getElementById('topbar');
@@ -92,69 +186,7 @@
         if (!all[i].closest(INTERACTIVE)) all[i].classList.add('pywebview-drag-region');
       }
     }
-    (function installDrag() {
-      var api = function () { return window.pywebview && window.pywebview.api; };
-      var rect = null;      // {x, y} 窗口左上角
-      var origin = null;    // 按下时的指针 + 窗口位置
-      var pending = null;
-      var raf = 0;
-
-      function refreshRect() {
-        var a = api();
-        if (a && typeof a.window_rect === 'function') {
-          try {
-            a.window_rect().then(function (r) {
-              if (r && r.length >= 2) rect = { x: r[0], y: r[1] };
-            }).catch(function () {});
-          } catch (e) { /* noop */ }
-        }
-      }
-      refreshRect();
-      window.addEventListener('pywebviewready', refreshRect);
-      bar.addEventListener('pointerenter', refreshRect);
-
-      function flush() {
-        raf = 0;
-        if (!pending) return;
-        var a = api();
-        var x = pending[0], y = pending[1];
-        pending = null;
-        if (a && typeof a.window_move_to === 'function') {
-          try { a.window_move_to(x, y); rect = { x: x, y: y }; } catch (e) { /* noop */ }
-        }
-      }
-
-      bar.addEventListener('pointerdown', function (ev) {
-        if (ev.button !== 0) return;
-        if (ev.target && ev.target.closest && ev.target.closest(INTERACTIVE)) return;
-        origin = { sx: ev.screenX, sy: ev.screenY, wx: rect ? rect.x : null, wy: rect ? rect.y : null };
-        if (origin.wx === null) {
-          var a = api();
-          if (a && typeof a.window_rect === 'function') {
-            try {
-              a.window_rect().then(function (r) {
-                if (origin && r && r.length >= 2) { origin.wx = r[0]; origin.wy = r[1]; }
-              }).catch(function () {});
-            } catch (e) { /* noop */ }
-          }
-        }
-        try { bar.setPointerCapture(ev.pointerId); } catch (e) { /* noop */ }
-      });
-
-      bar.addEventListener('pointermove', function (ev) {
-        if (!origin || origin.wx === null || origin.wy === null) return;
-        pending = [origin.wx + (ev.screenX - origin.sx), origin.wy + (ev.screenY - origin.sy)];
-        if (!raf) raf = requestAnimationFrame(flush);
-      });
-
-      function endDrag() { origin = null; pending = null; }
-      bar.addEventListener('pointerup', endDrag);
-      bar.addEventListener('pointercancel', endDrag);
-      bar.addEventListener('dblclick', function (ev) {
-        if (ev.target && ev.target.closest && ev.target.closest(INTERACTIVE)) return;
-        toggleMax();
-      });
-    })();
+    attachWindowDrag(bar, { interactive: INTERACTIVE, dblclick: true });
 
     // 1b) 四边/四角缩放：无边框窗口没有系统边框，这里补 8 个透明手柄。
     (function installResize() {

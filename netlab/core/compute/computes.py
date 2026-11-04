@@ -11,18 +11,27 @@ import math
 from dataclasses import dataclass
 from typing import Any, Callable
 
+import numpy as np
+
 from ..model.graph import ComputeContext, NodeData
 from ..common.limits import ComputeError
+from .fields import read_numeric, resolve_output
 from .params import (
     ParamSpec,
     choice_param,
     float_param,
     json_param,
+    list_param,
     matrix_param,
     validate_params,
 )
 from .safeexpr import evaluate as evaluate_expression
-from .statespace import StateSpaceModel, state_space_specs
+from .statespace import (
+    DISCRETIZATION_METHODS,
+    StateSpaceModel,
+    state_space_specs,
+)
+from .transfer import from_params as transfer_from_params
 from .waveform import WAVEFORM_SPECS, waveform_value
 from ..model.ports import PortSpec
 
@@ -54,6 +63,60 @@ class ComputeSpec:
 COMPUTE_SPECS: dict[str, ComputeSpec] = {}
 
 
+def solver_traits(kind: str, params: dict[str, Any]) -> dict[str, bool]:
+    """R36/P1：返回节点的求解语义标签。
+
+    这里刻意不把标签写进每个 ``ComputeSpec``：同类节点可能因参数不同而改变
+    直接馈通属性（例如 ``transfer_function`` 的 D 是否为 0），统一由这个函数
+    在装配期计算，避免注册表里维护两套真相。
+    """
+    traits = {
+        "linear": True,
+        "stateful": False,
+        "direct_feedthrough": True,
+        "time_varying": False,
+        "nonlinear": False,
+    }
+    if kind in {"manual", "signal"}:
+        traits["direct_feedthrough"] = False
+        if kind == "signal":
+            traits["stateful"] = True  # 时间累加器
+    elif kind in {"lag", "integrate"}:
+        traits["stateful"] = True
+    elif kind == "expression":
+        # 不在这里猜测 AST 是否仿射：保守标成非线性，SCC 会走 Newton。
+        traits["linear"] = False
+        traits["nonlinear"] = True
+    elif kind == "state_space":
+        traits["stateful"] = True
+        matrix = np.asarray(params.get("D", [[0.0]]), dtype=float)
+        traits["direct_feedthrough"] = bool(matrix.size and np.any(np.abs(matrix) > 1.0e-12))
+    elif kind == "transfer_function":
+        try:
+            transfer = transfer_from_params(params)
+        except Exception:
+            transfer = None
+        if transfer is not None and not transfer.is_static:
+            traits["stateful"] = True
+            state_space = transfer.to_state_space()
+            if state_space is not None:
+                d_matrix = np.asarray(state_space[3], dtype=float)
+                traits["direct_feedthrough"] = bool(
+                    d_matrix.size and np.any(np.abs(d_matrix) > 1.0e-12)
+                )
+        else:
+            traits["stateful"] = False
+            traits["direct_feedthrough"] = True
+    elif kind in {"clip", "oscillator", "nonlinear_plant", "sliding_mode", "vector_transform"}:
+        traits["linear"] = False
+        traits["nonlinear"] = True
+        if kind in {"oscillator", "nonlinear_plant", "sliding_mode"}:
+            traits["stateful"] = True
+    elif kind == "block":
+        traits["stateful"] = True
+    return traits
+
+
 def register(spec: ComputeSpec) -> ComputeSpec:
     if spec.kind in COMPUTE_SPECS:
         raise RuntimeError(f"重复注册节点计算方式：{spec.kind}")
@@ -62,21 +125,13 @@ def register(spec: ComputeSpec) -> ComputeSpec:
 
 
 def _numeric(payload: dict[str, Any], field: str, *, source: str) -> float:
-    if field not in payload:
-        raise ComputeError(f"连接 {source!r} 没有字段 {field!r}")
-    value = payload[field]
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise ComputeError(f"连接 {source!r} 的字段 {field!r} 不是数值")
-    number = float(value)
-    if not math.isfinite(number):
-        raise ComputeError(f"连接 {source!r} 的字段 {field!r} 不是有限数值")
-    return number
+    return read_numeric(payload, field, source=source)
 
 
 def _sum_inputs(ctx: ComputeContext, field: str, weights: dict[str, float]) -> float:
     total = 0.0
     for source, payload in ctx.inputs.items():
-        total += weights.get(source, 1.0) * _numeric(payload, field, source=source)
+        total += weights.get(source, 1.0) * read_numeric(payload, field, source=source)
     return total
 
 
@@ -116,7 +171,7 @@ register(
 
 def _sum_factory(params: dict[str, Any]) -> Handler:
     field = params["field"]
-    output = params["output"]
+    output = resolve_output(params["output"])
     raw_weights = params["weights"]
     weights: dict[str, float] = {}
     for key, value in raw_weights.items():
@@ -137,8 +192,8 @@ register(
         group="基础",
         description="把每条入边指定字段相加，写入输出字段；可为单条连接设置权重。",
         params=(
-            ParamSpec("field", "输入字段", "text", "voltage"),
-            ParamSpec("output", "输出字段", "text", "voltage"),
+            ParamSpec("field", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
+            ParamSpec("output", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
             json_param("weights", "连接权重", {}, help='例如 {"R1": 0.5}'),
         ),
         factory=_sum_factory,
@@ -149,7 +204,7 @@ register(
 
 def _gain_factory(params: dict[str, Any]) -> Handler:
     field = params["field"]
-    output = params["output"]
+    output = resolve_output(params["output"])
     gain = params["gain"]
     offset = params["offset"]
 
@@ -167,8 +222,8 @@ register(
         group="基础",
         description="把所有入边求和后乘增益再加偏置：y = offset + gain·Σu。",
         params=(
-            ParamSpec("field", "输入字段", "text", "voltage"),
-            ParamSpec("output", "输出字段", "text", "voltage"),
+            ParamSpec("field", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
+            ParamSpec("output", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
             float_param("gain", "增益", 1.0, step=0.1),
             float_param("offset", "偏置", 0.0, step=0.1),
         ),
@@ -181,7 +236,7 @@ register(
 # ---- 动态 -----------------------------------------------------------------
 def _lag_factory(params: dict[str, Any]) -> Handler:
     field = params["field"]
-    output = params["output"]
+    output = resolve_output(params["output"])
     tau = params["tau"]
     initial = params["initial"]
 
@@ -207,8 +262,8 @@ register(
         group="动态",
         description="一阶低通/惯性环节：τ·dy/dt = u - y，按后向/前向混合的一阶近似推进。",
         params=(
-            ParamSpec("field", "输入字段", "text", "voltage"),
-            ParamSpec("output", "输出字段", "text", "voltage"),
+            ParamSpec("field", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
+            ParamSpec("output", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
             float_param("tau", "时间常数 τ", 0.1, unit="s", positive=True, step=0.01),
             float_param("initial", "初值", 0.0, step=0.1),
         ),
@@ -221,7 +276,7 @@ register(
 
 def _integrate_factory(params: dict[str, Any]) -> Handler:
     field = params["field"]
-    output = params["output"]
+    output = resolve_output(params["output"])
     gain = params["gain"]
     initial = params["initial"]
     lower = params["lower"]
@@ -251,8 +306,8 @@ register(
         group="动态",
         description="对输入求积分并限幅：y += gain·u·dt，适合作为状态变量。",
         params=(
-            ParamSpec("field", "输入字段", "text", "voltage"),
-            ParamSpec("output", "输出字段", "text", "voltage"),
+            ParamSpec("field", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
+            ParamSpec("output", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
             float_param("gain", "增益", 1.0, step=0.1),
             float_param("initial", "初值", 0.0, step=0.1),
             float_param("lower", "下限", -1.0e6),
@@ -294,7 +349,7 @@ register(
 def _expression_factory(params: dict[str, Any]) -> Handler:
     expression = params["expr"].strip()
     raw_variables = params["variables"]
-    output = params["output"]
+    output = resolve_output(params["output"])
     variables: dict[str, str] = {}
     for name, source in raw_variables.items():
         if not str(name).isidentifier():
@@ -308,26 +363,24 @@ def _expression_factory(params: dict[str, Any]) -> Handler:
         if "." in source:
             origin, field = source.split(".", 1)
         else:
-            origin, field = source, "voltage"
+            origin, field = source, None
         if origin == "data":
-            if field not in ctx.data:
+            if not field or field not in ctx.data:
                 raise ComputeError(f"节点数据缺少字段 {field!r}")
             raw = ctx.data[field]
-        else:
-            payload = ctx.inputs.get(origin)
-            if payload is None:
-                return 0.0
-            if field not in payload:
-                raise ComputeError(
-                    f"连接 {origin!r} 没有字段 {field!r}"
-                )
-            raw = payload[field]
-        if isinstance(raw, bool) or not isinstance(raw, (int, float)):
-            raise ComputeError(f"表达式来源 {source!r} 不是数值")
-        return float(raw)
+            if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+                raise ComputeError(f"表达式来源 {source!r} 不是数值")
+            return float(raw)
+        payload = ctx.inputs.get(origin)
+        if payload is None:
+            return 0.0
+        return read_numeric(payload, field, source=origin)
 
     def handler(ctx: ComputeContext) -> NodeData:
-        values = {name: resolve(ctx, source) for name, source in variables.items()}
+        # R36/P3：每拍把当前时间作为保留变量 t（含 time 别名）注入，
+        # 供时变参数表达式使用；用户显式映射同名变量时以映射为准。
+        values = {"t": float(ctx.time), "time": float(ctx.time)}
+        values.update({name: resolve(ctx, source) for name, source in variables.items()})
         return {output: evaluate_expression(expression, values)}
 
     return handler
@@ -390,9 +443,111 @@ register(
 )
 
 
+# ---- 传递函数（R34） -------------------------------------------------------
+def _transfer_function_factory(params: dict[str, Any]) -> Handler:
+    """把 s 域有理式编译成逐步推进的处理器。
+
+    三种输入形态共用 ``transfer.from_params``：表达式 / 降幂系数 / 零极点。
+    静态增益不需要状态；真有理式转可控标准型后用 ``StateSpaceModel`` 推进，
+    与 ``state_space`` 节点共享离散化与发散保护。
+    """
+    tf = transfer_from_params(params)
+    field = params["field"]
+    output = resolve_output(params["output"])
+    method = params["method"]
+
+    if tf.is_static:
+        gain = tf.gain()
+
+        def static_handler(ctx: ComputeContext) -> NodeData:
+            return {output: float(gain * _sum_inputs(ctx, field, {}))}
+
+        return static_handler
+
+    state_space = tf.to_state_space()
+    if state_space is None:  # pragma: no cover - is_static 已提前返回
+        raise ComputeError("传递函数无法转换为状态空间")
+    a, b, c, d = state_space
+    raw_x0 = params.get("x0") or []
+    if raw_x0 and len(raw_x0) != a.shape[0]:
+        raise ComputeError(
+            f"初始状态长度 {len(raw_x0)} 与传递函数阶数 {a.shape[0]} 不一致"
+        )
+    x0 = np.asarray(raw_x0, dtype=float) if raw_x0 else np.zeros(a.shape[0], dtype=float)
+    model = StateSpaceModel(
+        a=a,
+        b=b,
+        c=c,
+        d=d,
+        input_map=["in"],
+        output_map=["y"],
+        method=method,
+        x0=x0,
+    )
+
+    def handler(ctx: ComputeContext) -> NodeData:
+        value = _sum_inputs(ctx, field, {})
+        y, _ = model.step(ctx.state, np.asarray([value], dtype=float), ctx.dt)
+        return {output: float(y[0])}
+
+    return handler
+
+
+register(
+    ComputeSpec(
+        kind="transfer_function",
+        label="传递函数 G(s)",
+        group="高级",
+        description=(
+            "直接用 s 的有理式（如 (2*s+1)/(s^2+3*s+2)）定义连续传递函数，"
+            "也可用降幂系数或零极点；按所选方法离散后逐步推进。"
+        ),
+        params=(
+            choice_param(
+                "form",
+                "输入形式",
+                "expr",
+                (
+                    ("expr", "s 表达式"),
+                    ("coeff", "降幂系数"),
+                    ("zpk", "零极点"),
+                ),
+                help="表达式只允许 s、数字与 + - * / ^ ( )；隐式乘法 2s 可用",
+            ),
+            ParamSpec(
+                "expr",
+                "s 表达式",
+                "text",
+                "1/(s+1)",
+                placeholder="例如 (2*s+1)/(s^2+3*s+2)",
+                help="分子/分母都按 s 的多项式书写；阶数上限 20",
+            ),
+            list_param("numerator", "分子系数（降幂）", [1.0]),
+            list_param("denominator", "分母系数（降幂）", [1.0, 1.0]),
+            list_param("zeros", "零点", []),
+            list_param("poles", "极点", [-1.0]),
+            float_param("gain", "增益", 1.0, step=0.1),
+            ParamSpec("field", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
+            ParamSpec("output", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
+            choice_param("method", "离散化方法", "zoh", DISCRETIZATION_METHODS),
+            list_param(
+                "x0",
+                "初始状态",
+                [],
+                help="长度必须等于分母阶数；留空表示零初始状态",
+            ),
+        ),
+        factory=_transfer_function_factory,
+        outputs=("output",),
+        notes="连续域；阶跃/Bode/零极点分析见分析面板或 /api/analysis/tf",
+        formula="y(s)/u(s) = num(s)/den(s)；转可控标准型后 x[k+1] = Ad·x[k] + Bd·u[k]",
+    )
+)
+
+
 def _clip_factory(params: dict[str, Any]) -> Handler:
     field = params["field"]
-    output = params["output"]
+    output = resolve_output(params["output"])
     lower = params["minimum"]
     upper = params["maximum"]
     if lower > upper:
@@ -412,8 +567,8 @@ register(
         group="基础",
         description="对输入求和后做上下限截断，可用于饱和环节。",
         params=(
-            ParamSpec("field", "输入字段", "text", "voltage"),
-            ParamSpec("output", "输出字段", "text", "voltage"),
+            ParamSpec("field", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
+            ParamSpec("output", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
             float_param("minimum", "下限", -10.0, step=0.5),
             float_param("maximum", "上限", 10.0, step=0.5),
         ),
@@ -877,7 +1032,7 @@ register(
         group="接口",
         description="把标量信号按给定角度映射成二维矢量；显式声明跨模式换算，不做隐式转换。",
         params=(
-            ParamSpec("input_field", "输入字段", "text", "voltage"),
+            ParamSpec("input_field", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
             float_param("angle", "矢量角度", 0.0, unit="°", minimum=-360.0, maximum=360.0, step=15.0),
             ParamSpec("output_x", "输出 x 字段", "text", "x"),
             ParamSpec("output_y", "输出 y 字段", "text", "y"),

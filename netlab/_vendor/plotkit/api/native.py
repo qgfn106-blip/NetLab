@@ -316,7 +316,8 @@ class Figure:
     def update_layout(self, **kwargs: Any) -> "Figure":
         fig = self.spec["figure"]
         for key, value in kwargs.items():
-            if key in ("size", "dpi", "ncols", "subplots", "theme", "title", "link_x"):
+            if key in ("size", "dpi", "ncols", "subplots", "theme", "title", "link_x",
+                       "layout", "notes"):
                 fig[key] = value
             elif key in ("xlabel", "ylabel", "xlim", "ylim", "grid", "xscale", "yscale", "ticks", "loglabels"):
                 self.update_view(**{key: value})

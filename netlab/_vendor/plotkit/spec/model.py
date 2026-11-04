@@ -163,6 +163,30 @@ def new_shape(kind: str, **kwargs: Any) -> dict[str, Any]:
     return shape
 
 
+NOTE_TYPES = ("text", "arrow", "region", "mark")
+
+
+def new_note(kind: str, **kwargs: Any) -> dict[str, Any]:
+    """画布批注（PK-R21）：笔记式文字框、箭头、框选区域、数据标注。
+
+    - `text`: `pos=[x, y]`，figure 比例坐标（左下为原点）；
+    - `arrow`: `start=[x, y]` → `end=[x, y]`，figure 比例坐标，可带 `text`；
+    - `region`: `rect=[x, y, w, h]`，figure 比例坐标的虚线框；
+    - `mark`: `subplot` + `x`/`y`（数据坐标），画在数据点上并带引线文字。
+    """
+    if kind not in NOTE_TYPES:
+        raise ValueError(f"未知批注类型 {kind!r}，可用：{', '.join(NOTE_TYPES)}")
+    note: dict[str, Any] = {
+        "id": "n" + uuid.uuid4().hex[:8],
+        "kind": kind,
+        "text": "",
+        "color": "#0f766e",
+        "size": 11.0,
+    }
+    note.update(kwargs)
+    return note
+
+
 def new_layer(
     kind: str,
     *,

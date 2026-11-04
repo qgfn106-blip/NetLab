@@ -72,7 +72,7 @@ def test_broken_internal_compute_fails_dry_run():
     payload = good_block().to_payload()
     for node in payload["nodes"]:
         if node["kind"] == "gain":
-            node["params"]["field"] = "nope"
+            node["params"]["gain"] = "not-a-number"
     report = validate_block_payload(payload)
     assert report["ok"] is False
     codes = {item["code"] for item in report["blocking"]}

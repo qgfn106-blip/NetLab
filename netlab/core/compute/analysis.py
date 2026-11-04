@@ -14,6 +14,8 @@ from typing import Any, Callable
 
 import numpy as np
 
+from . import transfer as transfer_math
+
 
 ANALYSIS_TIMEOUT = 5.0
 MAX_EXPORT_ROWS = 200_000
@@ -131,6 +133,58 @@ def analyze_metrics(
             "source": "录制数据；10/90% 线性插值上升时间、±2% 稳态带、峰值相对终值超调",
         }
     return {"ok": True, "items": items, "source": "recorder"}
+
+
+def phase_metrics(
+    xs: list[float],
+    ys: list[float],
+    times: list[float] | None = None,
+) -> dict[str, Any]:
+    """相平面轨迹指标：长度、包围面积、极值、终值与超调。"""
+    x = np.asarray(xs, dtype=float)
+    y = np.asarray(ys, dtype=float)
+    if x.size != y.size:
+        raise AnalysisError("相平面 x/y 长度不一致")
+    if times is not None and len(times) != x.size:
+        raise AnalysisError("相平面时间长度不一致")
+    if x.size < 2:
+        raise AnalysisError("相平面轨迹点不足（<2）")
+    mask = np.isfinite(x) & np.isfinite(y)
+    x = x[mask]
+    y = y[mask]
+    if x.size < 2:
+        raise AnalysisError("相平面轨迹没有有效数值点")
+    times_array = None
+    if times is not None:
+        times_array = np.asarray(times, dtype=float)[mask]
+    dx = np.diff(x)
+    dy = np.diff(y)
+    path_length = float(np.sum(np.hypot(dx, dy)))
+    area = float(0.5 * np.sum(x[:-1] * y[1:] - x[1:] * y[:-1]))
+    final = float(y[-1])
+    peak = float(y.max() if final >= 0 else y.min())
+    overshoot = 0.0
+    if abs(final) > 1e-12:
+        overshoot = max(0.0, (peak - final) / abs(final) * 100.0)
+    result: dict[str, Any] = {
+        "ok": True,
+        "points": int(x.size),
+        "path_length": path_length,
+        "enclosed_area": area,
+        "x_min": float(x.min()),
+        "x_max": float(x.max()),
+        "y_min": float(y.min()),
+        "y_max": float(y.max()),
+        "x_final": float(x[-1]),
+        "y_final": final,
+        "y_peak": peak,
+        "overshoot_pct": float(overshoot),
+        "source": "相平面轨迹；面积为鞋带公式，超调相对 y 终值",
+    }
+    if times_array is not None and times_array.size == x.size:
+        result["t_start"] = float(times_array[0])
+        result["t_end"] = float(times_array[-1])
+    return result
 
 
 def spectrum(
@@ -268,6 +322,9 @@ def _node_tf(kind: str, params: dict[str, Any]) -> str | None:
     if kind == "integrate":
         gain = _number(params.get("gain", 1.0))
         return f"({gain})/s"
+    if kind == "transfer_function":
+        # 三种输入形态统一走 transfer.from_params；sympy 只认 ** 形式的幂。
+        return transfer_math.from_params(params).to_expression(power="**")
     return ""
 
 
@@ -278,8 +335,15 @@ def transfer_function(
     *,
     input_field: str = "voltage",
     output_field: str = "voltage",
+    domain: str = "s",
 ) -> dict[str, Any]:
-    """线性网络符号传递函数（sympy 可选）；不支持则返回原因。"""
+    """线性网络符号传递函数（sympy 可选）；``domain='z'`` 支持显式 z⁻¹。"""
+    if domain not in {"s", "z"}:
+        return {
+            "ok": False,
+            "reason": f"未知传递函数域 {domain!r}（只支持 s / z）",
+            "source": "symbolic",
+        }
     try:
         import sympy as sp
     except Exception as exc:  # pragma: no cover - 环境相关
@@ -295,64 +359,117 @@ def transfer_function(
     nodes_by_id = {node.id: node for node in scene.nodes.values()}
     if input_node not in nodes or output_node not in nodes:
         return {"ok": False, "reason": "输入/输出节点名不存在", "source": "symbolic"}
-    edges_by_target: dict[str, list[Any]] = {}
-    for edge in scene.edges.values():
-        if not edge.enabled:
-            continue
-        target = nodes_by_id.get(edge.target)
-        if target is None:
-            continue
-        edges_by_target.setdefault(target.name, []).append(edge)
     s = sp.Symbol("s")
+    z = sp.Symbol("z")
+    variable = z if domain == "z" else s
+    nonlinear_kinds = {
+        "expression",
+        "clip",
+        "deadband",
+        "saturate",
+        "lookup",
+        "table",
+        "piecewise",
+    }
+    for node in nodes.values():
+        if node.kind in nonlinear_kinds:
+            return {
+                "ok": False,
+                "reason": f"网络含非线性节点 {node.name!r}（kind={node.kind!r}），不适用线性总传函",
+                "source": "symbolic（sympy）",
+            }
 
-    def edge_weight(edge: Any, source_node: Any) -> Any:
-        if edge.delay:
-            raise AnalysisError(f"连接 {edge.name!r} 带单步延迟，符号传递函数未支持（需 z 变换）")
-        if source_node.kind == "sum":
-            weights = (source_node.params.get("weights") or {})
-            try:
-                return sp.Integer(int(weights.get(edge.name, 1)))
-            except (TypeError, ValueError):
-                return sp.Integer(1)
-        return sp.Integer(1)
+    def sym_number(value: Any) -> Any:
+        if isinstance(value, bool):
+            return sp.Integer(int(value))
+        if isinstance(value, (int, float)) and float(value).is_integer():
+            return sp.Integer(int(value))
+        return sp.sympify(str(value))
 
-    cache: dict[str, Any] = {}
-    visiting: set[str] = set()
-
-    def tf(name: str) -> Any:
-        if name in cache:
-            return cache[name]
-        if name in visiting:
-            raise AnalysisError(f"检测到代数环：{name!r}（符号推导只支持有向无环）")
-        node = nodes[name]
-        if name == input_node:
-            cache[name] = sp.Integer(1)
-            return cache[name]
-        visiting.add(name)
+    def local_tf(node: Any) -> Any:
         kind = node.kind
-        local = _node_tf(kind, node.params)
-        if local == "":
-            # 独立源/非线性节点（不是所选输入）按外部输入 0 处理，只保留线性通路。
-            visiting.discard(name)
-            cache[name] = sp.Integer(0)
-            return cache[name]
-        if local is None:
-            local_expr = sp.Integer(1)
+        params = node.params
+        if kind == "gain":
+            return sym_number(params.get("gain", 1.0))
+        if kind == "sum":
+            return sp.Integer(1)
+        if domain == "z":
+            raise AnalysisError(
+                f"z 域总传函只支持 gain/sum 节点；{node.name!r} 是 {kind!r}，"
+                "请改用逐拍仿真或先离散化"
+            )
+        if kind == "lag":
+            tau = sym_number(params.get("tau", 0.1))
+            return 1 / (1 + tau * s)
+        if kind == "integrate":
+            return sym_number(params.get("gain", 1.0)) / s
+        if kind == "transfer_function":
+            return sp.sympify(_node_tf(kind, params))
+        if kind == "state_space":
+            a = sp.Matrix(params.get("A") or [])
+            b = sp.Matrix(params.get("B") or [])
+            c = sp.Matrix(params.get("C") or [])
+            d = sp.Matrix(params.get("D") or [[0.0]])
+            if a.shape[0] == 0 or b.shape[0] != a.shape[0]:
+                raise AnalysisError(f"状态空间节点 {node.name!r} 的 A/B 维度不匹配")
+            transfer = c * (s * sp.eye(a.shape[0]) - a).inv() * b + d
+            return sp.simplify(transfer[0, 0])
+        if kind in {"manual", "signal"}:
+            return None
+        raise AnalysisError(
+            f"节点 {node.name!r}（kind={kind!r}）不在总传函支持范围内；"
+            "目前支持 gain/sum/lag/integrate/transfer_function/state_space"
+        )
+
+    def edge_weight(edge: Any, target_node: Any) -> Any:
+        delay_factor = sp.Integer(1)
+        if edge.delay:
+            if domain == "s":
+                raise AnalysisError(
+                    f"连接 {edge.name!r} 带单步延迟，连续 s 域总传函未支持（需 domain='z'）"
+                )
+            delay_factor = 1 / variable
+        if edge.kind == "pass":
+            base = sp.Integer(1)
+        elif edge.kind == "scale":
+            base = sym_number((edge.params or {}).get("gain", 1.0))
         else:
-            local_expr = sp.sympify(local.replace("s", "s"))
+            raise AnalysisError(
+                f"连接 {edge.name!r} 的边类型 {edge.kind!r} 不在总传函支持范围内"
+            )
+        if target_node.kind == "sum":
+            weights = target_node.params.get("weights") or {}
+            weight = weights.get(edge.name, 1)
+            return base * sym_number(weight) * delay_factor
+        return base * delay_factor
+
+    unknowns = [sp.Symbol(f"y_{index}") for index in range(len(nodes))]
+    by_name = dict(zip(nodes.keys(), unknowns))
+    equations = []
+    for node in nodes.values():
+        symbol = by_name[node.name]
+        if node.name == input_node:
+            equations.append(sp.Eq(symbol, sp.Integer(1)))
+            continue
+        local = local_tf(node)
+        if local is None:
+            equations.append(sp.Eq(symbol, sp.Integer(0)))
+            continue
         total = sp.Integer(0)
-        for edge in edges_by_target.get(name, []):
+        for edge in scene.edges.values():
+            if not edge.enabled or edge.target != node.id:
+                continue
             source = nodes_by_id.get(edge.source)
             if source is None:
                 continue
-            weight = edge_weight(edge, source)
-            total += sp.sympify(tf(source.name)) * weight * local_expr
-        visiting.discard(name)
-        cache[name] = sp.simplify(total)
-        return cache[name]
+            total += edge_weight(edge, node) * by_name[source.name]
+        equations.append(sp.Eq(symbol, sp.expand(local * total)))
 
     try:
-        expr = sp.simplify(tf(output_node))
+        solutions = sp.solve(equations, unknowns, dict=True)
+        if not solutions:
+            raise AnalysisError("线性网络节点方程无解，无法得到总传函")
+        expr = sp.simplify(solutions[0][by_name[output_node]])
     except AnalysisError as exc:
         return {"ok": False, "reason": str(exc), "source": "symbolic（sympy）"}
     except Exception as exc:
@@ -365,14 +482,16 @@ def transfer_function(
         }
     num, den = sp.fraction(sp.together(expr))
     try:
-        num_poly = sp.Poly(sp.expand(num), s)
-        den_poly = sp.Poly(sp.expand(den), s)
+        num_poly = sp.Poly(sp.expand(num), variable)
+        den_poly = sp.Poly(sp.expand(den), variable)
         num_coeffs = [float(item) for item in num_poly.all_coeffs()][::-1]
         den_coeffs = [float(item) for item in den_poly.all_coeffs()][::-1]
     except Exception:
         num_coeffs, den_coeffs = [], []
     return {
         "ok": True,
+        "domain": domain,
+        "variable": str(variable),
         "input": {"node": input_node, "field": input_field},
         "output": {"node": output_node, "field": output_field},
         "expression": str(expr),
@@ -382,13 +501,103 @@ def transfer_function(
         "denominator_coeffs": den_coeffs,
         "order": max(0, len(den_coeffs) - 1),
         "assumptions": [
-            "线性节点：gain/sum/lag/integrate，pass 连接；忽略偏置、限幅、初值",
-            "输入输出字段按 voltage 处理；delay 连接（z⁻¹）未支持",
-            "输入节点以外的独立源/非线性节点按 0 处理（只保留所选输入到输出的线性通路）",
+            "线性节点：gain/sum/lag/integrate/transfer_function/state_space，pass/scale 连接；忽略偏置、限幅、初值",
+            "支持反馈环（节点方程联立消元）；delay 连接（z⁻¹）需 z 域分析，连续 s 域报错",
+            "输入节点以外的独立源按 0 处理；非线性节点明确报错，不静默线性化",
             "结果只作数学形式呈现，不参与求解",
         ],
-        "source": "symbolic（sympy）；线性节点逐级拼接",
+        "source": "symbolic（sympy）；线性网络节点方程求总传函",
     }
+
+
+def tf_analysis(
+    sim: Any = None,
+    *,
+    node: str | None = None,
+    input_node: str | None = None,
+    output_node: str | None = None,
+    field: str | None = None,
+    expr: str | None = None,
+    numerator: list[float] | None = None,
+    denominator: list[float] | None = None,
+    zeros: list[float] | None = None,
+    poles: list[float] | None = None,
+    gain: float = 1.0,
+    method: str = "zoh",
+    dt: float | None = None,
+    duration: float | None = None,
+    points: int = 240,
+) -> dict[str, Any]:
+    """s 域传递函数分析：Bode、阶跃、零极点、稳定性。
+
+    输入优先级：``node``（仿真里的 transfer_function 节点）> ``expr`` >
+    ``numerator``/``denominator`` > ``zeros``/``poles``。只做解析与数值呈现，
+    不写回求解器；参数错误统一转 ``AnalysisError``，服务层返回 422。
+    """
+    try:
+        if input_node is not None or output_node is not None:
+            if sim is None or not input_node or not output_node:
+                raise AnalysisError("网络总传函必须同时提供 input_node 与 output_node")
+            network_report = transfer_function(sim, input_node, output_node)
+            if not network_report.get("ok"):
+                raise AnalysisError(str(network_report.get("reason") or "网络总传函失败"))
+            tf = transfer_math.parse_expression(str(network_report["expression"]))
+            if field is None:
+                field = "value"
+        elif node is not None:
+            if sim is None:
+                raise AnalysisError("指定 node 时必须提供仿真")
+            scene = sim.scene
+            if scene.mode != "signal":
+                raise AnalysisError("目前只支持 signal 模式的传递函数节点")
+            matches = [item for item in scene.nodes.values() if item.name == node]
+            if not matches:
+                raise AnalysisError(f"节点 {node!r} 不存在")
+            found = matches[0]
+            if found.kind != "transfer_function":
+                raise AnalysisError(
+                    f"节点 {node!r} 不是传递函数节点（kind={found.kind}）"
+                )
+            tf = transfer_math.from_params(found.params)
+            if field is None:
+                field = str(found.params.get("output") or "voltage")
+        elif expr is not None:
+            tf = transfer_math.parse_expression(expr)
+        elif numerator is not None or denominator is not None:
+            if numerator is None or denominator is None:
+                raise AnalysisError("降幂系数模式必须同时给出分子和分母")
+            tf = transfer_math.from_coefficients(numerator, denominator)
+        elif zeros is not None or poles is not None:
+            tf = transfer_math.from_zpk(
+                zeros or [], poles or [], gain=float(gain)
+            )
+        else:
+            raise AnalysisError(
+                "需要 node、expr、numerator/denominator 或 zeros/poles 之一"
+            )
+        result = transfer_math.analyze(
+            tf,
+            dt=dt,
+            duration=duration,
+            method=method,
+            points=points,
+        )
+    except AnalysisError:
+        raise
+    except Exception as exc:
+        raise AnalysisError(f"传递函数分析失败：{exc}") from exc
+
+    result["node"] = node
+    if field is not None:
+        result["field"] = field
+    result["assumptions"] = [
+        "连续域有理式；阶跃响应按所选方法（默认 ZOH）离散后推进",
+        "零极点由数值求根得到；重根/近重根可能有数值误差",
+        "阶跃指标基于单位阶跃与零初始状态；不稳定/临界系统只给轨迹与稳定性",
+        "分析只读参数，不写回求解器",
+    ]
+    result["source"] = "transfer（s 域解析）"
+    return result
 
 
 def export_csv(
@@ -490,6 +699,8 @@ __all__ = [
     "recommend_period",
     "math_forms",
     "transfer_function",
+    "tf_analysis",
+    "phase_metrics",
     "export_csv",
     "run_with_timeout",
 ]

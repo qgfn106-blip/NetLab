@@ -40,6 +40,7 @@ from ..common.limits import (
     check_id,
     check_name,
 )
+from ..compute.fields import resolve_field
 from ..compute.methods import prepare_method
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -433,7 +434,19 @@ class BlockRuntime:
             port = defaults.get(port_name)
             if port is not None:
                 for fld in port.fields or []:
-                    if fld not in payload:
+                    if fld in payload:
+                        continue
+                    source_key = None
+                    if len(port.fields or ()) == 1:
+                        try:
+                            source_key = resolve_field(
+                                payload, fld, source=port_name, subject="模块端口"
+                            )
+                        except ComputeError:
+                            source_key = None
+                    if source_key is not None:
+                        payload[fld] = payload[source_key]
+                    else:
                         payload[fld] = float(port.default or 0.0)
             for key, value in payload.items():
                 if isinstance(value, (int, float, bool, str)) and not isinstance(value, complex):
@@ -451,7 +464,17 @@ class BlockRuntime:
                 continue
             payload: dict[str, Any] = {}
             for key in fields:
-                value = record.data.get(key)
+                source_key = key
+                if len(fields) == 1:
+                    # 单字段标量端口：旧块常声明 voltage，而新节点写 value；
+                    # 读取端自动落到实际数值字段，输出仍用声明字段名，保持端口契约。
+                    try:
+                        source_key = resolve_field(
+                            record.data, key, source=port_name, subject="模块端口"
+                        )
+                    except ComputeError:
+                        source_key = key
+                value = record.data.get(source_key)
                 if isinstance(value, bool) or (
                     isinstance(value, (int, float)) and math.isfinite(float(value))
                 ):

@@ -63,6 +63,17 @@
         <div id="plotHover" class="plot-hover" hidden></div>
       </div>
       <div id="inset-overlay" class="inset-overlay" hidden></div>
+      <div id="layout-overlay" class="layout-overlay" hidden></div>
+      <div id="note-overlay" class="note-overlay" hidden></div>
+      <div class="layerwin" id="layerWin" hidden>
+        <div class="layerwin-bar" id="layerWinBar">
+          <span class="layerwin-title">图层</span>
+          <span class="layerwin-hint">拖动标题栏移动</span>
+          <button class="btn ghost layerwin-close" id="btn-layer-close" title="收回右侧面板">收起</button>
+        </div>
+        <div class="layerwin-body" id="layerWinBody"></div>
+        <div class="layerwin-resize" title="拖动缩放"></div>
+      </div>
       <div class="empty" id="empty" hidden>
         <p>还没有图层</p>
         <p class="hint">左侧面板选一个数据集，然后点「＋ 图层」</p>
@@ -83,6 +94,21 @@
             </label>
             <label class="field check"><span>联动 X 轴</span><input type="checkbox" id="linkx"></label>
           </div>
+          <div class="dsbar">
+            <button class="btn ghost" id="btn-note-text" title="在画布上点一下，放一个文字框（双击改字）">文字框</button>
+            <button class="btn ghost" id="btn-note-arrow" title="按住拖一条箭头，可在末尾带文字">箭头</button>
+            <button class="btn ghost" id="btn-note-region" title="按住框出一块重点区域（虚线框）">框选</button>
+            <button class="btn ghost" id="btn-note-mark" title="在数据点附近点一下，标注该点的数值">数据标注</button>
+            <button class="btn ghost" id="btn-note-del" title="删除选中的批注（也可按 Delete）">删除批注</button>
+          </div>
+          <p class="tiny" id="noteHint" hidden>批注：选一个工具后在画布上点击/拖拽；拖动批注可移动，双击文字可改，Delete 删除。</p>
+          <div class="dsbar">
+            <button class="btn ghost" id="btn-free-layout" title="按当前网格生成可拖拽的子图框">自由布局</button>
+            <button class="btn ghost" id="btn-grid-layout" title="删掉自由布局，回到列数×子图数的网格">回到网格</button>
+            <button class="btn ghost" id="btn-panel-reset" title="面板拖歪了：恢复默认宽度并重绘">复位面板宽度</button>
+            <button class="btn ghost" id="btn-layer-pop" title="把图层设置拖成浮动窗口，窄屏或想边看画布边调图层时用">图层独立窗口</button>
+          </div>
+          <p class="tiny" id="layoutHint" hidden>自由布局：拖动框移动子图，右下角把手缩放；允许重叠，后画的在上层。</p>
         </div>
       </details>
 
@@ -112,7 +138,7 @@
           <p class="tiny">子图用于并行拼图：给每个图层选「槽」即可放到对应子图。</p>
         </div>
       </details>
-      <details class="pgroup sect grow" open>
+      <details class="pgroup sect grow" open id="layerSect">
         <summary><span class="sect-title">图层</span> <span class="count" id="layercount">0</span></summary>
         <div class="sect-body">
           <div id="layers" class="layers"></div>

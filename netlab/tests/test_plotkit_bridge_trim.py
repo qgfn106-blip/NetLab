@@ -11,6 +11,11 @@ import importlib.util
 
 import pytest
 
+from netlab import plotkit_bridge
+
+# 先让 vendored PlotKit 进 sys.path，再判断是否可用；否则单独跑本文件会假跳过。
+plotkit_bridge.ensure_plotkit_importable()
+
 HAS_PLOTKIT = importlib.util.find_spec("plotkit") is not None
 
 pytestmark = pytest.mark.skipif(not HAS_PLOTKIT, reason="未安装 plotkit")

@@ -19,6 +19,9 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any, Callable, Mapping
 
+import numpy as np
+
+from ..compute.fields import read_numeric, resolve_output
 from ..compute.profiling import timed
 from ..common.limits import (
     ComputeError,
@@ -88,6 +91,58 @@ class NodeView:
     data: Mapping[str, Any]
 
 
+@dataclass(frozen=True, slots=True)
+class SolverStage:
+    """执行图中的一个阶段：一个 SCC 或一个状态断点。"""
+
+    nodes: tuple[str, ...]
+    algebraic: bool
+    linear: bool
+    nonlinear: bool
+    stateful: bool
+
+
+@dataclass(frozen=True, slots=True)
+class SolverPlan:
+    """R36/P1 执行计划；不改变默认 ``step`` 行为，只暴露结构给求解器。"""
+
+    stages: tuple[SolverStage, ...]
+    breakpoints: tuple[str, ...]
+    auto_delayed: tuple[str, ...]
+    algebraic: tuple[tuple[str, ...], ...]
+
+
+class AlgebraicLoopError(ComputeError):
+    """R36/P2：代数环无解、奇异或包含当前求解器不支持的环节点。"""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        nodes: tuple[str, ...] = (),
+        edges: tuple[str, ...] = (),
+    ) -> None:
+        super().__init__(message)
+        self.nodes = nodes
+        self.edges = edges
+
+
+class NewtonConvergenceError(AlgebraicLoopError):
+    """R36/P3：非线性代数环的 Newton 迭代未收敛。"""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        nodes: tuple[str, ...] = (),
+        residual: float | None = None,
+        iterations: int = 0,
+    ) -> None:
+        super().__init__(message, nodes=nodes)
+        self.residual = residual
+        self.iterations = iterations
+
+
 @dataclass(slots=True)
 class ComputeContext:
     """注册表驱动的节点计算上下文。``inputs`` 与 ``data`` 均为副本。"""
@@ -120,7 +175,15 @@ class Node:
     )
     # 内置 handler 已审计、不会修改入参；走浅拷贝快路径。用户扩展必须为 False。
     trusted: bool = field(default=False, repr=False, compare=False)
+    #: R36 求解语义标签；由 ComputeSpec / solver_traits 在装配时写入。
+    linear: bool = True
+    stateful: bool = False
+    direct_feedthrough: bool = True
+    time_varying: bool = False
+    nonlinear: bool = False
     _view: NodeView | None = field(default=None, repr=False, compare=False)
+    #: 建模时的数据快照；reset_state 只恢复计算节点的初值，手动源保留当前值。
+    _initial_data: NodeData = field(default_factory=dict, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         # data 与 state 保持引用语义：场景记录与运行时对象共享同一份字典，
@@ -133,6 +196,8 @@ class Node:
         if self.inputs is None:
             self.inputs = {}
         self._view = NodeView(self.name, MappingProxyType(self.data))
+        if self.compute is not None or self.handler is not None:
+            self._initial_data = _state_snapshot(self.data)
 
     @property
     def view(self) -> NodeView:
@@ -232,6 +297,8 @@ class Connection:
     state: dict[str, Any] = field(default_factory=dict)
     kind: str = "custom"
     delay: bool = False
+    #: 这条延迟是否由场景的自动防代数环逻辑加上（仅运行期可见，不写入工程）。
+    auto_delay: bool = False
     enabled: bool = True
     #: R20/Q8：端口绑定（引用源节点输出字段 / 目标节点输入端口）。
     source_port: str = ""
@@ -293,11 +360,14 @@ class Connection:
 class Network:
     """节点与有向连接组成的网络，按依赖顺序推进一步。"""
 
-    def __init__(self, *, auto_delay: bool = False) -> None:
+    def __init__(self, *, auto_delay: bool = False, solve_algebraic: bool = False) -> None:
         self.nodes: list[Node] = []
         self.connections: list[Connection] = []
         self.time = 0.0
         self.auto_delay = auto_delay
+        #: R36/P2：显式开启后，直接馈通 SCC 在本拍内解方程；
+        #: 默认 False 保持旧工程的拓扑序 + 自动 z⁻¹ 行为。
+        self.solve_algebraic = bool(solve_algebraic)
         self._order: list[Node] | None = None
         self._incoming: dict[Node, list[Connection]] | None = None
         self._delayed: list[Connection] | None = None
@@ -348,6 +418,7 @@ class Network:
         method: ConnectionCompute,
         *,
         delay: bool = False,
+        auto_delay: bool = False,
         enabled: bool = True,
         kind: str = "custom",
         state: dict[str, Any] | None = None,
@@ -380,6 +451,7 @@ class Network:
             state=state if state is not None else {},
             kind=kind,
             delay=delay,
+            auto_delay=bool(auto_delay),
             source_port=str(source_port or ""),
             target_port=str(target_port or ""),
             enabled=enabled,
@@ -454,6 +526,133 @@ class Network:
                 strongconnect(node)
         return components
 
+    def auto_delayed_connections(self) -> list[Connection]:
+        """返回由场景自动加上的延迟边（R36/P1 的可见记录）。"""
+        return [connection for connection in self.connections if connection.auto_delay]
+
+    def solver_plan(self) -> SolverPlan:
+        """R36/P1：状态断点 + 直接馈通 SCC 的执行计划。
+
+        本方法只描述结构，不改变 ``step`` 的默认行为；真正的 SCC 内求解在后续
+        阶段接入。断点定义为 ``stateful and not direct_feedthrough``：这类节点的
+        当前输出只取上一拍状态，可以在同一拍内先算，不需要知道当前输入。
+        """
+        enabled = self._enabled_edges(include_delayed=False)
+        breakpoints = [
+            node
+            for node in self.nodes
+            if node.stateful and not node.direct_feedthrough
+        ]
+        breakpoint_set = set(breakpoints)
+        direct_nodes = [node for node in self.nodes if node not in breakpoint_set]
+        direct_adjacency: dict[Node, list[Node]] = {node: [] for node in direct_nodes}
+        for connection in enabled:
+            if connection.source in direct_adjacency and connection.target in direct_adjacency:
+                direct_adjacency[connection.source].append(connection.target)
+
+        # Tarjan SCC（仅直接馈通子图）。
+        index = 0
+        indices: dict[Node, int] = {}
+        lowlink: dict[Node, int] = {}
+        stack: list[Node] = []
+        on_stack: set[Node] = set()
+        components: list[list[Node]] = []
+
+        def strongconnect(node: Node) -> None:
+            nonlocal index
+            indices[node] = lowlink[node] = index
+            index += 1
+            stack.append(node)
+            on_stack.add(node)
+            for neighbour in direct_adjacency[node]:
+                if neighbour not in indices:
+                    strongconnect(neighbour)
+                    lowlink[node] = min(lowlink[node], lowlink[neighbour])
+                elif neighbour in on_stack:
+                    lowlink[node] = min(lowlink[node], indices[neighbour])
+            if lowlink[node] == indices[node]:
+                component: list[Node] = []
+                while True:
+                    member = stack.pop()
+                    on_stack.discard(member)
+                    component.append(member)
+                    if member is node:
+                        break
+                components.append(list(reversed(component)))
+
+        for node in direct_nodes:
+            if node not in indices:
+                strongconnect(node)
+        components.extend([[node] for node in breakpoints])
+
+        component_of: dict[Node, int] = {}
+        for component_index, component in enumerate(components):
+            for node in component:
+                component_of[node] = component_index
+
+        component_edges: set[tuple[int, int]] = set()
+        for connection in enabled:
+            source = component_of[connection.source]
+            target = component_of[connection.target]
+            if source != target:
+                component_edges.add((source, target))
+
+        indegree = [0] * len(components)
+        outgoing: dict[int, list[int]] = {index: [] for index in range(len(components))}
+        for source, target in component_edges:
+            outgoing[source].append(target)
+            indegree[target] += 1
+        ready = [index for index, degree in enumerate(indegree) if degree == 0]
+        ordered: list[int] = []
+        while ready:
+            current = ready.pop(0)
+            ordered.append(current)
+            for target in outgoing[current]:
+                indegree[target] -= 1
+                if indegree[target] == 0:
+                    ready.append(target)
+        if len(ordered) != len(components):  # 理论上已被断点消除；保留防御
+            ordered.extend(index for index in range(len(components)) if index not in ordered)
+
+        self_loops = {
+            component_of[connection.source]
+            for connection in enabled
+            if connection.source is connection.target
+        }
+        breakpoint_indices = {
+            component_of[node] for node in breakpoints
+        }
+        stages: list[SolverStage] = []
+        algebraic: list[tuple[str, ...]] = []
+        for component_index in ordered:
+            component = components[component_index]
+            is_breakpoint = component_index in breakpoint_indices
+            is_algebraic = not is_breakpoint and (
+                len(component) > 1 or component_index in self_loops
+            )
+            names = tuple(node.name for node in component)
+            stages.append(
+                SolverStage(
+                    nodes=names,
+                    algebraic=is_algebraic,
+                    linear=all(node.linear for node in component),
+                    nonlinear=any(
+                        node.nonlinear or node.time_varying for node in component
+                    ),
+                    stateful=any(node.stateful for node in component),
+                )
+            )
+            if is_algebraic:
+                algebraic.append(names)
+        return SolverPlan(
+            stages=tuple(stages),
+            breakpoints=tuple(node.name for node in breakpoints),
+            auto_delayed=tuple(
+                connection.name for connection in self.auto_delayed_connections()
+            ),
+            algebraic=tuple(algebraic),
+        )
+
     def topological_order(self) -> list[Node]:
         """按非延迟依赖排序；存在代数环时抛出 ``ComputeError``。"""
         if self._order is not None:
@@ -503,6 +702,10 @@ class Network:
         状态/输出快照；任何一步抛错都回滚到步首再向上抛，避免「半个网络已
         推进」的半改状态（重试与干净运行因此结果一致）。
         """
+        if self.solve_algebraic:
+            self._step_solved(dt)
+            return
+
         if not isinstance(dt, (int, float)) or isinstance(dt, bool):
             raise ValidationError("dt 必须是数字")
         if not math.isfinite(dt) or dt <= 0:
@@ -517,9 +720,11 @@ class Network:
             # 因此输出严格等于 z⁻¹·x，且与节点处理顺序无关。
             delayed_payloads: dict[Connection, NodeData] = {}
             for connection in delayed_edges:
-                delayed_payloads[connection] = connection.evaluate(
-                    dt, time=self.time + dt
-                )
+                payload = connection.evaluate(dt, time=self.time + dt)
+                # 首拍源节点还没算过，延迟边没有上一拍值；空载荷按 0 处理。
+                # 不注入空 dict，避免目标节点把「无字段」误判成配置错误。
+                if payload:
+                    delayed_payloads[connection] = payload
             for node in order:
                 node.inputs.clear()
                 node.ports.clear()
@@ -538,6 +743,330 @@ class Network:
         except BaseException:
             self.restore_step_state(snapshot)
             raise
+
+    def _step_solved(self, dt: float) -> None:
+        """R36/P2：按 ``solver_plan`` 分阶段推进；线性 SCC 在本拍内求解。"""
+        if not isinstance(dt, (int, float)) or isinstance(dt, bool):
+            raise ValidationError("dt 必须是数字")
+        if not math.isfinite(dt) or dt <= 0:
+            raise ValidationError("dt 必须为正的有限数")
+
+        plan = self.solver_plan()
+        incoming = self._incoming_for_step()
+        snapshot = self.capture_step_state()
+        try:
+            delayed_edges = [
+                connection
+                for connection in self.connections
+                if connection.enabled and connection.delay
+            ]
+            delayed_payloads: dict[Connection, NodeData] = {}
+            for connection in delayed_edges:
+                payload = connection.evaluate(dt, time=self.time + dt)
+                if payload:
+                    delayed_payloads[connection] = payload
+
+            for stage in plan.stages:
+                if stage.algebraic:
+                    if stage.nonlinear:
+                        solved = self._solve_nonlinear_stage(
+                            stage.nodes, delayed_payloads, dt
+                        )
+                    else:
+                        solved = self._solve_linear_stage(
+                            stage.nodes, delayed_payloads, dt
+                        )
+                    for name, output in solved.items():
+                        node = self.node(name)
+                        if node is not None:
+                            node.data.update(output)
+                    continue
+                for name in stage.nodes:
+                    node = self.node(name)
+                    if node is None:
+                        continue
+                    node.inputs.clear()
+                    node.ports.clear()
+                    for connection in incoming.get(node, ()):
+                        if connection.delay:
+                            payload = delayed_payloads.get(connection)
+                            if payload is None:
+                                continue
+                        else:
+                            payload = connection.evaluate(
+                                dt, time=self.time + dt
+                            )
+                        node.inputs[connection.name] = payload
+                        if connection.target_port:
+                            node.ports[connection.target_port] = payload
+                    node.update(dt, time=self.time + dt)
+            self.time += dt
+        except BaseException:
+            self.restore_step_state(snapshot)
+            raise
+
+    def _incoming_for_step(self) -> dict[Node, list[Connection]]:
+        """返回启用入边索引；不依赖 topological_order，供 SCC 路径使用。"""
+        if self._incoming is None:
+            incoming: dict[Node, list[Connection]] = {
+                node: [] for node in self.nodes
+            }
+            for connection in self.connections:
+                if connection.enabled:
+                    incoming.setdefault(connection.target, []).append(connection)
+            self._incoming = incoming
+        return self._incoming
+
+    def _edge_linear_coefficients(self, connection: Connection) -> tuple[float, float]:
+        """返回线性环节的 ``(gain, offset)``；P2 只支持 pass / scale。"""
+        if connection.kind == "pass":
+            return 1.0, 0.0
+        if connection.kind == "scale":
+            gain = float(connection.params.get("gain", 1.0))
+            offset = float(connection.params.get("offset", 0.0))
+            return gain, offset
+        raise AlgebraicLoopError(
+            "代数环包含暂不支持的边类型 "
+            f"{connection.kind!r}（连接 {connection.name!r}）；"
+            "P2 线性求解器只支持直通/比例边",
+            edges=(connection.name,),
+        )
+
+    def _node_output_key(self, node: Node) -> str:
+        params = node.params or {}
+        return resolve_output(params.get("output")) if "output" in params else "value"
+
+    def _evaluate_node(
+        self,
+        node: Node,
+        values: np.ndarray,
+        index: Mapping[Node, int],
+        delayed_payloads: Mapping[Connection, NodeData],
+        dt: float,
+    ) -> float:
+        """按候选值评估 SCC 内一个无状态节点的输出（不写回 node）。"""
+        if node.handler is None:
+            raise AlgebraicLoopError(
+                f"代数环节点 {node.name!r} 没有可评估的计算函数",
+                nodes=(node.name,),
+            )
+        inputs: NodeInputs = {}
+        ports: NodeInputs = {}
+        for connection in self._incoming_for_step().get(node, ()):
+            if connection.delay:
+                payload = delayed_payloads.get(connection)
+                if payload is None:
+                    continue
+            elif connection.source in index:
+                source = connection.source
+                payload = {
+                    self._node_output_key(source): float(
+                        values[index[source]]
+                    )
+                }
+            else:
+                payload = connection.evaluate(dt, time=self.time + dt)
+            inputs[connection.name] = payload
+            if connection.target_port:
+                ports[connection.target_port] = payload
+        context = ComputeContext(
+            name=node.name,
+            inputs=inputs,
+            data=copy_state(node.data),
+            state=copy_state(node.state),
+            params=dict(node.params),
+            dt=dt,
+            time=self.time + dt,
+            ports=ports,
+        )
+        result = node.handler(context)
+        key = self._node_output_key(node)
+        if not isinstance(result, Mapping) or key not in result:
+            raise AlgebraicLoopError(
+                f"代数环节点 {node.name!r} 未输出字段 {key!r}",
+                nodes=(node.name,),
+            )
+        value = result[key]
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise AlgebraicLoopError(
+                f"代数环节点 {node.name!r} 的输出 {key!r} 不是数值",
+                nodes=(node.name,),
+            )
+        return float(value)
+
+    def _solve_nonlinear_stage(
+        self,
+        names: tuple[str, ...],
+        delayed_payloads: Mapping[Connection, NodeData],
+        dt: float,
+        *,
+        tol: float = 1.0e-9,
+        max_iter: int = 50,
+    ) -> dict[str, NodeData]:
+        """R36/P3：阻尼 Newton 解非线性 / 时变直接馈通 SCC。"""
+        nodes: list[Node] = []
+        for name in names:
+            node = self.node(name)
+            if node is None:
+                raise AlgebraicLoopError(f"代数环引用了不存在的节点 {name!r}")
+            nodes.append(node)
+        index = {node: position for position, node in enumerate(nodes)}
+        raw_initial = np.array(
+            [float(node.data.get(self._node_output_key(node), 0.0)) for node in nodes],
+            dtype=float,
+        )
+        # 零初值可能正好落在雅可比奇异点（如 y = tanh(y) + 0.5），
+        # 对零分量给一个非零起点；已建模的初值保持不动。
+        initial = np.where(np.abs(raw_initial) > 1.0e-12, raw_initial, 1.0)
+
+        def residual(values: np.ndarray) -> np.ndarray:
+            return np.array(
+                [
+                    self._evaluate_node(
+                        node, values, index, delayed_payloads, dt
+                    )
+                    - values[position]
+                    for position, node in enumerate(nodes)
+                ],
+                dtype=float,
+            )
+
+        values = initial
+        last_norm = math.inf
+        for iteration in range(1, max_iter + 1):
+            current = residual(values)
+            last_norm = float(np.linalg.norm(current, ord=np.inf))
+            if last_norm <= tol:
+                return {
+                    node.name: {self._node_output_key(node): float(values[position])}
+                    for position, node in enumerate(nodes)
+                }
+            size = len(nodes)
+            jacobian = np.zeros((size, size), dtype=float)
+            for column in range(size):
+                step = 1.0e-6 * max(1.0, abs(float(values[column])))
+                probe = values.copy()
+                probe[column] += step
+                jacobian[:, column] = (residual(probe) - current) / step
+            try:
+                delta = np.linalg.solve(jacobian, -current)
+            except np.linalg.LinAlgError as exc:
+                raise NewtonConvergenceError(
+                    "Newton 雅可比奇异，无法继续迭代：节点 "
+                    + ", ".join(node.name for node in nodes),
+                    nodes=tuple(node.name for node in nodes),
+                    residual=last_norm,
+                    iterations=iteration,
+                ) from exc
+            alpha = 1.0
+            accepted = False
+            for _ in range(8):
+                candidate = values + alpha * delta
+                trial_norm = float(
+                    np.linalg.norm(residual(candidate), ord=np.inf)
+                )
+                if trial_norm < last_norm:
+                    values = candidate
+                    accepted = True
+                    break
+                alpha *= 0.5
+            if not accepted:
+                raise NewtonConvergenceError(
+                    "Newton 迭代无法下降，节点 "
+                    + ", ".join(node.name for node in nodes)
+                    + f"（残差 {last_norm:.3e}，第 {iteration} 次）",
+                    nodes=tuple(node.name for node in nodes),
+                    residual=last_norm,
+                    iterations=iteration,
+                )
+        raise NewtonConvergenceError(
+            "Newton 迭代超过最大次数，节点 "
+            + ", ".join(node.name for node in nodes)
+            + f"（残差 {last_norm:.3e}）",
+            nodes=tuple(node.name for node in nodes),
+            residual=last_norm,
+            iterations=max_iter,
+        )
+
+    def _solve_linear_stage(
+        self,
+        names: tuple[str, ...],
+        delayed_payloads: Mapping[Connection, NodeData],
+        dt: float,
+    ) -> dict[str, NodeData]:
+        """解一个直接馈通 SCC：``y_i = b_i + Σ_j A_ij y_j``。"""
+        nodes: list[Node] = []
+        for name in names:
+            node = self.node(name)
+            if node is None:
+                raise AlgebraicLoopError(f"代数环引用了不存在的节点 {name!r}")
+            nodes.append(node)
+        index = {node: position for position, node in enumerate(nodes)}
+        size = len(nodes)
+        matrix = np.eye(size, dtype=float)
+        vector = np.zeros(size, dtype=float)
+        output_fields: dict[Node, str] = {}
+        incoming = self._incoming_for_step()
+
+        for position, node in enumerate(nodes):
+            params = node.params
+            field = params.get("field") or "value"
+            if node.kind == "sum":
+                output_fields[node] = resolve_output(params.get("output"))
+                weights = params.get("weights") or {}
+                base_gain = 1.0
+                constant = 0.0
+            elif node.kind == "gain":
+                output_fields[node] = resolve_output(params.get("output"))
+                weights = {}
+                base_gain = float(params.get("gain", 1.0))
+                constant = float(params.get("offset", 0.0))
+            else:
+                raise AlgebraicLoopError(
+                    "代数环包含非线性或暂不支持的节点 "
+                    f"{node.name!r}（kind={node.kind!r}）；P2 只解线性 SCC",
+                    nodes=tuple(item.name for item in nodes),
+                )
+            vector[position] = constant
+            for connection in incoming.get(node, ()):
+                weight = float(weights.get(connection.name, 1.0))
+                if connection.delay:
+                    payload = delayed_payloads.get(connection)
+                    if payload:
+                        vector[position] += (
+                            base_gain
+                            * weight
+                            * read_numeric(payload, field, source=connection.name)
+                        )
+                    continue
+                if connection.source in index:
+                    edge_gain, edge_offset = self._edge_linear_coefficients(
+                        connection
+                    )
+                    matrix[position, index[connection.source]] -= (
+                        base_gain * weight * edge_gain
+                    )
+                    vector[position] += base_gain * weight * edge_offset
+                else:
+                    payload = connection.evaluate(dt, time=self.time + dt)
+                    vector[position] += (
+                        base_gain
+                        * weight
+                        * read_numeric(payload, field, source=connection.name)
+                    )
+
+        try:
+            values = np.linalg.solve(matrix, vector)
+        except np.linalg.LinAlgError as exc:
+            raise AlgebraicLoopError(
+                "线性代数环奇异，无法唯一求解：节点 "
+                + ", ".join(node.name for node in nodes),
+                nodes=tuple(node.name for node in nodes),
+            ) from exc
+        return {
+            node.name: {output_fields[node]: float(values[position])}
+            for position, node in enumerate(nodes)
+        }
 
     def capture_step_state(self) -> dict[str, Any]:
         """记录整步事务快照（时间、节点数据/状态/输入、连接状态/输出）。"""
@@ -583,6 +1112,11 @@ class Network:
         for node in self.nodes:
             node.state.clear()
             node.inputs.clear()
+            node.ports.clear()
+            if node.compute is not None or node.handler is not None:
+                snapshot = _state_snapshot(node._initial_data)
+                node.data.clear()
+                node.data.update(snapshot)
         for connection in self.connections:
             connection.state.clear()
             connection.output = {}

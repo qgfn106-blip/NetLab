@@ -65,7 +65,7 @@ def test_signal_ports_compat_without_ports():
     scene.add_edge(name="E1", source=src.id, target=gain.id, kind="pass")
     scene.step(1.0)
     values = next(item for item in scene.nodes.values() if item.name == "gain").data
-    assert abs(float(values.get("voltage", 0.0)) - 4.0) < 1e-9
+    assert abs(float(values.get("value", 0.0)) - 4.0) < 1e-9
 
 
 def test_signal_ports_api(client):

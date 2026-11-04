@@ -25,7 +25,7 @@ def node(scene: Scene, name: str, kind: str = "node"):
 
 def voltage(scene: Scene, name: str) -> float:
     target = next(item for item in scene.nodes.values() if item.name == name)
-    return float(target.data.get("voltage", 0.0))
+    return float(target.data.get("value", target.data.get("voltage", 0.0)))
 
 
 def _pass(source, target, params, state, dt):

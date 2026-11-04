@@ -1,0 +1,90 @@
+{
+  "name": "netlab-sidebar",
+  "displayName": "Netlab 工作区",
+  "description": "netlab 在 VS Code 内的侧边栏与一键插件（骨架）。",
+  "publisher": "netlab",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onView:netlab.sidebar.home",
+    "onView:netlab.sidebar.tools",
+    "onCommand:netlab.openWorkbench",
+    "onCommand:netlab.refreshSidebar"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "netlab",
+          "title": "Netlab",
+          "icon": "media/netlab.svg"
+        }
+      ]
+    },
+    "views": {
+      "netlab": [
+        {
+          "type": "webview",
+          "id": "netlab.sidebar.home",
+          "name": "工作区"
+        },
+        {
+          "id": "netlab.sidebar.tools",
+          "name": "一键插件"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "netlab.openWorkbench",
+        "title": "Netlab: 打开工作台",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "netlab.refreshSidebar",
+        "title": "Netlab: 刷新状态",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "netlab.oneClickDemo",
+        "title": "Netlab: 一键示例（占位）"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "netlab.refreshSidebar",
+          "when": "view == netlab.sidebar.home || view == netlab.sidebar.tools",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "netlab.openWorkbench"
+        },
+        {
+          "command": "netlab.refreshSidebar"
+        },
+        {
+          "command": "netlab.oneClickDemo"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Netlab",
+      "properties": {
+        "netlab.workbenchUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8767",
+          "description": "netlab 工作台地址（供「打开工作台」使用）。"
+        }
+      }
+    }
+  }
+}

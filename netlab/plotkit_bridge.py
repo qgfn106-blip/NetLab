@@ -30,6 +30,8 @@ SYNC_PULL_LIMIT = 6000
 SYNC_INTERVAL = 0.5
 #: 最多同时接多少个通道（probes 一次可能给 240 个）
 MAX_CHANNELS = 64
+#: 分析曲线数据集前缀。它们有自己的 x/y，不能参与 recorder 时间轴对齐。
+ANALYSIS_PREFIX = "analysis:"
 DEFAULT_WINDOW = 5.0   # 秒；与 netlab 老画布的「时间窗」默认值一致
 #: 探针曲线统一细实线（默认的「线 + 圆点」在高密度下会糊成一片）
 LINE_STYLE = {"mode": "lines", "width": 1.4, "marker": {"symbol": ""}}
@@ -265,14 +267,72 @@ def selected_channels() -> list[str]:
 
 
 def channels() -> list[str]:
-    """当前 figure 里可选的通道名（不含坐标 t）。"""
+    """当前 figure 里可选的通道名（不含坐标 t 与分析曲线）。"""
     figure = _STATE.get("figure")
     if figure is None:
         return []
     try:
-        return [name for name in figure.store.names() if name != "t"]
+        return [
+            name
+            for name in figure.store.names()
+            if name != "t" and not name.startswith(ANALYSIS_PREFIX)
+        ]
     except Exception:
         return []
+
+
+def add_analysis_curve(
+    name: str,
+    x: Any,
+    y: Any,
+    *,
+    figure: Any = None,
+    x_label: str = "t / s",
+    y_label: str = "value",
+) -> dict[str, Any]:
+    """把一条分析曲线（TF 阶跃、相图等）作为独立数据集/图层送进 PlotKit。
+
+    分析曲线不参与 recorder 的 ``t`` 追加：数据集名带 ``analysis:`` 前缀，
+    ``_ingest`` 会跳过它们。重复发送同名曲线时替换旧图层，而不是越叠越多。
+    """
+    import numpy as np
+
+    fig = figure if figure is not None else _STATE.get("figure")
+    if fig is None:
+        raise RuntimeError("PlotKit 未挂载，无法接收分析曲线")
+    xs = np.asarray(list(x or []), dtype="float64")
+    ys = np.asarray(list(y or []), dtype="float64")
+    if xs.size == 0 or ys.size == 0 or xs.size != ys.size:
+        raise ValueError("分析曲线的 x/y 必须非空且长度一致")
+    if xs.size > MAX_POINTS:
+        indices = np.linspace(0, xs.size - 1, MAX_POINTS, dtype=int)
+        xs, ys = xs[indices], ys[indices]
+    slug = "".join(ch if ch.isalnum() or ch in "-_." else "_" for ch in str(name)).strip("_")
+    slug = slug or "curve"
+    key = f"{ANALYSIS_PREFIX}{slug}"
+    x_name = f"{key}:x"
+    y_name = f"{key}:y"
+    label = str(name)
+    from plotkit.store.registry import DATA_LOCK
+
+    with DATA_LOCK:
+        # 同名曲线先移除旧图层（x/y 数据集直接覆盖）。
+        layers = list(fig.spec.get("layers") or [])
+        kept = [
+            layer
+            for layer in layers
+            if not (
+                layer.get("label") == label
+                or (layer.get("data") or {}).get("x") == x_name
+            )
+        ]
+        if len(kept) != len(layers):
+            fig.spec["layers"][:] = kept
+        fig.add_data(x_name, xs, unit="s", role="coord", life="replace", overwrite=True)
+        fig.add_data(y_name, ys, unit="", role="series", life="replace", overwrite=True)
+        fig.add_plot("line", x=x_name, y=y_name, label=label, style=LINE_STYLE)
+        fig.set_view(0, xlabel=x_label, ylabel=y_label)
+    return {"ok": True, "dataset": key, "points": int(xs.size), "label": label}
 
 
 def build_figure(service: Any) -> Any:
@@ -398,7 +458,9 @@ def _ensure_channels(figure: Any, frames: list[dict[str, Any]], *, limit: int = 
     """
     import numpy as np
 
-    existing = set(figure.store.names())
+    existing = {
+        name for name in figure.store.names() if not name.startswith(ANALYSIS_PREFIX)
+    }
     incoming: list[str] = []
     for frame in frames:
         for key in (frame.get("v") or {}):
@@ -428,9 +490,10 @@ def _ingest(figure: Any, frames: list[dict[str, Any]], keys: list[str]) -> None:
     store = figure.store
     names_all = list(store.names())
     t_len = len(store.get("t")) if "t" in names_all else 0
-    # 对齐：任何比 t 短的序列先补 NaN，比 t 长的先裁掉，保证 push 后长度一致
+    # 对齐：任何比 t 短的序列先补 NaN，比 t 长的先裁掉，保证 push 后长度一致。
+    # 分析曲线有自己的 x/y 轴，不参与 recorder 时间轴对齐。
     for name in names_all:
-        if name == "t":
+        if name == "t" or name.startswith(ANALYSIS_PREFIX):
             continue
         have = len(store.get(name))
         if have < t_len:
@@ -439,7 +502,11 @@ def _ingest(figure: Any, frames: list[dict[str, Any]], keys: list[str]) -> None:
             store.trim(name, t_len)
     times = [float(frame.get("t", 0.0)) for frame in frames]
     store.push("t", np.asarray(times, dtype="float64"))
-    seen = {name for name in store.names() if name != "t"}
+    seen = {
+        name
+        for name in store.names()
+        if name != "t" and not name.startswith(ANALYSIS_PREFIX)
+    }
     for name in seen:
         values = []
         for frame in frames:
@@ -447,7 +514,11 @@ def _ingest(figure: Any, frames: list[dict[str, Any]], keys: list[str]) -> None:
             values.append(np.nan if raw is None else float(raw))
         store.push(name, np.asarray(values, dtype="float64"))
     for name in list(store.names()):
-        if name != "t" and len(store.get(name)) > MAX_POINTS:
+        if (
+            name != "t"
+            and not name.startswith(ANALYSIS_PREFIX)
+            and len(store.get(name)) > MAX_POINTS
+        ):
             # 必须用 trim 而不是 add(..., life="replace")：后者会把数据集永久改成
             # "替换"语义，下一次 push 只留最后一帧，曲线几秒后就塌了。
             store.trim(name, MAX_POINTS)

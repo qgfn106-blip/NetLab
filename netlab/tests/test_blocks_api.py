@@ -70,8 +70,9 @@ def test_library_scan_after_encapsulate(client, tmp_path):
     )
     assert created.status_code == 200, created.text
     listed = client.get("/api/blocks", params={"library": str(library)}).json()
-    assert [item["name"] for item in listed["blocks"]] == ["scanned"]
-    assert listed["blocks"][0]["node_count"] >= 1
+    user_blocks = [item for item in listed["blocks"] if not item.get("builtin")]
+    assert [item["name"] for item in user_blocks] == ["scanned"]
+    assert user_blocks[0]["node_count"] >= 1
 
 
 def test_block_api_errors(client, tmp_path):

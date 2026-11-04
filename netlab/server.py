@@ -26,7 +26,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .core.compute.fem import FemSimulation
 
 #: 服务端代码版本（与 frontend/index.html 的 ?v= 对齐）；用于检测「前端已更新、后端进程仍是旧的」
-APP_BUILD = "3.16.17"
+APP_BUILD = "3.17.0"
 from .core.common.limits import ConflictError, NetlabError, NotFoundError, ValidationError
 from .core.model.networks import NetworkContainer
 from .core.model.project import (
@@ -520,6 +520,31 @@ def plotkit_active(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     active = bool((payload or {}).get("active", True))
     plotkit_bridge.set_active(active)
     return {"mounted": True, "active": plotkit_bridge.is_active()}
+
+
+@app.post("/api/plotkit/analysis")
+def plotkit_add_analysis(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """把 TF 阶跃/相图等分析曲线作为独立图层送进 PlotKit。
+
+    与探针通道分开：分析曲线使用自己的 x/y，不参与 recorder 时间轴追加。
+    """
+    if not PLOTKIT_MOUNTED:
+        return {"ok": False, "mounted": False, "reason": "PlotKit 未挂载"}
+    data = payload or {}
+    name = str(data.get("name") or "分析曲线")
+    x = data.get("x") or []
+    y = data.get("y") or []
+    try:
+        result = plotkit_bridge.add_analysis_curve(
+            name,
+            x,
+            y,
+            x_label=str(data.get("x_label") or "t / s"),
+            y_label=str(data.get("y_label") or "value"),
+        )
+    except Exception as exc:
+        return {"ok": False, "mounted": True, "reason": str(exc)}
+    return {"ok": True, "mounted": True, **result}
 
 
 #: PlotKit 预计算的步数上限：超过就把步长降级，并把 ``degraded`` 告诉界面。
@@ -1261,6 +1286,7 @@ class AnalysisTFRequest(BaseModel):
     dt: float | None = None
     duration: float | None = None
     points: int = 240
+    delay_pade_order: int = 3
 
 
 class AnalysisPhaseRequest(BaseModel):
@@ -1333,6 +1359,7 @@ def analysis_transfer(
     input_field: str = "voltage",
     output_field: str = "voltage",
     domain: str = "s",
+    delay_pade_order: int = 3,
 ) -> dict[str, Any]:
     return _analysis_call(
         lambda: analysis.transfer_function(
@@ -1342,6 +1369,7 @@ def analysis_transfer(
             input_field=input_field,
             output_field=output_field,
             domain=domain,
+            delay_pade_order=delay_pade_order,
         ),
         "传递函数推导",
     )
@@ -1366,6 +1394,7 @@ def analysis_tf(request: AnalysisTFRequest) -> dict[str, Any]:
             dt=request.dt,
             duration=request.duration,
             points=request.points,
+            delay_pade_order=request.delay_pade_order,
         ),
         "传递函数分析",
     )
@@ -1452,7 +1481,7 @@ def _library_path(library: str | None = None) -> Path:
 @app.get("/api/blocks")
 def blocks_list(library: str = Query("")) -> dict[str, Any]:
     target = _library_path(library or None)
-    return {"library": str(target), "blocks": blocklib.scan_library(target)}
+    return {"library": str(target), "blocks": blocklib.scan_library(target, include_builtin=True)}
 
 
 class BlockValidateRequest(BaseModel):
@@ -1562,7 +1591,7 @@ def blocks_save_copy(request: BlockSaveCopyRequest) -> dict[str, Any]:
         "block": block.summary(),
         "path": str(path),
         "library": str(target),
-        "blocks": blocklib.scan_library(target),
+        "blocks": blocklib.scan_library(target, include_builtin=True),
     }
 
 
@@ -1628,7 +1657,7 @@ def blocks_rename(block_id: str, request: BlockRenameRequest) -> dict[str, Any]:
         "block": block.summary(),
         "references": references,
         "library": str(target),
-        "blocks": blocklib.scan_library(target),
+        "blocks": blocklib.scan_library(target, include_builtin=True),
     }
 
 
@@ -1678,7 +1707,7 @@ def blocks_import(request: BlockImportRequest) -> dict[str, Any]:
     target = _library_path(request.library)
     result = blocklib.import_block(target, request.payload, version=request.version)
     result["library"] = str(target)
-    result["blocks"] = blocklib.scan_library(target)
+    result["blocks"] = blocklib.scan_library(target, include_builtin=True)
     return result
 
 
@@ -1755,7 +1784,7 @@ def blocks_encapsulate(request: BlockEncapsulateRequest) -> dict[str, Any]:
     return {
         "block": block.summary(),
         "file": imported,
-        "blocks": blocklib.scan_library(target),
+        "blocks": blocklib.scan_library(target, include_builtin=True),
         "scene": SERVICE.scene.runtime_state(),
         "sim": SERVICE.info(),
         "library": str(target),

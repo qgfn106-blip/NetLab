@@ -16,7 +16,7 @@
 
   // 界面版本号：必须与 index.html 的 ?v= 和 netlab/server.py 的 APP_BUILD 一致。
   // 用来识别「前端文件已更新、后端进程还是旧的」这种只关窗口不重启的情况。
-  const UI_BUILD = '3.17.0';
+  const UI_BUILD = '3.17.1';
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -11858,6 +11858,53 @@
     if (state.analysisTF) drawAnalysisTF();
   }
 
+  async function compareBuiltinBlock(spec) {
+    try {
+      const result = await jsonRequest(
+        `/api/blocks/${encodeURIComponent(spec.id)}/compare`,
+        'POST',
+        { duration: 0.02, dt: 0.001 },
+      );
+      if (!result.ok) {
+        toast(`对比失败：${result.reason || '未知原因'}`, 'error', 6000);
+        return;
+      }
+      const summary = [
+        `模块：${result.name || spec.name || spec.id}`,
+        `输出：${result.output}.${result.field}`,
+        `时长/步长：${result.duration}s / ${result.dt}s（${result.steps} 步）`,
+        `行为峰值：${Math.max(...result.behavior).toFixed(6)}`,
+        `结构峰值：${Math.max(...result.structural).toFixed(6)}`,
+        `最大绝对差：${Number(result.max_abs_diff).toFixed(6)}`,
+        `RMS 差：${Number(result.rms_diff).toFixed(6)}`,
+      ].join('\n');
+      const detail = [
+        `行为：${result.behavior.join(', ')}`,
+        `结构：${result.structural.join(', ')}`,
+      ].join('\n');
+      ui.modalCard.replaceChildren();
+      ui.modalCard.append(
+        el('h3', null, '内置块：行为 / 结构对比'),
+        div('help', summary),
+        el('pre', 'compare-pre', detail),
+        div('help', result.note || ''),
+      );
+      const close = button('关闭', 'btn', () => {
+        ui.modal.classList.add('hidden');
+        ui.modalCard.replaceChildren();
+      });
+      const actions = div('modal-actions');
+      actions.appendChild(close);
+      ui.modalCard.appendChild(actions);
+      ui.modal.classList.remove('hidden');
+      ui.modal.onclick = (event) => {
+        if (event.target === ui.modal) close.click();
+      };
+    } catch (error) {
+      toast(`对比失败：${error.message || error}`, 'error', 6000);
+    }
+  }
+
   function renderBlocksPanel() {
     const pane = ui.blocksPane;
     if (!pane) return;
@@ -11928,6 +11975,11 @@
         ? '打开内部浮窗（行为模型只看得到端口）'
         : '在内部浮窗中预览模块结构';
       actions.appendChild(openBtn);
+      if (spec.builtin) {
+        const compareBtn = button('行为/结构对比', 'btn tiny', () => void compareBuiltinBlock(spec));
+        compareBtn.title = '运行行为快速模型与 structural 内部场景，对比同一输入的输出';
+        actions.appendChild(compareBtn);
+      }
       const renameBtn = button('改名', 'btn tiny', () => void renameLibraryBlock(spec));
       renameBtn.title = spec.builtin ? '内置模块只读，请先另存为副本' : '改模块名字（文件名同步改，引用不变）';
       renameBtn.disabled = Boolean(spec.builtin);

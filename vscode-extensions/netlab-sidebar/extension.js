@@ -1,42 +1,48 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.activate = activate;
+exports.deactivate = deactivate;
 // Netlab 工作区 · VS Code 扩展骨架
 // 侧边栏：webview 视图（netlab.sidebar.home）+ 树视图（netlab.sidebar.tools）
 // 一键插件：contributes.commands 的占位命令，后续在 registerCommand 里接具体动作。
-const vscode = require('vscode');
-
+//
+// 说明：本文件为 TypeScript 源码；extension.js 由 `npm run compile`（tsc）生成并随包提交，
+// 运行期仍为 CommonJS，VS Code 通过 package.json 的 "main": "./extension.js" 加载。
+const vscode = require("vscode");
 function workbenchUrl() {
-  const cfg = vscode.workspace.getConfiguration('netlab');
-  return String(cfg.get('workbenchUrl') || 'http://127.0.0.1:8767');
+    const cfg = vscode.workspace.getConfiguration('netlab');
+    return String(cfg.get('workbenchUrl') || 'http://127.0.0.1:8767');
 }
-
 class HomeViewProvider {
-  constructor() {
-    this.view = null;
-  }
-
-  resolveWebviewView(view) {
-    this.view = view;
-    view.webview.options = { enableScripts: true };
-    view.webview.html = this.html();
-    view.webview.onDidReceiveMessage((msg) => {
-      if (!msg || !msg.type) return;
-      if (msg.type === 'openWorkbench') {
-        vscode.commands.executeCommand('netlab.openWorkbench');
-      } else if (msg.type === 'refresh') {
-        this.refresh();
-      } else if (msg.type === 'demo') {
-        vscode.commands.executeCommand('netlab.oneClickDemo');
-      }
-    });
-  }
-
-  refresh() {
-    if (this.view) this.view.webview.html = this.html();
-  }
-
-  html() {
-    const url = workbenchUrl();
-    const nonce = String(Math.random()).slice(2);
-    return `<!doctype html>
+    constructor() {
+        this.view = null;
+    }
+    resolveWebviewView(view) {
+        this.view = view;
+        view.webview.options = { enableScripts: true };
+        view.webview.html = this.html();
+        view.webview.onDidReceiveMessage((msg) => {
+            if (!msg || !msg.type)
+                return;
+            if (msg.type === 'openWorkbench') {
+                vscode.commands.executeCommand('netlab.openWorkbench');
+            }
+            else if (msg.type === 'refresh') {
+                this.refresh();
+            }
+            else if (msg.type === 'demo') {
+                vscode.commands.executeCommand('netlab.oneClickDemo');
+            }
+        });
+    }
+    refresh() {
+        if (this.view)
+            this.view.webview.html = this.html();
+    }
+    html() {
+        const url = workbenchUrl();
+        const nonce = String(Math.random()).slice(2);
+        return `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8" />
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';" />
 <style>
@@ -73,72 +79,55 @@ class HomeViewProvider {
     document.getElementById('demo').addEventListener('click', () => vscode.postMessage({ type: 'demo' }));
   </script>
 </body></html>`;
-  }
+    }
 }
-
 class ToolsProvider {
-  constructor() {
-    this._onDidChangeTreeData = new vscode.EventEmitter();
-    this.onDidChangeTreeData = this._onDidChangeTreeData.event;
-  }
-
-  refresh() {
-    this._onDidChangeTreeData.fire();
-  }
-
-  getTreeItem(element) {
-    return element;
-  }
-
-  getChildren(element) {
-    if (element) return element.children || [];
-    return [
-      this.item('打开工作台', 'netlab.openWorkbench', 'link-external'),
-      this.item('刷新状态', 'netlab.refreshSidebar', 'refresh'),
-      this.item('示例动作（占位）', 'netlab.oneClickDemo', 'beaker'),
-    ];
-  }
-
-  item(label, command, icon) {
-    const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
-    item.command = { command, title: label };
-    item.iconPath = new vscode.ThemeIcon(icon);
-    return item;
-  }
+    constructor() {
+        this._onDidChangeTreeData = new vscode.EventEmitter();
+        this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+    }
+    refresh() {
+        this._onDidChangeTreeData.fire();
+    }
+    getTreeItem(element) {
+        return element;
+    }
+    getChildren(element) {
+        if (element)
+            return element.children || [];
+        return [
+            this.item('打开工作台', 'netlab.openWorkbench', 'link-external'),
+            this.item('刷新状态', 'netlab.refreshSidebar', 'refresh'),
+            this.item('示例动作（占位）', 'netlab.oneClickDemo', 'beaker'),
+        ];
+    }
+    item(label, command, icon) {
+        const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
+        item.command = { command, title: label };
+        item.iconPath = new vscode.ThemeIcon(icon);
+        return item;
+    }
 }
-
 function activate(context) {
-  const home = new HomeViewProvider();
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider('netlab.sidebar.home', home, {
-      webviewOptions: { retainContextWhenHidden: true },
-    })
-  );
-
-  const tools = new ToolsProvider();
-  context.subscriptions.push(vscode.window.registerTreeDataProvider('netlab.sidebar.tools', tools));
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('netlab.openWorkbench', () => {
-      vscode.env.openExternal(vscode.Uri.parse(workbenchUrl()));
-    })
-  );
-  context.subscriptions.push(
-    vscode.commands.registerCommand('netlab.refreshSidebar', () => {
-      home.refresh();
-      tools.refresh();
-      vscode.window.showInformationMessage('Netlab: 状态已刷新');
-    })
-  );
-  context.subscriptions.push(
-    vscode.commands.registerCommand('netlab.oneClickDemo', () => {
-      vscode.window.showInformationMessage('Netlab 一键插件占位：后续在此接入具体动作');
-    })
-  );
-
-  vscode.window.showInformationMessage('Netlab 工作区扩展已加载');
+    const home = new HomeViewProvider();
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider('netlab.sidebar.home', home, {
+        webviewOptions: { retainContextWhenHidden: true },
+    }));
+    const tools = new ToolsProvider();
+    context.subscriptions.push(vscode.window.registerTreeDataProvider('netlab.sidebar.tools', tools));
+    context.subscriptions.push(vscode.commands.registerCommand('netlab.openWorkbench', () => {
+        vscode.env.openExternal(vscode.Uri.parse(workbenchUrl()));
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand('netlab.refreshSidebar', () => {
+        home.refresh();
+        tools.refresh();
+        vscode.window.showInformationMessage('Netlab: 状态已刷新');
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand('netlab.oneClickDemo', () => {
+        vscode.window.showInformationMessage('Netlab 一键插件占位：后续在此接入具体动作');
+    }));
+    vscode.window.showInformationMessage('Netlab 工作区扩展已加载');
 }
-
-function deactivate() {}
-
-module.exports = { activate, deactivate };
+function deactivate() {
+    // 无资源需要释放
+}

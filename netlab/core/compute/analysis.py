@@ -14,7 +14,9 @@ from typing import Any, Callable
 
 import numpy as np
 
+from . import complex_support as complex_layer
 from . import transfer as transfer_math
+from .statespace import StateSpaceModel
 
 
 ANALYSIS_TIMEOUT = 5.0
@@ -684,6 +686,245 @@ def tf_analysis(
     return result
 
 
+def _frequency_axis(
+    f_start: float,
+    f_stop: float,
+    points: int,
+    scale: str,
+) -> np.ndarray:
+    """生成频响频率轴；单点/零频/负频都明确报错。"""
+    if isinstance(points, bool) or not isinstance(points, (int, np.integer)):
+        raise AnalysisError("频响点数必须是整数")
+    if not 2 <= int(points) <= 2001:
+        raise AnalysisError("频响点数必须在 2–2001 之间")
+    if not all(math.isfinite(float(value)) for value in (f_start, f_stop)):
+        raise AnalysisError("频响起止频率必须是有限数值")
+    if float(f_start) <= 0.0 or float(f_stop) <= float(f_start):
+        raise AnalysisError("频响要求 0 < f_start < f_stop")
+    if scale not in {"log", "lin"}:
+        raise AnalysisError("频响 scale 只能是 log 或 lin")
+    count = int(points)
+    if scale == "log":
+        return np.geomspace(float(f_start), float(f_stop), count)
+    return np.linspace(float(f_start), float(f_stop), count)
+
+
+def _node_frequency_gain(node: Any, omega: float) -> complex:
+    """单个 signal 节点在 jω 处的局部复增益。"""
+    kind = node.kind
+    params = getattr(node, "params", None) or {}
+    if kind == "sum":
+        return 1.0 + 0.0j
+    if kind == "gain":
+        return complex_layer.as_complex(params.get("gain", 1.0))
+    if kind == "lag":
+        tau = float(params.get("tau", 0.1))
+        return 1.0 / (1.0 + 1j * omega * tau)
+    if kind == "integrate":
+        if omega == 0.0:
+            raise AnalysisError(f"积分节点 {node.name!r} 在 0 Hz 处没有有限频响")
+        return complex_layer.as_complex(params.get("gain", 1.0)) / (1j * omega)
+    if kind == "transfer_function":
+        try:
+            return complex(transfer_math.from_params(params).at(1j * omega))
+        except Exception as exc:
+            raise AnalysisError(f"节点 {node.name!r} 的传递函数参数无效：{exc}") from exc
+    if kind == "state_space":
+        try:
+            model = StateSpaceModel.from_params(params)
+            if model.b.shape[1] != 1 or model.c.shape[0] != 1:
+                raise AnalysisError(
+                    f"状态空间节点 {node.name!r} 只支持单输入单输出频响"
+                )
+            matrix = 1j * omega * np.eye(model.a.shape[0]) - model.a
+            value = model.c @ np.linalg.solve(matrix, model.b) + model.d
+            return complex(value[0, 0])
+        except AnalysisError:
+            raise
+        except Exception as exc:
+            raise AnalysisError(f"状态空间节点 {node.name!r} 频响失败：{exc}") from exc
+    if kind in {"manual", "signal"}:
+        return 0.0 + 0.0j
+    raise AnalysisError(
+        f"节点 {node.name!r}（kind={kind!r}）不在频响支持范围内；"
+        "目前支持 gain/sum/lag/integrate/transfer_function/state_space"
+    )
+
+
+def _edge_frequency_weight(edge: Any, dt: float, omega: float) -> complex:
+    if edge.kind == "pass":
+        base = 1.0 + 0.0j
+    elif edge.kind == "scale":
+        base = complex_layer.as_complex((edge.params or {}).get("gain", 1.0))
+    else:
+        raise AnalysisError(
+            f"连接 {edge.name!r} 的边类型 {edge.kind!r} 不在频响支持范围内"
+        )
+    if edge.delay:
+        if dt <= 0.0:
+            raise AnalysisError(f"连接 {edge.name!r} 带延迟，但仿真步长 dt 不是正数")
+        base *= np.exp(-1j * omega * dt)
+    return base
+
+
+def _signal_frequency_response(
+    sim: Any,
+    input_node: str,
+    output_node: str,
+    frequencies: np.ndarray,
+) -> np.ndarray:
+    scene = sim.scene
+    nodes = {node.name: node for node in scene.nodes.values()}
+    nodes_by_id = {node.id: node for node in scene.nodes.values()}
+    if input_node not in nodes or output_node not in nodes:
+        raise AnalysisError("输入/输出节点名不存在")
+    nonlinear = {
+        "expression",
+        "clip",
+        "deadband",
+        "saturate",
+        "lookup",
+        "table",
+        "piecewise",
+    }
+    for node in nodes.values():
+        if node.kind in nonlinear:
+            raise AnalysisError(
+                f"网络含非线性节点 {node.name!r}（kind={node.kind!r}），不适用线性频响"
+            )
+    names = list(nodes)
+    index = {name: position for position, name in enumerate(names)}
+    dt = float(getattr(sim.config, "dt", 0.0) or 0.0)
+    values = np.empty(frequencies.size, dtype=np.complex128)
+    for position, frequency in enumerate(frequencies):
+        omega = 2.0 * math.pi * float(frequency)
+        matrix = np.zeros((len(names), len(names)), dtype=np.complex128)
+        rhs = np.zeros(len(names), dtype=np.complex128)
+        for row, name in enumerate(names):
+            node = nodes[name]
+            if name == input_node:
+                matrix[row, row] = 1.0
+                rhs[row] = 1.0
+                continue
+            local = _node_frequency_gain(node, omega)
+            matrix[row, row] = 1.0
+            for edge in scene.edges.values():
+                if not edge.enabled or edge.target != node.id:
+                    continue
+                source = nodes_by_id.get(edge.source)
+                if source is None:
+                    continue
+                weight = _edge_frequency_weight(edge, dt, omega)
+                if node.kind == "sum":
+                    weights = node.params.get("weights") or {}
+                    weight *= float(weights.get(edge.name, 1.0))
+                matrix[row, index[source.name]] -= local * weight
+        try:
+            solution = np.linalg.solve(matrix, rhs)
+        except np.linalg.LinAlgError as exc:
+            raise AnalysisError(f"频响节点方程在 {frequency:g} Hz 处奇异") from exc
+        values[position] = solution[index[output_node]]
+    return values
+
+
+def _circuit_frequency_response(
+    sim: Any,
+    input_source: str,
+    output_probe: str,
+    frequencies: np.ndarray,
+) -> np.ndarray:
+    try:
+        result = sim.ac_sweep(
+            frequencies.tolist(),
+            input_source=input_source,
+            probes=[output_probe],
+        )
+    except Exception as exc:
+        raise AnalysisError(f"电路 AC 频响失败：{exc}") from exc
+    row = (result.get("probes") or {}).get(output_probe)
+    if not isinstance(row, dict):
+        raise AnalysisError(f"电路频响没有返回探针 {output_probe!r}")
+    real = row.get("real")
+    imag = row.get("imag")
+    if isinstance(real, list) and isinstance(imag, list):
+        return np.asarray(real, dtype=np.complex128) + 1j * np.asarray(imag, dtype=np.complex128)
+    magnitude = np.asarray(row.get("magnitude", []), dtype=float)
+    phase = np.radians(np.asarray(row.get("phase_deg", []), dtype=float))
+    return magnitude * np.exp(1j * phase)
+
+
+def frequency_response(
+    sim: Any,
+    input: str,
+    output: str,
+    *,
+    f_start: float = 1.0,
+    f_stop: float = 1_000_000.0,
+    points: int = 241,
+    scale: str = "log",
+    input_field: str = "voltage",
+    output_field: str = "voltage",
+) -> dict[str, Any]:
+    """统一频响入口：signal 用复数节点方程，circuit 复用复数 MNA。
+
+    时域数据、求解器状态与工程持久化都不在这里改写；本函数只读参数并
+    返回频率轴与复数值的四相表示（real/imag/magnitude/phase_deg）。
+    """
+    frequencies = _frequency_axis(f_start, f_stop, points, scale)
+    mode = str(getattr(sim.scene, "mode", ""))
+    if mode == "signal":
+        try:
+            values = _signal_frequency_response(sim, input, output, frequencies)
+        except AnalysisError as exc:
+            return {
+                "ok": False,
+                "mode": "signal",
+                "backend": "complex_graph",
+                "input": input,
+                "output": output,
+                "frequencies_hz": [float(value) for value in frequencies],
+                "reason": str(exc),
+                "warnings": [],
+                "source": "complex analysis layer（R39）",
+            }
+        backend = "complex_graph"
+        assumptions = [
+            "signal 节点按 jω 局部增益线性化，节点方程 (I-W(jω))y=b",
+            "延迟边使用精确 e^(-jω·dt)，非 Padé 近似",
+            "非线性节点明确报错，不静默线性化",
+        ]
+    elif mode == "circuit":
+        values = _circuit_frequency_response(sim, input, output, frequencies)
+        backend = "complex_mna"
+        assumptions = [
+            "复用电路 DC 工作点与复数 MNA 小信号分析",
+            "线性元件按复阻抗 stamp；非线性元件仍由 AC 分析拒绝",
+        ]
+    else:
+        raise AnalysisError(f"当前模式 {mode!r} 不支持频响分析")
+    real, imag = complex_layer.complex_parts(values)
+    phase = complex_layer.phase_degrees(values)
+    return {
+        "ok": True,
+        "mode": mode,
+        "backend": backend,
+        "input": input,
+        "output": output,
+        "input_field": input_field,
+        "output_field": output_field,
+        "frequencies_hz": [float(value) for value in frequencies],
+        "omega": [float(2.0 * math.pi * value) for value in frequencies],
+        "omega_rad_s": [float(2.0 * math.pi * value) for value in frequencies],
+        "real": [float(value) for value in real],
+        "imag": [float(value) for value in imag],
+        "magnitude": [float(abs(value)) for value in values],
+        "phase_deg": [float(value) for value in phase],
+        "assumptions": assumptions,
+        "warnings": [],
+        "source": "complex analysis layer（R39）",
+    }
+
+
 def export_csv(
     sim: Any,
     *,
@@ -784,6 +1025,7 @@ __all__ = [
     "math_forms",
     "transfer_function",
     "tf_analysis",
+    "frequency_response",
     "phase_metrics",
     "export_csv",
     "run_with_timeout",

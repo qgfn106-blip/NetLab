@@ -26,7 +26,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .core.compute.fem import FemSimulation
 
 #: 服务端代码版本（与 frontend/index.html 的 ?v= 对齐）；用于检测「前端已更新、后端进程仍是旧的」
-APP_BUILD = "3.17.1"
+APP_BUILD = "3.18.0"
 from .core.common.limits import ConflictError, NetlabError, NotFoundError, ValidationError
 from .core.model.networks import NetworkContainer
 from .core.model.project import (
@@ -1297,6 +1297,19 @@ class AnalysisPhaseRequest(BaseModel):
     times: list[float] | None = None
 
 
+class AnalysisFrequencyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    input: str = Field(min_length=1)
+    output: str = Field(min_length=1)
+    f_start: float = Field(default=1.0, gt=0.0)
+    f_stop: float = Field(default=1_000_000.0, gt=0.0)
+    points: int = Field(default=241, ge=2, le=2001)
+    scale: Literal["log", "lin"] = "log"
+    input_field: str = "voltage"
+    output_field: str = "voltage"
+
+
 def _analysis_call(function, label: str):
     try:
         return analysis.run_with_timeout(function, label=label)
@@ -1405,6 +1418,24 @@ def analysis_phase(request: AnalysisPhaseRequest) -> dict[str, Any]:
     return _analysis_call(
         lambda: analysis.phase_metrics(request.xs, request.ys, request.times),
         "相平面指标",
+    )
+
+
+@app.post("/api/analysis/frequency")
+def analysis_frequency(request: AnalysisFrequencyRequest) -> dict[str, Any]:
+    return _analysis_call(
+        lambda: analysis.frequency_response(
+            SERVICE.current,
+            request.input,
+            request.output,
+            f_start=request.f_start,
+            f_stop=request.f_stop,
+            points=request.points,
+            scale=request.scale,
+            input_field=request.input_field,
+            output_field=request.output_field,
+        ),
+        "频响分析",
     )
 
 

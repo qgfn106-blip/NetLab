@@ -12,8 +12,8 @@
 
 | 你想干什么 | 看哪一节 |
 | --- | --- |
-| 知道"为什么这么定" | §2 决策台账（D1–D96） |
-| 知道"要做什么、做到什么程度算完" | §3 需求清单（R01–R38） |
+| 知道"为什么这么定" | §2 决策台账（D1–D97） |
+| 知道"要做什么、做到什么程度算完" | §3 需求清单（R01–R39） |
 | 知道"先做哪个" | §4 权重与依赖、§5 分期 |
 | 知道"哪些明确不做" | §6 不做清单 |
 | 知道"旧文档哪句话作废了" | §7 已废弃口径 |
@@ -27,7 +27,7 @@
 
 1. 你 2026-10-25 提出的七大块新要求（模块化文件化、前端信息架构、场景重组、快捷键、多网络、连线与符号、时间与循环）全部并入，旧七项需求被**细化或取代**，映射见 §7。
 2. 新增三条你点名的横切要求：**数据依赖与数据保护**、**性能与计时**、**现代控制理论导向（仅呈现层）**。
-3. 所有决策从问答沉淀成决策台账（本版当时为 **D1–D59**，现已到 **D1–D96**），每个决定都能追到当时的取舍。
+3. 所有决策从问答沉淀成决策台账（本版当时为 **D1–D59**，现已到 **D1–D97**），每个决定都能追到当时的取舍。
 4. 计划从旧的 V2-0…V2-7 改为 **P0–P6**，并明确：P0 是地基（数据模型 + 目录 + 菜单 + 交互基础）先做，且含一个**热修**（现网报错）。
 5. 新增 §6「不做清单」——把"以后再说"和"明确不做"分开写清，避免下个窗口又把它们当需求实现。
 
@@ -122,7 +122,7 @@
 | D81 | **修 PlotKit 面板卡顿（2026-11-02，用户原话「继续完成，并且检查解决plotkit卡顿的问题」）** | 根因三条并全修：①中途出现的探针从 0 长度追加，与 `t` 错位 → `render` 抛「x/y 长度不一致」，曲线永久卡死 → `_ensure_channels` 用 `np.full(len(t),nan)` 补齐、`_ingest` 每次 push 前对齐全部序列；②出图线程与 0.5s 同步线程并发读写 → 中间态同样错位 → `store/registry.py` 加 `DATA_LOCK`（RLock），`_ensure_channels/_ingest/_reset` 与 PlotKit `build()` 共用，渲染由此串行化；③出图贵（900×520=72ms、1200×700=149ms、1600×950=191ms、2400×1400=308ms，且持 GIL 把 step 从 122→138~207µs）→ `renderUrl` 面积上限 1400×1000、实时重绘节流 1Hz、轮询 500→1000ms、拖动预览 70→160ms、同步线程 0.2→0.5s；④面板隐藏仍出图 → `plotVisible()`+`document.hidden`+宿主 `postMessage` 三路判可见；⑤面板先于仿真打开永远 0 图层 → `poll` 在空图层时重取 `api/spec`。验收：面板可见 8 次渲染/8s、切走 0 次、浮窗关闭 0 次；netlab 385 passed（+2 条 `test_plotkit_bridge_sync.py`）、PlotKit 436 passed；静态 3.15.5。详见 PROGRESS §7.38。 |
 ---
 
-## 3. 需求清单（R01–R38）
+## 3. 需求清单（R01–R39）
 
 > 权重：⭐1（可延后）… ⭐5（不做完后面全是坑）。期次指向 §5。
 
@@ -545,6 +545,25 @@
 - **权重·期次**：⭐⭐⭐ / P13–P14（2026-11-05 P5 基础已落地）。
 - **现状**：**已完成（2026-11-05）**：`state:<node>:<index>` 状态通道、`analysis.phase_metrics()`、`/api/analysis/phase`、前端相图状态通道 + 独立播放/步进/循环/帧滑块 + L/A/峰值/超调/稳态/调节时间读数 + 导出 CSV；dt 收敛测试 39.15%→37.53%，无状态通道节点显示中文提示。
 
+### R39 复数分析层（Complex Bridge）与统一频域响应
+
+- **原话**（2026-11-05）：「那是否可以做一个函数转化接口，将已有的float形式转换为复数形式的实数部分，然后只对必须的函数与数据进行复数化，包括电路与信号流模式，然后将矢量模式预定为二维运动和场分析的待定模式」；随后要求「spec完按文档要求做好规划，需求，计划，检验等，依然按找文档要求规范，修改文档，完成任务」。
+- **解读**：不是把所有节点、状态、recorder、工程文件改成 `complex`；而是在分析边界增加一层薄适配，让信号流和电路共用 `H(jω)` 复数出口。时域仍保持 `float64`，复数只在 AC/频响/传函/FFT 等必要路径出现，避免破坏 JSON/checksum/CSV/PlotKit 与瞬态性能。`vector` 模式不纳入本轮。
+- **落地形态**：
+  - 新增 `netlab/core/compute/complex_support.py`：`as_complex`、`as_complex_array`、`as_real`、`complex_parts`、`map_complex`、`phase_degrees`；拒绝 bool/字符串/None 与 object dtype，`as_real` 对超出容差的虚部报错。
+  - 新增 `analysis.frequency_response(sim, *, input, output, f_start, f_stop, points, scale, input_field, output_field)`：`signal` 模式逐频点装配复数节点方程 `(I-A(jω))y=b`，延迟边精确乘 `exp(-jωdt)`；`circuit` 模式复用 `nodal.ac_sweep()` 的 DC 工作点线性化与复数 MNA；返回 `frequencies_hz/omega/real/imag/magnitude/phase_deg(backend, assumptions, warnings, ok)`。
+  - `nodal.ac_sweep()` 每个 probe 新增 `real`/`imag`，保留 `magnitude/phase_deg/db`；新增 `POST /api/analysis/frequency`。
+  - 不改变 `SignalEngine.step()`、瞬态求解、Recorder、工程 JSON/checksum、PlotKit 数据源；本轮不强制新增前端控件。
+- **验收**：
+  - `complex_support` 的标量/数组/嵌套转换、幂等、bool/字符串拒绝、`as_real` 虚部拒绝全部通过。
+  - 信号流一阶低通 `1/(1+jωRC)` 的幅值/相位与解析值一致；带单步延迟边的相位斜率对应 `-ωT`，且不出现 Padé 阶数膨胀。
+  - 电路 RC 低通 1 kHz 处幅值 `1/√2`、相位 `-45°`，RLC 分压与解析传函一致；非线性元件明确拒绝。
+  - API 返回字段完整、`real/imag/magnitude/phase_deg` 等长、`points` 边界正确、错误映射 422。
+  - 全量回归中 `SignalEngine.step()`/Recorder/CSV/工程 JSON 仍为实数；现有 `test_network_tf.py`/`test_analysis_api.py`/`test_transfer.py` 不回归。
+- **不做什么**：不做全量 `complex` 数据迁移；不把 `vector` 模式并入复数层；不做复数 Nyquist/阻抗 UI；不替代符号总传函（两者互补）；不做 MIMO 矩阵传函。
+- **权重·期次**：⭐⭐⭐ / P14（2026-11-05 完成）。
+- **现状**：**已完成（2026-11-05）**。`complex_support.py`、`analysis.frequency_response()`、`nodal.ac_sweep()` 复数值、`POST /api/analysis/frequency` 已落地；signal 精确延迟与 circuit 复数 MNA 均有测试；时域/recorder/JSON/PlotKit 未改。规格见 [docs/specs/2026-11-05-complex-analysis-layer.md](specs/2026-11-05-complex-analysis-layer.md)。
+
 ## 4. 权重与依赖
 
 ### 4.1 权重排序（高→低）
@@ -560,6 +579,7 @@
 | ⭐⭐⭐⭐ | R36 非线性 / 非定常闭环求解 | 控制链路正确性的前提；决定 R37/R38 能否验收；P1–P5 已完成 |
 | ⭐⭐⭐ | R37 线性网络总传函预计算与 Bode 相位 | 闭环设计验收；对外 s/z 域能力已完成；内部 A/B/C/D 导出为优化项 |
 | ⭐⭐⭐ | R38 相平面 + 独立播放 + 数据分析 | 呈现层增强；状态通道/播放/指标/CSV/dt 收敛已完成 |
+| ⭐⭐⭐ | R39 复数分析层与统一频域响应 | 信号流/电路共用 `H(jω)` 复数出口；精确延迟、相位展开、后续 Nyquist/阻抗/FFT 的基础；P14 已完成 |
 
 
 ### 4.2 依赖关系
@@ -1247,3 +1267,4 @@ MOSFET。
 | D94 | 2026-11-04 | **相平面从网络状态直接预计算，不从总传函反推**：暴露 `state:<node>:<index>` 状态通道，预计算轨迹；独立播放条与数据分析；线性系统可选规范型坐标并标注；2026-11-05 P5 已落地状态通道/播放/L-A/峰值-超调-稳态-调节/CSV | 用户此前问「相图为什么必须用矢量系统」「相图能不能用拉氏 / 傅里叶画」，并要求纳入「之前的计划」 | 规划见同一 spec；状态通道、播放条、峰值/超调/稳态/调节时间/CSV | 不做：由 `H(s)` 反推相图、3D 相图、把总传函当状态几何来源 | P5 完成：`state:<node>:<index>`、相图独立播放/步进/循环/帧滑块、L/A/峰值/超调/稳态/调节指标、CSV；dt 收敛（39.15%→37.53%）与无状态提示已补 | 3 / P13 / 完成 |
 | D95 | 2026-11-05 | **R25 内置结构用代码虚拟注册表，先宏模型后电路级**：9 个内置 structural 块固定 id、`builtin=True`、metadata `r25`；`blocklib` 合并扫描、空库 `load_block` 回退、写/删/改名拒绝；「按内部结构仿真」开关/行为对比由 D96 补齐 | 用户要求内置只读结构且库缺失仍可打开；先保证可见、可打开、可另存副本 | `builtins.py`/`blocklib.py`/`server.py`/`app.js`/`test_builtin_blocks.py` | 不把宏模型标成完整电路级；完整电路级留作后续 | P7-09/10/11 宏模型阶段完成；531 passed；静态 3.17.0 | 3 / P7-E / 完成（宏模型阶段） |
 | D96 | 2026-11-05 | **R25 行为快速模型 + `internal_sim` 双路径**：每个内置块带 `metadata["behavior"]`，默认走纯 Python 快速路径；块节点 `internal_sim=true` 时实例化 structural 内部场景；两路径共用端口契约，`compare_block_modes()`/`POST /api/blocks/{id}/compare` 回报峰值、最大绝对差、RMS 差 | 用户要求「按内部结构仿真」开关并与行为模型对比；大网络默认不能为内部结构付全代价 | `block_behavior.py`/`blocks.py`/`scene.py`/`computes.py`/`builtins.py`/`server.py`/`app.js`/`test_builtin_blocks.py` | 不声称两路径逐点等价；不把宏模型当完整电路级；完整电路级后续逐类替换 | 行为路径/开关保存/9 块对比测试 15 passed；全量 543 passed；静态 3.17.1 | 3 / P7-E / 完成 |
+| D97 | 2026-11-05 | **复数分析层采用边界适配，不做全量 `complex` 迁移**：新增 `complex_support.py` 纯函数与 `analysis.frequency_response()` 统一入口；signal 走逐频点复数节点图、延迟精确 `e^{-jωT}`；circuit 复用 `nodal.ac_sweep` 复数 MNA；AC 结果增 `real/imag`，新增 `POST /api/analysis/frequency`；时域/recorder/JSON/PlotKit 保持实数，`vector` 不纳入 | 用户要求把 float 转为复数的实部、只对必要函数/数据复数化，并覆盖电路与信号流；全量复数会破坏兼容性并给瞬态带来无谓开销 | `netlab/core/compute/complex_support.py`、`analysis.py`、`nodal.py`、`server.py`；新增/扩展 `test_complex_support.py`、`test_frequency_response.py`、`test_analysis_api.py`、`test_solver_analysis.py` | 不做全量复数、vector 复数化、Nyquist/阻抗 UI、MIMO 矩阵传函；不替代符号总传函 | 已完成：signal 精确延迟、circuit 复数 MNA、API/测试通过；时域仍实数 | 3 / P14 / 完成 |

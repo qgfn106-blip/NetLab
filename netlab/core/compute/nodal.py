@@ -2254,7 +2254,7 @@ class CircuitSolver:
                     f"{residual:.3g}）；请先让电路在 DC 下可解"
                 )
             results: dict[str, dict[str, list[float]]] = {
-                token: {"magnitude": [], "phase_deg": [], "db": []}
+                token: {"real": [], "imag": [], "magnitude": [], "phase_deg": [], "db": []}
                 for token in wanted
             }
             size = self.matrix_size
@@ -2282,6 +2282,8 @@ class CircuitSolver:
                     magnitude = float(abs(value))
                     phase = math.degrees(math.atan2(value.imag, value.real))
                     row = results[token]
+                    row["real"].append(float(value.real))
+                    row["imag"].append(float(value.imag))
                     row["magnitude"].append(magnitude)
                     row["phase_deg"].append(phase)
                     row["db"].append(20.0 * math.log10(max(magnitude, 1.0e-30)))

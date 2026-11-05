@@ -710,3 +710,11 @@ window.dispatchEvent(new Event('netlab-desktop-ready'));
 3. **参数白名单与前端 inspector 同批改**：`block` 的 `ComputeSpec.params` 不加 `internal_sim`，前端 `buildParamFields` 能画出开关但 PATCH 会被 `未知参数` 拒绝；参数表是唯一契约。
 4. **对比接口要允许差异**：行为模型与宏模型结构不会逐点等价，`compare_block_modes()` 应返回 `max_abs_diff`/`rms_diff`/`note` 而不是强行断言相等；counter4/shift4/adc4 的有限差异要如实展示。
 5. **行为模型状态必须实例独占**：`_behavior_state` 放在 `BlockRuntime`，不能放 `BlockDef` 或全局；否则同一内置块的两个实例会互相串状态。`reset/capture_checkpoint/restore_checkpoint` 要覆盖行为路径。
+
+## 2026-11-05 R39 复数分析层（§7.71）
+
+1. **复数只放在分析边界**：`complex_support` 只做转换，节点状态/recorder/工程 JSON/PlotKit 仍是 `float64`；全量 `complex` 会破坏 JSON/checksum/CSV，并让时域求解器承担无谓开销。
+2. **信号流延迟不要用 Padé 做频响**：`frequency_response()` 的 signal 后端直接乘 `exp(-1j*omega*dt)`，这是精确 `e^{-jωT}`；Padé 只属于符号 `transfer_function()` 的 s 域近似。
+3. **电路 AC 结果向后兼容**：`nodal.ac_sweep()` 在原有 `magnitude/phase_deg/db` 外**追加** `real/imag`，不要重命名/删除旧键；旧前端和旧测试仍可读。
+4. **API 点数边界要双向校验**：`AnalysisFrequencyRequest` 的 `points` 用 `ge=2, le=2001`，`frequency_response` 内再校验一次；只靠 Pydantic 时函数被脚本直接调用会漏掉。
+5. **收尾要用 `edit`/`write` 保持 UTF-8**：本轮曾用 PowerShell `Set-Content` 替换测试文件导致中文乱码，必须从 `git show HEAD:<path>` 恢复并用编辑工具重写；中文文档/测试不要走 shell 文本重定向。

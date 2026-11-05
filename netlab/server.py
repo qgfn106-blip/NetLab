@@ -26,7 +26,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .core.compute.fem import FemSimulation
 
 #: 服务端代码版本（与 frontend/index.html 的 ?v= 对齐）；用于检测「前端已更新、后端进程仍是旧的」
-APP_BUILD = "3.20.0"
+APP_BUILD = "3.20.1"
 from .core.common.limits import ConflictError, NetlabError, NotFoundError, ValidationError
 from .core.model.networks import NetworkContainer
 from .core.model.project import (

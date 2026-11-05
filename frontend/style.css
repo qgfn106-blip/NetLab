@@ -2277,3 +2277,7 @@ html[data-motion="off"] button:hover, html[data-motion="off"] .btn:hover { trans
 @media (max-width: 1040px) {
   .readouts { display: none; }
 }
+.ui-color-row { display: flex; align-items: center; gap: 6px; }
+.ui-color-row input[type="color"] { width: 44px; height: 28px; padding: 0; border: 1px solid var(--line, #ccd4d8); border-radius: 6px; background: transparent; }
+.iro-popover .IroColorPicker { margin: 0 auto 8px; }
+.iro-popover .btn { display: block; margin-left: auto; }

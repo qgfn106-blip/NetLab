@@ -1,6 +1,6 @@
 # Netlab 需求 · 决策 · 执行计划（2026-10-25 修订版）
 
-> 最后修改：2026-11-05 03:45
+> 最后修改：2026-11-05 14:46
 > 本版**取代** 2026-10-24 版的需求口径。旧条文不删除，凡被推翻或细化的条目一律进 §7「已废弃口径」。
 > 每条需求统一六段式：**原话 / 解读 / 拟改架构 / 验收 / 权重·期次 / 现状**。
 > **现状**一栏只写本次会话内读代码或跑测试能证明的事实；没有证据的一律标「待核实」。
@@ -12,7 +12,7 @@
 
 | 你想干什么 | 看哪一节 |
 | --- | --- |
-| 知道"为什么这么定" | §2 决策台账（D1–D97） |
+| 知道"为什么这么定" | §2 决策台账（D1–D98） |
 | 知道"要做什么、做到什么程度算完" | §3 需求清单（R01–R39） |
 | 知道"先做哪个" | §4 权重与依赖、§5 分期 |
 | 知道"哪些明确不做" | §6 不做清单 |
@@ -27,7 +27,7 @@
 
 1. 你 2026-10-25 提出的七大块新要求（模块化文件化、前端信息架构、场景重组、快捷键、多网络、连线与符号、时间与循环）全部并入，旧七项需求被**细化或取代**，映射见 §7。
 2. 新增三条你点名的横切要求：**数据依赖与数据保护**、**性能与计时**、**现代控制理论导向（仅呈现层）**。
-3. 所有决策从问答沉淀成决策台账（本版当时为 **D1–D59**，现已到 **D1–D97**），每个决定都能追到当时的取舍。
+3. 所有决策从问答沉淀成决策台账（本版当时为 **D1–D59**，现已到 **D1–D98**），每个决定都能追到当时的取舍。
 4. 计划从旧的 V2-0…V2-7 改为 **P0–P6**，并明确：P0 是地基（数据模型 + 目录 + 菜单 + 交互基础）先做，且含一个**热修**（现网报错）。
 5. 新增 §6「不做清单」——把"以后再说"和"明确不做"分开写清，避免下个窗口又把它们当需求实现。
 
@@ -431,7 +431,7 @@
 - **拟改架构**：按 D63 分三层——L1 平均模型（零框架改动：`state_space` 做 dq plant、`sum/gain/integrate/clip` 做 PI、`oscillator`+`expression` 做 PLL 与占空比）→ L2 跨域桥（按 D64 新增 `sensor`/`actuator` 与步内顺序）→ L3 内建三相元件（`ThreePhaseSource`/`AbcDq`/`PwmModulator`/桥臂，只在 L2 验证后再定）。配套新增 `abc_dq` 原生 compute（P11-02）。
 - **验收**：① 平均模型示例工程可一键载入并跑出稳定波形：dq 电流跟随阶跃参考、解耦成立、PLL 锁相误差 < 1°（50 Hz 与 ±0.5 Hz 频偏）；② `abc_dq` 有单元测试（正序三相 → dq 的幅值/相位与解析解一致，反变换可还原）；③ 开关级示例：6 开关三相桥 + LCL + 死区能运行，PCC 电流波形与平均模型趋势一致（不追绝对精度）；④ 跨域桥有测试：采样延迟一拍、驱动不产生代数环、旧工程（无桥元素）行为不变、checksum 兼容；⑤ 长仿真（0.1 s @ 1 µs）有耗时数据且 UI 可中断；⑥ pytest 数量只增不减、compileall、`desktop --selftest`、CDP 截图证据；⑦ 文档同步：本文档 R31/D63/D64/P11、PROGRESS 票状态、ARCHITECTURE 与 FRAMEWORK_CHEATSHEET 补「跨域桥与三相变换」。
 - **权重·期次**：⭐⭐⭐⭐ / P11（2026-10-29 用户指定）
-- **现状**：2026-10-29 立项，票单 P11-01…P11-07，**未开工**。
+- **现状**：2026-11-05 完成 P11-01…P11-07（§7.72）：L1 平均模型 `grid_inverter_avg.netlab`、`abc_dq`、SRF-PLL `pll_template.netlab`、dq 电流环 `grid_inverter_current.netlab`、`sensor`/`actuator` 跨域桥（显式一拍延迟）、六开关三相桥 `grid_inverter_switch.netlab`、`cancel_precompute` 中断；全量 **581 passed**、静态 **3.19.0**。已知限制：P11-06 为理想 nmos + 50 Hz 方波栅极（未做 10 kHz PWM 载波/损耗），趋势验证成立、绝对精度不作承诺；R25 完整电路级内部结构留后续。
 
 ### R32 论文级绘图子系统（PlotKit）与非模态绘图窗口
 
@@ -1268,3 +1268,4 @@ MOSFET。
 | D95 | 2026-11-05 | **R25 内置结构用代码虚拟注册表，先宏模型后电路级**：9 个内置 structural 块固定 id、`builtin=True`、metadata `r25`；`blocklib` 合并扫描、空库 `load_block` 回退、写/删/改名拒绝；「按内部结构仿真」开关/行为对比由 D96 补齐 | 用户要求内置只读结构且库缺失仍可打开；先保证可见、可打开、可另存副本 | `builtins.py`/`blocklib.py`/`server.py`/`app.js`/`test_builtin_blocks.py` | 不把宏模型标成完整电路级；完整电路级留作后续 | P7-09/10/11 宏模型阶段完成；531 passed；静态 3.17.0 | 3 / P7-E / 完成（宏模型阶段） |
 | D96 | 2026-11-05 | **R25 行为快速模型 + `internal_sim` 双路径**：每个内置块带 `metadata["behavior"]`，默认走纯 Python 快速路径；块节点 `internal_sim=true` 时实例化 structural 内部场景；两路径共用端口契约，`compare_block_modes()`/`POST /api/blocks/{id}/compare` 回报峰值、最大绝对差、RMS 差 | 用户要求「按内部结构仿真」开关并与行为模型对比；大网络默认不能为内部结构付全代价 | `block_behavior.py`/`blocks.py`/`scene.py`/`computes.py`/`builtins.py`/`server.py`/`app.js`/`test_builtin_blocks.py` | 不声称两路径逐点等价；不把宏模型当完整电路级；完整电路级后续逐类替换 | 行为路径/开关保存/9 块对比测试 15 passed；全量 543 passed；静态 3.17.1 | 3 / P7-E / 完成 |
 | D97 | 2026-11-05 | **复数分析层采用边界适配，不做全量 `complex` 迁移**：新增 `complex_support.py` 纯函数与 `analysis.frequency_response()` 统一入口；signal 走逐频点复数节点图、延迟精确 `e^{-jωT}`；circuit 复用 `nodal.ac_sweep` 复数 MNA；AC 结果增 `real/imag`，新增 `POST /api/analysis/frequency`；时域/recorder/JSON/PlotKit 保持实数，`vector` 不纳入 | 用户要求把 float 转为复数的实部、只对必要函数/数据复数化，并覆盖电路与信号流；全量复数会破坏兼容性并给瞬态带来无谓开销 | `netlab/core/compute/complex_support.py`、`analysis.py`、`nodal.py`、`server.py`；新增/扩展 `test_complex_support.py`、`test_frequency_response.py`、`test_analysis_api.py`、`test_solver_analysis.py` | 不做全量复数、vector 复数化、Nyquist/阻抗 UI、MIMO 矩阵传函；不替代符号总传函 | 已完成：signal 精确延迟、circuit 复数 MNA、API/测试通过；时域仍实数 | 3 / P14 / 完成 |
+| D98 | 2026-11-05 | **R31 P11-01…P11-07 按 L1 平均模型 → L2 跨域桥 → 开关级趋势验证交付**：新增 `abc_dq`、`pll`、`pi` 三个 compute；`sensor`/`actuator` 元件与 `CircuitEngine` 固定步内顺序（采样拍后、驱动下一拍）；示例工程 `grid_inverter_avg/current/pll_template/grid_inverter_switch.netlab`；`cancel_precompute` 支持 UI 中断 | 用户要求按顺序完成 R31 需求，并保持旧工程/checksum 兼容；L2 桥必须显式一拍延迟以避免代数环 | `computes.py`、`nodal.py`、`scene.py`、`ports.py`、`simulation.py`、`server.py`、`frontend/app.js`、`MyProject/*.netlab`、R31 测试 | 不做真实器件损耗/10 kHz PWM 载波；不承诺开关级绝对 EMT 精度；R25 完整电路级不在本票 | 已完成：581 passed、81.42 s、3.19.0；P11-06 仅趋势验证 | 4 / P11 / 完成 |

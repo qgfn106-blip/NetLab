@@ -1,6 +1,6 @@
 # Netlab 经验与踩坑手册（避免重复错误 / 少花 token）
 
-> 最后修改：2026-11-05 02:05（新增末节「最终集成检查：z 域、API 契约与 dt 收敛」，沉淀 z 域边界、HTTP 契约与两档 dt 验收经验）
+> 最后修改：2026-11-05 14:46（新增 §7.72「R31 并网逆变器」，沉淀跨域桥步序、PLL/abc_dq 与开关级趋势验证经验）
 > 用途：动手前先扫一遍相关小节；遇到同样的报错直接照「处理」执行，**不要再从头调试一遍**。
 > 每条都是实测过的现象；标 ⚠ 的是容易反复踩的坑。
 
@@ -718,3 +718,13 @@ window.dispatchEvent(new Event('netlab-desktop-ready'));
 3. **电路 AC 结果向后兼容**：`nodal.ac_sweep()` 在原有 `magnitude/phase_deg/db` 外**追加** `real/imag`，不要重命名/删除旧键；旧前端和旧测试仍可读。
 4. **API 点数边界要双向校验**：`AnalysisFrequencyRequest` 的 `points` 用 `ge=2, le=2001`，`frequency_response` 内再校验一次；只靠 Pydantic 时函数被脚本直接调用会漏掉。
 5. **收尾要用 `edit`/`write` 保持 UTF-8**：本轮曾用 PowerShell `Set-Content` 替换测试文件导致中文乱码，必须从 `git show HEAD:<path>` 恢复并用编辑工具重写；中文文档/测试不要走 shell 文本重定向。
+
+## §7.72 R31 并网逆变器 P11-01…P11-07（2026-11-05）
+
+- **跨域桥必须显式一拍延迟**：`CircuitEngine.step()` 的顺序固定为「actuator 读取上一拍信号 → MNA 求解 → 写节点电压 → sensor 采样写信号」；把 actuator 放到 solver 前和 sensor 放到 solver 后，才能保证不出现代数环，且与 D64 的「步内顺序」一致。
+- **sensor 用 1e-12 高阻而不是 0**：0 欧姆会改变 MNA 矩阵/造成奇异；`SensorElement` 以极小电导采样节点电压，`result` 同时保留 `voltage` 与 `value` 两个字段，旧读取方不需要改。
+- **PLL 的 q 符号与相位推进顺序**：本工程采用 `error = -q/max(|d|,1e-6)`；theta 先按上一步频率推进再检测，保证输出 theta 与同一拍输入对齐。把这两处任一改反都会出现频率跑飞或相位滞后。
+- **abc_dq 采用幅值不变 Park**：`d=2/3(...)`、`q=2/3(...)`；正反变换要成对测试，尤其 q 的符号约定必须与 PLL/电流环一致。
+- **开关级示例只做趋势验证**：P11-06 用理想 nmos + 50 Hz 方波栅极/死区，不是 10 kHz PWM 载波，也没有器件损耗；测试只断言 pcc/mid 峰值与不发散，不能拿它承诺绝对 EMT 精度。
+- **长仿真必须可中断**：`Simulation.cancel_precompute()` 用 `threading.Event` 在每步检查；UI 的「停止计算」只负责发 `POST /api/control {action:"cancel_precompute"}`，要保留已算帧而不是清空。
+- **工程生成脚本要放 scratch**：`NetlabExtras/scratch/build_grid_switch.py` 等一次性脚本不要进 `NetlabHome` 包；生成后的 `.netlab` 要经 `load_project` + `Simulation.precompute` 验收，不能只检查 JSON。

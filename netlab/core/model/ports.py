@@ -100,6 +100,8 @@ PINS: dict[str, tuple[PinSpec, ...]] = {
     ),
     "ne555": _pins(("OUT", "output"), ("VCC", "power"), ("GND", "power")),
     "ldo": _pins(("IN", "input"), ("OUT", "output"), ("GND", "power")),
+    "sensor": _pins(("IN", "input"), ("GND", "power")),
+    "actuator": _pins(("OUT", "output"), ("GND", "power")),
     "transformer": _pins(
         ("P1", "bidirectional"),
         ("P2", "bidirectional"),

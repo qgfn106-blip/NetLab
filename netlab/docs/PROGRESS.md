@@ -1,11 +1,11 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-06 03:16
+> 最后修改：2026-11-06 03:26
 
 | 项 | 内容 |
 | --- | --- |
-| 记录时间 | 2026-11-06 03:16（Asia/Shanghai） |
-| 当前阶段 | **2026-11-06 前端 JS→TS 迁移规划（R41 / P16，规划完成、代码未开始；§7.76）**；R40 全栈扩展架构实现（§7.74）+ 全量文档重构（§7.75）：`netlab.plugin_api.v1`、插件加载器/管理页、`AnalysisSpec`/`EngineProtocol`、工程 v6、`netlab-ui/1` 与简单画布；README/ARCHITECTURE/OPERATION/INSTALL/MATH 及架构图/演示视频同步；静态 **3.20.1**，全量 **589 passed**。上一阶段 **§7.72**：R31 并网逆变器（P11-01…P11-07，581 passed、3.19.0）；**§7.71**：R39 复数分析层（561 passed、3.18.0）。 |
+| 记录时间 | 2026-11-06 03:26（Asia/Shanghai） |
+| 当前阶段 | **2026-11-06 前端 JS→TS 迁移规划（R41 / P16，执行中：vscode 扩展、PlotKit render2d 已完成类型化；§7.76）**；R40 全栈扩展架构实现（§7.74）+ 全量文档重构（§7.75）：`netlab.plugin_api.v1`、插件加载器/管理页、`AnalysisSpec`/`EngineProtocol`、工程 v6、`netlab-ui/1` 与简单画布；README/ARCHITECTURE/OPERATION/INSTALL/MATH 及架构图/演示视频同步；静态 **3.20.1**，全量 **589 passed**。上一阶段 **§7.72**：R31 并网逆变器（P11-01…P11-07，581 passed、3.19.0）；**§7.71**：R39 复数分析层（561 passed、3.18.0）。 |
 | 基线 | 修改前 43 passed（2026-10-24 14:26） |
 | 当前测试 | **589 passed**（2026-11-06 02:00 全量 `python -m pytest netlab/tests -q`，3 warnings，69.95 s，退出码 0；stderr **0 次** `0xc0000139`；新增 R40 插件/工程/UI 目标测试 8 条） |
 | 本地备份 | `NetlabExtras/backups/ProjectPoint_backups/netlab_3_20_1_20261106_0205`（10 文件 + MANIFEST.sha256，iro.js 颜色选择器集成备份，mismatches=0）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_20_0_20261106_0136`（36 文件 + MANIFEST.sha256，R40 代码 + 文档重构最终备份，mismatches=0）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_19_0_20261105_1450`（28 文件 + MANIFEST.sha256，§7.72 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_18_0_20261105_1340`（15 文件 + MANIFEST.sha256，§7.71 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_17_1_20261105_0845`（15 文件 + MANIFEST.sha256，§7.70 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_17_0_20261105_0345`（23 文件 + MANIFEST.sha256，§7.69 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_final_20261105_0205`（14 文件 + MANIFEST.sha256，§7.68 最终集成检查）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_r38_20261105_0155`（9 文件 + MANIFEST.sha256，§7.67 相图指标/CSV）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p5_20261105_0140`（12 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p4_20261105_0125`（本轮 §7.65 的 analysis.py / test_network_tf.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p3_20261105_0110`（§7.64 的 graph.py / computes.py / scene.py / test_algebraic_solver.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p2_20261105_0055`（§7.63 的 graph.py / scene.py / test_algebraic_solver.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p1_20261105_0040`（§7.62 的 graph.py / computes.py / scene.py / test_solver_plan.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_plan_20261104_2355`（本轮规划文档 4 文件 + MANIFEST.sha256，R36–R38/D92–D94）、`NetlabExtras/backups/ProjectPoint_backups/netlab_control_20261104_1815`（本轮 14 文件 + MANIFEST.sha256，§7.61）、`NetlabExtras/backups/ProjectPoint_backups/netlab_import_20261104_1423`（§7.60 10 文件 + MANIFEST.sha256，§7.60）、`NetlabExtras/backups/ProjectPoint_backups/netlab_guard_20261104_1356`（本轮 5 文件 + MANIFEST.sha256，§7.59）、`NetlabExtras/backups/ProjectPoint_backups/netlab_delayfix_20261104_1315`（本轮 7 文件 + MANIFEST.sha256，§7.58）、`NetlabExtras/backups/ProjectPoint_backups/netlab_menu_20261104_0756`（§7.57 7 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_fields_20261104_0225`（21 文件 + MANIFEST.sha256，R35/D91）、`NetlabExtras/backups/ProjectPoint_backups/netlab_audit_20261103_1920`（15 文件 + MANIFEST.sha256，架构审计 §7.55）、`NetlabExtras/backups/ProjectPoint_backups/netlab_transfer_20261103_1602`（14 文件 + MANIFEST.sha256，R34/D90）、`netlab_20261101_2010`（本轮 7 源文件 + 5 文档 + 5 测试 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_plotkit_token_20261103_1253`（8 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_free_layout_20261103_1430`（P4 自由布局）、`NetlabExtras/backups/ProjectPoint_backups/netlab_layer_window_20261103_1450`（P3 图层浮窗）、`NetlabExtras/backups/ProjectPoint_backups/netlab_notes_20261103_1508`（P5 批注）、`NetlabExtras/backups/ProjectPoint_backups/netlab_precision_20261103_1552`（PlotKit 预览精度 §7.53）、`NetlabExtras/backups/ProjectPoint_backups/netlab_20261024_142654`、`_1727`、`netlab_20261025_0125`、`netlab_20261025_1306`（P0-0）、`netlab_20261026_0348p1retry`（P1 收口）、`netlab_20261026_1240`（R15 收尾）、`netlab_20261026_1318`（R20 模型批基础层）、`netlab_20261026_1322`（R20 模型批功能完成）、`netlab_20261026_1330`（R20 UI 批）、`netlab_20261026_1335`（R20 UI 迁移动作）、`netlab_20261026_1340`（R20 信号端口）、`netlab_20261026_1415`（纯导线/共集示例）、`netlab_20261027_0150`（P7-01 前快照）、`netlab_20261027_1744`（P7-03 收尾）、`netlab_20261027_1753`（R22 参数放宽/单位）、`netlab_20261027_1856`（三极管型号预设）、`netlab_20261027_2218`（拐点拖动）、`netlab_20261027_2324`（P7-03/P7-05 收尾）、`netlab_20261027_2330`（P0 求解可靠性）、`netlab_20261028_0016`（P0 收尾/P7-05）、`netlab_20261028_0048`（电源波形界面）、`netlab_20261028_0103`（dt 精度预设）、`netlab_20261028_0114`（奇异阈值/步长原位微调）、`netlab_20261028_0318`（P0 求解加固：事务/均衡/断点/超时）、`netlab_20261028_0405`（Phase D/E 代码前快照）、`netlab_20261028_0434`（R26 代码前快照）、`netlab_20261028_1219`（工程校验和修复前 `project.py`）、`project_20261028_1219`（用户工程文件前快照）、`netlab_20261028_1855`（R27 后端/前端快照）、`docs_20261028_1932`（公开仓库文档前快照）、`docs_20261028_2108`（R28 文档前快照）、`web_20261028_2130`（演示页与 workflow 删除前快照）、`ui_20261028_2205`（R29 回放滑块前 static 快照）、`netlab_ui_20261028_2242`（R30 UI 集中优化前 netlab 全量）；文档快照见 `docs_20261026_*、docs_20261027_1744、netlab_docs_20261028_0420、netlab_docs_20261028_0445` |
@@ -2068,7 +2068,7 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 
 ## §7.76 前端 JavaScript → TypeScript 全局迁移（规划，2026-11-06）
 
-**状态：规划完成、代码未开始。** 需求与验收口径见 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) R41 / §5 P16（一期类型化）/ P17（二期模块化，暂挂）；决策 D100–D109。
+**状态：执行中（一期 P16）——vscode 扩展、PlotKit `render2d` 已完成类型化并通过 DoD；其余待开始。** 需求与验收口径见 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) R41 / §5 P16（一期类型化）/ P17（二期模块化，暂挂）；决策 D100–D109。
 
 **为什么做**：`frontend/app.js` 13,806 行单一大 IIFE、无类型无模块，维护成本高；`/api` 契约仅靠 Python 字符串匹配测试、前端无类型约束易漂移；缺模块化基建。
 
@@ -2086,12 +2086,12 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 
 ### 迁移台账（每文件状态）
 
-> 基线用 `netlab/tools/cdp_*.mjs` 录（DOM 快照 / 截图 / 控制台零报错 / 关键 `/api` 往返），存迁移分支 `docs/ts-migration/baseline/<日期>/`，可回测。状态取值：待开始 / 进行中 / 已完成（DoD 全过）/ 临时豁免（登记原因与 TODO）。**当前全部「待开始」。**
+> 基线用 `netlab/tools/cdp_*.mjs` 录（DOM 快照 / 截图 / 控制台零报错 / 关键 `/api` 往返），存迁移分支 `docs/ts-migration/baseline/<日期>/`，可回测。状态取值：待开始 / 进行中 / 已完成（DoD 全过）/ 临时豁免（登记原因与 TODO）。**当前进度：第 1–2 个（vscode 扩展、render2d）已完成，其余「待开始」。**
 
 | 文件 | 行数 | 期次/顺序 | 状态 | 基线 | 备注 |
 | --- | --- | --- | --- | --- | --- |
-| `vscode-extensions/netlab-sidebar/extension.js` | 126 | P16 / 1 | 待开始 | 无需 e2e（扩展） | CommonJS，仅求兼容 |
-| `PlotKit/src/plotkit/static/render2d.js` | 825 | P16 / 2 | 待开始 | 待录 | |
+| `vscode-extensions/netlab-sidebar/extension.js` | 126 | P16 / 1 | ✅ 已完成 | 无需 e2e（tsc strict + node --check + vscode-stub 冒烟） | CommonJS，仅求兼容；提交 `cf9d633` |
+| `PlotKit/src/plotkit/static/render2d.js` | 825 | P16 / 2 | ✅ 已完成 | 行为等价比对：`scripts/verify_render2d_parity.js` render+pick 727 步 canvas 操作一致 | 源 `render2d.ts` + 产物 `render2d.js`；提交 `885014b` |
 | `PlotKit/src/plotkit/static/view3d.js` | 867 | P16 / 3 | 待开始 | 待录 | |
 | `PlotKit/src/plotkit/static/app.js` | 2,517 | P16 / 4 | 待开始 | 待录 | |
 | `PlotKit/src/plotkit/static/nsview.js` | 1,371 | P16 / 5 | 待开始 | 待录 | |
@@ -2101,6 +2101,6 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 **DoD（每个文件全过才进下一个）**：①`tsc` strict + `eslint` 0 error + `prettier` 已格式化（或已登记临时豁免）②迁移前后 e2e 基线逐条一致、控制台 0 报错 ③现有 Python 契约测试全绿（改名 / 路径同步更新并保留）④版号三处同步（`frontend/index.html` `?v=`、`frontend/app.js` `UI_BUILD`、`netlab/server.py` `APP_BUILD`）⑤提交干净（精确 pathspec）。
 **一期收尾门禁**：临时豁免清零、`tsc --strict` 全绿、全部 e2e 基线通过。
 
-**下一步建议**：用户确认后，两仓库从 main 拉 `feat/ts-migration`、main 打 `ts-baseline-YYYYMMDD` 基线 tag，先做 vscode 扩展打样验证流程，再按顺序推进。
+**下一步**：两仓库已建 `feat/ts-migration` 分支并打基线 tag `ts-baseline-20261106`；vscode 扩展（`cf9d633`）、PlotKit `render2d`（`885014b`）已完成。待用户验收 render2d 后按顺序推进 `view3d` → `app` → `nsview` → `desktop-shim` → `app.js`。（PlotKit 推送因本机代理 127.0.0.1:7897 暂断，恢复后补推。）
 
 **后续（TS 全量完成后另立）**：按 R42 / P18 对 netlab + PlotKit 全部 Python 代码做 PEP 8 规范化（纯风格、不影响任何功能）。

@@ -1,8 +1,8 @@
 # Netlab 主线待办（BACKLOG）
 
-> 最后修改：2026-11-06 03:10
+> 最后修改：2026-11-06 03:16
 > 用途：**一页回答「现在要做什么、还有什么没做」**。需求与决策的唯一口径仍是
-> [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)（R01–R41 / D1–D109），进度证据在
+> [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)（R01–R42 / D1–D111），进度证据在
 > [PROGRESS.md](PROGRESS.md)。本文只做**汇总与排序**，不重复定义需求。
 > 维护规则：做完一项就把「状态」改掉并写上证据（测试数 / 截图 / 实测数）；口径冲突以需求台账为准。
 
@@ -32,6 +32,7 @@
 | ⑦ | ~~复数分析层（Complex Bridge）~~ → **已完成（§7.71）**：统一 `frequency_response()` + 精确 `e^{-jωT}` + 电路 AC 复数 MNA + API | 只做分析边界，避免全量 complex；561 passed/3.18.0 | — |
 | ⑧ | **R40 全栈扩展架构** → **首版完成（§7.74）**：插件包 + `netlab.plugin_api.v1` + 声明式 UI/简洁画布 | 仍需补节点拖拽细节/面板字段编辑与插件生态示例 | 大 |
 | ⑨ | **R41 前端 JS→TS 迁移**（一期 P16 类型化，二期 P17 模块化暂挂）→ **规划完成、代码未开始（§7.76）**：一期只加类型、1:1 编译、strict 棘轮、e2e 基线等价；详见 REQUIREMENTS R41 / PROGRESS §7.76 | 13,806 行 app.js 可维护性 + /api 契约类型化 + 模块化基建 | 大（按文件打样，netlab app.js 最后） |
+| ⑩ | **R42 Python 代码 PEP 8 规范化**（P18，待 TS 重构完成后启动）→ **规划中（未开始）**：对 netlab + PlotKit 全部 Python 代码按 PEP 8 规范化与无损优化，不影响任何功能；详见 REQUIREMENTS R42 / P18 | 统一 Python 风格、提升可读性/可维护性，零功能变化 | 中（分模块小步、测试全绿门禁） |
 
 > R31 已完成 P11-01…P11-07；P11-06 为理想 nmos + 50 Hz 方波栅极的趋势验证，10 kHz PWM/器件损耗留后续。
 

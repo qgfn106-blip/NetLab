@@ -1,10 +1,10 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-06 03:10
+> 最后修改：2026-11-06 03:16
 
 | 项 | 内容 |
 | --- | --- |
-| 记录时间 | 2026-11-06 03:10（Asia/Shanghai） |
+| 记录时间 | 2026-11-06 03:16（Asia/Shanghai） |
 | 当前阶段 | **2026-11-06 前端 JS→TS 迁移规划（R41 / P16，规划完成、代码未开始；§7.76）**；R40 全栈扩展架构实现（§7.74）+ 全量文档重构（§7.75）：`netlab.plugin_api.v1`、插件加载器/管理页、`AnalysisSpec`/`EngineProtocol`、工程 v6、`netlab-ui/1` 与简单画布；README/ARCHITECTURE/OPERATION/INSTALL/MATH 及架构图/演示视频同步；静态 **3.20.1**，全量 **589 passed**。上一阶段 **§7.72**：R31 并网逆变器（P11-01…P11-07，581 passed、3.19.0）；**§7.71**：R39 复数分析层（561 passed、3.18.0）。 |
 | 基线 | 修改前 43 passed（2026-10-24 14:26） |
 | 当前测试 | **589 passed**（2026-11-06 02:00 全量 `python -m pytest netlab/tests -q`，3 warnings，69.95 s，退出码 0；stderr **0 次** `0xc0000139`；新增 R40 插件/工程/UI 目标测试 8 条） |
@@ -2102,3 +2102,5 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 **一期收尾门禁**：临时豁免清零、`tsc --strict` 全绿、全部 e2e 基线通过。
 
 **下一步建议**：用户确认后，两仓库从 main 拉 `feat/ts-migration`、main 打 `ts-baseline-YYYYMMDD` 基线 tag，先做 vscode 扩展打样验证流程，再按顺序推进。
+
+**后续（TS 全量完成后另立）**：按 R42 / P18 对 netlab + PlotKit 全部 Python 代码做 PEP 8 规范化（纯风格、不影响任何功能）。

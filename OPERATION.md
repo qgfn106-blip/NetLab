@@ -118,7 +118,7 @@ python -m netlab.run
 - **插件（推荐）**：把插件包放到 `extensions/plugins/<plugin-id>/`（含 `plugin.json`），在块库工具栏点「插件管理」→「扫描」→「启用」。插件可注册节点计算、连接函数、电路元件、分析算法、数据格式、面板、视觉、模板和独立引擎模式；只允许从 `netlab.plugin_api.v1` 导入稳定接口。完整规范见 [PLUGIN_GUIDE.md](netlab/docs/PLUGIN_GUIDE.md)。
 - **旧扩展**：`.py` 放到 `extensions/nodes/`（节点）或 `extensions/methods/`（连接函数），在「扩展」页扫描并激活；这是 legacy 兼容层，新能力建议使用插件包。
 - **块**：选中一组节点 → 右键「封装为块」→ 成为一个可复用子图，出现在「模板/块」列表；块实例暴露输入/输出端口，双击可进入内部编辑。
-- **视图设计**：块库工具栏点「视图设计」，选择 simple / professional，调整颜色、网格、面板宽度、节点尺寸等；保存后写入工程 `ui` 段（`netlab-ui/1`）。
+- **视图设计**：块库工具栏点「视图设计」，选择 simple / professional，调整颜色、网格、面板宽度、节点尺寸等；颜色行「调色」按钮打开发光色轮（离线 iro.js 5.5.2），结果保存到工程 `ui` 段（`netlab-ui/1`）。
 
 ## 9. 有限元场
 

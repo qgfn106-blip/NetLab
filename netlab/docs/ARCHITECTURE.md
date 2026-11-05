@@ -351,6 +351,22 @@ e:<连接名>:<字段>     例：e:signal_path:voltage
 - 电路模式**禁止延迟边**、禁止自环；每个电路必须且只能有一个 `ground` 节点。
 - 常见错误都有中文提示：悬空节点、奇异矩阵、两个接地、未收敛、电压超过 1e9 V 发散。
 
+### 5.7.1 跨域桥：signal ↔ circuit（R31 P11-05）
+
+`CircuitEngine.step()` 在 MNA 求解前后各加一步，形成显式一拍延迟：
+
+```text
+每一拍：
+  _apply_bridge_actuators()   # 读 signal 侧上一拍值 → 写 actuator 源
+  solver.step(dt)             # 纯电路 MNA；不反向影响 signal
+  写回 node_voltages
+  _sample_bridge_sensors()    # sensor 高阻采样 → 写 record.data[signal]
+```
+
+- `sensor`：`SensorElement` 以 `1e-12` 高阻跨接在 IN/GND 上，MNA 解后把节点电压写入 `record.data["voltage"]` 与 `record.data[signal]`；不改变原电路方程。
+- `actuator`：`ActuatorSource` 继承电压源，`prepare()` 从 `state["drive"]` 读取 signal 侧上一拍值，输出 `gain*signal + offset`；因此信号必须先于电路一步产生驱动，不能同拍直通。
+- 旧工程没有 `sensor`/`actuator` 时，桥列表为空，`CircuitEngine.step` 的额外两步是空操作，行为与 checksum 均不变（`test_circuit_bridge.py` 覆盖）。
+
 ### 5.8 一拍时序（signal/vector）
 
 ```mermaid

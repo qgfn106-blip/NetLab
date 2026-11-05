@@ -677,6 +677,21 @@ class CircuitEngine(_Engine):
             nodes, elements, integration=scene.integration,
             options=getattr(scene, "solver_options", None),
         )
+        # R31/P11-05：跨域桥元素。sensor 在 MNA 解后采样，actuator 在下一拍
+        # MNA 前读取 sensor/控制节点数据，显式一拍延迟，不形成代数环。
+        self.bridge_sensors: list[tuple[NodeRecord, Any]] = []
+        self.bridge_actuators: list[tuple[NodeRecord, Any]] = []
+        for record in all_nodes.values():
+            if record.kind != "device":
+                continue
+            element = self.element_map.get(record.id)
+            if element is None:
+                continue
+            kind = str(record.params.get("element") or "")
+            if kind == "sensor":
+                self.bridge_sensors.append((record, element))
+            elif kind == "actuator":
+                self.bridge_actuators.append((record, element))
 
     def capture_checkpoint(self) -> dict[str, Any]:
         return {
@@ -714,7 +729,40 @@ class CircuitEngine(_Engine):
             elif record.id in checkpoint["edges"]:
                 record.state = copy.deepcopy(checkpoint["edges"][record.id])
 
+    def _apply_bridge_actuators(self) -> None:
+        """R31/P11-05：把上一拍信号字段写入受控电压源。"""
+        by_name = {record.name: record for record in self.scene.nodes.values()}
+        for record, element in self.bridge_actuators:
+            source = str(record.params.get("source") or "").strip()
+            value = 0.0
+            if source:
+                node_name, _, field = source.partition(".")
+                source_node = by_name.get(node_name)
+                if source_node is not None:
+                    try:
+                        value = float(source_node.data.get(field or "voltage", 0.0))
+                    except (TypeError, ValueError):
+                        value = 0.0
+            try:
+                gain = float(record.params.get("gain", 1.0))
+                offset = float(record.params.get("offset", 0.0))
+            except (TypeError, ValueError):
+                gain, offset = 1.0, 0.0
+            element.state["drive"] = gain * value + offset
+
+    def _sample_bridge_sensors(self) -> None:
+        """R31/P11-05：MNA 解后采样，供下一拍控制/驱动读取。"""
+        for record, element in self.bridge_sensors:
+            voltage = float(
+                self.solver.node_voltages.get(element.a, 0.0)
+                - self.solver.node_voltages.get(element.b, 0.0)
+            )
+            signal = str(record.params.get("signal") or "voltage")
+            record.data[signal] = voltage
+            record.data["voltage"] = voltage
+
     def step(self, dt: float) -> None:
+        self._apply_bridge_actuators()
         self.solver.step(dt)
         for record in self.scene.nodes.values():
             if record.kind == "device":
@@ -723,6 +771,7 @@ class CircuitEngine(_Engine):
             record.data["voltage"] = float(
                 self.solver.node_voltages.get(root, 0.0)
             )
+        self._sample_bridge_sensors()
 
     def operating_point(self) -> dict[str, Any]:
         """DC 工作点：不推进瞬态状态，节点电压按场景显示名返回。

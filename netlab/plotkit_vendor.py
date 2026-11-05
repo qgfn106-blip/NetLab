@@ -26,7 +26,12 @@ from pathlib import Path
 
 VENDOR_DIR = Path(__file__).resolve().parent / "_vendor"
 TARGET = VENDOR_DIR / "plotkit"
-IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo", ".pytest_cache", "*.egg-info")
+IGNORE = shutil.ignore_patterns(
+    "__pycache__", "*.pyc", "*.pyo", ".pytest_cache", "*.egg-info",
+    # 开发期 TypeScript 源不进运行期内置副本（R41/P16：packages 内 .ts + 编译产物 .js 并存，
+    # 只有 .js 供 <script> 运行，vendor 只需 .js）
+    "*.ts", "*.tsbuildinfo",
+)
 
 
 def candidate_sources() -> list[Path]:

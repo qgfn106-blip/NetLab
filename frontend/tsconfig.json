@@ -8,5 +8,5 @@
     "skipLibCheck": true,
     "noEmitOnError": true
   },
-  "include": ["desktop-shim.ts"]
+  "include": ["desktop-shim.ts", "app.ts"]
 }

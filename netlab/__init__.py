@@ -10,7 +10,7 @@
 
 from __future__ import annotations
 
-__version__ = "1.0.0"
+__version__ = "3.20.0"
 
 from .core.model.graph import Connection, Network, Node  # noqa: E402,F401
 from .core.common.limits import NetlabError  # noqa: E402,F401

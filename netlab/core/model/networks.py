@@ -38,6 +38,8 @@ class NetworkContainer:
         self._order: list[str] = []
         self._current = ""
         self.degraded: dict[str, Any] | None = None
+        self.ui: dict[str, Any] = {}
+        self.plugins: list[dict[str, Any]] = []
         self._append(initial, name)
 
     # ---- 内部 ---------------------------------------------------------------
@@ -210,6 +212,7 @@ class NetworkContainer:
         created: str | None = None,
         metadata: dict[str, Any] | None = None,
         library: str | None = None,
+        plugins: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """把全部网络打包成工程；blocks 汇总到顶层一份。
 
@@ -237,9 +240,10 @@ class NetworkContainer:
             current=self._current,
             fem=fem,
             name=name,
-            ui=ui,
+            ui=ui if ui is not None else self.ui,
             blocks=list(blocks_by_id.values()),
             extensions=extensions,
+            plugins=plugins if plugins is not None else self.plugins,
             created=created,
             metadata=metadata,
             library=library,
@@ -314,6 +318,8 @@ class NetworkContainer:
             simulation.shutdown()
         self.current.ensure_thread()
         self.degraded = project.get("degraded") or None
+        self.ui = copy.deepcopy(project.get("ui") or {})
+        self.plugins = copy.deepcopy(project.get("plugins") or [])
         return {
             "current": self._current,
             "networks": self.list_networks(),

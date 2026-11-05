@@ -10,7 +10,7 @@ Netlab 是一个纯本地 Web 应用：装好 Python 依赖后，`python -m netl
 | 操作系统 | Windows 10/11、macOS、Linux |
 | 浏览器 | Chrome / Edge / Firefox 等现代浏览器（Canvas 2D + ES2020） |
 | 依赖 | `fastapi`、`uvicorn`、`numpy`、`scipy`（见 `netlab/requirements.txt`） |
-| 可选 | `PySide6`（仅桌面窗口版需要） |
+| 可选 | `pywebview` + WebView2（仅桌面窗口版需要；见 `netlab/requirements-desktop.txt`） |
 
 ## 2. 在线安装（本机有网）
 
@@ -42,6 +42,10 @@ python -m netlab.desktop
 ```
 
 桌面壳只监听 `127.0.0.1`，窗口关闭即退出。Windows 也可双击 `netlab/start_desktop.bat`。
+
+### 插件目录（R40）
+
+插件包放在项目根目录的 `extensions/plugins/<plugin-id>/`，至少包含 `plugin.json` 与 Python 入口。启动时会自动扫描；也可在界面「插件管理」中扫描/启用/禁用/重载。插件只允许导入 `netlab.plugin_api.v1`，具体规范见 [`netlab/docs/PLUGIN_GUIDE.md`](netlab/docs/PLUGIN_GUIDE.md)。插件不是沙箱，请只安装可信来源。
 
 ### 自检
 

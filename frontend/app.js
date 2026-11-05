@@ -16,7 +16,7 @@
 
   // 界面版本号：必须与 index.html 的 ?v= 和 netlab/server.py 的 APP_BUILD 一致。
   // 用来识别「前端文件已更新、后端进程还是旧的」这种只关窗口不重启的情况。
-  const UI_BUILD = '3.18.0';
+  const UI_BUILD = '3.19.0';
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -9954,6 +9954,7 @@
       <div style="display:flex;justify-content:flex-end;gap:10px;">
         <button id="runWarnCancel" class="ghost" style="padding:7px 14px;border:1px solid var(--line,#cfc6b5);border-radius:9px;background:transparent;color:inherit;cursor:pointer;">取消</button>
         <button id="runWarnRun" class="ghost" style="padding:7px 14px;border:1px solid var(--line,#cfc6b5);border-radius:9px;background:transparent;color:inherit;cursor:pointer;">直接运行</button>
+        <button id="runWarnStop" class="ghost" style="display:none;padding:7px 14px;border:1px solid #b75555;border-radius:9px;background:transparent;color:#b75555;cursor:pointer;">停止计算</button>
         <button id="runWarnPre" class="primary" style="padding:7px 16px;border:1px solid var(--accent,#9b7247);border-radius:9px;background:var(--accent,#9b7247);color:#fff;cursor:pointer;">预计算并接入</button>
       </div>`;
     overlay.appendChild(card);
@@ -9980,7 +9981,17 @@
       const seconds = Math.max(1, Math.min(120, Math.round(Number(sec.value) || 5)));
       if (card.querySelector('#runWarnNever').checked) void setPref('runWarn', false);
       const btn = card.querySelector('#runWarnPre');
+      const stopBtn = card.querySelector('#runWarnStop');
       btn.disabled = true; btn.textContent = '预计算中…'; info.textContent = `正在计算 0→${seconds}s…`;
+      stopBtn.style.display = 'inline-block'; stopBtn.disabled = false; stopBtn.textContent = '停止计算';
+      stopBtn.onclick = async () => {
+        stopBtn.disabled = true; stopBtn.textContent = '正在停止…';
+        try {
+          await api('/api/control', { method: 'POST', body: JSON.stringify({ action: 'cancel_precompute' }) });
+        } catch (error) {
+          info.textContent = `取消失败：${error.message || '请求失败'}`;
+        }
+      };
       try {
         const pre = await api('/api/plotkit/precompute', {
           method: 'POST',
@@ -9988,6 +9999,10 @@
         });
         if (!pre || pre.ok === false) {
           info.textContent = '预计算失败：' + ((pre && pre.error) || '未知错误') + '，可直接运行或缩小时间窗重试。';
+          return;
+        }
+        if (pre.cancelled) {
+          info.textContent = `已停止：保留前 ${pre.frames ?? '?'} 帧（${Number(pre.last_time || 0).toFixed(3)}s）。`;
           return;
         }
         state.precomputedSeconds = seconds;
@@ -10012,6 +10027,7 @@
       } catch (error) {
         info.textContent = `预计算失败：${error.message || '请求失败'}；可直接运行或检查桌面会话。`;
       } finally {
+        stopBtn.style.display = 'none';
         btn.disabled = false; btn.textContent = '预计算并接入';
       }
     };

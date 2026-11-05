@@ -415,6 +415,265 @@ register(
 )
 
 
+def _abc_dq_factory(params: dict[str, Any]) -> Handler:
+    """R31/P11-02：幅值不变 Park 变换（abc↔dq）。"""
+
+    mode = str(params["mode"])
+    theta_source = str(params["theta_source"]).strip()
+    a_source = str(params["a_source"]).strip()
+    b_source = str(params["b_source"]).strip()
+    c_source = str(params["c_source"]).strip()
+    d_source = str(params["d_source"]).strip()
+    q_source = str(params["q_source"]).strip()
+    a_field = resolve_output(params["a_field"])
+    b_field = resolve_output(params["b_field"])
+    c_field = resolve_output(params["c_field"])
+    d_field = resolve_output(params["d_field"])
+    q_field = resolve_output(params["q_field"])
+
+    def read_source(ctx: ComputeContext, source: str) -> float:
+        origin, separator, field = source.partition(".")
+        payload = ctx.inputs.get(origin)
+        if payload is None:
+            raise ComputeError(f"abc_dq 缺少输入连接 {origin!r}")
+        return read_numeric(payload, field if separator else "voltage", source=origin)
+
+    def handler(ctx: ComputeContext) -> NodeData:
+        theta = read_source(ctx, theta_source)
+        cos_t = math.cos(theta)
+        sin_t = math.sin(theta)
+        if mode == "abc_to_dq":
+            a = read_source(ctx, a_source)
+            b = read_source(ctx, b_source)
+            c = read_source(ctx, c_source)
+            d = (2.0 / 3.0) * (
+                a * cos_t
+                + b * math.cos(theta - 2.0 * math.pi / 3.0)
+                + c * math.cos(theta + 2.0 * math.pi / 3.0)
+            )
+            q = (2.0 / 3.0) * (
+                a * sin_t
+                + b * math.sin(theta - 2.0 * math.pi / 3.0)
+                + c * math.sin(theta + 2.0 * math.pi / 3.0)
+            )
+            return {d_field: d, q_field: q}
+
+        d = read_source(ctx, d_source)
+        q = read_source(ctx, q_source)
+        a = d * cos_t - q * sin_t
+        b = d * math.cos(theta - 2.0 * math.pi / 3.0) - q * math.sin(
+            theta - 2.0 * math.pi / 3.0
+        )
+        c = d * math.cos(theta + 2.0 * math.pi / 3.0) - q * math.sin(
+            theta + 2.0 * math.pi / 3.0
+        )
+        return {a_field: a, b_field: b, c_field: c}
+
+    return handler
+
+
+register(
+    ComputeSpec(
+        kind="abc_dq",
+        label="三相坐标变换",
+        group="变换",
+        description="幅值不变的 abc↔dq Park 变换，θ 由输入连接提供。",
+        params=(
+            choice_param(
+                "mode",
+                "变换方向",
+                "abc_to_dq",
+                [("abc_to_dq", "abc → dq"), ("dq_to_abc", "dq → abc")],
+            ),
+            ParamSpec(
+                "theta_source",
+                "角度来源",
+                "text",
+                "theta.voltage",
+                help='格式「连接名.字段」，角度单位为弧度',
+            ),
+            ParamSpec("a_source", "a 相来源", "text", "a.voltage"),
+            ParamSpec("b_source", "b 相来源", "text", "b.voltage"),
+            ParamSpec("c_source", "c 相来源", "text", "c.voltage"),
+            ParamSpec("d_source", "d 轴来源", "text", "d.voltage"),
+            ParamSpec("q_source", "q 轴来源", "text", "q.voltage"),
+            ParamSpec("a_field", "a 相输出字段", "text", "a"),
+            ParamSpec("b_field", "b 相输出字段", "text", "b"),
+            ParamSpec("c_field", "c 相输出字段", "text", "c"),
+            ParamSpec("d_field", "d 轴输出字段", "text", "d"),
+            ParamSpec("q_field", "q 轴输出字段", "text", "q"),
+        ),
+        factory=_abc_dq_factory,
+        outputs=("d", "q", "a", "b", "c"),
+        formula="d = 2/3(va cosθ + vb cos(θ−2π/3) + vc cos(θ+2π/3))；q = 2/3(va sinθ + vb sin(θ−2π/3) + vc sin(θ+2π/3))",
+    )
+)
+
+
+def _pll_factory(params: dict[str, Any]) -> Handler:
+    """R31/P11-03：SRF-PLL（相位检测 + PI + VCO 积分 + 限幅）。"""
+
+    nominal = float(params["nominal_frequency"])
+    kp = float(params["kp"])
+    ki = float(params["ki"])
+    theta0 = float(params["theta0"])
+    fmin = float(params["frequency_min"])
+    fmax = float(params["frequency_max"])
+    lock_threshold = float(params["lock_threshold"])
+    a_source = str(params["a_source"]).strip()
+    b_source = str(params["b_source"]).strip()
+    c_source = str(params["c_source"]).strip()
+    theta_field = resolve_output(params["theta_field"])
+    frequency_field = resolve_output(params["frequency_field"])
+    d_field = resolve_output(params["d_field"])
+    q_field = resolve_output(params["q_field"])
+    locked_field = resolve_output(params["locked_field"])
+
+    def read_source(ctx: ComputeContext, source: str) -> float:
+        origin, separator, field = source.partition(".")
+        payload = ctx.inputs.get(origin)
+        if payload is None:
+            raise ComputeError(f"pll 缺少输入连接 {origin!r}")
+        return read_numeric(payload, field if separator else "voltage", source=origin)
+
+    def wrap(angle: float) -> float:
+        return (angle + math.pi) % (2.0 * math.pi) - math.pi
+
+    def handler(ctx: ComputeContext) -> NodeData:
+        theta = float(ctx.state.get("theta", theta0))
+        integrator = float(ctx.state.get("integrator", 0.0))
+        frequency = float(ctx.state.get("frequency", nominal))
+        a = read_source(ctx, a_source)
+        b = read_source(ctx, b_source)
+        c = read_source(ctx, c_source)
+        # 先按上一步频率推进相位，再用当前输入做相位检测：
+        # 输出 theta 与同一拍的相电压对齐，避免固定的一步相位超前。
+        theta = wrap(theta + 2.0 * math.pi * frequency * ctx.dt)
+        cos_t = math.cos(theta)
+        sin_t = math.sin(theta)
+        d = (2.0 / 3.0) * (
+            a * cos_t
+            + b * math.cos(theta - 2.0 * math.pi / 3.0)
+            + c * math.cos(theta + 2.0 * math.pi / 3.0)
+        )
+        q = (2.0 / 3.0) * (
+            a * sin_t
+            + b * math.sin(theta - 2.0 * math.pi / 3.0)
+            + c * math.sin(theta + 2.0 * math.pi / 3.0)
+        )
+        error = -q / max(abs(d), 1.0e-6)
+        integrator += ki * error * ctx.dt
+        frequency = nominal + kp * error + integrator
+        if frequency < fmin:
+            frequency = fmin
+            integrator = min(integrator, fmin - nominal - kp * error)
+        elif frequency > fmax:
+            frequency = fmax
+            integrator = max(integrator, fmax - nominal - kp * error)
+        ctx.state["theta"] = theta
+        ctx.state["integrator"] = integrator
+        ctx.state["frequency"] = frequency
+        locked = 1.0 if abs(error) < lock_threshold else 0.0
+        return {
+            theta_field: theta,
+            frequency_field: frequency,
+            d_field: d,
+            q_field: q,
+            locked_field: locked,
+        }
+
+    return handler
+
+
+register(
+    ComputeSpec(
+        kind="pll",
+        label="锁相环",
+        group="变换",
+        description="SRF-PLL：三相电压相位检测、PI 环路滤波、VCO 积分与频率限幅。",
+        params=(
+            float_param("nominal_frequency", "额定频率", 50.0, unit="Hz", positive=True),
+            float_param("kp", "比例增益", 20.0, step=1.0),
+            float_param("ki", "积分增益", 1000.0, step=10.0),
+            float_param("theta0", "初始相位", 0.0, unit="rad"),
+            float_param("frequency_min", "频率下限", 40.0, unit="Hz", positive=True),
+            float_param("frequency_max", "频率上限", 60.0, unit="Hz", positive=True),
+            float_param("lock_threshold", "锁定阈值", 0.02, step=0.001),
+            ParamSpec("a_source", "a 相来源", "text", "a.voltage"),
+            ParamSpec("b_source", "b 相来源", "text", "b.voltage"),
+            ParamSpec("c_source", "c 相来源", "text", "c.voltage"),
+            ParamSpec("theta_field", "相位输出字段", "text", "theta"),
+            ParamSpec("frequency_field", "频率输出字段", "text", "frequency"),
+            ParamSpec("d_field", "d 轴输出字段", "text", "d"),
+            ParamSpec("q_field", "q 轴输出字段", "text", "q"),
+            ParamSpec("locked_field", "锁定标志字段", "text", "locked"),
+        ),
+        factory=_pll_factory,
+        outputs=("theta", "frequency", "d", "q", "locked"),
+        formula="误差 q；ω = ω_nom + kp·q + ∫ki·q dt；θ += 2πω·dt；频率限幅 [fmin,fmax]",
+        notes="状态保存在节点 state.theta / integrator / frequency",
+    )
+)
+
+
+def _pi_factory(params: dict[str, Any]) -> Handler:
+    """R31/P11-04：带积分限幅的 PI 控制器。"""
+
+    kp = float(params["kp"])
+    ki = float(params["ki"])
+    limit = float(params["limit"])
+    initial = float(params["initial"])
+    error_source = str(params["error_source"]).strip()
+    output_field = resolve_output(params["output_field"])
+
+    def read_error(ctx: ComputeContext) -> float:
+        origin, separator, field = error_source.partition(".")
+        payload = ctx.inputs.get(origin)
+        if payload is None:
+            raise ComputeError(f"pi 缺少误差输入 {origin!r}")
+        return read_numeric(payload, field if separator else "voltage", source=origin)
+
+    def handler(ctx: ComputeContext) -> NodeData:
+        error = read_error(ctx)
+        integrator = float(ctx.state.get("integrator", initial))
+        integrator += ki * error * ctx.dt
+        raw = kp * error + integrator
+        if limit > 0.0:
+            if raw > limit:
+                raw = limit
+                integrator = limit - kp * error
+            elif raw < -limit:
+                raw = -limit
+                integrator = -limit - kp * error
+        ctx.state["integrator"] = integrator
+        ctx.state["output"] = raw
+        return {output_field: raw}
+
+    return handler
+
+
+register(
+    ComputeSpec(
+        kind="pi",
+        label="PI 控制器",
+        group="控制",
+        description="比例积分控制器，带积分抗饱和；误差输入用“连接名.字段”指定。",
+        params=(
+            float_param("kp", "比例增益", 1.0, step=0.1),
+            float_param("ki", "积分增益", 10.0, step=1.0),
+            float_param("limit", "输出限幅", 0.0, step=1.0),
+            float_param("initial", "积分初值", 0.0, step=0.1),
+            ParamSpec("error_source", "误差来源", "text", "err.voltage"),
+            ParamSpec("output_field", "输出字段", "text", "out"),
+        ),
+        factory=_pi_factory,
+        outputs=("out",),
+        formula="out = kp·err + ∫ki·err dt；输出限幅时同步回退积分项（抗饱和）",
+        notes="状态保存在节点 state.integrator / output",
+    )
+)
+
+
 def _state_space_factory(params: dict[str, Any]) -> Handler:
     model = StateSpaceModel.from_params(params)
 

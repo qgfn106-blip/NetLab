@@ -461,6 +461,37 @@ class VoltageSource(CircuitElement):
         }
 
 
+class SensorElement(CircuitElement):
+    """R31/P11-05：跨域采样桥，高阻读取两点电压，不改变电路工作点。"""
+
+    kind = "sensor"
+    label = "电压传感器"
+
+    def stamp(self, ctx: StampContext) -> None:
+        ai = ctx.index.get(self.a)
+        bi = ctx.index.get(self.b)
+        leak = 1.0e-12
+        if ai is not None:
+            ctx.A[ai, ai] += leak
+        if bi is not None:
+            ctx.A[bi, bi] += leak
+
+    def commit(self, ctx: StampContext) -> None:
+        voltage = ctx.voltage(self.a) - ctx.voltage(self.b)
+        self.result = {"voltage": float(voltage), "value": float(voltage)}
+
+
+class ActuatorSource(VoltageSource):
+    """R31/P11-05：受控电压源；``state['drive']`` 由 CircuitEngine 每拍写入。"""
+
+    kind = "actuator"
+    label = "受控电压源"
+
+    def prepare(self, dt: float, time: float) -> None:
+        CircuitElement.prepare(self, dt, time)
+        self.value = float(self.state.get("drive", 0.0))
+
+
 class CurrentSource(CircuitElement):
     kind = "isource"
     label = "电流源"
@@ -1023,6 +1054,28 @@ ELEMENT_SPECS: dict[str, ElementSpec] = {
         description="理想电流源：电流从起点经元件流向终点。",
         params=tuple(WAVEFORM_SPECS),
         cls=CurrentSource,
+    ),
+    "sensor": ElementSpec(
+        kind="sensor",
+        label="电压传感器",
+        description="R31/P11-05 跨域采样桥：高阻读取节点电压并写入信号字段。",
+        params=(ParamSpec("signal", "信号字段", "text", "voltage"),),
+        cls=SensorElement,
+        formula="v_signal = v(node)",
+        notes="只读，不改变电路工作点；采样结果供 actuator 下一拍使用",
+    ),
+    "actuator": ElementSpec(
+        kind="actuator",
+        label="受控电压源",
+        description="R31/P11-05 跨域驱动桥：按信号字段驱动电压源。",
+        params=(
+            ParamSpec("source", "信号来源（节点.字段）", "text", ""),
+            float_param("gain", "增益", 1.0, step=0.1),
+            float_param("offset", "偏置", 0.0, unit="V", step=0.1),
+        ),
+        cls=ActuatorSource,
+        formula="v_out = gain * signal + offset",
+        notes="驱动值由 CircuitEngine 在每步 MNA 前从 source 读取，显式一拍延迟",
     ),
     "diode": ElementSpec(
         kind="diode",
@@ -2439,6 +2492,8 @@ ELEMENT_GROUPS: dict[str, str] = {
     "switch": "开关",
     "opamp": "放大与比较",
     "comparator": "放大与比较",
+    "sensor": "放大与比较",
+    "actuator": "电源",
     "npn": "晶体管",
     "pnp": "晶体管",
     "nmos": "晶体管",

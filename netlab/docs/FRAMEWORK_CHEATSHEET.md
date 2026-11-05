@@ -1,7 +1,7 @@
 # Netlab 框架速查表（读完这份就不用再通读代码）
 
 
-> 最后修改：2026-11-01 20:08（降级只读/多网络保存/预计算上限/电路封装/节点校验/工作区状态审查收尾）
+> 最后修改：2026-11-05 14:40（R31 P11-01…P11-07：跨域桥、abc_dq/PLL/PI、开关级示例与中断）
 > 用途：每次新开窗口/新任务时先读这份，**不要**重新扫一遍全部源码。
 > 需要细节时再按文末「文档导航」跳转对应文档。
 > 本文件记录的都是 2026-10-25 实测过的内容；与代码冲突时以代码为准，并回来更新本文件。
@@ -32,15 +32,15 @@
 | `server.py` | 1678 | 全部 HTTP 路由 + Pydantic 请求模型 + 全局 `SERVICE` | `app`、`SERVICE`、`ProjectImportRequest` |
 | `scene.py` | 1956 | 场景对象、节点/边记录、三种引擎、快照、catalog | `Scene`、`NodeRecord`、`EdgeRecord`、`SignalEngine`、`CircuitEngine` |
 | `graph.py` | 594 | 信号/矢量网络的执行图（节点、连接、拓扑序、代数环检测） | `Network`、`NodeView`、`ComputeContext` |
-| `computes.py` | 1003 | 节点计算方式注册表（signal/vector） | `ComputeSpec`、`register`、`compute_catalog`、`prepare_compute` |
-| `methods.py` | 667 | 连接传递函数注册表 | `MethodSpec`、`register`、`method_catalog`、`prepare_method` |
-| `nodal.py` | 2429 | 电路元件（MNA）与电路节点、内置元件注册表 | `CircuitElement`、`Resistor`、`element_catalog` |
+| `computes.py` | 1424 | 节点计算方式注册表（signal/vector） | `ComputeSpec`、`register`、`compute_catalog`、`prepare_compute` |
+| `methods.py` | 670 | 连接传递函数注册表 | `MethodSpec`、`register`、`method_catalog`、`prepare_method` |
+| `nodal.py` | 2519 | 电路元件（MNA）与电路节点、内置元件注册表 | `CircuitElement`、`Resistor`、`element_catalog` |
 | `transistors.py` | 453 | 三极管/MOSFET 行为模型 | `BipolarJunction`、`Mosfet`、`BJT_SPECS` |
 | `logic.py` | 190 | 与/或/非/异或门行为模型 | `LogicGate`、`LOGIC_GATE_SPECS` |
 | `timers.py` | 174 | 555 方波与 LDO | `Astable555`、`LDO`、`TIMER_SPECS` |
 | `digital.py` | 368 | 计数器/移位寄存器/ADC/DAC | `Counter4`、`ShiftRegister4`、`ADC4`、`DAC4`、`DIGITAL_SPECS` |
 | `magnetics.py` | 299 | 变压器与互感线圈（双端口磁耦合） | `Transformer`、`CoupledInductor`、`MAGNETIC_SPECS` |
-| `ports.py` | 192 | R20 引脚契约：30 种元件的 PinSpec | `PinSpec`、`PINS`、`pins_for_device` |
+| `ports.py` | 194 | R20 引脚契约：30 种元件的 PinSpec | `PinSpec`、`PINS`、`pins_for_device` |
 | `params.py` | 215 | 参数规格 `ParamSpec` 与类型校验控件映射 | `ParamSpec.to_dict`、`validate_params` |
 | `limits.py` | 267 | 上限常量与类型转换/错误类型 | `MAX_NODES`、`MAX_PRECOMPUTE_STEPS`、`ValidationError`、`as_float` |
 | `simulation.py` | 607 | 线程循环、录制、控制、事务式预计算 | `Simulation`、`Recorder`、`SimConfig` |
@@ -83,6 +83,7 @@
 Simulation._loop (线程) → Scene.step(dt) → 引擎.step(dt)
    signal/vector : SignalEngine → graph.Network.step（拓扑序、深拷贝/只读视图、代数环补延迟）
    circuit       : CircuitEngine → nodal.CircuitSolver（MNA + Newton/LU 缓存）
+   跨域桥         : CircuitEngine._apply_bridge_actuators → MNA → _sample_bridge_sensors（显式一拍延迟）
    功能块         : SignalEngine._wire_blocks 建隐藏 feed/emit 边 + BlockRuntime 内部场景
                                         ↓
                              状态写回 NodeRecord/EdgeRecord.data/state
@@ -132,6 +133,10 @@ Simulation._loop (线程) → Scene.step(dt) → 引擎.step(dt)
 | `circuit` | `CircuitEngine`+`nodal` | 等电位点 | R/L/C/源/二极管/开关/受控源 | 必须恰好一个 `ground`；矩阵按 dt 缓存 |
 
 模式切换会重置引擎缓存与运行状态（前端 `switchTab('fem')` 还会切工作区）。
+
+**跨域桥（R31 P11-05）**：`sensor`/`actuator` 是电路元件（`ELEMENT_SPECS`），不是 signal compute 节点。`sensor` 以 `1e-12` 高阻采样节点电压并写回 `signal` 字段；`actuator` 是受控电压源，从 signal 上一拍值取 `gain*signal+offset`。`CircuitEngine.step()` 固定顺序为「actuator → MNA → 写节点电压 → sensor」，显式一拍延迟，旧工程无桥元素时零影响。
+
+**R31 compute**：`abc_dq`（abc↔dq，幅值不变 Park）、`pll`（SRF-PLL，输出 `theta/frequency/d/q/locked`）、`pi`（抗饱和 PI）都在 `computes.py` 的 `COMPUTE_SPECS` 中，可直接用 `signal` 场景搭 L1 平均模型。
 
 ---
 

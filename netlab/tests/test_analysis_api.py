@@ -90,3 +90,30 @@ def test_analysis_tf_delay_pade_and_peak_time(client) -> None:
     report = query.json()
     assert report["ok"] is True
     assert report["delay_pade_order"] == 1
+
+
+def test_analysis_frequency_endpoint_returns_complex_parts(client) -> None:
+    scene = Scene("signal")
+    source = scene.add_node(name="u", kind="manual", data={"voltage": 1.0})
+    lag = scene.add_node(name="lag", kind="lag", params={"tau": 1.0})
+    scene.add_edge(source=source.id, target=lag.id, kind="pass")
+    loaded = client.post("/api/scene", json=scene.to_payload())
+    assert loaded.status_code == 200, loaded.text
+
+    response = client.post(
+        "/api/analysis/frequency",
+        json={
+            "input": "u",
+            "output": "lag",
+            "f_start": 1.0 / (2.0 * 3.141592653589793),
+            "f_stop": 2.0 / (2.0 * 3.141592653589793),
+            "points": 2,
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["ok"] is True
+    assert body["backend"] == "complex_graph"
+    assert len(body["real"]) == 2
+    assert abs(body["magnitude"][0] - 2.0**-0.5) < 1e-9
+    assert abs(body["phase_deg"][0] + 45.0) < 1e-6

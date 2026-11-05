@@ -317,6 +317,7 @@ class SignalEngine(_Engine):
                     "请删除该节点，或用模块库重新实例化"
                 )
             block = self.scene.blocks.require(block_id)
+            internal_sim = bool(params.get("internal_sim", False))
             input_nodes = params.get("input_nodes") or {}
             output_nodes = params.get("output_nodes") or {}
             if not isinstance(input_nodes, dict) or not isinstance(output_nodes, dict):
@@ -329,9 +330,13 @@ class SignalEngine(_Engine):
                 runtime is None
                 or runtime.block is not block
                 or runtime.depth != self.scene.block_depth
+                or runtime.internal_sim != internal_sim
             ):
                 runtime = BlockRuntime(
-                    block, self.scene.blocks, depth=self.scene.block_depth
+                    block,
+                    self.scene.blocks,
+                    depth=self.scene.block_depth,
+                    internal_sim=internal_sim,
                 )
                 self.scene.block_instances[record.id] = runtime
             buffer: dict[str, dict[str, Any]] = {}

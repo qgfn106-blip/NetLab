@@ -702,3 +702,11 @@ window.dispatchEvent(new Event('netlab-desktop-ready'));
 3. **PlotKit 分析曲线必须独立命名空间**：`analysis:<slug>:x/:y` + `life=replace`；`_ingest` 要跳过该前缀，否则 recorder 的 `t` 会把分析曲线按帧追加，x 轴直接被污染。
 4. **内置块先做虚拟注册表**：`builtin=True` 的 BlockDef 由代码生成，`scan_library(include_builtin=True)` 合并摘要、`load_block` 深拷贝回退、写/删/改名统一拒绝；不要拷贝到用户 `library/blocks`，否则库缺失/升级时会出现重复与版本漂移。
 5. **宏模型要如实标注**：R25 当前 9 个块是 signal 宏模型，不是完整电路级器件；文档和 UI 必须写「宏模型/电路级待后续」，不能把「能打开内部结构」说成「已实现完整内部电路」。
+
+## 2026-11-05 R25 行为快速模型与结构开关（§7.70）
+
+1. **默认路径要便宜，结构路径要可选**：内置块默认走 `metadata["behavior"]` 的纯 Python 端口模型，只有块节点 `params["internal_sim"]` 为真时才实例化 internal `Scene`；否则大网络会为每个内置块付内部求解代价。
+2. **缓存键必须包含运行模式**：`block_instances` 的缓存条件除 `runtime.block is block` 与 depth 外，必须比较 `runtime.internal_sim != internal_sim`；否则勾选开关后仍复用旧 runtime，界面显示变了、求解没变。
+3. **参数白名单与前端 inspector 同批改**：`block` 的 `ComputeSpec.params` 不加 `internal_sim`，前端 `buildParamFields` 能画出开关但 PATCH 会被 `未知参数` 拒绝；参数表是唯一契约。
+4. **对比接口要允许差异**：行为模型与宏模型结构不会逐点等价，`compare_block_modes()` 应返回 `max_abs_diff`/`rms_diff`/`note` 而不是强行断言相等；counter4/shift4/adc4 的有限差异要如实展示。
+5. **行为模型状态必须实例独占**：`_behavior_state` 放在 `BlockRuntime`，不能放 `BlockDef` 或全局；否则同一内置块的两个实例会互相串状态。`reset/capture_checkpoint/restore_checkpoint` 要覆盖行为路径。

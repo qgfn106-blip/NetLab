@@ -5,7 +5,14 @@ from __future__ import annotations
 import pytest
 
 from netlab.core.model import blocklib
+from netlab.core.model.blocks import (
+    BlockRuntime,
+    BlockStore,
+    compare_block_modes,
+    instantiate_block,
+)
 from netlab.core.model.builtins import builtin_blocks, builtin_ids
+from netlab.core.model.scene import Scene
 
 
 @pytest.fixture(autouse=True)
@@ -87,3 +94,76 @@ def test_builtin_block_load_without_library_and_scan_default_is_user_only(tmp_pa
     # 底层 scan_library 默认保持旧语义（只列用户库），API 才合并内置。
     assert blocklib.scan_library(empty) == []
     assert len(blocklib.scan_library(empty, include_builtin=True)) == 9
+
+
+def test_builtin_block_behavior_path_and_structural_switch(tmp_path):
+    block = blocklib.load_block(tmp_path / "library", "a25000000001")
+    store = BlockStore()
+    store.add(block)
+    fast = BlockRuntime(block, store, internal_sim=False)
+    structural = BlockRuntime(block, store, internal_sim=True)
+    assert fast.scene is None
+    assert structural.scene is not None
+    out = fast.step(0.001, {"inp": {"voltage": 1.0}, "inn": {"voltage": 0.0}})
+    assert out["out"]["voltage"] == 15.0
+    assert structural.step(0.001, {"inp": {"voltage": 1.0}, "inn": {"voltage": 0.0}})["out"]["voltage"] == 15.0
+
+
+def test_internal_sim_param_persists_and_switches_runtime(tmp_path):
+    block = blocklib.load_block(tmp_path / "library", "a25000000001")
+    scene = Scene("signal")
+    scene.blocks.add(block)
+    ids = instantiate_block(scene, block.id)
+    scene.ensure_engine()
+    runtime = scene.block_instances[ids["block_node"]]
+    assert runtime.internal_sim is False
+    assert runtime.scene is None
+
+    params = dict(scene.nodes[ids["block_node"]].params)
+    params["internal_sim"] = True
+    scene.update_node(ids["block_node"], {"params": params})
+    scene.ensure_engine()
+    runtime = scene.block_instances[ids["block_node"]]
+    assert runtime.internal_sim is True
+    assert runtime.scene is not None
+
+
+def test_builtin_behavior_compare_api_reports_both_paths(client, tmp_path):
+    library = str(tmp_path / "library")
+    response = client.post(
+        "/api/blocks/a25000000001/compare",
+        json={"library": library, "duration": 0.02, "dt": 0.001},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["ok"] is True
+    assert body["steps"] == 20
+    assert len(body["behavior"]) == 20
+    assert len(body["structural"]) == 20
+    assert body["max_abs_diff"] == 0.0
+    assert body["output"] == "out"
+
+
+@pytest.mark.parametrize(
+    "block_id",
+    [
+        "a25000000001",
+        "a25000000002",
+        "a25000000003",
+        "a25000000004",
+        "a25000000005",
+        "a25000000006",
+        "a25000000007",
+        "a25000000008",
+        "a25000000009",
+    ],
+)
+def test_all_builtin_compare_models_run(block_id, tmp_path):
+    block = blocklib.load_block(tmp_path / "library", block_id)
+    result = compare_block_modes(block)
+    assert result["ok"] is True, result
+    assert result["steps"] == 20
+    assert len(result["behavior"]) == 20
+    assert len(result["structural"]) == 20
+    assert isinstance(result["max_abs_diff"], float)
+    assert isinstance(result["rms_diff"], float)

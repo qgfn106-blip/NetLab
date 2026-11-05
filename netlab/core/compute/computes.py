@@ -997,6 +997,13 @@ register(
             ParamSpec("block_name", "功能块名称", "text", ""),
             json_param("input_nodes", "输入端口节点", {}, help="端口名 → 父场景节点 id"),
             json_param("output_nodes", "输出端口节点", {}, help="端口名 → 父场景节点 id"),
+            ParamSpec(
+                "internal_sim",
+                "按内部结构仿真",
+                "bool",
+                False,
+                help="关闭时走内置行为快速模型；打开时实例化只读内部结构",
+            ),
         ),
         factory=_block_factory,
         outputs=(),

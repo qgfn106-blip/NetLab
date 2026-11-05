@@ -353,6 +353,7 @@ class BlockRuntime:
         store: BlockStore,
         *,
         depth: int = 0,
+        internal_sim: bool = False,
     ) -> None:
         if depth > MAX_BLOCK_DEPTH:
             raise ComputeError(
@@ -361,10 +362,20 @@ class BlockRuntime:
         self.block = block
         self.store = store
         self.depth = depth
+        self.internal_sim = bool(internal_sim)
         self._scene: Any = None
         self._input_nodes: dict[str, str] = {}
         self._output_nodes: dict[str, tuple[str, list[str]]] = {}
-        self._build()
+        self._behavior = None if self.internal_sim else self._behavior_spec()
+        self._behavior_state: dict[str, Any] = {}
+        self._behavior_time = 0.0
+        if self._behavior is None:
+            self._build()
+
+    def _behavior_spec(self) -> dict[str, Any] | None:
+        metadata = getattr(self.block, "metadata", None) or {}
+        spec = metadata.get("behavior")
+        return spec if isinstance(spec, dict) else None
 
     def _build(self) -> None:
         from .scene import Scene
@@ -419,6 +430,11 @@ class BlockRuntime:
         每个端口单独返回，避免不同端口同名字段互相覆盖。所有跨实例数据
         都在这里做副本与标量过滤，内部 state 不会被父场景引用。
         """
+        if self._scene is None:
+            from .block_behavior import step as behavior_step
+
+            self._behavior_time += float(dt)
+            return behavior_step(self.block, self._behavior_state, dt, inputs)
         inner = self._scene
         # 1) 把父场景输入端口的数据注入内部接口节点（副本，避免跨实例共享）。
         #    未接线的输入按端口默认值补 0：实例刚拖入画布时不应让整网计算失败。
@@ -485,29 +501,171 @@ class BlockRuntime:
         return outputs
 
     def reset(self) -> None:
-        self._scene.reset()
+        if self._scene is None:
+            self._behavior_state.clear()
+            self._behavior_time = 0.0
+        else:
+            self._scene.reset()
 
     def capture_checkpoint(self) -> dict[str, Any]:
-        """记录内部场景状态；父场景整步回滚/超时恢复时使用。"""
+        """记录内部状态；父场景整步回滚/超时恢复时使用。"""
+        if self._scene is None:
+            return {
+                "behavior": copy.deepcopy(self._behavior_state),
+                "time": self._behavior_time,
+            }
         return {"scene": self._scene.capture_checkpoint()}
 
     def restore_checkpoint(self, checkpoint: dict[str, Any] | None) -> None:
         if not checkpoint:
             return
-        self._scene.restore_checkpoint(checkpoint.get("scene"))
+        if self._scene is None:
+            self._behavior_state = copy.deepcopy(checkpoint.get("behavior") or {})
+            self._behavior_time = float(checkpoint.get("time") or 0.0)
+        else:
+            self._scene.restore_checkpoint(checkpoint.get("scene"))
 
     def stats(self) -> dict[str, Any]:
+        engine = getattr(self._scene, "_engine", None)
+        network = getattr(engine, "network", None)
         return {
             "block": self.block.id,
             "mode": self.block.mode,
             "nodes": len(self.block.nodes),
             "edges": len(self.block.edges),
             "depth": self.depth,
-            "time": getattr(self._scene, "engine", None).network.time
-            if getattr(self._scene, "_engine", None) is not None
-            and hasattr(getattr(self._scene, "_engine"), "network")
-            else 0.0,
+            "internal_sim": self.internal_sim,
+            "behavior": self._behavior is not None,
+            "time": float(
+                self._behavior_time
+                if self._scene is None
+                else getattr(network, "time", 0.0)
+            ),
         }
+
+
+def _comparison_payload(port: PortDef, value: float) -> dict[str, Any]:
+    field = port.fields[0] if port.fields else "voltage"
+    return {field: float(value)}
+
+
+def _comparison_inputs(block: BlockDef, step: int) -> dict[str, dict[str, Any]]:
+    """为行为/结构对比生成一组有代表性的静态/时钟输入。"""
+    payload: dict[str, dict[str, Any]] = {}
+    for port in block.input_ports:
+        default = port.default
+        try:
+            value = float(default) if default is not None else 0.0
+        except (TypeError, ValueError):
+            value = 0.0
+        payload[port.name] = _comparison_payload(port, value)
+    slug = str((block.metadata or {}).get("slug", ""))
+    clock = 1.0 if step % 10 < 5 else 0.0
+
+    def put(port: str, value: float) -> None:
+        for candidate in block.input_ports:
+            if candidate.name == port:
+                payload[port] = _comparison_payload(candidate, value)
+                return
+
+    if slug in ("opamp", "comparator"):
+        put("inp", 1.0)
+        put("inn", 0.0)
+    elif slug in ("dff", "counter4", "shift4"):
+        put("clk", clock)
+        if slug == "dff":
+            put("d", 1.0)
+        elif slug == "shift4":
+            put("data", 1.0 if step < 10 else 0.0)
+        else:
+            put("rst", 0.0)
+    elif slug == "timer555":
+        put("vcc", 5.0)
+        put("gnd", 0.0)
+    elif slug == "ldo":
+        put("vin", 3.3)
+        put("gnd", 0.0)
+    elif slug == "adc4":
+        put("vin", 2.5)
+        put("vref", 5.0)
+    elif slug == "dac4":
+        put("code", 7.0)
+        put("vref", 5.0)
+    return payload
+
+
+def compare_block_modes(
+    block: BlockDef,
+    *,
+    duration: float = 0.02,
+    dt: float = 0.001,
+    inputs: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """在行为快速模型与 structural 内部场景之间做一次短时对比。"""
+    if not math.isfinite(duration) or duration <= 0:
+        raise ValidationError("对比时长必须是正数")
+    if not math.isfinite(dt) or dt <= 0:
+        raise ValidationError("对比步长必须是正数")
+    steps = max(1, min(5000, int(math.ceil(duration / dt))))
+    if not block.output_ports:
+        return {"ok": False, "block_id": block.id, "reason": "模块没有输出端口"}
+    store = BlockStore()
+    store.add(copy.deepcopy(block))
+    try:
+        behavior = BlockRuntime(block, store, internal_sim=False)
+        structural = BlockRuntime(block, store, internal_sim=True)
+    except Exception as exc:  # noqa: BLE001 - 对比接口需要把失败原因回给前端
+        return {"ok": False, "block_id": block.id, "reason": str(exc)}
+
+    output_port = block.output_ports[0].name
+    out_field = block.output_ports[0].fields[0] if block.output_ports[0].fields else "voltage"
+    times: list[float] = []
+    behavior_values: list[float] = []
+    structural_values: list[float] = []
+    errors: list[float] = []
+    for index in range(steps):
+        step_inputs = inputs or _comparison_inputs(block, index)
+        try:
+            b_out = behavior.step(dt, step_inputs)
+            s_out = structural.step(dt, step_inputs)
+        except Exception as exc:  # noqa: BLE001
+            return {
+                "ok": False,
+                "block_id": block.id,
+                "name": block.name,
+                "reason": str(exc),
+                "step": index,
+            }
+        b_payload = b_out.get(output_port) or {}
+        s_payload = s_out.get(output_port) or {}
+        b_value = b_payload.get(out_field, b_payload.get("voltage", 0.0))
+        s_value = s_payload.get(out_field, s_payload.get("voltage", 0.0))
+        b_value = float(b_value) if isinstance(b_value, (int, float)) and not isinstance(b_value, bool) else 0.0
+        s_value = float(s_value) if isinstance(s_value, (int, float)) and not isinstance(s_value, bool) else 0.0
+        times.append(round(index * dt, 9))
+        behavior_values.append(round(b_value, 9))
+        structural_values.append(round(s_value, 9))
+        errors.append(abs(b_value - s_value))
+
+    max_abs_diff = max(errors) if errors else 0.0
+    rms_diff = math.sqrt(sum(value * value for value in errors) / len(errors)) if errors else 0.0
+    return {
+        "ok": True,
+        "block_id": block.id,
+        "name": block.name,
+        "slug": str((block.metadata or {}).get("slug", "")),
+        "output": output_port,
+        "field": out_field,
+        "duration": duration,
+        "dt": dt,
+        "steps": steps,
+        "time": times,
+        "behavior": behavior_values,
+        "structural": structural_values,
+        "max_abs_diff": round(max_abs_diff, 9),
+        "rms_diff": round(rms_diff, 9),
+        "note": "行为模型为理想化快速模型；结构模型为当前 signal 宏模型。",
+    }
 
 
 # ---- 封装与实例化 ----------------------------------------------------------

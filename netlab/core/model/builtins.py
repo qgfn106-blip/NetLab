@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import re
 from typing import Any
@@ -419,7 +420,7 @@ def _adc4() -> BlockDef:
             0,
             {
                 "expr": "floor(15 * u / v)",
-                "variables": {"u": "in_vin.voltage", "v": "in_vref.voltage"},
+                "variables": {"u": "vin-code.voltage", "v": "vref-code.voltage"},
                 "output": "voltage",
             },
         ),
@@ -480,6 +481,20 @@ _BUILTIN_BUILDERS = (
     _dac4,
 )
 
+# 行为快速模型：默认路径走这里，勾选“按内部结构仿真”后才走 structural 内部场景。
+# 行为模型只复现端口级的理想化/饱和特性，用于大网络快速运行和与结构模型对照。
+_BEHAVIOR_SPECS: dict[str, dict[str, Any]] = {
+    "opamp": {"kind": "opamp", "gain": 1.0e6, "low": -15.0, "high": 15.0},
+    "comparator": {"kind": "comparator", "low": -1.0, "high": 1.0},
+    "dff": {"kind": "dff"},
+    "counter4": {"kind": "counter", "bits": 4},
+    "shift4": {"kind": "shift", "bits": 4},
+    "timer555": {"kind": "timer555", "frequency": 1000.0, "duty": 0.5, "low": 0.0, "high": 5.0},
+    "ldo": {"kind": "ldo", "low": 0.0, "high": 5.0},
+    "adc4": {"kind": "adc", "bits": 4, "vref": 5.0},
+    "dac4": {"kind": "dac", "bits": 4, "vref": 5.0},
+}
+
 _CACHE: tuple[BlockDef, ...] | None = None
 
 
@@ -487,7 +502,14 @@ def builtin_blocks() -> tuple[BlockDef, ...]:
     """返回全部只读内置块（深拷贝由调用方按需处理）。"""
     global _CACHE
     if _CACHE is None:
-        _CACHE = tuple(builder() for builder in _BUILTIN_BUILDERS)
+        cached: list[BlockDef] = []
+        for builder in _BUILTIN_BUILDERS:
+            block = builder()
+            slug = str(block.metadata.get("slug", ""))
+            if slug in _BEHAVIOR_SPECS:
+                block.metadata["behavior"] = copy.deepcopy(_BEHAVIOR_SPECS[slug])
+            cached.append(block)
+        _CACHE = tuple(cached)
     return _CACHE
 
 

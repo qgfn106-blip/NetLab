@@ -26,7 +26,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .core.compute.fem import FemSimulation
 
 #: 服务端代码版本（与 frontend/index.html 的 ?v= 对齐）；用于检测「前端已更新、后端进程仍是旧的」
-APP_BUILD = "3.17.0"
+APP_BUILD = "3.17.1"
 from .core.common.limits import ConflictError, NetlabError, NotFoundError, ValidationError
 from .core.model.networks import NetworkContainer
 from .core.model.project import (
@@ -1571,6 +1571,30 @@ def blocks_open_internal(block_id: str, request: BlockOpenInternalRequest) -> di
         "sim": SERVICE.info(),
         "networks": SERVICE.list_networks(),
     }
+
+
+class BlockCompareRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    duration: float = Field(0.02, gt=0, le=10)
+    dt: float = Field(0.001, gt=0, le=1)
+    inputs: dict[str, dict[str, Any]] | None = None
+    library: str | None = None
+
+
+@app.post("/api/blocks/{block_id}/compare")
+def blocks_compare(block_id: str, request: BlockCompareRequest) -> dict[str, Any]:
+    """对比内置块的行为快速模型与 structural 内部场景。"""
+    from .core.model.blocks import compare_block_modes
+
+    target = _library_path(request.library)
+    block = blocklib.load_block(target, block_id)
+    return compare_block_modes(
+        block,
+        duration=request.duration,
+        dt=request.dt,
+        inputs=request.inputs,
+    )
 
 
 @app.post("/api/blocks/save-copy")

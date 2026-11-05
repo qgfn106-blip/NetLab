@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "alwaysStrict": false,
+    "target": "ES2020",
+    "module": "none",
+    "lib": ["ES2020", "DOM"],
+    "skipLibCheck": true,
+    "noEmitOnError": true
+  },
+  "include": ["desktop-shim.ts"]
+}

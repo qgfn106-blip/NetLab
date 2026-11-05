@@ -16,7 +16,7 @@
 
   // 界面版本号：必须与 index.html 的 ?v= 和 netlab/server.py 的 APP_BUILD 一致。
   // 用来识别「前端文件已更新、后端进程还是旧的」这种只关窗口不重启的情况。
-  const UI_BUILD = '3.20.0';
+  const UI_BUILD = '3.20.1';
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -11910,6 +11910,39 @@
     }
   }
 
+  function openIroColorPopover(anchor, value, onChange) {
+    document.querySelectorAll('.iro-popover').forEach((node) => node.remove());
+    if (!window.iro || typeof window.iro.ColorPicker !== 'function') {
+      anchor.click();
+      return;
+    }
+    const pop = div('iro-popover');
+    const rect = anchor.getBoundingClientRect();
+    pop.style.position = 'fixed';
+    pop.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 260))}px`;
+    pop.style.top = `${Math.max(8, Math.min(rect.bottom + 6, window.innerHeight - 300))}px`;
+    pop.style.zIndex = '20000';
+    pop.style.padding = '10px';
+    pop.style.borderRadius = '10px';
+    pop.style.background = 'var(--panel, #fff)';
+    pop.style.boxShadow = '0 12px 36px rgba(0,0,0,.24)';
+    pop.style.border = '1px solid var(--line, #ccd4d8)';
+    const host = div('iro-host');
+    pop.appendChild(host);
+    pop.appendChild(button('关闭', 'btn tiny', () => pop.remove()));
+    document.body.appendChild(pop);
+    const picker = new window.iro.ColorPicker(host, { width: 220, color: value || '#000000' });
+    picker.on('color:change', (color) => onChange(color.hexString));
+    setTimeout(() => {
+      const close = (event) => {
+        if (pop.contains(event.target) || event.target === anchor) return;
+        pop.remove();
+        document.removeEventListener('pointerdown', close);
+      };
+      document.addEventListener('pointerdown', close);
+    }, 0);
+  }
+
   async function openViewDesigner() {
     try {
       const response = await jsonRequest('/api/ui', 'GET');
@@ -11933,7 +11966,14 @@
           applyUiTokens(current.tokens);
         });
         tokenInputs[key] = input;
-        label.appendChild(input);
+        const colorRow = div('ui-color-row');
+        colorRow.appendChild(input);
+        colorRow.appendChild(button('调色', 'btn tiny', () => openIroColorPopover(input, input.value, (hex) => {
+          input.value = hex;
+          current.tokens[key] = hex;
+          applyUiTokens(current.tokens);
+        })));
+        label.appendChild(colorRow);
         tokenGrid.appendChild(label);
       }
       const modeRow = div('ui-field wide');

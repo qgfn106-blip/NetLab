@@ -1,8 +1,8 @@
 # Netlab 主线待办（BACKLOG）
 
-> 最后修改：2026-11-05 14:46
+> 最后修改：2026-11-06 01:36
 > 用途：**一页回答「现在要做什么、还有什么没做」**。需求与决策的唯一口径仍是
-> [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)（R01–R39 / D1–D98），进度证据在
+> [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)（R01–R40 / D1–D99），进度证据在
 > [PROGRESS.md](PROGRESS.md)。本文只做**汇总与排序**，不重复定义需求。
 > 维护规则：做完一项就把「状态」改掉并写上证据（测试数 / 截图 / 实测数）；口径冲突以需求台账为准。
 
@@ -10,9 +10,9 @@
 
 ## 0. 一句话现状
 
-- **能用的产品**：`start_desktop.bat` / `python -m netlab.desktop` 起 pywebview + WebView2 网页壳（**581 passed**，2026-11-05 14:33，静态 3.19.0）。
+- **能用的产品**：`start_desktop.bat` / `python -m netlab.desktop` 起 pywebview + WebView2 网页壳（**589 passed**，2026-11-06 01:36，静态 3.20.0；全量文档重构 §7.75 完成）。
 - **界面口径**：前端在 `frontend/`（index.html / app.js / style.css）；Qt 原生界面已按 D78 备份到 Git 分支 `backup/qt-native-2026-11-02` 后删除，不再是产品形态。
-- **没做完的主线**：R25 三阶段已交付（P7-09/10/11：9 块/虚拟注册表/只读保护/另存副本/行为快速模型/`internal_sim` 开关/对比 API/UI），剩完整电路级内部结构；R19 参考级图纸暂停。**刚完成**：R31 并网逆变器 P11-01…P11-07（§7.72：L1 平均模型、`abc_dq`、SRF-PLL、dq 电流环、`sensor`/`actuator` 跨域桥、六开关三相桥示例、`cancel_precompute` 中断）；R39 复数分析层（§7.71）；全量 581 passed/3.19.0。
+- **没做完的主线**：R25 三阶段已交付（P7-09/10/11：9 块/虚拟注册表/只读保护/另存副本/行为快速模型/`internal_sim` 开关/对比 API/UI），剩完整电路级内部结构；R19 参考级图纸暂停。**刚完成**：R31 并网逆变器 P11-01…P11-07（§7.72：L1 平均模型、`abc_dq`、SRF-PLL、dq 电流环、`sensor`/`actuator` 跨域桥、六开关三相桥示例、`cancel_precompute` 中断）；R39 复数分析层（§7.71）；R40 全栈扩展架构（§7.74，设计+代码首版完成，589 passed/3.20.0）；全量 589 passed/3.20.0。
 - **实施中**：R36 非线性 / 非定常闭环求解 **P1–P5 已完成**（P1：节点求解语义标签、`Network.solver_plan()` 的 SCC/断点划分、自动 `z⁻¹` 可见记录；P2：`Network(solve_algebraic=True)` 线性 SCC 解 `(I-A)y=b`、`Scene.set_algebraic_solver()` 开关、`AlgebraicLoopError`；P3：阻尼 Newton + 有限差分雅可比 + 线搜索 + `NewtonConvergenceError`、表达式 `t`/`time` 时变变量；P4：线性网络节点方程总传函 + `tf_analysis` 网络 Bode；P5：`state:<node>:<index>` 状态通道、相图独立播放/步进/循环、`phase_metrics` L/A 指标；525 passed）。R37 线性网络总传函/Bode 对外能力已完成（s 域节点方程消元 + z 域纯 gain/sum 显式延迟），A/B/C/D 已导出（前端「导出 A/B/C/D」）；R38 状态通道/独立播放/指标/CSV 已完成（§7.66–§7.67），dt 收敛与无状态通道中文提示已补；见 [规划 spec](specs/2026-11-04-nonlinear-time-varying-solver-plan.md)。
 - **刚完成**：**控制链路补强与欠阻尼工程（§7.61：超调按最终值方向、离散 `1/z` 左补零、`reset_state` 初值快照、`output=auto`、非整数时间网格；交付 `MyProject/underdamped_control.netlab`）**、**PlotKit 导入优先级 + 多工作树规范（§7.60：内置副本优先、`NETLAB_PLOTKIT_SRC` 覆盖、gmpy2 坏包清理、`tools/new_worktree.sh` + `docs/WORKTREE_RULES.md`）**、**结构护栏补齐相对导入（§7.59：`test_structure_layout.py` 解析相对/`netlab.*` 越界导入，6→14 条）**、**预计算反馈环首拍修复（§7.58：延迟边空载荷按 0、pass 空 dict 不注入）**、**信号流右键「添加」菜单按节点组分类（§7.57：基础/动态/高级/矢量/模块/接口，矢量置顶）**、**R35 输入字段自动匹配（D91 / §7.56：value 优先、显式键兼容、块端口别名）**、**架构审计修复（§7.55：PlotKit 子应用鉴权 + 宿主 shim、记录器代次、通道上限、桥生命周期、precompute 契约、缓存 API 契约）**、**R34 s 域传递函数节点与分析（D90 / §7.54：表达式/系数/零极点三形态、Bode/阶跃/零极点三视图、`POST /api/analysis/tf`）**、R26 的 UI 入口（§7.37）、D80 数据通路优化（§7.36）、D81 PlotKit 面板卡顿修复（§7.38）。
 
@@ -29,6 +29,7 @@
 | ⑤ | ~~R25 P7-11~~：555 / LDO / ADC / DAC → **已完成（宏模型；结构仿真开关/行为对比已补，§7.70）** | 完整电路级明确留作后续 | — |
 | ⑥ | ~~R31 P11-01…P11-07~~ → **已完成（§7.72）**：L1 平均模型、`abc_dq`、SRF-PLL、dq 电流环、跨域桥、六开关示例、性能/中断 | 581 passed/3.19.0；P11-06 为趋势验证 | — |
 | ⑦ | ~~复数分析层（Complex Bridge）~~ → **已完成（§7.71）**：统一 `frequency_response()` + 精确 `e^{-jωT}` + 电路 AC 复数 MNA + API | 只做分析边界，避免全量 complex；561 passed/3.18.0 | — |
+| ⑧ | **R40 全栈扩展架构** → **首版完成（§7.74）**：插件包 + `netlab.plugin_api.v1` + 声明式 UI/简洁画布 | 仍需补节点拖拽细节/面板字段编辑与插件生态示例 | 大 |
 
 > R31 已完成 P11-01…P11-07；P11-06 为理想 nmos + 50 Hz 方波栅极的趋势验证，10 kHz PWM/器件损耗留后续。
 
@@ -75,6 +76,7 @@
 | R25 | 内置内部结构 | **P7-09/10/11 三阶段完成**（9 块/虚拟注册表/只读保护/另存副本/行为快速模型/`internal_sim`/对比 API）；仅完整电路级内部结构待后续 | 见 §1 第 ③–⑤ 项与 §7.70 | 大 |
 | R26 | 求解器分析 | DC 工作点 / AC 扫频 UI 入口已在 `#analWin`；本次核对 | 与 R12 共用实现 | 已闭环 |
 | R31 | 并网逆变器 | **P11-01…P11-07 已完成**（§7.72）：平均模型、abc_dq、PLL、电流环、跨域桥、六开关示例、性能/中断 | P11-06 仅趋势验证；10 kHz PWM/损耗留后续 | 完成 |
+| R40 | 全栈可扩展架构 | **首版完成（§7.74）**：插件包、`netlab.plugin_api.v1`、compute/method/element/analysis/data-format/template/panel/engine 扩展点、工程 v6、简洁画布与视图设计 | 后续补节点拖拽细节/面板字段编辑与插件示例 | 大 |
 | R33 | 原生桌面外壳 | A5/A13/A14/A18/A21 未验；web 去留未定 | 见 §2 | 小 |
 | R34 | s 域传递函数节点与分析 | —（表达式/系数/零极点、Bode/阶跃/零极点、端点均完成） | 可选增强：Bode 光标、零极点拖动、MIMO | 已闭环 |
 | R35 | 输入字段自动匹配 | —（value 优先、显式键兼容、块端口别名、22 条定向） | 可选增强：向量/矩阵跨类型自动换算（当前明确不做） | 已闭环 |

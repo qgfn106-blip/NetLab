@@ -1,6 +1,6 @@
 # Netlab 需求 · 决策 · 执行计划（2026-10-25 修订版）
 
-> 最后修改：2026-11-05 14:46
+> 最后修改：2026-11-06 01:36
 > 本版**取代** 2026-10-24 版的需求口径。旧条文不删除，凡被推翻或细化的条目一律进 §7「已废弃口径」。
 > 每条需求统一六段式：**原话 / 解读 / 拟改架构 / 验收 / 权重·期次 / 现状**。
 > **现状**一栏只写本次会话内读代码或跑测试能证明的事实；没有证据的一律标「待核实」。
@@ -12,8 +12,8 @@
 
 | 你想干什么 | 看哪一节 |
 | --- | --- |
-| 知道"为什么这么定" | §2 决策台账（D1–D98） |
-| 知道"要做什么、做到什么程度算完" | §3 需求清单（R01–R39） |
+| 知道"为什么这么定" | §2 决策台账（D1–D99） |
+| 知道"要做什么、做到什么程度算完" | §3 需求清单（R01–R40） |
 | 知道"先做哪个" | §4 权重与依赖、§5 分期 |
 | 知道"哪些明确不做" | §6 不做清单 |
 | 知道"旧文档哪句话作废了" | §7 已废弃口径 |
@@ -27,7 +27,7 @@
 
 1. 你 2026-10-25 提出的七大块新要求（模块化文件化、前端信息架构、场景重组、快捷键、多网络、连线与符号、时间与循环）全部并入，旧七项需求被**细化或取代**，映射见 §7。
 2. 新增三条你点名的横切要求：**数据依赖与数据保护**、**性能与计时**、**现代控制理论导向（仅呈现层）**。
-3. 所有决策从问答沉淀成决策台账（本版当时为 **D1–D59**，现已到 **D1–D98**），每个决定都能追到当时的取舍。
+3. 所有决策从问答沉淀成决策台账（本版当时为 **D1–D59**，现已到 **D1–D99**），每个决定都能追到当时的取舍。
 4. 计划从旧的 V2-0…V2-7 改为 **P0–P6**，并明确：P0 是地基（数据模型 + 目录 + 菜单 + 交互基础）先做，且含一个**热修**（现网报错）。
 5. 新增 §6「不做清单」——把"以后再说"和"明确不做"分开写清，避免下个窗口又把它们当需求实现。
 
@@ -122,7 +122,7 @@
 | D81 | **修 PlotKit 面板卡顿（2026-11-02，用户原话「继续完成，并且检查解决plotkit卡顿的问题」）** | 根因三条并全修：①中途出现的探针从 0 长度追加，与 `t` 错位 → `render` 抛「x/y 长度不一致」，曲线永久卡死 → `_ensure_channels` 用 `np.full(len(t),nan)` 补齐、`_ingest` 每次 push 前对齐全部序列；②出图线程与 0.5s 同步线程并发读写 → 中间态同样错位 → `store/registry.py` 加 `DATA_LOCK`（RLock），`_ensure_channels/_ingest/_reset` 与 PlotKit `build()` 共用，渲染由此串行化；③出图贵（900×520=72ms、1200×700=149ms、1600×950=191ms、2400×1400=308ms，且持 GIL 把 step 从 122→138~207µs）→ `renderUrl` 面积上限 1400×1000、实时重绘节流 1Hz、轮询 500→1000ms、拖动预览 70→160ms、同步线程 0.2→0.5s；④面板隐藏仍出图 → `plotVisible()`+`document.hidden`+宿主 `postMessage` 三路判可见；⑤面板先于仿真打开永远 0 图层 → `poll` 在空图层时重取 `api/spec`。验收：面板可见 8 次渲染/8s、切走 0 次、浮窗关闭 0 次；netlab 385 passed（+2 条 `test_plotkit_bridge_sync.py`）、PlotKit 436 passed；静态 3.15.5。详见 PROGRESS §7.38。 |
 ---
 
-## 3. 需求清单（R01–R39）
+## 3. 需求清单（R01–R40）
 
 > 权重：⭐1（可延后）… ⭐5（不做完后面全是坑）。期次指向 §5。
 
@@ -564,6 +564,25 @@
 - **权重·期次**：⭐⭐⭐ / P14（2026-11-05 完成）。
 - **现状**：**已完成（2026-11-05）**。`complex_support.py`、`analysis.frequency_response()`、`nodal.ac_sweep()` 复数值、`POST /api/analysis/frequency` 已落地；signal 精确延迟与 circuit 复数 MNA 均有测试；时域/recorder/JSON/PlotKit 未改。规格见 [docs/specs/2026-11-05-complex-analysis-layer.md](specs/2026-11-05-complex-analysis-layer.md)。
 
+### R40 全栈可扩展架构（插件包 / 数据接口 / UI 视图设计）
+
+- **原话**（2026-11-06）：「请将所有架构包括ui接口，数据接口，底层算法都做好可扩展性，能方便用户自定义接入函数，能保持底层的节点与连接的结构 /grill-with-docs」；补充：「并且提供更简易的节点和连接的ui形式，并且可自调节设计ui」。
+- **解读**：不是把 Netlab 改成可随意替换内核的框架，而是在**不改变 NodeRecord/EdgeRecord 核心结构**的前提下，把可扩展点整理成稳定的插件包协议：节点计算、连接函数、电路元件、分析算法、数据导入导出、模板、声明式 UI 面板、可注册的新求解 mode。现有 `SignalEngine`/`CircuitEngine` 不替换；插件是受信任的进程内 Python 代码，不假装 OS 沙箱。UI 增加与专业模式共用数据的简洁画布，并允许在视图内直接调整布局、节点卡片、连线样式和面板。
+- **拟改架构**：
+  - 新增 `extensions/plugins/<plugin_id>/plugin.json` + Python 入口；manifest 声明 id/version/`plugin_api`/`netlab` 范围/能力/依赖。
+  - 新增稳定门面 `netlab.plugin_api.v1`；插件只能导入该门面；加载器做静态导入检查、依赖拓扑排序、原子注册。
+  - 扩展点：`ComputeSpec`/`MethodSpec`/`ElementSpec`/`AnalysisSpec`/`DataFormatSpec`/`TemplateSpec`/`PanelSpec`/`EngineSpec`；自定义引擎仅能以新 mode 注册，`EngineProtocol` 固定 `build/step/reset/probes/stats`。
+  - 数据边界：严格 JSON 原生类型；数组转列表，复数 `{re,im}` 或 magnitude/phase；插件私有持久化数据只进 `ext[plugin_id]`。
+  - 工程 `format_version` 升 6，新增 `plugins` 锁段，v5 自动迁移；缺插件降级打开、节点标未解析、禁止运行。
+  - UI：简洁/专业双模式共用 Node/Edge 数据；视图内“界面设计”直接拖拽/缩放节点、调整面板、编辑主题令牌、节点卡片字段和连线样式；配置为 `netlab-ui/1` profile，项目覆盖全局默认；只允许声明式组件，不执行任意 HTML/CSS/JS。
+  - 插件管理页：扫描、启用/禁用、重载、错误、依赖、能力、打开目录；不做在线市场/自动下载。
+- **验收**：
+  - 设计文档（ADR 0002、`EXTENSIBILITY_ARCHITECTURE.md`、GLOSSARY）完整且与现有架构不冲突。
+  - 实现后：示例插件可注册 compute/method/element/analysis/panel/template；自定义 EngineSpec 可运行；缺插件工程可降级打开；v5→v6 迁移幂等；简洁/专业视图切换不改变 Node/Edge 计数/kind/params/连接关系。
+  - 现有 581 项回归不下降；插件测试独立文件；UI profile 保存/载入/项目覆盖通过。
+- **权重·期次**：⭐⭐⭐⭐ / P15（2026-11-06 设计并完成首版实现）。
+- **现状**：**设计完成，代码实现完成（2026-11-06）**。设计见 [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md)、[adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md)、[GLOSSARY.md](GLOSSARY.md)。已实现 `netlab.plugin_api.v1`、`PluginManager`、`AnalysisSpec`、`EngineProtocol`、工程 v6、`netlab-ui/1`、插件管理页与视图设计 v1；589 passed。已知限制：视图设计 v1 只覆盖主题令牌/布局/模式切换，节点拖拽细节/面板字段编辑后续补充；插件为受信任进程内代码，不是沙箱。
+
 ## 4. 权重与依赖
 
 ### 4.1 权重排序（高→低）
@@ -580,6 +599,7 @@
 | ⭐⭐⭐ | R37 线性网络总传函预计算与 Bode 相位 | 闭环设计验收；对外 s/z 域能力已完成；内部 A/B/C/D 导出为优化项 |
 | ⭐⭐⭐ | R38 相平面 + 独立播放 + 数据分析 | 呈现层增强；状态通道/播放/指标/CSV/dt 收敛已完成 |
 | ⭐⭐⭐ | R39 复数分析层与统一频域响应 | 信号流/电路共用 `H(jω)` 复数出口；精确延迟、相位展开、后续 Nyquist/阻抗/FFT 的基础；P14 已完成 |
+| ⭐⭐⭐⭐ | R40 全栈可扩展架构（插件包 / 数据接口 / UI 视图设计） | 决定外部函数、分析算法、数据格式和新求解引擎能否安全接入；Node/Edge 结构保持不变；设计完成、代码首版完成（589 passed） |
 
 
 ### 4.2 依赖关系
@@ -1269,3 +1289,4 @@ MOSFET。
 | D96 | 2026-11-05 | **R25 行为快速模型 + `internal_sim` 双路径**：每个内置块带 `metadata["behavior"]`，默认走纯 Python 快速路径；块节点 `internal_sim=true` 时实例化 structural 内部场景；两路径共用端口契约，`compare_block_modes()`/`POST /api/blocks/{id}/compare` 回报峰值、最大绝对差、RMS 差 | 用户要求「按内部结构仿真」开关并与行为模型对比；大网络默认不能为内部结构付全代价 | `block_behavior.py`/`blocks.py`/`scene.py`/`computes.py`/`builtins.py`/`server.py`/`app.js`/`test_builtin_blocks.py` | 不声称两路径逐点等价；不把宏模型当完整电路级；完整电路级后续逐类替换 | 行为路径/开关保存/9 块对比测试 15 passed；全量 543 passed；静态 3.17.1 | 3 / P7-E / 完成 |
 | D97 | 2026-11-05 | **复数分析层采用边界适配，不做全量 `complex` 迁移**：新增 `complex_support.py` 纯函数与 `analysis.frequency_response()` 统一入口；signal 走逐频点复数节点图、延迟精确 `e^{-jωT}`；circuit 复用 `nodal.ac_sweep` 复数 MNA；AC 结果增 `real/imag`，新增 `POST /api/analysis/frequency`；时域/recorder/JSON/PlotKit 保持实数，`vector` 不纳入 | 用户要求把 float 转为复数的实部、只对必要函数/数据复数化，并覆盖电路与信号流；全量复数会破坏兼容性并给瞬态带来无谓开销 | `netlab/core/compute/complex_support.py`、`analysis.py`、`nodal.py`、`server.py`；新增/扩展 `test_complex_support.py`、`test_frequency_response.py`、`test_analysis_api.py`、`test_solver_analysis.py` | 不做全量复数、vector 复数化、Nyquist/阻抗 UI、MIMO 矩阵传函；不替代符号总传函 | 已完成：signal 精确延迟、circuit 复数 MNA、API/测试通过；时域仍实数 | 3 / P14 / 完成 |
 | D98 | 2026-11-05 | **R31 P11-01…P11-07 按 L1 平均模型 → L2 跨域桥 → 开关级趋势验证交付**：新增 `abc_dq`、`pll`、`pi` 三个 compute；`sensor`/`actuator` 元件与 `CircuitEngine` 固定步内顺序（采样拍后、驱动下一拍）；示例工程 `grid_inverter_avg/current/pll_template/grid_inverter_switch.netlab`；`cancel_precompute` 支持 UI 中断 | 用户要求按顺序完成 R31 需求，并保持旧工程/checksum 兼容；L2 桥必须显式一拍延迟以避免代数环 | `computes.py`、`nodal.py`、`scene.py`、`ports.py`、`simulation.py`、`server.py`、`frontend/app.js`、`MyProject/*.netlab`、R31 测试 | 不做真实器件损耗/10 kHz PWM 载波；不承诺开关级绝对 EMT 精度；R25 完整电路级不在本票 | 已完成：581 passed、81.42 s、3.19.0；P11-06 仅趋势验证 | 4 / P11 / 完成 |
+| D99 | 2026-11-06 | **全栈扩展采用“插件包 + `netlab.plugin_api.v1` 稳定门面 + 声明式 UI”，不改变 NodeRecord/EdgeRecord 核心结构**：插件 manifest 声明 id/version/API/能力/依赖；支持 compute/method/element/analysis/data-format/template/panel/engine（新 mode）；工程 v6 增 `plugins` 锁段，v5 自动迁移；缺插件降级打开、节点标未解析；UI 增加简洁画布与视图内设计，`netlab-ui/1` 只允许声明式布局/令牌/字段/枚举样式，不执行任意 HTML/CSS/JS；插件是受信任进程内代码，不做 OS 沙箱 | 用户要求所有架构（UI 接口、数据接口、底层算法）可扩展、方便自定义接入函数，并保持节点/连接结构；补充要求简洁节点/连接 UI 与可在视图内直接调节设计 | `netlab/plugin_api/v1`、`netlab/core/model/plugins.py`、`analysis_plugins.py`、`engine_registry.py`、`ui_profile.py`、`project.py`、`server.py`、`frontend/app.js`、`extensions/plugins/README.md`；文档 ADR/EXTENSIBILITY/GLOSSARY/EXTENDING/ARCHITECTURE/UI_SPEC | 不替换现有 SignalEngine/CircuitEngine；不开放任意前端代码；不自动下载插件/第三方包；不做在线市场 | 已完成：589 passed（83.05 s）、3.20.0；新增插件/工程/UI 目标测试 8 条 | 4 / P15 / 完成 |

@@ -1,19 +1,19 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-05 14:46
+> 最后修改：2026-11-06 01:36
 
 | 项 | 内容 |
 | --- | --- |
-| 记录时间 | 2026-11-05 14:46（Asia/Shanghai） |
-| 当前阶段 | **2026-11-05 R31 并网逆变器（P11-01…P11-07，§7.72）**：L1 平均模型、`abc_dq`、SRF-PLL、dq 电流环、`sensor`/`actuator` 跨域桥、六开关三相桥示例、长仿真性能与中断；静态 **3.19.0**，全量 **581 passed**。上一阶段 **§7.71**：R39 复数分析层（561 passed、3.18.0）。 |
+| 记录时间 | 2026-11-06 01:36（Asia/Shanghai） |
+| 当前阶段 | **2026-11-06 R40 全栈扩展架构实现（§7.74）+ 全量文档重构（§7.75）**：`netlab.plugin_api.v1`、插件加载器/管理页、`AnalysisSpec`/`EngineProtocol`、工程 v6、`netlab-ui/1` 与简单画布；README/ARCHITECTURE/OPERATION/INSTALL/MATH 及架构图/演示视频同步；静态 **3.20.0**，全量 **589 passed**。上一阶段 **§7.72**：R31 并网逆变器（P11-01…P11-07，581 passed、3.19.0）；**§7.71**：R39 复数分析层（561 passed、3.18.0）。 |
 | 基线 | 修改前 43 passed（2026-10-24 14:26） |
-| 当前测试 | **581 passed**（2026-11-05 14:46 全量 `python -m pytest netlab/tests -q`，3 warnings，78.15 s，退出码 0；stderr **0 次** `0xc0000139`；新增 R31 P11-01…P11-07 共 18 条目标测试） |
-| 本地备份 | `NetlabExtras/backups/ProjectPoint_backups/netlab_3_19_0_20261105_1450`（28 文件 + MANIFEST.sha256，§7.72 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_18_0_20261105_1340`（15 文件 + MANIFEST.sha256，§7.71 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_17_1_20261105_0845`（15 文件 + MANIFEST.sha256，§7.70 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_17_0_20261105_0345`（23 文件 + MANIFEST.sha256，§7.69 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_final_20261105_0205`（14 文件 + MANIFEST.sha256，§7.68 最终集成检查）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_r38_20261105_0155`（9 文件 + MANIFEST.sha256，§7.67 相图指标/CSV）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p5_20261105_0140`（12 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p4_20261105_0125`（本轮 §7.65 的 analysis.py / test_network_tf.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p3_20261105_0110`（§7.64 的 graph.py / computes.py / scene.py / test_algebraic_solver.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p2_20261105_0055`（§7.63 的 graph.py / scene.py / test_algebraic_solver.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p1_20261105_0040`（§7.62 的 graph.py / computes.py / scene.py / test_solver_plan.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_plan_20261104_2355`（本轮规划文档 4 文件 + MANIFEST.sha256，R36–R38/D92–D94）、`NetlabExtras/backups/ProjectPoint_backups/netlab_control_20261104_1815`（本轮 14 文件 + MANIFEST.sha256，§7.61）、`NetlabExtras/backups/ProjectPoint_backups/netlab_import_20261104_1423`（§7.60 10 文件 + MANIFEST.sha256，§7.60）、`NetlabExtras/backups/ProjectPoint_backups/netlab_guard_20261104_1356`（本轮 5 文件 + MANIFEST.sha256，§7.59）、`NetlabExtras/backups/ProjectPoint_backups/netlab_delayfix_20261104_1315`（本轮 7 文件 + MANIFEST.sha256，§7.58）、`NetlabExtras/backups/ProjectPoint_backups/netlab_menu_20261104_0756`（§7.57 7 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_fields_20261104_0225`（21 文件 + MANIFEST.sha256，R35/D91）、`NetlabExtras/backups/ProjectPoint_backups/netlab_audit_20261103_1920`（15 文件 + MANIFEST.sha256，架构审计 §7.55）、`NetlabExtras/backups/ProjectPoint_backups/netlab_transfer_20261103_1602`（14 文件 + MANIFEST.sha256，R34/D90）、`netlab_20261101_2010`（本轮 7 源文件 + 5 文档 + 5 测试 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_plotkit_token_20261103_1253`（8 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_free_layout_20261103_1430`（P4 自由布局）、`NetlabExtras/backups/ProjectPoint_backups/netlab_layer_window_20261103_1450`（P3 图层浮窗）、`NetlabExtras/backups/ProjectPoint_backups/netlab_notes_20261103_1508`（P5 批注）、`NetlabExtras/backups/ProjectPoint_backups/netlab_precision_20261103_1552`（PlotKit 预览精度 §7.53）、`NetlabExtras/backups/ProjectPoint_backups/netlab_20261024_142654`、`_1727`、`netlab_20261025_0125`、`netlab_20261025_1306`（P0-0）、`netlab_20261026_0348p1retry`（P1 收口）、`netlab_20261026_1240`（R15 收尾）、`netlab_20261026_1318`（R20 模型批基础层）、`netlab_20261026_1322`（R20 模型批功能完成）、`netlab_20261026_1330`（R20 UI 批）、`netlab_20261026_1335`（R20 UI 迁移动作）、`netlab_20261026_1340`（R20 信号端口）、`netlab_20261026_1415`（纯导线/共集示例）、`netlab_20261027_0150`（P7-01 前快照）、`netlab_20261027_1744`（P7-03 收尾）、`netlab_20261027_1753`（R22 参数放宽/单位）、`netlab_20261027_1856`（三极管型号预设）、`netlab_20261027_2218`（拐点拖动）、`netlab_20261027_2324`（P7-03/P7-05 收尾）、`netlab_20261027_2330`（P0 求解可靠性）、`netlab_20261028_0016`（P0 收尾/P7-05）、`netlab_20261028_0048`（电源波形界面）、`netlab_20261028_0103`（dt 精度预设）、`netlab_20261028_0114`（奇异阈值/步长原位微调）、`netlab_20261028_0318`（P0 求解加固：事务/均衡/断点/超时）、`netlab_20261028_0405`（Phase D/E 代码前快照）、`netlab_20261028_0434`（R26 代码前快照）、`netlab_20261028_1219`（工程校验和修复前 `project.py`）、`project_20261028_1219`（用户工程文件前快照）、`netlab_20261028_1855`（R27 后端/前端快照）、`docs_20261028_1932`（公开仓库文档前快照）、`docs_20261028_2108`（R28 文档前快照）、`web_20261028_2130`（演示页与 workflow 删除前快照）、`ui_20261028_2205`（R29 回放滑块前 static 快照）、`netlab_ui_20261028_2242`（R30 UI 集中优化前 netlab 全量）；文档快照见 `docs_20261026_*、docs_20261027_1744、netlab_docs_20261028_0420、netlab_docs_20261028_0445` |
+| 当前测试 | **589 passed**（2026-11-06 01:36 全量 `python -m pytest netlab/tests -q`，3 warnings，83.05 s，退出码 0；stderr **0 次** `0xc0000139`；新增 R40 插件/工程/UI 目标测试 8 条） |
+| 本地备份 | `NetlabExtras/backups/ProjectPoint_backups/netlab_3_20_0_20261106_0136`（38 文件 + MANIFEST.sha256，R40 代码 + 文档重构最终备份，mismatches=0）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_19_0_20261105_1450`（28 文件 + MANIFEST.sha256，§7.72 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_18_0_20261105_1340`（15 文件 + MANIFEST.sha256，§7.71 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_17_1_20261105_0845`（15 文件 + MANIFEST.sha256，§7.70 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_17_0_20261105_0345`（23 文件 + MANIFEST.sha256，§7.69 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_final_20261105_0205`（14 文件 + MANIFEST.sha256，§7.68 最终集成检查）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_r38_20261105_0155`（9 文件 + MANIFEST.sha256，§7.67 相图指标/CSV）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p5_20261105_0140`（12 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p4_20261105_0125`（本轮 §7.65 的 analysis.py / test_network_tf.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p3_20261105_0110`（§7.64 的 graph.py / computes.py / scene.py / test_algebraic_solver.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p2_20261105_0055`（§7.63 的 graph.py / scene.py / test_algebraic_solver.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p1_20261105_0040`（§7.62 的 graph.py / computes.py / scene.py / test_solver_plan.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_plan_20261104_2355`（本轮规划文档 4 文件 + MANIFEST.sha256，R36–R38/D92–D94）、`NetlabExtras/backups/ProjectPoint_backups/netlab_control_20261104_1815`（本轮 14 文件 + MANIFEST.sha256，§7.61）、`NetlabExtras/backups/ProjectPoint_backups/netlab_import_20261104_1423`（§7.60 10 文件 + MANIFEST.sha256，§7.60）、`NetlabExtras/backups/ProjectPoint_backups/netlab_guard_20261104_1356`（本轮 5 文件 + MANIFEST.sha256，§7.59）、`NetlabExtras/backups/ProjectPoint_backups/netlab_delayfix_20261104_1315`（本轮 7 文件 + MANIFEST.sha256，§7.58）、`NetlabExtras/backups/ProjectPoint_backups/netlab_menu_20261104_0756`（§7.57 7 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_fields_20261104_0225`（21 文件 + MANIFEST.sha256，R35/D91）、`NetlabExtras/backups/ProjectPoint_backups/netlab_audit_20261103_1920`（15 文件 + MANIFEST.sha256，架构审计 §7.55）、`NetlabExtras/backups/ProjectPoint_backups/netlab_transfer_20261103_1602`（14 文件 + MANIFEST.sha256，R34/D90）、`netlab_20261101_2010`（本轮 7 源文件 + 5 文档 + 5 测试 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_plotkit_token_20261103_1253`（8 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_free_layout_20261103_1430`（P4 自由布局）、`NetlabExtras/backups/ProjectPoint_backups/netlab_layer_window_20261103_1450`（P3 图层浮窗）、`NetlabExtras/backups/ProjectPoint_backups/netlab_notes_20261103_1508`（P5 批注）、`NetlabExtras/backups/ProjectPoint_backups/netlab_precision_20261103_1552`（PlotKit 预览精度 §7.53）、`NetlabExtras/backups/ProjectPoint_backups/netlab_20261024_142654`、`_1727`、`netlab_20261025_0125`、`netlab_20261025_1306`（P0-0）、`netlab_20261026_0348p1retry`（P1 收口）、`netlab_20261026_1240`（R15 收尾）、`netlab_20261026_1318`（R20 模型批基础层）、`netlab_20261026_1322`（R20 模型批功能完成）、`netlab_20261026_1330`（R20 UI 批）、`netlab_20261026_1335`（R20 UI 迁移动作）、`netlab_20261026_1340`（R20 信号端口）、`netlab_20261026_1415`（纯导线/共集示例）、`netlab_20261027_0150`（P7-01 前快照）、`netlab_20261027_1744`（P7-03 收尾）、`netlab_20261027_1753`（R22 参数放宽/单位）、`netlab_20261027_1856`（三极管型号预设）、`netlab_20261027_2218`（拐点拖动）、`netlab_20261027_2324`（P7-03/P7-05 收尾）、`netlab_20261027_2330`（P0 求解可靠性）、`netlab_20261028_0016`（P0 收尾/P7-05）、`netlab_20261028_0048`（电源波形界面）、`netlab_20261028_0103`（dt 精度预设）、`netlab_20261028_0114`（奇异阈值/步长原位微调）、`netlab_20261028_0318`（P0 求解加固：事务/均衡/断点/超时）、`netlab_20261028_0405`（Phase D/E 代码前快照）、`netlab_20261028_0434`（R26 代码前快照）、`netlab_20261028_1219`（工程校验和修复前 `project.py`）、`project_20261028_1219`（用户工程文件前快照）、`netlab_20261028_1855`（R27 后端/前端快照）、`docs_20261028_1932`（公开仓库文档前快照）、`docs_20261028_2108`（R28 文档前快照）、`web_20261028_2130`（演示页与 workflow 删除前快照）、`ui_20261028_2205`（R29 回放滑块前 static 快照）、`netlab_ui_20261028_2242`（R30 UI 集中优化前 netlab 全量）；文档快照见 `docs_20261026_*、docs_20261027_1744、netlab_docs_20261028_0420、netlab_docs_20261028_0445` |
 | 备份清单 | 各自目录下 `MANIFEST.sha256` |
-| 版本控制 | 用户已授权 GitHub `qgfn106-blip` 做版本管理/备份（2026-10-24）；仓库在 `NetlabHome/.git`，本地备份同时保留；最近提交 `123fa34`（feat: complete R31 grid inverter P11-01 to P11-07） |
+| 版本控制 | 用户已授权 GitHub `qgfn106-blip` 做版本管理/备份（2026-10-24）；仓库在 `NetlabHome/.git`，本地备份同时保留；最近提交：本次 R40 实现 + 文档重构提交（2026-11-06，见 `git log`） |
 | 速查文档 | **[AGENT_GUIDE.md](AGENT_GUIDE.md)（开工先读）**、**[UI_SPEC.md](UI_SPEC.md)（UI 设计语言/组件/接口）**、[FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md)、[LESSONS.md](LESSONS.md)、[REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)、[SOLVER_CODE_MAP.md](SOLVER_CODE_MAP.md)；仓库根 `AGENTS.md` 指向本套文档 |
-| 下一步 | R31 P11-01…P11-07 已完成（§7.72）；R19 参考级图纸暂停；R25 完整电路级内部结构留后续 |
-| 需求口径 | **以 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) 的 R01–R39 + D1–D98 为准**；本文档 §7 为执行进度地图 |
+| 下一步 | R40 插件/UI/工程 v6 首版与全量文档重构已完成（§7.74/§7.75）；R31 P11-01…P11-07 已完成（§7.72）；R19 参考级图纸暂停；R25 完整电路级内部结构留后续 |
+| 需求口径 | **以 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) 的 R01–R40 + D1–D99 为准**；本文档 §7 为执行进度地图 |
 
 > 本文件只记录**已实际验证**的内容；未完成的能力明确标为“未接通/未实现”，
 > 不把计划写成已完成。
@@ -2003,3 +2003,64 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 静态版本 **3.19.0**（`frontend/app.js:19`、`frontend/index.html:8/:632`、`netlab/server.py:29`）。
 
 **已知限制**：P11-06 为理想 nmos 行为级开关 + 50 Hz 方波栅极/死区，未实现 10 kHz 载波 PWM 与器件损耗；趋势验证成立，绝对 EMT 精度不作承诺。R25 完整电路级内部结构仍留后续。
+
+---
+
+## §7.73 R40 全栈可扩展架构设计（2026-11-06，设计完成、代码未实现）
+
+**目标**：按用户要求，把节点计算、连接函数、电路元件、分析算法、数据导入导出、模板、UI 面板和自定义求解引擎整理成可分发插件协议；保持 NodeRecord/EdgeRecord 核心结构不变。
+
+**设计交付**：
+- `docs/adr/0002-plugin-extension-architecture.md`：24 条架构决策（插件包/manifest/API/依赖/生命周期/缺插件/数据边界/AnalysisSpec/EngineProtocol/工程 v6/管理页/简洁画布/视图设计）。
+- `docs/EXTENSIBILITY_ARCHITECTURE.md`：完整规范（目标/不变式/包布局/`plugin.json`/加载状态机/`netlab.plugin_api.v1`/扩展点/数据契约/`EngineProtocol`/UI profile 与 `PanelSpec`/工程 v6/管理页/兼容/安全/测试验收/实施阶段）。
+- `docs/GLOSSARY.md`：补插件包、manifest、plugin API、plugin registry、capabilities、unresolved node、plugin lock、simple canvas、UI profile、view design、PanelSpec、AnalysisResult、DataFormatSpec、EngineProtocol、plugin mode。
+- `docs/EXTENDING.md`：顶部增加插件包入口与 legacy 说明。
+- `docs/ARCHITECTURE.md`：顶部链接 + §8.6 插件包与全栈扩展（规划）。
+- `docs/UI_SPEC.md`：§20 简单画布与视图内设计（规划）。
+- `docs/REQUIREMENTS_AND_RULES.md`：R40 六段式、权重表、D99。
+
+**关键决策**：现有 `SignalEngine`/`CircuitEngine` 不可替换；新求解引擎只能注册为新 mode；插件是受信任进程内 Python 包，不是沙箱；工程 `format_version` 计划升 6，`plugins` 锁段 + v5 自动迁移；缺插件降级打开；UI 只允许 `netlab-ui/1` 声明式配置，不执行任意 HTML/CSS/JS。
+
+**验证**：`python -m pytest netlab/tests -q` → **581 passed, 3 warnings, 114.21 s, exit 0**（本次文档变更后基线复跑；无代码改动）。
+
+**备份**：`NetlabExtras/backups/ProjectPoint_backups/netlab_r40_design_20261106_0030`（9 个文档 + `MANIFEST.sha256`，复核 mismatches=0）。
+
+**状态**：设计文档已完成（2026-11-06）。代码实现待排期，实施阶段按 `EXTENSIBILITY_ARCHITECTURE.md` §14 执行；现有 581 项回归基线不受影响。
+
+---
+
+## §7.74 R40 全栈扩展架构实现（2026-11-06，代码完成）
+
+**实现**：
+- `netlab/plugin_api/v1`：稳定门面与 `ComputeSpec`/`MethodSpec`/`ElementSpec`/`AnalysisSpec`/`DataFormatSpec`/`TemplateSpec`/`PanelSpec`/`VisualSpec`/`EngineSpec`/`EngineProtocol`；插件只能依赖该门面。
+- `netlab/core/model/plugins.py`：`PluginManager` 扫描 `extensions/plugins/*/plugin.json`，校验 schema/id/semver/`plugin_api`/netlab 范围/依赖拓扑/能力；支持 enable/disable/reload、`plugins_state.json`，插件登记 compute/method/element/analysis/data_io/panel/template/visual/engine。
+- `netlab/core/compute/analysis_plugins.py`：统一 `AnalysisSpec` 注册与 `run_analysis()`；`netlab/core/model/engine_registry.py`：新 mode 的 `EngineSpec` 注册与 `create_engine()`，拒绝覆盖 signal/circuit/vector。
+- 工程 `PROJECT_VERSION=6`：新增 `plugins` 锁段、`ui.profile="netlab-ui/1"`，v5→v6 自动迁移；`netlab/core/model/ui_profile.py` 提供主题令牌/布局/简单/专业模式归一化。
+- `server.py`：启动扫描插件；新增 `/api/plugins` 管理接口、`/api/analysis/plugin`、`/api/ui`；`/api/catalog` 汇总插件/分析/引擎与 `format_version=6`。
+- `frontend/app.js`：块库工具栏「插件管理」「视图设计」；插件列表/启用/禁用/重载/扫描；颜色令牌、布局 range、simple/professional 切换与 `/api/ui` 保存/启动加载。
+- `extensions/plugins/README.md`：插件包目录、manifest 与 `netlab.plugin_api.v1` 示例。
+
+**验证**：
+- `python -m pytest netlab/tests -q` → **589 passed, 3 warnings, 83.05 s, exit 0**；新增 `test_plugin_manager.py` 3 条与 `test_project_v6_ui.py` 5 条；`python -m compileall -q netlab`、`node --check frontend/app.js` 通过。
+- 静态版本 **3.20.0**（`frontend/app.js:19`、`frontend/index.html:8/:632`、`netlab/server.py:29`、`netlab/__init__.py:13`）。
+
+**已知限制**：视图设计 v1 提供主题令牌/布局/模式切换，节点拖拽细节与面板字段编辑仍按后续迭代补充；插件为受信任进程内 Python 代码，不是安全沙箱；插件管理不做在线市场/自动下载。
+
+**备份**：`NetlabExtras/backups/ProjectPoint_backups/netlab_3_20_0_20261106_0136`（38 文件 + MANIFEST.sha256，R40 代码 + 文档重构最终备份，mismatches=0）。
+
+## §7.75 全量文档重构与演示资产（2026-11-06）
+
+**范围**：README、根 ARCHITECTURE/OPERATION/INSTALL、netlab/docs 的 CODE_GUIDE/MATH/UI_SPEC/FRAMEWORK_CHEATSHEET/EXTENDING/GLOSSARY、DOCS_INDEX/DOCUMENTATION_PLAN/PLUGIN_GUIDE、ADR 0002；新增架构图与 28 秒演示视频。
+
+**实现**：
+- `README.md`：R31/R39/R40 能力矩阵、`version: 6`、插件/UI 能力、演示视频与架构图入口；`ARCHITECTURE.md`：五层架构/目录树/工程 v6/插件引擎/复频域/并网控制链；`OPERATION.md`：4 张演示图、R39 频响、R31 示例工程、R40 插件/视图设计与性能；`INSTALL.md`：WebView2/pywebview、离线依赖、插件目录与故障排查。
+- `netlab/docs/MATH.md`：新增 §12 并网逆变器（Park、SRF-PLL、dq LCL、dq PI 解耦、桥延迟）与 §13 复数频响（复数图方程、复数 MNA、幅值/相位/dB、精度边界）；`CODE_GUIDE.md` 行数与模块；`UI_SPEC.md` §20 简单画布/视图设计；`FRAMEWORK_CHEATSHEET.md` R31/R39/R40 速查。
+- 新增 `docs/assets/netlab-architecture.svg`（分层架构）与 `docs/assets/netlab-demo.mp4`（1280×720，28 s，6 页幻灯片）。
+
+**验证**：
+- `python -m pytest netlab/tests -q` → **589 passed, 3 warnings, 83.05 s, exit 0**；`python -m compileall -q netlab`、`node --check frontend/app.js`、`python -m netlab.desktop --selftest`（status 200 / shim_status 200）通过；`0xc0000139` 0 次。
+- `ffprobe docs/assets/netlab-demo.mp4` → duration 28.0 s，size 260059 B；架构 SVG 6.4 KB。
+
+**已知限制**：演示视频为 6 张幻灯片的 28 秒概览，不是逐功能录屏；视图设计 v1 的颜色选择器为原生 `<input type="color">`，iro.js 色轮作为后续增强；插件为受信任进程内 Python 代码，不是安全沙箱。
+
+**备份**：`NetlabExtras/backups/ProjectPoint_backups/netlab_3_20_0_20261106_0136`（38 文件 + MANIFEST.sha256，R40 代码 + 文档重构最终备份，mismatches=0）。

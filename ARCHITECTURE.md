@@ -6,7 +6,7 @@
 
 Netlab 是**单进程**应用：一个 Python 后端（FastAPI 服务 + 常驻仿真线程 + 场景状态）负责计算，一个纯静态前端负责显示。浏览器/桌面壳只是这个进程的显示层，不参与计算。
 
-> 结构图：[docs/assets/netlab-structure.svg](docs/assets/netlab-structure.svg)
+> 结构图：[docs/assets/netlab-architecture.svg](docs/assets/netlab-architecture.svg)（2026-11-06 分层版）
 
 ## 1. 目录即分层
 
@@ -19,15 +19,16 @@ NetlabHome/
 │   └─ desktop-shim.js        桌面壳注入（无边框窗口按钮等）
 │
 └─ netlab/                    ← 后端（Python 包）
-    ├─ server.py              HTTP 接口层（/api/*，约 90 个端点，薄封装）
+    ├─ server.py              HTTP 接口层（/api/*，薄封装）
     ├─ run.py                 命令行启动（uvicorn + 可选打开浏览器）
     ├─ plotkit_bridge.py      把 PlotKit 以子应用挂到 /plotkit（单向依赖）
+    ├─ plugin_api/v1/         插件稳定门面（只导出稳定协议，不导出内核私有模块）
     ├─ desktop/               桌面壳（pywebview + WebView2；无边框窗口）
     ├─ core/                  ← 内核层（不含任何 HTTP / UI 代码）
-    │   ├─ compute/           计算：求解器、元件模型、有限元、数字逻辑
-    │   ├─ model/             连接与网络：场景、图、工程、块、扩展、工作区
+    │   ├─ compute/           计算：求解器、元件模型、复频域、有限元、数字逻辑
+    │   ├─ model/             连接与网络：场景、图、工程、块、插件、UI profile、工作区
     │   └─ common/            公共：错误与限额（limits）
-    ├─ tests/                 pytest（HTTP + 纯函数 + 像素）
+    ├─ tests/                 pytest（HTTP + 纯函数 + 工程回归 + 像素）
     └─ docs/                  规格、进度、经验、数学与代码导读
 ```
 
@@ -84,12 +85,12 @@ NetlabHome/
 
 ```json
 {
-  "format": "netlab-project", "version": 5,
+  "format": "netlab-project", "version": 6,
   "networks": [ { "id", "name", "mode": "signal|vector|circuit",
                   "nodes": [ { "id", "name", "kind", "position", "params", "data" } ],
                   "edges": [ { "id", "name", "source", "target", "kind", "params" } ] } ],
   "current": "网络 1",
-  "fem": {}, "ui": {}, "blocks": [], "extensions": {},
+  "fem": {}, "ui": { "profile": "netlab-ui/1" }, "plugins": [], "blocks": [], "extensions": {},
   "metadata": { "name", "saved_at" },
   "checksum": "<sha256>"
 }
@@ -137,13 +138,26 @@ NetlabHome/
 
 单位方板二维 Q4 瞬态热传导，独立线程、独立录制，与拓扑网络互不影响；`/api/fem/state`、`/api/fem/live` 提供色图与探针。
 
+### 4.4 并网逆变器控制链（`core/compute/computes.py`，R31）
+
+`MyProject/` 提供 P11-01…P11-07 示例：平均模型 `grid_inverter_avg.netlab`（三相电网 + `abc_dq` + 6 状态 LCL `state_space`）、`pll_template.netlab`（SRF-PLL）、`grid_inverter_current.netlab`（dq RL + 双 PI + 前馈解耦）、`grid_inverter_switch.netlab`（六开关三相桥趋势验证）。`sensor`/`actuator` 是跨域桥：`CircuitEngine` 在 MNA 解后采样节点电压，下一拍把执行器值写回受控源，显式一拍延迟。
+
+### 4.5 复数分析层（`core/compute/complex_support.py` + `analysis.frequency_response`，R39）
+
+时域、瞬态、recorder、PlotKit 始终是 `float64`。只在分析边界使用 `complex128`：`as_complex`/`as_complex_array` 转换，`as_real` 在返回前校验虚部。`frequency_response(scene, input, output)` 对 signal 场景建立 `(I-W(jω))y=b` 复数节点方程，延迟边乘精确 `e^{-jωT}`；对 circuit 场景复用 `nodal.ac_sweep` 的复数 MNA。结果包含 `real/imag/magnitude/phase_deg/db` 与 `backend=complex_graph|complex_mna`。
+
+### 4.6 插件引擎模式（`core/model/engine_registry.py`，R40）
+
+现有 `signal`/`circuit`/`vector` 语义不可替换。插件通过 `EngineSpec(mode, factory, node_kinds, edge_kinds)` 注册**新 mode**；`Scene.ensure_engine()` 对非内置 mode 调 `create_engine(mode, scene)`。引擎必须实现 `EngineProtocol.build/step/reset/probes/stats`，节点/边仍是统一 `NodeRecord`/`EdgeRecord`，插件私有状态只放 `params`/`data`/`state` 或 `ext` 子树。
+
 ## 5. 参数、元件与扩展
 
 - `core/compute/params.py:ParamSpec` 描述参数键/类型/默认值/单位/范围；`Scene` 增删改时统一 `validate_params`。
 - `core/compute/nodal.py:ELEMENT_SPECS` 是元件目录（名称、参数、公式文本、引脚、分组）；`transistors.py`/`logic.py`/`timers.py`/`digital.py`/`magnetics.py` 的规格在导入时合并。
 - 目录里的 `formula` 是给人看的，必须与实现一致。
-- `core/model/extensions.py`：从 `extensions/nodes/*.py`、`extensions/methods/*.py` 动态加载自定义节点/连接，白名单校验后注册。
-- `core/model/blocks.py`：把一组节点封装成可复用块（`encapsulate_nodes`），块实例运行时是嵌套 `Scene`，暴露输入/输出端口。
+- `core/model/extensions.py`：从 `extensions/nodes/*.py`、`extensions/methods/*.py` 动态加载自定义节点/连接，白名单校验后注册；这是 legacy 兼容层。
+- `core/model/plugins.py`：扫描 `extensions/plugins/<id>/plugin.json`，校验 `netlab-plugin/1` manifest 与 `netlab.plugin_api.v1` 版本范围，按依赖拓扑动态导入；插件可注册 compute/method/element/analysis/data_format/panel/visual/template/engine 九类能力。插件不是沙箱，必须显式启用/信任。
+- `core/model/blocks.py`：把一组节点封装成可复用块（`encapsulate_nodes`），块实例运行时是嵌套 `Scene`，暴露输入/输出端口；R25 的 9 个内置 structural 块走虚拟注册表，库缺失仍可打开。
 
 ## 6. 线程与数据流
 
@@ -182,6 +196,9 @@ FastAPI 的逐字段编码；前端 `drawChart` 二分定位时间窗并按像�
 graph LR
   FE[frontend/ 静态资源] -->|HTTP| API[server.py 接口层]
   API --> CORE[core/* 内核]
+  API --> PLUGINS[plugin_api/v1 + core/model/plugins.py]
+  PLUGINS --> CORE
+  PLUGINPKG[extensions/plugins/* 插件包] -->|只 import| PLUGINS
   SHELL[desktop/ 桌面壳] --> API
   BRIDGE[plotkit_bridge] -->|单向| PK[PlotKit 包]
   CORE --> COMMON[core/common]
@@ -189,7 +206,7 @@ graph LR
   CORE --> MODEL[core/model]
 ```
 
-- **禁止**：`core/**` 不得 import `server`、`desktop`、`frontend`；`PlotKit` 不得 import `netlab`。
+- **禁止**：`core/**` 不得 import `server`、`desktop`、`frontend`；`PlotKit` 不得 import `netlab`；插件包不得 import `netlab.core.*` 的私有模块，只能 import `netlab.plugin_api.v1`。
 - 内核内部 `compute` 与 `model` 目前**允许双向**（例如 `blocks`(model) 用 `computes`(compute)，`computes`(compute) 用 `graph`(model)），这是历史事实；新增代码优先让 `model` 依赖 `compute`。
 - 模块引用一律用**规范路径** `netlab.core.<分桶>.<模块>`；旧写法（`from netlab.scene import ...`、`from .graph import ...`）已于 D85 全量改写，包根不再保留转发 shim。新增模块请直接放进对应分桶，不要往 `netlab/` 包根堆文件。
 
@@ -206,6 +223,9 @@ graph LR
 | 改画布交互 | `frontend/app.js` + `frontend/style.css` |
 | 改窗口外观 | `netlab/desktop/webview_app.py` + `frontend/desktop-shim.js` |
 | 改绘图接入 | `netlab/plotkit_bridge.py` + `frontend/app.js` 的 placePlotkit |
+| 新增插件能力 | `plugin_api/v1/__init__.py` + `core/model/plugins.py` + `PLUGIN_GUIDE.md` |
+| 新增自定义引擎 | `core/model/engine_registry.py` + 实现 `EngineProtocol` 的插件包 |
+| 改 UI 主题/布局 | `core/model/ui_profile.py` + `frontend/style.css` + `frontend/app.js` 的 applyUiTokens |
 
 ## 10. 不变式（改动时别破坏）
 
@@ -215,6 +235,8 @@ graph LR
 4. **公式即文档**：`ELEMENT_SPECS.formula` 必须描述实际算法。
 5. **分层单向**：内核不依赖接口层与前端；PlotKit 单向。
 6. **本机优先**：默认只监听 `127.0.0.1`，无外链资源与遥测。
+7. **插件数据严格 JSON**：插件输入/输出只能 JSON 原生类型；NumPy 数组转列表，复数统一 `{re,im}` 或 magnitude/phase。
+8. **Node/Edge 结构稳定**：插件私有字段只进 `params`/`data`/`state` 或 `ext` 子树，不新增/重命名核心记录字段。
 
 ---
 

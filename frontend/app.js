@@ -16,7 +16,7 @@
 
   // 界面版本号：必须与 index.html 的 ?v= 和 netlab/server.py 的 APP_BUILD 一致。
   // 用来识别「前端文件已更新、后端进程还是旧的」这种只关窗口不重启的情况。
-  const UI_BUILD = '3.19.0';
+  const UI_BUILD = '3.20.0';
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -11874,6 +11874,177 @@
     if (state.analysisTF) drawAnalysisTF();
   }
 
+  function applyUiTokens(tokens, mode) {
+    const root = document.documentElement;
+    const tokenVars = {
+      background: '--paper',
+      surface: '--paper-2',
+      panel: '--paper-3',
+      text: '--ink',
+      muted: '--muted',
+      accent: '--accent',
+      grid: '--line',
+      edge: '--line-strong',
+      node: '--ink-2',
+      danger: '--red',
+      success: '--green',
+    };
+    for (const [key, value] of Object.entries(tokens || {})) {
+      root.style.setProperty(`--nl-${key}`, value);
+      const target = tokenVars[key];
+      if (target) root.style.setProperty(target, value);
+    }
+    if (tokens?.accent) root.style.setProperty('--accent-strong', tokens.accent);
+    if (mode) {
+      document.body.dataset.canvasMode = mode;
+      document.body.classList.toggle('simple-canvas', mode === 'simple');
+    }
+  }
+
+  async function loadUiProfile() {
+    try {
+      const response = await jsonRequest('/api/ui', 'GET');
+      if (response?.current) applyUiTokens(response.current.tokens, response.current.mode);
+    } catch {
+      // 旧工程/离线模式没有 UI 配置时保持默认主题
+    }
+  }
+
+  async function openViewDesigner() {
+    try {
+      const response = await jsonRequest('/api/ui', 'GET');
+      if (!response) return;
+      let current = response.current || response.defaults;
+      const tokenLabels = {
+        background: '背景', surface: '表面', panel: '面板', text: '文字', muted: '次要文字',
+        accent: '强调色', grid: '网格', edge: '连线', node: '节点', danger: '警示', success: '成功',
+      };
+      const tokenInputs = {};
+      const tokenGrid = div('ui-token-grid');
+      for (const [key, value] of Object.entries(current.tokens || {})) {
+        const label = div('ui-field');
+        label.appendChild(el('span', null, tokenLabels[key] || key));
+        const input = el('input', 'ui-color');
+        input.type = 'color';
+        input.value = value;
+        input.dataset.token = key;
+        input.addEventListener('input', () => {
+          current.tokens[key] = input.value;
+          applyUiTokens(current.tokens);
+        });
+        tokenInputs[key] = input;
+        label.appendChild(input);
+        tokenGrid.appendChild(label);
+      }
+      const modeRow = div('ui-field wide');
+      modeRow.appendChild(el('span', null, '画布模式'));
+      const modeSelect = el('select');
+      for (const [value, label] of [['simple', '简洁画布'], ['professional', '专业画布']]) {
+        const option = el('option', null, label);
+        option.value = value;
+        modeSelect.appendChild(option);
+      }
+      modeSelect.value = current.mode || 'professional';
+      modeSelect.addEventListener('change', () => { current.mode = modeSelect.value; });
+      modeRow.appendChild(modeSelect);
+      const layoutRows = div('ui-layout-rows');
+      for (const [key, value] of Object.entries(current.layout || {})) {
+        const label = div('ui-field wide');
+        label.appendChild(el('span', null, key));
+        const input = el('input');
+        input.type = 'range';
+        input.min = key === 'font_scale' ? '0.6' : '4';
+        input.max = key === 'font_scale' ? '2.0' : '600';
+        input.step = key === 'font_scale' ? '0.05' : '1';
+        input.value = String(value);
+        input.addEventListener('input', () => {
+          current.layout[key] = Number(input.value);
+        });
+        label.appendChild(input);
+        layoutRows.appendChild(label);
+      }
+      ui.modalCard.replaceChildren();
+      ui.modalCard.append(
+        el('h3', null, '视图设计'),
+        div('help', '只调整声明式 UI 令牌与布局，不执行任意 HTML/CSS/JS。颜色选择器可直接取色，修改会立即预览。'),
+        modeRow,
+        tokenGrid,
+        el('h4', null, '布局'),
+        layoutRows,
+      );
+      const actions = div('modal-actions');
+      actions.appendChild(button('应用并保存', 'btn primary', async () => {
+        const saved = await jsonRequest('/api/ui', 'POST', current);
+        if (saved?.current) applyUiTokens(saved.current.tokens, saved.current.mode);
+        toast('视图设计已保存', 'success');
+        ui.modal.classList.add('hidden');
+        ui.modalCard.replaceChildren();
+      }));
+      actions.appendChild(button('关闭', 'btn', () => {
+        ui.modal.classList.add('hidden');
+        ui.modalCard.replaceChildren();
+      }));
+      ui.modalCard.appendChild(actions);
+      ui.modal.classList.remove('hidden');
+    } catch (error) {
+      toast(`视图设计打开失败：${error.message || error}`, 'error', 6000);
+    }
+  }
+
+  async function openPluginManager() {
+    const render = async () => {
+      const response = await jsonRequest('/api/plugins', 'GET');
+      if (!response) return;
+      const plugins = response.plugins || [];
+      const list = div('plugin-list');
+      if (!plugins.length) list.appendChild(div('help', '尚未发现插件。把插件包放到 NetlabHome/extensions/plugins/<id>/ 后点「扫描」。'));
+      for (const plugin of plugins) {
+        const row = div('plugin-row');
+        const head = div('plugin-head');
+        head.appendChild(el('b', null, `${plugin.name || plugin.id}  `));
+        head.appendChild(el('span', 'plugin-version', `v${plugin.version || '?'}`));
+        head.appendChild(el('span', `plugin-status ${plugin.status || ''}`, plugin.status || 'unknown'));
+        row.appendChild(head);
+        row.appendChild(div('help', `${plugin.id} · API ${plugin.plugin_api} · ${plugin.description || '无描述'}`));
+        row.appendChild(div('help', `能力：${(plugin.capabilities || []).join(', ') || '—'}`));
+        if (plugin.error) row.appendChild(div('plugin-error', plugin.error));
+        const actions = div('modal-actions');
+        actions.appendChild(button(plugin.status === 'loaded' ? '禁用' : '启用', 'btn tiny', async () => {
+          await jsonRequest(`/api/plugins/${encodeURIComponent(plugin.id)}/enable`, 'POST', { enabled: plugin.status !== 'loaded' });
+          await render();
+        }));
+        actions.appendChild(button('重新加载', 'btn tiny', async () => {
+          await jsonRequest(`/api/plugins/${encodeURIComponent(plugin.id)}/reload`, 'POST', {});
+          await render();
+        }));
+        row.appendChild(actions);
+        list.appendChild(row);
+      }
+      ui.modalCard.replaceChildren();
+      ui.modalCard.append(
+        el('h3', null, '插件管理'),
+        div('help', '插件是受信任的进程内 Python 包，不是沙箱。工程只引用插件 id/version；缺包时工程会降级打开。'),
+        list,
+      );
+      const footer = div('modal-actions');
+      footer.appendChild(button('扫描插件目录', 'btn', async () => {
+        await jsonRequest('/api/plugins/scan', 'POST', {});
+        await render();
+      }));
+      footer.appendChild(button('关闭', 'btn', () => {
+        ui.modal.classList.add('hidden');
+        ui.modalCard.replaceChildren();
+      }));
+      ui.modalCard.appendChild(footer);
+      ui.modal.classList.remove('hidden');
+    };
+    try {
+      await render();
+    } catch (error) {
+      toast(`插件管理打开失败：${error.message || error}`, 'error', 6000);
+    }
+  }
+
   async function compareBuiltinBlock(spec) {
     try {
       const result = await jsonRequest(
@@ -11949,6 +12120,8 @@
       button('导入 .block', 'btn tiny', () => void importBlockFile()),
       button('封装选中', 'btn tiny primary', () => void encapsulateSelection()),
       button('另存为副本', 'btn tiny', () => void saveCurrentAsBlockCopy()),
+      button('插件管理', 'btn tiny', () => void openPluginManager()),
+      button('视图设计', 'btn tiny', () => void openViewDesigner()),
     );
     const closeBtn = button('关闭内部网络', 'btn tiny', () => void closeInternalNetwork());
     closeBtn.disabled = !String(state.currentNetwork?.name || '').startsWith('模块 ');
@@ -14401,6 +14574,7 @@
     if ($('.panel-group.active')?.dataset.group === 'fn') renderSpecPane();
   }
 
+  loadUiProfile();
   boot();
   setTimeout(checkCacheQuietly, 6000);
 })();

@@ -26,7 +26,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .core.compute.fem import FemSimulation
 
 #: 服务端代码版本（与 frontend/index.html 的 ?v= 对齐）；用于检测「前端已更新、后端进程仍是旧的」
-APP_BUILD = "3.19.0"
+APP_BUILD = "3.20.0"
 from .core.common.limits import ConflictError, NetlabError, NotFoundError, ValidationError
 from .core.model.networks import NetworkContainer
 from .core.model.project import (
@@ -62,7 +62,11 @@ from .core.model.templates import TEMPLATES, build_template, template_catalog
 from . import vscode_bridge
 from .core.compute import accel, analysis, profiling
 from .core.model import block_validate, blocklib, extensions, schematic
+from .core.model.plugins import get_plugin_manager
+from .core.model.engine_registry import plugin_modes
+from .core.model.ui_profile import default_ui, normalize_ui, ui_catalog
 from .core.model.blocks import build_block_from_scene, encapsulate_nodes, instantiate_block
+from .core.compute.analysis_plugins import analysis_catalog, run_analysis as run_plugin_analysis
 
 def _resolve_frontend_dir() -> Path:
     """前端资源目录：环境变量 > NetlabHome/frontend > 包内 static（历史回退）。"""
@@ -86,6 +90,10 @@ FEM: FemSimulation = FemSimulation()
 async def lifespan(_app: FastAPI):
     SERVICE.ensure_thread()
     FEM.ensure_thread()
+    try:
+        get_plugin_manager().scan(load=True)
+    except Exception:  # pragma: no cover - 插件错误不能阻止主程序启动
+        pass
     try:
         yield
     finally:
@@ -371,6 +379,7 @@ class ProjectExportRequest(BaseModel):
     ui: dict[str, Any] = Field(default_factory=dict)
     blocks: list[dict[str, Any]] = Field(default_factory=list)
     extensions: list[dict[str, Any]] = Field(default_factory=list)
+    plugins: list[dict[str, Any]] = Field(default_factory=list)
     created: str | None = None
 
 
@@ -430,13 +439,107 @@ def index() -> Response:
 
 @app.get("/api/catalog")
 def catalog() -> dict[str, Any]:
+    manager = get_plugin_manager()
     return {
         "catalog": SERVICE.scene.catalog(),
         "templates": template_catalog(),
         "default_template": "signal_chain",
         "accel": accel.status(),
-        "project": {"format_version": 1, "suffix": ".netlab"},
+        "project": {"format_version": 6, "suffix": ".netlab"},
+        "plugins": manager.summaries(),
+        "plugin_catalog": manager.capability_catalog(),
+        "analysis": analysis_catalog(),
+        "engines": [{"mode": mode, "label": mode} for mode in plugin_modes()],
     }
+
+
+@app.get("/api/plugins")
+def plugins_list() -> dict[str, Any]:
+    return {"plugins": get_plugin_manager().summaries()}
+
+
+@app.post("/api/plugins/scan")
+def plugins_scan() -> dict[str, Any]:
+    return {"plugins": get_plugin_manager().scan(load=True)}
+
+
+@app.get("/api/plugins/{plugin_id}")
+def plugins_detail(plugin_id: str) -> dict[str, Any]:
+    try:
+        return get_plugin_manager().detail(plugin_id)
+    except KeyError as exc:
+        raise NotFoundError(f"插件不存在：{plugin_id}") from exc
+
+
+class PluginToggleRequest(BaseModel):
+    enabled: bool
+
+
+@app.post("/api/plugins/{plugin_id}/enable")
+def plugins_enable(plugin_id: str, request: PluginToggleRequest) -> dict[str, Any]:
+    try:
+        return get_plugin_manager().set_enabled(plugin_id, request.enabled)
+    except KeyError as exc:
+        raise NotFoundError(f"插件不存在：{plugin_id}") from exc
+    except ValidationError:
+        raise
+    except Exception as exc:
+        raise ValidationError(str(exc)) from exc
+
+
+@app.post("/api/plugins/{plugin_id}/reload")
+def plugins_reload(plugin_id: str) -> dict[str, Any]:
+    try:
+        return get_plugin_manager().reload(plugin_id)
+    except KeyError as exc:
+        raise NotFoundError(f"插件不存在：{plugin_id}") from exc
+    except Exception as exc:
+        raise ValidationError(str(exc)) from exc
+
+
+class UIProfileRequest(BaseModel):
+    profile: str = "netlab-ui/1"
+    mode: str = "professional"
+    tokens: dict[str, str] = Field(default_factory=dict)
+    layout: dict[str, float] = Field(default_factory=dict)
+    node: dict[str, Any] = Field(default_factory=dict)
+    edge: dict[str, Any] = Field(default_factory=dict)
+
+
+@app.get("/api/ui")
+def ui_get() -> dict[str, Any]:
+    return {"current": normalize_ui(SERVICE.ui or default_ui()), **ui_catalog()}
+
+
+@app.post("/api/ui")
+def ui_set(request: UIProfileRequest) -> dict[str, Any]:
+    SERVICE.ui = normalize_ui(request.model_dump())
+    return {"ok": True, "current": SERVICE.ui}
+
+
+class PluginAnalysisRequest(BaseModel):
+    kind: str
+    params: dict[str, Any] = Field(default_factory=dict)
+    probes: list[str] = Field(default_factory=list)
+    input_node: str | None = None
+    output_node: str | None = None
+
+
+@app.post("/api/analysis/plugin")
+def analysis_plugin(request: PluginAnalysisRequest) -> dict[str, Any]:
+    try:
+        result = run_plugin_analysis(
+            request.kind,
+            scene=SERVICE.current.scene,
+            simulation=SERVICE.current.simulation,
+            params=request.params,
+            probes=request.probes,
+            input_node=request.input_node,
+            output_node=request.output_node,
+        )
+        return {"ok": True, "result": result}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
 
 
 @app.get("/api/state")
@@ -892,6 +995,7 @@ def _project_payload(request: ProjectExportRequest | None = None) -> dict[str, A
         fem=FEM,
         ui=request.ui,
         extensions=extension_items,
+        plugins=request.plugins,
         created=request.created,
         library=str(library),
     )

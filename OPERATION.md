@@ -30,6 +30,8 @@ python -m netlab.run
 - **左侧网络列表**：一个工程可含多个网络，选中即切换；`+` 新建、`✎` 改名、`🗑` 删除。
 - **底部状态栏**：显示坐标、缩放，以及网格/吸附/正交连线等开关。
 
+![信号流工作区：节点、连线与实时曲线](docs/assets/signal-flow.png)
+
 ## 2. 快捷键
 
 | 按键 | 作用 |
@@ -64,6 +66,8 @@ python -m netlab.run
 
 **模板**：右侧面板「模板」页里有现成的信号链、状态空间、非线性控制、电路示例，点一下即载入当前网络。
 
+![矢量模式：二维矢量场与相图](docs/assets/vector-phase.png)
+
 ## 4. 工作区二：电路
 
 1. 新建网络时选「电路」模式。
@@ -78,6 +82,8 @@ python -m netlab.run
 - 独立源参数里 `wave` 可选 `dc`/`sine`/`pulse` 等，DC 值由 `offset` 决定。
 - 电容/电感初始电压（电流）在参数里设置；不设置即从 0 开始。
 - 非线性电路偶尔不收敛时，先减小 `dt` 或换 `backward_euler` 积分方法（见「场景」页设置），再检查有无强反馈/悬空。
+
+![非线性电路与滑模控制示例](docs/assets/nonlinear-control.png)
 
 ## 5. 曲线、回放与预计算
 
@@ -96,8 +102,9 @@ python -m netlab.run
 
 - **DC 工作点**：各节点稳态电压与元件电流（电容视为开路、电感视为短路）。
 - **AC 扫频**：在指定工作点线性化，输出幅频/相频（Bode）数据。
+- **统一频响（R39）**：信号流与电路都可走 `POST /api/analysis/frequency`，返回 `real/imag/magnitude/phase_deg/db`；信号流用复数图 `(I-W(jω))y=b`，延迟边按精确 `e^{-jωT}`，电路复用复数 MNA。
 
-这两项也可通过 HTTP 接口调用（`GET /api/operating-point`、`GET /api/ac-sweep`），方便脚本化。
+这些接口也可通过 HTTP 调用（`GET /api/operating-point`、`GET /api/ac-sweep`、`POST /api/analysis/frequency`），方便脚本化。
 
 ## 7. 工程文件
 
@@ -106,10 +113,12 @@ python -m netlab.run
 - 打开/导入工程会先做结构与校验和检查；若文件被外部程序改动导致校验失败，会明确提示，可用备份或「另存为」重建。
 - 工程包含：多个网络、当前网络、UI 状态、FEM 参数、块定义、扩展启用状态。
 
-## 8. 扩展与块
+## 8. 扩展、插件与块
 
-- **扩展**：把 `.py` 放到 `extensions/nodes/`（节点）或 `extensions/methods/`（连接函数），在「扩展」页扫描并激活。扩展代码在本机执行，请只启用可信来源。
+- **插件（推荐）**：把插件包放到 `extensions/plugins/<plugin-id>/`（含 `plugin.json`），在块库工具栏点「插件管理」→「扫描」→「启用」。插件可注册节点计算、连接函数、电路元件、分析算法、数据格式、面板、视觉、模板和独立引擎模式；只允许从 `netlab.plugin_api.v1` 导入稳定接口。完整规范见 [PLUGIN_GUIDE.md](netlab/docs/PLUGIN_GUIDE.md)。
+- **旧扩展**：`.py` 放到 `extensions/nodes/`（节点）或 `extensions/methods/`（连接函数），在「扩展」页扫描并激活；这是 legacy 兼容层，新能力建议使用插件包。
 - **块**：选中一组节点 → 右键「封装为块」→ 成为一个可复用子图，出现在「模板/块」列表；块实例暴露输入/输出端口，双击可进入内部编辑。
+- **视图设计**：块库工具栏点「视图设计」，选择 simple / professional，调整颜色、网格、面板宽度、节点尺寸等；保存后写入工程 `ui` 段（`netlab-ui/1`）。
 
 ## 9. 有限元场
 
@@ -119,7 +128,22 @@ python -m netlab.run
 - 「运行」推进瞬态，画布显示温度色图，鼠标悬停读取节点温度；
 - 与拓扑网络互不影响，可同时运行。
 
-## 10. 性能提示
+![二维 Q4 有限元温度场](docs/assets/fem-field.png)
+
+## 10. 并网逆变器示例（R31）
+
+`MyProject/` 下有三个可载入的示例工程：
+
+| 工程 | 内容 | 用途 |
+| --- | --- | --- |
+| `grid_inverter_avg.netlab` | 三相电网 + `abc_dq` + 6 状态 LCL 平均模型 + 测量节点 | P11-01/02 平均模型地基 |
+| `pll_template.netlab` | 三相源 + SRF-PLL + 频率/相位测量 | P11-03 PLL |
+| `grid_inverter_current.netlab` | dq RL + 双 PI + 前馈解耦 | P11-04 电流环 |
+| `grid_inverter_switch.netlab` | 六开关三相桥 + LCL + 50 Hz 栅极趋势验证 | P11-06 开关级趋势（理想 nmos，非 10 kHz PWM/损耗模型） |
+
+打开工程后直接「预计算」即可复现；长预计算可点预计算窗口的「停止计算」中断（P11-07）。
+
+## 11. 性能提示
 
 | 想要 | 做法 |
 | --- | --- |

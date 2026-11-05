@@ -138,6 +138,10 @@ Simulation._loop (线程) → Scene.step(dt) → 引擎.step(dt)
 
 **R31 compute**：`abc_dq`（abc↔dq，幅值不变 Park）、`pll`（SRF-PLL，输出 `theta/frequency/d/q/locked`）、`pi`（抗饱和 PI）都在 `computes.py` 的 `COMPUTE_SPECS` 中，可直接用 `signal` 场景搭 L1 平均模型。
 
+**R39 复数层**：`complex_support.py` 只做边界转换；`analysis.frequency_response()` 是统一入口。signal 走 `(I-W(jω))y=b` + 精确 `e^{-jωT}`，circuit 转调 `nodal.ac_sweep` 复数 MNA；时域/工程 JSON 仍 `float64`。
+
+**R40 插件**：插件包放 `extensions/plugins/<id>/`，manifest `netlab-plugin/1`，只能 `from netlab.plugin_api.v1 import ...`；`PluginManager` 负责扫描/依赖/加载；现有 `signal/circuit/vector` 不可替换，新引擎只能注册新 mode。
+
 ---
 
 ## 6. 前端架构（`frontend/app.js` 单文件）

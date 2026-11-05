@@ -671,9 +671,105 @@ $A_{r,r}\mathrel{+}=1,\ A_{r,a}\mathrel{-}=g_{r1},\ A_{r,b}\mathrel{+}=g_{r1},\ 
 
 ---
 
-## 11. 数值限制
+## 12. 并网逆变器控制链（R31）
 
-### 11.1 规模/步数上限（`core/common/limits.py`）
+### 12.1 幅值不变 Park 变换
+
+三相量 $x_a,x_b,x_c$ 与 dq 量 $x_d,x_q$（$\theta$ 为电网相位）：
+
+$$
+x_d=\frac{2}{3}\left(x_a\cos\theta+x_b\cos(\theta-\frac{2\pi}{3})+x_c\cos(\theta+\frac{2\pi}{3})\right)
+$$
+
+$$
+x_q=\frac{2}{3}\left(x_a\sin\theta+x_b\sin(\theta-\frac{2\pi}{3})+x_c\sin(\theta+\frac{2\pi}{3})\right)
+$$
+
+反变换为 $x_a=x_d\cos\theta-x_q\sin\theta$，其余两相相位依次加减 $2\pi/3$。实现见 `core/compute/computes.py` 的 `_abc_dq_factory`。
+
+### 12.2 SRF-PLL
+
+用 dq 的 q 轴误差驱动 PI：
+
+$$
+e=\frac{-q}{\max(|d|,10^{-6})},\quad
+f=f_0+k_p e+k_i\int e\,dt
+$$
+
+频率限幅 $[f_{\min},f_{\max}]$，相位 $\theta_{k+1}=\operatorname{wrap}(\theta_k+2\pi f\,dt)$；每拍**先推进相位、再计算 Park**，保证输出 $\theta$ 与同一拍输入对齐。锁定条件为 $|e|<\text{lock\_threshold}$。
+
+### 12.3 dq 下 LCL 平均模型
+
+状态 $x=[i_{1d},i_{1q},v_{cd},v_{cq},i_{2d},i_{2q}]^T$，输入 $u=[v_{id},v_{iq},v_{gd},v_{gq}]^T$。忽略电阻压降的微分方程为：
+
+$$
+\begin{aligned}
+L_1\dot i_{1d}&=v_{id}-R_1i_{1d}-v_{cd}+\omega L_1i_{1q},&
+L_1\dot i_{1q}&=v_{iq}-R_1i_{1q}-v_{cq}-\omega L_1i_{1d},\\
+C_f\dot v_{cd}&=i_{1d}-i_{2d}+\omega C_fv_{cq},&
+C_f\dot v_{cq}&=i_{1q}-i_{2q}-\omega C_fv_{cd},\\
+L_2\dot i_{2d}&=v_{cd}-R_2i_{2d}-v_{gd}+\omega L_2i_{2q},&
+L_2\dot i_{2q}&=v_{cq}-R_2i_{2q}-v_{gq}-\omega L_2i_{2d}.
+\end{aligned}
+$$
+
+工程里用 `state_space` 节点把上述方程离散为 $x_{k+1}=A_dx_k+B_du_k$；`grid_inverter_avg.netlab` 的参数为 $L_1=2$ mH、$R_1=1\,\Omega$、$C_f=50\,\mu$F、$L_2=1$ mH、$R_2=3\,\Omega$、$\omega=2\pi50$。
+
+### 12.4 dq 电流环 PI + 前馈解耦
+
+误差 $e_d=i_d^*-i_d$、$e_q=i_q^*-i_q$，PI 输出 $u_d=k_pe_d+k_i\int e_d$、$u_q=k_pe_q+k_i\int e_q$；电压指令为
+
+$$
+v_d^*=u_d+v_{cd}-\omega L i_q,\qquad
+v_q^*=u_q+v_{cq}+\omega L i_d.
+$$
+
+`pi` 节点在输出限幅时回退积分（抗饱和），`test_current_loop.py` 验证 10%→90% 上升时间 <5 ms、终值误差 <1e-3。
+
+### 12.5 跨域桥的离散顺序
+
+`CircuitEngine.step(dt)` 的顺序是：`_apply_bridge_actuators()`（读取上一拍 `state["drive"]`，计算 `v_out=gain*signal+offset`）→ MNA 求解 → `_sample_bridge_sensors()`（把节点电压写入 sensor 的 `signal`/`voltage`）。因此传感器到执行器显式延迟一拍，避免代数环。
+
+## 13. 复数频响（R39）
+
+### 13.1 信号流复数节点方程
+
+对 signal 场景在角频率 $\omega$ 处把每条连接写成复数权重 $W_{ij}(j\omega)$：`pass` 为 1，`scale` 为增益，`delay` 为精确 $e^{-j\omega dt}$，`sum` 用边权，节点 `gain/lag/integrate/transfer_function/state_space` 写成 $g(j\omega)$。节点方程
+
+$$
+\left(I-W(j\omega)\right)y=b
+$$
+
+其中输入节点 $b_i=1$，其余为 0；解出 $y$ 后取输出节点分量即复数频响。实现见 `core/compute/analysis.py:_signal_frequency_response`。
+
+### 13.2 电路复数 MNA
+
+`nodal.ac_sweep` 先求 DC 工作点，再在每个频点用复数 MNA：
+
+$$
+A(j\omega)x=b(j\omega),
+$$
+
+电容导纳 $j\omega C$、电感阻抗 $j\omega L$、独立源相量按输入源设置。对每个 probe 输出
+
+$$
+|H|=\sqrt{\Re(H)^2+\Im(H)^2},\qquad
+\angle H=\operatorname{atan2}(\Im H,\Re H),\qquad
+H_{dB}=20\log_{10}|H|.
+$$
+
+R39 的 `analysis.frequency_response()` 对 signal 走 13.1，对 circuit 转调 `ac_sweep` 的 13.2；两者结果字段一致（`real/imag/magnitude/phase_deg/db`），主 seam 在公共分析函数，不在求解器内部。
+
+### 13.3 精度与边界
+
+- 延迟使用精确 `exp(-jωdt)`，不是 Padé 近似；s 域符号传函的延迟仍用 Padé（R37），两者用途不同。
+- 复数只在分析边界 `complex128`；时域节点、recorder、PlotKit、工程 JSON 保持实数。
+- `as_real` 的虚部容差为 `1e-12*max(1,|real|)`；超差说明调用方把频域结果误当实数使用。
+- 频率轴点数限制 2–2001；`f_start>0`、`f_stop>f_start`；非法输入返回 422。
+
+## 14. 数值限制
+
+### 14.1 规模/步数上限（`core/common/limits.py`）
 
 | 常量 | 值 | 含义 |
 | --- | --- | --- |
@@ -691,7 +787,7 @@ $A_{r,r}\mathrel{+}=1,\ A_{r,a}\mathrel{-}=g_{r1},\ A_{r,b}\mathrel{+}=g_{r1},\ 
 错误类型（limits.py）：`NetlabError(400)`、`ValidationError(422)`、`NotFoundError(404)`、
 `ConflictError(409)`、`LimitError(413)`、`ComputeError(422)`。
 
-### 11.2 预计算 20 万步硬拒绝
+### 14.2 预计算 20 万步硬拒绝
 
 `Simulation.precompute()`（`core/compute/simulation.py:288-290`）在**任何** `scene.reset()` / `recorder.clear()`
 之前完成校验；若
@@ -704,7 +800,7 @@ $$
 **不再 `min(200000, …)` 静默截断时间轴**。原因：静默截断会悄无声息地砍掉时间轴尾部、
 误导用户；硬拒绝则保证"要么完整算，要么明确报错"，且拒绝时不破坏已有录制。
 
-### 11.3 参数校验（`core/compute/params.py`）
+### 14.3 参数校验（`core/compute/params.py`）
 
 `ParamSpec`（params.py:31）统一描述参数字段，`coerce()`（params.py:49）按类型限制：
 `float` 走 `as_float(lo,hi,positive)`，`int` 走 `as_int(lo,hi)`；矩阵参数尺寸上限为 `MAX_MATRIX=12`

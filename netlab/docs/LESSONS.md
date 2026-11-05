@@ -728,3 +728,13 @@ window.dispatchEvent(new Event('netlab-desktop-ready'));
 - **开关级示例只做趋势验证**：P11-06 用理想 nmos + 50 Hz 方波栅极/死区，不是 10 kHz PWM 载波，也没有器件损耗；测试只断言 pcc/mid 峰值与不发散，不能拿它承诺绝对 EMT 精度。
 - **长仿真必须可中断**：`Simulation.cancel_precompute()` 用 `threading.Event` 在每步检查；UI 的「停止计算」只负责发 `POST /api/control {action:"cancel_precompute"}`，要保留已算帧而不是清空。
 - **工程生成脚本要放 scratch**：`NetlabExtras/scratch/build_grid_switch.py` 等一次性脚本不要进 `NetlabHome` 包；生成后的 `.netlab` 要经 `load_project` + `Simulation.precompute` 验收，不能只检查 JSON。
+
+## 2026-11-06 前端 JS→TS 迁移踩坑（§7.76 / P16）
+
+1. **tsconfig `outDir` 不能等于源目录**：否则 `error TS18003: No inputs were found`（tsc 自动排除 outDir）。不设 outDir，用默认同目录 emit。
+2. **经典脚本迁移要 `alwaysStrict:false`**：`strict:true` 隐含 `alwaysStrict:true`，tsc 会在产物顶部注入 `"use strict";` prologue，改变 AST/运行文本；前端 `<script>` 经典脚本迁移须关掉它（保留 IIFE 内原有的 `'use strict'`），否则行为等价比对会因顶层 prologue 失败。
+3. **`git mv` 会暂存旧 blob**：重命名为 `.ts` 后，暂存区里仍是未类型化的旧内容；提交前必须 `git add <typed.ts>` 再 commit，否则提交的是旧 blob（踩坑：PlotKit `app.ts` 首提交误含 104383B 旧内容，用 `--amend` 修正为 typed 3037 行）。
+4. **`core.autocrlf=true` 的逐字节比对会假报不一致**：本机无 `.gitattributes`，`git show` 输出 LF 与工作区 CRLF 混用会让字节比对/`diff` 误判。等价性用 **AST 归一化 / splitlines**，不要比 raw bytes。
+5. **改 PlotKit 前端静态文件后必须同步内置副本**：netlab 运行期 import 的是 `netlab/_vendor/plotkit`，不是外部 PlotKit。跑 `python -m netlab.plotkit_vendor install --src ../PlotKit/src/plotkit --force` 再重启；`plotkit_vendor.py` 的 IGNORE 已加入 `*.ts`/`*.tsbuildinfo`，vendor 只带 `.js` 运行产物。
+6. **行为等价验证优先用录制型 / AST 归一化比对**：仅「tsc 通过」不足以证明行为不变。已建立：render2d 727 ops 序列相同、app 归一化 EQUAL 466757、nsview 266293、desktop-shim 40124。比只跑 tsc 可信得多。
+7. **超大单 IIFE（`frontend/app.js` 13,806 行）strict 化**：先给两个共享对象（`state` / `ui`）与 DOM 助手（`$` / `$$`）精确定义类型，可一次性消掉大量 TS2339/TS7053；再按函数签名补参/返回类型消 TS7006。逐段推进、频繁 tsc。

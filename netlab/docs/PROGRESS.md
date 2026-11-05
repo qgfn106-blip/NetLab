@@ -1,10 +1,10 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-06 04:57
+> 最后修改：2026-11-06 05:06
 
 | 项 | 内容 |
 | --- | --- |
-| 记录时间 | 2026-11-06 04:57（Asia/Shanghai） |
+| 记录时间 | 2026-11-06 05:06（Asia/Shanghai） |
 | 当前阶段 | **2026-11-06 前端 JS→TS 迁移规划（R41 / P16，执行中：vscode 扩展、PlotKit render2d、view3d、app、nsview、netlab desktop-shim 已完成类型化；§7.76）**；R40 全栈扩展架构实现（§7.74）+ 全量文档重构（§7.75）：`netlab.plugin_api.v1`、插件加载器/管理页、`AnalysisSpec`/`EngineProtocol`、工程 v6、`netlab-ui/1` 与简单画布；README/ARCHITECTURE/OPERATION/INSTALL/MATH 及架构图/演示视频同步；静态 **3.20.1**，全量 **589 passed**。上一阶段 **§7.72**：R31 并网逆变器（P11-01…P11-07，581 passed、3.19.0）；**§7.71**：R39 复数分析层（561 passed、3.18.0）。 |
 | 基线 | 修改前 43 passed（2026-10-24 14:26） |
 | 当前测试 | **589 passed**（2026-11-06 02:00 全量 `python -m pytest netlab/tests -q`，3 warnings，69.95 s，退出码 0；stderr **0 次** `0xc0000139`；新增 R40 插件/工程/UI 目标测试 8 条） |
@@ -2068,7 +2068,7 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 
 ## §7.76 前端 JavaScript → TypeScript 全局迁移（规划，2026-11-06）
 
-**状态：执行中（一期 P16）——vscode 扩展、PlotKit `render2d`/`view3d`/`app`/`nsview` 与 netlab `desktop-shim` 已完成类型化并通过 DoD；其余待开始。** 需求与验收口径见 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) R41 / §5 P16（一期类型化）/ P17（二期模块化，暂挂）；决策 D100–D109。
+**状态：执行中（一期 P16）——vscode 扩展、PlotKit `render2d`/`view3d`/`app`/`nsview` 与 netlab `desktop-shim` 已完成类型化并通过 DoD；netlab `app.js`（最后、最大）进行中。** 需求与验收口径见 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) R41 / §5 P16（一期类型化）/ P17（二期模块化，暂挂）；决策 D100–D109。
 
 **为什么做**：`frontend/app.js` 13,806 行单一大 IIFE、无类型无模块，维护成本高；`/api` 契约仅靠 Python 字符串匹配测试、前端无类型约束易漂移；缺模块化基建。
 
@@ -2086,7 +2086,7 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 
 ### 迁移台账（每文件状态）
 
-> 基线用 `netlab/tools/cdp_*.mjs` 录（DOM 快照 / 截图 / 控制台零报错 / 关键 `/api` 往返），存迁移分支 `docs/ts-migration/baseline/<日期>/`，可回测。状态取值：待开始 / 进行中 / 已完成（DoD 全过）/ 临时豁免（登记原因与 TODO）。**当前进度：第 1–6 个（vscode 扩展、render2d、view3d、app、nsview、desktop-shim）已完成，其余「待开始」。**
+> 基线用 `netlab/tools/cdp_*.mjs` 录（DOM 快照 / 截图 / 控制台零报错 / 关键 `/api` 往返），存迁移分支 `docs/ts-migration/baseline/<日期>/`，可回测。状态取值：待开始 / 进行中 / 已完成（DoD 全过）/ 临时豁免（登记原因与 TODO）。**当前进度：第 1–6 个（vscode 扩展、render2d、view3d、app、nsview、desktop-shim）已完成；第 7 个 `app.js`（最后、13,806 行）进行中。**
 
 | 文件 | 行数 | 期次/顺序 | 状态 | 基线 | 备注 |
 | --- | --- | --- | --- | --- | --- |
@@ -2096,11 +2096,11 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 | `PlotKit/src/plotkit/static/app.js` | 2,759 | P16 / 4 | ✅ 已完成 | AST 归一化等价比对（`scripts/verify_app_parity.js`，AST EQUAL）+ tsc strict 零错 + node --check + pytest 38 passed；无 any/@ts-nocheck | 源 `app.ts`（3,037 行）+ 产物 `app.js`；提交 `08691bd` |
 | `PlotKit/src/plotkit/static/nsview.js` | 1,371 | P16 / 5 | ✅ 已完成 | AST 归一化等价比对（`scripts/verify_nsview_parity.js`，AST EQUAL 266293）+ tsc strict 零错 + node --check + pytest 470 passed；禁 any/@ts-* | 源 `nsview.ts`（1,534 行）+ 产物 `nsview.js`；提交 `795aaad` |
 | `NetlabHome/frontend/desktop-shim.js` | 271 | P16 / 6 | ✅ 已完成 | AST 归一化等价比对（`tools/verify_desktop_shim_parity.js`，AST EQUAL 40124、token 2394==2394）+ tsc strict 零错 + node --check + pytest 21 passed；禁 any/@ts-*；alwaysStrict:false 防顶层 use strict 注入 | 源 `desktop-shim.ts`（376 行）+ 产物 `desktop-shim.js`；提交 `4eeed2e` |
-| `NetlabHome/frontend/app.js` | 13,806 | P16 / 7（最后） | 待开始 | 待录 | 单 IIFE，按功能区分块 |
+| `NetlabHome/frontend/app.js` | 13,806 | P16 / 7（最后） | 进行中 | 严格类型化进行中：tsc strict 基线 **1,964 错**（TS7006 703 / TS2339 653 / TS2554 314 / TS7053 55 / TS18046 53 / TS7005 43 / TS18047 41 …）；已建 `app.ts` 基线并保证可 emit、`node --check` 通过，逐段攻坚 | 单 IIFE，按功能区分块 |
 
 **DoD（每个文件全过才进下一个）**：①`tsc` strict + `eslint` 0 error + `prettier` 已格式化（或已登记临时豁免）②迁移前后 e2e 基线逐条一致、控制台 0 报错 ③现有 Python 契约测试全绿（改名 / 路径同步更新并保留）④版号三处同步（`frontend/index.html` `?v=`、`frontend/app.js` `UI_BUILD`、`netlab/server.py` `APP_BUILD`）⑤提交干净（精确 pathspec）。
 **一期收尾门禁**：临时豁免清零、`tsc --strict` 全绿、全部 e2e 基线通过。
 
-**下一步**：两仓库已建 `feat/ts-migration` 分支并打基线 tag `ts-baseline-20261106`；vscode 扩展（`cf9d633`）、PlotKit `render2d`（`885014b`）、`view3d`（`394e979`）、`app`（`08691bd`）、`nsview`（`795aaad`）、`desktop-shim`（`4eeed2e`）已完成。下一步推进 `app.js`。（PlotKit 推送因本机代理 127.0.0.1:7897 暂断，恢复后补推。）
+**下一步**：两仓库已建 `feat/ts-migration` 分支并打基线 tag `ts-baseline-20261106`；vscode 扩展（`cf9d633`）、PlotKit `render2d`（`885014b`）、`view3d`（`394e979`）、`app`（`08691bd`）、`nsview`（`795aaad`）、`desktop-shim`（`4eeed2e`）已完成。下一步推进 `app.js`。PlotKit 迁移的运行时内置副本已同步（`python -m netlab.plotkit_vendor install --force`，55 文件，vendor 已忽略 `*.ts`、只随包 `.js`），提交 `0f41632`。（PlotKit 推送因本机代理 127.0.0.1:7897 暂断，恢复后补推。）
 
 **后续（TS 全量完成后另立）**：按 R42 / P18 对 netlab + PlotKit 全部 Python 代码做 PEP 8 规范化（纯风格、不影响任何功能）。

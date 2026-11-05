@@ -16,7 +16,7 @@
 
   // 界面版本号：必须与 index.html 的 ?v= 和 netlab/server.py 的 APP_BUILD 一致。
   // 用来识别「前端文件已更新、后端进程还是旧的」这种只关窗口不重启的情况。
-  const UI_BUILD = '3.17.1';
+  const UI_BUILD = '3.18.0';
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));

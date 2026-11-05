@@ -1,7 +1,7 @@
 # Netlab 架构与运作原理
 
 > 适用版本：`netlab 1.0.0`（Python 3.11+，FastAPI + NumPy/SciPy）
-> 配套文档：[EXTENDING.md](EXTENDING.md) —— 新增节点、连接、元件、模板的分步指南
+> 配套文档：[EXTENDING.md](EXTENDING.md) —— 新增节点、连接、元件、模板的分步指南；[EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md) —— 插件包、插件 API 与全栈扩展规范
 > 目标：读完能回答三个问题——**代码怎么分层**、**一拍仿真怎么走完**、**改功能该动哪个文件**。
 
 ---
@@ -650,6 +650,19 @@ TEMPLATES["my_template"] = {...}           # templates：直接写 dict
 ```
 
 注意：`Scene.load_payload` **忽略 `sim`**；`Simulation.load_scene` 在场景装好后读取 `payload["sim"]` 并 `apply_config`。两段逻辑分开，模板可以只描述拓扑。
+
+### 8.6 插件包与全栈扩展（首版已实现）
+
+四个注册表仍是内置扩展骨架；面向用户的可分发扩展升级为 **plugin package + `netlab.plugin_api.v1`**：
+
+- 插件通过 `plugin.json` 声明 id、版本、API、能力、依赖、入口；
+- compute/method/element/analysis/data-format/template/panel 全部走稳定门面；
+- 自定义求解引擎只能注册为新 mode，`EngineProtocol` 固定为 `build/step/reset/probes/stats`；
+- `NodeRecord`/`EdgeRecord` 核心字段不变，插件私有持久化数据只进 `ext[plugin_id]`；
+- 工程 `format_version` 已升 6，新增 `plugins` 锁段；缺插件时降级打开并标“未解析”；
+- UI 增加简洁画布与视图内设计，配置存为 `netlab-ui/1` profile。
+
+完整规范与验收矩阵见 [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md)，决策见 [adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md)。
 
 ---
 

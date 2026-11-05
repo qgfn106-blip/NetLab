@@ -462,3 +462,14 @@ R30 的自动化 UI 验收脚本在 `NetlabExtras/scratch/verify_r30.mjs`（引�
 - 默认探针只取 `kind==='node'` 的节点——`ground` 会被后端判为「AC 探针不存在」，前端必须排除；
 - 失效策略：`applySnapshot` 比较 `scene.revision`，变化即清空 `state.acResult` 并提示「电路已变化，请重新扫频」；
 - 护栏：`netlab/tests/test_ui_analysis_entry.py`（标记存在性、端点调用、探针过滤）。
+
+## 20. 简单画布与视图内设计（首版已实现，2026-11-06）
+
+> 完整协议、插件 UI 与数据源见 [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md) §8。
+
+- **双模式**：`state.ui.displayMode = "professional" | "simple"`；两者共用同一 `NodeRecord`/`EdgeRecord`，切换只改渲染与交互，不改工程数据。
+- **简单画布**：节点为紧凑卡片（图标 + 标题 + 2–4 个关键值 + 状态色），端口用明确圆点；从输出端口拖到输入端口即建边；空白处点击打开按 mode/插件分组的快速添加面板；检查器默认只显示常用参数，高级项折叠。
+- **视图内设计**：工具栏“界面设计”开关；选中节点可拖动位置/边角缩放/调整端口；选中边可拖折点、选直线/正交/曲线、线宽/虚线/颜色令牌；面板可拖动分隔条、调整宽高/显隐/排序；右侧“外观”页签编辑形状、字形、强调色令牌、显示字段、端口样式、密度；支持撤销/重做。
+- **颜色选择器**：首版使用原生 `<input type="color">`（HEX，实时预览）；后续可离线 vendored [jaames/iro.js](https://github.com/jaames/iro.js) 的模块化色轮增强，支持 RGB/HSL、色相/饱和度/明度滑杆、吸管取色（浏览器支持时）与撤销/重做，不引 CDN。所有选择结果写回 token（`background/surface/panel/text/muted/accent/grid/edge/node/danger/success`），禁止任意 CSS。
+- **配置**：保存为工程 `ui` 的 `netlab-ui/1` profile，或“设为全局默认”；只允许布局、设计令牌、字段列表和枚举样式，不执行任意 CSS/HTML/JS。
+- **面板**：`PanelSpec` 仅绑定 recorder 探针、`AnalysisSpec` 结果、插件 `snapshot()` 三类只读源，统一帧边界取数。

@@ -863,7 +863,10 @@ class CircuitEngine(_Engine):
 class Scene:
     def __init__(self, mode: str = "signal") -> None:
         if mode not in MODES:
-            raise ValidationError(f"未知模式：{mode!r}")
+            from .engine_registry import ENGINE_SPECS
+
+            if mode not in ENGINE_SPECS:
+                raise ValidationError(f"未知模式：{mode!r}")
         self.mode = mode
         self.integration = "trapezoidal"
         self.solver_options = None
@@ -889,9 +892,14 @@ class Scene:
 
     def ensure_engine(self) -> _Engine:
         if self._engine is None or self._dirty:
-            self._engine = (
-                CircuitEngine(self) if self.mode == "circuit" else SignalEngine(self)
-            )
+            if self.mode not in MODES:
+                from .engine_registry import create_engine
+
+                self._engine = create_engine(self.mode, self)
+            else:
+                self._engine = (
+                    CircuitEngine(self) if self.mode == "circuit" else SignalEngine(self)
+                )
             self._dirty = False
         return self._engine
 
@@ -2031,20 +2039,27 @@ class Scene:
 
     # ---- 元数据 -----------------------------------------------------------
     def catalog(self) -> dict[str, Any]:
+        from .engine_registry import plugin_modes
+
+        modes = [
+            {"value": "signal", "label": "信号流", "description": "字典沿有向边传播"},
+            {
+                "value": "circuit",
+                "label": "电路",
+                "description": "节点电压法求解，支持反馈与双向元件",
+            },
+            {
+                "value": "vector",
+                "label": "矢量",
+                "description": "二维矢量场与非线性动态源，支持扩散耦合",
+            },
+        ]
+        modes.extend(
+            {"value": mode, "label": f"插件模式：{mode}", "description": "插件引擎"}
+            for mode in plugin_modes()
+        )
         return {
-            "modes": [
-                {"value": "signal", "label": "信号流", "description": "字典沿有向边传播"},
-                {
-                    "value": "circuit",
-                    "label": "电路",
-                    "description": "节点电压法求解，支持反馈与双向元件",
-                },
-                {
-                    "value": "vector",
-                    "label": "矢量",
-                    "description": "二维矢量场与非线性动态源，支持扩散耦合",
-                },
-            ],
+            "modes": modes,
             "computes": compute_catalog(),
             "methods": method_catalog(),
             "elements": element_catalog(),

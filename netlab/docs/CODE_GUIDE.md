@@ -33,7 +33,7 @@ frontend/app.js  ──HTTP──▶  netlab/server.py (SERVICE)  ──▶  Sim
 NetlabHome/
 ├─ frontend/                 # 纯静态前端（无构建）：index.html / app.js / style.css / desktop-shim.js
 │  ├─ index.html             # 单页骨架：各 tab-pane 容器、脚本入口
-│  ├─ app.js                 # 全部前端逻辑（≈14.3k 行）：画布、面板、轮询、绘图、相图播放
+│  ├─ app.js                 # 全部前端逻辑（≈14.6k 行）：画布、面板、轮询、绘图、相图播放
 │  ├─ style.css              # 全部样式
 │  └─ desktop-shim.js        # 桌面壳（pywebview）注入的 Promise→QWebChannel 风格原生桥适配
 │
@@ -43,9 +43,9 @@ NetlabHome/
 │  │  ├─ model/              # 连接与网络：Scene、图、功能块、工程文件、模板、工作区
 │  │  └─ common/             # 公共：limits（上限、错误类型、类型转换）
 │  ├─ desktop/               # 桌面壳：当前入口是 pywebview + WebView2（另有遗留 Qt 文件）
-│  ├─ tests/                 # pytest 测试（79 个 test_*.py 文件）
+│  ├─ tests/                 # pytest 测试（81 个 test_*.py 文件）
 │  ├─ docs/                  # 文档（需求/决策/进度/本导读都在这里）
-│  ├─ server.py              # FastAPI 应用与全部 /api 端点（≈2.0k 行）
+│  ├─ server.py              # FastAPI 应用与全部 /api 端点（≈2.2k 行）
 │  ├─ run.py                 # 一键启动：uvicorn + 自动开浏览器
 │  ├─ plotkit_bridge.py      # 把 PlotKit 作为子应用挂到 /plotkit（可选依赖）
 │  └─ （无 shim）             # D85：33 个转发 shim 已删除，引用全部用 netlab.core.*
@@ -74,7 +74,7 @@ NetlabHome/
 
 > 行数为 `wc -l` 实测。`__init__.py` 均为 1 行说明，不单列。
 
-### 2.1 计算（`netlab/core/compute/`，合计 ≈ 11,703 行）
+### 2.1 计算（`netlab/core/compute/`，合计 11,798 行）
 
 | 模块 | 行数 | 职责 |
 | --- | ---: | --- |
@@ -85,6 +85,7 @@ NetlabHome/
 | `fem.py` | 667 | 二维有限元瞬态热传导（双线性单元）。 |
 | `simulation.py` | 657 | 固定步长仿真循环、配置、录制缓冲、后台线程。 |
 | `analysis.py` | 1032 | 分析旁路：指标、频谱、周期推荐、传递函数（支持线性网络节点方程 + 反馈环、s 域延迟 Padé、z 域显式延迟）、s 域 TF 分析、网络 Bode、相平面指标、A/B/C/D 导出、复数频响、CSV 导出。 |
+| `analysis_plugins.py` | 95 | R40 插件分析算法注册表：`AnalysisSpec`、`run_analysis()`、结果信封校验。 |
 | `complex_support.py` | 89 | 复数边界适配：`as_complex`/`as_real`/`complex_parts`/`map_complex`/`phase_degrees`；时域仍走实数。 |
 | `transistors.py` | 453 | 三极管/MOS 行为模型及其元件规格。 |
 | `digital.py` | 368 | 4 位计数器、4 位 DAC 等行为级数字/模拟接口。 |
@@ -102,13 +103,16 @@ NetlabHome/
 | `waveform.py` | 91 | 标准波形发生器（电压源/电流源/信号节点共用）。 |
 | `introspection.py` | 68 | 规格自省：把注册表条目转成前端可展示的公式/源码/参数说明。 |
 
-### 2.2 连接与网络（`netlab/core/model/`，合计 ≈ 10,089 行）
+### 2.2 连接与网络（`netlab/core/model/`，合计 10,871 行）
 
 | 模块 | 行数 | 职责 |
 | --- | ---: | --- |
-| `scene.py` | 2058 | **`Scene`**：把可序列化的节点/边记录装配成可运行引擎（SignalEngine/CircuitEngine）；`set_algebraic_solver()` 开启 R36 P2/P3 代数环求解；`SignalEngine.probes()` 暴露 `state:<node>:<index>` 状态通道；block 节点 `internal_sim` 参与实例缓存键。 |
+| `scene.py` | 2073 | **`Scene`**：把可序列化的节点/边记录装配成可运行引擎（SignalEngine/CircuitEngine/插件 mode）；`set_algebraic_solver()` 开启 R36 P2/P3 代数环求解；`SignalEngine.probes()` 暴露 `state:<node>:<index>` 状态通道；block 节点 `internal_sim` 参与实例缓存键。 |
+| `plugins.py` | 554 | R40 插件包管理：manifest 校验、依赖拓扑、动态加载/卸载、能力校验、启用状态与 `get_plugin_manager()`。 |
+| `engine_registry.py` | 58 | R40 插件引擎注册表：新 mode 的 `EngineSpec` 与 `create_engine()`；拒绝覆盖内置三模式。 |
+| `ui_profile.py` | 106 | R40 `netlab-ui/1`：主题令牌、布局、simple/professional 模式归一化。 |
 | `templates.py` | 1193 | 内置模板（信号链、控制环、RC/RLC、运放、三极管……）与目录。 |
-| `project.py` | 958 | `.netlab` 工程文件的构建、校验、迁移、checksum、原子保存/加载。 |
+| `project.py` | 1001 | `.netlab` 工程文件的构建、校验、迁移（v5→v6）、checksum、原子保存/加载、`plugins` 锁段。 |
 | `blocks.py` | 1134 | 功能块系统：`BlockDef`/`PortDef`，把网络封装成带端口的节点；`BlockRuntime` 行为/结构双路径、`compare_block_modes()`。 |
 | `blocklib.py` | 700 | 模块库文件层：模块文件读写、版本、扁平/目录布局；R25 内置块虚拟注册表与只读保护。 |
 | `builtins.py` | 537 | R25 内置只读 structural 块（opamp/comparator/dff/counter4/shift4/timer555/ldo/adc4/dac4），随代码发布、空库可打开。 |
@@ -117,9 +121,9 @@ NetlabHome/
 | `graph.py` | 1129 | **`Network`**（有向节点/连接图）、`Node`、`Connection`、`ComputeContext`、`SolverPlan`（R36/P1 断点 + SCC）与 `_step_solved()`（R36/P2 线性 SCC / P3 阻尼 Newton）。 |
 | `workspace.py` | 533 | 工作区：工程目录、共享库、用户设置、快照。 |
 | `schematic.py` | 373 | 图纸模型数据层：引脚表、边布局、确定性自动布局与校验。 |
-| `networks.py` | 324 | **`NetworkContainer`**：多网络容器，属性访问转发到当前网络。 |
+| `networks.py` | 330 | **`NetworkContainer`**：多网络容器，属性访问转发到当前网络，持久化 `ui`/`plugins`。 |
 | `block_validate.py` | 224 | 模块导入前校验（阻断级/警告级 + 干跑一步）。 |
-| `ports.py` | 192 | 端口契约：器件节点引脚声明、`PortSpec`。 |
+| `ports.py` | 194 | 端口契约：器件节点引脚声明、`PortSpec`。 |
 
 ### 2.3 公共（`netlab/core/common/`，合计 268 行）
 
@@ -131,7 +135,7 @@ NetlabHome/
 
 | 模块 | 行数 | 职责 |
 | --- | ---: | --- |
-| `netlab/server.py` | 2058 | FastAPI 应用：静态前端、全部 `/api/*` 端点、`SERVICE` 单例、PlotKit 挂载、复数频响、块行为/结构对比。 |
+| `netlab/server.py` | 2162 | FastAPI 应用：静态前端、全部 `/api/*` 端点、`SERVICE` 单例、PlotKit 挂载、复数频响、块行为/结构对比、插件管理/分析/UI profile。 |
 | `netlab/run.py` | 116 | 启动器：解析 `--host/--port`，起 uvicorn，健康检查后开浏览器。 |
 | `netlab/plotkit_bridge.py` | 728 | 把 PlotKit 子应用挂到 `/plotkit`；探针帧同步 + `analysis:` 独立分析曲线数据集（不随 recorder t 追加）。 |
 | `netlab/desktop/__main__.py` | 24 | 桌面入口：`python -m netlab.desktop` → `webview_app.main()`。 |
@@ -145,11 +149,17 @@ NetlabHome/
 
 > 桌面壳现状：`netlab/desktop/__init__.py` 的 docstring 仍写着 PySide6/QtWebEngine，但 `__main__.py:15` 实际导入的是 `webview_app.main`（pywebview）。Qt 原生界面已于 2026-11-02 备份到分支后删除。读代码以 `webview_app.py` / `webview_bridge.py` 为准。
 
+### 2.4.1 插件 API（`netlab/plugin_api/v1/`）
+
+| 文件 | 行数 | 职责 |
+| --- | ---: | --- |
+| `__init__.py` | 231 | 稳定插件门面：规格 dataclass、`EngineProtocol`、`PluginContext.register_*`；插件只允许依赖此模块。 |
+
 ### 2.5 前端
 
 | 文件 | 行数 | 职责 |
 | --- | ---: | --- |
-| `frontend/app.js` | 14406 | 全部前端逻辑：API 封装、画布、面板渲染、实时轮询、图表绘制、相图播放条、CSV/A-B-C-D 导出、PlotKit 发送、块行为/结构对比。 |
+| `frontend/app.js` | 14580 | 全部前端逻辑：API 封装、画布、面板渲染、实时轮询、图表绘制、相图播放条、CSV/A-B-C-D 导出、PlotKit 发送、块行为/结构对比、插件管理/视图设计。 |
 | `frontend/index.html` | 634 | 单页骨架：各 `tab-pane` 容器与脚本入口。 |
 | `frontend/style.css` | 2136 | 全部样式（含主题变量）。 |
 | `frontend/desktop-shim.js` | 139 | 桌面模式下把 Promise 风格原生桥映射成 QWebChannel 风格。 |

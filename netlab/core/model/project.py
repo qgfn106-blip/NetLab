@@ -24,13 +24,14 @@ from typing import TYPE_CHECKING, Any
 
 from ..common.limits import LimitError, NetlabError, ValidationError, json_safe
 from .scene import MODES, Scene
+from .engine_registry import plugin_modes
 from ..compute.simulation import Simulation
 
 if TYPE_CHECKING:
     from .networks import NetworkContainer
 
 PROJECT_FORMAT = "netlab-project"
-PROJECT_VERSION = 5
+PROJECT_VERSION = 6
 APP_VERSION = "2.1.0"
 MAX_PROJECT_BYTES = 8_000_000
 PROJECT_SUFFIX = ".netlab"
@@ -129,6 +130,7 @@ def build_project(
     metadata: dict[str, Any] | None = None,
     network_name: str = "网络 1",
     library: str | None = None,
+    plugins: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """从当前运行状态生成单网络工程（v2，兼容旧调用方）。"""
     with simulation.lock:
@@ -150,6 +152,7 @@ def build_project(
         created=created,
         metadata=metadata,
         library=library,
+        plugins=plugins,
     )
 
 
@@ -165,6 +168,7 @@ def build_project_from_networks(
     created: str | None = None,
     metadata: dict[str, Any] | None = None,
     library: str | None = None,
+    plugins: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """把多条网络（R07）打包成工程；blocks/ui/fem/extensions 仍只存顶一份。
 
@@ -201,6 +205,7 @@ def build_project_from_networks(
             else copy.deepcopy(blocks or [])
         ),
         "extensions": copy.deepcopy(extensions or []),
+        "plugins": copy.deepcopy(plugins or []),
         "metadata": json_safe(metadata or {}, where="工程元数据"),
     }
     project["checksum"] = compute_checksum(project)
@@ -512,6 +517,7 @@ def migrate_project(payload: dict[str, Any]) -> dict[str, Any]:
                 "ui": {},
                 "blocks": [],
                 "extensions": [],
+                "plugins": [],
                 "metadata": {"migrated_from": "scene-json"},
             }
         raise ValidationError("不是 Netlab 工程文件（缺少 format 字段）")
@@ -530,6 +536,7 @@ def migrate_project(payload: dict[str, Any]) -> dict[str, Any]:
         migrated.setdefault("ui", {})
         migrated.setdefault("blocks", [])
         migrated.setdefault("extensions", [])
+        migrated.setdefault("plugins", [])
     if version < 2 or "networks" not in migrated:
         scene = migrated.pop("scene", {"mode": "signal", "nodes": [], "edges": []})
         sim = migrated.pop("sim", {}) or {}
@@ -566,6 +573,18 @@ def migrate_project(payload: dict[str, Any]) -> dict[str, Any]:
         if rails_report:
             metadata["rails_migration"] = rails_report
         migrated["metadata"] = metadata
+    if version < 6:
+        migrated.setdefault("plugins", [])
+        ui = migrated.get("ui")
+        if not isinstance(ui, dict):
+            ui = {}
+            migrated["ui"] = ui
+        ui.setdefault("profile", "netlab-ui/1")
+        metadata = migrated.get("metadata")
+        if not isinstance(metadata, dict):
+            metadata = {}
+        metadata.setdefault("migrated_plugins", f"v{version}")
+        migrated["metadata"] = metadata
     migrated["version"] = PROJECT_VERSION
     migrated.setdefault("format", PROJECT_FORMAT)
     migrated.setdefault("app", f"netlab {APP_VERSION}")
@@ -575,6 +594,7 @@ def migrate_project(payload: dict[str, Any]) -> dict[str, Any]:
     migrated.setdefault("ui", {})
     migrated.setdefault("blocks", [])
     migrated.setdefault("extensions", [])
+    migrated.setdefault("plugins", [])
     migrated.setdefault("fem", {})
 
     networks = migrated.get("networks")
@@ -712,7 +732,7 @@ def validate_project(
         if not isinstance(scene_payload, dict):
             raise ValidationError(f"网络 {label!r} 的 scene 必须是对象")
         mode = scene_payload.get("mode", "signal")
-        if mode not in MODES:
+        if mode not in MODES and mode not in plugin_modes():
             raise ValidationError(f"网络 {label!r} 的未知场景模式：{mode!r}")
         trial_scene_payload = copy.deepcopy(scene_payload)
         trial_scene_payload["blocks"] = blocks
@@ -751,6 +771,29 @@ def validate_project(
     unknown = set(fem_payload) - allowed_fem
     if unknown:
         raise ValidationError(f"FEM 配置包含未知字段：{', '.join(sorted(unknown))}")
+
+    plugins = project.get("plugins") or []
+    if not isinstance(plugins, list):
+        raise ValidationError("工程的 plugins 必须是数组")
+    seen_plugins: set[str] = set()
+    for index, item in enumerate(plugins):
+        if not isinstance(item, dict):
+            raise ValidationError(f"第 {index + 1} 个插件引用必须是对象")
+        plugin_id = item.get("id")
+        version = item.get("version")
+        if not isinstance(plugin_id, str) or not plugin_id:
+            raise ValidationError(f"第 {index + 1} 个插件引用缺少 id")
+        if not isinstance(version, str) or not version:
+            raise ValidationError(f"第 {index + 1} 个插件引用缺少 version")
+        if plugin_id in seen_plugins:
+            raise ValidationError(f"插件重复引用：{plugin_id}")
+        seen_plugins.add(plugin_id)
+    ui = project.get("ui") or {}
+    if not isinstance(ui, dict):
+        raise ValidationError("工程的 ui 必须是对象")
+    profile = ui.get("profile")
+    if profile is not None and not isinstance(profile, str):
+        raise ValidationError("工程的 ui.profile 必须是字符串")
 
     extensions = project.get("extensions") or []
     if not isinstance(extensions, list):

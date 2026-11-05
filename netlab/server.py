@@ -26,7 +26,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .core.compute.fem import FemSimulation
 
 #: 服务端代码版本（与 frontend/index.html 的 ?v= 对齐）；用于检测「前端已更新、后端进程仍是旧的」
-APP_BUILD = "3.18.0"
+APP_BUILD = "3.19.0"
 from .core.common.limits import ConflictError, NetlabError, NotFoundError, ValidationError
 from .core.model.networks import NetworkContainer
 from .core.model.project import (
@@ -323,7 +323,7 @@ class SolveWindowRequest(BaseModel):
 class ControlRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    action: Literal["run", "pause", "toggle", "step", "reset", "zero"]
+    action: Literal["run", "pause", "toggle", "step", "reset", "zero", "cancel_precompute"]
     steps: int | None = None
 
 
@@ -638,6 +638,8 @@ def control(request: ControlRequest) -> dict[str, Any]:
         SERVICE.zero_time()
     elif request.action == "reset":
         SERVICE.reset()
+    elif request.action == "cancel_precompute":
+        SERVICE.current.cancel_precompute()
     return {"sim": SERVICE.info()}
 
 

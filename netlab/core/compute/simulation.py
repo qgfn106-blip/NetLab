@@ -174,6 +174,7 @@ class Simulation:
         self._frame_times: deque[float] = deque(maxlen=600)
         self._thread: threading.Thread | None = None
         self._stop = False
+        self._precompute_cancel = threading.Event()
 
     # ---- 线程 -------------------------------------------------------------
     def ensure_thread(self) -> None:
@@ -308,6 +309,10 @@ class Simulation:
                 if not self._advance_locked(self.config.dt, sample_every):
                     break
 
+    def cancel_precompute(self) -> None:
+        """请求中断当前预计算；不持有仿真锁，供 API 的并发取消请求使用。"""
+        self._precompute_cancel.set()
+
     def precompute(self, duration: float, dt: float | None = None, sample_every: int | None = None) -> dict[str, Any]:
         """P7-05/D48：从 0 开始预计算 0→T，填充录制帧；不改当前场景参数。"""
         with self.lock:
@@ -339,7 +344,12 @@ class Simulation:
             self.error_at = None
             self.recorder.clear()
             self._frame_times.clear()
+            self._precompute_cancel.clear()
+            cancelled = False
             for _ in range(count):
+                if self._precompute_cancel.is_set():
+                    cancelled = True
+                    break
                 if not self._advance_locked(step_dt, sample):
                     break
             frames = len(self.recorder)
@@ -354,6 +364,7 @@ class Simulation:
                 "sample_every": sample,
                 "first_time": first_time,
                 "last_time": last_time,
+                "cancelled": cancelled,
             }
 
     def _t_step_count_locked(self) -> int:

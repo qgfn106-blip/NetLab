@@ -43,7 +43,7 @@ NetlabHome/
 │  │  ├─ model/              # 连接与网络：Scene、图、功能块、工程文件、模板、工作区
 │  │  └─ common/             # 公共：limits（上限、错误类型、类型转换）
 │  ├─ desktop/               # 桌面壳：当前入口是 pywebview + WebView2（另有遗留 Qt 文件）
-│  ├─ tests/                 # pytest 测试（70 个 test_*.py 文件）
+│  ├─ tests/                 # pytest 测试（79 个 test_*.py 文件）
 │  ├─ docs/                  # 文档（需求/决策/进度/本导读都在这里）
 │  ├─ server.py              # FastAPI 应用与全部 /api 端点（≈2.0k 行）
 │  ├─ run.py                 # 一键启动：uvicorn + 自动开浏览器
@@ -74,16 +74,16 @@ NetlabHome/
 
 > 行数为 `wc -l` 实测。`__init__.py` 均为 1 行说明，不单列。
 
-### 2.1 计算（`netlab/core/compute/`，合计 ≈ 11,378 行）
+### 2.1 计算（`netlab/core/compute/`，合计 ≈ 11,703 行）
 
 | 模块 | 行数 | 职责 |
 | --- | ---: | --- |
-| `nodal.py` | 2464 | 节点电压法（MNA）瞬态电路求解器：元件、装配、Newton、AC/工作点。 |
-| `computes.py` | 1165 | 信号层**节点**计算方式注册表（`COMPUTE_SPECS`）与 `solver_traits()` 求解语义标签。 |
+| `nodal.py` | 2519 | 节点电压法（MNA）瞬态电路求解器：元件、装配、Newton、AC/工作点。 |
+| `computes.py` | 1424 | 信号层**节点**计算方式注册表（`COMPUTE_SPECS`）与 `solver_traits()` 求解语义标签。 |
 | `circuit_modules.py` | 798 | 电路模块封装/实例化（把子电路变成可复用块）。 |
 | `methods.py` | 670 | 信号层**连接（边）**计算方式注册表（`METHOD_SPECS`）。 |
 | `fem.py` | 667 | 二维有限元瞬态热传导（双线性单元）。 |
-| `simulation.py` | 646 | 固定步长仿真循环、配置、录制缓冲、后台线程。 |
+| `simulation.py` | 657 | 固定步长仿真循环、配置、录制缓冲、后台线程。 |
 | `analysis.py` | 1032 | 分析旁路：指标、频谱、周期推荐、传递函数（支持线性网络节点方程 + 反馈环、s 域延迟 Padé、z 域显式延迟）、s 域 TF 分析、网络 Bode、相平面指标、A/B/C/D 导出、复数频响、CSV 导出。 |
 | `complex_support.py` | 89 | 复数边界适配：`as_complex`/`as_real`/`complex_parts`/`map_complex`/`phase_degrees`；时域仍走实数。 |
 | `transistors.py` | 453 | 三极管/MOS 行为模型及其元件规格。 |
@@ -102,11 +102,11 @@ NetlabHome/
 | `waveform.py` | 91 | 标准波形发生器（电压源/电流源/信号节点共用）。 |
 | `introspection.py` | 68 | 规格自省：把注册表条目转成前端可展示的公式/源码/参数说明。 |
 
-### 2.2 连接与网络（`netlab/core/model/`，合计 ≈ 10,038 行）
+### 2.2 连接与网络（`netlab/core/model/`，合计 ≈ 10,089 行）
 
 | 模块 | 行数 | 职责 |
 | --- | ---: | --- |
-| `scene.py` | 2009 | **`Scene`**：把可序列化的节点/边记录装配成可运行引擎（SignalEngine/CircuitEngine）；`set_algebraic_solver()` 开启 R36 P2/P3 代数环求解；`SignalEngine.probes()` 暴露 `state:<node>:<index>` 状态通道；block 节点 `internal_sim` 参与实例缓存键。 |
+| `scene.py` | 2058 | **`Scene`**：把可序列化的节点/边记录装配成可运行引擎（SignalEngine/CircuitEngine）；`set_algebraic_solver()` 开启 R36 P2/P3 代数环求解；`SignalEngine.probes()` 暴露 `state:<node>:<index>` 状态通道；block 节点 `internal_sim` 参与实例缓存键。 |
 | `templates.py` | 1193 | 内置模板（信号链、控制环、RC/RLC、运放、三极管……）与目录。 |
 | `project.py` | 958 | `.netlab` 工程文件的构建、校验、迁移、checksum、原子保存/加载。 |
 | `blocks.py` | 1134 | 功能块系统：`BlockDef`/`PortDef`，把网络封装成带端口的节点；`BlockRuntime` 行为/结构双路径、`compare_block_modes()`。 |
@@ -131,7 +131,7 @@ NetlabHome/
 
 | 模块 | 行数 | 职责 |
 | --- | ---: | --- |
-| `netlab/server.py` | 2056 | FastAPI 应用：静态前端、全部 `/api/*` 端点、`SERVICE` 单例、PlotKit 挂载、复数频响、块行为/结构对比。 |
+| `netlab/server.py` | 2058 | FastAPI 应用：静态前端、全部 `/api/*` 端点、`SERVICE` 单例、PlotKit 挂载、复数频响、块行为/结构对比。 |
 | `netlab/run.py` | 116 | 启动器：解析 `--host/--port`，起 uvicorn，健康检查后开浏览器。 |
 | `netlab/plotkit_bridge.py` | 728 | 把 PlotKit 子应用挂到 `/plotkit`；探针帧同步 + `analysis:` 独立分析曲线数据集（不随 recorder t 追加）。 |
 | `netlab/desktop/__main__.py` | 24 | 桌面入口：`python -m netlab.desktop` → `webview_app.main()`。 |
@@ -149,7 +149,7 @@ NetlabHome/
 
 | 文件 | 行数 | 职责 |
 | --- | ---: | --- |
-| `frontend/app.js` | 14390 | 全部前端逻辑：API 封装、画布、面板渲染、实时轮询、图表绘制、相图播放条、CSV/A-B-C-D 导出、PlotKit 发送、块行为/结构对比。 |
+| `frontend/app.js` | 14406 | 全部前端逻辑：API 封装、画布、面板渲染、实时轮询、图表绘制、相图播放条、CSV/A-B-C-D 导出、PlotKit 发送、块行为/结构对比。 |
 | `frontend/index.html` | 634 | 单页骨架：各 `tab-pane` 容器与脚本入口。 |
 | `frontend/style.css` | 2136 | 全部样式（含主题变量）。 |
 | `frontend/desktop-shim.js` | 139 | 桌面模式下把 Promise 风格原生桥映射成 QWebChannel 风格。 |

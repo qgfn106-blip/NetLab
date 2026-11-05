@@ -244,7 +244,7 @@
 - **拟改架构**：`netlab/core/compute/profiling.py`（`@timed`、环形采样、开关）；`/api/profile`；前端"性能"页；超时保护在引擎循环内检查并抛可定位错误。
 - **验收**：关闭时开销可忽略；开启能排出 Top 慢节点；超时能及时暂停并指出节点名。
 - **权重·期次**：⭐⭐⭐ / P0（装饰器）/ P3（面板与保护）
-- **现状**：新增 `netlab/core/compute/profiling.py`（`@timed` / `measure` / 环形采样，默认关；已装饰 `scene.step`、`network.step`、`circuit.solver.step`）；`GET /api/profile`、`PATCH /api/profile{enabled,reset}` 可用；**性能面板与单拍超时保护未做**（P3）；离线基准仍是 `tools/bench.py`。
+- **现状**：`netlab/core/compute/profiling.py`（`@timed` / `measure` / 环形采样，默认关；已装饰 `scene.step`、`network.step`、`circuit.solver.step`）；`GET /api/profile`、`PATCH /api/profile{enabled,reset}` 可用；**性能面板与单拍超时保护已完成（P3）**：前端性能页显示 Top 表，`step_timeout_ms` 超时会中断并定位节点；离线基准仍是 `tools/bench.py`。
 
 ### R14 帮助、文档与搜索
 

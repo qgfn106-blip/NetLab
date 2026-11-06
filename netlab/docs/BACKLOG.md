@@ -10,10 +10,10 @@
 
 ## 0. 一句话现状
 
-- **能用的产品**：`start_desktop.bat` / `python -m netlab.desktop` 起 pywebview + WebView2 网页壳（**626 passed**，2026-11-07，静态 3.20.1；全量文档重构 §7.75 完成）。
+- **能用的产品**：`start_desktop.bat` / `python -m netlab.desktop` 起 pywebview + WebView2 网页壳（**627 passed**，2026-11-07，静态 3.20.1；全量文档重构 §7.75 完成）。
 - **界面口径**：前端在 `frontend/`（index.html / app.js / style.css）；Qt 原生界面已按 D78 备份到 Git 分支 `backup/qt-native-2026-11-02` 后删除，不再是产品形态。
 - **已完成（一期）**：R41 前端 JavaScript→TypeScript 全局迁移（一期 P16 类型化、二期 P17 模块化均已完成），tsc strict 0 / node --test 纯函数单测绿 / AST 行为等价 / pytest 589 passed，见 REQUIREMENTS R41 / PROGRESS §7.76。
-- **没做完的主线**：R25 三阶段已交付（P7-09/10/11：9 块/虚拟注册表/只读保护/另存副本/行为快速模型/`internal_sim` 开关/对比 API/UI），剩完整电路级内部结构；R19 参考级图纸暂停。**2026-11-07 刚完成**：R15 功率电子与电机、R06 电路侧接口、R18 图纸增强、R19 SchemDraw 静态导出（§7.85）；R11 多窗口周期、R14 全局搜索、R34 Bode 光标（§7.86）；全量 **626 passed / 1 skipped**、静态 3.20.1。
+- **没做完的主线**：R25 三阶段已交付（P7-09/10/11：9 块/虚拟注册表/只读保护/另存副本/行为快速模型/`internal_sim` 开关/对比 API/UI），剩完整电路级内部结构；R19 参考级图纸暂停。**2026-11-07 刚完成**：R15 功率电子与电机、R06 电路侧接口、R18 图纸增强、R19 SchemDraw 静态导出（§7.85）；R11 多窗口周期、R14 全局搜索、R34 Bode 光标（§7.86）；SchemDraw 版式、搜索分组、Bode 拖动（§7.87）；全量 **627 passed / 1 skipped**、静态 3.20.1。
 - **实施中**：R36 非线性 / 非定常闭环求解 **P1–P5 已完成**（P1：节点求解语义标签、`Network.solver_plan()` 的 SCC/断点划分、自动 `z⁻¹` 可见记录；P2：`Network(solve_algebraic=True)` 线性 SCC 解 `(I-A)y=b`、`Scene.set_algebraic_solver()` 开关、`AlgebraicLoopError`；P3：阻尼 Newton + 有限差分雅可比 + 线搜索 + `NewtonConvergenceError`、表达式 `t`/`time` 时变变量；P4：线性网络节点方程总传函 + `tf_analysis` 网络 Bode；P5：`state:<node>:<index>` 状态通道、相图独立播放/步进/循环、`phase_metrics` L/A 指标；525 passed）。R37 线性网络总传函/Bode 对外能力已完成（s 域节点方程消元 + z 域纯 gain/sum 显式延迟），A/B/C/D 已导出（前端「导出 A/B/C/D」）；R38 状态通道/独立播放/指标/CSV 已完成（§7.66–§7.67），dt 收敛与无状态通道中文提示已补；见 [规划 spec](specs/2026-11-04-nonlinear-time-varying-solver-plan.md)。
 - **刚完成**：**控制链路补强与欠阻尼工程（§7.61：超调按最终值方向、离散 `1/z` 左补零、`reset_state` 初值快照、`output=auto`、非整数时间网格；交付 `MyProject/underdamped_control.netlab`）**、**PlotKit 导入优先级 + 多工作树规范（§7.60：内置副本优先、`NETLAB_PLOTKIT_SRC` 覆盖、gmpy2 坏包清理、`tools/new_worktree.sh` + `docs/WORKTREE_RULES.md`）**、**结构护栏补齐相对导入（§7.59：`test_structure_layout.py` 解析相对/`netlab.*` 越界导入，6→14 条）**、**预计算反馈环首拍修复（§7.58：延迟边空载荷按 0、pass 空 dict 不注入）**、**信号流右键「添加」菜单按节点组分类（§7.57：基础/动态/高级/矢量/模块/接口，矢量置顶）**、**R35 输入字段自动匹配（D91 / §7.56：value 优先、显式键兼容、块端口别名）**、**架构审计修复（§7.55：PlotKit 子应用鉴权 + 宿主 shim、记录器代次、通道上限、桥生命周期、precompute 契约、缓存 API 契约）**、**R34 s 域传递函数节点与分析（D90 / §7.54：表达式/系数/零极点三形态、Bode/阶跃/零极点三视图、`POST /api/analysis/tf`）**、R26 的 UI 入口（§7.37）、D80 数据通路优化（§7.36）、D81 PlotKit 面板卡顿修复（§7.38）。
 

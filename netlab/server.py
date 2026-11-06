@@ -468,13 +468,35 @@ def help_search(
     if not needle:
         return {"q": q, "items": [], "count": 0}
     items: list[dict[str, Any]] = []
+    kind_labels = {
+        "element": "元件",
+        "circuit_node": "电路节点",
+        "compute": "计算",
+        "method": "方法",
+        "template": "模板",
+        "doc": "文档",
+    }
+    kind_rank = {
+        "element": 0,
+        "circuit_node": 1,
+        "compute": 2,
+        "method": 3,
+        "template": 4,
+        "doc": 5,
+    }
 
     def push(
-        kind: str, title: str, subtitle: str, text: str, score: int, **extra: Any
+        kind: str,
+        title: str,
+        subtitle: str,
+        text: str,
+        score: int,
+        **extra: Any,
     ) -> None:
         items.append(
             {
                 "kind": kind,
+                "kind_label": kind_labels.get(kind, kind),
                 "title": title,
                 "subtitle": subtitle,
                 "text": text,
@@ -498,25 +520,39 @@ def help_search(
             if needle not in haystack:
                 continue
             title = str(row.get("label") or row.get("kind") or "")
-            exact = 3 if needle in str(row.get("kind", "")).casefold() else 2
+            kind_text = str(row.get("kind", "")).casefold()
+            title_text = title.casefold()
+            if needle == kind_text:
+                rank = 10
+            elif kind_text.startswith(needle):
+                rank = 8
+            elif needle in title_text:
+                rank = 6
+            elif needle in haystack.split(" ", 1)[0]:
+                rank = 4
+            else:
+                rank = 2
             push(
                 kind_key,
                 title,
                 f"{row.get('kind', '')} · {row.get('group', '')}",
                 str(row.get("description") or row.get("formula") or ""),
-                exact,
+                rank,
                 ref=str(row.get("kind") or ""),
+                group=str(row.get("group") or ""),
             )
     for row in template_catalog():
         haystack = f"{row.get('id', '')} {row.get('name', '')} {row.get('description', '')}".casefold()
         if needle not in haystack:
             continue
+        name_text = str(row.get("name") or "").casefold()
+        rank = 7 if name_text.startswith(needle) else 5 if needle in name_text else 3
         push(
             "template",
             str(row.get("name") or row.get("id") or ""),
             f"模板 · {row.get('mode', '')}",
             str(row.get("description") or ""),
-            2,
+            rank,
             ref=str(row.get("id") or ""),
         )
 
@@ -543,8 +579,30 @@ def help_search(
             if hit >= 3:
                 break
 
-    items.sort(key=lambda item: (-item["score"], item["kind"], item["title"]))
-    return {"q": q, "items": items[:limit], "count": len(items)}
+    items.sort(
+        key=lambda item: (
+            -item["score"],
+            kind_rank.get(item["kind"], 99),
+            item["title"],
+        )
+    )
+    selected = items[:limit]
+    groups: list[dict[str, Any]] = []
+    by_kind: dict[str, dict[str, Any]] = {}
+    for item in selected:
+        bucket = by_kind.get(item["kind"])
+        if bucket is None:
+            bucket = {
+                "key": item["kind"],
+                "label": item["kind_label"],
+                "count": 0,
+                "items": [],
+            }
+            by_kind[item["kind"]] = bucket
+            groups.append(bucket)
+        bucket["count"] += 1
+        bucket["items"].append(item)
+    return {"q": q, "items": selected, "count": len(items), "groups": groups}
 
 
 @app.get("/api/help/doc", include_in_schema=False)

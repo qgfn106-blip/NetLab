@@ -242,6 +242,7 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     analysisSpectrum: null,
     analysisTF: null,
     tfCursor: null,
+    tfDragging: false,
     degradedBanner: false,
     ui: {
       snap: true,
@@ -10789,9 +10790,12 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
         const [low, high] = tfRange(base === top ? magnitude : phase);
         const y = base + plotHeight * (1 - (value - low) / Math.max(high - low, 1e-9));
         ctx2.fillStyle = C("#a8541f");
+        ctx2.strokeStyle = "rgba(255, 255, 255, 0.9)";
+        ctx2.lineWidth = 1.4;
         ctx2.beginPath();
-        ctx2.arc(x, y, 2.6, 0, Math.PI * 2);
+        ctx2.arc(x, y, 3.4, 0, Math.PI * 2);
         ctx2.fill();
+        ctx2.stroke();
       };
       dot(top, magnitude[cursor]);
       dot(phaseTop, phase[cursor]);
@@ -10801,16 +10805,19 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       ctx2.fillStyle = "rgba(251, 248, 242, 0.94)";
       ctx2.strokeStyle = "rgba(168, 84, 31, 0.35)";
       ctx2.beginPath();
-      ctx2.roundRect(left + 4, top + 3, Math.min(labelWidth, plotWidth - 8), 18, 4);
+      ctx2.roundRect(left + 4, top + 3, Math.min(labelWidth, plotWidth - 8), 30, 4);
       ctx2.fill();
       ctx2.stroke();
       ctx2.fillStyle = C("#5f3a20");
       ctx2.textAlign = "left";
-      ctx2.fillText(label, left + 10, top + 16);
+      ctx2.fillText(label, left + 10, top + 15);
+      ctx2.font = '8px "Cascadia Code", Consolas, monospace';
+      ctx2.fillStyle = C("#8a7b68");
+      ctx2.fillText("\u62D6\u52A8\u8BFB\u6570 \xB7 \u2190 \u2192 \u5438\u9644\u91C7\u6837\u70B9\uFF08Shift \xD710\uFF09", left + 10, top + 27);
       ctx2.restore();
     }
   }
-  function tfBodeCursorFromEvent(event) {
+  function tfBodeCursorFromEvent(event, clamp2 = false) {
     const data = state.analysisTF;
     const canvas2 = $("#analysisTFChart");
     const bode = data?.bode;
@@ -10820,8 +10827,12 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     const right = 10;
     const width = rect.width;
     const plotWidth = Math.max(24, width - left - right);
-    const x = event.clientX - rect.left;
-    if (x < left || x > left + plotWidth) return null;
+    let x = event.clientX - rect.left;
+    if (clamp2) {
+      x = Math.max(left, Math.min(left + plotWidth, x));
+    } else if (x < left || x > left + plotWidth) {
+      return null;
+    }
     const omega = bode.omega.map(Number);
     const logMin = Math.log10(Math.max(omega[0], 1e-9));
     const logMax = Math.log10(Math.max(omega[omega.length - 1], 1e-8));
@@ -10841,17 +10852,49 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     const canvas2 = $("#analysisTFChart");
     if (!canvas2 || canvas2.dataset.tfCursor === "1") return;
     canvas2.dataset.tfCursor = "1";
-    canvas2.addEventListener("mousemove", (event) => {
-      const view = $("#analysisTFView")?.value || "bode";
-      if (view !== "bode") return;
-      const index = tfBodeCursorFromEvent(event);
+    canvas2.tabIndex = 0;
+    canvas2.style.cursor = "crosshair";
+    const active = () => ($("#analysisTFView")?.value || "bode") === "bode";
+    const move = (event, clamp2 = false) => {
+      if (!active()) return;
+      const index = tfBodeCursorFromEvent(event, clamp2);
       if (index == null) return;
       state.tfCursor = index;
       drawAnalysisTF();
+    };
+    canvas2.addEventListener("mousemove", (event) => {
+      move(event, state.tfDragging);
+    });
+    canvas2.addEventListener("mousedown", (event) => {
+      if (!active()) return;
+      state.tfDragging = true;
+      canvas2.style.cursor = "grabbing";
+      move(event, true);
+      event.preventDefault();
+    });
+    window.addEventListener("mouseup", () => {
+      if (!state.tfDragging) return;
+      state.tfDragging = false;
+      canvas2.style.cursor = "crosshair";
     });
     canvas2.addEventListener("mouseleave", () => {
-      if (state.tfCursor == null) return;
+      if (state.tfDragging || state.tfCursor == null) return;
       state.tfCursor = null;
+      drawAnalysisTF();
+    });
+    canvas2.addEventListener("keydown", (event) => {
+      if (!active() || state.tfCursor == null) return;
+      const omegaLength = state.analysisTF?.bode?.omega?.length || 0;
+      if (!omegaLength) return;
+      const step = event.shiftKey ? 10 : 1;
+      if (event.key === "ArrowLeft") {
+        state.tfCursor = Math.max(0, state.tfCursor - step);
+      } else if (event.key === "ArrowRight") {
+        state.tfCursor = Math.min(omegaLength - 1, state.tfCursor + step);
+      } else {
+        return;
+      }
+      event.preventDefault();
       drawAnalysisTF();
     });
   }
@@ -13121,6 +13164,9 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       ui.docResults.appendChild(div("doc-empty", "\u6CA1\u6709\u5339\u914D\u7684\u6BB5\u843D\uFF1B\u8BD5\u8BD5\u300C\u8282\u70B9\u300D\u300C\u6C42\u89E3\u5668\u300D\u300C\u5FEB\u6377\u952E\u300D\u7B49\u5173\u952E\u8BCD\u3002"));
       return;
     }
+    if (hits.length) {
+      ui.docResults.appendChild(el("div", "doc-sec", `\u6587\u6863\u6BB5\u843D \xB7 ${hits.length}`));
+    }
     for (const hit of hits) {
       const node = button("", "doc-hit", () => {
         void openDoc(hit.slug);
@@ -13132,21 +13178,47 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       ui.docResults.appendChild(node);
     }
     if (extra.length) {
-      ui.docResults.appendChild(el("div", "doc-sec", "\u8282\u70B9 / \u5143\u4EF6 / \u6A21\u677F"));
+      const order = ["element", "circuit_node", "compute", "method", "template", "doc"];
+      const buckets = /* @__PURE__ */ new Map();
       for (const item of extra) {
-        const title = `${item.title} \xB7 ${item.subtitle}`;
-        const node = button("", "doc-hit", () => {
-          if (item.kind === "template") {
-            closeDoc();
-            void loadTemplate(item.ref || "", item.title || "");
-          } else {
-            toast(`${item.title}\uFF1A${item.text || "\u65E0\u66F4\u591A\u8BF4\u660E"}`, "info", 4200);
-          }
-        });
-        node.appendChild(el("b", null, item.title || item.ref || ""));
-        node.appendChild(el("span", null, item.text || item.subtitle || ""));
-        ui.docResults.appendChild(node);
-        node.title = title;
+        const key = String(item.kind || "other");
+        if (!buckets.has(key)) {
+          buckets.set(key, { label: String(item.kind_label || key), items: [] });
+        }
+        buckets.get(key).items.push(item);
+      }
+      const keys = [
+        ...order.filter((key) => buckets.has(key)),
+        ...[...buckets.keys()].filter((key) => !order.includes(key))
+      ];
+      for (const key of keys) {
+        const bucket = buckets.get(key);
+        ui.docResults.appendChild(
+          el("div", "doc-sec", `${bucket.label} \xB7 ${bucket.items.length}`)
+        );
+        for (const item of bucket.items) {
+          const node = button("", "doc-hit", () => {
+            if (item.kind === "template") {
+              closeDoc();
+              void loadTemplate(item.ref || "", item.title || "");
+            } else if (item.kind === "doc" && item.ref) {
+              window.open(
+                `/api/help/doc?path=${encodeURIComponent(item.ref)}&line=${Number(item.line) || 1}`,
+                "_blank",
+                "noopener"
+              );
+            } else {
+              toast(`${item.title}\uFF1A${item.text || "\u65E0\u66F4\u591A\u8BF4\u660E"}`, "info", 4200);
+            }
+          });
+          const head = el("b", null, item.title || item.ref || "");
+          const badge = el("i", "doc-kind", item.kind_label || item.kind || "");
+          head.appendChild(badge);
+          node.appendChild(head);
+          node.appendChild(el("span", null, item.text || item.subtitle || ""));
+          ui.docResults.appendChild(node);
+          node.title = `${item.title} \xB7 ${item.subtitle}`;
+        }
       }
     }
   }

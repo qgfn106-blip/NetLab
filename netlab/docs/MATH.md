@@ -409,6 +409,18 @@ $$
 
 **频响**：$G(j\omega)$ 逐点求值，幅值 $20\log_{10}|G(j\omega)|$ dB，相位取 `unwrap(∠G)`；频率范围按零极点模长的 $1/100\ldots100$ 自动铺开（无零极点取 $0.1\ldots100$ rad/s），限 $10^{-6}\ldots10^{9}$。
 
+**Bode 光标反查**（`frontend/app.ts` `tfBodeCursorFromEvent`）：鼠标横坐标 $x$ 先线性映射到对数频率轴
+$$
+\log_{10}\omega_{\text{target}}
+=\log_{10}\omega_{\min}
++\frac{x-x_{\text{left}}}{W}\bigl(\log_{10}\omega_{\max}-\log_{10}\omega_{\min}\bigr),
+$$
+再取最近采样点
+$$
+i^\*=\arg\min_i\bigl|\log_{10}\omega_i-\log_{10}\omega_{\text{target}}\bigr|,
+$$
+即“吸附最近采样点”；拖动时把 $x$ 夹到绘图区内，方向键按 $i\pm1$（Shift 为 $\pm10$）移动。读数直接取该点的 $(\omega_i,|G(j\omega_i)|,\angle G(j\omega_i))$。
+
 **阶跃指标**：终值 $y_\infty$；超调 $(y_{\max}-y_\infty)/y_\infty$；上升时间取 10%→90%；调节时间取进入并保持 $\pm2\%$ 带的时间；稳态误差用 $1-G(0)$（不用有限时长末值，避免把仿真截断误判成误差）。不稳定/临界系统只给稳定性结论，不给上升/调节/超调。
 
 ### 6.4 推进一步

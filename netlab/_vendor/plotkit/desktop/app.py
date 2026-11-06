@@ -87,8 +87,17 @@ def _rss_mb() -> float | None:
         import subprocess
 
         out = subprocess.run(
-            ["tasklist", "/FI", f"PID eq {__import__('os').getpid()}", "/FO", "CSV", "/NH"],
-            capture_output=True, text=True, timeout=5,
+            [
+                "tasklist",
+                "/FI",
+                f"PID eq {__import__('os').getpid()}",
+                "/FO",
+                "CSV",
+                "/NH",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
         ).stdout
         field = out.strip().split(",")[-1].strip('"').replace(" K", "").replace(",", "")
         return round(int(field) / 1024, 1)
@@ -111,16 +120,25 @@ def _timed_render(url: str, *, width: int, height: int) -> float | None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="plotkit.desktop", description="PlotKit 桌面壳（pywebview + WebView2）")
-    parser.add_argument("--selftest", action="store_true", help="量启动/内存/渲染后自动关窗")
-    parser.add_argument("--seconds", type=float, default=0.0, help="普通模式下自动关窗（0 = 一直开着）")
+    parser = argparse.ArgumentParser(
+        prog="plotkit.desktop", description="PlotKit 桌面壳（pywebview + WebView2）"
+    )
+    parser.add_argument(
+        "--selftest", action="store_true", help="量启动/内存/渲染后自动关窗"
+    )
+    parser.add_argument(
+        "--seconds", type=float, default=0.0, help="普通模式下自动关窗（0 = 一直开着）"
+    )
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--height", type=int, default=800)
     parser.add_argument("--port", type=int, default=0, help="0 = 系统分配")
     parser.add_argument("--points", type=int, default=20_000)
     parser.add_argument("--channels", type=int, default=6)
-    parser.add_argument("--no-private", action="store_true",
-                        help="复用 WebView2 用户数据目录（冷启动更快、内存更低；会留磁盘缓存）")
+    parser.add_argument(
+        "--no-private",
+        action="store_true",
+        help="复用 WebView2 用户数据目录（冷启动更快、内存更低；会留磁盘缓存）",
+    )
     args = parser.parse_args(argv)
 
     t0 = time.perf_counter()
@@ -159,13 +177,14 @@ def main(argv: list[str] | None = None) -> int:
 
     def on_loaded() -> None:
         try:
-            window.show()          # 先隐藏建窗，等首帧就绪再显示，避免 2~3 秒的黑白空窗
-        except Exception:          # pragma: no cover - GUI 相关
+            window.show()  # 先隐藏建窗，等首帧就绪再显示，避免 2~3 秒的黑白空窗
+        except Exception:  # pragma: no cover - GUI 相关
             pass
         timings["page_loaded_ms"] = round((time.perf_counter() - t0) * 1000, 1)
         if "start_ms" in timings:
             timings["loaded_after_start_ms"] = round(
-                timings["page_loaded_ms"] - float(timings["start_ms"]), 1)
+                timings["page_loaded_ms"] - float(timings["start_ms"]), 1
+            )
         try:
             timings["page_title"] = window.evaluate_js("document.title")
         except Exception as exc:  # pragma: no cover - GUI 相关
@@ -176,8 +195,12 @@ def main(argv: list[str] | None = None) -> int:
 
     def _finish() -> None:
         # 页面就绪后再量一轮渲染，避免把首屏加载算进去
-        timings["render_roundtrip_ms"] = _timed_render(handle.url, width=900, height=520)
-        timings["render_roundtrip_hot_ms"] = _timed_render(handle.url, width=900, height=520)
+        timings["render_roundtrip_ms"] = _timed_render(
+            handle.url, width=900, height=520
+        )
+        timings["render_roundtrip_hot_ms"] = _timed_render(
+            handle.url, width=900, height=520
+        )
         timings["rss_mb"] = _rss_mb()
         timings["total_to_loaded_ms"] = timings.get("page_loaded_ms")
         print(json.dumps(timings, ensure_ascii=False), flush=True)

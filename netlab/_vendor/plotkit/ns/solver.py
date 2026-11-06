@@ -44,27 +44,27 @@ MODE_LABEL = "Mode B · 三维不可压 NS 数值解（有限时间代理，非�
 
 @dataclass(frozen=True)
 class SolverParams:
-    n: int = 32                # 每方向网格数
-    length: float = 2.0        # 立方域边长（[-1,1]³）
-    nu: float = 4.0e-3         # 运动粘度
-    dt: float = 4.0e-3         # 时间步
-    t_end: float = 0.95        # 归一化时间终点（t* = 1 为参考工程的"奇异时刻"）
-    save_every: float = 0.01   # 存档间隔
-    amp: float = 1.0           # 外力幅值
-    t_on: float = 0.10         # 外力开启时刻
-    ramp: float = 0.08         # 开启平滑宽度
-    sigma: float = 0.30        # 径向尺度
-    sigma_z: float = 0.55      # 轴向尺度
-    swirl: float = 1.0         # 角向分量权重
-    stretch: float = 0.35      # 轴向拉伸分量权重
+    n: int = 32  # 每方向网格数
+    length: float = 2.0  # 立方域边长（[-1,1]³）
+    nu: float = 4.0e-3  # 运动粘度
+    dt: float = 4.0e-3  # 时间步
+    t_end: float = 0.95  # 归一化时间终点（t* = 1 为参考工程的"奇异时刻"）
+    save_every: float = 0.01  # 存档间隔
+    amp: float = 1.0  # 外力幅值
+    t_on: float = 0.10  # 外力开启时刻
+    ramp: float = 0.08  # 开启平滑宽度
+    sigma: float = 0.30  # 径向尺度
+    sigma_z: float = 0.55  # 轴向尺度
+    swirl: float = 1.0  # 角向分量权重
+    stretch: float = 0.35  # 轴向拉伸分量权重
 
 
 @dataclass
 class SolverResult:
     params: SolverParams
-    times: np.ndarray          # (F,)
-    frames: np.ndarray         # (F, 3, N, N, N) float32，u 分量在最前
-    diag: dict                 # 峰值速度/涡量/半峰值半径/散度/动能/Enstrophy/外力功率
+    times: np.ndarray  # (F,)
+    frames: np.ndarray  # (F, 3, N, N, N) float32，u 分量在最前
+    diag: dict  # 峰值速度/涡量/半峰值半径/散度/动能/Enstrophy/外力功率
 
     @property
     def grid(self) -> np.ndarray:
@@ -72,9 +72,12 @@ class SolverResult:
         return np.linspace(-p.length / 2, p.length / 2, p.n, endpoint=False)
 
     def as_dict(self) -> dict:
-        return {"n": self.params.n, "t_end": float(self.params.t_end),
-                "frames": int(self.frames.shape[0]),
-                "diag": {k: [float(x) for x in v] for k, v in self.diag.items()}}
+        return {
+            "n": self.params.n,
+            "t_end": float(self.params.t_end),
+            "frames": int(self.frames.shape[0]),
+            "diag": {k: [float(x) for x in v] for k, v in self.diag.items()},
+        }
 
 
 def _wavenumbers(n: int, length: float):
@@ -96,8 +99,8 @@ def _force(x, y, z, t: float, p: SolverParams):
     角向分量（-y, x, 0）/r 产生向内螺旋，轴向分量产生拉伸。
     """
     r = np.sqrt(x * x + y * y) + 1e-12
-    env_r = np.exp(-(r / p.sigma) ** 2)
-    env_z = np.exp(-(z / p.sigma_z) ** 2)
+    env_r = np.exp(-((r / p.sigma) ** 2))
+    env_z = np.exp(-((z / p.sigma_z) ** 2))
     env = env_r * env_z
     # 三个脉冲：间隔 0.12，幅度递增（后段更强），整体由 ramp 平滑开启
     pulses = np.zeros_like(t, dtype=float) if np.ndim(t) else 0.0
@@ -124,9 +127,11 @@ def solve(p: SolverParams | None = None, *, progress=None) -> SolverResult:
 
     def project(uh):
         div = kx * uh[0] + ky * uh[1] + kz * uh[2]
-        out = [uh[0] - kx * div / k2_safe,
-               uh[1] - ky * div / k2_safe,
-               uh[2] - kz * div / k2_safe]
+        out = [
+            uh[0] - kx * div / k2_safe,
+            uh[1] - ky * div / k2_safe,
+            uh[2] - kz * div / k2_safe,
+        ]
         return out
 
     def nonlinear(uh):
@@ -155,8 +160,19 @@ def solve(p: SolverParams | None = None, *, progress=None) -> SolverResult:
     uh = [np.zeros((n, n, n), dtype=complex) for _ in range(3)]
 
     times, frames = [], []
-    diag = {k: [] for k in ("t", "peak_speed", "peak_vorticity", "half_peak_radius",
-                            "divergence", "energy", "enstrophy", "force_power")}
+    diag = {
+        k: []
+        for k in (
+            "t",
+            "peak_speed",
+            "peak_vorticity",
+            "half_peak_radius",
+            "divergence",
+            "energy",
+            "enstrophy",
+            "force_power",
+        )
+    }
     next_save = 0.0
     t = 0.0
     dx = L / n
@@ -173,18 +189,24 @@ def solve(p: SolverParams | None = None, *, progress=None) -> SolverResult:
             # 半峰值半径：速度幅值 ≥ peak/2 的格点，其到轴距离的 95 分位
             rr = np.sqrt(X * X + Y * Y)
             half = rr[speed >= 0.5 * peak] if peak > 0 else np.array([0.0])
-            div = float(np.abs(np.fft.ifftn(1j * (kx * uh[0] + ky * uh[1] + kz * uh[2]))).max())
+            div = float(
+                np.abs(np.fft.ifftn(1j * (kx * uh[0] + ky * uh[1] + kz * uh[2]))).max()
+            )
             times.append(float(t))
             frames.append(np.stack([c.astype(np.float32) for c in sp]))
             diag["t"].append(float(t))
             diag["peak_speed"].append(peak)
             diag["peak_vorticity"].append(float(vort.max()))
-            diag["half_peak_radius"].append(float(np.percentile(half, 95)) if half.size else 0.0)
+            diag["half_peak_radius"].append(
+                float(np.percentile(half, 95)) if half.size else 0.0
+            )
             diag["divergence"].append(div)
-            diag["energy"].append(float(0.5 * np.mean(speed ** 2)))
-            diag["enstrophy"].append(float(0.5 * np.mean(vort ** 2)))
+            diag["energy"].append(float(0.5 * np.mean(speed**2)))
+            diag["enstrophy"].append(float(0.5 * np.mean(vort**2)))
             fx, fy, fz = _force(X, Y, Z, t, p)
-            diag["force_power"].append(float(np.mean(fx * sp[0] + fy * sp[1] + fz * sp[2])))
+            diag["force_power"].append(
+                float(np.mean(fx * sp[0] + fy * sp[1] + fz * sp[2]))
+            )
             next_save += p.save_every
             if progress:
                 progress(len(times), float(t), peak)
@@ -200,8 +222,12 @@ def solve(p: SolverParams | None = None, *, progress=None) -> SolverResult:
         uh = project(uh)
         t += dt
 
-    return SolverResult(params=p, times=np.asarray(times),
-                        frames=np.asarray(frames, dtype=np.float32), diag=diag)
+    return SolverResult(
+        params=p,
+        times=np.asarray(times),
+        frames=np.asarray(frames, dtype=np.float32),
+        diag=diag,
+    )
 
 
 class SolverField:
@@ -238,10 +264,22 @@ class SolverField:
         for comp in range(3):
             c = frame[comp]
             out[:, comp] = (
-                c[i0[:, 0], i0[:, 1], i0[:, 2]] * (1 - f[:, 0]) * (1 - f[:, 1]) * (1 - f[:, 2])
-                + c[i1[:, 0], i0[:, 1], i0[:, 2]] * f[:, 0] * (1 - f[:, 1]) * (1 - f[:, 2])
-                + c[i0[:, 0], i1[:, 1], i0[:, 2]] * (1 - f[:, 0]) * f[:, 1] * (1 - f[:, 2])
-                + c[i0[:, 0], i0[:, 1], i1[:, 2]] * (1 - f[:, 0]) * (1 - f[:, 1]) * f[:, 2]
+                c[i0[:, 0], i0[:, 1], i0[:, 2]]
+                * (1 - f[:, 0])
+                * (1 - f[:, 1])
+                * (1 - f[:, 2])
+                + c[i1[:, 0], i0[:, 1], i0[:, 2]]
+                * f[:, 0]
+                * (1 - f[:, 1])
+                * (1 - f[:, 2])
+                + c[i0[:, 0], i1[:, 1], i0[:, 2]]
+                * (1 - f[:, 0])
+                * f[:, 1]
+                * (1 - f[:, 2])
+                + c[i0[:, 0], i0[:, 1], i1[:, 2]]
+                * (1 - f[:, 0])
+                * (1 - f[:, 1])
+                * f[:, 2]
                 + c[i1[:, 0], i1[:, 1], i0[:, 2]] * f[:, 0] * f[:, 1] * (1 - f[:, 2])
                 + c[i1[:, 0], i0[:, 1], i1[:, 2]] * f[:, 0] * (1 - f[:, 1]) * f[:, 2]
                 + c[i0[:, 0], i1[:, 1], i1[:, 2]] * (1 - f[:, 0]) * f[:, 1] * f[:, 2]

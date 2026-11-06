@@ -28,7 +28,9 @@ class TrashEntry:
 
 
 class Reclaimer:
-    def __init__(self, store: DataStore, *, quota_bytes: int = DEFAULT_QUOTA_BYTES) -> None:
+    def __init__(
+        self, store: DataStore, *, quota_bytes: int = DEFAULT_QUOTA_BYTES
+    ) -> None:
         self.store = store
         self.quota_bytes = int(quota_bytes)
         self._owners: dict[str, set[str]] = {}
@@ -64,7 +66,12 @@ class Reclaimer:
 
     def list(self) -> list[dict[str, Any]]:
         return [
-            {"name": e.name, "dropped_at": e.dropped_at, "nbytes": e.nbytes, "reason": e.reason}
+            {
+                "name": e.name,
+                "dropped_at": e.dropped_at,
+                "nbytes": e.nbytes,
+                "reason": e.reason,
+            }
             for e in self._trash.values()
         ]
 

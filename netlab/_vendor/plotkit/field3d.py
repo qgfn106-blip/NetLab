@@ -39,7 +39,9 @@ class Field3D(Protocol):
         ...
 
 
-def bounds_of(field: Any) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+def bounds_of(
+    field: Any,
+) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
     """取场的包围盒；没有就退回默认盒子（保证 scene() 永远能跑）。"""
     b = getattr(field, "bounds", None)
     if b is None:
@@ -67,44 +69,83 @@ def _velocity(field: Any, pts: np.ndarray, t: float) -> np.ndarray:
     return v
 
 
-def sample_velocity(field: Any, t: float, *, n: int = 48,
-                    extent: float | None = None, z_extent: float | None = None,
-                    center: Sequence[float] | None = None):
+def sample_velocity(
+    field: Any,
+    t: float,
+    *,
+    n: int = 48,
+    extent: float | None = None,
+    z_extent: float | None = None,
+    center: Sequence[float] | None = None,
+):
     """在规则网格上采速度模长，返回 `(xs, ys, zs, speed(nz,ny,nx))`。
 
     `speed` 的布局（x 变化最快）就是 `/api/volume` 与 `fig.add("volume", …)` 的约定。
     """
     lo, hi = bounds_of(field)
-    cx, cy, cz = center if center is not None else (
-        (lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2)
-    ex = float(extent) if extent is not None else max(abs(hi[0] - cx), abs(cx - lo[0]), 1e-3)
-    ey = float(extent) if extent is not None else max(abs(hi[1] - cy), abs(cy - lo[1]), 1e-3)
-    ez = float(z_extent) if z_extent is not None else max(abs(hi[2] - cz), abs(cz - lo[2]), 1e-3)
+    cx, cy, cz = (
+        center
+        if center is not None
+        else ((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2)
+    )
+    ex = (
+        float(extent)
+        if extent is not None
+        else max(abs(hi[0] - cx), abs(cx - lo[0]), 1e-3)
+    )
+    ey = (
+        float(extent)
+        if extent is not None
+        else max(abs(hi[1] - cy), abs(cy - lo[1]), 1e-3)
+    )
+    ez = (
+        float(z_extent)
+        if z_extent is not None
+        else max(abs(hi[2] - cz), abs(cz - lo[2]), 1e-3)
+    )
 
     n = max(8, int(n))
     xs = np.linspace(cx - ex, cx + ex, n)
     ys = np.linspace(cy - ey, cy + ey, n)
     zs = np.linspace(cz - ez, cz + ez, n)
-    X, Y, Z = np.meshgrid(xs, ys, zs, indexing="ij")          # (nx, ny, nz)
+    X, Y, Z = np.meshgrid(xs, ys, zs, indexing="ij")  # (nx, ny, nz)
     pts = np.stack([X.ravel(), Y.ravel(), Z.ravel()], axis=1)
     vel = _velocity(field, pts, t)
     speed = np.linalg.norm(vel, axis=1).reshape(n, n, n)
-    return xs, ys, zs, np.transpose(speed, (2, 1, 0)).copy()   # → (nz, ny, nx)
+    return xs, ys, zs, np.transpose(speed, (2, 1, 0)).copy()  # → (nz, ny, nx)
 
 
-def seed_points(field: Any, t: float, *, count: int = 12000,
-                extent: float | None = None, z_extent: float | None = None,
-                shells: int = 26, seed: int = 7, center: Sequence[float] | None = None
-                ) -> tuple[np.ndarray, np.ndarray]:
+def seed_points(
+    field: Any,
+    t: float,
+    *,
+    count: int = 12000,
+    extent: float | None = None,
+    z_extent: float | None = None,
+    shells: int = 26,
+    seed: int = 7,
+    center: Sequence[float] | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     """离散同心壳上的示踪种子（确定性），返回 `(xyz, speed)`。
 
     涡类流场向轴收缩，纯随机撒点几秒就糊成一团；按壳撒点才看得出"内旋 + 轴向拉伸"。
     """
     lo, hi = bounds_of(field)
-    cx, cy, cz = center if center is not None else (
-        (lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2)
-    ex = float(extent) if extent is not None else max(abs(hi[0] - cx), abs(cx - lo[0]), 1e-3)
-    ez = float(z_extent) if z_extent is not None else max(abs(hi[2] - cz), abs(cz - lo[2]), 1e-3)
+    cx, cy, cz = (
+        center
+        if center is not None
+        else ((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2)
+    )
+    ex = (
+        float(extent)
+        if extent is not None
+        else max(abs(hi[0] - cx), abs(cx - lo[0]), 1e-3)
+    )
+    ez = (
+        float(z_extent)
+        if z_extent is not None
+        else max(abs(hi[2] - cz), abs(cz - lo[2]), 1e-3)
+    )
 
     rng = np.random.default_rng(seed)
     count = max(64, int(count))
@@ -122,27 +163,49 @@ def seed_points(field: Any, t: float, *, count: int = 12000,
     th2 = rng.random(n_col) * 2 * np.pi
     z2 = (rng.random(n_col) * 2 - 1) * ez
     taper = 1.0 - 0.78 * np.power(np.abs(z2) / max(ez, 1e-9), 1.1)
-    col = np.stack([cx + rad2 * taper * np.cos(th2), cy + rad2 * taper * np.sin(th2), cz + z2], axis=1)
+    col = np.stack(
+        [cx + rad2 * taper * np.cos(th2), cy + rad2 * taper * np.sin(th2), cz + z2],
+        axis=1,
+    )
 
     xyz = np.concatenate([disk, col], axis=0)
     vel = _velocity(field, xyz, t)
     return xyz, np.linalg.norm(vel, axis=1)
 
 
-def streamline_segments(field: Any, t: float, *, seeds: int = 28, steps: int = 90,
-                        dt: float = 0.02, extent: float | None = None,
-                        z_extent: float | None = None, seed: int = 11,
-                        center: Sequence[float] | None = None):
+def streamline_segments(
+    field: Any,
+    t: float,
+    *,
+    seeds: int = 28,
+    steps: int = 90,
+    dt: float = 0.02,
+    extent: float | None = None,
+    z_extent: float | None = None,
+    seed: int = 11,
+    center: Sequence[float] | None = None,
+):
     """从一圈种子里 RK4 积分流线，返回 `segments` 图层要的**端点点对**。
 
     速度可能随 t 放大（自相似场按 τ^(-1/2-h) 发散），固定步长会把流线甩出计算域，
     所以单步位移超过域长 2% 时自动缩步长。
     """
     lo, hi = bounds_of(field)
-    cx, cy, cz = center if center is not None else (
-        (lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2)
-    ex = float(extent) if extent is not None else max(abs(hi[0] - cx), abs(cx - lo[0]), 1e-3)
-    ez = float(z_extent) if z_extent is not None else max(abs(hi[2] - cz), abs(cz - lo[2]), 1e-3)
+    cx, cy, cz = (
+        center
+        if center is not None
+        else ((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2)
+    )
+    ex = (
+        float(extent)
+        if extent is not None
+        else max(abs(hi[0] - cx), abs(cx - lo[0]), 1e-3)
+    )
+    ez = (
+        float(z_extent)
+        if z_extent is not None
+        else max(abs(hi[2] - cz), abs(cz - lo[2]), 1e-3)
+    )
 
     rng = np.random.default_rng(seed)
     xs: list[float] = []
@@ -174,8 +237,11 @@ def streamline_segments(field: Any, t: float, *, seeds: int = 28, steps: int = 9
             ys.extend((prev[1], p[1]))
             zs.extend((prev[2], p[2]))
             prev = p.copy()
-    return (np.asarray(xs, dtype=float), np.asarray(ys, dtype=float),
-            np.asarray(zs, dtype=float))
+    return (
+        np.asarray(xs, dtype=float),
+        np.asarray(ys, dtype=float),
+        np.asarray(zs, dtype=float),
+    )
 
 
 DEFAULT_LAYERS = ("volume", "particles", "streamlines")
@@ -201,12 +267,24 @@ def auto_n(field: Any, *, budget: int = 200_000, lo: int = 16, hi: int = 128) ->
     return max(lo, min(hi, n))
 
 
-def scene(field: Any, *, t: float = 0.0, layers: Iterable[str] = DEFAULT_LAYERS,
-          iso: bool | None = None,
-          n: int | str = 48, lod_budget: int = 200_000, extent: float | None = None, z_extent: float | None = None,
-          particles: int = 12000, streamlines: int = 28, level: float = 0.80,
-          seed: int = 7, title: str | None = None, size: tuple[float, float] = (7.2, 5.6),
-          dpi: int = 110):
+def scene(
+    field: Any,
+    *,
+    t: float = 0.0,
+    layers: Iterable[str] = DEFAULT_LAYERS,
+    iso: bool | None = None,
+    n: int | str = 48,
+    lod_budget: int = 200_000,
+    extent: float | None = None,
+    z_extent: float | None = None,
+    particles: int = 12000,
+    streamlines: int = 28,
+    level: float = 0.80,
+    seed: int = 7,
+    title: str | None = None,
+    size: tuple[float, float] = (7.2, 5.6),
+    dpi: int = 110,
+):
     """任意三维流场 → 一份可直接渲染的 `Figure`。
 
     `layers` 可选 `volume` / `particles` / `streamlines` 的任意组合（顺序无关）。
@@ -231,26 +309,37 @@ def scene(field: Any, *, t: float = 0.0, layers: Iterable[str] = DEFAULT_LAYERS,
         fig.add_data("vy", ys, role="coord")
         fig.add_data("vz", zs, role="coord")
         fig.add_data("speed", speed, role="field")
-        fig.add("volume", {"x": "vx", "y": "vy", "z": "vz", "values": "speed"},
-                style={"level": float(level), "opacity": 0.30})
+        fig.add(
+            "volume",
+            {"x": "vx", "y": "vy", "z": "vz", "values": "speed"},
+            style={"level": float(level), "opacity": 0.30},
+        )
 
     if "particles" in wanted and particles > 0:
-        xyz, spd = seed_points(field, t, count=particles, extent=extent,
-                               z_extent=z_extent, seed=seed)
+        xyz, spd = seed_points(
+            field, t, count=particles, extent=extent, z_extent=z_extent, seed=seed
+        )
         fig.add_data("px", xyz[:, 0], role="auto")
         fig.add_data("py", xyz[:, 1], role="auto")
         fig.add_data("pz", xyz[:, 2], role="auto")
         fig.add_data("pc", spd, role="auto")
-        fig.add("particles", {"x": "px", "y": "py", "z": "pz", "scalar": "pc"},
-                style={"markersize": 4.2, "opacity": 0.55})
+        fig.add(
+            "particles",
+            {"x": "px", "y": "py", "z": "pz", "scalar": "pc"},
+            style={"markersize": 4.2, "opacity": 0.55},
+        )
 
     if "streamlines" in wanted and streamlines > 0:
-        sx, sy, sz = streamline_segments(field, t, seeds=streamlines, extent=extent,
-                                        z_extent=z_extent, seed=seed)
+        sx, sy, sz = streamline_segments(
+            field, t, seeds=streamlines, extent=extent, z_extent=z_extent, seed=seed
+        )
         if sx.size:
             fig.add_data("sx", sx, role="auto")
             fig.add_data("sy", sy, role="auto")
             fig.add_data("sz", sz, role="auto")
-            fig.add("segments", {"x": "sx", "y": "sy", "z": "sz"},
-                    style={"width": 1.0, "color": "#73dbff"})
+            fig.add(
+                "segments",
+                {"x": "sx", "y": "sy", "z": "sz"},
+                style={"width": 1.0, "color": "#73dbff"},
+            )
     return fig

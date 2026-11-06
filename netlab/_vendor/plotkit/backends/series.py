@@ -16,14 +16,32 @@ from ..store.downsample import downsample_xy
 from ..store.registry import DataStore
 
 PALETTE = (
-    "#4fc3f7", "#ff8a65", "#aed581", "#ba68c8", "#ffd54f",
-    "#4db6ac", "#f06292", "#7986cb", "#a1887f", "#90a4ae",
+    "#4fc3f7",
+    "#ff8a65",
+    "#aed581",
+    "#ba68c8",
+    "#ffd54f",
+    "#4db6ac",
+    "#f06292",
+    "#7986cb",
+    "#a1887f",
+    "#90a4ae",
 )
 
 
 THEMES: dict[str, dict[str, str]] = {
-    "default": {"paper": "#ffffff", "plot": "#ffffff", "text": "#1f2937", "grid": "#e5e7eb"},
-    "netlab-dark": {"paper": "#0f172a", "plot": "#111827", "text": "#e2e8f0", "grid": "#1f2937"},
+    "default": {
+        "paper": "#ffffff",
+        "plot": "#ffffff",
+        "text": "#1f2937",
+        "grid": "#e5e7eb",
+    },
+    "netlab-dark": {
+        "paper": "#0f172a",
+        "plot": "#111827",
+        "text": "#e2e8f0",
+        "grid": "#1f2937",
+    },
 }
 
 
@@ -70,8 +88,14 @@ def _window_slice(x: np.ndarray, trange) -> tuple[int, int]:
     return int(idx[0]), int(idx[-1]) + 1
 
 
-def _xy(layer: Mapping[str, Any], store: DataStore, *, pixels: int | None, per_pixel: float,
-        trange=None):
+def _xy(
+    layer: Mapping[str, Any],
+    store: DataStore,
+    *,
+    pixels: int | None,
+    per_pixel: float,
+    trange=None,
+):
     data = layer.get("data", {})
     if trange is None:
         trange = _TRANGE.get()
@@ -104,7 +128,7 @@ def _xy(layer: Mapping[str, Any], store: DataStore, *, pixels: int | None, per_p
 
 def _step(value: float, scale: str, decades: float) -> float:
     """沿某个轴的"数量级台阶"走一步：log 轴乘 10^n，线性轴加 n。"""
-    return float(value) * (10.0 ** decades) if scale == "log" else float(value) + decades
+    return float(value) * (10.0**decades) if scale == "log" else float(value) + decades
 
 
 def _numeric_bounds(values: Any) -> tuple[float | None, float | None]:
@@ -155,7 +179,9 @@ def _coord_time_bounds(store: DataStore) -> tuple[float | None, float | None]:
     return lo, hi
 
 
-def time_bounds(spec: Mapping[str, Any], store: DataStore) -> tuple[float | None, float | None]:
+def time_bounds(
+    spec: Mapping[str, Any], store: DataStore
+) -> tuple[float | None, float | None]:
     """回放要用的时间范围 (最小, 最大)。
 
     优先用图层 x 数据的范围；没有图层时回退到 ``role="coord"`` 的数据集：

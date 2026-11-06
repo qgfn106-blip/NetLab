@@ -61,12 +61,22 @@ def _as_xy(args: Sequence[Any]) -> tuple[np.ndarray, np.ndarray]:
     return x, y
 
 
-def quick(*args: Any, kind: str = "line", title: str | None = None,
-          path: str | os.PathLike[str] | None = None, width: int = 900,
-          height: int = 520, dpi: int = 100, fmt: str = "png",
-          show: bool = False, xlabel: str | None = None, ylabel: str | None = None,
-          labels: Sequence[str] | None = None,
-          style: dict[str, Any] | None = None, **kwargs: Any) -> bytes | str:
+def quick(
+    *args: Any,
+    kind: str = "line",
+    title: str | None = None,
+    path: str | os.PathLike[str] | None = None,
+    width: int = 900,
+    height: int = 520,
+    dpi: int = 100,
+    fmt: str = "png",
+    show: bool = False,
+    xlabel: str | None = None,
+    ylabel: str | None = None,
+    labels: Sequence[str] | None = None,
+    style: dict[str, Any] | None = None,
+    **kwargs: Any,
+) -> bytes | str:
     """把一维数组立刻画出来。
 
     `style` 与其余关键字参数直接并进图层样式（`color=`/`width=`/`marker=`…），
@@ -78,8 +88,9 @@ def quick(*args: Any, kind: str = "line", title: str | None = None,
     for item in series:
         if item.size != x.size:
             raise ValueError(f"x/y 长度不一致：{x.size} vs {item.size}")
-    fig = pk.figure(size=(width / max(dpi, 1), height / max(dpi, 1)), dpi=dpi,
-                    title=title or "")
+    fig = pk.figure(
+        size=(width / max(dpi, 1), height / max(dpi, 1)), dpi=dpi, title=title or ""
+    )
     fig.add_data("x", x, role="coord")
     merged = dict(style or {})
     merged.update(kwargs)

@@ -26,15 +26,15 @@ from .backends import pyvista_backend
 
 
 def _pv():
-    return pyvista_backend._pv()          # 复用同一份 pyvista 导入与 OFF_SCREEN 设置
+    return pyvista_backend._pv()  # 复用同一份 pyvista 导入与 OFF_SCREEN 设置
 
 
 @dataclass
 class _Actor:
     name: str
-    handle: Any                            # pyvista Actor
-    poses: np.ndarray | None = None        # (frames, 3) 世界坐标
-    headings: np.ndarray | None = None     # (frames,) 绕 z 轴的角度（度）
+    handle: Any  # pyvista Actor
+    poses: np.ndarray | None = None  # (frames, 3) 世界坐标
+    headings: np.ndarray | None = None  # (frames,) 绕 z 轴的角度（度）
     scale: float = 1.0
 
     def apply(self, index: int) -> None:
@@ -49,7 +49,7 @@ class _Actor:
 @dataclass
 class _Trail:
     name: str
-    points: np.ndarray                    # (n, 3) 完整轨迹
+    points: np.ndarray  # (n, 3) 完整轨迹
     color: str
     width: float
     actor: Any = None
@@ -67,15 +67,24 @@ class _Trail:
                 pass
         self.actor = plotter.add_mesh(
             _pv().lines_from_points(self.points[:upto].astype(np.float32)),
-            color=self.color, line_width=float(self.width),
+            color=self.color,
+            line_width=float(self.width),
         )
 
 
 class Anim3D:
     """一个可复用 Plotter 的三维动画：静态场景来自 figure，动态物体由这里添加。"""
 
-    def __init__(self, figure, *, frames: int = 120, fps: float = 20.0,
-                 width: int = 640, height: int = 400, dpi: int = 100) -> None:
+    def __init__(
+        self,
+        figure,
+        *,
+        frames: int = 120,
+        fps: float = 20.0,
+        width: int = 640,
+        height: int = 400,
+        dpi: int = 100,
+    ) -> None:
         if not (1 <= int(frames) <= 2000):
             raise ValueError(f"frames 必须在 1…2000 之间，收到 {frames}")
         if not (1 <= float(fps) <= 120):
@@ -99,7 +108,7 @@ class Anim3D:
             return self._plotter
         pv = _pv()
         plotter = pv.Plotter(off_screen=True, window_size=(self.width, self.height))
-        pyvista_backend._SUPPRESS_SCALAR_BAR = True   # 每帧都烙一条色标没意义
+        pyvista_backend._SUPPRESS_SCALAR_BAR = True  # 每帧都烙一条色标没意义
         spec = self.figure.spec
         figure_cfg = spec.get("figure") or {}
         plotter.background_color = str(figure_cfg.get("facecolor") or "white")
@@ -110,7 +119,9 @@ class Anim3D:
             sub_spec = dict(spec)
             sub_spec["layers"] = layers
             for layer in layers:
-                real = pyvista_backend.registry.ALIASES.get(str(layer.get("kind")), layer.get("kind"))
+                real = pyvista_backend.registry.ALIASES.get(
+                    str(layer.get("kind")), layer.get("kind")
+                )
                 builder = pyvista_backend._BUILDERS.get(real)
                 if builder is None:
                     continue
@@ -128,9 +139,12 @@ class Anim3D:
             for key in ("elev", "azim", "zoom"):
                 if self._orbit.get(key) is not None:
                     view[key] = self._orbit[key]
-        pyvista_backend._apply_view(plotter, self.figure.spec.get("figure") or {},
-                                    pyvista_backend._view_bounds([], None, None),
-                                    layer_view=view)
+        pyvista_backend._apply_view(
+            plotter,
+            self.figure.spec.get("figure") or {},
+            pyvista_backend._view_bounds([], None, None),
+            layer_view=view,
+        )
         if self._orbit:
             span = max(1, self.frames - 1)
             t = index / span
@@ -145,14 +159,23 @@ class Anim3D:
             current = dict(view)
             current["azim"] = value
             current["elev"] = float(elev if elev is not None else 26)
-            pyvista_backend._apply_view(plotter, self.figure.spec.get("figure") or {},
-                                        pyvista_backend._view_bounds([], None, None),
-                                        layer_view=current)
+            pyvista_backend._apply_view(
+                plotter,
+                self.figure.spec.get("figure") or {},
+                pyvista_backend._view_bounds([], None, None),
+                layer_view=current,
+            )
 
     # ---- 动态物体 ---------------------------------------------------------
-    def add_box(self, name: str, *, size: Sequence[float] = (1.0, 1.0, 1.0),
-                color: str = "#ef4444", opacity: float = 1.0,
-                center: Sequence[float] = (0.0, 0.0, 0.0)) -> _Actor:
+    def add_box(
+        self,
+        name: str,
+        *,
+        size: Sequence[float] = (1.0, 1.0, 1.0),
+        color: str = "#ef4444",
+        opacity: float = 1.0,
+        center: Sequence[float] = (0.0, 0.0, 0.0),
+    ) -> _Actor:
         """一个可以逐帧移动/转向的长方体（车体、设备舱这类）。"""
         pv = _pv()
         plotter = self._ensure_plotter()
@@ -164,31 +187,51 @@ class Anim3D:
         self._actors.append(handle)
         return handle
 
-    def add_points(self, name: str, xyz: Iterable, *, color: str = "#2563eb",
-                   size: float = 6.0, poses: bool = False) -> _Actor:
+    def add_points(
+        self,
+        name: str,
+        xyz: Iterable,
+        *,
+        color: str = "#2563eb",
+        size: float = 6.0,
+        poses: bool = False,
+    ) -> _Actor:
         """点云；`poses=True` 时把 `xyz` 当作逐帧位置（(frames,3)）。"""
         pv = _pv()
         plotter = self._ensure_plotter()
-        pts = np.asarray(list(xyz) if not isinstance(xyz, np.ndarray) else xyz, dtype=float)
+        pts = np.asarray(
+            list(xyz) if not isinstance(xyz, np.ndarray) else xyz, dtype=float
+        )
         if pts.ndim != 2 or pts.shape[1] != 3:
             raise ValueError("xyz 需要 (n, 3) 形状")
         if poses:
             cloud = pv.PolyData(pts[0:1].astype(np.float32))
-            actor = plotter.add_mesh(cloud, color=color, point_size=float(size),
-                                     render_points_as_spheres=True)
+            actor = plotter.add_mesh(
+                cloud,
+                color=color,
+                point_size=float(size),
+                render_points_as_spheres=True,
+            )
             handle = _Actor(name=name, handle=actor, poses=pts)
         else:
             cloud = pv.PolyData(pts.astype(np.float32))
-            actor = plotter.add_mesh(cloud, color=color, point_size=float(size),
-                                     render_points_as_spheres=True)
+            actor = plotter.add_mesh(
+                cloud,
+                color=color,
+                point_size=float(size),
+                render_points_as_spheres=True,
+            )
             handle = _Actor(name=name, handle=actor)
         self._actors.append(handle)
         return handle
 
-    def add_trail(self, name: str, xyz: Iterable, *, color: str = "#94a3b8",
-                  width: float = 2.0) -> _Trail:
+    def add_trail(
+        self, name: str, xyz: Iterable, *, color: str = "#94a3b8", width: float = 2.0
+    ) -> _Trail:
         """逐帧生长的轨迹线。"""
-        pts = np.asarray(list(xyz) if not isinstance(xyz, np.ndarray) else xyz, dtype=float)
+        pts = np.asarray(
+            list(xyz) if not isinstance(xyz, np.ndarray) else xyz, dtype=float
+        )
         if pts.ndim != 2 or pts.shape[1] != 3:
             raise ValueError("轨迹需要 (n, 3) 形状")
         trail = _Trail(name=name, points=pts, color=color, width=float(width))
@@ -196,8 +239,12 @@ class Anim3D:
         self._trails.append(trail)
         return trail
 
-    def set_pose(self, actor: _Actor | str, xyz: Iterable | None = None,
-                 heading: Iterable | None = None) -> None:
+    def set_pose(
+        self,
+        actor: _Actor | str,
+        xyz: Iterable | None = None,
+        heading: Iterable | None = None,
+    ) -> None:
         """给某个物体设逐帧位姿（`xyz` 是 (frames,3)，`heading` 是 (frames,) 角度）。"""
         target = self._resolve(actor)
         if xyz is not None:
@@ -210,7 +257,7 @@ class Anim3D:
         if heading is not None:
             head = np.asarray(heading, dtype=float).ravel()
             if head.size and np.nanmax(np.abs(head)) < 4 * math.pi:
-                head = np.degrees(head)        # 弧度输入也接受
+                head = np.degrees(head)  # 弧度输入也接受
             target.headings = head
 
     def orbit(self, *, elev: Any = None, azim: Any = None, zoom: Any = None) -> None:
@@ -233,7 +280,7 @@ class Anim3D:
         for trail in self._trails:
             trail.update(plotter, index, self.frames)
         self._apply_camera(index)
-        plotter.render()                      # 必须先 render，否则 screenshot 拿的是上一帧
+        plotter.render()  # 必须先 render，否则 screenshot 拿的是上一帧
         image = plotter.screenshot(return_img=True)
         return pyvista_backend._encode_png(image)
 
@@ -256,8 +303,15 @@ class Anim3D:
         if not images:
             raise ValueError("没有可渲染的帧")
         buffer = io.BytesIO()
-        images[0].save(buffer, format="GIF", save_all=True, append_images=images[1:],
-                       duration=max(1, int(round(1000.0 / self.fps))), loop=0, disposal=2)
+        images[0].save(
+            buffer,
+            format="GIF",
+            save_all=True,
+            append_images=images[1:],
+            duration=max(1, int(round(1000.0 / self.fps))),
+            loop=0,
+            disposal=2,
+        )
         payload = buffer.getvalue()
         if path is not None:
             Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -272,7 +326,9 @@ class Anim3D:
 
         ffmpeg = shutil.which("ffmpeg")
         if not ffmpeg:
-            raise RuntimeError("导出 MP4 需要 ffmpeg，请先安装并加入 PATH（GIF 不依赖它）")
+            raise RuntimeError(
+                "导出 MP4 需要 ffmpeg，请先安装并加入 PATH（GIF 不依赖它）"
+            )
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
         frames = self.frames_png()
@@ -282,9 +338,23 @@ class Anim3D:
             folder = Path(tmp)
             for i, png in enumerate(frames):
                 (folder / f"f{i:04d}.png").write_bytes(png)
-            cmd = [ffmpeg, "-y", "-loglevel", "error", "-framerate", f"{self.fps:g}",
-                   "-i", str(folder / "f%04d.png"), "-pix_fmt", "yuv420p",
-                   "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2", "-crf", str(int(crf)), str(target)]
+            cmd = [
+                ffmpeg,
+                "-y",
+                "-loglevel",
+                "error",
+                "-framerate",
+                f"{self.fps:g}",
+                "-i",
+                str(folder / "f%04d.png"),
+                "-pix_fmt",
+                "yuv420p",
+                "-vf",
+                "pad=ceil(iw/2)*2:ceil(ih/2)*2",
+                "-crf",
+                str(int(crf)),
+                str(target),
+            ]
             subprocess.run(cmd, check=True)
         return target
 

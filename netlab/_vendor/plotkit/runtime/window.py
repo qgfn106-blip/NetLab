@@ -38,7 +38,9 @@ def open_window(
     view = QWebEngineView()
     page = view.page()
     page.setBackgroundColor(QColor("#ffffff"))
-    view.setWindowTitle(title or str(figure.spec.get("figure", {}).get("title") or "PlotKit"))
+    view.setWindowTitle(
+        title or str(figure.spec.get("figure", {}).get("title") or "PlotKit")
+    )
     view.resize(*size)
     view.load(QUrl(server.url))
     view.show()

@@ -132,9 +132,11 @@ def lic_rgb(
     import matplotlib
 
     tex = lic_texture(u, v, steps=steps, seed=seed, contrast=contrast, step_px=step_px)
-    field = np.asarray(scalar if scalar is not None else np.hypot(u, v), dtype=np.float64)
+    field = np.asarray(
+        scalar if scalar is not None else np.hypot(u, v), dtype=np.float64
+    )
     lo, hi = float(np.nanmin(field)), float(np.nanmax(field))
     norm = (field - lo) / (hi - lo) if hi > lo else np.zeros_like(field)
     base = matplotlib.colormaps[cmap](norm)[..., :3]
-    shade = 0.35 + 0.85 * tex            # 亮度动态范围压在 0.35–1.2，暗处不糊成一片
+    shade = 0.35 + 0.85 * tex  # 亮度动态范围压在 0.35–1.2，暗处不糊成一片
     return np.clip(base * shade[..., None], 0.0, 1.0)

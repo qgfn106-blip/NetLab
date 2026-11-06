@@ -17,10 +17,23 @@ from ..spec.model import DEFAULT_FONTS
 from ..spec.model import layers as spec_layers
 from ..store.registry import DataStore
 from . import registry as reg
-from .series import PALETTE, THEMES, _step, color_for, _window_slice, current_trange  # noqa: F401
+from .series import (
+    PALETTE,
+    THEMES,
+    _step,
+    color_for,
+    _window_slice,
+    current_trange,
+)  # noqa: F401
 from .series import push_trange, pop_trange  # noqa: F401
 
-FONT_FALLBACK = ("Microsoft YaHei", "SimHei", "Noto Sans CJK SC", "DejaVu Sans", "Arial")
+FONT_FALLBACK = (
+    "Microsoft YaHei",
+    "SimHei",
+    "Noto Sans CJK SC",
+    "DejaVu Sans",
+    "Arial",
+)
 
 MODE_STYLE = {
     "lines": {"linestyle": "-", "marker": None},
@@ -28,14 +41,33 @@ MODE_STYLE = {
     "lines+markers": {"linestyle": "-", "marker": "o"},
 }
 
-DASH_MPL = {"solid": "-", "dot": ":", "dash": "--", "longdash": (0, (6, 3)), "dashdot": "-.", "longdashdot": (0, (8, 3, 2, 3))}
+DASH_MPL = {
+    "solid": "-",
+    "dot": ":",
+    "dash": "--",
+    "longdash": (0, (6, 3)),
+    "dashdot": "-.",
+    "longdashdot": (0, (8, 3, 2, 3)),
+}
 
 # plotly 的 symbol 名 → matplotlib 的 marker 简写
 SYMBOL_MPL = {
-    "circle": "o", "square": "s", "diamond": "D", "cross": "+", "x": "x",
-    "triangle-up": "^", "triangle-down": "v", "triangle-left": "<", "triangle-right": ">",
-    "star": "*", "hexagon": "h", "pentagon": "p", "hourglass": "d", "bowtie": "d",
-    "line-ew": "_", "line-ns": "|",
+    "circle": "o",
+    "square": "s",
+    "diamond": "D",
+    "cross": "+",
+    "x": "x",
+    "triangle-up": "^",
+    "triangle-down": "v",
+    "triangle-left": "<",
+    "triangle-right": ">",
+    "star": "*",
+    "hexagon": "h",
+    "pentagon": "p",
+    "hourglass": "d",
+    "bowtie": "d",
+    "line-ew": "_",
+    "line-ns": "|",
 }
 
 
@@ -60,16 +92,23 @@ def _error_bars(ax, layer, store, *, color: str) -> None:
         raw = np.asarray(store.values(data[f"error_{axis}"])).ravel()
         minus_name = data.get(f"error_{axis}_minus")
         raw_minus = np.asarray(store.values(minus_name)).ravel() if minus_name else raw
-        i0, i1 = _window_slice(np.asarray(store.values(data["x"])).ravel(), current_trange())
+        i0, i1 = _window_slice(
+            np.asarray(store.values(data["x"])).ravel(), current_trange()
+        )
         return np.vstack([raw_minus[i0:i1], raw[i0:i1]]).astype(float)
 
     yerr = _band("y") if data.get("error_y") else None
     xerr = _band("x") if data.get("error_x") else None
     ax.errorbar(
-        x, y, yerr=yerr, xerr=xerr,
-        fmt="none", ecolor=ecolor,
+        x,
+        y,
+        yerr=yerr,
+        xerr=xerr,
+        fmt="none",
+        ecolor=ecolor,
         elinewidth=float(cfg.get("thickness", 1.2)),
-        capsize=capsize, capthick=float(cfg.get("thickness", 1.2)),
+        capsize=capsize,
+        capthick=float(cfg.get("thickness", 1.2)),
         alpha=float(cfg.get("opacity", 1.0)),
         zorder=1,
     )
@@ -86,11 +125,14 @@ def _draw_line(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> N
     color = style.get("color") or color_for(index)
     marker_line = dict(marker.get("line") or {})
     line = ax.plot(
-        x, y,
+        x,
+        y,
         color=color,
         linewidth=float(style.get("width", 1.6)),
         linestyle=DASH_MPL.get(style.get("dash", "solid"), "-"),
-        marker=_marker_symbol(style) if kwargs["marker"] or marker.get("symbol") else None,
+        marker=(
+            _marker_symbol(style) if kwargs["marker"] or marker.get("symbol") else None
+        ),
         markersize=float(marker.get("size", 6)) * 0.7,
         markeredgecolor=marker_line.get("color") or color,
         markeredgewidth=float(marker_line.get("width", 0.0)),
@@ -114,9 +156,14 @@ def _draw_scatter(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -
     color = style.get("color") or color_for(index)
     sizes = marker.get("sizes")
     ax.scatter(
-        x, y,
+        x,
+        y,
         color=color,
-        s=np.asarray(sizes, dtype=float) ** 2 if sizes is not None else float(marker.get("size", 6)) ** 2,
+        s=(
+            np.asarray(sizes, dtype=float) ** 2
+            if sizes is not None
+            else float(marker.get("size", 6)) ** 2
+        ),
         marker=_marker_symbol(style),
         edgecolors=marker_line.get("color") or color,
         linewidths=float(marker_line.get("width", 0.0)),
@@ -134,7 +181,8 @@ def _draw_bar(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> No
     style = layer.get("style") or {}
     color = style.get("color") or color_for(index)
     ax.bar(
-        x, y,
+        x,
+        y,
         width=float(style.get("width", 0.8)) or 0.8,
         color=color,
         alpha=float(style.get("opacity", 1.0)),
@@ -143,13 +191,17 @@ def _draw_bar(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> No
     _error_bars(ax, layer, store, color=color)
 
 
-def hist_counts(layer: Mapping[str, Any], store: DataStore) -> tuple[np.ndarray, np.ndarray]:
+def hist_counts(
+    layer: Mapping[str, Any], store: DataStore
+) -> tuple[np.ndarray, np.ndarray]:
     """直方图分箱（服务端算，D31）。单独暴露出来，测试可以直接与 `np.histogram` 对拍。"""
     data = layer.get("data") or {}
     style = layer.get("style") or {}
     x = np.asarray(store.values(data["x"])).ravel().astype(float)
     x = x[np.isfinite(x)]
-    return np.histogram(x, bins=style.get("bins", 30), density=bool(style.get("density")))
+    return np.histogram(
+        x, bins=style.get("bins", 30), density=bool(style.get("density"))
+    )
 
 
 def _draw_hist(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
@@ -158,9 +210,15 @@ def _draw_hist(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> N
     style = layer.get("style") or {}
     counts, edges = hist_counts(layer, store)
     color = style.get("color") or color_for(index)
-    ax.bar(edges[:-1], counts, width=np.diff(edges), align="edge", color=color,
-           alpha=float(style.get("opacity", 1.0)),
-           label=layer.get("label") or data.get("x"))
+    ax.bar(
+        edges[:-1],
+        counts,
+        width=np.diff(edges),
+        align="edge",
+        color=color,
+        alpha=float(style.get("opacity", 1.0)),
+        label=layer.get("label") or data.get("x"),
+    )
 
 
 def _draw_pie(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
@@ -170,8 +228,13 @@ def _draw_pie(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> No
     labels = None
     if data.get("labels"):
         labels = [str(v) for v in np.asarray(store.values(data["labels"])).ravel()]
-    ax.pie(values, labels=labels, autopct=str(style.get("autopct") or "") or None,
-           startangle=90, counterclock=False)
+    ax.pie(
+        values,
+        labels=labels,
+        autopct=str(style.get("autopct") or "") or None,
+        startangle=90,
+        counterclock=False,
+    )
     ax.set_axis_off()
 
 
@@ -181,11 +244,15 @@ def _draw_image(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> 
     arr = np.asarray(store.values(data["image"]))
     if arr.ndim == 1:
         arr = arr.reshape(1, -1)
-    im = ax.imshow(arr, cmap=str(style.get("cmap") or "viridis"),
-                   origin=str(style.get("origin") or "upper"),
-                   aspect=str(style.get("aspect") or "auto"),
-                   vmin=style.get("vmin"), vmax=style.get("vmax"),
-                   interpolation="nearest")
+    im = ax.imshow(
+        arr,
+        cmap=str(style.get("cmap") or "viridis"),
+        origin=str(style.get("origin") or "upper"),
+        aspect=str(style.get("aspect") or "auto"),
+        vmin=style.get("vmin"),
+        vmax=style.get("vmax"),
+        interpolation="nearest",
+    )
     if style.get("colorbar", True):
         ax.figure.colorbar(im, ax=ax, **COLORBAR_KW)
 
@@ -193,7 +260,9 @@ def _draw_image(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> 
 HIGHLIGHT_COLOR = "#ffd54f"
 
 
-def _highlight_cells(table, cells, style: Mapping[str, Any], *, has_header: bool) -> None:
+def _highlight_cells(
+    table, cells, style: Mapping[str, Any], *, has_header: bool
+) -> None:
     """表格高亮：`highlight="max"/"min"` 或显式 `[[row, col], …]`（行 0 起，不含表头）。
 
     行号偏移由调用方传入 `has_header` 决定——以前靠 `(0, 0) in celld` 猜，
@@ -208,10 +277,14 @@ def _highlight_cells(table, cells, style: Mapping[str, Any], *, has_header: bool
     targets: list[tuple[int, int]] = []
     if isinstance(spec, str):
         if spec not in ("max", "min"):
-            raise ValueError(f"highlight 只支持 max / min 或 [[row, col], …]，收到 {spec!r}")
+            raise ValueError(
+                f"highlight 只支持 max / min 或 [[row, col], …]，收到 {spec!r}"
+            )
         if numeric is None:
             raise ValueError("highlight=max/min 需要数值单元格")
-        idx = int(np.nanargmax(numeric)) if spec == "max" else int(np.nanargmin(numeric))
+        idx = (
+            int(np.nanargmax(numeric)) if spec == "max" else int(np.nanargmin(numeric))
+        )
         targets = [divmod(idx, numeric.shape[1])]
     else:
         targets = [(int(r), int(c)) for r, c in spec]
@@ -240,13 +313,13 @@ def _draw_table(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> 
     _highlight_cells(table, cells, style, has_header=header is not None)
 
 
-
-
 #: colorbar 的统一摆位（三处共用，别各写一份魔数）
 COLORBAR_KW = {"fraction": 0.046, "pad": 0.02}
 
 
-def _maybe_colorbar(ax, mappable, style: Mapping[str, Any], *, default: bool = True) -> None:
+def _maybe_colorbar(
+    ax, mappable, style: Mapping[str, Any], *, default: bool = True
+) -> None:
     """按 `style.colorbar` 决定是否加色条（六处共用，别各写一份判断）。"""
     if style.get("colorbar", default):
         ax.figure.colorbar(mappable, ax=ax, **COLORBAR_KW)
@@ -258,8 +331,16 @@ def _field_arrays(layer: Mapping[str, Any], store: DataStore):
     z = np.asarray(store.values(data["z"]), dtype=float)
     if z.ndim == 1:
         z = z.reshape(1, -1)
-    x = np.asarray(store.values(data["x"])).ravel().astype(float) if data.get("x") else None
-    y = np.asarray(store.values(data["y"])).ravel().astype(float) if data.get("y") else None
+    x = (
+        np.asarray(store.values(data["x"])).ravel().astype(float)
+        if data.get("x")
+        else None
+    )
+    y = (
+        np.asarray(store.values(data["y"])).ravel().astype(float)
+        if data.get("y")
+        else None
+    )
     return x, y, z
 
 
@@ -268,11 +349,30 @@ def _mesh(ax, layer, store, *, cmap_default: str = "viridis"):
     x, y, z = _field_arrays(layer, store)
     cmap = str(style.get("cmap") or cmap_default)
     vmin, vmax = style.get("vmin"), style.get("vmax")
-    if x is not None and y is not None and x.size == z.shape[1] and y.size == z.shape[0]:
-        return ax.pcolormesh(x, y, z, cmap=cmap, vmin=vmin, vmax=vmax,
-                             shading=str(style.get("shading") or "auto"))
-    return ax.imshow(z, cmap=cmap, vmin=vmin, vmax=vmax, origin="lower",
-                     aspect=str(style.get("aspect") or "auto"), interpolation="nearest")
+    if (
+        x is not None
+        and y is not None
+        and x.size == z.shape[1]
+        and y.size == z.shape[0]
+    ):
+        return ax.pcolormesh(
+            x,
+            y,
+            z,
+            cmap=cmap,
+            vmin=vmin,
+            vmax=vmax,
+            shading=str(style.get("shading") or "auto"),
+        )
+    return ax.imshow(
+        z,
+        cmap=cmap,
+        vmin=vmin,
+        vmax=vmax,
+        origin="lower",
+        aspect=str(style.get("aspect") or "auto"),
+        interpolation="nearest",
+    )
 
 
 def _draw_heatmap(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
@@ -310,7 +410,9 @@ def _draw_contourf(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) 
         ax.figure.colorbar(cs, ax=ax, **COLORBAR_KW)
 
 
-def _draw_correlation(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
+def _draw_correlation(
+    ax, layer, store, index: int, *, pixels=None, per_pixel=2.0
+) -> None:
     _draw_heatmap(ax, layer, store, index, pixels=pixels, per_pixel=per_pixel)
     # 列名存在数据集的 note 里（add_correlation 写入），有就画成刻度标签
     name = (layer.get("data") or {}).get("z")
@@ -326,10 +428,11 @@ def _draw_correlation(ax, layer, store, index: int, *, pixels=None, per_pixel=2.
         ax.set_yticklabels(names)
 
 
-
 def _vector_arrays(layer: Mapping[str, Any], store: DataStore):
     data = layer.get("data") or {}
-    return tuple(np.asarray(store.values(data[k]), dtype=float) for k in ("x", "y", "u", "v"))
+    return tuple(
+        np.asarray(store.values(data[k]), dtype=float) for k in ("x", "y", "u", "v")
+    )
 
 
 COLOR_BY_CHOICES = ("magnitude", "x", "y", "u", "v")
@@ -342,15 +445,19 @@ def _color_norm(style: Mapping[str, Any]):
         return None
     from matplotlib.colors import Normalize
 
-    return Normalize(vmin=None if vmin is None else float(vmin),
-                     vmax=None if vmax is None else float(vmax))
+    return Normalize(
+        vmin=None if vmin is None else float(vmin),
+        vmax=None if vmax is None else float(vmax),
+    )
 
 
 def _color_values(style: Mapping[str, Any], x, y, u, v):
     """按 `color_by` 取上色用的标量：magnitude（默认）/ x / y / u / v。"""
     mode = str(style.get("color_by") or "magnitude")
     if mode not in COLOR_BY_CHOICES:
-        raise ValueError(f"color_by={mode!r} 不支持（可用: {', '.join(COLOR_BY_CHOICES)}）")
+        raise ValueError(
+            f"color_by={mode!r} 不支持（可用: {', '.join(COLOR_BY_CHOICES)}）"
+        )
     if mode == "x":
         return x
     if mode == "y":
@@ -374,7 +481,10 @@ def quiver_scale(x, y, u, v, *, fraction: float = 0.06) -> float:
     base = float(np.median(finite)) if finite.size else 1.0
     xs = np.asarray(x, dtype=float)
     ys = np.asarray(y, dtype=float)
-    span = max(float(np.ptp(xs[np.isfinite(xs)])), float(np.ptp(ys[np.isfinite(ys)]))) or 1.0
+    span = (
+        max(float(np.ptp(xs[np.isfinite(xs)])), float(np.ptp(ys[np.isfinite(ys)])))
+        or 1.0
+    )
     return max(base / (max(fraction, 1e-3) * span), 1e-12)
 
 
@@ -412,15 +522,23 @@ def _draw_quiver(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) ->
         # quiverkey：给一个"这个箭头代表多少"的图例（对应 mpl 的 quiverkey）
         mag = np.hypot(u, v)
         ref = float(np.nanmax(mag) or 1.0)
-        ax.quiverkey(q, 0.9, 1.02, ref, f"{ref:.3g}", labelpos="E", coordinates="axes",
-                     fontproperties={"size": 8})
+        ax.quiverkey(
+            q,
+            0.9,
+            1.02,
+            ref,
+            f"{ref:.3g}",
+            labelpos="E",
+            coordinates="axes",
+            fontproperties={"size": 8},
+        )
     if not style.get("color"):  # 纯色箭头时色条会误导（色条画的是模长，箭头是单色）
         _maybe_colorbar(ax, q, style, default=False)
 
 
 def _draw_volume(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
     """体渲染只有 pyvista 后端支持；mpl 里明确报错，而不是画个莫名其妙的东西。"""
-    raise ValueError("volume 需要 pyvista 后端：fig.render(..., backend=\"pyvista\")")
+    raise ValueError('volume 需要 pyvista 后端：fig.render(..., backend="pyvista")')
 
 
 def _draw_lic(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
@@ -437,7 +555,8 @@ def _draw_lic(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> No
     if data.get("scalar"):
         scalar = np.asarray(store.values(data["scalar"]), dtype=float)
     rgb = lic_rgb(
-        u, v,
+        u,
+        v,
         cmap=str(style.get("cmap") or "ocean"),
         steps=int(style.get("steps", 24) or 24),
         contrast=float(style.get("contrast", 1.0) or 1.0),
@@ -450,8 +569,13 @@ def _draw_lic(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> No
         xs = np.ravel(np.asarray(store.values(data["x"]), dtype=float))
         ys = np.ravel(np.asarray(store.values(data["y"]), dtype=float))
         extent = [float(xs[0]), float(xs[-1]), float(ys[0]), float(ys[-1])]
-    ax.imshow(rgb, origin="lower", extent=extent, interpolation="bilinear",
-              aspect="auto" if extent is None else "equal")
+    ax.imshow(
+        rgb,
+        origin="lower",
+        extent=extent,
+        interpolation="bilinear",
+        aspect="auto" if extent is None else "equal",
+    )
 
 
 def _draw_barbs(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
@@ -472,11 +596,15 @@ def _draw_barbs(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> 
         _maybe_colorbar(ax, b, style, default=False)
 
 
-def _draw_streamplot(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
+def _draw_streamplot(
+    ax, layer, store, index: int, *, pixels=None, per_pixel=2.0
+) -> None:
     style = layer.get("style") or {}
     x, y, u, v = _vector_arrays(layer, store)
     if x.ndim != 2 or u.ndim != 2:
-        raise ValueError("streamplot 需要二维网格：x/y 与 u/v 都要是 2D 数组（一维请改用 quiver）")
+        raise ValueError(
+            "streamplot 需要二维网格：x/y 与 u/v 都要是 2D 数组（一维请改用 quiver）"
+        )
     density = style.get("density")
     density = 1.0 if density is None else float(density)
     color = style.get("color")
@@ -503,8 +631,8 @@ def _draw_streamplot(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0
         _maybe_colorbar(ax, strm.lines, style, default=False)
 
 
-
 # ---------------- P13-04：3D 七种 ----------------
+
 
 def _surface_grid(layer, store):
     data = layer.get("data") or {}
@@ -517,7 +645,9 @@ def _surface_grid(layer, store):
         return np.meshgrid(np.arange(z.shape[1]), np.arange(z.shape[0])) + (z,)
     if x.ndim == 2 and y.ndim == 2:
         if x.shape != z.shape or y.shape != z.shape:
-            raise ValueError(f"surface 的 x/y 形状必须与 z 一致：z{z.shape}，x{x.shape}，y{y.shape}")
+            raise ValueError(
+                f"surface 的 x/y 形状必须与 z 一致：z{z.shape}，x{x.shape}，y{y.shape}"
+            )
         return x, y, z
     X, Y = np.meshgrid(np.ravel(x), np.ravel(y))
     if X.shape != z.shape:
@@ -530,9 +660,17 @@ def _draw_surface(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -
     X, Y, Z = _surface_grid(layer, store)
     stride = max(1, int(style.get("stride") or 1))
     surf = ax.plot_surface(
-        X, Y, Z, cmap=str(style.get("cmap") or "viridis"), norm=_color_norm(style),
-        rstride=stride, cstride=stride, linewidth=0, antialiased=True,
-        shade=bool(style.get("shade", True)), alpha=float(style.get("opacity", 1.0)),
+        X,
+        Y,
+        Z,
+        cmap=str(style.get("cmap") or "viridis"),
+        norm=_color_norm(style),
+        rstride=stride,
+        cstride=stride,
+        linewidth=0,
+        antialiased=True,
+        shade=bool(style.get("shade", True)),
+        alpha=float(style.get("opacity", 1.0)),
     )
     _maybe_colorbar(ax, surf, style)
 
@@ -567,10 +705,14 @@ def _xyz_arrays(layer, store, keys=("x", "y", "z")):
 def _draw_line3d(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
     style = layer.get("style") or {}
     x, y, z = _xyz_arrays(layer, store)
-    ax.plot(np.ravel(x), np.ravel(y), np.ravel(z),
-            color=str(style.get("color") or color_for(index)),
-            linewidth=float(style.get("width", 1.8) or 1.8),
-            label=layer.get("label") or layer.get("data", {}).get("z"))
+    ax.plot(
+        np.ravel(x),
+        np.ravel(y),
+        np.ravel(z),
+        color=str(style.get("color") or color_for(index)),
+        linewidth=float(style.get("width", 1.8) or 1.8),
+        label=layer.get("label") or layer.get("data", {}).get("z"),
+    )
 
 
 def _draw_segments(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
@@ -584,14 +726,18 @@ def _draw_segments(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) 
     if n < 2:
         return
     pts = np.stack([xs[:n], ys[:n], zs[:n]], axis=1).reshape(-1, 2, 3)
-    coll = Line3DCollection(pts,
-                            colors=str(style.get("color") or color_for(index)),
-                            linewidths=float(style.get("width", 1.2) or 1.2))
+    coll = Line3DCollection(
+        pts,
+        colors=str(style.get("color") or color_for(index)),
+        linewidths=float(style.get("width", 1.2) or 1.2),
+    )
     ax.add_collection3d(coll)
     ax.auto_scale_xyz(xs[:n], ys[:n], zs[:n])
 
 
-def _draw_scatter3d(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
+def _draw_scatter3d(
+    ax, layer, store, index: int, *, pixels=None, per_pixel=2.0
+) -> None:
     style = layer.get("style") or {}
     x, y, z = _xyz_arrays(layer, store)
     marker = style.get("marker") or {}
@@ -616,9 +762,11 @@ def _draw_scatter3d(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0)
 def _draw_bar3d(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
     style = layer.get("style") or {}
     x, y, z = (np.ravel(v) for v in _xyz_arrays(layer, store))
+
     def _bar_width(values):
         uniq = np.unique(values)
         return float(np.median(np.diff(uniq))) * 0.8 if uniq.size > 1 else 0.8
+
     dx, dy = _bar_width(x), _bar_width(y)
     if style.get("color"):
         colors = str(style["color"])
@@ -630,11 +778,22 @@ def _draw_bar3d(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> 
         import matplotlib
 
         cmap = matplotlib.colormaps[str(style.get("cmap") or "viridis")]
-        norm = _color_norm(style) or Normalize(vmin=float(np.nanmin(z)), vmax=float(np.nanmax(z)) or 1.0)
+        norm = _color_norm(style) or Normalize(
+            vmin=float(np.nanmin(z)), vmax=float(np.nanmax(z)) or 1.0
+        )
         colors = cmap(norm(z))
         mappable = ScalarMappable(norm=norm, cmap=cmap)
-    ax.bar3d(x, y, np.zeros_like(z), dx, dy, z, color=colors,
-             alpha=float(style.get("opacity", 1.0)), shade=bool(style.get("shade", True)))
+    ax.bar3d(
+        x,
+        y,
+        np.zeros_like(z),
+        dx,
+        dy,
+        z,
+        color=colors,
+        alpha=float(style.get("opacity", 1.0)),
+        shade=bool(style.get("shade", True)),
+    )
     if mappable is not None:
         _maybe_colorbar(ax, mappable, style, default=False)
 
@@ -655,9 +814,16 @@ def _draw_hist3d(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) ->
 
     cmap = matplotlib.colormaps[str(style.get("cmap") or "viridis")]
     norm = Normalize(vmin=0.0, vmax=float(counts.max()) or 1.0)
-    ax.bar3d(X.ravel(), Y.ravel(), np.zeros(counts.size),
-             np.diff(xe).mean() * 0.9, np.diff(ye).mean() * 0.9, counts.ravel(),
-             color=cmap(norm(counts.ravel())), shade=bool(style.get("shade", True)))
+    ax.bar3d(
+        X.ravel(),
+        Y.ravel(),
+        np.zeros(counts.size),
+        np.diff(xe).mean() * 0.9,
+        np.diff(ye).mean() * 0.9,
+        counts.ravel(),
+        color=cmap(norm(counts.ravel())),
+        shade=bool(style.get("shade", True)),
+    )
     _maybe_colorbar(ax, ScalarMappable(norm=norm, cmap=cmap), style)
 
 
@@ -670,8 +836,15 @@ def _draw_quiver3d(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) 
         "linewidth": float(style.get("width", 1.0) or 1.0),
     }
     kwargs.update(_color_kwargs(style, np.hypot(u, v)))
-    q = ax.quiver(np.ravel(x), np.ravel(y), np.ravel(z),
-                  np.ravel(u), np.ravel(v), np.ravel(w), **kwargs)
+    q = ax.quiver(
+        np.ravel(x),
+        np.ravel(y),
+        np.ravel(z),
+        np.ravel(u),
+        np.ravel(v),
+        np.ravel(w),
+        **kwargs,
+    )
     if not style.get("color"):
         _maybe_colorbar(ax, q, style, default=False)
 
@@ -733,12 +906,18 @@ def _draw_stream3d(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) 
     paths, style = stream3d_paths(layer, store)
     color = str(style.get("color") or color_for(index))
     for pts in paths:
-        ax.plot(pts[:, 0], pts[:, 1], pts[:, 2], color=color,
-                linewidth=float(style.get("width", 1.0) or 1.0), alpha=0.9)
-
+        ax.plot(
+            pts[:, 0],
+            pts[:, 1],
+            pts[:, 2],
+            color=color,
+            linewidth=float(style.get("width", 1.0) or 1.0),
+            alpha=0.9,
+        )
 
 
 # ---------------- P13-05：统计/信号族 ----------------
+
 
 def _flat(layer, store, key: str) -> np.ndarray:
     """取单序列数据：只接受一维。二维会静默拉成锯齿线，这里直接报错让人改用多图层。"""
@@ -747,7 +926,8 @@ def _flat(layer, store, key: str) -> np.ndarray:
     if arr.ndim > 1:
         raise ValueError(
             f"{layer.get('kind')} 的 {key} 需要一维数据，收到 {arr.shape}；"
-            f"多序列请拆成多个图层（多组/多条用 boxplot/violinplot/stackplot）")
+            f"多序列请拆成多个图层（多组/多条用 boxplot/violinplot/stackplot）"
+        )
     return arr
 
 
@@ -772,18 +952,29 @@ def _draw_boxplot(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -
     style = layer.get("style") or {}
     cols = _columns(_y_matrix(layer, store))
     color = str(style.get("color") or color_for(index))
-    ax.boxplot(cols, patch_artist=True, widths=float(style.get("widths", 0.6) or 0.6),
-               showfliers=bool(style.get("showfliers", True)),
-               medianprops={"color": color, "linewidth": 1.6},
-               boxprops={"facecolor": color, "alpha": 0.35, "edgecolor": color},
-               whiskerprops={"color": color}, capprops={"color": color})
+    ax.boxplot(
+        cols,
+        patch_artist=True,
+        widths=float(style.get("widths", 0.6) or 0.6),
+        showfliers=bool(style.get("showfliers", True)),
+        medianprops={"color": color, "linewidth": 1.6},
+        boxprops={"facecolor": color, "alpha": 0.35, "edgecolor": color},
+        whiskerprops={"color": color},
+        capprops={"color": color},
+    )
 
 
-def _draw_violinplot(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
+def _draw_violinplot(
+    ax, layer, store, index: int, *, pixels=None, per_pixel=2.0
+) -> None:
     style = layer.get("style") or {}
     cols = _columns(_y_matrix(layer, store))
-    res = ax.violinplot(cols, showmeans=bool(style.get("showmeans", True)),
-                        widths=float(style.get("widths", 0.8) or 0.8), showextrema=False)
+    res = ax.violinplot(
+        cols,
+        showmeans=bool(style.get("showmeans", True)),
+        widths=float(style.get("widths", 0.8) or 0.8),
+        showextrema=False,
+    )
     color = str(style.get("color") or color_for(index))
     for body in res["bodies"]:
         body.set_facecolor(color)
@@ -802,9 +993,14 @@ def ecdf_points(values) -> tuple[np.ndarray, np.ndarray]:
 def _draw_ecdf(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
     style = layer.get("style") or {}
     xs, ys = ecdf_points(_flat(layer, store, "x"))
-    ax.step(xs, ys, where="post", color=str(style.get("color") or color_for(index)),
-            linewidth=float(style.get("width", 1.8) or 1.8),
-            label=layer.get("label") or layer.get("data", {}).get("x"))
+    ax.step(
+        xs,
+        ys,
+        where="post",
+        color=str(style.get("color") or color_for(index)),
+        linewidth=float(style.get("width", 1.8) or 1.8),
+        label=layer.get("label") or layer.get("data", {}).get("x"),
+    )
 
 
 def _draw_hexbin(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
@@ -813,11 +1009,15 @@ def _draw_hexbin(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) ->
     if x.size != y.size:
         raise ValueError(f"hexbin 的 x/y 长度必须一致：{x.size} vs {y.size}")
     mincnt = style.get("mincnt")
-    hb = ax.hexbin(x, y, gridsize=int(style.get("gridsize", 20) or 20),
-                   cmap=str(style.get("cmap") or "viridis"),
-                   norm=_color_norm(style),
-                   mincnt=1 if mincnt is None else int(mincnt),
-                   linewidths=0.2)
+    hb = ax.hexbin(
+        x,
+        y,
+        gridsize=int(style.get("gridsize", 20) or 20),
+        cmap=str(style.get("cmap") or "viridis"),
+        norm=_color_norm(style),
+        mincnt=1 if mincnt is None else int(mincnt),
+        linewidths=0.2,
+    )
     _maybe_colorbar(ax, hb, style)
 
 
@@ -825,13 +1025,19 @@ def _draw_barh(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> N
     style = layer.get("style") or {}
     data = layer.get("data") or {}
     x, y = _flat(layer, store, "x"), _flat(layer, store, "y")
-    ax.barh(x, y, height=float(style.get("width", 0.8) or 0.8),
-            color=str(style.get("color") or color_for(index)),
-            alpha=float(style.get("opacity", 1.0)),
-            label=layer.get("label") or data.get("y"))
+    ax.barh(
+        x,
+        y,
+        height=float(style.get("width", 0.8) or 0.8),
+        color=str(style.get("color") or color_for(index)),
+        alpha=float(style.get("opacity", 1.0)),
+        label=layer.get("label") or data.get("y"),
+    )
 
 
-def _draw_stackplot(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
+def _draw_stackplot(
+    ax, layer, store, index: int, *, pixels=None, per_pixel=2.0
+) -> None:
     style = layer.get("style") or {}
     data = layer.get("data") or {}
     x = np.ravel(np.asarray(store.values(data["x"]), dtype=float))
@@ -841,18 +1047,29 @@ def _draw_stackplot(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0)
         colors = [str(style["color"])]
     else:
         colors = [PALETTE[(index + i) % len(PALETTE)] for i in range(len(rows))]
-    ax.stackplot(x, *rows, colors=colors, alpha=float(style.get("opacity", 0.85)),
-                 labels=[f"{layer.get('label') or data.get('y')} #{i + 1}" for i in range(len(rows))])
+    ax.stackplot(
+        x,
+        *rows,
+        colors=colors,
+        alpha=float(style.get("opacity", 0.85)),
+        labels=[
+            f"{layer.get('label') or data.get('y')} #{i + 1}" for i in range(len(rows))
+        ],
+    )
 
 
 def _draw_step(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
     style = layer.get("style") or {}
     data = layer.get("data") or {}
     x, y = _flat(layer, store, "x"), _flat(layer, store, "y")
-    ax.step(x, y, where=str(style.get("where") or "pre"),
-            color=str(style.get("color") or color_for(index)),
-            linewidth=float(style.get("width", 1.6) or 1.6),
-            label=layer.get("label") or data.get("y"))
+    ax.step(
+        x,
+        y,
+        where=str(style.get("where") or "pre"),
+        color=str(style.get("color") or color_for(index)),
+        linewidth=float(style.get("width", 1.6) or 1.6),
+        label=layer.get("label") or data.get("y"),
+    )
 
 
 def _draw_stem(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
@@ -866,8 +1083,8 @@ def _draw_stem(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> N
     container.stemlines.set_linewidth(float(style.get("width", 1.4) or 1.4))
 
 
-
 # ---------------- P13-07：方法表漏项 ----------------
+
 
 def _draw_stairs(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
     style = layer.get("style") or {}
@@ -876,42 +1093,64 @@ def _draw_stairs(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) ->
     if data.get("x"):
         x = _flat(layer, store, "x")
         if x.size == y.size + 1:
-            edges = x          # 直接给边界
+            edges = x  # 直接给边界
         elif x.size == y.size:
             # 给的是阶梯中心：用中点推边界，别静默换成等距（对数/非均匀会全错）
-            edges = np.concatenate(([x[0] - (x[1] - x[0]) / 2],
-                                    (x[:-1] + x[1:]) / 2,
-                                    [x[-1] + (x[-1] - x[-2]) / 2]))
+            edges = np.concatenate(
+                (
+                    [x[0] - (x[1] - x[0]) / 2],
+                    (x[:-1] + x[1:]) / 2,
+                    [x[-1] + (x[-1] - x[-2]) / 2],
+                )
+            )
         else:
-            raise ValueError(f"stairs 的 x 必须是 n 个中心或 n+1 个边界：y={y.size}，x={x.size}")
+            raise ValueError(
+                f"stairs 的 x 必须是 n 个中心或 n+1 个边界：y={y.size}，x={x.size}"
+            )
     else:
         edges = np.arange(y.size + 1, dtype=float)
-    ax.stairs(y, edges, color=str(style.get("color") or color_for(index)),
-              linewidth=float(style.get("width", 1.6) or 1.6),
-              label=layer.get("label") or data.get("y"))
+    ax.stairs(
+        y,
+        edges,
+        color=str(style.get("color") or color_for(index)),
+        linewidth=float(style.get("width", 1.6) or 1.6),
+        label=layer.get("label") or data.get("y"),
+    )
 
 
-def _draw_broken_barh(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
+def _draw_broken_barh(
+    ax, layer, store, index: int, *, pixels=None, per_pixel=2.0
+) -> None:
     style = layer.get("style") or {}
     seg = np.atleast_2d(_y_matrix(layer, store))
     if seg.shape[1] != 2:
-        raise ValueError(f"broken_barh 的 y 必须是 (n, 2) 的 [起点, 宽度]，收到 {seg.shape}")
+        raise ValueError(
+            f"broken_barh 的 y 必须是 (n, 2) 的 [起点, 宽度]，收到 {seg.shape}"
+        )
     row = float(style.get("row", 1.0) or 1.0)
     height = float(style.get("height", 0.8) or 0.8)
-    ax.broken_barh([tuple(map(float, s)) for s in seg], (row - height / 2.0, height),
-                   facecolors=str(style.get("color") or color_for(index)),
-                   alpha=float(style.get("opacity", 1.0)))
+    ax.broken_barh(
+        [tuple(map(float, s)) for s in seg],
+        (row - height / 2.0, height),
+        facecolors=str(style.get("color") or color_for(index)),
+        alpha=float(style.get("opacity", 1.0)),
+    )
 
 
-def _draw_eventplot(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
+def _draw_eventplot(
+    ax, layer, store, index: int, *, pixels=None, per_pixel=2.0
+) -> None:
     style = layer.get("style") or {}
     x = _y_matrix(layer, store, "x")
     rows = [np.ravel(x)] if x.ndim == 1 else [x[i] for i in range(x.shape[0])]
     base = float(style.get("lineoffsets", 1.0) or 1.0)
     offsets = base + np.arange(len(rows)) if len(rows) > 1 else base
-    ax.eventplot(rows, colors=str(style.get("color") or color_for(index)),
-                 lineoffsets=offsets,
-                 linelengths=float(style.get("linelengths", 0.6) or 0.6))
+    ax.eventplot(
+        rows,
+        colors=str(style.get("color") or color_for(index)),
+        lineoffsets=offsets,
+        linelengths=float(style.get("linelengths", 0.6) or 0.6),
+    )
 
 
 def _draw_bxp(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
@@ -929,35 +1168,57 @@ def _draw_bxp(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> No
         lo = float(inside.min()) if inside.size else q1
         hi = float(inside.max()) if inside.size else q3
         fliers = col[(col < low_fence) | (col > high_fence)] if col.size else []
-        stats.append({"med": med, "q1": q1, "q3": q3, "whislo": lo, "whishi": hi,
-                      "fliers": [float(v) for v in fliers]})
-    ax.bxp(stats, patch_artist=True, widths=float(style.get("widths", 0.6) or 0.6),
-           boxprops={"facecolor": color, "alpha": 0.35, "edgecolor": color},
-           medianprops={"color": color, "linewidth": 1.6},
-           whiskerprops={"color": color}, capprops={"color": color})
+        stats.append(
+            {
+                "med": med,
+                "q1": q1,
+                "q3": q3,
+                "whislo": lo,
+                "whishi": hi,
+                "fliers": [float(v) for v in fliers],
+            }
+        )
+    ax.bxp(
+        stats,
+        patch_artist=True,
+        widths=float(style.get("widths", 0.6) or 0.6),
+        boxprops={"facecolor": color, "alpha": 0.35, "edgecolor": color},
+        medianprops={"color": color, "linewidth": 1.6},
+        whiskerprops={"color": color},
+        capprops={"color": color},
+    )
 
 
 def _draw_psd(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
     style = layer.get("style") or {}
     x = _flat(layer, store, "x")
     nfft = int(style.get("nfft", 256) or 256)
-    ax.psd(x, NFFT=nfft, noverlap=nfft // 2, Fs=float(style.get("fs", 1.0) or 1.0),
-           color=str(style.get("color") or color_for(index)),
-           label=layer.get("label") or layer.get("data", {}).get("x"))
+    ax.psd(
+        x,
+        NFFT=nfft,
+        noverlap=nfft // 2,
+        Fs=float(style.get("fs", 1.0) or 1.0),
+        color=str(style.get("color") or color_for(index)),
+        label=layer.get("label") or layer.get("data", {}).get("x"),
+    )
 
 
 def _draw_specgram(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
     style = layer.get("style") or {}
     x = _flat(layer, store, "x")
     nfft = int(style.get("nfft", 256) or 256)
-    _, _, _, image = ax.specgram(x, NFFT=nfft, noverlap=nfft // 2,
-                                 Fs=float(style.get("fs", 1.0) or 1.0),
-                                 cmap=str(style.get("cmap") or "magma"))
+    _, _, _, image = ax.specgram(
+        x,
+        NFFT=nfft,
+        noverlap=nfft // 2,
+        Fs=float(style.get("fs", 1.0) or 1.0),
+        cmap=str(style.get("cmap") or "magma"),
+    )
     _maybe_colorbar(ax, image, style)
 
 
-
 # ---------------- P13-09：方法级缺口 ----------------
+
 
 def _triangulation(layer, store):
     import matplotlib.tri as mtri
@@ -967,32 +1228,52 @@ def _triangulation(layer, store):
 
 def _draw_triplot(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
     style = layer.get("style") or {}
-    ax.triplot(_triangulation(layer, store),
-               color=str(style.get("color") or color_for(index)),
-               linewidth=float(style.get("width", 1.0) or 1.0))
+    ax.triplot(
+        _triangulation(layer, store),
+        color=str(style.get("color") or color_for(index)),
+        linewidth=float(style.get("width", 1.0) or 1.0),
+    )
 
 
-def _draw_tricontour(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
+def _draw_tricontour(
+    ax, layer, store, index: int, *, pixels=None, per_pixel=2.0
+) -> None:
     style = layer.get("style") or {}
-    cs = ax.tricontour(_triangulation(layer, store), _flat(layer, store, "z"),
-                       levels=style.get("levels") or 8,
-                       cmap=str(style.get("cmap") or "viridis"), norm=_color_norm(style))
+    cs = ax.tricontour(
+        _triangulation(layer, store),
+        _flat(layer, store, "z"),
+        levels=style.get("levels") or 8,
+        cmap=str(style.get("cmap") or "viridis"),
+        norm=_color_norm(style),
+    )
     if style.get("labels"):
         ax.clabel(cs, inline=True, fontsize=8)
 
 
-def _draw_tricontourf(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
+def _draw_tricontourf(
+    ax, layer, store, index: int, *, pixels=None, per_pixel=2.0
+) -> None:
     style = layer.get("style") or {}
-    cs = ax.tricontourf(_triangulation(layer, store), _flat(layer, store, "z"),
-                        levels=style.get("levels") or 8,
-                        cmap=str(style.get("cmap") or "viridis"), norm=_color_norm(style))
+    cs = ax.tricontourf(
+        _triangulation(layer, store),
+        _flat(layer, store, "z"),
+        levels=style.get("levels") or 8,
+        cmap=str(style.get("cmap") or "viridis"),
+        norm=_color_norm(style),
+    )
     _maybe_colorbar(ax, cs, style)
 
 
-def _draw_tripcolor(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
+def _draw_tripcolor(
+    ax, layer, store, index: int, *, pixels=None, per_pixel=2.0
+) -> None:
     style = layer.get("style") or {}
-    mesh = ax.tripcolor(_triangulation(layer, store), _flat(layer, store, "z"),
-                        cmap=str(style.get("cmap") or "viridis"), norm=_color_norm(style))
+    mesh = ax.tripcolor(
+        _triangulation(layer, store),
+        _flat(layer, store, "z"),
+        cmap=str(style.get("cmap") or "viridis"),
+        norm=_color_norm(style),
+    )
     _maybe_colorbar(ax, mesh, style)
 
 
@@ -1009,19 +1290,31 @@ def _draw_voxels(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) ->
     if grid.max() > grid.min():
         from matplotlib.colors import Normalize
 
-        norm = _color_norm(style) or Normalize(vmin=float(grid.min()), vmax=float(grid.max()))
+        norm = _color_norm(style) or Normalize(
+            vmin=float(grid.min()), vmax=float(grid.max())
+        )
         colors = cmap(norm(grid))
     else:
         colors = np.array([cmap(0.6)] * grid.size).reshape(grid.shape + (4,))
-    ax.voxels(filled, facecolors=colors, edgecolor=None, alpha=float(style.get("opacity", 0.9)))
+    ax.voxels(
+        filled,
+        facecolors=colors,
+        edgecolor=None,
+        alpha=float(style.get("opacity", 0.9)),
+    )
 
 
 def _draw_trisurf(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
     style = layer.get("style") or {}
-    surf = ax.plot_trisurf(_flat(layer, store, "x"), _flat(layer, store, "y"),
-                           _flat(layer, store, "z"),
-                           cmap=str(style.get("cmap") or "viridis"), norm=_color_norm(style),
-                           linewidth=0.2, antialiased=True)
+    surf = ax.plot_trisurf(
+        _flat(layer, store, "x"),
+        _flat(layer, store, "y"),
+        _flat(layer, store, "z"),
+        cmap=str(style.get("cmap") or "viridis"),
+        norm=_color_norm(style),
+        linewidth=0.2,
+        antialiased=True,
+    )
     _maybe_colorbar(ax, surf, style)
 
 
@@ -1031,8 +1324,13 @@ def _draw_stem3d(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) ->
     x, y, z = (np.ravel(v) for v in _xyz_arrays(layer, store))
     color = str(style.get("color") or color_for(index))
     for xi, yi, zi in zip(x, y, z):
-        ax.plot([xi, xi], [yi, yi], [0.0, zi], color=color,
-                linewidth=float(style.get("width", 1.2) or 1.2))
+        ax.plot(
+            [xi, xi],
+            [yi, yi],
+            [0.0, zi],
+            color=color,
+            linewidth=float(style.get("width", 1.2) or 1.2),
+        )
     ax.scatter(x, y, z, color=color, s=18, depthshade=False)
 
 
@@ -1045,8 +1343,14 @@ def _draw_text3d(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) ->
         raise ValueError(f"text3d 的 labels 数量要与点一致：{len(labels)} vs {x.size}")
     color = str(style.get("color") or color_for(index))
     for xi, yi, zi, text in zip(x, y, z, labels):
-        ax.text(xi, yi, zi, text, color=color,
-                fontsize=float(style.get("fontsize", 10) or 10))
+        ax.text(
+            xi,
+            yi,
+            zi,
+            text,
+            color=color,
+            fontsize=float(style.get("fontsize", 10) or 10),
+        )
 
 
 def _draw_csd(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
@@ -1057,8 +1361,14 @@ def _draw_csd(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> No
     x, y = _flat(layer, store, "x"), _flat(layer, store, "y")
     # 分段平均要求至少两段：nfft 不能超过长度的一半
     nfft = min(int(style.get("nfft", 256) or 256), max(8, x.size // 2))
-    ax.csd(x, y, NFFT=nfft, noverlap=nfft // 2, Fs=float(style.get("fs", 1.0) or 1.0),
-           color=str(style.get("color") or color_for(index)))
+    ax.csd(
+        x,
+        y,
+        NFFT=nfft,
+        noverlap=nfft // 2,
+        Fs=float(style.get("fs", 1.0) or 1.0),
+        color=str(style.get("color") or color_for(index)),
+    )
 
 
 def _draw_cohere(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
@@ -1069,15 +1379,24 @@ def _draw_cohere(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) ->
     x, y = _flat(layer, store, "x"), _flat(layer, store, "y")
     # 分段平均要求至少两段：nfft 不能超过长度的一半
     nfft = min(int(style.get("nfft", 256) or 256), max(8, x.size // 2))
-    ax.cohere(x, y, NFFT=nfft, noverlap=nfft // 2, Fs=float(style.get("fs", 1.0) or 1.0),
-              color=str(style.get("color") or color_for(index)))
+    ax.cohere(
+        x,
+        y,
+        NFFT=nfft,
+        noverlap=nfft // 2,
+        Fs=float(style.get("fs", 1.0) or 1.0),
+        color=str(style.get("color") or color_for(index)),
+    )
 
 
 def _draw_acorr(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
     style = layer.get("style") or {}
     x = _flat(layer, store, "x")
-    ax.acorr(x, maxlags=int(style.get("maxlags", 0) or min(50, x.size - 1)),
-             color=str(style.get("color") or color_for(index)))
+    ax.acorr(
+        x,
+        maxlags=int(style.get("maxlags", 0) or min(50, x.size - 1)),
+        color=str(style.get("color") or color_for(index)),
+    )
 
 
 def _draw_xcorr(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> None:
@@ -1086,8 +1405,12 @@ def _draw_xcorr(ax, layer, store, index: int, *, pixels=None, per_pixel=2.0) -> 
     if not data.get("y"):
         raise ValueError("xcorr 需要第二个信号 y（数据集名字或数组）")
     x, y = _flat(layer, store, "x"), _flat(layer, store, "y")
-    ax.xcorr(x, y, maxlags=int(style.get("maxlags", 0) or min(50, x.size - 1)),
-             color=str(style.get("color") or color_for(index)))
+    ax.xcorr(
+        x,
+        y,
+        maxlags=int(style.get("maxlags", 0) or min(50, x.size - 1)),
+        color=str(style.get("color") or color_for(index)),
+    )
 
 
 def _spectrum(method: str):
@@ -1096,32 +1419,67 @@ def _spectrum(method: str):
         x = _flat(layer, store, "x")
         # 注意：angle/magnitude/phase_spectrum 只认 pad_to，没有 NFFT（psd/csd/cohere 才有）
         pad = min(int(style.get("nfft", 256) or 256), max(8, x.size))
-        getattr(ax, method)(x, pad_to=pad, Fs=float(style.get("fs", 1.0) or 1.0),
-                            color=str(style.get("color") or color_for(index)))
+        getattr(ax, method)(
+            x,
+            pad_to=pad,
+            Fs=float(style.get("fs", 1.0) or 1.0),
+            color=str(style.get("color") or color_for(index)),
+        )
+
     return _draw
 
+
 DRAWERS = {
-    "line": _draw_line, "marker": _draw_scatter, "bar": _draw_bar,
-    "hist": _draw_hist, "pie": _draw_pie, "image": _draw_image, "table": _draw_table,
-    "heatmap": _draw_heatmap, "contour": _draw_contour, "contourf": _draw_contourf,
+    "line": _draw_line,
+    "marker": _draw_scatter,
+    "bar": _draw_bar,
+    "hist": _draw_hist,
+    "pie": _draw_pie,
+    "image": _draw_image,
+    "table": _draw_table,
+    "heatmap": _draw_heatmap,
+    "contour": _draw_contour,
+    "contourf": _draw_contourf,
     "correlation": _draw_correlation,
-    "quiver": _draw_quiver, "streamplot": _draw_streamplot, "barbs": _draw_barbs,
+    "quiver": _draw_quiver,
+    "streamplot": _draw_streamplot,
+    "barbs": _draw_barbs,
     "lic": _draw_lic,
     "volume": _draw_volume,
     "particles": _draw_volume,
-    "surface": _draw_surface, "line3d": _draw_line3d, "scatter3d": _draw_scatter3d,
-    "bar3d": _draw_bar3d, "hist3d": _draw_hist3d, "quiver3d": _draw_quiver3d,
+    "surface": _draw_surface,
+    "line3d": _draw_line3d,
+    "scatter3d": _draw_scatter3d,
+    "bar3d": _draw_bar3d,
+    "hist3d": _draw_hist3d,
+    "quiver3d": _draw_quiver3d,
     "stream3d": _draw_stream3d,
-    "boxplot": _draw_boxplot, "violinplot": _draw_violinplot, "ecdf": _draw_ecdf,
-    "hexbin": _draw_hexbin, "barh": _draw_barh, "stackplot": _draw_stackplot,
-    "step": _draw_step, "stem": _draw_stem,
-    "stairs": _draw_stairs, "broken_barh": _draw_broken_barh, "eventplot": _draw_eventplot,
-    "bxp": _draw_bxp, "psd": _draw_psd, "specgram": _draw_specgram,
-    "triplot": _draw_triplot, "tricontour": _draw_tricontour,
-    "tricontourf": _draw_tricontourf, "tripcolor": _draw_tripcolor,
-    "voxels": _draw_voxels, "trisurf": _draw_trisurf, "stem3d": _draw_stem3d,
-    "text3d": _draw_text3d, "csd": _draw_csd, "cohere": _draw_cohere,
-    "acorr": _draw_acorr, "xcorr": _draw_xcorr,
+    "boxplot": _draw_boxplot,
+    "violinplot": _draw_violinplot,
+    "ecdf": _draw_ecdf,
+    "hexbin": _draw_hexbin,
+    "barh": _draw_barh,
+    "stackplot": _draw_stackplot,
+    "step": _draw_step,
+    "stem": _draw_stem,
+    "stairs": _draw_stairs,
+    "broken_barh": _draw_broken_barh,
+    "eventplot": _draw_eventplot,
+    "bxp": _draw_bxp,
+    "psd": _draw_psd,
+    "specgram": _draw_specgram,
+    "triplot": _draw_triplot,
+    "tricontour": _draw_tricontour,
+    "tricontourf": _draw_tricontourf,
+    "tripcolor": _draw_tripcolor,
+    "voxels": _draw_voxels,
+    "trisurf": _draw_trisurf,
+    "stem3d": _draw_stem3d,
+    "text3d": _draw_text3d,
+    "csd": _draw_csd,
+    "cohere": _draw_cohere,
+    "acorr": _draw_acorr,
+    "xcorr": _draw_xcorr,
     "angle_spectrum": _spectrum("angle_spectrum"),
     "magnitude_spectrum": _spectrum("magnitude_spectrum"),
     "phase_spectrum": _spectrum("phase_spectrum"),
@@ -1136,7 +1494,9 @@ def _apply_view(ax, view: Mapping[str, Any], *, theme, fonts) -> None:
             ax.set_ylim(*[float(v) for v in view["ylim"]])
         if view.get("zlim"):
             ax.set_zlim(*[float(v) for v in view["zlim"]])
-        ax.view_init(elev=float(view.get("elev", 30.0)), azim=float(view.get("azim", -60.0)))
+        ax.view_init(
+            elev=float(view.get("elev", 30.0)), azim=float(view.get("azim", -60.0))
+        )
         ax.tick_params(colors=theme["text"], labelsize=float(fonts.get("tick", 11)))
         ax.grid(bool(view.get("grid", True)))
         for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
@@ -1169,16 +1529,28 @@ def _apply_view(ax, view: Mapping[str, Any], *, theme, fonts) -> None:
     ticks = dict(view.get("ticks") or {})
     mirror = bool(ticks.get("mirror"))
     ax.tick_params(
-        axis="both", which="major",
+        axis="both",
+        which="major",
         direction="in" if ticks.get("inside") else "out",
-        top=mirror, right=mirror,
-        colors=theme["text"], labelsize=float(fonts.get("tick", 11)),
-        width=0.9, length=4.0,
+        top=mirror,
+        right=mirror,
+        colors=theme["text"],
+        labelsize=float(fonts.get("tick", 11)),
+        width=0.9,
+        length=4.0,
     )
     if ticks.get("minor"):
         ax.minorticks_on()
-        ax.tick_params(axis="both", which="minor", direction="in", top=mirror, right=mirror,
-                       colors=theme["text"], width=0.6, length=2.2)
+        ax.tick_params(
+            axis="both",
+            which="minor",
+            direction="in",
+            top=mirror,
+            right=mirror,
+            colors=theme["text"],
+            width=0.6,
+            length=2.2,
+        )
     else:
         ax.minorticks_off()
 
@@ -1193,16 +1565,33 @@ def _apply_view(ax, view: Mapping[str, Any], *, theme, fonts) -> None:
     else:
         ax.grid(False)
     if view.get("xlabel"):
-        ax.set_xlabel(str(view["xlabel"]), color=theme["text"], fontsize=float(fonts.get("axis", 12)))
+        ax.set_xlabel(
+            str(view["xlabel"]),
+            color=theme["text"],
+            fontsize=float(fonts.get("axis", 12)),
+        )
     if view.get("ylabel"):
-        ax.set_ylabel(str(view["ylabel"]), color=theme["text"], fontsize=float(fonts.get("axis", 12)))
+        ax.set_ylabel(
+            str(view["ylabel"]),
+            color=theme["text"],
+            fontsize=float(fonts.get("axis", 12)),
+        )
     if view.get("title"):
-        ax.set_title(str(view["title"]), color=theme["text"], fontsize=float(fonts.get("axis", 12)))
+        ax.set_title(
+            str(view["title"]),
+            color=theme["text"],
+            fontsize=float(fonts.get("axis", 12)),
+        )
 
     mode = str(view.get("loglabels", "sci"))
-    plain_axes = {"plain": ("x", "y"), "plain-x": ("x",), "plain-y": ("y",)}.get(mode, ())
+    plain_axes = {"plain": ("x", "y"), "plain-x": ("x",), "plain-y": ("y",)}.get(
+        mode, ()
+    )
     # 论文里更常见的写法：对数轴直接标 2 4 6 8 10，而不是 2×10^0
-    for name, axis, scale in (("x", ax.xaxis, view.get("xscale")), ("y", ax.yaxis, view.get("yscale"))):
+    for name, axis, scale in (
+        ("x", ax.xaxis, view.get("xscale")),
+        ("y", ax.yaxis, view.get("yscale")),
+    ):
         if name not in plain_axes or scale != "log":
             continue
         # 对数轴上 2/4/6/8 原本是"次刻度"，论文里恰恰要给它们标数字
@@ -1215,9 +1604,15 @@ def _apply_view(ax, view: Mapping[str, Any], *, theme, fonts) -> None:
             tick.label1.set_fontsize(float(fonts.get("tick", 11)))
 
 
-
-def _draw_decorations(fig, spec, axes: Mapping[int, Any], views: Mapping[int, Mapping[str, Any]],
-                      *, theme, fonts) -> None:
+def _draw_decorations(
+    fig,
+    spec,
+    axes: Mapping[int, Any],
+    views: Mapping[int, Mapping[str, Any]],
+    *,
+    theme,
+    fonts,
+) -> None:
     from matplotlib.patches import Rectangle
 
     for shape in spec.get("figure", {}).get("shapes") or []:
@@ -1231,19 +1626,40 @@ def _draw_decorations(fig, spec, axes: Mapping[int, Any], views: Mapping[int, Ma
         lw = float(shape.get("width", 1.4))
         ls = DASH_MPL.get(shape.get("dash", "solid"), "-")
         if kind == "line":
-            target.plot([shape["x0"], shape["x1"]], [shape["y0"], shape["y1"]],
-                        color=color, lw=lw, ls=ls, zorder=2, scalex=False, scaley=False)
+            target.plot(
+                [shape["x0"], shape["x1"]],
+                [shape["y0"], shape["y1"]],
+                color=color,
+                lw=lw,
+                ls=ls,
+                zorder=2,
+                scalex=False,
+                scaley=False,
+            )
         elif kind == "rect":
-            patch = Rectangle((shape["x0"], shape["y0"]), shape["x1"] - shape["x0"], shape["y1"] - shape["y0"],
-                              facecolor=shape.get("fill") or color, alpha=0.15, edgecolor=color, lw=lw, ls=ls)
+            patch = Rectangle(
+                (shape["x0"], shape["y0"]),
+                shape["x1"] - shape["x0"],
+                shape["y1"] - shape["y0"],
+                facecolor=shape.get("fill") or color,
+                alpha=0.15,
+                edgecolor=color,
+                lw=lw,
+                ls=ls,
+            )
             target.add_patch(patch)
         elif kind == "arrow":
             target.annotate(
                 str(shape.get("text", "")),
-                xy=tuple(shape["end"]), xytext=tuple(shape["start"]),
-                xycoords="data", textcoords="data",
-                color=color, fontsize=float(fonts.get("annotation", 11)),
-                arrowprops=dict(arrowstyle="-|>", color=color, lw=lw, shrinkA=2, shrinkB=2),
+                xy=tuple(shape["end"]),
+                xytext=tuple(shape["start"]),
+                xycoords="data",
+                textcoords="data",
+                color=color,
+                fontsize=float(fonts.get("annotation", 11)),
+                arrowprops=dict(
+                    arrowstyle="-|>", color=color, lw=lw, shrinkA=2, shrinkB=2
+                ),
             )
         elif kind == "triangle":
             x0, y0 = shape.get("anchor", (1.0, 1.0))
@@ -1251,14 +1667,31 @@ def _draw_decorations(fig, spec, axes: Mapping[int, Any], views: Mapping[int, Ma
             slope = float(shape.get("slope", -3.0))
             x1 = _step(x0, str(view.get("xscale", "linear")), decades)
             y1 = _step(y0, str(view.get("yscale", "linear")), slope * decades)
-            for a, b in (((x0, y0), (x1, y1)), ((x1, y1), (x1, y0)), ((x0, y0), (x1, y0))):
-                target.plot([a[0], b[0]], [a[1], b[1]], color=color, lw=lw, ls=ls, zorder=2,
-                            scalex=False, scaley=False)
+            for a, b in (
+                ((x0, y0), (x1, y1)),
+                ((x1, y1), (x1, y0)),
+                ((x0, y0), (x1, y0)),
+            ):
+                target.plot(
+                    [a[0], b[0]],
+                    [a[1], b[1]],
+                    color=color,
+                    lw=lw,
+                    ls=ls,
+                    zorder=2,
+                    scalex=False,
+                    scaley=False,
+                )
             if shape.get("text"):
                 target.annotate(
-                    str(shape["text"]), xy=((x0 + x1) / 2, y0), xycoords="data",
-                    textcoords="offset points", xytext=(0, 4), ha="center",
-                    color=theme["text"], fontsize=float(fonts.get("annotation", 11)),
+                    str(shape["text"]),
+                    xy=((x0 + x1) / 2, y0),
+                    xycoords="data",
+                    textcoords="offset points",
+                    xytext=(0, 4),
+                    ha="center",
+                    color=theme["text"],
+                    fontsize=float(fonts.get("annotation", 11)),
                 )
         # path（任意 SVG 路径）在 matplotlib 侧没有等价物，静默跳过
 
@@ -1279,37 +1712,96 @@ def _draw_notes(fig, spec, axes: Mapping[int, Any], *, theme, fonts) -> None:
         size = float(note.get("size") or fs)
         if kind == "text":
             x, y = (float(v) for v in note.get("pos", (0.5, 0.5)))
-            fig.text(x, y, text, transform=fig.transFigure, color=color, fontsize=size,
-                     va="top", ha="left", zorder=50,
-                     bbox=dict(boxstyle="round,pad=0.45", facecolor=paper,
-                               edgecolor=color, linewidth=1.0, alpha=0.92))
+            fig.text(
+                x,
+                y,
+                text,
+                transform=fig.transFigure,
+                color=color,
+                fontsize=size,
+                va="top",
+                ha="left",
+                zorder=50,
+                bbox=dict(
+                    boxstyle="round,pad=0.45",
+                    facecolor=paper,
+                    edgecolor=color,
+                    linewidth=1.0,
+                    alpha=0.92,
+                ),
+            )
         elif kind == "region":
             x, y, w, h = (float(v) for v in note["rect"])
-            fig.add_artist(Rectangle((x, y), w, h, transform=fig.transFigure, fill=False,
-                                     edgecolor=color, linewidth=1.2,
-                                     linestyle=(0, (4, 3)), zorder=50))
+            fig.add_artist(
+                Rectangle(
+                    (x, y),
+                    w,
+                    h,
+                    transform=fig.transFigure,
+                    fill=False,
+                    edgecolor=color,
+                    linewidth=1.2,
+                    linestyle=(0, (4, 3)),
+                    zorder=50,
+                )
+            )
             if text:
-                fig.text(x + 0.006, y + h - 0.006, text, transform=fig.transFigure,
-                         color=color, fontsize=size, va="top", ha="left", zorder=51)
+                fig.text(
+                    x + 0.006,
+                    y + h - 0.006,
+                    text,
+                    transform=fig.transFigure,
+                    color=color,
+                    fontsize=size,
+                    va="top",
+                    ha="left",
+                    zorder=51,
+                )
         elif kind == "arrow":
             start = tuple(float(v) for v in note.get("start", (0.2, 0.2)))
             end = tuple(float(v) for v in note.get("end", (0.4, 0.4)))
-            fig.add_artist(FancyArrowPatch(start, end, transform=fig.transFigure,
-                                           arrowstyle="-|>", mutation_scale=12,
-                                           color=color, linewidth=1.4, zorder=50))
+            fig.add_artist(
+                FancyArrowPatch(
+                    start,
+                    end,
+                    transform=fig.transFigure,
+                    arrowstyle="-|>",
+                    mutation_scale=12,
+                    color=color,
+                    linewidth=1.4,
+                    zorder=50,
+                )
+            )
             if text:
-                fig.text(end[0], end[1], text, transform=fig.transFigure, color=color,
-                         fontsize=size, va="bottom", ha="left", zorder=51)
+                fig.text(
+                    end[0],
+                    end[1],
+                    text,
+                    transform=fig.transFigure,
+                    color=color,
+                    fontsize=size,
+                    va="bottom",
+                    ha="left",
+                    zorder=51,
+                )
         elif kind == "mark":
             ax = axes.get(int(note.get("subplot", 0)))
             if ax is None:
                 continue
             try:
-                ax.annotate(text or "标注", xy=(float(note["x"]), float(note["y"])),
-                            xycoords="data", textcoords="offset points", xytext=(14, 14),
-                            color=color, fontsize=size, zorder=50,
-                            arrowprops=dict(arrowstyle="-|>", color=color, lw=1.2,
-                                            shrinkA=0, shrinkB=3))
+                ax.annotate(
+                    text or "标注",
+                    xy=(float(note["x"]), float(note["y"])),
+                    xycoords="data",
+                    textcoords="offset points",
+                    xytext=(14, 14),
+                    color=color,
+                    fontsize=size,
+                    zorder=50,
+                    arrowprops=dict(
+                        arrowstyle="-|>", color=color, lw=1.2, shrinkA=0, shrinkB=3
+                    ),
+                )
             except (KeyError, TypeError, ValueError):
                 continue
 
@@ -1322,7 +1814,12 @@ def _grid_rect(index: int, ncols: int, nrows: int, *, top: float = 0.95) -> list
     cw = (right - left) / cols
     ch = (top - bottom) / rows
     row, col = divmod(int(index), cols)
-    return [left + col * cw + cw * 0.02, top - (row + 1) * ch + ch * 0.03, cw * 0.96, ch * 0.94]
+    return [
+        left + col * cw + cw * 0.02,
+        top - (row + 1) * ch + ch * 0.03,
+        cw * 0.96,
+        ch * 0.94,
+    ]
 
 
 def to_figure(
@@ -1339,8 +1836,12 @@ def to_figure(
     fig_cfg = spec.get("figure", {})
     theme = dict(THEMES.get(str(fig_cfg.get("theme", "default")), THEMES["default"]))
     # 允许逐图覆盖底色/文字色：深色版式常常需要比主题更黑一点的画布
-    for key, slot in (("facecolor", "paper"), ("axes_facecolor", "plot"),
-                      ("textcolor", "text"), ("gridcolor", "grid")):
+    for key, slot in (
+        ("facecolor", "paper"),
+        ("axes_facecolor", "plot"),
+        ("textcolor", "text"),
+        ("gridcolor", "grid"),
+    ):
         if fig_cfg.get(key):
             theme[slot] = str(fig_cfg[key])
     fonts = {**DEFAULT_FONTS, **dict(fig_cfg.get("fonts") or {})}
@@ -1348,12 +1849,20 @@ def to_figure(
     ncols = int(fig_cfg.get("ncols", 1))
     subplots = int(fig_cfg.get("subplots", 1))
 
-    fig = Figure(figsize=(float(size[0]), float(size[1])), dpi=int(dpi or fig_cfg.get("dpi", 100)),
-                 constrained_layout=True, facecolor=theme["paper"])
+    fig = Figure(
+        figsize=(float(size[0]), float(size[1])),
+        dpi=int(dpi or fig_cfg.get("dpi", 100)),
+        constrained_layout=True,
+        facecolor=theme["paper"],
+    )
     FigureCanvasAgg(fig)
     fig.patch.set_facecolor(theme["paper"])
     if fig_cfg.get("title"):
-        fig.suptitle(str(fig_cfg["title"]), color=theme["text"], fontsize=float(fonts.get("title", 14)))
+        fig.suptitle(
+            str(fig_cfg["title"]),
+            color=theme["text"],
+            fontsize=float(fonts.get("title", 14)),
+        )
 
     # 先分组：同一子图里 2D 与 3D 不能混排（与 MultiPlotter 同规则），
     # 且 3D 槽位要用 projection="3d" 建轴。
@@ -1364,7 +1873,9 @@ def to_figure(
     slot_is_3d: dict[int, bool] = {}
     for slot, group in by_subplot.items():
         known = reg.known_kind_names()
-        dims = {reg.resolve(l["kind"]).dimension for l in group if l.get("kind") in known}
+        dims = {
+            reg.resolve(l["kind"]).dimension for l in group if l.get("kind") in known
+        }
         if 3 in dims and 2 in dims:
             raise ValueError(f"子图 {slot} 里 2D 与 3D 图层不能混排（请拆到不同子图）")
         slot_is_3d[slot] = 3 in dims
@@ -1373,7 +1884,7 @@ def to_figure(
     # PK-R20 自由布局：figure.layout = [{slot, rect:[x,y,w,h]}]，rect 是 figure 比例（y 从下往上）。
     # 允许互相重叠；没写进 layout 的槽位退回网格位置。
     layout_map: dict[int, list[float]] = {}
-    for item in (fig_cfg.get("layout") or []):
+    for item in fig_cfg.get("layout") or []:
         if not isinstance(item, Mapping):
             continue
         try:
@@ -1449,11 +1960,20 @@ def to_figure(
                     custom = None
                 drawer = custom.builder if custom is not None else None
             if drawer is None:
-                raise ValueError(f"matplotlib 后端暂不支持 kind={kind}（图层 {layer.get('id')}）")
-            n_lines, n_colls, n_patches = len(ax.lines), len(ax.collections), len(ax.patches)
+                raise ValueError(
+                    f"matplotlib 后端暂不支持 kind={kind}（图层 {layer.get('id')}）"
+                )
+            n_lines, n_colls, n_patches = (
+                len(ax.lines),
+                len(ax.collections),
+                len(ax.patches),
+            )
             drawer(ax, layer, store, index, pixels=pixels)
-            made = (list(ax.lines[n_lines:]) + list(ax.collections[n_colls:])
-                    + list(ax.patches[n_patches:]))
+            made = (
+                list(ax.lines[n_lines:])
+                + list(ax.collections[n_colls:])
+                + list(ax.patches[n_patches:])
+            )
             if made and layer.get("id") is not None:
                 artists.setdefault(str(layer["id"]), []).extend(made)
 
@@ -1464,24 +1984,52 @@ def to_figure(
             for ann in layer.get("annotations") or []:
                 kind = ann.get("type")
                 if kind == "hline":
-                    ax.axhline(float(ann["y"]), color=ann.get("color", "#94a3b8"), linestyle=":", linewidth=1.0)
+                    ax.axhline(
+                        float(ann["y"]),
+                        color=ann.get("color", "#94a3b8"),
+                        linestyle=":",
+                        linewidth=1.0,
+                    )
                 elif kind == "vline":
-                    ax.axvline(float(ann["x"]), color=ann.get("color", "#94a3b8"), linestyle=":", linewidth=1.0)
+                    ax.axvline(
+                        float(ann["x"]),
+                        color=ann.get("color", "#94a3b8"),
+                        linestyle=":",
+                        linewidth=1.0,
+                    )
                 elif kind == "band":
-                    ax.axhspan(float(ann["from"]), float(ann["to"]),
-                               color=ann.get("color", "#94a3b8"), alpha=0.15, linewidth=0)
+                    ax.axhspan(
+                        float(ann["from"]),
+                        float(ann["to"]),
+                        color=ann.get("color", "#94a3b8"),
+                        alpha=0.15,
+                        linewidth=0,
+                    )
                 elif kind == "text":
-                    ax.text(ann.get("x", 0.5), ann.get("y", 0.5), str(ann.get("text", "")),
-                            transform=ax.transAxes, color=theme["text"],
-                            fontsize=float(fonts.get("annotation", 11)))
+                    ax.text(
+                        ann.get("x", 0.5),
+                        ann.get("y", 0.5),
+                        str(ann.get("text", "")),
+                        transform=ax.transAxes,
+                        color=theme["text"],
+                        fontsize=float(fonts.get("annotation", 11)),
+                    )
         if any(layer.get("legend", True) and layer.get("label") for layer in group):
             handles, labels = ax.get_legend_handles_labels()
             keep = [
-                (h, lab) for h, lab in zip(handles, labels)
-                if any(layer.get("legend", True) and layer.get("label") == lab for layer in group)
+                (h, lab)
+                for h, lab in zip(handles, labels)
+                if any(
+                    layer.get("legend", True) and layer.get("label") == lab
+                    for layer in group
+                )
             ]
-            legend = ax.legend([h for h, _ in keep], [lab for _, lab in keep],
-                               fontsize=float(fonts.get("legend", 11)), frameon=False)
+            legend = ax.legend(
+                [h for h, _ in keep],
+                [lab for _, lab in keep],
+                fontsize=float(fonts.get("legend", 11)),
+                frameon=False,
+            )
             if legend is not None:
                 for text in legend.get_texts():
                     text.set_color(theme["text"])
@@ -1510,7 +2058,9 @@ def savefig(
 
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    with rc_context({"font.sans-serif": list(FONT_FALLBACK), "axes.unicode_minus": False}):
+    with rc_context(
+        {"font.sans-serif": list(FONT_FALLBACK), "axes.unicode_minus": False}
+    ):
         figure = to_figure(spec, store, dpi=dpi, pixels=pixels)
         figure.savefig(target, dpi=dpi or int(spec.get("figure", {}).get("dpi", 100)))
     return target
@@ -1528,7 +2078,6 @@ def render_bytes(
     ylim: tuple[float, float] | None = None,
     with_limits: bool = False,
 ):
-
     """按**像素尺寸**渲染，返回图片字节（D33：网页呈现的唯一出口）。
 
     与 `savefig` 的区别：
@@ -1563,10 +2112,13 @@ def render_bytes(
 
     cache = livecache.get_cache()
     buffer = _io.BytesIO()
-    with rc_context({"font.sans-serif": list(FONT_FALLBACK), "axes.unicode_minus": False}):
+    with rc_context(
+        {"font.sans-serif": list(FONT_FALLBACK), "axes.unicode_minus": False}
+    ):
         entry = cache.lookup(work, width, height, dpi) if fmt == "png" else None
-        if entry is not None and cache.update(entry, store, pixels=width,
-                                              trange=current_trange()):
+        if entry is not None and cache.update(
+            entry, store, pixels=width, trange=current_trange()
+        ):
             cache.hits += 1
             payload = cache.paint(entry, fmt=fmt, blit=livecache.limits_fixed(work))
             figure = entry.figure
@@ -1579,92 +2131,183 @@ def render_bytes(
                 payload = livecache.encode_png(figure.canvas)
                 cache.store(work, width, height, dpi, figure, spec_layers(work))
             else:
-                figure.savefig(buffer, format=fmt, dpi=dpi, metadata={"Date": None},
-                               bbox_inches=None)
+                figure.savefig(
+                    buffer,
+                    format=fmt,
+                    dpi=dpi,
+                    metadata={"Date": None},
+                    bbox_inches=None,
+                )
                 payload = buffer.getvalue()
         limits = None
         if with_limits and figure.axes:
             main = figure.axes[0]
-            box = [float(v) for v in main.get_position().bounds]  # x0, y0, w, h（figure 比例）
-            inset_slots = {int(i.get("subplot", -1)) for i in (fig_cfg.get("insets") or [])}
-            grid_slots = [i for i in range(int(fig_cfg.get("subplots", 1))) if i not in inset_slots]
+            box = [
+                float(v) for v in main.get_position().bounds
+            ]  # x0, y0, w, h（figure 比例）
+            inset_slots = {
+                int(i.get("subplot", -1)) for i in (fig_cfg.get("insets") or [])
+            }
+            grid_slots = [
+                i
+                for i in range(int(fig_cfg.get("subplots", 1)))
+                if i not in inset_slots
+            ]
             slots = []
             for slot, ax in zip(grid_slots, figure.axes):
-                slots.append({"slot": int(slot),
-                              "box": [round(float(v), 5) for v in ax.get_position().bounds]})
-            limits = {"xlim": [float(v) for v in main.get_xlim()],
-                      "ylim": [float(v) for v in main.get_ylim()],
-                      "box": box,
-                      "slots": slots,
-                      "px": [int(width), int(height)]}
+                slots.append(
+                    {
+                        "slot": int(slot),
+                        "box": [round(float(v), 5) for v in ax.get_position().bounds],
+                    }
+                )
+            limits = {
+                "xlim": [float(v) for v in main.get_xlim()],
+                "ylim": [float(v) for v in main.get_ylim()],
+                "box": box,
+                "slots": slots,
+                "px": [int(width), int(height)],
+            }
     return (payload, limits) if with_limits else payload
 
 
 # ---------------- 注册 v0 三种基础图层（原在 plotly 后端注册，D33 迁移过来） ----------------
-reg.register("line", 2, None, defaults={"mode": "lines", "width": 1.6},
-             description="折线 / 曲线（时间序列主力）")
-reg.register("marker", 2, None, defaults={"mode": "markers"},
-             aliases=("scatter", "points"), description="散点")
+reg.register(
+    "line",
+    2,
+    None,
+    defaults={"mode": "lines", "width": 1.6},
+    description="折线 / 曲线（时间序列主力）",
+)
+reg.register(
+    "marker",
+    2,
+    None,
+    defaults={"mode": "markers"},
+    aliases=("scatter", "points"),
+    description="散点",
+)
 reg.register("bar", 2, None, defaults={"mode": "bars"}, description="柱状图")
-reg.register("segments", 3, None, defaults={"width": 1.2},
-             description="多段折线（流线束 / 轨迹束，端点点对）")
-reg.register("lic", 2, None, defaults={"steps": 24, "contrast": 1.0},
-             description="线积分卷积（稠密矢量场纹理）")
-reg.register("volume", 3, None, defaults={"cmap": "magma"},
-             description="三维标量场体渲染（pyvista 或浏览器 WebGL）")
-reg.register("particles", 3, None,
-             defaults={"size": 3.2, "alpha": 0.06, "cmap": "inferno"},
-             description="时空点云（浏览器 WebGL 点精灵；c 为逐点标量）")
+reg.register(
+    "segments",
+    3,
+    None,
+    defaults={"width": 1.2},
+    description="多段折线（流线束 / 轨迹束，端点点对）",
+)
+reg.register(
+    "lic",
+    2,
+    None,
+    defaults={"steps": 24, "contrast": 1.0},
+    description="线积分卷积（稠密矢量场纹理）",
+)
+reg.register(
+    "volume",
+    3,
+    None,
+    defaults={"cmap": "magma"},
+    description="三维标量场体渲染（pyvista 或浏览器 WebGL）",
+)
+reg.register(
+    "particles",
+    3,
+    None,
+    defaults={"size": 3.2, "alpha": 0.06, "cmap": "inferno"},
+    description="时空点云（浏览器 WebGL 点精灵；c 为逐点标量）",
+)
 
 # ---------------- 注册 P13-01 的四种图层（渲染统一走 mpl，builder 留空） ----------------
 reg.register("hist", 2, None, defaults={"bins": 30}, description="直方图（服务端分箱）")
 reg.register("pie", 2, None, defaults={"autopct": "%1.1f%%"}, description="饼图")
-reg.register("image", 2, None, defaults={"cmap": "viridis", "colorbar": True}, description="图像 / 热图")
+reg.register(
+    "image",
+    2,
+    None,
+    defaults={"cmap": "viridis", "colorbar": True},
+    description="图像 / 热图",
+)
 reg.register("table", 2, None, defaults={"fontsize": 10}, description="表格")
 
 # ---------------- 注册 P13-02 的场类图层 ----------------
-reg.register("heatmap", 2, None, defaults={"cmap": "viridis"}, description="热图（z 或 x/y/z）")
-reg.register("contour", 2, None, defaults={"levels": 8}, description="等值线（可 clabel）")
+reg.register(
+    "heatmap", 2, None, defaults={"cmap": "viridis"}, description="热图（z 或 x/y/z）"
+)
+reg.register(
+    "contour", 2, None, defaults={"levels": 8}, description="等值线（可 clabel）"
+)
 reg.register("contourf", 2, None, defaults={"levels": 8}, description="填充等值线")
-reg.register("correlation", 2, None, defaults={"cmap": "RdBu_r", "vmin": -1.0, "vmax": 1.0},
-             aliases=("corr", "correlation_matrix"), description="相关系数矩阵（init-only 聚合）")
+reg.register(
+    "correlation",
+    2,
+    None,
+    defaults={"cmap": "RdBu_r", "vmin": -1.0, "vmax": 1.0},
+    aliases=("corr", "correlation_matrix"),
+    description="相关系数矩阵（init-only 聚合）",
+)
 
 # ---------------- 注册 P13-03 的矢量场图层 ----------------
-reg.register("quiver", 2, None, defaults={"color_by": "magnitude"}, description="矢量箭头图")
-reg.register("streamplot", 2, None, defaults={"density": 1.0}, description="流线图（需二维网格）")
-reg.register("barbs", 2, None, defaults={"color_by": "magnitude"}, description="风羽图（barbs）")
+reg.register(
+    "quiver", 2, None, defaults={"color_by": "magnitude"}, description="矢量箭头图"
+)
+reg.register(
+    "streamplot", 2, None, defaults={"density": 1.0}, description="流线图（需二维网格）"
+)
+reg.register(
+    "barbs", 2, None, defaults={"color_by": "magnitude"}, description="风羽图（barbs）"
+)
 
 # ---------------- 注册 P13-04 的 3D 图层 ----------------
 reg.register("surface", 3, None, defaults={"cmap": "viridis"}, description="三维曲面")
 reg.register("line3d", 3, None, defaults={"width": 1.8}, description="三维折线")
 reg.register("scatter3d", 3, None, defaults={"cmap": "viridis"}, description="三维散点")
 reg.register("bar3d", 3, None, defaults={"shade": True}, description="三维柱状")
-reg.register("hist3d", 3, None, defaults={"bins": 8}, description="三维直方（二维分箱 + 柱）")
+reg.register(
+    "hist3d", 3, None, defaults={"bins": 8}, description="三维直方（二维分箱 + 柱）"
+)
 reg.register("quiver3d", 3, None, defaults={"length": 0.6}, description="三维矢量箭头")
-reg.register("stream3d", 3, None, defaults={"density": 0.6}, description="三维流线（RK2 积分）")
+reg.register(
+    "stream3d", 3, None, defaults={"density": 0.6}, description="三维流线（RK2 积分）"
+)
 
 # ---------------- 注册 P13-05 的统计/信号族 ----------------
-reg.register("boxplot", 2, None, defaults={"widths": 0.6}, description="箱线图（多列 = 多箱）")
+reg.register(
+    "boxplot", 2, None, defaults={"widths": 0.6}, description="箱线图（多列 = 多箱）"
+)
 reg.register("violinplot", 2, None, defaults={"widths": 0.8}, description="小提琴图")
 reg.register("ecdf", 2, None, defaults={}, description="经验分布函数")
-reg.register("hexbin", 2, None, defaults={"gridsize": 20}, description="六边形分箱密度图")
+reg.register(
+    "hexbin", 2, None, defaults={"gridsize": 20}, description="六边形分箱密度图"
+)
 reg.register("barh", 2, None, defaults={"width": 0.8}, description="横向柱状")
-reg.register("stackplot", 2, None, defaults={}, description="堆叠面积（多行 = 多条序列）")
+reg.register(
+    "stackplot", 2, None, defaults={}, description="堆叠面积（多行 = 多条序列）"
+)
 reg.register("step", 2, None, defaults={"where": "pre"}, description="阶梯线")
 reg.register("stem", 2, None, defaults={}, description="火柴杆图")
 
 # ---------------- 注册 P13-07 的漏项图层 ----------------
 reg.register("stairs", 2, None, defaults={}, description="阶梯面积/阶梯线")
-reg.register("broken_barh", 2, None, defaults={"row": 1.0, "height": 0.8}, description="分段条形（甘特式）")
+reg.register(
+    "broken_barh",
+    2,
+    None,
+    defaults={"row": 1.0, "height": 0.8},
+    description="分段条形（甘特式）",
+)
 reg.register("eventplot", 2, None, defaults={}, description="事件栅格图")
-reg.register("bxp", 2, None, defaults={"widths": 0.6}, description="箱线图（由数据算统计量）")
+reg.register(
+    "bxp", 2, None, defaults={"widths": 0.6}, description="箱线图（由数据算统计量）"
+)
 reg.register("psd", 2, None, defaults={"nfft": 256}, description="功率谱密度")
 reg.register("specgram", 2, None, defaults={"nfft": 256}, description="时频谱图")
 
 # ---------------- 注册 P13-09 的方法级缺口 ----------------
 reg.register("triplot", 2, None, defaults={}, description="三角剖分线")
 reg.register("tricontour", 2, None, defaults={"levels": 8}, description="非结构等值线")
-reg.register("tricontourf", 2, None, defaults={"levels": 8}, description="非结构填充等值线")
+reg.register(
+    "tricontourf", 2, None, defaults={"levels": 8}, description="非结构填充等值线"
+)
 reg.register("tripcolor", 2, None, defaults={}, description="非结构伪彩")
 reg.register("voxels", 3, None, defaults={}, description="体素图")
 reg.register("trisurf", 3, None, defaults={}, description="三角曲面")
@@ -1675,5 +2318,9 @@ reg.register("cohere", 2, None, defaults={"nfft": 256}, description="相干函�
 reg.register("acorr", 2, None, defaults={}, description="自相关")
 reg.register("xcorr", 2, None, defaults={}, description="互相关")
 reg.register("angle_spectrum", 2, None, defaults={"nfft": 256}, description="相位谱")
-reg.register("magnitude_spectrum", 2, None, defaults={"nfft": 256}, description="幅度谱")
-reg.register("phase_spectrum", 2, None, defaults={"nfft": 256}, description="相位谱（unwrap）")
+reg.register(
+    "magnitude_spectrum", 2, None, defaults={"nfft": 256}, description="幅度谱"
+)
+reg.register(
+    "phase_spectrum", 2, None, defaults={"nfft": 256}, description="相位谱（unwrap）"
+)

@@ -158,7 +158,7 @@ def pick_level(
     """挑最粗但仍够画的一级：输出点数必须 >= pixels*per_pixel，否则会丢细节。"""
     need = max(64, int(pixels * per_pixel))
     chosen = levels[0]
-    for level in levels:          # levels 由细到粗
+    for level in levels:  # levels 由细到粗
         if level[0].size >= need:
             chosen = level
         else:

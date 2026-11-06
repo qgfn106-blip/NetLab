@@ -40,9 +40,14 @@ def _render_one(payload: Mapping[str, Any]) -> bytes:
     for name, values in (payload["data"] or {}).items():
         store.add(name, values, role="auto", overwrite=True)
     result = pyvista_backend.render_result(
-        payload["spec"], store,
-        width=payload["width"], height=payload["height"], dpi=payload["dpi"],
-        fmt=payload["fmt"], xlim=payload["xlim"], ylim=payload["ylim"],
+        payload["spec"],
+        store,
+        width=payload["width"],
+        height=payload["height"],
+        dpi=payload["dpi"],
+        fmt=payload["fmt"],
+        xlim=payload["xlim"],
+        ylim=payload["ylim"],
         with_limits=False,
     )
     return result.payload
@@ -71,16 +76,18 @@ def render_many(jobs: Iterable[tuple], *, workers: int | None = None) -> list[by
         return []
     payloads = []
     for spec, store, kwargs in items:
-        payloads.append({
-            "spec": spec,
-            "data": _snapshot(store, spec),
-            "width": int(kwargs.get("width", 900)),
-            "height": int(kwargs.get("height", 520)),
-            "dpi": int(kwargs.get("dpi", 100)),
-            "fmt": str(kwargs.get("fmt", "png")),
-            "xlim": kwargs.get("xlim"),
-            "ylim": kwargs.get("ylim"),
-        })
+        payloads.append(
+            {
+                "spec": spec,
+                "data": _snapshot(store, spec),
+                "width": int(kwargs.get("width", 900)),
+                "height": int(kwargs.get("height", 520)),
+                "dpi": int(kwargs.get("dpi", 100)),
+                "fmt": str(kwargs.get("fmt", "png")),
+                "xlim": kwargs.get("xlim"),
+                "ylim": kwargs.get("ylim"),
+            }
+        )
     count = max(1, int(workers or workers_default()))
     if count == 1 or len(payloads) == 1:
         return [_render_one(p) for p in payloads]

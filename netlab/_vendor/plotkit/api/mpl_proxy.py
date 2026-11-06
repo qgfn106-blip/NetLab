@@ -11,7 +11,6 @@ from typing import Any, Mapping, Sequence
 import numpy as np
 
 
-
 class AxesProxy:
     """单个子图槽位的代理。方法名与 matplotlib 保持一致，方便肌肉记忆迁移。"""
 
@@ -20,21 +19,30 @@ class AxesProxy:
         self.index = int(index)
 
     # ---------------- 绘图 ----------------
-    def plot(self, x: Any = None, y: Any = None, *, label: str | None = None, **kwargs: Any):
+    def plot(
+        self, x: Any = None, y: Any = None, *, label: str | None = None, **kwargs: Any
+    ):
         if y is None:
             x, y = None, x
         if x is None:
             data_name = self._ensure(y, role="series")
             x_name = self._axis_dataset(data_name)
-            return self._figure.add_plot("line", x=x_name, y=data_name,
-                                         subplot=self.index, label=label, **kwargs)
-        return self._figure.add_plot("line", x=x, y=y, subplot=self.index, label=label, **kwargs)
+            return self._figure.add_plot(
+                "line", x=x_name, y=data_name, subplot=self.index, label=label, **kwargs
+            )
+        return self._figure.add_plot(
+            "line", x=x, y=y, subplot=self.index, label=label, **kwargs
+        )
 
     def scatter(self, x: Any, y: Any, *, label: str | None = None, **kwargs: Any):
-        return self._figure.add_plot("marker", x=x, y=y, subplot=self.index, label=label, **kwargs)
+        return self._figure.add_plot(
+            "marker", x=x, y=y, subplot=self.index, label=label, **kwargs
+        )
 
     def bar(self, x: Any, y: Any, *, label: str | None = None, **kwargs: Any):
-        return self._figure.add_plot("bar", x=x, y=y, subplot=self.index, label=label, **kwargs)
+        return self._figure.add_plot(
+            "bar", x=x, y=y, subplot=self.index, label=label, **kwargs
+        )
 
     def _ensure(self, values: Any, *, role: str) -> str:
         if isinstance(values, str):
@@ -49,7 +57,9 @@ class AxesProxy:
         length = int(np.asarray(values).shape[0]) if np.asarray(values).ndim else 1
         name = f"idx_{series_name}"
         if name not in self._figure.store:
-            self._figure.store.add(name, np.arange(length, dtype=float), role="coord", tags=("index",))
+            self._figure.store.add(
+                name, np.arange(length, dtype=float), role="coord", tags=("index",)
+            )
         return name
 
     # ---------------- 轴属性 ----------------
@@ -99,17 +109,29 @@ class AxesProxy:
 
     # ---------------- 标注 ----------------
     def axhline(self, y: float = 0.0, **kwargs: Any) -> None:
-        self._annotate({"type": "hline", "y": float(y), "color": kwargs.get("color", "#94a3b8")})
+        self._annotate(
+            {"type": "hline", "y": float(y), "color": kwargs.get("color", "#94a3b8")}
+        )
 
     def axvline(self, x: float = 0.0, **kwargs: Any) -> None:
-        self._annotate({"type": "vline", "x": float(x), "color": kwargs.get("color", "#94a3b8")})
+        self._annotate(
+            {"type": "vline", "x": float(x), "color": kwargs.get("color", "#94a3b8")}
+        )
 
     def axhspan(self, lo: float, hi: float, **kwargs: Any) -> None:
-        self._annotate({"type": "band", "from": float(lo), "to": float(hi),
-                        "color": kwargs.get("color", "#94a3b8")})
+        self._annotate(
+            {
+                "type": "band",
+                "from": float(lo),
+                "to": float(hi),
+                "color": kwargs.get("color", "#94a3b8"),
+            }
+        )
 
     def text(self, x: float, y: float, text: str, **_: Any) -> None:
-        self._annotate({"type": "text", "x": float(x), "y": float(y), "text": str(text)})
+        self._annotate(
+            {"type": "text", "x": float(x), "y": float(y), "text": str(text)}
+        )
 
     def _annotate(self, annotation: Mapping[str, Any]) -> None:
         for layer in reversed(self._figure.spec["layers"]):

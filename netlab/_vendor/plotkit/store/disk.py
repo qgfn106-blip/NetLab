@@ -68,7 +68,11 @@ class ChunkedSeries:
             self._buffer.append(array)
             self._buffered += int(array.size)
         while self._buffered >= self.chunk_size:
-            merged = np.concatenate(self._buffer) if len(self._buffer) > 1 else self._buffer[0]
+            merged = (
+                np.concatenate(self._buffer)
+                if len(self._buffer) > 1
+                else self._buffer[0]
+            )
             head, tail = merged[: self.chunk_size], merged[self.chunk_size :]
             self._write_chunk(head)
             self._buffer = [tail] if tail.size else []
@@ -77,7 +81,11 @@ class ChunkedSeries:
 
     def flush(self) -> None:
         if self._buffered:
-            merged = np.concatenate(self._buffer) if len(self._buffer) > 1 else self._buffer[0]
+            merged = (
+                np.concatenate(self._buffer)
+                if len(self._buffer) > 1
+                else self._buffer[0]
+            )
             self._write_chunk(merged)
             self._buffer = []
             self._buffered = 0
@@ -122,7 +130,11 @@ class ChunkedSeries:
             hi = min(i1, chunk.stop) - chunk.start
             pieces.append(data[lo:hi])
         if i1 > self._length:  # 尾部还在缓冲里
-            buffered = np.concatenate(self._buffer) if self._buffer else np.empty(0, dtype=self.dtype)
+            buffered = (
+                np.concatenate(self._buffer)
+                if self._buffer
+                else np.empty(0, dtype=self.dtype)
+            )
             offset = self._length
             pieces.append(buffered[max(0, i0 - offset) : max(0, i1 - offset)])
         return np.concatenate(pieces) if pieces else np.empty(0, dtype=self.dtype)

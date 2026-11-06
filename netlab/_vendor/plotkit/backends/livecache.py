@@ -63,7 +63,9 @@ class FigureCache:
         self.misses = 0
 
     # ---- 查询 -------------------------------------------------------------
-    def lookup(self, spec: Mapping[str, Any], width: int, height: int, dpi: int) -> Entry | None:
+    def lookup(
+        self, spec: Mapping[str, Any], width: int, height: int, dpi: int
+    ) -> Entry | None:
         if _DISABLED or self._entry is None:
             return None
         key = (_signature(spec), int(width), int(height), int(dpi))
@@ -72,12 +74,24 @@ class FigureCache:
             return None
         return self._entry
 
-    def store(self, spec: Mapping[str, Any], width: int, height: int, dpi: int,
-              figure: Any, layers: list) -> Entry:
+    def store(
+        self,
+        spec: Mapping[str, Any],
+        width: int,
+        height: int,
+        dpi: int,
+        figure: Any,
+        layers: list,
+    ) -> Entry:
         key = (_signature(spec), int(width), int(height), int(dpi))
         # 背景延迟到第一次真正 blit 时才拍（避免 miss 时多画一遍）
-        self._entry = Entry(key=key, figure=figure, layers=list(layers), background=None,
-                            fixed=limits_fixed(spec))
+        self._entry = Entry(
+            key=key,
+            figure=figure,
+            layers=list(layers),
+            background=None,
+            fixed=limits_fixed(spec),
+        )
         return self._entry
 
     def clear(self) -> None:
@@ -90,8 +104,11 @@ class FigureCache:
     # ---- 复用 -------------------------------------------------------------
     @staticmethod
     def _tracked(figure) -> list:
-        return [a for arts in (getattr(figure, "_plotkit_artists", None) or {}).values()
-                for a in arts]
+        return [
+            a
+            for arts in (getattr(figure, "_plotkit_artists", None) or {}).values()
+            for a in arts
+        ]
 
     @staticmethod
     def _overlays(figure) -> list:
@@ -133,7 +150,9 @@ class FigureCache:
         from .series import _xy
 
         for layer in entry.layers:
-            made = (getattr(entry.figure, "_plotkit_artists", {}) or {}).get(layer.get("id")) or []
+            made = (getattr(entry.figure, "_plotkit_artists", {}) or {}).get(
+                layer.get("id")
+            ) or []
             if len(made) != 1 or not hasattr(made[0], "set_data"):
                 return False
             try:
@@ -183,8 +202,13 @@ class FigureCache:
         if fmt == "png":
             canvas.draw()
             return encode_png(canvas)
-        figure.savefig(buffer, format=fmt, dpi=figure.dpi,
-                       metadata={"Date": None}, bbox_inches=None)
+        figure.savefig(
+            buffer,
+            format=fmt,
+            dpi=figure.dpi,
+            metadata={"Date": None},
+            bbox_inches=None,
+        )
         return buffer.getvalue()
 
 

@@ -24,13 +24,42 @@ def good_block() -> BlockDef:
         mode="signal",
         description="把输入乘 2",
         nodes=[
-            _node("ccccccccccc1", "__in", "module_input", {"role": "interface", "port_name": "in", "fields": ["voltage"]}),
-            _node("ccccccccccc2", "amp", "gain", {"field": "voltage", "output": "voltage", "gain": 2.0, "offset": 0.0}),
-            _node("ccccccccccc3", "__out", "module_output", {"role": "interface", "port_name": "out", "fields": ["voltage"]}),
+            _node(
+                "ccccccccccc1",
+                "__in",
+                "module_input",
+                {"role": "interface", "port_name": "in", "fields": ["voltage"]},
+            ),
+            _node(
+                "ccccccccccc2",
+                "amp",
+                "gain",
+                {"field": "voltage", "output": "voltage", "gain": 2.0, "offset": 0.0},
+            ),
+            _node(
+                "ccccccccccc3",
+                "__out",
+                "module_output",
+                {"role": "interface", "port_name": "out", "fields": ["voltage"]},
+            ),
         ],
         edges=[
-            {"id": "ddddddddddd1", "name": "e1", "source": "ccccccccccc1", "target": "ccccccccccc2", "kind": "pass", "params": {}},
-            {"id": "ddddddddddd2", "name": "e2", "source": "ccccccccccc2", "target": "ccccccccccc3", "kind": "pass", "params": {}},
+            {
+                "id": "ddddddddddd1",
+                "name": "e1",
+                "source": "ccccccccccc1",
+                "target": "ccccccccccc2",
+                "kind": "pass",
+                "params": {},
+            },
+            {
+                "id": "ddddddddddd2",
+                "name": "e2",
+                "source": "ccccccccccc2",
+                "target": "ccccccccccc3",
+                "kind": "pass",
+                "params": {},
+            },
         ],
         ports=[
             PortDef(name="in", direction="input", fields=["voltage"]),
@@ -51,7 +80,13 @@ def test_port_without_interface_is_blocking():
     payload = good_block().to_payload()
     # 声明一个没有内部接口节点的端口（结构仍然自洽）
     payload["ports"].append(
-        {"name": "extra", "direction": "input", "fields": ["voltage"], "dtype": "signal", "default": 0.0}
+        {
+            "name": "extra",
+            "direction": "input",
+            "fields": ["voltage"],
+            "dtype": "signal",
+            "default": 0.0,
+        }
     )
     report = validate_block_payload(payload)
     codes = {item["code"] for item in report["blocking"]}
@@ -77,12 +112,16 @@ def test_broken_internal_compute_fails_dry_run():
     assert report["ok"] is False
     codes = {item["code"] for item in report["blocking"]}
     assert "dry_run" in codes
-    assert "干跑失败" in next(item["message"] for item in report["blocking"] if item["code"] == "dry_run")
+    assert "干跑失败" in next(
+        item["message"] for item in report["blocking"] if item["code"] == "dry_run"
+    )
 
 
 def test_self_reference_and_structure_errors():
     payload = good_block().to_payload()
-    payload["nodes"].append(_node("eeeeeeeeeee1", "self", "block", {"block_id": "aaaaaaaaaaaa"}))
+    payload["nodes"].append(
+        _node("eeeeeeeeeee1", "self", "block", {"block_id": "aaaaaaaaaaaa"})
+    )
     report = validate_block_payload(payload)
     codes = {item["code"] for item in report["blocking"]}
     assert codes & {"self_reference", "structure"}

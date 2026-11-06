@@ -1,4 +1,5 @@
 """内置 PlotKit 副本：安装 / 卸载 / 状态。"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -46,5 +47,7 @@ def test_install_and_uninstall(monkeypatch, tmp_path):
 def test_repo_ships_vendored_plotkit():
     """netlab 应自带 PlotKit 副本（这样用户不必单独下载）。"""
     info = vendor.status()
-    assert info["vendored"] is True, "缺少 netlab/_vendor/plotkit，请运行 python -m netlab.plotkit_vendor install"
+    assert (
+        info["vendored"] is True
+    ), "缺少 netlab/_vendor/plotkit，请运行 python -m netlab.plotkit_vendor install"
     assert info["files"] > 10

@@ -27,7 +27,9 @@ class AnalysisError(Exception):
     """分析失败/超时；服务层转 422。"""
 
 
-def _frames(sim: Any, t0: float | None = None, t1: float | None = None) -> list[dict[str, Any]]:
+def _frames(
+    sim: Any, t0: float | None = None, t1: float | None = None
+) -> list[dict[str, Any]]:
     with sim.lock:
         frames = list(sim.recorder.frames)
     if t0 is not None or t1 is not None:
@@ -37,10 +39,14 @@ def _frames(sim: Any, t0: float | None = None, t1: float | None = None) -> list[
     return frames
 
 
-def _series(sim: Any, key: str, t0: float | None = None, t1: float | None = None) -> tuple[np.ndarray, np.ndarray]:
+def _series(
+    sim: Any, key: str, t0: float | None = None, t1: float | None = None
+) -> tuple[np.ndarray, np.ndarray]:
     frames = _frames(sim, t0, t1)
     times = np.array([frame["t"] for frame in frames], dtype=float)
-    values = np.array([frame["v"].get(key, float("nan")) for frame in frames], dtype=float)
+    values = np.array(
+        [frame["v"].get(key, float("nan")) for frame in frames], dtype=float
+    )
     mask = np.isfinite(values)
     return times[mask], values[mask]
 
@@ -92,7 +98,7 @@ def analyze_metrics(
             items[key] = {"ok": False, "reason": "该信号录制点不足（<3）"}
             continue
         initial = float(values[0])
-        final = float(np.mean(values[-max(3, len(values) // 10):]))
+        final = float(np.mean(values[-max(3, len(values) // 10) :]))
         amplitude = final - initial
         peak_value = float(values.max()) if amplitude >= 0 else float(values.min())
         overshoot = 0.0
@@ -127,7 +133,9 @@ def analyze_metrics(
             "max": float(values.max()),
             "mean": float(values.mean()),
             "rms": float(np.sqrt(np.mean(values**2))),
-            "peak_time": float(times[int(np.argmax(values) if amplitude >= 0 else np.argmin(values))]),
+            "peak_time": float(
+                times[int(np.argmax(values) if amplitude >= 0 else np.argmin(values))]
+            ),
             "overshoot_pct": float(overshoot),
             "rise_time": rise,
             "settling_time": settle,
@@ -395,7 +403,11 @@ def transfer_function(
         }
     scene = sim.scene
     if scene.mode != "signal":
-        return {"ok": False, "reason": "目前只支持 signal 模式的线性传递函数", "source": "symbolic"}
+        return {
+            "ok": False,
+            "reason": "目前只支持 signal 模式的线性传递函数",
+            "source": "symbolic",
+        }
     nodes = {node.name: node for node in scene.nodes.values()}
     nodes_by_id = {node.id: node for node in scene.nodes.values()}
     if input_node not in nodes or output_node not in nodes:
@@ -535,7 +547,11 @@ def transfer_function(
     except AnalysisError as exc:
         return {"ok": False, "reason": str(exc), "source": "symbolic（sympy）"}
     except Exception as exc:
-        return {"ok": False, "reason": f"符号推导失败：{exc}", "source": "symbolic（sympy）"}
+        return {
+            "ok": False,
+            "reason": f"符号推导失败：{exc}",
+            "source": "symbolic（sympy）",
+        }
     if expr == 0:
         return {
             "ok": False,
@@ -623,7 +639,9 @@ def tf_analysis(
                 delay_pade_order=delay_pade_order,
             )
             if not network_report.get("ok"):
-                raise AnalysisError(str(network_report.get("reason") or "网络总传函失败"))
+                raise AnalysisError(
+                    str(network_report.get("reason") or "网络总传函失败")
+                )
             tf = transfer_math.parse_expression(
                 str(network_report["expression"]).replace("**", "^")
             )
@@ -653,9 +671,7 @@ def tf_analysis(
                 raise AnalysisError("降幂系数模式必须同时给出分子和分母")
             tf = transfer_math.from_coefficients(numerator, denominator)
         elif zeros is not None or poles is not None:
-            tf = transfer_math.from_zpk(
-                zeros or [], poles or [], gain=float(gain)
-            )
+            tf = transfer_math.from_zpk(zeros or [], poles or [], gain=float(gain))
         else:
             raise AnalysisError(
                 "需要 node、expr、numerator/denominator 或 zeros/poles 之一"
@@ -728,7 +744,9 @@ def _node_frequency_gain(node: Any, omega: float) -> complex:
         try:
             return complex(transfer_math.from_params(params).at(1j * omega))
         except Exception as exc:
-            raise AnalysisError(f"节点 {node.name!r} 的传递函数参数无效：{exc}") from exc
+            raise AnalysisError(
+                f"节点 {node.name!r} 的传递函数参数无效：{exc}"
+            ) from exc
     if kind == "state_space":
         try:
             model = StateSpaceModel.from_params(params)
@@ -847,7 +865,9 @@ def _circuit_frequency_response(
     real = row.get("real")
     imag = row.get("imag")
     if isinstance(real, list) and isinstance(imag, list):
-        return np.asarray(real, dtype=np.complex128) + 1j * np.asarray(imag, dtype=np.complex128)
+        return np.asarray(real, dtype=np.complex128) + 1j * np.asarray(
+            imag, dtype=np.complex128
+        )
     magnitude = np.asarray(row.get("magnitude", []), dtype=float)
     phase = np.radians(np.asarray(row.get("phase_deg", []), dtype=float))
     return magnitude * np.exp(1j * phase)
@@ -946,7 +966,9 @@ def export_csv(
     stride = max(1, int(decimate))
     rows = frames[::stride]
     if len(rows) > MAX_EXPORT_ROWS:
-        raise AnalysisError(f"导出行数 {len(rows)} 超过上限 {MAX_EXPORT_ROWS}，请提高抽稀倍数")
+        raise AnalysisError(
+            f"导出行数 {len(rows)} 超过上限 {MAX_EXPORT_ROWS}，请提高抽稀倍数"
+        )
     columns = []
     for key in selected:
         prefix, rest = key.split(":", 1) if ":" in key else ("n", key)
@@ -970,7 +992,10 @@ def export_csv(
         lines.append(",".join(values))
     target_dir = Path(directory).expanduser()
     target_dir.mkdir(parents=True, exist_ok=True)
-    base = "".join(char for char in (name or "analysis") if char.isalnum() or char in "-_") or "analysis"
+    base = (
+        "".join(char for char in (name or "analysis") if char.isalnum() or char in "-_")
+        or "analysis"
+    )
     path = target_dir / f"{base}.csv"
     index = 2
     while path.exists():

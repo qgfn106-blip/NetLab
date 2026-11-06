@@ -59,8 +59,13 @@ def test_v3_rlc_project_migrates_and_solves():
     for name in ("src", "mid", "out"):
         old = next(item for item in old_scene.nodes.values() if item.name == name)
         new = next(item for item in new_scene.nodes.values() if item.name == name)
-        assert abs(float(old.data.get("voltage", 0.0))
-                   - float(new.data.get("voltage", 0.0))) < 1e-9
+        assert (
+            abs(
+                float(old.data.get("voltage", 0.0))
+                - float(new.data.get("voltage", 0.0))
+            )
+            < 1e-9
+        )
 
 
 def test_migration_is_idempotent():
@@ -75,18 +80,35 @@ def test_migration_keeps_incomplete_multipin_legacy():
         "mode": "circuit",
         "integration": "trapezoidal",
         "nodes": [
-            {"id": "aaaaaaaaaaa1", "name": "gnd", "kind": "ground",
-             "position": {"x": 0, "y": 200}},
-            {"id": "aaaaaaaaaaa2", "name": "pri", "kind": "node",
-             "position": {"x": 0, "y": 0}},
-            {"id": "aaaaaaaaaaa3", "name": "sec", "kind": "node",
-             "position": {"x": 200, "y": 0}},
+            {
+                "id": "aaaaaaaaaaa1",
+                "name": "gnd",
+                "kind": "ground",
+                "position": {"x": 0, "y": 200},
+            },
+            {
+                "id": "aaaaaaaaaaa2",
+                "name": "pri",
+                "kind": "node",
+                "position": {"x": 0, "y": 0},
+            },
+            {
+                "id": "aaaaaaaaaaa3",
+                "name": "sec",
+                "kind": "node",
+                "position": {"x": 200, "y": 0},
+            },
         ],
         "edges": [
-            {"id": "bbbbbbbbbbb1", "name": "T1", "source": "aaaaaaaaaaa2",
-             "target": "aaaaaaaaaaa1", "kind": "transformer",
-             "params": {"ratio": 0.5, "Lm": 0.0},
-             "layout": {"x": 0, "y": 100, "rot": 90}},
+            {
+                "id": "bbbbbbbbbbb1",
+                "name": "T1",
+                "source": "aaaaaaaaaaa2",
+                "target": "aaaaaaaaaaa1",
+                "kind": "transformer",
+                "params": {"ratio": 0.5, "Lm": 0.0},
+                "layout": {"x": 0, "y": 100, "rot": 90},
+            },
         ],
     }
     project = v3_project(scene)
@@ -101,28 +123,58 @@ def test_migration_complete_transformer_becomes_device():
         "mode": "circuit",
         "integration": "trapezoidal",
         "nodes": [
-            {"id": "aaaaaaaaaaa1", "name": "gnd", "kind": "ground",
-             "position": {"x": 0, "y": 200}},
-            {"id": "aaaaaaaaaaa2", "name": "pri", "kind": "node",
-             "position": {"x": 0, "y": 0}},
-            {"id": "aaaaaaaaaaa4", "name": "sec", "kind": "node",
-             "position": {"x": 300, "y": 0}},
+            {
+                "id": "aaaaaaaaaaa1",
+                "name": "gnd",
+                "kind": "ground",
+                "position": {"x": 0, "y": 200},
+            },
+            {
+                "id": "aaaaaaaaaaa2",
+                "name": "pri",
+                "kind": "node",
+                "position": {"x": 0, "y": 0},
+            },
+            {
+                "id": "aaaaaaaaaaa4",
+                "name": "sec",
+                "kind": "node",
+                "position": {"x": 300, "y": 0},
+            },
         ],
         "edges": [
-            {"id": "bbbbbbbbbbb1", "name": "V1", "source": "aaaaaaaaaaa2",
-             "target": "aaaaaaaaaaa1", "kind": "vsource",
-             "params": {"wave": "dc", "offset": 10.0, "amplitude": 0.0},
-             "layout": {"x": 0, "y": 100, "rot": 90}},
-            {"id": "bbbbbbbbbbb2", "name": "T1", "source": "aaaaaaaaaaa2",
-             "target": "aaaaaaaaaaa1", "kind": "transformer",
-             "params": {"ratio": 0.5, "Lm": 0.0,
-                        "secondary_source": "aaaaaaaaaaa4",
-                        "secondary_target": "aaaaaaaaaaa1"},
-             "layout": {"x": 150, "y": 100, "rot": 90}},
-            {"id": "bbbbbbbbbbb3", "name": "RL", "source": "aaaaaaaaaaa4",
-             "target": "aaaaaaaaaaa1", "kind": "resistor",
-             "params": {"R": 1000.0},
-             "layout": {"x": 300, "y": 100, "rot": 90}},
+            {
+                "id": "bbbbbbbbbbb1",
+                "name": "V1",
+                "source": "aaaaaaaaaaa2",
+                "target": "aaaaaaaaaaa1",
+                "kind": "vsource",
+                "params": {"wave": "dc", "offset": 10.0, "amplitude": 0.0},
+                "layout": {"x": 0, "y": 100, "rot": 90},
+            },
+            {
+                "id": "bbbbbbbbbbb2",
+                "name": "T1",
+                "source": "aaaaaaaaaaa2",
+                "target": "aaaaaaaaaaa1",
+                "kind": "transformer",
+                "params": {
+                    "ratio": 0.5,
+                    "Lm": 0.0,
+                    "secondary_source": "aaaaaaaaaaa4",
+                    "secondary_target": "aaaaaaaaaaa1",
+                },
+                "layout": {"x": 150, "y": 100, "rot": 90},
+            },
+            {
+                "id": "bbbbbbbbbbb3",
+                "name": "RL",
+                "source": "aaaaaaaaaaa4",
+                "target": "aaaaaaaaaaa1",
+                "kind": "resistor",
+                "params": {"R": 1000.0},
+                "layout": {"x": 300, "y": 100, "rot": 90},
+            },
         ],
     }
     migrated = migrate_project(v3_project(scene))
@@ -152,32 +204,81 @@ def test_v4_opamp_rails_migrate_to_single_ended():
         "mode": "circuit",
         "integration": "trapezoidal",
         "nodes": [
-            {"id": "aaaaaaaaaaa1", "name": "gnd", "kind": "ground",
-             "position": {"x": 0, "y": 200}},
-            {"id": "aaaaaaaaaaa2", "name": "inp", "kind": "node",
-             "position": {"x": 0, "y": 0}},
-            {"id": "aaaaaaaaaaa3", "name": "inm", "kind": "node",
-             "position": {"x": 0, "y": 100}},
-            {"id": "aaaaaaaaaaa4", "name": "out", "kind": "node",
-             "position": {"x": 200, "y": 0}},
-            {"id": "aaaaaaaaaaa5", "name": "U1", "kind": "device",
-             "params": {"element": "opamp", "gain": 1.0e5, "vmax": 10.0,
-                        "vp": "aaaaaaaaaaa2", "vn": "aaaaaaaaaaa3"},
-             "position": {"x": 100, "y": 100}},
+            {
+                "id": "aaaaaaaaaaa1",
+                "name": "gnd",
+                "kind": "ground",
+                "position": {"x": 0, "y": 200},
+            },
+            {
+                "id": "aaaaaaaaaaa2",
+                "name": "inp",
+                "kind": "node",
+                "position": {"x": 0, "y": 0},
+            },
+            {
+                "id": "aaaaaaaaaaa3",
+                "name": "inm",
+                "kind": "node",
+                "position": {"x": 0, "y": 100},
+            },
+            {
+                "id": "aaaaaaaaaaa4",
+                "name": "out",
+                "kind": "node",
+                "position": {"x": 200, "y": 0},
+            },
+            {
+                "id": "aaaaaaaaaaa5",
+                "name": "U1",
+                "kind": "device",
+                "params": {
+                    "element": "opamp",
+                    "gain": 1.0e5,
+                    "vmax": 10.0,
+                    "vp": "aaaaaaaaaaa2",
+                    "vn": "aaaaaaaaaaa3",
+                },
+                "position": {"x": 100, "y": 100},
+            },
         ],
         "edges": [
-            {"id": "bbbbbbbbbbb1", "name": "W_OUT", "source": "aaaaaaaaaaa5",
-             "target": "aaaaaaaaaaa4", "kind": "wire",
-             "source_pin": "OUT+", "target_pin": ""},
-            {"id": "bbbbbbbbbbb2", "name": "W_RET", "source": "aaaaaaaaaaa5",
-             "target": "aaaaaaaaaaa1", "kind": "wire",
-             "source_pin": "OUT-", "target_pin": ""},
-            {"id": "bbbbbbbbbbb3", "name": "W_INP", "source": "aaaaaaaaaaa5",
-             "target": "aaaaaaaaaaa2", "kind": "wire",
-             "source_pin": "IN+", "target_pin": ""},
-            {"id": "bbbbbbbbbbb4", "name": "W_INM", "source": "aaaaaaaaaaa5",
-             "target": "aaaaaaaaaaa3", "kind": "wire",
-             "source_pin": "IN-", "target_pin": ""},
+            {
+                "id": "bbbbbbbbbbb1",
+                "name": "W_OUT",
+                "source": "aaaaaaaaaaa5",
+                "target": "aaaaaaaaaaa4",
+                "kind": "wire",
+                "source_pin": "OUT+",
+                "target_pin": "",
+            },
+            {
+                "id": "bbbbbbbbbbb2",
+                "name": "W_RET",
+                "source": "aaaaaaaaaaa5",
+                "target": "aaaaaaaaaaa1",
+                "kind": "wire",
+                "source_pin": "OUT-",
+                "target_pin": "",
+            },
+            {
+                "id": "bbbbbbbbbbb3",
+                "name": "W_INP",
+                "source": "aaaaaaaaaaa5",
+                "target": "aaaaaaaaaaa2",
+                "kind": "wire",
+                "source_pin": "IN+",
+                "target_pin": "",
+            },
+            {
+                "id": "bbbbbbbbbbb4",
+                "name": "W_INM",
+                "source": "aaaaaaaaaaa5",
+                "target": "aaaaaaaaaaa3",
+                "kind": "wire",
+                "source_pin": "IN-",
+                "target_pin": "",
+            },
         ],
     }
     migrated = migrate_project(v4_project(scene))

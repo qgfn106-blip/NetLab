@@ -9,7 +9,11 @@ from netlab.core.model.project import load_project, project_scene_payload
 
 
 def test_grid_inverter_current_project_loads_and_tracks_step() -> None:
-    path = Path(__file__).resolve().parents[2] / "MyProject" / "grid_inverter_current.netlab"
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "MyProject"
+        / "grid_inverter_current.netlab"
+    )
     project = load_project(path)
     assert project["metadata"]["r31"] == "P11-04"
     network = project["networks"][0]

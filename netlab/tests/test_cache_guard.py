@@ -1,4 +1,5 @@
 """D88：缓存体检与安全清理。"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -38,7 +39,9 @@ def test_dry_run_does_not_delete(tmp_path):
     temp = tmp_path / "temp"
     _mk(home / ".plotkit", {"a.tmp": 64})
 
-    result = cg.clean(tiers=("safe",), dry_run=True, include_pycache=False, home=home, temp=temp)
+    result = cg.clean(
+        tiers=("safe",), dry_run=True, include_pycache=False, home=home, temp=temp
+    )
     assert result["freed_bytes"] == 64
     assert result["removed"] and result["removed"][0]["dry_run"] is True
     assert (home / ".plotkit").exists()
@@ -50,7 +53,9 @@ def test_clean_deletes_only_safe_by_default(tmp_path):
     _mk(home / ".plotkit", {"a.tmp": 10})
     _mk(home / ".plotkit-desktop", {"b.dat": 20})
 
-    result = cg.clean(tiers=("safe",), dry_run=False, include_pycache=False, home=home, temp=temp)
+    result = cg.clean(
+        tiers=("safe",), dry_run=False, include_pycache=False, home=home, temp=temp
+    )
     assert not (home / ".plotkit").exists()
     assert (home / ".plotkit-desktop").exists(), "谨慎档默认必须保留"
     assert result["freed_bytes"] == 10
@@ -60,8 +65,13 @@ def test_caution_requires_explicit_tier(tmp_path):
     home = tmp_path / "home"
     temp = tmp_path / "temp"
     _mk(home / ".plotkit-desktop", {"b.dat": 20})
-    result = cg.clean(tiers=("safe", "caution"), dry_run=False, include_pycache=False,
-                      home=home, temp=temp)
+    result = cg.clean(
+        tiers=("safe", "caution"),
+        dry_run=False,
+        include_pycache=False,
+        home=home,
+        temp=temp,
+    )
     assert not (home / ".plotkit-desktop").exists()
     assert result["freed_bytes"] == 20
 

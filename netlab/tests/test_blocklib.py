@@ -103,7 +103,9 @@ def test_migrate_library_flattens_legacy_folders(tmp_path):
     legacy = library / "blocks" / "aaaaaaaaaaaa"
     legacy.mkdir(parents=True)
     document = blocklib.render_block_file(build_block())
-    (legacy / "v1.block").write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+    (legacy / "v1.block").write_text(
+        json.dumps(document, ensure_ascii=False), encoding="utf-8"
+    )
 
     scan = blocklib.scan_library(library)
     assert [item["name"] for item in scan] == ["双增益"]
@@ -188,9 +190,7 @@ def test_blocks_api_scan_import_and_detail(client, tmp_path):
     listed_user = [item for item in listed.json()["blocks"] if not item.get("builtin")]
     assert listed_user[0]["id"] == "aaaaaaaaaaaa"
 
-    detail = client.get(
-        f"/api/blocks/aaaaaaaaaaaa", params={"library": str(library)}
-    )
+    detail = client.get(f"/api/blocks/aaaaaaaaaaaa", params={"library": str(library)})
     assert detail.status_code == 200, detail.text
     assert detail.json()["block"]["model"] == "structural"
     assert [item["version"] for item in detail.json()["versions"]] == [1]

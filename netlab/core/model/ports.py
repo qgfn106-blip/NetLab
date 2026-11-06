@@ -119,14 +119,28 @@ PINS: dict[str, tuple[PinSpec, ...]] = {
     "nmos": _pins(("D", "passive"), ("G", "input"), ("S", "passive")),
     "pmos": _pins(("D", "passive"), ("G", "input"), ("S", "passive")),
     "and_gate": _pins(
-        ("A", "input"), ("B", "input"), ("VDD", "power"), ("Y", "output"), ("GND", "power")
+        ("A", "input"),
+        ("B", "input"),
+        ("VDD", "power"),
+        ("Y", "output"),
+        ("GND", "power"),
     ),
     "or_gate": _pins(
-        ("A", "input"), ("B", "input"), ("VDD", "power"), ("Y", "output"), ("GND", "power")
+        ("A", "input"),
+        ("B", "input"),
+        ("VDD", "power"),
+        ("Y", "output"),
+        ("GND", "power"),
     ),
-    "not_gate": _pins(("A", "input"), ("VDD", "power"), ("Y", "output"), ("GND", "power")),
+    "not_gate": _pins(
+        ("A", "input"), ("VDD", "power"), ("Y", "output"), ("GND", "power")
+    ),
     "xor_gate": _pins(
-        ("A", "input"), ("B", "input"), ("VDD", "power"), ("Y", "output"), ("GND", "power")
+        ("A", "input"),
+        ("B", "input"),
+        ("VDD", "power"),
+        ("Y", "output"),
+        ("GND", "power"),
     ),
     "counter4": _pins(
         ("CLK", "input"),

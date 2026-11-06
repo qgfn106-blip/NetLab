@@ -9,7 +9,9 @@ from netlab.core.model.project import load_project, project_scene_payload
 
 
 def test_grid_inverter_avg_project_loads_and_precomputes() -> None:
-    path = Path(__file__).resolve().parents[2] / "MyProject" / "grid_inverter_avg.netlab"
+    path = (
+        Path(__file__).resolve().parents[2] / "MyProject" / "grid_inverter_avg.netlab"
+    )
     project = load_project(path)
     assert project["format"] == "netlab-project"
     assert project["metadata"]["r31"] == "P11-01"

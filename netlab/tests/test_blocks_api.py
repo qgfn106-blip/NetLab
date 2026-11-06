@@ -52,7 +52,9 @@ def test_encapsulate_then_instantiate_and_run(client, tmp_path):
     assert snapshot["instance"]["output_nodes"]
 
     after_instantiate = client.get("/api/scene/export").json()
-    block_nodes = [node for node in after_instantiate["nodes"] if node["kind"] == "block"]
+    block_nodes = [
+        node for node in after_instantiate["nodes"] if node["kind"] == "block"
+    ]
     assert len(block_nodes) == 2
     assert all(node["params"].get("block_id") == block_id for node in block_nodes)
 
@@ -91,7 +93,11 @@ def test_block_api_errors(client, tmp_path):
 
     bad_name = client.post(
         "/api/blocks/encapsulate",
-        json={"node_ids": [scene_nodes(client)[0]["id"]], "name": "", "library": str(library)},
+        json={
+            "node_ids": [scene_nodes(client)[0]["id"]],
+            "name": "",
+            "library": str(library),
+        },
     )
     assert bad_name.status_code == 422
 

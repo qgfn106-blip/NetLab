@@ -20,19 +20,28 @@ def node(scene, name, kind="node", **params):
 
 
 def device(scene, name, element, **params):
-    return scene.add_node(name=name, kind="device", params={"element": element, **params})
+    return scene.add_node(
+        name=name, kind="device", params={"element": element, **params}
+    )
 
 
 def wire(scene, name, source, target, *, source_pin="", target_pin=""):
     return scene.add_edge(
-        name=name, source=source.id, target=target.id, kind="wire",
-        source_pin=source_pin, target_pin=target_pin,
+        name=name,
+        source=source.id,
+        target=target.id,
+        kind="wire",
+        source_pin=source_pin,
+        target_pin=target_pin,
     )
 
 
 def dc(scene, name, a, b, value):
     return scene.add_edge(
-        name=name, source=a.id, target=b.id, kind="vsource",
+        name=name,
+        source=a.id,
+        target=b.id,
+        kind="vsource",
         params={"wave": "dc", "offset": value, "amplitude": 0.0},
     )
 
@@ -66,7 +75,8 @@ def test_net_port_marker_roundtrip():
     scene, parts = divider_scene()
     scene.update_node(parts["mid"].id, {"params": {"port_name": "vmid"}})
     assert scene.nodes[parts["mid"].id].params == {
-        "port_name": "vmid", "port_direction": "inout",
+        "port_name": "vmid",
+        "port_direction": "inout",
     }
     with pytest.raises(ValidationError):
         scene.update_node(parts["mid"].id, {"params": {"port_direction": "input"}})
@@ -79,7 +89,9 @@ def test_encapsulate_keeps_voltage_equal():
     settle(scene)
     before = {name: voltage(scene, name) for name in ("top", "gnd", "mid")}
 
-    block = encapsulate_circuit(scene, [parts["R1"].id, parts["mid"].id], name="divider")
+    block = encapsulate_circuit(
+        scene, [parts["R1"].id, parts["mid"].id], name="divider"
+    )
     assert block.mode == "circuit"
     assert {port.name for port in block.ports} == {"vmid", "top"}
     assert all(port.dtype == "electrical" for port in block.ports)
@@ -112,7 +124,9 @@ def test_instantiate_circuit_block_adds_module_node():
     block = encapsulate_circuit(
         scene, [parts["R1"].id, parts["R2"].id, parts["mid"].id], name="divider3"
     )
-    instance = instantiate_circuit_block(scene, block, position={"x": 120.0, "y": -60.0})
+    instance = instantiate_circuit_block(
+        scene, block, position={"x": 120.0, "y": -60.0}
+    )
     module = scene.nodes[instance["module_node"]]
     assert module.kind == "module"
     assert [item["name"] for item in module.params["ports"]] == [
@@ -130,7 +144,8 @@ def test_flatten_tolerates_unwired_ports():
     )
     module = next(item for item in scene.nodes.values() if item.kind == "module")
     wire_edge = next(
-        edge for edge in scene.edges.values()
+        edge
+        for edge in scene.edges.values()
         if edge.kind == "wire" and module.id in (edge.source, edge.target)
     )
     scene.edges.pop(wire_edge.id)
@@ -166,7 +181,10 @@ def test_circuit_block_roundtrip_and_run(tmp_path):
     gnd = fresh.add_node(name="gnd", kind="ground")
     top = fresh.add_node(name="top", kind="node")
     fresh.add_edge(
-        name="V1", source=top.id, target=gnd.id, kind="vsource",
+        name="V1",
+        source=top.id,
+        target=gnd.id,
+        kind="vsource",
         params={"wave": "dc", "offset": 10.0, "amplitude": 0.0},
     )
     instance = instantiate_circuit_block(fresh, loaded, position={"x": 200.0, "y": 0.0})
@@ -175,7 +193,10 @@ def test_circuit_block_roundtrip_and_run(tmp_path):
     for index, name in enumerate(port_names, start=1):
         net = top if name == "top" else gnd
         fresh.add_edge(
-            name=f"W{index}", source=module, target=net.id, kind="wire",
+            name=f"W{index}",
+            source=module,
+            target=net.id,
+            kind="wire",
             source_pin=name,
         )
     for _ in range(2):
@@ -184,6 +205,7 @@ def test_circuit_block_roundtrip_and_run(tmp_path):
     module_node = fresh.nodes[module]
     assert module_node.kind == "module"
     assert module_node.name == "divider5"
+
 
 def test_module_wire_autofills_single_port():
     """单端口模块：外部直连唯一端口，不必再指定引脚名（R24 交互修复）。"""
@@ -222,7 +244,9 @@ def test_port_wires_carry_layout_and_validate_clean():
     encapsulate_circuit(
         scene, [parts["R1"].id, parts["R2"].id, parts["mid"].id], name="divider6"
     )
-    wires = [edge for edge in scene.edges.values() if edge.kind == "wire" and edge.target_pin]
+    wires = [
+        edge for edge in scene.edges.values() if edge.kind == "wire" and edge.target_pin
+    ]
     assert wires
     for edge in wires:
         assert edge.layout.get("rot") in (0, 90)
@@ -246,10 +270,16 @@ def test_circuit_encapsulate_api_loop(client, tmp_path):
     mid = add_node("mid2", "node", params={"port_name": "vmid"})
     r1 = add_node("Rc", "device", params={"element": "resistor", "R": 1000.0})
     r2 = add_node("Rd", "device", params={"element": "resistor", "R": 1000.0})
-    source = client.post("/api/edges", json={
-        "name": "V2", "source": top["id"], "target": gnd["id"], "kind": "vsource",
-        "params": {"wave": "dc", "offset": 10.0, "amplitude": 0.0},
-    })
+    source = client.post(
+        "/api/edges",
+        json={
+            "name": "V2",
+            "source": top["id"],
+            "target": gnd["id"],
+            "kind": "vsource",
+            "params": {"wave": "dc", "offset": 10.0, "amplitude": 0.0},
+        },
+    )
     assert source.status_code == 200, source.text
     for name, node, target, pin in (
         ("W1", r1, top, "1"),
@@ -257,22 +287,33 @@ def test_circuit_encapsulate_api_loop(client, tmp_path):
         ("W3", r2, mid, "1"),
         ("W4", r2, gnd, "2"),
     ):
-        response = client.post("/api/edges", json={
-            "name": name, "source": node["id"], "target": target["id"],
-            "kind": "wire", "source_pin": pin,
-        })
+        response = client.post(
+            "/api/edges",
+            json={
+                "name": name,
+                "source": node["id"],
+                "target": target["id"],
+                "kind": "wire",
+                "source_pin": pin,
+            },
+        )
         assert response.status_code == 200, response.text
 
     client.post("/api/control", json={"action": "step", "steps": 4})
     scene = client.get("/api/scene/export").json()
-    mid_voltage = next(node for node in scene["nodes"] if node["name"] == "mid2")["data"]["voltage"]
+    mid_voltage = next(node for node in scene["nodes"] if node["name"] == "mid2")[
+        "data"
+    ]["voltage"]
     assert abs(mid_voltage - 5.0) < 0.05
 
-    encapsulated = client.post("/api/blocks/encapsulate", json={
-        "node_ids": [r1["id"], r2["id"], mid["id"]],
-        "name": "divider-api",
-        "library": library,
-    })
+    encapsulated = client.post(
+        "/api/blocks/encapsulate",
+        json={
+            "node_ids": [r1["id"], r2["id"], mid["id"]],
+            "name": "divider-api",
+            "library": library,
+        },
+    )
     assert encapsulated.status_code == 200, encapsulated.text
     body = encapsulated.json()
     block_id = body["block"]["id"]
@@ -283,18 +324,27 @@ def test_circuit_encapsulate_api_loop(client, tmp_path):
     after = client.get("/api/scene/export").json()
     modules = [node for node in after["nodes"] if node["kind"] == "module"]
     assert len(modules) == 1
-    assert {port["name"] for port in modules[0]["params"]["ports"]} == {"gnd2", "top2", "vmid"}
+    assert {port["name"] for port in modules[0]["params"]["ports"]} == {
+        "gnd2",
+        "top2",
+        "vmid",
+    }
 
     client.post("/api/control", json={"action": "step", "steps": 4})
     stepped = client.get("/api/scene/export").json()
-    top_after = next(
-        node for node in stepped["nodes"] if node["name"] == "top2"
-    )["data"]["voltage"]
+    top_after = next(node for node in stepped["nodes"] if node["name"] == "top2")[
+        "data"
+    ]["voltage"]
     assert abs(top_after - 10.0) < 0.05
 
-    instantiated = client.post("/api/blocks/instantiate", json={
-        "block_id": block_id, "library": library, "position": {"x": 240.0, "y": 40.0},
-    })
+    instantiated = client.post(
+        "/api/blocks/instantiate",
+        json={
+            "block_id": block_id,
+            "library": library,
+            "position": {"x": 240.0, "y": 40.0},
+        },
+    )
     assert instantiated.status_code == 200, instantiated.text
     instance = instantiated.json()["instance"]
     assert instance["block_node"]
@@ -303,8 +353,16 @@ def test_circuit_encapsulate_api_loop(client, tmp_path):
 
 def _sine_source(scene, name, a, b, amplitude=5.0, frequency=1000.0):
     return scene.add_edge(
-        name=name, source=a.id, target=b.id, kind="vsource",
-        params={"wave": "sine", "offset": 0.0, "amplitude": amplitude, "frequency": frequency},
+        name=name,
+        source=a.id,
+        target=b.id,
+        kind="vsource",
+        params={
+            "wave": "sine",
+            "offset": 0.0,
+            "amplitude": amplitude,
+            "frequency": frequency,
+        },
     )
 
 
@@ -339,7 +397,9 @@ def _modular_divider(count=1):
     for index in range(count):
         mid = node(scene, f"out{index + 1}")
         instance = instantiate_circuit_block(
-            scene, block, position={"x": 120.0 * index, "y": 0.0},
+            scene,
+            block,
+            position={"x": 120.0 * index, "y": 0.0},
             name_prefix=f"div{index + 1}",
         )
         module_id = instance["module_node"]
@@ -427,7 +487,10 @@ def _legacy_divider():
     mid = node(scene, "mid")
     out = node(scene, "out")
     scene.add_edge(
-        name="V1", source=top.id, target=gnd.id, kind="vsource",
+        name="V1",
+        source=top.id,
+        target=gnd.id,
+        kind="vsource",
         params={"wave": "dc", "offset": 10.0, "amplitude": 0.0},
     )
     scene.add_edge(
@@ -444,7 +507,9 @@ def test_encapsulate_moves_legacy_element_edges_into_block():
     """旧模型电路封装后，元件边必须跟着进模块，父场景不能留下悬空元件。"""
     scene, parts = _legacy_divider()
     block = encapsulate_circuit(
-        scene, [parts["top"].id, parts["mid"].id, parts["gnd"].id], name="legacy-divider"
+        scene,
+        [parts["top"].id, parts["mid"].id, parts["gnd"].id],
+        name="legacy-divider",
     )
     kinds = sorted(edge["kind"] for edge in block.edges)
     assert kinds == ["resistor", "resistor", "vsource"]
@@ -462,9 +527,7 @@ def test_encapsulate_moves_legacy_element_edges_into_block():
     # 再把模块实例接回一个新场景：模块自带电压源，只把 mid 端口接到外部节点。
     rebuilt = Scene("circuit")
     out = node(rebuilt, "out")
-    instance = instantiate_circuit_block(
-        rebuilt, block, position={"x": 0.0, "y": 0.0}
-    )
+    instance = instantiate_circuit_block(rebuilt, block, position={"x": 0.0, "y": 0.0})
     module_id = instance["module_node"]
     wire(rebuilt, "WMmid", out, rebuilt.nodes[module_id], target_pin="mid")
     rebuilt.step(1e-4)

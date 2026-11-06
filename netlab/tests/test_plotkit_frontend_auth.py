@@ -1,4 +1,5 @@
 """PlotKit 面板在桌面 token 守卫开启时的请求契约。"""
+
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -19,7 +20,7 @@ def test_plotkit_frontend_uses_token_aware_api_helper():
     assert "探针列表加载失败：" in source
     assert "还没有探针数据：先运行仿真" in source
     assert "fetch('/api/plotkit/" not in source
-    assert "fetch(\"/api/plotkit/" not in source
+    assert 'fetch("/api/plotkit/' not in source
 
 
 def test_run_warning_precompute_uses_token_aware_helper():
@@ -85,17 +86,21 @@ def test_plotkit_child_api_requires_desktop_token(monkeypatch):
     client = TestClient(app)
 
     assert client.get("/plotkit/api/spec").status_code == 403
-    assert client.get(
-        "/plotkit/api/spec", headers={"X-Netlab-Token": "wrong"}
-    ).status_code == 403
+    assert (
+        client.get("/plotkit/api/spec", headers={"X-Netlab-Token": "wrong"}).status_code
+        == 403
+    )
     assert client.get("/plotkit/api").status_code == 403
     assert client.post("/plotkit/api/clear").status_code == 403
     # token 放查询串不算数：只认请求头，避免写进日志 / Referer
     assert client.get("/plotkit/api/spec?token=audit-child-token").status_code == 403
     assert client.get("/api/health").status_code == 200
-    assert client.get(
-        "/plotkit/api/spec", headers={"X-Netlab-Token": "audit-child-token"}
-    ).status_code == 200
+    assert (
+        client.get(
+            "/plotkit/api/spec", headers={"X-Netlab-Token": "audit-child-token"}
+        ).status_code
+        == 200
+    )
 
 
 def test_plotkit_child_index_injects_host_shim_before_vendor_script(monkeypatch):
@@ -123,7 +128,10 @@ def test_precompute_surfaces_partial_solver_failure(monkeypatch):
     monkeypatch.setattr(
         SERVICE,
         "precompute",
-        lambda seconds, dt=None: {"frames": 2, "error": "solver failed after two frames"},
+        lambda seconds, dt=None: {
+            "frames": 2,
+            "error": "solver failed after two frames",
+        },
     )
     client = TestClient(app)
 

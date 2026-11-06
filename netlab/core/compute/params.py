@@ -128,9 +128,7 @@ def validate_params(specs: list[ParamSpec], raw: Any | None) -> dict[str, Any]:
     unknown = set(data) - allowed
     if unknown:
         raise ValidationError(f"未知参数：{', '.join(sorted(unknown))}")
-    return {
-        spec.key: spec.coerce(data.get(spec.key, _MISSING)) for spec in specs
-    }
+    return {spec.key: spec.coerce(data.get(spec.key, _MISSING)) for spec in specs}
 
 
 def defaults(specs: list[ParamSpec]) -> dict[str, Any]:
@@ -184,9 +182,7 @@ def choice_param(
 def matrix_param(
     key: str, label: str, default: list[list[float]], *, help: str = ""
 ) -> ParamSpec:
-    return ParamSpec(
-        key=key, label=label, type="matrix", default=default, help=help
-    )
+    return ParamSpec(key=key, label=label, type="matrix", default=default, help=help)
 
 
 def list_param(

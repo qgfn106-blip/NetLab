@@ -45,7 +45,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--host", default="127.0.0.1", help="监听地址（默认仅本机）")
     parser.add_argument("--port", type=int, default=8010, help="监听端口（默认 8010）")
-    parser.add_argument("--no-browser", action="store_true", help="启动后不自动打开浏览器")
+    parser.add_argument(
+        "--no-browser", action="store_true", help="启动后不自动打开浏览器"
+    )
     parser.add_argument(
         "--log-level",
         default="info",
@@ -86,7 +88,9 @@ def main() -> int:
             pass
     except OSError:
         print(f"端口 {args.port} 已被占用，无法启动。", file=sys.stderr, flush=True)
-        print(f"请改用：python run.py --port {args.port + 1}", file=sys.stderr, flush=True)
+        print(
+            f"请改用：python run.py --port {args.port + 1}", file=sys.stderr, flush=True
+        )
         return 1
 
     url_host = "127.0.0.1" if args.host in ("0.0.0.0", "::") else args.host
@@ -107,7 +111,11 @@ def main() -> int:
         pass
     except OSError as exc:
         print(f"启动失败：{exc}", file=sys.stderr, flush=True)
-        print("端口可能已被占用，可使用 --port 指定其它端口。", file=sys.stderr, flush=True)
+        print(
+            "端口可能已被占用，可使用 --port 指定其它端口。",
+            file=sys.stderr,
+            flush=True,
+        )
         return 1
     return 0
 

@@ -45,8 +45,9 @@ def test_multiple_grounds_are_merged():
     gnd2 = node(scene, "gnd2", "ground")
     n1 = node(scene, "n1")
     dc(scene, "VS", n1, gnd1, 5.0)
-    scene.add_edge(name="RL", source=n1.id, target=gnd2.id, kind="resistor",
-                   params={"R": 1000.0})
+    scene.add_edge(
+        name="RL", source=n1.id, target=gnd2.id, kind="resistor", params={"R": 1000.0}
+    )
     for _ in range(3):
         scene.step(1e-4)
     assert abs(voltage(scene, "n1") - 5.0) < 1e-6
@@ -55,8 +56,9 @@ def test_multiple_grounds_are_merged():
     g = node(single, "gnd", "ground")
     m = node(single, "n1")
     dc(single, "VS", m, g, 5.0)
-    single.add_edge(name="RL", source=m.id, target=g.id, kind="resistor",
-                    params={"R": 1000.0})
+    single.add_edge(
+        name="RL", source=m.id, target=g.id, kind="resistor", params={"R": 1000.0}
+    )
     for _ in range(3):
         single.step(1e-4)
     assert abs(voltage(single, "n1") - voltage(scene, "n1")) < 1e-9
@@ -68,8 +70,9 @@ def test_unwired_device_is_skipped_not_blocking():
     gnd = node(scene, "gnd", "ground")
     n1 = node(scene, "n1")
     dc(scene, "VS", n1, gnd, 5.0)
-    scene.add_edge(name="RL", source=n1.id, target=gnd.id, kind="resistor",
-                   params={"R": 1000.0})
+    scene.add_edge(
+        name="RL", source=n1.id, target=gnd.id, kind="resistor", params={"R": 1000.0}
+    )
     lonely = node(scene, "lonely")
     resistor = device(scene, "R1", "resistor", R=1000.0)
     wire(scene, "W1", resistor, lonely, "1")
@@ -101,8 +104,9 @@ def test_source_with_no_wires_still_inactive():
     gnd = node(scene, "gnd", "ground")
     n1 = node(scene, "n1")
     dc(scene, "VS", n1, gnd, 1.0)
-    scene.add_edge(name="RL", source=n1.id, target=gnd.id, kind="resistor",
-                   params={"R": 1000.0})
+    scene.add_edge(
+        name="RL", source=n1.id, target=gnd.id, kind="resistor", params={"R": 1000.0}
+    )
     device(scene, "V1", "vsource")
     engine = scene.ensure_engine()
     assert any("V1" in item for item in engine.incomplete_devices)

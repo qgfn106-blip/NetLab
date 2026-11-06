@@ -1,4 +1,5 @@
 """D87：PlotKit 采样按可见性开关 + 数据通路若干减负。"""
+
 from __future__ import annotations
 
 import time

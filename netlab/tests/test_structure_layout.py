@@ -1,4 +1,5 @@
 """D79/D85 结构约束的回归护栏：目录分层、无遗留 shim、依赖方向、引用路径。"""
+
 from __future__ import annotations
 
 import ast
@@ -7,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[2]          # NetlabHome
-PKG = Path(__file__).resolve().parents[1]           # NetlabHome/netlab
+ROOT = Path(__file__).resolve().parents[2]  # NetlabHome
+PKG = Path(__file__).resolve().parents[1]  # NetlabHome/netlab
 
 
 def test_frontend_folder_holds_all_assets():
@@ -26,26 +27,61 @@ def test_server_resolves_frontend_dir():
 
 
 CORE_MODULES = {
-    "accel": "compute", "analysis": "compute", "circuit_modules": "compute",
-    "computes": "compute", "digital": "compute", "fem": "compute",
-    "introspection": "compute", "linalg": "compute", "logic": "compute",
-    "magnetics": "compute", "methods": "compute", "nodal": "compute",
-    "params": "compute", "profiling": "compute", "safeexpr": "compute",
-    "simulation": "compute", "statespace": "compute", "timers": "compute",
-    "transistors": "compute", "waveform": "compute",
-    "block_validate": "model", "blocklib": "model", "blocks": "model",
-    "extensions": "model", "graph": "model", "networks": "model",
-    "ports": "model", "project": "model", "scene": "model",
-    "schematic": "model", "templates": "model", "workspace": "model",
+    "accel": "compute",
+    "analysis": "compute",
+    "circuit_modules": "compute",
+    "computes": "compute",
+    "digital": "compute",
+    "fem": "compute",
+    "introspection": "compute",
+    "linalg": "compute",
+    "logic": "compute",
+    "magnetics": "compute",
+    "methods": "compute",
+    "nodal": "compute",
+    "params": "compute",
+    "profiling": "compute",
+    "safeexpr": "compute",
+    "simulation": "compute",
+    "statespace": "compute",
+    "timers": "compute",
+    "transistors": "compute",
+    "waveform": "compute",
+    "block_validate": "model",
+    "blocklib": "model",
+    "blocks": "model",
+    "extensions": "model",
+    "graph": "model",
+    "networks": "model",
+    "ports": "model",
+    "project": "model",
+    "scene": "model",
+    "schematic": "model",
+    "templates": "model",
+    "workspace": "model",
     "limits": "common",
 }
 
 
 def test_no_compatibility_shims_left():
     """D85：旧的 1KB 转发 shim 已全部删除，顶层只留真正的入口/适配模块。"""
-    leftovers = sorted(CORE_MODULES[name] and name for name in CORE_MODULES if (PKG / f"{name}.py").exists())
-    assert not leftovers, "仍存在兼容 shim：" + ", ".join(f"netlab/{n}.py" for n in leftovers)
-    allowed = {"__init__.py", "server.py", "run.py", "plotkit_bridge.py", "plotkit_vendor.py", "vscode_bridge.py", "cache_guard.py"}
+    leftovers = sorted(
+        CORE_MODULES[name] and name
+        for name in CORE_MODULES
+        if (PKG / f"{name}.py").exists()
+    )
+    assert not leftovers, "仍存在兼容 shim：" + ", ".join(
+        f"netlab/{n}.py" for n in leftovers
+    )
+    allowed = {
+        "__init__.py",
+        "server.py",
+        "run.py",
+        "plotkit_bridge.py",
+        "plotkit_vendor.py",
+        "vscode_bridge.py",
+        "cache_guard.py",
+    }
     extra = sorted(p.name for p in PKG.glob("*.py") if p.name not in allowed)
     assert not extra, "netlab/ 顶层出现了未分类模块：" + ", ".join(extra)
 
@@ -68,7 +104,9 @@ def test_all_imports_use_canonical_core_paths():
                     # from . import x  → 顶层包内相对导入，指向已删 shim
                     hits = [a.name for a in node.names if a.name in banned]
                     if hits:
-                        offenders.append(f"{rel}:{node.lineno}: from . import {hits[0]}")
+                        offenders.append(
+                            f"{rel}:{node.lineno}: from . import {hits[0]}"
+                        )
                 elif depth == 1 and node.level == 1 and first in banned:
                     offenders.append(f"{rel}:{node.lineno}: from .{mod} import ...")
                 elif mod.startswith("netlab.") and mod.split(".")[1] in banned:
@@ -78,7 +116,7 @@ def test_all_imports_use_canonical_core_paths():
 
 def _outer_layer_imports(rel: Path, tree: ast.AST) -> list[str]:
     """返回文件里所有 import 的全名（相对导入按所在包解析成 netlab.*）。"""
-    package = list(rel.with_suffix("").parts[:-1])   # 相对 netlab/ 的包路径
+    package = list(rel.with_suffix("").parts[:-1])  # 相对 netlab/ 的包路径
     found = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -134,7 +172,11 @@ def test_core_does_not_import_outer_layers():
 )
 def test_outer_layer_import_guard_detects_known_forms(rel, source, expected):
     """护栏自测：相对导入/`netlab.*` 必须能被识别，合法的 core 内引用不得误报。"""
-    hits = [n for n in _outer_layer_imports(Path(rel), ast.parse(source)) if _is_outer_layer(n)]
+    hits = [
+        n
+        for n in _outer_layer_imports(Path(rel), ast.parse(source))
+        if _is_outer_layer(n)
+    ]
     assert bool(hits) is expected, hits
 
 

@@ -130,9 +130,7 @@ def test_step_response_unstable_has_no_metrics():
 
 
 def test_analyze_expression_report_shape():
-    report = analysis.tf_analysis(
-        expr="(2*s+1)/(s^2+3*s+2)", duration=8, points=64
-    )
+    report = analysis.tf_analysis(expr="(2*s+1)/(s^2+3*s+2)", duration=8, points=64)
     assert report["ok"] is True
     assert report["dc_gain"] == pytest.approx(0.5)
     assert report["stable"] is True

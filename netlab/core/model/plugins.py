@@ -36,7 +36,11 @@ from ...plugin_api.v1 import (
 from ..compute.computes import COMPUTE_SPECS, ComputeSpec
 from ..compute.methods import METHOD_SPECS, MethodSpec
 from ..compute.nodal import ELEMENT_SPECS, ElementSpec
-from ..compute.analysis_plugins import ANALYSIS_SPECS, register_analysis, unregister_analysis
+from ..compute.analysis_plugins import (
+    ANALYSIS_SPECS,
+    register_analysis,
+    unregister_analysis,
+)
 from .engine_registry import (
     ENGINE_SPECS,
     register_engine,
@@ -51,7 +55,17 @@ LOCKFILE_NAME = "plugins_state.json"
 MAX_MANIFEST_BYTES = 200_000
 ID_RE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$")
 SEMVER_RE = re.compile(r"^(\d+)\.(\d+)(?:\.(\d+))?(?:[-+][0-9A-Za-z.-]+)?$")
-CAPABILITIES = {"compute", "method", "element", "analysis", "data_io", "panel", "template", "engine", "visual"}
+CAPABILITIES = {
+    "compute",
+    "method",
+    "element",
+    "analysis",
+    "data_io",
+    "panel",
+    "template",
+    "engine",
+    "visual",
+}
 _PLUGIN_LOCK = threading.RLock()
 
 
@@ -225,9 +239,17 @@ def _qualify(plugin_id: str, kind: str) -> str:
 
 
 class PluginManager:
-    def __init__(self, root: str | Path | None = None, *, data_root: str | Path | None = None, host_version: str | None = None):
+    def __init__(
+        self,
+        root: str | Path | None = None,
+        *,
+        data_root: str | Path | None = None,
+        host_version: str | None = None,
+    ):
         self.root = Path(root or os.environ.get("NETLAB_PLUGIN_ROOT") or PLUGIN_ROOT)
-        self.data_root = Path(data_root or os.environ.get("NETLAB_PLUGIN_DATA_ROOT") or PLUGIN_DATA_ROOT)
+        self.data_root = Path(
+            data_root or os.environ.get("NETLAB_PLUGIN_DATA_ROOT") or PLUGIN_DATA_ROOT
+        )
         self.host_version = host_version or HOST_VERSION
         self._records: dict[str, PluginRecord] = {}
         self._disabled: set[str] = set()
@@ -243,11 +265,19 @@ class PluginManager:
         """给前端 catalog 的插件面板/视觉/数据格式摘要。"""
         return {
             "panels": [
-                {"id": key, "title": getattr(spec, "title", key), "slot": getattr(spec, "slot", "")}
+                {
+                    "id": key,
+                    "title": getattr(spec, "title", key),
+                    "slot": getattr(spec, "slot", ""),
+                }
                 for key, spec in self.panels.items()
             ],
             "visuals": [
-                {"kind": key, "label": getattr(spec, "label", key), "icon": getattr(spec, "icon", "")}
+                {
+                    "kind": key,
+                    "label": getattr(spec, "label", key),
+                    "icon": getattr(spec, "icon", ""),
+                }
                 for key, spec in self.visuals.items()
             ],
             "data_formats": [
@@ -267,7 +297,10 @@ class PluginManager:
         try:
             self.root.mkdir(parents=True, exist_ok=True)
             self._lock_path.write_text(
-                json.dumps({"disabled": sorted(self._disabled)}, ensure_ascii=False, indent=2) + "\n",
+                json.dumps(
+                    {"disabled": sorted(self._disabled)}, ensure_ascii=False, indent=2
+                )
+                + "\n",
                 encoding="utf-8",
             )
         except OSError:
@@ -303,9 +336,17 @@ class PluginManager:
                     except Exception as exc:
                         record = PluginRecord(
                             manifest=PluginManifest(
-                                schema="netlab-plugin/1", id=directory.name, name=directory.name,
-                                version="0.0.0", plugin_api="1.0", netlab="", entry="",),
-                            path=directory, status="error", error=str(exc),
+                                schema="netlab-plugin/1",
+                                id=directory.name,
+                                name=directory.name,
+                                version="0.0.0",
+                                plugin_api="1.0",
+                                netlab="",
+                                entry="",
+                            ),
+                            path=directory,
+                            status="error",
+                            error=str(exc),
                         )
                         discovered[directory.name] = record
             self._records = discovered
@@ -385,6 +426,7 @@ class PluginManager:
         record.status = "loaded"
         record.error = ""
         import time
+
         record.loaded_at = time.strftime("%Y-%m-%dT%H:%M:%S%z")
 
     def _install(self, record: PluginRecord, capability: str, spec: Any) -> None:
@@ -397,9 +439,18 @@ class PluginManager:
             if kind in COMPUTE_SPECS:
                 raise ValidationError(f"节点类型已存在：{kind}")
             COMPUTE_SPECS[kind] = ComputeSpec(
-                kind=kind, label=spec.label, group=spec.group, description=spec.description,
-                params=tuple(spec.params), factory=spec.factory, outputs=tuple(spec.outputs),
-                notes=spec.notes, formula=spec.formula, source=plugin_id, editable=True, builtin=False,
+                kind=kind,
+                label=spec.label,
+                group=spec.group,
+                description=spec.description,
+                params=tuple(spec.params),
+                factory=spec.factory,
+                outputs=tuple(spec.outputs),
+                notes=spec.notes,
+                formula=spec.formula,
+                source=plugin_id,
+                editable=True,
+                builtin=False,
             )
         elif capability == "method":
             if not isinstance(spec, V1MethodSpec):
@@ -407,9 +458,18 @@ class PluginManager:
             if kind in METHOD_SPECS:
                 raise ValidationError(f"连接函数已存在：{kind}")
             METHOD_SPECS[kind] = MethodSpec(
-                kind=kind, label=spec.label, group=spec.group, description=spec.description,
-                params=tuple(spec.params), factory=spec.factory, outputs=tuple(spec.outputs),
-                notes=spec.notes, formula=spec.formula, source=plugin_id, editable=True, builtin=False,
+                kind=kind,
+                label=spec.label,
+                group=spec.group,
+                description=spec.description,
+                params=tuple(spec.params),
+                factory=spec.factory,
+                outputs=tuple(spec.outputs),
+                notes=spec.notes,
+                formula=spec.formula,
+                source=plugin_id,
+                editable=True,
+                builtin=False,
             )
         elif capability == "element":
             if not isinstance(spec, V1ElementSpec):
@@ -417,17 +477,29 @@ class PluginManager:
             if kind in ELEMENT_SPECS:
                 raise ValidationError(f"元件类型已存在：{kind}")
             ELEMENT_SPECS[kind] = ElementSpec(
-                kind=kind, label=spec.label, description=spec.description,
-                params=tuple(spec.params), cls=spec.element_cls, notes=spec.notes,
-                group=spec.group, formula=spec.formula, source=plugin_id, editable=True,
-                builtin=False, pins=tuple(spec.pins),
+                kind=kind,
+                label=spec.label,
+                description=spec.description,
+                params=tuple(spec.params),
+                cls=spec.element_cls,
+                notes=spec.notes,
+                group=spec.group,
+                formula=spec.formula,
+                source=plugin_id,
+                editable=True,
+                builtin=False,
+                pins=tuple(spec.pins),
             )
         elif capability == "analysis":
             if not isinstance(spec, AnalysisSpec):
                 raise ValidationError("analysis 注册项必须是 AnalysisSpec")
             spec = AnalysisSpec(
-                kind=kind, label=spec.label, description=spec.description,
-                params=tuple(spec.params), modes=tuple(spec.modes), run=spec.run,
+                kind=kind,
+                label=spec.label,
+                description=spec.description,
+                params=tuple(spec.params),
+                modes=tuple(spec.modes),
+                run=spec.run,
             )
             register_analysis(spec, plugin_id=plugin_id)
         elif capability == "data_io":
@@ -480,7 +552,12 @@ class PluginManager:
                     unregister_engine(kind)
         module = self._modules.pop(plugin_id, None)
         if module is not None:
-            for name in [name for name in sys.modules if name.startswith("netlab_plugin_") and plugin_id.replace(".", "_") in name]:
+            for name in [
+                name
+                for name in sys.modules
+                if name.startswith("netlab_plugin_")
+                and plugin_id.replace(".", "_") in name
+            ]:
                 sys.modules.pop(name, None)
         record.registered.clear()
         record.status = "disabled" if plugin_id in self._disabled else "discovered"
@@ -525,10 +602,20 @@ class PluginManager:
         if record is None:
             raise KeyError(plugin_id)
         payload = record.summary()
-        payload["data_formats"] = [key for key in self.data_formats if key.startswith(plugin_id + ".")]
-        payload["panels"] = [key for key in self.panels if key.startswith(plugin_id + ".") or key == plugin_id]
-        payload["visuals"] = [key for key in self.visuals if key.startswith(plugin_id + ".")]
-        payload["templates"] = [key for key in self.templates if key.startswith(plugin_id + ".")]
+        payload["data_formats"] = [
+            key for key in self.data_formats if key.startswith(plugin_id + ".")
+        ]
+        payload["panels"] = [
+            key
+            for key in self.panels
+            if key.startswith(plugin_id + ".") or key == plugin_id
+        ]
+        payload["visuals"] = [
+            key for key in self.visuals if key.startswith(plugin_id + ".")
+        ]
+        payload["templates"] = [
+            key for key in self.templates if key.startswith(plugin_id + ".")
+        ]
         return payload
 
 

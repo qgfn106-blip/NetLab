@@ -154,18 +154,30 @@ def _gain(
         "gain",
         x,
         y,
-        {"field": "voltage", "output": "voltage", "gain": float(gain), "offset": float(offset)},
+        {
+            "field": "voltage",
+            "output": "voltage",
+            "gain": float(gain),
+            "offset": float(offset),
+        },
     )
 
 
-def _clip(prefix: str, name: str, x: float, y: float, low: float, high: float) -> dict[str, Any]:
+def _clip(
+    prefix: str, name: str, x: float, y: float, low: float, high: float
+) -> dict[str, Any]:
     return _node(
         f"{prefix}{name}",
         name,
         "clip",
         x,
         y,
-        {"field": "voltage", "output": "voltage", "minimum": float(low), "maximum": float(high)},
+        {
+            "field": "voltage",
+            "output": "voltage",
+            "minimum": float(low),
+            "maximum": float(high),
+        },
     )
 
 
@@ -192,7 +204,13 @@ def _block(
         nodes=nodes,
         edges=edges,
         ports=ports,
-        metadata={"r25": True, "readonly": True, "group": group, "macro": True, "slug": block_id},
+        metadata={
+            "r25": True,
+            "readonly": True,
+            "group": group,
+            "macro": True,
+            "slug": block_id,
+        },
     )
 
 
@@ -222,7 +240,12 @@ def _amplifier_like(
             f"{p}ininn",
             f"{p}diff",
             kind="scale",
-            params={"input_key": "voltage", "output_key": "voltage", "gain": -1.0, "offset": 0.0},
+            params={
+                "input_key": "voltage",
+                "output_key": "voltage",
+                "gain": -1.0,
+                "offset": 0.0,
+            },
         ),
         _edge(f"{p}esum", "diff-aol", f"{p}diff", f"{p}aol"),
         _edge(f"{p}eaol", "aol-limit", f"{p}aol", f"{p}limit"),
@@ -489,7 +512,13 @@ _BEHAVIOR_SPECS: dict[str, dict[str, Any]] = {
     "dff": {"kind": "dff"},
     "counter4": {"kind": "counter", "bits": 4},
     "shift4": {"kind": "shift", "bits": 4},
-    "timer555": {"kind": "timer555", "frequency": 1000.0, "duty": 0.5, "low": 0.0, "high": 5.0},
+    "timer555": {
+        "kind": "timer555",
+        "frequency": 1000.0,
+        "duty": 0.5,
+        "low": 0.0,
+        "high": 5.0,
+    },
     "ldo": {"kind": "ldo", "low": 0.0, "high": 5.0},
     "adc4": {"kind": "adc", "bits": 4, "vref": 5.0},
     "dac4": {"kind": "dac", "bits": 4, "vref": 5.0},

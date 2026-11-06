@@ -199,8 +199,13 @@ def build_project_from_networks(
         "fem": fem_payload,
         "ui": json_safe(ui or {}, where="界面设置"),
         "blocks": (
-            [{"id": str(block.get("id") or ""), "version": int(block.get("version") or 1)}
-             for block in (blocks or [])]
+            [
+                {
+                    "id": str(block.get("id") or ""),
+                    "version": int(block.get("version") or 1),
+                }
+                for block in (blocks or [])
+            ]
             if library is not None
             else copy.deepcopy(blocks or [])
         ),
@@ -210,7 +215,6 @@ def build_project_from_networks(
     }
     project["checksum"] = compute_checksum(project)
     return project
-
 
 
 def migrate_scene_to_devices(scene: Any) -> dict[str, Any]:
@@ -232,7 +236,9 @@ def migrate_scene_to_devices(scene: Any) -> dict[str, Any]:
     raw_edges = scene.get("edges")
     if not isinstance(raw_nodes, list) or not isinstance(raw_edges, list):
         return copy.deepcopy(scene)
-    if any(isinstance(item, dict) and item.get("kind") == "device" for item in raw_nodes):
+    if any(
+        isinstance(item, dict) and item.get("kind") == "device" for item in raw_nodes
+    ):
         return copy.deepcopy(scene)
     if any(isinstance(item, dict) and item.get("kind") == "wire" for item in raw_edges):
         return copy.deepcopy(scene)
@@ -244,8 +250,7 @@ def migrate_scene_to_devices(scene: Any) -> dict[str, Any]:
     used_edge_ids = {str(item.get("id") or "") for item in raw_edges}
     used_edge_names = {str(item.get("name") or "") for item in raw_edges}
     node_pos = {
-        str(item.get("id") or ""): (item.get("position") or {})
-        for item in nodes
+        str(item.get("id") or ""): (item.get("position") or {}) for item in nodes
     }
 
     def next_name(base: str, used: set[str]) -> str:
@@ -304,9 +309,7 @@ def migrate_scene_to_devices(scene: Any) -> dict[str, Any]:
                     pins[pin_name] = value
                     bound_params.add(param_key)
         required_missing = [
-            pin.name
-            for pin in table
-            if pin.required and pin.name not in pins
+            pin.name for pin in table if pin.required and pin.name not in pins
         ]
         if required_missing:
             # 兼容垫片：旧数据缺必接端口时保留旧边，不制造半残器件。
@@ -318,9 +321,7 @@ def migrate_scene_to_devices(scene: Any) -> dict[str, Any]:
             hashlib.sha1(f"device:{edge_id}".encode("utf-8")).hexdigest()[:12],
             used_node_ids,
         )
-        device_name = next_name(
-            str(edge.get("name") or kind), used_node_names
-        )
+        device_name = next_name(str(edge.get("name") or kind), used_node_names)
         layout = edge.get("layout") or {}
         position = {
             "x": float(layout.get("x", 0.0) or 0.0),
@@ -339,7 +340,10 @@ def migrate_scene_to_devices(scene: Any) -> dict[str, Any]:
             "id": device_id,
             "name": device_name,
             "kind": "device",
-            "params": {"element": kind, **{k: v for k, v in params.items() if k not in bound_params}},
+            "params": {
+                "element": kind,
+                **{k: v for k, v in params.items() if k not in bound_params},
+            },
             "data": data,
             "state": copy.deepcopy(edge.get("state") or {}),
             "position": position,
@@ -353,7 +357,9 @@ def migrate_scene_to_devices(scene: Any) -> dict[str, Any]:
                 f"wire:{edge_id}:{pin.name}".encode("utf-8")
             ).hexdigest()[:12]
             wire_id = next_id(digest, used_edge_ids)
-            wire_name = next_name(f"{edge.get('name') or kind}.{pin.name}", used_edge_names)
+            wire_name = next_name(
+                f"{edge.get('name') or kind}.{pin.name}", used_edge_names
+            )
             edges.append(
                 {
                     "id": wire_id,
@@ -640,7 +646,12 @@ def project_block_refs(project: dict[str, Any]) -> list[dict[str, Any]]:
         if _is_block_ref(item):
             refs.append({"id": item["id"], "version": int(item["version"])})
         else:
-            refs.append({"id": str(item.get("id") or ""), "version": int(item.get("version") or 1)})
+            refs.append(
+                {
+                    "id": str(item.get("id") or ""),
+                    "version": int(item.get("version") or 1),
+                }
+            )
     return refs
 
 
@@ -860,7 +871,9 @@ def project_to_text(project: dict[str, Any], *, indent: int = 2) -> str:
     return json.dumps(project, ensure_ascii=False, indent=indent, allow_nan=False)
 
 
-def atomic_write(path: str | os.PathLike[str], payload: dict[str, Any] | str | bytes) -> Path:
+def atomic_write(
+    path: str | os.PathLike[str], payload: dict[str, Any] | str | bytes
+) -> Path:
     """原子写入工程文件，并把旧文件备份为 ``<name>.bak``。"""
     target = Path(path).expanduser().resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -959,7 +972,9 @@ def save_project(
     return atomic_write(path, project)
 
 
-def touch_project(payload: dict[str, Any], *, name: str | None = None) -> dict[str, Any]:
+def touch_project(
+    payload: dict[str, Any], *, name: str | None = None
+) -> dict[str, Any]:
     project = copy.deepcopy(payload)
     if name is not None:
         project["name"] = str(name)[:120]

@@ -103,6 +103,7 @@ def test_open_internal_creates_temporary_network_and_save_copy(client, tmp_path)
     assert document["format"] == "netlab-block"
     assert document["block"]["model"] == "structural"
 
+
 def test_open_internal_rolls_back_when_scene_invalid(client, tmp_path):
     """内部网络不合法（缺接地）时不应留下空壳临时网络。"""
     from netlab.core.model.blocks import BlockDef, PortDef
@@ -115,24 +116,61 @@ def test_open_internal_rolls_back_when_scene_invalid(client, tmp_path):
         mode="circuit",
         model="structural",
         nodes=[
-            {"id": "111111111111", "name": "a", "kind": "node", "params": {}, "position": {"x": 0.0, "y": 0.0}},
-            {"id": "222222222222", "name": "b", "kind": "node", "params": {}, "position": {"x": 160.0, "y": 0.0}},
-            {"id": "dddddddddddd", "name": "R1", "kind": "device", "params": {"element": "resistor", "R": 1000.0},
-             "position": {"x": 80.0, "y": -40.0}},
+            {
+                "id": "111111111111",
+                "name": "a",
+                "kind": "node",
+                "params": {},
+                "position": {"x": 0.0, "y": 0.0},
+            },
+            {
+                "id": "222222222222",
+                "name": "b",
+                "kind": "node",
+                "params": {},
+                "position": {"x": 160.0, "y": 0.0},
+            },
+            {
+                "id": "dddddddddddd",
+                "name": "R1",
+                "kind": "device",
+                "params": {"element": "resistor", "R": 1000.0},
+                "position": {"x": 80.0, "y": -40.0},
+            },
         ],
         edges=[
-            {"id": "eeeeeeeeeee1", "name": "w1", "source": "dddddddddddd", "target": "111111111111", "kind": "wire", "source_pin": "1"},
-            {"id": "eeeeeeeeeee2", "name": "w2", "source": "dddddddddddd", "target": "222222222222", "kind": "wire", "source_pin": "2"},
+            {
+                "id": "eeeeeeeeeee1",
+                "name": "w1",
+                "source": "dddddddddddd",
+                "target": "111111111111",
+                "kind": "wire",
+                "source_pin": "1",
+            },
+            {
+                "id": "eeeeeeeeeee2",
+                "name": "w2",
+                "source": "dddddddddddd",
+                "target": "222222222222",
+                "kind": "wire",
+                "source_pin": "2",
+            },
         ],
         ports=[
-            PortDef(name="a", direction="inout", dtype="electrical", net="111111111111"),
-            PortDef(name="b", direction="inout", dtype="electrical", net="222222222222"),
+            PortDef(
+                name="a", direction="inout", dtype="electrical", net="111111111111"
+            ),
+            PortDef(
+                name="b", direction="inout", dtype="electrical", net="222222222222"
+            ),
         ],
     )
     blocklib.write_block(library, block)
 
     before = {item["id"] for item in client.get("/api/networks").json()["networks"]}
-    opened = client.post("/api/blocks/a1b2c3d4e5f6/open-internal", json={"library": str(library)})
+    opened = client.post(
+        "/api/blocks/a1b2c3d4e5f6/open-internal", json={"library": str(library)}
+    )
     assert opened.status_code == 422, opened.text
     assert "接地" in opened.json()["detail"]
     after = {item["id"] for item in client.get("/api/networks").json()["networks"]}

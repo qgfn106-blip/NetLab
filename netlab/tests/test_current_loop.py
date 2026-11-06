@@ -14,8 +14,29 @@ OMEGA = 2.0 * math.pi * 50.0
 
 def _build_scene():
     scene = Scene("signal")
-    i_d_ref = scene.add_node(name="i_d_ref", kind="signal", params={"field": "voltage", "wave": "step", "offset": 0.0, "amplitude": 1.0, "delay": 0.005})
-    i_q_ref = scene.add_node(name="i_q_ref", kind="signal", params={"field": "voltage", "wave": "dc", "offset": 0.0, "amplitude": 0.0, "frequency": 0.0, "delay": 0.0})
+    i_d_ref = scene.add_node(
+        name="i_d_ref",
+        kind="signal",
+        params={
+            "field": "voltage",
+            "wave": "step",
+            "offset": 0.0,
+            "amplitude": 1.0,
+            "delay": 0.005,
+        },
+    )
+    i_q_ref = scene.add_node(
+        name="i_q_ref",
+        kind="signal",
+        params={
+            "field": "voltage",
+            "wave": "dc",
+            "offset": 0.0,
+            "amplitude": 0.0,
+            "frequency": 0.0,
+            "delay": 0.0,
+        },
+    )
     plant = scene.add_node(
         name="plant",
         kind="state_space",
@@ -30,20 +51,66 @@ def _build_scene():
             "x0": [0.0, 0.0],
         },
     )
-    err_d = scene.add_node(name="err_d", kind="expression", params={"expr": "r - i", "variables": {"r": "id_ref.voltage", "i": "i_d.i_d"}, "output": "voltage"})
-    err_q = scene.add_node(name="err_q", kind="expression", params={"expr": "r - i", "variables": {"r": "iq_ref.voltage", "i": "i_q.i_q"}, "output": "voltage"})
-    pi_d = scene.add_node(name="pi_d", kind="pi", params={"kp": 6.0, "ki": 3000.0, "limit": 50.0, "error_source": "ed.voltage"})
-    pi_q = scene.add_node(name="pi_q", kind="pi", params={"kp": 6.0, "ki": 3000.0, "limit": 50.0, "error_source": "eq.voltage"})
-    cmd_d = scene.add_node(name="cmd_d", kind="expression", params={"expr": "u - 0.6283185307179586*q", "variables": {"u": "ud.voltage", "q": "i_q_cmd.i_q"}, "output": "voltage"})
-    cmd_q = scene.add_node(name="cmd_q", kind="expression", params={"expr": "u + 0.6283185307179586*d", "variables": {"u": "uq.voltage", "d": "i_d_cmd.i_d"}, "output": "voltage"})
+    err_d = scene.add_node(
+        name="err_d",
+        kind="expression",
+        params={
+            "expr": "r - i",
+            "variables": {"r": "id_ref.voltage", "i": "i_d.i_d"},
+            "output": "voltage",
+        },
+    )
+    err_q = scene.add_node(
+        name="err_q",
+        kind="expression",
+        params={
+            "expr": "r - i",
+            "variables": {"r": "iq_ref.voltage", "i": "i_q.i_q"},
+            "output": "voltage",
+        },
+    )
+    pi_d = scene.add_node(
+        name="pi_d",
+        kind="pi",
+        params={"kp": 6.0, "ki": 3000.0, "limit": 50.0, "error_source": "ed.voltage"},
+    )
+    pi_q = scene.add_node(
+        name="pi_q",
+        kind="pi",
+        params={"kp": 6.0, "ki": 3000.0, "limit": 50.0, "error_source": "eq.voltage"},
+    )
+    cmd_d = scene.add_node(
+        name="cmd_d",
+        kind="expression",
+        params={
+            "expr": "u - 0.6283185307179586*q",
+            "variables": {"u": "ud.voltage", "q": "i_q_cmd.i_q"},
+            "output": "voltage",
+        },
+    )
+    cmd_q = scene.add_node(
+        name="cmd_q",
+        kind="expression",
+        params={
+            "expr": "u + 0.6283185307179586*d",
+            "variables": {"u": "uq.voltage", "d": "i_d_cmd.i_d"},
+            "output": "voltage",
+        },
+    )
 
     edges = [
-        ("id_ref", i_d_ref, err_d), ("i_d", plant, err_d),
-        ("iq_ref", i_q_ref, err_q), ("i_q", plant, err_q),
-        ("ed", err_d, pi_d), ("eq", err_q, pi_q),
-        ("ud", pi_d, cmd_d), ("uq", pi_q, cmd_q),
-        ("i_q_cmd", plant, cmd_d), ("i_d_cmd", plant, cmd_q),
-        ("vd_cmd", cmd_d, plant), ("vq_cmd", cmd_q, plant),
+        ("id_ref", i_d_ref, err_d),
+        ("i_d", plant, err_d),
+        ("iq_ref", i_q_ref, err_q),
+        ("i_q", plant, err_q),
+        ("ed", err_d, pi_d),
+        ("eq", err_q, pi_q),
+        ("ud", pi_d, cmd_d),
+        ("uq", pi_q, cmd_q),
+        ("i_q_cmd", plant, cmd_d),
+        ("i_d_cmd", plant, cmd_q),
+        ("vd_cmd", cmd_d, plant),
+        ("vq_cmd", cmd_q, plant),
     ]
     for name, source, target in edges:
         scene.add_edge(name=name, source=source.id, target=target.id, kind="pass")

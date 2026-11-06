@@ -18,12 +18,23 @@ def _diode_scene() -> Scene:
     scene = Scene("circuit")
     gnd = scene.add_node(name="gnd", kind="ground")
     n1 = scene.add_node(name="n1", kind="node")
-    scene.add_edge(name="V1", source=n1.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 5.0, "amplitude": 0.0})
-    scene.add_edge(name="R1", source=n1.id, target=gnd.id, kind="resistor",
-                   params={"R": 1000.0})
-    scene.add_edge(name="D1", source=n1.id, target=gnd.id, kind="diode",
-                   params={"Is": 1e-12, "n": 1.0, "temperature": 300.15})
+    scene.add_edge(
+        name="V1",
+        source=n1.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 5.0, "amplitude": 0.0},
+    )
+    scene.add_edge(
+        name="R1", source=n1.id, target=gnd.id, kind="resistor", params={"R": 1000.0}
+    )
+    scene.add_edge(
+        name="D1",
+        source=n1.id,
+        target=gnd.id,
+        kind="diode",
+        params={"Is": 1e-12, "n": 1.0, "temperature": 300.15},
+    )
     return scene
 
 
@@ -32,12 +43,19 @@ def _divided_scene() -> Scene:
     gnd = scene.add_node(name="gnd", kind="ground")
     n1 = scene.add_node(name="n1", kind="node")
     n2 = scene.add_node(name="n2", kind="node")
-    scene.add_edge(name="V1", source=n1.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 1.0, "amplitude": 0.0})
-    scene.add_edge(name="R1", source=n1.id, target=n2.id, kind="resistor",
-                   params={"R": 1.0e3})
-    scene.add_edge(name="R2", source=n2.id, target=gnd.id, kind="resistor",
-                   params={"R": 1.0e6})
+    scene.add_edge(
+        name="V1",
+        source=n1.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 1.0, "amplitude": 0.0},
+    )
+    scene.add_edge(
+        name="R1", source=n1.id, target=n2.id, kind="resistor", params={"R": 1.0e3}
+    )
+    scene.add_edge(
+        name="R2", source=n2.id, target=gnd.id, kind="resistor", params={"R": 1.0e6}
+    )
     return scene
 
 
@@ -45,11 +63,24 @@ def test_solver_options_follow_sim_config():
     scene = Scene("circuit")
     gnd = scene.add_node(name="gnd", kind="ground")
     n1 = scene.add_node(name="n1", kind="node")
-    scene.add_edge(name="V1", source=n1.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 1.0, "amplitude": 0.0})
+    scene.add_edge(
+        name="V1",
+        source=n1.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 1.0, "amplitude": 0.0},
+    )
     sim = Simulation(scene)
-    sim.apply_config({"reltol": 1e-7, "vntol": 1e-5, "abstol": 1e-8,
-                      "max_iter": 123, "gmin_steps": 4, "residual_tol": 1e-4})
+    sim.apply_config(
+        {
+            "reltol": 1e-7,
+            "vntol": 1e-5,
+            "abstol": 1e-8,
+            "max_iter": 123,
+            "gmin_steps": 4,
+            "residual_tol": 1e-4,
+        }
+    )
     solver = sim.scene.ensure_engine().solver
     assert solver.options.reltol == 1e-7
     assert solver.options.vntol == 1e-5
@@ -72,8 +103,13 @@ def test_singular_matrix_reports_node():
     gnd = scene.add_node(name="gnd", kind="ground")
     n1 = scene.add_node(name="n1", kind="node")
     for name in ("V1", "V2"):
-        scene.add_edge(name=name, source=n1.id, target=gnd.id, kind="vsource",
-                       params={"wave": "dc", "offset": 5.0, "amplitude": 0.0})
+        scene.add_edge(
+            name=name,
+            source=n1.id,
+            target=gnd.id,
+            kind="vsource",
+            params={"wave": "dc", "offset": 5.0, "amplitude": 0.0},
+        )
     with pytest.raises(ComputeError) as error:
         scene.step(1e-4)
     message = str(error.value)
@@ -85,9 +121,20 @@ def test_next_breakpoint_square_and_pulse():
     scene = Scene("circuit")
     gnd = scene.add_node(name="gnd", kind="ground")
     n1 = scene.add_node(name="n1", kind="node")
-    scene.add_edge(name="V1", source=n1.id, target=gnd.id, kind="vsource",
-                   params={"wave": "square", "offset": 0.0, "amplitude": 1.0,
-                           "frequency": 1000.0, "duty": 0.5, "delay": 0.0})
+    scene.add_edge(
+        name="V1",
+        source=n1.id,
+        target=gnd.id,
+        kind="vsource",
+        params={
+            "wave": "square",
+            "offset": 0.0,
+            "amplitude": 1.0,
+            "frequency": 1000.0,
+            "duty": 0.5,
+            "delay": 0.0,
+        },
+    )
     assert scene.next_breakpoint(0.0, 0.001) == pytest.approx(0.0005)
     assert scene.next_breakpoint(0.0006, 0.001) == pytest.approx(0.001)
 
@@ -96,8 +143,13 @@ def test_precompute_fills_recorder_from_zero():
     scene = Scene("circuit")
     gnd = scene.add_node(name="gnd", kind="ground")
     n1 = scene.add_node(name="n1", kind="node")
-    scene.add_edge(name="V1", source=n1.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 5.0, "amplitude": 0.0})
+    scene.add_edge(
+        name="V1",
+        source=n1.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 5.0, "amplitude": 0.0},
+    )
     scene.sync_probes = None
     sim = Simulation(scene)
     result = sim.precompute(0.001, 1e-4, 1)
@@ -138,12 +190,23 @@ def _diode_series_scene() -> Scene:
     gnd = scene.add_node(name="gnd", kind="ground")
     n1 = scene.add_node(name="n1", kind="node")
     n2 = scene.add_node(name="n2", kind="node")
-    scene.add_edge(name="V1", source=n1.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 5.0, "amplitude": 0.0})
-    scene.add_edge(name="R1", source=n1.id, target=n2.id, kind="resistor",
-                   params={"R": 1000.0})
-    scene.add_edge(name="D1", source=n2.id, target=gnd.id, kind="diode",
-                   params={"Is": 1e-12, "n": 1.0, "temperature": 300.15})
+    scene.add_edge(
+        name="V1",
+        source=n1.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 5.0, "amplitude": 0.0},
+    )
+    scene.add_edge(
+        name="R1", source=n1.id, target=n2.id, kind="resistor", params={"R": 1000.0}
+    )
+    scene.add_edge(
+        name="D1",
+        source=n2.id,
+        target=gnd.id,
+        kind="diode",
+        params={"Is": 1e-12, "n": 1.0, "temperature": 300.15},
+    )
     return scene
 
 

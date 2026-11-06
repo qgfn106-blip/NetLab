@@ -1,4 +1,5 @@
 """运行前「建议预计算」提示（前端静态约束）。"""
+
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]

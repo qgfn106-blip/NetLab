@@ -1,4 +1,5 @@
 """D90+: enforce one token-aware seam for browser API requests."""
+
 from __future__ import annotations
 
 from pathlib import Path

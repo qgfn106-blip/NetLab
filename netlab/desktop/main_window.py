@@ -13,14 +13,21 @@ try:  # pragma: no cover - 依赖桌面环境
     from PySide6.QtWebEngineCore import QWebEngineScript
     from PySide6.QtWebEngineWidgets import QWebEngineView
     from PySide6.QtWidgets import (
-            QMainWindow,
+        QMainWindow,
         QMessageBox,
         QStatusBar,
     )
 except Exception as exc:  # pragma: no cover
-    raise RuntimeError("桌面模式需要 PySide6：pip install -r requirements-desktop.txt") from exc
+    raise RuntimeError(
+        "桌面模式需要 PySide6：pip install -r requirements-desktop.txt"
+    ) from exc
 
-from ..core.model.project import PROJECT_SUFFIX, atomic_write, project_to_text, validate_project
+from ..core.model.project import (
+    PROJECT_SUFFIX,
+    atomic_write,
+    project_to_text,
+    validate_project,
+)
 from .bridge import Bridge
 
 WEBCHANNEL_JS = ""
@@ -76,7 +83,9 @@ class MainWindow(QMainWindow):
         self._refresh_recent_menu()
         file_menu.addSeparator()
         self._action(file_menu, "保存", "Ctrl+S", lambda: self.command("save"))
-        self._action(file_menu, "另存为…", "Ctrl+Shift+S", lambda: self.command("saveAs"))
+        self._action(
+            file_menu, "另存为…", "Ctrl+Shift+S", lambda: self.command("saveAs")
+        )
         file_menu.addSeparator()
         self._action(file_menu, "恢复自动保存…", "", lambda: self.command("recover"))
         file_menu.addSeparator()
@@ -86,7 +95,9 @@ class MainWindow(QMainWindow):
         self._action(view_menu, "重新载入", "Ctrl+R", self.view.reload)
         self._action(view_menu, "放大", "Ctrl+=", lambda: self._zoom(1.15))
         self._action(view_menu, "缩小", "Ctrl+-", lambda: self._zoom(1 / 1.15))
-        self._action(view_menu, "重置缩放", "Ctrl+0", lambda: self.view.setZoomFactor(1.0))
+        self._action(
+            view_menu, "重置缩放", "Ctrl+0", lambda: self.view.setZoomFactor(1.0)
+        )
         view_menu.addSeparator()
         self._action(view_menu, "开发者工具", "F12", self._toggle_devtools)
         view_menu.addSeparator()
@@ -177,7 +188,9 @@ class MainWindow(QMainWindow):
         for path in paths[:10]:
             action = self.recent_menu.addAction(Path(path).name)
             action.setToolTip(path)
-            action.triggered.connect(lambda _checked=False, p=path: self.command("open-path", p))
+            action.triggered.connect(
+                lambda _checked=False, p=path: self.command("open-path", p)
+            )
         self.recent_menu.addSeparator()
         clear = self.recent_menu.addAction("清空最近列表")
         clear.triggered.connect(self._clear_recent)
@@ -220,7 +233,9 @@ class MainWindow(QMainWindow):
             box = QMessageBox(self)
             box.setWindowTitle("退出 Netlab")
             box.setText("工程有未保存的修改。")
-            box.setInformativeText("保存操作可以在主界面的「工程」面板完成；现在仍要退出吗？")
+            box.setInformativeText(
+                "保存操作可以在主界面的「工程」面板完成；现在仍要退出吗？"
+            )
             box.setStandardButtons(
                 QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel
             )
@@ -257,4 +272,10 @@ class MainWindow(QMainWindow):
         )
 
 
-__all__ = ["MainWindow", "PROJECT_SUFFIX", "atomic_write", "validate_project", "project_to_text"]
+__all__ = [
+    "MainWindow",
+    "PROJECT_SUFFIX",
+    "atomic_write",
+    "validate_project",
+    "project_to_text",
+]

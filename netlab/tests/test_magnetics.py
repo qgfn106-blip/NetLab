@@ -12,14 +12,28 @@ def node(scene, name, kind="node"):
 
 
 def dc(scene, name, a, b, value):
-    return scene.add_edge(name=name, source=a.id, target=b.id, kind="vsource",
-                          params={"wave": "dc", "offset": value, "amplitude": 0.0})
+    return scene.add_edge(
+        name=name,
+        source=a.id,
+        target=b.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": value, "amplitude": 0.0},
+    )
 
 
 def sine(scene, name, a, b, amplitude):
-    return scene.add_edge(name=name, source=a.id, target=b.id, kind="vsource",
-                          params={"wave": "sine", "amplitude": amplitude,
-                                  "offset": 0.0, "frequency": 50.0})
+    return scene.add_edge(
+        name=name,
+        source=a.id,
+        target=b.id,
+        kind="vsource",
+        params={
+            "wave": "sine",
+            "amplitude": amplitude,
+            "offset": 0.0,
+            "frequency": 50.0,
+        },
+    )
 
 
 def voltage(scene, name):
@@ -34,12 +48,24 @@ def test_transformer_ratio_and_power():
     secondary = node(scene, "sec")
     dc(scene, "V1", primary, gnd, 10.0)
     transformer = scene.add_edge(
-        name="T1", source=primary.id, target=gnd.id, kind="transformer",
-        params={"ratio": 0.5, "Lm": 0.0,
-                "secondary_source": secondary.id, "secondary_target": gnd.id},
+        name="T1",
+        source=primary.id,
+        target=gnd.id,
+        kind="transformer",
+        params={
+            "ratio": 0.5,
+            "Lm": 0.0,
+            "secondary_source": secondary.id,
+            "secondary_target": gnd.id,
+        },
     )
-    scene.add_edge(name="RL", source=secondary.id, target=gnd.id, kind="resistor",
-                   params={"R": 1000.0})
+    scene.add_edge(
+        name="RL",
+        source=secondary.id,
+        target=gnd.id,
+        kind="resistor",
+        params={"R": 1000.0},
+    )
     for _ in range(3):
         scene.step(1e-4)
     assert abs(voltage(scene, "sec") - 5.0) < 0.05
@@ -55,12 +81,24 @@ def test_transformer_with_magnetizing_inductance():
     secondary = node(scene, "sec")
     dc(scene, "V1", primary, gnd, 10.0)
     transformer = scene.add_edge(
-        name="T1", source=primary.id, target=gnd.id, kind="transformer",
-        params={"ratio": 1.0, "Lm": 1.0e-3,
-                "secondary_source": secondary.id, "secondary_target": gnd.id},
+        name="T1",
+        source=primary.id,
+        target=gnd.id,
+        kind="transformer",
+        params={
+            "ratio": 1.0,
+            "Lm": 1.0e-3,
+            "secondary_source": secondary.id,
+            "secondary_target": gnd.id,
+        },
     )
-    scene.add_edge(name="RL", source=secondary.id, target=gnd.id, kind="resistor",
-                   params={"R": 1000.0})
+    scene.add_edge(
+        name="RL",
+        source=secondary.id,
+        target=gnd.id,
+        kind="resistor",
+        params={"R": 1000.0},
+    )
     for _ in range(3):
         scene.step(1e-4)
     assert abs(voltage(scene, "sec") - 10.0) < 0.1
@@ -75,12 +113,25 @@ def test_coupled_inductor_voltage_ratio():
     secondary = node(scene, "sec")
     sine(scene, "V1", primary, gnd, 10.0)
     coupling = scene.add_edge(
-        name="L1L2", source=primary.id, target=gnd.id, kind="coupling_inductor",
-        params={"L1": 1.0e-3, "L2": 4.0e-3, "coupling": 0.98,
-                "secondary_source": secondary.id, "secondary_target": gnd.id},
+        name="L1L2",
+        source=primary.id,
+        target=gnd.id,
+        kind="coupling_inductor",
+        params={
+            "L1": 1.0e-3,
+            "L2": 4.0e-3,
+            "coupling": 0.98,
+            "secondary_source": secondary.id,
+            "secondary_target": gnd.id,
+        },
     )
-    scene.add_edge(name="RL", source=secondary.id, target=gnd.id, kind="resistor",
-                   params={"R": 1.0e6})
+    scene.add_edge(
+        name="RL",
+        source=secondary.id,
+        target=gnd.id,
+        kind="resistor",
+        params={"R": 1.0e6},
+    )
     samples = []
     for _ in range(400):  # 50 Hz 下两个周期
         scene.step(1e-4)

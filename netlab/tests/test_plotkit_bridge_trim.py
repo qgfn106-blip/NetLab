@@ -22,7 +22,9 @@ pytestmark = pytest.mark.skipif(not HAS_PLOTKIT, reason="未安装 plotkit")
 
 
 def _frames(start: int, count: int) -> list[dict]:
-    return [{"t": float(start + i), "v": {"ch0": float(start + i)}} for i in range(count)]
+    return [
+        {"t": float(start + i), "v": {"ch0": float(start + i)}} for i in range(count)
+    ]
 
 
 def test_trim_keeps_appending(monkeypatch) -> None:
@@ -42,7 +44,7 @@ def test_trim_keeps_appending(monkeypatch) -> None:
         bridge._ingest(fig, _frames(batch * 10, 10), ["ch0"])
 
     series = fig.store.get("ch0")
-    assert len(series) == 20                      # 窗口被裁到 20
-    assert series.meta.life == "append"           # 追加语义没有被改掉
-    assert np.isclose(float(series.values[-1]), 49.0)   # 最后一帧是新的，不是冻住的
+    assert len(series) == 20  # 窗口被裁到 20
+    assert series.meta.life == "append"  # 追加语义没有被改掉
+    assert np.isclose(float(series.values[-1]), 49.0)  # 最后一帧是新的，不是冻住的
     assert np.isclose(float(fig.store.get("t").values[-1]), 49.0)

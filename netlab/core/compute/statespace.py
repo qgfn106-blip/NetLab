@@ -36,15 +36,9 @@ def state_space_specs() -> list[ParamSpec]:
         matrix_param(
             "B", "输入矩阵 B", [[0.0], [1.0]], help="n×m，描述输入如何驱动状态"
         ),
-        matrix_param(
-            "C", "输出矩阵 C", [[1.0, 0.0]], help="p×n，描述由状态读取输出"
-        ),
-        matrix_param(
-            "D", "直通矩阵 D", [[0.0]], help="p×m，描述输入到输出的直通项"
-        ),
-        choice_param(
-            "method", "离散化方法", "zoh", DISCRETIZATION_METHODS
-        ),
+        matrix_param("C", "输出矩阵 C", [[1.0, 0.0]], help="p×n，描述由状态读取输出"),
+        matrix_param("D", "直通矩阵 D", [[0.0]], help="p×m，描述输入到输出的直通项"),
+        choice_param("method", "离散化方法", "zoh", DISCRETIZATION_METHODS),
         json_param(
             "input_map",
             "输入映射",
@@ -96,7 +90,10 @@ class StateSpaceModel:
             raise ComputeError("D 矩阵形状必须是 p×m，与 C、B 匹配")
         if m > 6 or p > 6:
             raise ComputeError("输入/输出维数不能超过 6")
-        if np.max(np.abs(np.concatenate([a.ravel(), b.ravel(), c.ravel(), d.ravel()]))) > 1.0e9:
+        if (
+            np.max(np.abs(np.concatenate([a.ravel(), b.ravel(), c.ravel(), d.ravel()])))
+            > 1.0e9
+        ):
             raise ComputeError("状态空间矩阵数值过大，请先做归一化")
 
         method = str(params.get("method", "zoh"))
@@ -139,9 +136,7 @@ class StateSpaceModel:
             raise ComputeError("dt 必须为正数")
         key = (float(dt), self.method)
         if self._cache_key != key or self._cache is None:
-            self._cache = cont2discrete(
-                self.a, self.b, self.c, self.d, dt, self.method
-            )
+            self._cache = cont2discrete(self.a, self.b, self.c, self.d, dt, self.method)
             self._cache_key = key
         return self._cache
 
@@ -156,9 +151,7 @@ class StateSpaceModel:
             if payload is None:
                 values.append(0.0)
                 continue
-            values.append(
-                read_numeric(payload, field_name, source=connection)
-            )
+            values.append(read_numeric(payload, field_name, source=connection))
         return np.asarray(values, dtype=float)
 
     def state_from(self, state: dict[str, Any]) -> np.ndarray:
@@ -178,9 +171,7 @@ class StateSpaceModel:
         ad, bd, cd, dd = self.discretized(dt)
         x = self.state_from(state)
         if u.size != self.b.shape[1]:
-            raise ComputeError(
-                f"输入维数不匹配：模型需要 {self.b.shape[1]} 个输入"
-            )
+            raise ComputeError(f"输入维数不匹配：模型需要 {self.b.shape[1]} 个输入")
         y = cd @ x + dd @ u
         x_next = ad @ x + bd @ u
         if not np.all(np.isfinite(x_next)) or not np.all(np.isfinite(y)):
@@ -189,15 +180,15 @@ class StateSpaceModel:
         return y, x_next
 
     def describe(self) -> dict[str, Any]:
-        ad, _bd, _cd, _dd = self.discretized(1.0) if self._cache is None else self._cache
+        ad, _bd, _cd, _dd = (
+            self.discretized(1.0) if self._cache is None else self._cache
+        )
         return {
             "states": int(self.a.shape[0]),
             "inputs": int(self.b.shape[1]),
             "outputs": int(self.c.shape[0]),
             "method": self.method,
-            "spectral_radius": float(
-                np.max(np.abs(np.linalg.eigvals(ad)))
-            )
-            if ad.size
-            else 0.0,
+            "spectral_radius": (
+                float(np.max(np.abs(np.linalg.eigvals(ad)))) if ad.size else 0.0
+            ),
         }

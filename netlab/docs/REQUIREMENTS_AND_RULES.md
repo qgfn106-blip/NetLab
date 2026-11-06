@@ -454,7 +454,7 @@
 - **不做什么**：不迁 PlotKit、不做三维原生、不重写 web 前端、不改求解器/工程格式/checksum、不引入 QML / pyqtgraph / VTK。
 - **验收**：见 `QT_NATIVE_SPEC.md`（已删除，原文见 git 历史）§8 的 A1–A25 与 §9 的 20 项交互清单。关键数字：启动 ≤1.5 s、常驻 ≤350 MB（未开 PlotKit）、未开 PlotKit 时无 `QtWebEngineProcess`、像素 diff <1%、正常运行不监听 TCP 端口、现有 pytest 全绿且只增不减。
 - **权重·期次**：⭐⭐⭐ / P0–P5（2026-11-02 实现完成，A4 已实机验证；待人工复验 A5/A13/A14/A18/A21）
-- **现状**：**已撤回（D78）**。`netlab/ui/` 与 `start_native.bat` 已于 2026-11-02 整体备份到 Git 分支 `backup/qt-native-2026-11-02`（标签 `qt-native-2026-11-02`）后从工作树删除，界面回到 web（`netlab/static`）。R33 状态改为「已实现但按用户决定撤回」，规格原文见 git 历史（`QT_NATIVE_SPEC.md` 已删除）。
+- **现状**：**已撤回（D78）**。`netlab/ui/` 与 `start_native.bat` 已于 2026-11-02 整体备份到 Git 分支 `backup/qt-native-2026-11-02`（标签 `qt-native-2026-11-02`）后从工作树删除，界面回到 web（`frontend/`，同日 D79 从 `netlab/static` 移出，前后端分目录）。R33 状态改为「已实现但按用户决定撤回」，规格原文见 git 历史（`QT_NATIVE_SPEC.md` 已删除）。
 
 ### R34 s 域传递函数节点与分析（Simulink 式）
 
@@ -1375,7 +1375,7 @@ MOSFET。
 
 | # | 主题 | 结论 |
 | --- | --- | --- |
-| D100 | 运行时形态 | TS 仅开发期编译，产物 `.js` 提交并随包发布，运行时纯 `.js` + `<script>` 经典脚本、零构建 / 零第三方运行时 / 离线；不引入打包器（webpack/vite/esbuild 等）。 |
+| D100 | 运行时形态 | TS 仅开发期编译，产物 `.js` 提交并随包发布，运行时纯 `.js`、零构建 / 零第三方运行时 / 离线；原「不引入打包器（webpack/vite/esbuild）」的绝对表述由 D119 修订（允许开发期 esbuild 构建，运行时仍零构建）。 |
 | D101 | 分期 | 一期 P16 只加类型（`.js→.ts` 1:1，结构/行为零变化）；二期 P17 模块化（ESM/拆文件/纯函数单测）已完成 2026-11-06。 |
 | D102 | 范围 | 纳入 netlab `app.js`+`desktop-shim.js`、PlotKit 四静态文件、vscode 扩展 `extension.js`；排除 `netlab/tools/*.mjs`、`vendor/iro.min.js`。 |
 | D103 | 严格度（棘轮） | tsconfig 直接开全套 strict；极少数文件可显式临时豁免（每条挂 TODO + 登记清单）；一期收尾门禁=豁免清零、`tsc --strict` 全绿。 |
@@ -1394,3 +1394,4 @@ MOSFET。
 | D116 | P17 兼容与回归 | 模块化后必须过：`tsc` 0、现有 parity 脚本全等价、`pytest` 全绿、`tools/gui_smoke.py` 与基线 drift=false、PlotKit→vendor 重装后 netlab 冒烟一致。 |
 | D117 | P17 灰度/回滚 | 按 P17.1–P17.4 小步推进，每步独立提交；任一步回归失败即回滚该步，不连带后续。 |
 | D118 | 数学成果接入 | 第一波 = P1 稀疏排序评测 + P3 AC 扫频双参数仿射族 Woodbury + P5 遥测只读诊断层；统一影子模式 `NETLAB_MATH_ACCEL=off|shadow|on`（默认 off），新旧对拍相对误差 <1e-10 + 双路计时；P3 门控 `r/n≤0.10` 启用、`≤0.25` 仅 shadow、`>0.25` 直接解；分支 `feat/math-accel-shadow` 从 main 开；M0 原型保留，M1a/M1b/M1c 顺序推进。 |
+| D119 | 构建策略（B 方案，2026-11-06） | 引入**开发期**构建：用 `esbuild` 将 `.ts` 编译/打包为**提交的 `.js` 产物**（netlab `npm run build`；PlotKit `npm run build`），并加 `package-lock.json`、`.nvmrc`、CI `git diff --exit-code` 漂移守卫；运行时仍纯 `.js`、零构建、零第三方运行时、离线。此条修订 D100「不引入任何打包器（含 esbuild）」的绝对表述——esbuild 仅开发期、不进运行时。 |

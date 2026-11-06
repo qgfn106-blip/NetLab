@@ -1,5 +1,7 @@
 # Netlab 扩展指南
 
+> 最后更新：2026-11-06
+
 > 配套文档：[ARCHITECTURE.md](ARCHITECTURE.md)（分层、运行时序、数据模型）
 > 新能力优先使用插件包：[EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md)（插件 API、manifest、UI/数据/引擎扩展）
 > 本文所有代码都按现有接口编写，可直接粘贴；示例的插入位置、测试写法、检查清单一并给出。
@@ -35,7 +37,7 @@
 ### 1.1 放哪里
 
 - 想成为内置类型：写在 `computes.py` 的“对外接口”之前，紧挨同类实现。
-- 想保持独立：新建模块后 `from netlab.computes import ComputeSpec, register`，但要注意**必须被导入**才会注册（`netlab/server.py` 启动时导入 `computes`；你的模块需要在某处 import，例如 `netlab/__init__.py`）。
+- 想保持独立：新建模块后 `from netlab.core.compute.computes import ComputeSpec, register`，但要注意**必须被导入**才会注册（`netlab/server.py` 启动时导入 `computes`；你的模块需要在某处 import，例如 `netlab/__init__.py`）。
 - 不要改 `ComputeContext` 的字段；它已经包含 `name/inputs/data/state/params/dt/time`。
 
 ### 1.2 示例：速率限制器 `rate_limiter`
@@ -549,7 +551,7 @@ if (type === 'color') {
 - [ ] `to_dict` 带上前端需要的字段（`choices/min/max/step/placeholder`）
 - [ ] `buildParamField` 与 `collectParamValues` 都处理了
 - [ ] 有校验测试（合法值、非法值、默认值）
-- [ ] 更新 `docs/ARCHITECTURE.md` 第 8.4 节的类型表（可选但推荐）
+- [ ] 更新 `ARCHITECTURE.md` 第 8.4 节的类型表（可选但推荐）
 
 ---
 
@@ -849,7 +851,7 @@ python -m pytest tests -q -x
 | JSON | 不返回 numpy/自定义对象；字符串长度、数组大小在上限内 |
 | 前端 | 若新增参数类型/模式/面板，前后端两处都改了；仍用 `textContent` |
 | 测试 | 单元 + 场景/API 至少各一条；全量测试通过 |
-| 文档 | 更新 `docs/ARCHITECTURE.md` 的类型表/模块表；必要时加 README 说明 |
+| 文档 | 更新 `ARCHITECTURE.md` 的类型表/模块表；必要时加 README 说明 |
 
 ---
 

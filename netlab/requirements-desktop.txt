@@ -1,2 +1,6 @@
 # Netlab 桌面版可选依赖（不影响浏览器模式）
+# 当前桌面壳：pywebview + WebView2（Windows 需要 pythonnet/clr 才能驱动 WebView2）
+pywebview>=4.0
+pythonnet>=3.0
+# 旧 Qt WebEngine 壳（--qt 可选，已不是默认；Qt 原生界面已于 2026-11-02 撤回）
 PySide6>=6.6,<7.0

@@ -1,6 +1,6 @@
 # VS Code 集成（内嵌完整 IDE）
 
-> 2026-11-02 实现。在 netlab HTML UI 内以浮窗承载完整 VS Code Web（终端 / 扩展 / 调试可用）。
+> 最后更新：2026-11-06（独立窗口 detach 已移除）。2026-11-02 实现：在 netlab HTML UI 内以浮窗承载完整 VS Code Web（终端 / 扩展 / 调试可用）。
 > 采用 **官方 `code serve-web` 服务器 + 直接跨源 iframe**，不使用 code-server、不做反向代理。
 
 ## 1. 架构
@@ -13,8 +13,7 @@ netlab 页面 (http://127.0.0.1:<netlabPort>/)
 
 - **后端** `netlab/vscode_bridge.py`：按需拉起 / 复用 VS Code Server 子进程。
 - **路由** `netlab/server.py`：`GET /api/vscode/status?start=1` 返回 `{available, running, url, port, error}`。
-- **前端** `frontend/index.html`（`#vscodeWin`）、`style.css`（`.vscode-*`）、`app.js`（`openVscode/ensureVscodeFrame/closeVscode/openVscodeWindow`，菜单「工具 → 代码工作区（VS Code）」及「代码工作区（独立窗口）」）。
-- **独立窗口外壳** `frontend/code-host.html`：复用 netlab 页眉的 slim 外壳页，整屏 iframe 承载 VS Code（见 §6）。
+- **前端** `frontend/index.html`（`#vscodeWin` 浮窗 + `#vscodeFrame` iframe）、`style.css`（`.vscode-*`）、`app.js`（`openVscode/ensureVscodeFrame/closeVscode`，菜单「工具 → 代码工作区（VS Code）」）。
 
 **为什么直接 iframe 而不反代**：workbench 页面实测无 `X-Frame-Options`、无 CSP `frame-ancestors`；且页面资源与 WebSocket 都指向 VS Code Server 自身 origin，自洽同源。反代只会增加 HTTP 流式响应 + WS 双向转发的复杂度，没有收益。
 
@@ -63,7 +62,6 @@ node.exe out/server-main.js --host 127.0.0.1 --port <8790 优先，占用才随�
 2. 浮窗打开，状态条显示「正在启动 VS Code Server…」，首次启动约 1–3s
 3. 加载完成即得到完整 VS Code（左侧 Explorer 指向 `NETLAB_VSCODE_FOLDER`，终端 / 扩展 / 调试可用）
 4. 浮窗支持拖动、双击标题最大化、右下角缩放、关闭
-5. 需要独立窗口时：点浮窗标题栏的 **⧉（在独立窗口中打开）**，或菜单 **工具 → 代码工作区（独立窗口）**
 
 ## 4. 性能（实测，2026-11-02）
 
@@ -83,22 +81,9 @@ node.exe out/server-main.js --host 127.0.0.1 --port <8790 优先，占用才随�
 - 视觉：Edge CDP 截图（真实加载 + 真实点菜单）见
   `NetlabExtras/scratch/shots/vscode_cdp.png`、`netlab_vscode_embed.png`、`netlab_vscode_menu.png`
 
-## 6. 独立窗口（detach）
+## 6. 独立窗口（detach）——已移除
 
-把 VS Code 从浮窗升级成一个**独立原生窗口**，但仍复用 netlab 的页眉外壳。
-
-```
-netlab 页面 ──(点 ⧉ / 菜单)──▶  pywebview.create_window(新建原生窗口)
-                                     └─ url = /static/code-host.html?vscode=<vscodeUrl>
-                                              └─ #topbar（NETLAB 页眉）+ iframe ──▶ VS Code
-```
-
-- **前端** `app.js`：`openVscodeWindow()` —— 先取 `/api/vscode/status?start=1` 拿 `url`，拼 `href = /static/code-host.html?vscode=<encodeURIComponent(url)>`；桌面壳里调 `window.pywebview.api.open_vscode_window(href)`，纯浏览器里退回 `window.open(href)`。入口：①浮窗标题栏 `⧉` 按钮 `#vscodeWinPopout`；②菜单「工具 → 代码工作区（独立窗口）」。
-- **桌面壳** `netlab/desktop/webview_bridge.py`：新增 `WebviewBridge.open_vscode_window(href)`，用 `self.url` 作 base 把相对路径拼成绝对地址，再 `webview.create_window("Netlab · 代码", target, js_api=_CodeWindowApi(), width=1280, height=860, min_size=(720,520))`。pywebview 在 `start()` 之后从 js_api 回调线程调用 `create_window` 会立即建窗（见 pywebview 源码 `create_window` 尾部：非 MainThread 且 guilib 就绪 → `guilib.create_window`）。
-- **子窗口桥** `_CodeWindowApi`：只暴露 `close()`（销毁本窗口）与 `focus_main()`（`restore()` 主窗口），供外壳页的「关闭 / 回到工作台」按钮调用。
-- **外壳页** `frontend/code-host.html`：复用 `#topbar` + `.brand` 样式（同一 `style.css`）；`?vscode=` 指定 VS Code 地址；`刷新` 重载 iframe，`关闭` 调 `pywebview.api.close()`，`回到工作台` 调 `focus_main()` 后关窗；非桌面环境 `window.close()` 兜底。
-
-**验证（浏览器路径，Edge CDP）**：点击「代码工作区（独立窗口）」菜单项 → `window.open` 捕获到 `href = /static/code-host.html?vscode=http%3A%2F%2F127.0.0.1%3A8790%2Fcode%2F`（编码正确）；直接打开该页 → 页眉（NETLAB 代码 · 独立工作区）+ 完整 VS Code workbench 渲染。截图 `NetlabExtras/scratch/shots/code_host_detach.png`。pywebview 原生建窗路径用假 `create_window` 单测过（URL join、js_api、close 均正确），**真机桌面壳待实跑一次**。
+> 2026-11-02 曾实现「独立原生窗口」变体（`frontend/code-host.html`、`app.js` 的 `openVscodeWindow()`、`webview_bridge.open_vscode_window()` / `_CodeWindowApi`、浮窗标题栏 `⧉` 按钮 `#vscodeWinPopout`、菜单「工具 → 代码工作区（独立窗口）」）。该功能已在后续版本整体撤回：现仅保留页面内浮窗 `#vscodeWin` + `#vscodeFrame`（见 §1 / §3），不再有独立窗口、`code-host.html` 或 `open_vscode_window`。此节仅作历史记录，不代表当前实现。
 
 ## 7. 侧边栏扩展（骨架）
 
@@ -135,6 +120,5 @@ node.exe out/server-main.js --install-extension <repo>/vscode-extensions/netlab-
 - **中文语言包乱码**：中文 Windows 下 workbench 会自动安装 `ms-ceintl.vscode-language-pack-zh-hans`；若网络/代理导致下载不完整，会出现「串词」乱码（语言包版本与 server 版本不匹配）。规避：删掉 `~/.vscode-server/extensions/ms-ceintl.vscode-language-pack-zh-hans-*` 后按英文使用；后续可打包匹配版本的语言包或强制 `locale=en`。
 - **打包**：当前 server 目录位于 `NetlabExtras/`，随仓库分发体积约 614MB；正式发布需决定是否随包、或首启按需下载（zip 在 `NetlabExtras/scratch/vscode-server-win/vscode-server-win32-x64-web.zip`，207MB）。
 - 固定端口 8790（`NETLAB_VSCODE_PORT` 可改）；同一 `~/.vscode-server` 被多实例共享，扩展目录可能竞争（低概率）。
-- 资源版本号已从 `?v=3.15.6` 升到 `?v=3.15.9`（style.css / app.js）。
-- 独立窗口：真机 pywebview 桌面壳需实跑确认（浏览器路径已 CDP 验证；原生建窗逻辑单测过）。
+- 资源版本号当前为 `?v=3.20.1`（style.css / app.js）。
 - 侧栏内容仍是骨架：`一键插件` 的 `示例动作` 是占位；后续在 `extension.js` 的 `registerCommand` 里补真实动作。

@@ -1,6 +1,6 @@
 # Netlab Agent 指南（开工第一步）
 
-> 最后修改：2026-11-04 14:23（§5 测试数 497；§7.60 导入优先级与多工作树）
+> 最后修改：2026-11-06（§5 测试数 589；§7.60 导入优先级与多工作树）
 > 这份文档只回答四件事：**开工先问什么、去哪找东西、哪些文档说了算、发现冲突怎么改**。
 > 需求正文、架构细节、踩坑记录都不在这里复制——只给指针（单一事实来源）。
 > 适用于任何 agent 会话，不论模型与窗口；读完 §1 就可以开始干活。
@@ -9,9 +9,9 @@
 
 ## 1. 开工三问（先答完，再动手）
 
-1. **这条需求是第几号？** 在 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) §3 找到 `R01–R35` 里对应那条，读它的「原话 / 解读 / 验收 / 现状」。
+1. **这条需求是第几号？** 在 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) §3 找到 `R01–R43` 里对应那条，读它的「原话 / 解读 / 验收 / 现状」。
 2. **当前阶段是什么？** 读 [PROGRESS.md](PROGRESS.md) 头部表格（阶段 + 测试数 + 备份位置）与 §7（P0–P6 进度）。
-3. **这个决定定过没有？** 在 REQUIREMENTS §2 的 `D1–D91` 台账里搜关键词；定过就照台账做，不要再自己拍。
+3. **这个决定定过没有？** 在 REQUIREMENTS §2 的 `D1–D118` 台账里搜关键词；定过就照台账做，不要再自己拍。
 
 **完成判据**：你能说出「R 编号 + P 期次 + 相关 D 编号 + 现状里哪几条是已核实事实」。说不出来就别改代码。
 
@@ -50,7 +50,7 @@
 | 改前端面板、画布、交互 | [UI_SPEC.md](UI_SPEC.md) | CHEATSHEET §6、ARCHITECTURE §11；电路图先读 [SCHEMATIC_DRAWING_SPEC.md](SCHEMATIC_DRAWING_SPEC.md) 与 [GLOSSARY.md](GLOSSARY.md) |
 | 改前端 **API 请求 / 数据面板 / 鉴权相关** | 本文 §1.1 契约红线 | [LESSONS.md](LESSONS.md) 末节「PlotKit 桌面 token 误报」、`netlab/tests/test_plotkit_frontend_auth.py` |
 | 改**原生界面**（Qt Widgets） | 已于 2026-11-02（D78）整体移除，仅作历史（`QT_NATIVE_SPEC.md` 已删除，原文见 git 历史） |
-| 想知道**现在要做什么、还差什么** | [BACKLOG.md](BACKLOG.md) | `.scratch/netlab-qt/issues/01–15`、`netlab/ui/` 各模块 docstring |
+| 想知道**现在要做什么、还差什么** | [BACKLOG.md](BACKLOG.md) | [PROGRESS.md](PROGRESS.md) §7、各核心模块 docstring（`netlab/ui/` 已随 D78 删除） |
 | 改工程文件、校验和、目录 | CHEATSHEET §8 | [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) R01/R16、`netlab/core/model/project.py` |
 | 改桌面外壳、bat 启动 | CHEATSHEET §9 | `netlab/desktop/*`、[LESSONS.md](LESSONS.md)「bat 三坑」 |
 | 改扩展系统（Python 自定义） | CHEATSHEET §10 | EXTENDING、LESSONS §5（handler 语义坑） |
@@ -68,7 +68,7 @@ grep -n "^### R" REQUIREMENTS_AND_RULES.md      # 定位需求条目
 grep -n "| D[0-9]" REQUIREMENTS_AND_RULES.md    # 定位决策
 grep -n "^### P[0-9]" REQUIREMENTS_AND_RULES.md # 定位分期
 grep -n "^## " PROGRESS.md                      # 定位进度章节
-grep -n "^   \* [0-9]" ../static/app.js         # 定位前端分区
+grep -n "^   \* [0-9]" ../frontend/app.js         # 定位前端分区
 ```
 
 ---
@@ -109,7 +109,7 @@ grep -n "^   \* [0-9]" ../static/app.js         # 定位前端分区
 
 ### 4.2 检查清单（逐条过，每条给结论：一致 / 已改 / 待确认）
 
-1. 新增内容是否与 `D1–D91` 台账里已有决定冲突？
+1. 新增内容是否与 `D1–D118` 台账里已有决定冲突？
 2. 是否落进 §6「不做清单」？（落进去就停，先问）
 3. 是否与 PROGRESS 里已核实的事实冲突（测试数、已完成能力）？
 4. 是否与代码实际行为冲突？（以代码为准，改文档；若代码错，登记到 PROGRESS §7 的待办，而不是直接改需求）
@@ -137,12 +137,12 @@ grep -n "^   \* [0-9]" ../static/app.js         # 定位前端分区
 
 ```bash
 cd NetlabHome                            # 仓库根是 ProjectPoint/，但运行根是 NetlabHome/
-python -m pytest netlab/tests -q          # 数量只增不减（当前 497，2026-11-04 14:20）
+python -m pytest netlab/tests -q          # 数量只增不减（当前 589，2026-11-06）
 python -m compileall -q netlab
 python -m netlab.desktop --selftest       # 期望 status 200 / shim_injected true
 ```
 
-> `Windows fatal exception: code 0xc0000139` 已于 2026-11-04 定位并消除：本机 `gmpy2 2.2.1` 的 DLL 入口缺失（`python -c "import gmpy2"` 直接 ImportError），sympy/mpmath 在测试线程懒加载时触发；卸载 gmpy2 后全量 497 passed、0 次异常、退出码 0。换机复现时先单查 `import gmpy2`，修复或卸载坏包，不要靠忽略日志。
+> `Windows fatal exception: code 0xc0000139` 已于 2026-11-04 定位并消除：本机 `gmpy2 2.2.1` 的 DLL 入口缺失（`python -c "import gmpy2"` 直接 ImportError），sympy/mpmath 在测试线程懒加载时触发；卸载 gmpy2 后全量 589 passed、0 次异常、退出码 0。换机复现时先单查 `import gmpy2`，修复或卸载坏包，不要靠忽略日志。
 
 然后：更新 PROGRESS §7 状态列（附证据）→ REQUIREMENTS §9 加一行 → 复制变更文件到 `NetlabExtras/backups/ProjectPoint_backups/<name>_<时间戳>/` + `MANIFEST.sha256` → 修改过的文档顶部加「最后修改：日期 时间」（时间用 `date '+%Y-%m-%d %H:%M'` 取，不要估算）→ 简报（含耗时）。
 
@@ -172,7 +172,7 @@ python -m netlab.desktop --selftest       # 期望 status 200 / shim_injected tr
 | 模块 | 封装成可复用功能节点的子网络（`*.block`） | 功能块节点 |
 | 占位块 | 库文件缺失时的降级替身，带标记 | default 模板 |
 | 口径 | 需求与决策的唯一表述来源 | — |
-| 台账 | REQUIREMENTS §2 的 D1–D91 决策表 | — |
+| 台账 | REQUIREMENTS §2 的 D1–D118 决策表 | — |
 | 闸门 | 每期做完必须停下的批准点 | — |
 | 票号 | `P<期>-<序号>`（如 P1-03）；正文括号里的 `R**` 才是需求编号，两者不可混用 | — |
 

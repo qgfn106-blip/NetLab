@@ -1,6 +1,6 @@
 # 电路模块化：怎么封装、怎么用
 
-> 适配版本：静态 3.14.4（2026-10-30）。配套代码 `netlab/core/compute/circuit_modules.py`、`frontend/app.js`（模块库 / 模块内部浮窗段）。
+> 适配版本：静态 3.20.1（2026-11-06）。配套代码 `netlab/core/compute/circuit_modules.py`、`frontend/app.ts`（模块库 / 模块内部浮窗段，esbuild 编译为 app.js）。
 
 ## 0. 先说这次的「节点不存在」
 
@@ -108,7 +108,7 @@
 
 ## 4.1 修复什么时候生效（重要）
 
-后端（Python）改动**必须重启应用**才加载；前端（`app.js` / `style.css`）改完刷新页面（Ctrl+F5）就生效。
+后端（Python）改动**必须重启应用**才加载；前端（`app.ts` 等 TS 源经 esbuild 构建为 `app.js`，以及 `style.css`）改完重新构建并刷新页面（Ctrl+F5）就生效。
 
 这次涉及的封装修复、库按名字存盘、改名/删除、以及「保存时报需要一个库路径」的修复，**全都在后端**，所以要做到两件事：
 
@@ -132,6 +132,6 @@
 
 ## 6. 验证与文件
 
-- 单测：`netlab/tests/test_circuit_modules.py` —— 17 条（含边界分组合并端口、过期节点提示、旧模型器件边入模块、跨边界拒绝四条回归）；全库 `python -m pytest -q` → **343 passed**。
+- 单测：`netlab/tests/test_circuit_modules.py` —— 17 条（含边界分组合并端口、过期节点提示、旧模型器件边入模块、跨边界拒绝四条回归）；全库 `python -m pytest -q` → **589 passed**。
 - 验收脚本：`NetlabExtras/scratch/verify_p706.mjs`（引脚/封装/实例化/展平）、`verify_p707.mjs`（内部浮窗）、`verify_p708.mjs`（等价性）。
 - 相关文档：`UI_SPEC.md` §5.7（封装入口与端口）、§5.8（模块内部浮窗）；`REQUIREMENTS_AND_RULES.md` D49/D50/D51、R24；`PROGRESS.md` §7.21–§7.24。

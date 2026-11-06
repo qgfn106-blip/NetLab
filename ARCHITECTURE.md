@@ -1,5 +1,7 @@
 # Netlab 架构
 
+> 最后更新：2026-11-06
+
 > 读完这份文档，你应该能回答：**代码分成哪几层、各自在哪个目录**、**一次仿真步怎么走完**、**数据从画布到求解器再回到曲线经过了谁**、**想加功能该动哪里**。
 
 ## 0. 一句话
@@ -12,9 +14,10 @@ Netlab 是**单进程**应用：一个 Python 后端（FastAPI 服务 + 常驻�
 
 ```
 NetlabHome/
-├─ frontend/                  ← 前端（浏览器里跑，纯静态、无构建）
+├─ frontend/                  ← 前端（浏览器里跑；源码 TypeScript 经 esbuild 编译为提交的 .js）
 │   ├─ index.html             页面骨架
-│   ├─ app.js                 全部交互与 Canvas 2D 绘制（单文件）
+│   ├─ app.ts                 前端 TypeScript 源（esbuild → app.js）
+│   ├─ app.js                 全部交互与 Canvas 2D 绘制（单文件，编译产物）
 │   ├─ style.css              主题与布局
 │   └─ desktop-shim.js        桌面壳注入（无边框窗口按钮等）
 │
@@ -32,7 +35,7 @@ NetlabHome/
     └─ docs/                  规格、进度、经验、数学与代码导读
 ```
 
-> 包根只有真正的入口与适配模块：`__init__.py`、`server.py`、`run.py`、`plotkit_bridge.py`、`plotkit_vendor.py`、`vscode_bridge.py`、`desktop/`、`core/`。**没有历史转发 shim**（D85 已清空并改写全部引用）。
+> 包根只有真正的入口与适配模块：`__init__.py`、`server.py`、`run.py`、`plotkit_bridge.py`、`plotkit_vendor.py`、`vscode_bridge.py`、`cache_guard.py`、`desktop/`、`core/`。**没有历史转发 shim**（D85 已清空并改写全部引用）。
 
 > 说明：后端目录就是 `netlab/`（Python 包名必须叫 `netlab`，`python -m netlab.*` 才能工作，所以不再套一层 `backend/`）。前端与后端已经是两个平级目录，互不混淆。
 
@@ -182,7 +185,7 @@ FastAPI 的逐字段编码；前端 `drawChart` 二分定位时间窗并按像�
 
 ## 7. 前端（`frontend/`）
 
-无构建步骤：`index.html` 加载 `app.js` 与 `style.css`。
+运行期无需构建：`index.html` 直接加载编译产物 `app.js` 与 `style.css`；前端源码为 TypeScript（`app.ts` / `app.utils.ts`），由本地 esbuild 预编译（`frontend/package.json`）。
 
 - 画布用 Canvas 2D 绘制节点/连线/网格，支持缩放、平移、框选、正交连线。
 - 参数面板由 `/api/catalog` 描述数据动态生成，前端不硬编码元件字段。

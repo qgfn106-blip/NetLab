@@ -1,6 +1,6 @@
 # Netlab UI 规范（设计语言 · 接口 · 框架）
 
-> 最后修改：2026-10-28 23:40
+> 最后修改：2026-11-06
 >
 > 本文是 UI 的唯一实现口径，覆盖 R30 / P10 的 6 张票（UI-01…UI-06）。
 > 需求口径仍以 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) R14、R30、D60、D61 为准；
@@ -10,14 +10,14 @@
 
 | 文件 | 作用 | 规模 |
 | --- | --- | --- |
-| `frontend/index.html` | 唯一页面外壳：顶栏、菜单栏 + 信息条、网络栏、工具栏、画布、右栏、状态栏、设置窗、引导页、文档窗、qcard、toast、modal | 约 330 行 |
-| `frontend/style.css` | 设计令牌 + 全部样式 + 主题/动效/性能档覆盖 + 新组件 | 约 1940 行 |
-| `frontend/app.js` | 单 IIFE 前端应用；R30 新模块追加在文件末尾（`boot();` 之前） | 约 11200 行 |
+| `frontend/index.html` | 唯一页面外壳：顶栏、菜单栏 + 信息条、网络栏、工具栏、画布、右栏、状态栏、设置窗、引导页、文档窗、qcard、toast、modal | 约 600 行 |
+| `frontend/style.css` | 设计令牌 + 全部样式 + 主题/动效/性能档覆盖 + 新组件 | 约 2168 行 |
+| `frontend/app.js` | 单 IIFE 前端应用（由 `app.ts` 编译产物）；R30 新模块追加在文件末尾（`boot();` 之前） | 约 13592 行 |
 | `netlab/docs/user/*.md` | 应用内文档中心的 5 篇用户向文档（离线、打包随源码） | 5 篇 |
 | `netlab/server.py` | `GET /api/docs`、`GET /api/docs/{slug}` | — |
 | `netlab/core/model/workspace.py` | 外观偏好设置键与校验 | — |
 
-前端无构建步骤、无 npm 依赖、无框架；改完直接刷新即可（见 §17 版本与缓存）。
+前端源码为 TypeScript（`frontend/app.ts` / `app.utils.ts`），用本地 esbuild 编译为已提交的 `app.js` / `app.utils.js`（`npm run build`，见 `frontend/package.json`）；运行期服务端直接托管编译产物，无需在线构建。无第三方框架；改 `.js` 直接刷新即可，改 `.ts` 需先 build（见 §17 版本与缓存）。
 
 ## 2. 设计语言
 
@@ -417,7 +417,7 @@ applyAppearance(): 写 html[data-theme|data-motion|data-perf]
 - 在 CSS 里写 hex（除令牌表）；在 Canvas 里写死颜色；
 - 新开第二套菜单/信息条/状态提示数据源（三处同步是既有坑）；
 - 在 `boot()` 里直接 `run`；任何模式启动必须停止；
-- 引入前端构建链或第三方 CDN（离线要求）；
+- 引入运行时第三方 CDN（离线要求）；前端构建仅限本地 esbuild/tsc（见 `frontend/package.json`）；
 - 在引导页里点「先看文档」时调用 `hideGuide()`（会退出开始页；文档窗应浮在引导层之上，关闭文档回到开始页）；
 - 把 `.hanger` 放到 `<main>` 之外——它依赖 `main` 上的 `--panel-w` / `--net-w`；
 - 给 `#menubar` 或外壳块加 `overflow: hidden`——菜单面板绝对定位于 `.menu` 内，会被整体裁掉；控宽请用 `min-width: 0` + `.info-bar { overflow: hidden }`（3.9.5 踩坑）。
@@ -427,16 +427,17 @@ applyAppearance(): 写 html[data-theme|data-motion|data-perf]
 三处静态资源引用必须同步 bump（`?v=`）：
 
 - `index.html` 的 `<link rel="stylesheet" href="/static/style.css?v=…">`
-- `index.html` 的 `<script src="/static/app.js?v=…">`
-- 当前版本 **3.9.9**
+- `index.html` 的 `<script src="/static/vendor/iro.min.js?v=…">`
+- `index.html` 的 `<script type="module" src="/static/app.js?v=…">`
+- 当前版本 **3.20.1**
 
-改前端后：改两处 `?v=` → 强刷或重开桌面应用。后端/文档改动不需要 bump。
+改前端后：改三处 `?v=` → 强刷或重开桌面应用。后端/文档改动不需要 bump。
 
 ## 18. 验证命令
 
 ```bash
 cd NetlabHome
-python -m pytest netlab/tests -q              # 当前 323 passed
+python -m pytest netlab/tests -q              # 当前 589 passed
 python -m compileall -q netlab
 python -m netlab.desktop --selftest           # backend + qt + ok:true
 node --check frontend/app.js

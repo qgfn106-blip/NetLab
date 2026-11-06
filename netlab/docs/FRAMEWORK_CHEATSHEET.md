@@ -1,10 +1,10 @@
 # Netlab 框架速查表（读完这份就不用再通读代码）
 
 
-> 最后修改：2026-11-05 14:40（R31 P11-01…P11-07：跨域桥、abc_dq/PLL/PI、开关级示例与中断）
+> 最后修改：2026-11-06（§0 一分钟事实已校准：netlab 3.20.1、TypeScript+esbuild 前端、pywebview 桌面壳、589 passed、R01–R43/D1–D118；§1 之后的模块行数/符号为 2026-10-25 快照，以代码为准）
 > 用途：每次新开窗口/新任务时先读这份，**不要**重新扫一遍全部源码。
 > 需要细节时再按文末「文档导航」跳转对应文档。
-> 本文件记录的都是 2026-10-25 实测过的内容；与代码冲突时以代码为准，并回来更新本文件。
+> 与代码冲突时以代码为准，并回来更新本文件。
 
 ---
 
@@ -13,12 +13,12 @@
 | 项 | 值 |
 | --- | --- |
 | 项目根 | `E:\Python\MyPython\ProjectPoint`（包在 `netlab/`） |
-| 语言/栈 | Python 3.13 + FastAPI/uvicorn + NumPy/SciPy + 原生 JS 前端 + 可选 PyQt6 桌面外壳 |
+| 语言/栈 | Python 3.13 + FastAPI/uvicorn + NumPy/SciPy + TypeScript 前端（esbuild 构建为 JS）+ pywebview/WebView2 桌面外壳 |
 | 启动 | `python netlab/run.py --port 8010 --no-browser`；桌面 `python -m netlab.desktop` |
-| 前端 | `frontend/{index.html,app.js,style.css}`（无构建步骤，改完刷新即可，注意 bump `?v=`） |
-| 测试 | `python -m pytest netlab/tests -q` → **356 passed, 3 skipped**（2026-11-01） |
-| 版本控制 | 本目录是 git 仓库（`NetlabHome/` 为根）；`.gitignore` 排除 `netlab/tests/`、`netlab/docs/`、`netlab/tools/`，证据仍以 PROGRESS 为准；改动前另做本地备份 |
-| 当前阶段 | 以 PROGRESS 头部为准：P1–P4 主体、P7 多数、R26/R27/R29/R30/R32 已完成；2026-11-01 完成 D7 降级只读、R16/D2 多网络保存、D48 预计算上限、P7-06 封装合并与节点校验加固 |
+| 前端 | `frontend/`：`app.ts`/`app.utils.ts`/`desktop-shim.ts` 源 + `index.html`/`style.css`；`npm run build`（esbuild）生成 `app.js` 等产物，改完构建并刷新，注意 bump `?v=` |
+| 测试 | `python -m pytest netlab/tests -q` → **589 passed, 1 skipped**（2026-11-06） |
+| 版本控制 | 本目录是 git 仓库（`NetlabHome/` 为根）；测试与文档**随仓库跟踪**（可复现性），`.gitignore` 仅排除运行期/个人产物（MyProject、netlab/tools、NetlabExtras、node_modules、build、dist 等）；证据以 PROGRESS 为准 |
+| 当前阶段 | 以 PROGRESS 头部为准：R01–R43 持续推进；2026-11-06 完成前端 JS→TS 迁移 + 构建期打包（esbuild）+ 桌面 PyInstaller 分发 POC |
 
 ---
 

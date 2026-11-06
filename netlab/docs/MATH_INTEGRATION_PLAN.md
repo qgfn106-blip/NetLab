@@ -45,13 +45,13 @@
 
 | 位置 | 事实 | 影响 |
 |---|---|---|
-| `NetlabHome/netlab/core/compute/simulation.py:316` | `precompute` 在 `with self.lock:`（`:318`）内跑完整 0→T | 长任务持锁，属于 P2 工程线，不在本波 |
-| `NetlabHome/netlab/core/compute/nodal.py:1993` | `_solve_matrix` 稠密路径有 LU 缓存（`_lu_cache`/`_lu_matrix`/`_cached_dt`） | 稀疏排序评估之外，稠密路径已相对优化 |
-| `NetlabHome/netlab/core/compute/nodal.py:2079` | `_solve_sparse` 默认 `_splu(scaled)`，未显式指定 `permc_spec`（SciPy 默认 COLAMD） | P1 的评测对象 |
-| `NetlabHome/netlab/core/compute/nodal.py:2100-2114` | 以矩阵字节级 key 做稀疏分解缓存 | P1 必须复用同一缓存语义，避免破坏 |
-| `NetlabHome/netlab/core/compute/nodal.py:2237` | `ac_sweep` 入口 | P3 只改这里的分支 |
-| `NetlabHome/netlab/core/compute/nodal.py:2314-2331` | `for frequency in freqs:` 每频点重新 `element.prepare` + 重新 stamp 装配 | P3 的优化对象 |
-| `NetlabHome/netlab/core/compute/nodal.py:2332` | `solution = np.linalg.solve(ctx.A, ctx.rhs)`（complex 稠密） | P3 的参考实现 |
+| `NetlabHome/netlab/core/compute/simulation.py:314` | `precompute` 在 `with self.lock:`（`:318`）内跑完整 0→T | 长任务持锁，属于 P2 工程线，不在本波 |
+| `NetlabHome/netlab/core/compute/nodal.py:2034` | `_solve_matrix` 稠密路径有 LU 缓存（`_lu_cache`/`_lu_matrix`/`_cached_dt`） | 稀疏排序评估之外，稠密路径已相对优化 |
+| `NetlabHome/netlab/core/compute/nodal.py:2124` | `_solve_sparse` 默认 `_splu(scaled)`（`:2161`），未显式指定 `permc_spec`（SciPy 默认 COLAMD） | P1 的评测对象 |
+| `NetlabHome/netlab/core/compute/nodal.py:2145-2154` | 以矩阵字节级 key 做稀疏分解缓存 | P1 必须复用同一缓存语义，避免破坏 |
+| `NetlabHome/netlab/core/compute/nodal.py:2289` | `ac_sweep` 入口 | P3 只改这里的分支 |
+| `NetlabHome/netlab/core/compute/nodal.py:2374-2402` | `for frequency in freqs:` 每频点重建复数 MNA：对激励源设单位激励、其余源置零后重新 `element.stamp` 装配（**不调用** `element.prepare`） | P3 的优化对象 |
+| `NetlabHome/netlab/core/compute/nodal.py:2392` | `solution = np.linalg.solve(ctx.A, ctx.rhs)`（complex 稠密） | P3 的参考实现 |
 | `NetlabHome/netlab/core/common/limits.py:15-17` | `MAX_NODES=400`、`MAX_EDGES=1200`、`MAX_FIELDS=64` | 语料上界与性能预期按此校准 |
 
 ### 2.2 mathspec 可复用资产
@@ -118,7 +118,7 @@ x=A_0^{-1}b-A_0^{-1}U\left(I+\Sigma V^{\mathsf T}A_0^{-1}U\right)^{-1}\Sigma V^{
 #### 3.1.3 实现落点
 
 - 新增 `NetlabHome/netlab/core/compute/math_accel/woodbury_ac.py`（纯函数 + 数据类，不 import UI/全局状态）；
-- `nodal.py:2237` `ac_sweep` 内加分支：`off`（现状）/`shadow`（双算对拍）/`on`（新路径 + 守卫）；
+- `nodal.py:2289` `ac_sweep` 内加分支：`off`（现状）/`shadow`（双算对拍）/`on`（新路径 + 守卫）；
 - 保持 `ctx.A`/`ctx.rhs` 的装配逻辑不变，只在"求解"处替换；
 - 结果仍写回原 `solutions` 列表与返回结构，`/api/ac-sweep` 响应不变。
 

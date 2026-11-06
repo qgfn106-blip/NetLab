@@ -1,6 +1,6 @@
 # Netlab 架构与运作原理
 
-> 适用版本：`netlab 1.0.0`（Python 3.11+，FastAPI + NumPy/SciPy）
+> 适用版本：`netlab 3.20.1`（Python 3.11+，FastAPI + NumPy/SciPy）
 > 配套文档：[EXTENDING.md](EXTENDING.md) —— 新增节点、连接、元件、模板的分步指南；[EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md) —— 插件包、插件 API 与全栈扩展规范
 > 目标：读完能回答三个问题——**代码怎么分层**、**一拍仿真怎么走完**、**改功能该动哪个文件**。
 
@@ -43,8 +43,8 @@ TOPOLOGY 内部有 3 种模式，共用同一套 HTTP 与场景模型：
 | HTTP | FastAPI + Pydantic | 请求体 `extra="forbid"`，统一错误体 `{"detail": ...}` |
 | 服务 | Uvicorn | `run.py` 负责端口探测与自动开浏览器 |
 | 数值 | NumPy（必需）、SciPy（仅 FEM） | `linalg.py` 自带 Padé `expm`，不依赖 SciPy |
-| 前端 | 原生 ES2020 + Canvas | 无构建步骤、无第三方库，`frontend/app.js` 一个 IIFE |
-| 测试 | pytest + httpx/TestClient | 43 个回归用例，覆盖数值、场景与 API |
+| 前端 | TypeScript（编译到 ES2020）+ Canvas | `frontend/app.ts` 等源码经 esbuild 构建为 `app.js`/`app.utils.js`/`desktop-shim.js`，无第三方运行时库 |
+| 测试 | pytest + httpx/TestClient | 589 个回归用例，覆盖数值、场景与 API |
 
 运行形态：
 
@@ -68,11 +68,11 @@ TOPOLOGY 内部有 3 种模式，共用同一套 HTTP 与场景模型：
 
 ```text
 NetlabHome/
-├─ frontend/                  ★ 前端（浏览器侧，只有 HTML/CSS/JS）
+├─ frontend/                  ★ 前端（浏览器侧：TS 源 + esbuild 产物，另有 package.json/tsconfig.json）
 │  ├─ index.html              两工作区外壳
 │  ├─ style.css               纸白/黑墨/铜色主题
-│  ├─ app.js                  画布、交互、动态表单、信号图、相图、FEM 渲染
-│  └─ desktop-shim.js         桌面壳注入：无边框窗控、拖拽区
+│  ├─ app.ts / app.js         前端逻辑源码（app.ts，另有 app.utils.ts；esbuild 编译为 app.js/app.utils.js）：画布、交互、动态表单、信号图、相图、FEM 渲染
+│  └─ desktop-shim.ts/.js     桌面壳注入（desktop-shim.ts → desktop-shim.js）：无边框窗控、拖拽区
 │
 ├─ netlab/                    后端 Python 包
 │  ├─ run.py                  启动入口：参数、端口探测、延迟打开浏览器
@@ -108,10 +108,10 @@ NetlabHome/
 │  │     ├─ ports.py / schematic.py / graph 辅助
 │  │     └─ templates.py      12 个可复现场景（builder + SIM_PRESETS）
 │  │
-│  ├─ tests/                  conftest.py + test_*.py（2026-11-02 全量 359 passed / 3 skipped）
+│  ├─ tests/                  conftest.py + test_*.py（2026-11-06 全量 589 passed）
 │  ├─ docs/                   截图 + 文档（本文件、CODE_GUIDE、MATH…）
 │  └─ tools/                  可选 Edge CDP 冒烟脚本 / 结构整理脚本
-└─ （无兼容层）netlab/ 包根只剩 __init__ / server / run / plotkit_bridge / plotkit_vendor / vscode_bridge / desktop / core
+└─ （无兼容层）netlab/ 包根只剩 __init__ / server / run / plotkit_bridge / plotkit_vendor / vscode_bridge / cache_guard / desktop / core
 ```
 
 带 ★ 的是“改功能时最常碰”的模块。依赖方向只有一个：
@@ -141,7 +141,7 @@ server.py / desktop/*
 
 ```mermaid
 flowchart TB
-  UI["浏览器 SPA（static/app.js）"]
+  UI["浏览器 SPA（frontend/app.js，经 /static 提供）"]
   API["HTTP 路由层（server.py）"]
   SVC["应用服务层（Simulation / FemSimulation）"]
   SCENE["场景层（Scene + Engine）"]
@@ -781,7 +781,7 @@ prepare 阶段（构造/配置变更时）：
 
 ## 11. 前端架构
 
-`frontend/app.js` 是一个 IIFE，按注释分成 10 段：
+`frontend/app.ts` 是前端逻辑源码（esbuild 编译为 `app.js`），按注释分成 10 段：
 
 | 段 | 内容 | 关键函数 |
 | --- | --- | --- |
@@ -1089,7 +1089,7 @@ node tools/cdp_eval.mjs "document.title"
 3. **vector 导入不自动加延迟**：`Scene.load_payload` 只在 `mode == "signal"` 时自动把成环边设为延迟。手工构造 vector 模板时要显式写 `"delay": true`。
 4. **清空按钮对 vector 不准确**：`/api/scene/clear` 目前是 `signal ? blank_signal : blank_circuit`，vector 会变成电路空白场景。改模式逻辑时顺手修。
 5. **模式切换是“换空白场景”**，不是保留拓扑换引擎；会丢当前工作。
-6. **前端无构建、无框架**：`app.js` 4700 行单文件，好处是零依赖、打开即用，坏处是搜索与拆分成本高；改大功能建议按段落边界加注释或拆模块（需引入构建或 ES module）。
+6. **前端零框架、单一入口**：源码 `app.ts` 约 1.5 万行单文件（esbuild 编译为 `app.js`），好处是零第三方运行时依赖、打开即用，坏处是搜索与拆分成本高；改大功能建议按段落边界加注释或拆模块。
 7. **每步深拷贝**：数据隔离的代价；超大网络需重构。
 8. **没有认证/CORS**：设计为本地工具；不要直接暴露公网。
 9. **FEM 依赖 SciPy**：且模型在 import 时构建，缺依赖会启动失败。

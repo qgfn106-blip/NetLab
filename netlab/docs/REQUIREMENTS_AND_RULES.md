@@ -1,6 +1,6 @@
 # Netlab 需求 · 决策 · 执行计划（2026-10-25 修订版）
 
-> 最后修改：2026-11-06 03:16
+> 最后修改：2026-11-06 15:42（文档整理：合并已完成文档、同步 R43 / D112–D118）
 > 本版**取代** 2026-10-24 版的需求口径。旧条文不删除，凡被推翻或细化的条目一律进 §7「已废弃口径」。
 > 每条需求统一六段式：**原话 / 解读 / 拟改架构 / 验收 / 权重·期次 / 现状**。
 > **现状**一栏只写本次会话内读代码或跑测试能证明的事实；没有证据的一律标「待核实」。
@@ -12,8 +12,8 @@
 
 | 你想干什么 | 看哪一节 |
 | --- | --- |
-| 知道"为什么这么定" | §2 决策台账（D1–D111） |
-| 知道"要做什么、做到什么程度算完" | §3 需求清单（R01–R42） |
+| 知道"为什么这么定" | §2 决策台账（D1–D118） |
+| 知道"要做什么、做到什么程度算完" | §3 需求清单（R01–R43） |
 | 知道"先做哪个" | §4 权重与依赖、§5 分期 |
 | 知道"哪些明确不做" | §6 不做清单 |
 | 知道"旧文档哪句话作废了" | §7 已废弃口径 |
@@ -27,9 +27,10 @@
 
 1. 你 2026-10-25 提出的七大块新要求（模块化文件化、前端信息架构、场景重组、快捷键、多网络、连线与符号、时间与循环）全部并入，旧七项需求被**细化或取代**，映射见 §7。
 2. 新增三条你点名的横切要求：**数据依赖与数据保护**、**性能与计时**、**现代控制理论导向（仅呈现层）**。
-3. 所有决策从问答沉淀成决策台账（本版当时为 **D1–D59**，现已到 **D1–D111**），每个决定都能追到当时的取舍。
+3. 所有决策从问答沉淀成决策台账（本版当时为 **D1–D59**，现已到 **D1–D118**），每个决定都能追到当时的取舍。
 4. 计划从旧的 V2-0…V2-7 改为 **P0–P6**，并明确：P0 是地基（数据模型 + 目录 + 菜单 + 交互基础）先做，且含一个**热修**（现网报错）。
 5. 新增 §6「不做清单」——把"以后再说"和"明确不做"分开写清，避免下个窗口又把它们当需求实现。
+6. **2026-11-06 文档整理**：P16/P17 前端迁移与 R40 已完成；新增 **R43（数学成果接入，M1 影子验证）** 与 **D112–D118**，并将 P17 设计文档的 D112–D117 并入附录 C（原 `TS_P17_MODULE_DESIGN.md` 删除）。
 
 ---
 
@@ -107,7 +108,7 @@
 | D67 | 绘图窗口与老画布能力对齐（2026-10-30 23:20，承接 R32/D66） | 用户要求「补齐老画布能力」后再谈删旧。分工：**时间窗进 spec**（`figure.window`，静态导出与交互共用同一口径）、**回放游标属前端 L3**（`?t=` 只是查询参数，永不回写 spec）；桥接每 200ms 拉一次 `service.live(cursor, limit=600)`，`cursor` 回退即 `_reset()` 清图层与数据再按新通道重建（换模板不串数据）；默认窗口 5 s 与老画布一致。判据：**删旧 = 功能等价迁移**，四项前置（图例点击、多画布、预计算 0→T、探针勾选）未补齐前不删旧 canvas（**2026-10-31 由 D68 修订：不再删旧**） |
 | D68 | 绘图子系统与原生绘图并存（2026-10-31，承接 R32/D13/D37） | 用户决定「先不要将原生绘图分析删掉」：netlab 的时间序列 `#chart`（`drawChart()` + `state.frames`）、示波器、李萨如、相图与分析面板**长期保留**，PlotKit 作为**并行**能力挂在「分析 → 绘图」子页签里。原 P12-07「删旧 canvas」**取消**；原「删旧前置」四项（图例点击切换显隐、示波器/李萨如/相图三块画布、预计算 0→T、探针勾选树）降级为**可选增强**，不再阻塞任何票、不计入验收。判据改为「两条路径各自可用、互不影响」，`PlotKit` 侧对应 D37。 |
 | D65 | 模块库按名字存盘（2026-10-30，修订 D1/D4/D5，承接 R02） | 用户原话：「library 里的模块命名明显不合理，请按名字命名不要分割那么多子文件夹」。布局从 `library/blocks/<id>/v<N>.block` 改为 **`library/blocks/<模块名>.block`**：一个模块一个文件、文件名就是模块名（去 Windows 非法字符、保留中文、限 60 字）；库里只保留最新版，内容变化版本号自动 +1；**重名拒绝**保存与改名（忽略大小写/空白）；旧的 `<id>/v*` 目录在扫描时自动压平迁移；`load_block` 忽略版本号，旧工程 `id@vN` 引用按最新版加载。模块库面板每张卡片提供「改名」「删除」：改名同步改文件名、id 与工程引用不变；删除即删文件，被工程引用时需二次确认（force）。 |
-| D69 | 迁移范围：只改 netlab（2026-11-02，承接 R33） | 用户原话：「那我决定只改netlab」。**netlab 显示层换 Qt Widgets；PlotKit 保持 web 原样，一行不改**。求解器、工程格式、checksum 不动。详见 [QT_NATIVE_SPEC.md](QT_NATIVE_SPEC.md)。 |
+| D69 | 迁移范围：只改 netlab（2026-11-02，承接 R33） | 用户原话：「那我决定只改netlab」。**netlab 显示层换 Qt Widgets；PlotKit 保持 web 原样，一行不改**。求解器、工程格式、checksum 不动。详见 `QT_NATIVE_SPEC.md`（已删除，原文见 git 历史）。 |
 | D70 | PlotKit 面板形态（2026-11-02） | **懒加载 `QWebEngineView`**（方案 B）：启动不 import `QtWebEngineWidgets`、不创建控件，首次打开才加载；子进程与端口由 netlab 托管（启动→探活→回收），失败降级为最后一帧 PNG。只读 `QImage` 方案仅作备选，不作默认。 |
 | D71 | 主画布实现（2026-11-02） | 保持**立即模式** `QPainter`，不换 `QGraphicsScene`；绘制函数（吃视图模型）与事件处理（改状态）分离。理由：现有几何/命中逻辑就是立即模式的，换场景图等于重写两遍。 |
 | D72 | 图表实现（2026-11-02） | 5 个图表（时域/FEM/相图/示波器/李萨如）自绘 `QWidget`；**不引入 pyqtgraph**，也不用 matplotlib 做实时图。理由：要与 web 版像素一致，且不加新依赖。 |
@@ -122,7 +123,7 @@
 | D81 | **修 PlotKit 面板卡顿（2026-11-02，用户原话「继续完成，并且检查解决plotkit卡顿的问题」）** | 根因三条并全修：①中途出现的探针从 0 长度追加，与 `t` 错位 → `render` 抛「x/y 长度不一致」，曲线永久卡死 → `_ensure_channels` 用 `np.full(len(t),nan)` 补齐、`_ingest` 每次 push 前对齐全部序列；②出图线程与 0.5s 同步线程并发读写 → 中间态同样错位 → `store/registry.py` 加 `DATA_LOCK`（RLock），`_ensure_channels/_ingest/_reset` 与 PlotKit `build()` 共用，渲染由此串行化；③出图贵（900×520=72ms、1200×700=149ms、1600×950=191ms、2400×1400=308ms，且持 GIL 把 step 从 122→138~207µs）→ `renderUrl` 面积上限 1400×1000、实时重绘节流 1Hz、轮询 500→1000ms、拖动预览 70→160ms、同步线程 0.2→0.5s；④面板隐藏仍出图 → `plotVisible()`+`document.hidden`+宿主 `postMessage` 三路判可见；⑤面板先于仿真打开永远 0 图层 → `poll` 在空图层时重取 `api/spec`。验收：面板可见 8 次渲染/8s、切走 0 次、浮窗关闭 0 次；netlab 385 passed（+2 条 `test_plotkit_bridge_sync.py`）、PlotKit 436 passed；静态 3.15.5。详见 PROGRESS §7.38。 |
 ---
 
-## 3. 需求清单（R01–R42）
+## 3. 需求清单（R01–R43）
 
 > 权重：⭐1（可延后）… ⭐5（不做完后面全是坑）。期次指向 §5。
 
@@ -451,9 +452,9 @@
 - **解读**：只动 netlab 的**显示层**。方案 B = netlab 全原生 Qt Widgets + PlotKit 面板懒加载 `QWebEngineView`。PlotKit 保持 web 原样（一行不改）；旧浏览器界面冻结保留作只读出口。
 - **落地形态**：新建 `netlab/ui/` 包（shell / panels / canvas / charts / doc / plotkit_panel / theme / models / bridge）；`SERVICE` 为唯一数据来源；画布立即模式 `QPainter`；图表自绘；主题 token 单一来源；`desktop/` 保留为过渡入口。
 - **不做什么**：不迁 PlotKit、不做三维原生、不重写 web 前端、不改求解器/工程格式/checksum、不引入 QML / pyqtgraph / VTK。
-- **验收**：见 [QT_NATIVE_SPEC.md](QT_NATIVE_SPEC.md) §8 的 A1–A25 与 §9 的 20 项交互清单。关键数字：启动 ≤1.5 s、常驻 ≤350 MB（未开 PlotKit）、未开 PlotKit 时无 `QtWebEngineProcess`、像素 diff <1%、正常运行不监听 TCP 端口、现有 pytest 全绿且只增不减。
+- **验收**：见 `QT_NATIVE_SPEC.md`（已删除，原文见 git 历史）§8 的 A1–A25 与 §9 的 20 项交互清单。关键数字：启动 ≤1.5 s、常驻 ≤350 MB（未开 PlotKit）、未开 PlotKit 时无 `QtWebEngineProcess`、像素 diff <1%、正常运行不监听 TCP 端口、现有 pytest 全绿且只增不减。
 - **权重·期次**：⭐⭐⭐ / P0–P5（2026-11-02 实现完成，A4 已实机验证；待人工复验 A5/A13/A14/A18/A21）
-- **现状**：**已撤回（D78）**。`netlab/ui/` 与 `start_native.bat` 已于 2026-11-02 整体备份到 Git 分支 `backup/qt-native-2026-11-02`（标签 `qt-native-2026-11-02`）后从工作树删除，界面回到 web（`netlab/static`）。R33 状态改为「已实现但按用户决定撤回」，规格保留在 [QT_NATIVE_SPEC.md](QT_NATIVE_SPEC.md) 作历史依据。
+- **现状**：**已撤回（D78）**。`netlab/ui/` 与 `start_native.bat` 已于 2026-11-02 整体备份到 Git 分支 `backup/qt-native-2026-11-02`（标签 `qt-native-2026-11-02`）后从工作树删除，界面回到 web（`netlab/static`）。R33 状态改为「已实现但按用户决定撤回」，规格原文见 git 历史（`QT_NATIVE_SPEC.md` 已删除）。
 
 ### R34 s 域传递函数节点与分析（Simulink 式）
 
@@ -592,7 +593,7 @@
   - 排除：`netlab/tools/*.mjs`（CDP 调试脚本，不在产品运行时）、`frontend/vendor/iro.min.js`（第三方）。
   - 扩展接口兼容：`netlab.plugin_api.v1` 为纯 Python 门面，插件用 `plugin.json` + `panels.py` 声明，前端仅消费 `/api/extensions*` JSON 与 `netlab-ui/1` 声明式 profile；迁移只保证前端消费的 **JSON 契约不变**，不改插件代码（按 `EXTENSIBILITY_ARCHITECTURE.md` + `adr/0002` 逐条核验）。
   - 工具：`typescript` + `eslint`/`@typescript-eslint` + `prettier` 仅 `devDependency`；TS 仅开发期编译，产物 `.js` 提交并随包发布，运行时无需 node、仍 `<script>` 加载。
-  - 分期：一期 `P16`（类型化，`.js→.ts` 1:1 编译）；二期 `P17`（模块化，暂挂，仅文档）。
+  - 分期：一期 `P16`（类型化，`.js→.ts` 1:1 编译）；二期 `P17`（模块化，已完成 2026-11-06）。
   - 打样顺序（由小到大）：vscode 扩展 → PlotKit `render2d.js` → `view3d.js` → PlotKit `app.js` → `nsview.js` → netlab `desktop-shim.js` → netlab `app.js`（最后，按功能区分块）。
   - 代码规范：风格 / 语言特性以 **Google TypeScript 风格指南**为准（语法、语言特性、类型系统、一致性四章），类型建模 / 迁移方法以 **TypeScript 手册**为准，冲突时风格取 Google（详见 D106）。
 - **验收**：
@@ -604,6 +605,8 @@
 
 ### R42 Python 代码 PEP 8 规范化与优化（2026-11-06 立项，排在 TS 重构之后）
 
+- **现状**：**已完成（2026-11-06）**：netlab `121` 个 .py、PlotKit `92` 个 .py 经 `black` 做 PEP 8 规范化；AST 等价校验 netlab 121/121、PlotKit 89 + 3 仅 docstring 缩进（examples/basic.py、tools/coverage.py、tools/dev_serve.py，去 docstring 后 AST 亦一致）；`pytest netlab/tests` 589 passed、PlotKit 470 passed、`node test:utils` 19 passed；提交 netlab `3673808`、PlotKit `32587c4`（均已推 `feat/ts-migration`）。
+
 - **原话**（2026-11-06）：「然后再补上typescript完全重构完后，对已有的所有python代码 按照 PEP 8 -- Style Guide for Python Code 文档规范 对代码尽量进行代码规范化与优化 不要影响任何功能」。
 - **解读**：在 TypeScript 全量重构（P16/P17）完成之后，对 netlab 与 PlotKit 现有的**全部 Python 代码**按 PEP 8 做风格规范化与适度优化；**首要红线是「不影响任何功能」**——纯风格与可读性改进，不改行为、不改公开 API、不改数据格式与数值结果，以现有全量测试全绿为门禁。
 - **拟改架构 / 范围**：
@@ -613,6 +616,20 @@
 - **验收**：①netlab 全量（以 589 passed 为基线）与 PlotKit 全量测试全绿 ②`flake8`（PEP 8）0 error（历史遗留例外逐条登记豁免并挂 TODO，最终清零）③关键路径 e2e 基线（沿用 R41/D104 的 `netlab/tools/cdp_*.mjs` 方法）一致 ④不改任何对外 API 签名 / JSON 契约 / 数值输出。
 - **权重·期次**：⭐⭐⭐ / P18（2026-11-06 立项；启动条件=TS 重构 P16/P17 全部完成后；当前未开始）。
 - **现状**：**规划中（2026-11-06），未开始**；启动前置=P16/P17 完成。
+
+### R43 数学成果接入 NetLab（P1 稀疏排序 / P3 AC 扫频 Woodbury / P5 遥测误差预算，影子验证）
+
+- **原话**（2026-11-06）：「先把现在项目代码结构和数学成果分析一下，尝试把数学成果放入netlab代码优化，先只做规划与计划，不要直接改代码。过程中思考能否产生新的数学工具，并尝试迭代算法」；随后确认：目标 **A+B（运行更快 + 结果更可信）**；第一波 **B 三件套 = P3 + P1 + P5**；接入方式 **影子模式 `NETLAB_MATH_ACCEL=off|shadow|on`（默认 off）**；P3 用 **双参数仿射族 Woodbury**；P1 先做排序评测器；P5 只做只读诊断层。
+- **解读**：`mathspec/` 作为零耦合"数学试验室"，先在参考实现中证明算法与误差界，再以影子模式接入 netlab：**默认 off 不改行为**；shadow 时新旧路径对拍（相对误差 <1e-10）+ 双路计时；验证通过才允许 on/替换。第一波只做三件低风险、可度量的事：P1 稀疏排序评测、P3 AC 扫频广义 Woodbury、P5 遥测质量元数据 + 只读诊断 API。
+- **拟改架构 / 范围**：
+  - 计划文档：[MATH_INTEGRATION_PLAN.md](MATH_INTEGRATION_PLAN.md)（v1.0，355 行，M0–M1d）。
+  - P1：对真实 MNA 矩阵评测 COLAMD（现状）/ MMD_ATA / MMD_AT_PLUS_A / NATURAL + 自研 min-degree / nested dissection 预置换；指标 fill-in `nnz(L+U)`、factor/solve 时间、峰值内存。
+  - P3：`A(ω)=A(ω0)+UΣ(ω)Vᵀ`，一次分解 A(ω0) 后逐频点 r×r 小解；门控 `r/n≤0.10` 启用、`0.10<r/n≤0.25` 仅 shadow、`>0.25` 回退直接解；加条件数/主元守卫。
+  - P5：Recorder 侧 quality 元数据（`sample_dt`、`quant_bits`、`interp_error_bound`、`fifo_depth`/`delay_bound`）+ 只读 `/api/diagnostics/telemetry`；**不改 `/api/live` 响应结构**，前端暂不接。
+  - 分支：从 `main` 新开 `feat/math-accel-shadow`，不带入 `feat/ts-migration` 改动。
+- **验收**：四关——①条件边界（输入/精度/规模条件写清）②性质测试（mathspec 全绿）③影子评测（新旧相对误差 <1e-10、双路计时；P1 至少两类真实矩阵 factor ≥15% 或 fill-in ≥20% 才进实现清单）④回退与指标（`NETLAB_MATH_ACCEL=off` 可关闭、回退路径可用、指标可观测）。
+- **权重·期次**：⭐⭐⭐ / M1（2026-11-06 立项；M0 mathspec 原型 3–5 天，M1a=P1、M1b=P3、M1c=P5、M1d 收尾验收）。
+- **现状**：**规划完成（2026-11-06），未改 netlab 运行代码**；mathspec 参考实现 `98 passed`；计划见 [MATH_INTEGRATION_PLAN.md](MATH_INTEGRATION_PLAN.md)。
 
 ## 4. 权重与依赖
 
@@ -633,6 +650,7 @@
 | ⭐⭐⭐⭐ | R40 全栈可扩展架构（插件包 / 数据接口 / UI 视图设计） | 决定外部函数、分析算法、数据格式和新求解引擎能否安全接入；Node/Edge 结构保持不变；设计完成、代码首版完成（589 passed） |
 | ⭐⭐⭐⭐ | R41 前端 JavaScript → TypeScript 全局迁移 | 13,806 行 app.js 可维护性 + /api 契约类型化 + 模块化基建；一期类型化（P16）、二期模块化（P17）；P16/P17 均已实现，待推送合并 |
 | ⭐⭐⭐ | R42 Python 代码 PEP 8 规范化与优化 | TS 重构完成后对 netlab+PlotKit 全部 Python 代码按 PEP 8 规范化；不影响任何功能；P18（待 TS 完成后启动） |
+| ⭐⭐⭐ | R43 数学成果接入（P1 稀疏排序 / P3 AC 扫频 Woodbury / P5 遥测误差预算，影子验证） | mathspec 零耦合原型 → 影子模式对拍 → 渐进替换；M1a–M1d；不改默认行为 |
 
 
 ### 4.2 依赖关系
@@ -755,16 +773,22 @@ L3 状态空间一等公民、自定义快捷键、分屏、自定义符号、�
 - **退出条件**：每个文件过 R41 DoD 五条；一期收尾 = 临时豁免清单清零 + `tsc --strict` 全绿 + 全部 e2e 基线通过 + 现有 Python 契约测试全绿 + 版号三处同步。
 - **风险与对策**：①`app.js` 单 IIFE 隐式全局与闭包状态多，易滑向 `any` → 棘轮 strict + 分功能区分块 + 逐条豁免登记；②`tsc` 可能重排格式产生大 diff → 「格式重排」与「类型标注」分 commit；③PlotKit 同时被 netlab `<script>` 与包内副本加载，改 PlotKit 必须同步回归 netlab；④版号三处易漏 → 台账 checklist 逐项打勾。
 
-### P17 前端模块化（二期，暂挂）
+### P17 前端模块化（二期，已完成 2026-11-06）
 
-- **范围**：转 ES Modules、拆文件、为拆出的纯函数补单元测试。已按 [TS_P17_MODULE_DESIGN.md](TS_P17_MODULE_DESIGN.md)（D112–D117）完成 P17.1–P17.4。
-- **退出条件**：待一期（P16）全部完成后另定。
+- **范围**：转 ES Modules、拆文件、为拆出的纯函数补单元测试。D112–D117 已并入附录 C（原 `TS_P17_MODULE_DESIGN.md` 已删除，历史版本见 git）；P17.1–P17.4 已完成。
+- **退出条件**：`tsc` 0 / `node --test` 纯函数单测绿 / parity 与 GUI smoke 一致 / pytest 全绿 / vendor 重装后冒烟一致（已完成）。
 
 ### P18 Python 代码 PEP 8 规范化（2026-11-06 立项，排在 TS 重构之后）
 
 - **范围**：R42。TS 重构（P16/P17）全部完成后，对 netlab + PlotKit 全部 Python 代码做 PEP 8 规范化与无损优化。
 - **退出条件**：`flake8`（PEP 8）0 error（或豁免清零）+ 全量测试全绿 + e2e 基线一致 + 无 API / 功能 / 数值变化。
 - **红线**：不改功能、不改公共接口、不改数据与数值结果；分模块小步提交，纯格式改动独立成 style commit。
+
+### P19 数学成果接入（M1，2026-11-06 立项）
+
+- **范围**：R43。mathspec 原型 → 影子模式 → P1 排序评测、P3 AC 扫频 Woodbury、P5 遥测误差预算/只读诊断；默认行为不变。
+- **退出条件**：M1a–M1d 四关验收（条件边界 / 性质测试 / 影子评测 / 回退与指标）全过；`NETLAB_MATH_ACCEL=off` 时行为与现状完全一致。
+- **风险与对策**：Woodbury 仅在 `r/n≤0.10` 启用、`>0.25` 直接解；排序以真实 MNA 矩阵评测为准；诊断层只读、不改 `/api/live`。
 
 ## 6. 不做清单（明确排除）
 
@@ -1345,14 +1369,14 @@ MOSFET。
 | D99 | 2026-11-06 | **全栈扩展采用“插件包 + `netlab.plugin_api.v1` 稳定门面 + 声明式 UI”，不改变 NodeRecord/EdgeRecord 核心结构**：插件 manifest 声明 id/version/API/能力/依赖；支持 compute/method/element/analysis/data-format/template/panel/engine（新 mode）；工程 v6 增 `plugins` 锁段，v5 自动迁移；缺插件降级打开、节点标未解析；UI 增加简洁画布与视图内设计，`netlab-ui/1` 只允许声明式布局/令牌/字段/枚举样式，不执行任意 HTML/CSS/JS；插件是受信任进程内代码，不做 OS 沙箱 | 用户要求所有架构（UI 接口、数据接口、底层算法）可扩展、方便自定义接入函数，并保持节点/连接结构；补充要求简洁节点/连接 UI 与可在视图内直接调节设计 | `netlab/plugin_api/v1`、`netlab/core/model/plugins.py`、`analysis_plugins.py`、`engine_registry.py`、`ui_profile.py`、`project.py`、`server.py`、`frontend/app.js`、`extensions/plugins/README.md`；文档 ADR/EXTENSIBILITY/GLOSSARY/EXTENDING/ARCHITECTURE/UI_SPEC | 不替换现有 SignalEngine/CircuitEngine；不开放任意前端代码；不自动下载插件/第三方包；不做在线市场 | 已完成：589 passed（83.05 s）、3.20.0；新增插件/工程/UI 目标测试 8 条 | 4 / P15 / 完成 |
 
 
-## 附录 C 决策补录：D100–D111（前端 TypeScript 迁移 / Python PEP 8 规范化，2026-11-06）
+## 附录 C 决策补录：D100–D118（前端 TypeScript 迁移 / Python PEP 8 / 数学成果接入，2026-11-06）
 
-> 本段与 §2 台账同源（D82–D99 见前文补录）；R41 / P16 / P17 / R42 / P18 的决策依据在此登记。
+> 本段与 §2 台账同源（D82–D99 见前文补录）；R41 / P16 / P17 / R42 / P18 / R43 / M1 的决策依据在此登记。D112–D117 原载于 `TS_P17_MODULE_DESIGN.md`（P17 已完成，原文档已删除，历史版本见 git）。
 
 | # | 主题 | 结论 |
 | --- | --- | --- |
 | D100 | 运行时形态 | TS 仅开发期编译，产物 `.js` 提交并随包发布，运行时纯 `.js` + `<script>` 经典脚本、零构建 / 零第三方运行时 / 离线；不引入打包器（webpack/vite/esbuild 等）。 |
-| D101 | 分期 | 一期 P16 只加类型（`.js→.ts` 1:1，结构/行为零变化）；二期 P17 模块化（ESM/拆文件/纯函数单测）暂挂，仅文档。 |
+| D101 | 分期 | 一期 P16 只加类型（`.js→.ts` 1:1，结构/行为零变化）；二期 P17 模块化（ESM/拆文件/纯函数单测）已完成 2026-11-06。 |
 | D102 | 范围 | 纳入 netlab `app.js`+`desktop-shim.js`、PlotKit 四静态文件、vscode 扩展 `extension.js`；排除 `netlab/tools/*.mjs`、`vendor/iro.min.js`。 |
 | D103 | 严格度（棘轮） | tsconfig 直接开全套 strict；极少数文件可显式临时豁免（每条挂 TODO + 登记清单）；一期收尾门禁=豁免清零、`tsc --strict` 全绿。 |
 | D104 | 验收 | e2e 行为等价比对优先：迁移前用 `netlab/tools/cdp_*.mjs` 录基线（DOM 快照/截图/控制台零报错/关键 `/api` 往返），迁移后逐条 diff 须空（仅白名单差异登记）；Python 契约测试保留并按改名/路径同步；单测留二期。 |
@@ -1363,3 +1387,10 @@ MOSFET。
 | D109 | 扩展兼容 | `netlab.plugin_api.v1` 纯 Python，前端只消费 `/api/extensions*` JSON 与 `netlab-ui/1`；迁移只保证 JSON 契约不变、不改插件代码（按 `EXTENSIBILITY_ARCHITECTURE.md` + `adr/0002` 核验）。 |
 | D110 | Python 规范 | TS 全量重构（P16/P17）完成后，对 netlab + PlotKit 全部 Python 代码按 PEP 8 规范化；`flake8`/`pycodestyle` 检查、`black`/`autopep8` 辅助，均 devDependency；核心红线是**不影响任何功能**（纯风格/可读性，不改行为/API/数据/数值）。 |
 | D111 | Python 门禁 | PEP 8 阶段验收 = 全量测试全绿 + `flake8` 0 error（豁免清零）+ e2e 基线一致 + 无 API/功能/数值变化；纯格式改动独立提交，不与功能混提。 |
+| D112 | P17 加载方式 | 改用原生 ESM：每页面一个入口 `index.html` 用 `<script type="module">`；保留 `window.Plot2D/PK3D/NS` 全局挂载作为兼容层。 |
+| D113 | P17 拆文件边界 | 按「纯函数 / 渲染核心 / UI 胶水」三层拆分；纯函数单独 `*.utils.ts`（无 DOM 依赖，可被 node 直接测）。 |
+| D114 | P17 类型共享 | 抽 `plotkit.types.ts` / `app.types.ts`（纯类型、编译期擦除），各模块 `import type`，避免重复定义与全局冲突。 |
+| D115 | P17 单元测试 | 用 Node 内置 `node --test`（Node ≥22）+ 编译后的 ESM `.js`，测试文件 `*.test.mjs`，零第三方；只测纯函数。 |
+| D116 | P17 兼容与回归 | 模块化后必须过：`tsc` 0、现有 parity 脚本全等价、`pytest` 全绿、`tools/gui_smoke.py` 与基线 drift=false、PlotKit→vendor 重装后 netlab 冒烟一致。 |
+| D117 | P17 灰度/回滚 | 按 P17.1–P17.4 小步推进，每步独立提交；任一步回归失败即回滚该步，不连带后续。 |
+| D118 | 数学成果接入 | 第一波 = P1 稀疏排序评测 + P3 AC 扫频双参数仿射族 Woodbury + P5 遥测只读诊断层；统一影子模式 `NETLAB_MATH_ACCEL=off|shadow|on`（默认 off），新旧对拍相对误差 <1e-10 + 双路计时；P3 门控 `r/n≤0.10` 启用、`≤0.25` 仅 shadow、`>0.25` 直接解；分支 `feat/math-accel-shadow` 从 main 开；M0 原型保留，M1a/M1b/M1c 顺序推进。 |

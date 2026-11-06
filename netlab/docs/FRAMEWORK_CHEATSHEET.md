@@ -312,5 +312,5 @@ node netlab/tools/cdp_eval.mjs "document.title"
 | [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) | 需求原话、提示词与协作规则 |
 | [PROGRESS.md](PROGRESS.md) | 当前进度与 V2 阶段计划 |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 需要深入原理（1000 行，按需查章节） |
-| [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | 最初设计与需求映射 |
+| `IMPLEMENTATION_PLAN.md`（已删除，见 git 历史） | 最初设计与需求映射 |
 | [EXTENDING.md](EXTENDING.md) | 要写扩展/新规格时的可复制代码 |

@@ -210,6 +210,37 @@ ELEMENT_PINS.update(
             {"name": "Q3", "role": "output", "bind": "q3_node", "dx": 18, "dy": 12},
             {"name": "COM", "role": "power", "bind": "target", "dx": 0, "dy": 18},
         ),
+        "thyristor": (
+            {"name": "A", "role": "passive", "bind": "source", "dx": 18, "dy": -10},
+            {"name": "K", "role": "passive", "bind": "target", "dx": 18, "dy": 10},
+            {"name": "G", "role": "input", "bind": "gate_node", "dx": -18, "dy": 0},
+        ),
+        "igbt": (
+            {"name": "C", "role": "passive", "bind": "source", "dx": 18, "dy": -10},
+            {"name": "E", "role": "passive", "bind": "target", "dx": 18, "dy": 10},
+            {"name": "G", "role": "input", "bind": "gate_node", "dx": -18, "dy": 0},
+        ),
+        "jfet": (
+            {"name": "D", "role": "passive", "bind": "source", "dx": 18, "dy": -10},
+            {"name": "S", "role": "passive", "bind": "target", "dx": 18, "dy": 10},
+            {"name": "G", "role": "input", "bind": "gate_node", "dx": -18, "dy": 0},
+        ),
+        "relay": (
+            {
+                "name": "COIL1",
+                "role": "passive",
+                "bind": "source",
+                "dx": -18,
+                "dy": -10,
+            },
+            {"name": "COIL2", "role": "passive", "bind": "target", "dx": -18, "dy": 10},
+            {"name": "COM", "role": "passive", "bind": "com_node", "dx": 18, "dy": -10},
+            {"name": "NO", "role": "passive", "bind": "no_node", "dx": 18, "dy": 10},
+        ),
+        "motor": (
+            {"name": "+", "role": "passive", "bind": "source", "dx": -18, "dy": 0},
+            {"name": "-", "role": "passive", "bind": "target", "dx": 18, "dy": 0},
+        ),
     }
 )
 

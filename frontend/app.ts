@@ -73,6 +73,9 @@ declare function setStatusHint(hint: string): void;
     symbolScale: number;
     glyphColor: string;
     drawingMode: boolean;
+    drawingSheet?: string;
+    drawingLabels?: boolean;
+    drawingPage?: number;
     showPins?: boolean;
     [k: string]: unknown;
   }
@@ -757,6 +760,9 @@ declare function setStatusHint(hint: string): void;
       symbolScale: 1.2,
       glyphColor: '#1f5f5b',
       drawingMode: false,
+      drawingSheet: 'A3',
+      drawingLabels: false,
+      drawingPage: 1,
     },
     // R30：外观偏好、文档与引导状态
     prefs: { theme: 'light', motion: 'low', perf: 'perf', accent: '', guide: 'always', infobar: true, runWarn: true },
@@ -2199,6 +2205,39 @@ declare function setStatusHint(hint: string): void;
       line(-2.5, -5, -2.5, 5);
       line(-2.5, -4, 5, -4); line(5, -4, 5, -6);
       line(-2.5, 4, 5, 4); line(5, 4, 5, 6);
+    } else if (kind === 'thyristor') {
+      line(-S, 0, -4, 0);
+      ctx2.beginPath(); ctx2.moveTo(-4, -5); ctx2.lineTo(-4, 5); ctx2.lineTo(4, 0); ctx2.closePath();
+      ctx2.fill();
+      line(4, -5.5, 4, 5.5); line(4, 0, S, 0);
+      line(-4, -1.5, -8, 4.5); line(-8, 4.5, -6.5, 4.5);
+    } else if (kind === 'igbt') {
+      line(-S, 0, -6, 0);
+      line(-4, -5, -4, 5);
+      line(-2.5, -5, -2.5, 5);
+      line(-2.5, -4, 6, -4); line(6, -4, 6, -7);
+      line(-2.5, 4, 6, 4); line(6, 4, 6, 7);
+      line(-2.5, 0, 2, 0); line(2, 0, 2, 3);
+    } else if (kind === 'jfet') {
+      line(-S, 0, -5, 0);
+      line(-4, -5, -4, 5);
+      line(-2, -5, -2, 5);
+      line(-2, -4, 6, -4); line(6, -4, 6, -7);
+      line(-2, 4, 6, 4); line(6, 4, 6, 7);
+      line(-4, 0, 2, 0); line(2, 0, 0.5, -1.5); line(2, 0, 0.5, 1.5);
+    } else if (kind === 'relay') {
+      ctx2.strokeRect(-8, -5.5, 8, 11);
+      line(-S, 0, -8, 0); line(0, -5.5, 0, -9);
+      line(0, 5.5, 0, 9);
+      line(0, 5.5, 7, 5.5); line(7, 5.5, 7, 1);
+      ctx2.beginPath(); ctx2.arc(7, 0, 1.2, 0, Math.PI * 2); ctx2.fill();
+      line(7, -1.2, S, -1.2);
+    } else if (kind === 'motor') {
+      ctx2.beginPath(); ctx2.arc(0, 0, 7, 0, Math.PI * 2); ctx2.stroke();
+      line(-S, 0, -7, 0); line(7, 0, S, 0);
+      ctx2.font = '8px "Cascadia Code", Consolas, monospace';
+      ctx2.textAlign = 'center'; ctx2.textBaseline = 'middle';
+      ctx2.fillText('M', 0, 0.5);
     } else if (kind === 'dflipflop') {
       ctx2.strokeRect(-7, -7, 14, 14);
       line(-7, 4, -10, 6); line(-10, 6, -7, 6);
@@ -2370,6 +2409,31 @@ declare function setStatusHint(hint: string): void;
       { name: 'Q2', x: 7, y: 2, bind: 'q2_node', role: 'out' },
       { name: 'Q3', x: 7, y: 6, bind: 'q3_node', role: 'out' },
       { name: 'COM', x: 0, y: 7, bind: 'target', role: 'power' },
+    ],
+    thyristor: [
+      { name: 'A', x: 7, y: -4.5, bind: 'source', role: 'out' },
+      { name: 'K', x: 7, y: 4.5, bind: 'target', role: 'out' },
+      { name: 'G', x: -7, y: 4.5, bind: 'gate_node', role: 'in' },
+    ],
+    igbt: [
+      { name: 'C', x: 6, y: -7, bind: 'source', role: 'out' },
+      { name: 'E', x: 6, y: 7, bind: 'target', role: 'out' },
+      { name: 'G', x: -6, y: 0, bind: 'gate_node', role: 'in' },
+    ],
+    jfet: [
+      { name: 'D', x: 6, y: -7, bind: 'source', role: 'out' },
+      { name: 'S', x: 6, y: 7, bind: 'target', role: 'out' },
+      { name: 'G', x: -6, y: 0, bind: 'gate_node', role: 'in' },
+    ],
+    relay: [
+      { name: 'COIL1', x: -8, y: -9, bind: 'source', role: 'in' },
+      { name: 'COIL2', x: 0, y: 9, bind: 'target', role: 'in' },
+      { name: 'COM', x: 0, y: 9, bind: 'com_node', role: 'out' },
+      { name: 'NO', x: 7, y: -1.2, bind: 'no_node', role: 'out' },
+    ],
+    motor: [
+      { name: '+', x: -18, y: 0, bind: 'source', role: 'in' },
+      { name: '-', x: 18, y: 0, bind: 'target', role: 'out' },
     ],
   };
 
@@ -2571,29 +2635,88 @@ declare function setStatusHint(hint: string): void;
     return { x: cx - width / 2, y: cy - height / 2, w: width, h: height };
   }
 
+  const SHEET_SIZES: Record<string, { w: number; h: number; label: string }> = {
+    A4: { w: 297, h: 210, label: 'A4' },
+    A3: { w: 420, h: 297, label: 'A3' },
+    A2: { w: 594, h: 420, label: 'A2' },
+    A1: { w: 841, h: 594, label: 'A1' },
+  };
+
+  // R18：只电路模式的出图视图——GB 图幅、分区刻度、标题栏、页号。
   function drawDrawingFrame(width: number, height: number) {
-    const margin = 18;
+    if (state.scene?.mode !== 'circuit') return;
+    const sheet = SHEET_SIZES[String(state.ui?.drawingSheet || 'A3')] || SHEET_SIZES.A3;
+    const page = Math.max(1, Math.min(9, Number(state.ui?.drawingPage) || 1));
+    const margin = 12;
+    const scale = Math.min((width - margin * 2) / sheet.w, (height - margin * 2) / sheet.h);
+    const pw = sheet.w * scale;
+    const ph = sheet.h * scale;
+    const x = (width - pw) / 2;
+    const y = (height - ph) / 2;
     ctx.save();
-    ctx.strokeStyle = C('#4d463c');
-    ctx.lineWidth = 1.4;
-    ctx.strokeRect(margin, margin, width - margin * 2, height - margin * 2);
-    const boxW = 300;
-    const boxH = 62;
-    const x = width - margin - boxW;
-    const y = height - margin - boxH;
     ctx.fillStyle = C('#fffdf8');
-    ctx.fillRect(x, y, boxW, boxH);
-    ctx.strokeRect(x, y, boxW, boxH);
-    ctx.fillStyle = C('#11100e');
-    ctx.textAlign = 'left';
+    ctx.fillRect(x, y, pw, ph);
+    ctx.strokeStyle = C('#3b352c');
+    ctx.lineWidth = 2.2;
+    ctx.strokeRect(x, y, pw, ph);
+    ctx.lineWidth = 0.9;
+    ctx.strokeRect(x + 4, y + 4, pw - 8, ph - 8);
+
+    // 分区刻度：纵向 1..8、横向 A..F（GB/T 14689 简化）。
+    const cols = 8;
+    const rows = 6;
+    ctx.font = '9px "Cascadia Code", Consolas, monospace';
+    ctx.fillStyle = C('#5b554b');
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    for (let i = 1; i < cols; i += 1) {
+      const gx = x + (pw * i) / cols;
+      ctx.beginPath(); ctx.moveTo(gx, y + 4); ctx.lineTo(gx, y + 12); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(gx, y + ph - 4); ctx.lineTo(gx, y + ph - 12); ctx.stroke();
+      ctx.fillText(String(i), gx, y + 16);
+      ctx.fillText(String(i), gx, y + ph - 16);
+    }
+    for (let i = 1; i < rows; i += 1) {
+      const gy = y + (ph * i) / rows;
+      ctx.beginPath(); ctx.moveTo(x + 4, gy); ctx.lineTo(x + 12, gy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + pw - 4, gy); ctx.lineTo(x + pw - 12, gy); ctx.stroke();
+      ctx.fillText(String.fromCharCode(64 + i), x + 16, gy);
+      ctx.fillText(String.fromCharCode(64 + i), x + pw - 16, gy);
+    }
+
+    // 标题栏（GB 简化块），固定贴右下。
+    const boxW = Math.min(pw * 0.58, 180 * scale);
+    const boxH = Math.min(ph * 0.22, 56 * scale);
+    const bx = x + pw - 4 - boxW;
+    const by = y + ph - 4 - boxH;
+    ctx.fillStyle = C('#fffdf8');
+    ctx.fillRect(bx, by, boxW, boxH);
+    ctx.strokeStyle = C('#3b352c');
+    ctx.lineWidth = 1.1;
+    ctx.strokeRect(bx, by, boxW, boxH);
+    ctx.beginPath();
+    ctx.moveTo(bx, by + boxH * 0.52); ctx.lineTo(bx + boxW, by + boxH * 0.52);
+    ctx.moveTo(bx + boxW * 0.62, by); ctx.lineTo(bx + boxW * 0.62, by + boxH);
+    ctx.stroke();
+    ctx.textAlign = 'left';
+    ctx.fillStyle = C('#11100e');
     ctx.font = '600 11px "Segoe UI", "Microsoft YaHei", sans-serif';
-    ctx.fillText(state.project?.name || '未命名工程', x + 10, y + 16);
+    ctx.fillText(state.project?.name || '未命名工程', bx + 8, by + 14);
     ctx.font = '9px "Cascadia Code", Consolas, monospace';
     ctx.fillStyle = C('#6f695f');
-    ctx.fillText(`${state.currentNetwork?.name || '网络'} · ${state.scene?.mode || ''} · R19`, x + 10, y + 34);
-    ctx.fillText(new Date().toISOString().slice(0, 19).replace('T', ' '), x + 10, y + 50);
+    ctx.fillText(`${state.currentNetwork?.name || '网络'} · ${sheet.label} · 第 ${page} 页`, bx + 8, by + 30);
+    ctx.fillText(`比例 1:1 · ${pipeModeLabel(state.scene?.mode || '')}`, bx + 8, by + boxH - 12);
+    ctx.textAlign = 'right';
+    ctx.fillText('NetLab / GB', bx + boxW - 8, by + 14);
+    ctx.fillText(new Date().toISOString().slice(0, 10), bx + boxW - 8, by + boxH - 12);
     ctx.restore();
+  }
+
+  function pipeModeLabel(mode: string) {
+    if (mode === 'circuit') return '电路';
+    if (mode === 'vector') return '矢量场';
+    if (mode === 'signal') return '信号流';
+    return mode;
   }
 
 
@@ -2640,7 +2763,7 @@ declare function setStatusHint(hint: string): void;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.strokeStyle = color;
-      ctx.lineWidth = selected ? 2.1 : hovered ? 1.7 : 1.15;
+      ctx.lineWidth = selected ? 2.1 : hovered ? 1.7 : state.ui?.drawingMode ? (edge.kind === 'wire' ? 1.75 : 1.3) : 1.15;
       if (!edge.enabled) ctx.setLineDash([3, 5]);
       else if (edge.delay) ctx.setLineDash([7, 5]);
       const circuitGb = state.scene?.mode === 'circuit' && state.ui?.symbol === 'gb';
@@ -2724,6 +2847,25 @@ declare function setStatusHint(hint: string): void;
             ctx.font = '9px "Cascadia Code", Consolas, monospace';
             ctx.fillText(value, middle.x, middle.y + 5);
           }
+        }
+      }
+
+      if (state.ui?.drawingMode && state.ui?.drawingLabels && state.view.k > 0.42) {
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = '8px "Cascadia Code", Consolas, monospace';
+        const mid = pathMidpoint(points);
+        if (edge.kind === 'wire' && mid) {
+          const text = edge.name || 'W';
+          const w = ctx.measureText(text).width + 6;
+          ctx.fillStyle = 'rgba(255, 253, 248, 0.94)';
+          ctx.fillRect(mid.x - w / 2, mid.y - 12, w, 11);
+          ctx.fillStyle = C('#5b554b');
+          ctx.fillText(text, mid.x, mid.y - 6.5);
+        } else {
+          ctx.fillStyle = C('#5b554b');
+          ctx.fillText('1', points[0].x + 6, points[0].y - 6);
+          ctx.fillText('2', points[points.length - 1].x - 6, points[points.length - 1].y - 6);
         }
       }
 
@@ -4812,6 +4954,44 @@ declare function setStatusHint(hint: string): void;
         }
       };
       document.addEventListener('keydown', onKey as EventListener, true);
+    });
+  }
+
+  let modeResolver: ((value: string | null) => void) | null = null;
+
+  function chooseModeModal() {
+    return new Promise<string | null>((resolve) => {
+      if (modeResolver) modeResolver(null);
+      modeResolver = resolve;
+      ui.modalCard.replaceChildren();
+      const finish = (value: string | null) => {
+        ui.modal.classList.add('hidden');
+        ui.modalCard.replaceChildren();
+        const inner = modeResolver;
+        modeResolver = null;
+        if (inner) inner(value);
+      };
+      const heading = el('h3', null, '新建工程：选择场景模式');
+      const body = el('p', null, '模式决定可用元件与求解器；创建后仍可通过打开工程切换。');
+      const list = div('modal-actions');
+      const make = (mode: string, label: string, hint: string) => {
+        const item = button(`${label} · ${hint}`, 'btn', () => finish(mode));
+        item.style.flex = '1';
+        return item;
+      };
+      const cancel = button('取消', 'btn', () => finish(null));
+      list.append(
+        make('signal', '信号流', '增益/求和/滤波'),
+        make('circuit', '电路', '器件节点与 MNA'),
+        make('vector', '矢量场', '有限元/场求解'),
+      );
+      const actions = div('modal-actions');
+      actions.append(cancel);
+      ui.modalCard.append(heading, body, list, actions);
+      ui.modal.classList.remove('hidden');
+      ui.modal.onclick = (event: MouseEvent) => {
+        if (event.target === ui.modal) finish(null);
+      };
     });
   }
 
@@ -7543,6 +7723,7 @@ declare function setStatusHint(hint: string): void;
     const dataSection = section('场景数据', 'JSON');
     const fileRow = div('file-row');
     fileRow.appendChild(button('导出 JSON', 'btn', () => void exportScene()));
+    fileRow.appendChild(button('导出原理图 SVG', 'btn', () => void exportSchematic()));
     fileRow.appendChild(button('导入 JSON', 'btn', () => importInput.click()));
     dataSection.appendChild(fileRow);
     const importInput = el('input');
@@ -7859,6 +8040,32 @@ declare function setStatusHint(hint: string): void;
     toast('场景已导出', 'ok', 1800);
   }
 
+  async function exportSchematic() {
+    if (state.scene?.mode !== 'circuit') {
+      toast('原理图导出仅支持电路模式', 'info', 2600);
+      return;
+    }
+    const params = new URLSearchParams({
+      name: state.project?.name || '',
+      network: state.currentNetwork?.name || '',
+    });
+    const payload = await task(
+      () => jsonRequest(`/api/export/schematic?${params.toString()}`, 'GET'),
+      { dirty: false },
+    );
+    if (!payload?.svg) return;
+    const blob = new Blob([String(payload.svg)], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const link = el('a');
+    link.href = url;
+    link.download = String(payload.filename || 'schematic.svg');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    toast('原理图 SVG 已导出', 'ok', 1800);
+  }
+
   async function importSceneFile(file: File) {
     if (file.size > MAX_IMPORT_BYTES) {
       toast('场景文件超过 2 MB，已拒绝', 'error', 6000);
@@ -8038,6 +8245,9 @@ declare function setStatusHint(hint: string): void;
           symbol: state.ui.symbol,
           nodeStyle: state.ui.nodeStyle || 'circle',
           drawingMode: Boolean(state.ui.drawingMode),
+          drawingSheet: String(state.ui.drawingSheet || 'A3'),
+          drawingLabels: Boolean(state.ui.drawingLabels),
+          drawingPage: Math.max(1, Math.min(9, Number(state.ui.drawingPage) || 1)),
           symbolScale: Number(state.ui.symbolScale) || 1.2,
           glyphColor: state.ui.glyphColor || '#1f5f5b',
         },
@@ -8202,14 +8412,20 @@ declare function setStatusHint(hint: string): void;
   }
 
   async function newProject() {
+    const mode = await chooseModeModal();
+    if (!mode) return;
+    const labels: Record<string, string> = { signal: '信号流', circuit: '电路', vector: '矢量场' };
     const confirmed = await confirmModal(
       '新建工程？',
-      '当前场景会被空白场景替换，未保存的修改将丢失。需要保留请先保存或导出。',
+      `将创建空白「${labels[mode]}」场景；当前场景会被替换，未保存的修改将丢失。`,
       '新建',
       true,
     );
     if (!confirmed) return;
-    const response = await task(() => jsonRequest('/api/scene/clear', 'POST'), { dirty: false });
+    const response = await task(
+      () => jsonRequest(`/api/scene/clear?mode=${encodeURIComponent(mode)}`, 'POST'),
+      { dirty: false },
+    );
     if (!response) return;
     state.selection = { type: null, id: null };
     state.inspectorId = null;
@@ -11142,6 +11358,9 @@ declare function setStatusHint(hint: string): void;
     }
     if (['circle', 'dot', 'box'].includes((uiSettings.nodeStyle as string))) state.ui.nodeStyle = uiSettings.nodeStyle as string;
     if (typeof uiSettings.drawingMode === 'boolean') state.ui.drawingMode = uiSettings.drawingMode;
+    if (typeof uiSettings.drawingSheet === 'string' && SHEET_SIZES[uiSettings.drawingSheet]) state.ui.drawingSheet = uiSettings.drawingSheet;
+    if (typeof uiSettings.drawingLabels === 'boolean') state.ui.drawingLabels = uiSettings.drawingLabels;
+    if (Number.isFinite(Number(uiSettings.drawingPage))) state.ui.drawingPage = Math.max(1, Math.min(9, Number(uiSettings.drawingPage)));
     if (Number.isFinite(Number(uiSettings.symbolScale))) state.ui.symbolScale = clamp(Number(uiSettings.symbolScale), 0.6, 2.5);
     if (typeof uiSettings.glyphColor === 'string') state.ui.glyphColor = uiSettings.glyphColor;
     requestDraw();
@@ -13539,6 +13758,9 @@ declare function setStatusHint(hint: string): void;
     paint($('#segMotion'), prefs.motion || 'low');
     paint($('#segPerf'), prefs.perf || 'perf');
     paint($('#segInfoBar'), prefs.infobar === false ? 'off' : 'on');
+    paint($('#segSheet'), String(state.ui?.drawingSheet || 'A3'));
+    paint($('#segDrawLabels'), state.ui?.drawingLabels ? 'on' : 'off');
+    paint($('#segDrawPage'), String(state.ui?.drawingPage || 1));
     paint($('#segGuide'), prefs.guide === 'never' ? 'never' : 'always');
     paint($('#segAutosave'), state.project.autosave ? 'on' : 'off');
     if ($('#selAutosaveInterval')) ($('#selAutosaveInterval') as HTMLInputElement).value = String(Math.round(state.project.autosaveInterval / 1000));
@@ -13570,6 +13792,19 @@ declare function setStatusHint(hint: string): void;
       state.prefs.infobar = target.dataset.value !== 'off';
       applyAppearance();
     });
+    const bindDrawingSeg = (id: string, apply: (value: string) => void) => {
+      $(id)?.addEventListener('click', (event: MouseEvent) => {
+        const target = (event.target! as Element).closest('button[data-value]') as HTMLElement | null;
+        if (!target) return;
+        apply(String(target.dataset.value || ''));
+        markProjectDirty();
+        requestDraw();
+        syncPrefControls();
+      });
+    };
+    bindDrawingSeg('#segSheet', (value) => { state.ui.drawingSheet = value; });
+    bindDrawingSeg('#segDrawLabels', (value) => { state.ui.drawingLabels = value === 'on'; });
+    bindDrawingSeg('#segDrawPage', (value) => { state.ui.drawingPage = Math.max(1, Math.min(9, Number(value) || 1)); });
     $('#segGuide')?.addEventListener('click', (event: MouseEvent) => {
       const target = (event.target! as Element).closest('button[data-value]') as HTMLElement | null;
       if (target) void setPref('guide', target.dataset.value);

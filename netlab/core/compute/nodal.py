@@ -2378,6 +2378,8 @@ class CircuitSolver:
             mode = math_accel_mode("P3")
             solver: ACWoodburySolver | None = None
             stamp_count = 0
+            base_matrix: np.ndarray | None = None
+            base_rhs: np.ndarray | None = None
             if mode != "off":
                 omega0 = 2.0 * math.pi * math.sqrt(min(freqs) * max(freqs))
                 ctx0 = StampContext(
@@ -2402,6 +2404,8 @@ class CircuitSolver:
                     for stamp in stamps:
                         vector = stamp.vector(size)
                         base -= stamp.conductance(omega0) * np.outer(vector, vector)
+                    base_matrix = base
+                    base_rhs = np.array(ctx0.rhs, dtype=complex, copy=True)
                     solver = ACWoodburySolver(base, stamps, omega0)
                     record_math_diag("p3.init", solver.summary())
                 except Exception as exc:  # pragma: no cover - 防御性回退
@@ -2409,36 +2413,59 @@ class CircuitSolver:
                     record_math_diag("p3.init_error", {"error": repr(exc)})
             for frequency in freqs:
                 omega = 2.0 * math.pi * frequency
-                ctx = StampContext(
-                    A=np.zeros((size, size), dtype=complex),
-                    rhs=np.zeros(size, dtype=complex),
-                    index=self.index,
-                    solution=op,
-                    dt=0.0,
-                    time=0.0,
-                    iteration=0,
-                    mode="ac",
-                    omega=omega,
+                fast = (
+                    mode == "on"
+                    and solver is not None
+                    and solver.usable
+                    and solver.ratio <= 0.10
+                    and base_matrix is not None
+                    and base_rhs is not None
                 )
-                for element in self.elements:
-                    if hasattr(element, "value"):
-                        element.value = 1.0 if element is input_element else 0.0
-                    element.stamp(ctx)
+                if fast:
+                    # 频率无关的静态矩阵只装配一次；逐频点只更新 RHS 与
+                    # Woodbury 小解，避免每频点 O(n²) 重新 stamp。
+                    ctx = StampContext(
+                        A=base_matrix,
+                        rhs=base_rhs.copy(),
+                        index=self.index,
+                        solution=op,
+                        dt=0.0,
+                        time=0.0,
+                        iteration=0,
+                        mode="ac",
+                        omega=omega,
+                    )
+                else:
+                    ctx = StampContext(
+                        A=np.zeros((size, size), dtype=complex),
+                        rhs=np.zeros(size, dtype=complex),
+                        index=self.index,
+                        solution=op,
+                        dt=0.0,
+                        time=0.0,
+                        iteration=0,
+                        mode="ac",
+                        omega=omega,
+                    )
+                    for element in self.elements:
+                        if hasattr(element, "value"):
+                            element.value = 1.0 if element is input_element else 0.0
+                        element.stamp(ctx)
                 self._check_floating(ctx.A)
                 solution = None
-                if solver is not None and solver.usable:
-                    if mode == "on" and solver.ratio <= 0.10:
-                        solution = solver.solve(omega, ctx.rhs)
-                        record_math_diag(
-                            "p3.used",
-                            {
-                                "n": size,
-                                "r": stamp_count,
-                                "ratio": solver.ratio,
-                                "omega": omega,
-                            },
-                        )
-                    elif mode == "shadow" or (mode == "on" and solver.ratio <= 0.25):
+                if fast:
+                    solution = solver.solve(omega, ctx.rhs)
+                    record_math_diag(
+                        "p3.used",
+                        {
+                            "n": size,
+                            "r": stamp_count,
+                            "ratio": solver.ratio,
+                            "omega": omega,
+                        },
+                    )
+                elif solver is not None and solver.usable:
+                    if mode == "shadow" or (mode == "on" and solver.ratio <= 0.25):
                         direct = np.linalg.solve(ctx.A, ctx.rhs)
                         try:
                             shadow = solver.solve(omega, ctx.rhs)

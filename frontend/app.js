@@ -2510,8 +2510,8 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       }
     }
     const k = state.view.k;
-    const showDetail = k > 0.38;
-    const showValue = k > 0.52;
+    const showDetail = state.ui.cardDetail !== false && k > 0.38;
+    const showValue = state.ui.cardValue !== false && k > 0.52;
     const nameSize = clamp(12.5 * k, 6.5, 17);
     const metaSize = clamp(7.5 * k, 5, 11);
     const valueSize = clamp(8.6 * k, 5, 12);
@@ -7192,6 +7192,8 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
           drawingSheet: String(state.ui.drawingSheet || "A3"),
           drawingLabels: Boolean(state.ui.drawingLabels),
           drawingPage: Math.max(1, Math.min(9, Number(state.ui.drawingPage) || 1)),
+          cardDetail: state.ui.cardDetail !== false,
+          cardValue: state.ui.cardValue !== false,
           symbolScale: Number(state.ui.symbolScale) || 1.2,
           glyphColor: state.ui.glyphColor || "#1f5f5b"
         }
@@ -10074,6 +10076,8 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     if (typeof uiSettings.drawingSheet === "string" && SHEET_SIZES[uiSettings.drawingSheet]) state.ui.drawingSheet = uiSettings.drawingSheet;
     if (typeof uiSettings.drawingLabels === "boolean") state.ui.drawingLabels = uiSettings.drawingLabels;
     if (Number.isFinite(Number(uiSettings.drawingPage))) state.ui.drawingPage = Math.max(1, Math.min(9, Number(uiSettings.drawingPage)));
+    if (typeof uiSettings.cardDetail === "boolean") state.ui.cardDetail = uiSettings.cardDetail;
+    if (typeof uiSettings.cardValue === "boolean") state.ui.cardValue = uiSettings.cardValue;
     if (Number.isFinite(Number(uiSettings.symbolScale))) state.ui.symbolScale = clamp(Number(uiSettings.symbolScale), 0.6, 2.5);
     if (typeof uiSettings.glyphColor === "string") state.ui.glyphColor = uiSettings.glyphColor;
     requestDraw();
@@ -11375,6 +11379,8 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       const response = await jsonRequest("/api/ui", "GET");
       if (!response) return;
       let current = response.current || response.defaults;
+      state.ui.cardDetail = current.node?.show_detail !== false;
+      state.ui.cardValue = current.node?.show_value !== false;
       const tokenLabels = {
         background: "\u80CC\u666F",
         surface: "\u8868\u9762",
@@ -11441,6 +11447,25 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
         label.appendChild(input);
         layoutRows.appendChild(label);
       }
+      const nodeRows = div("ui-layout-rows");
+      const addNodeToggle = (key, labelText) => {
+        const label = div("ui-field wide");
+        label.appendChild(el("span", null, labelText));
+        const input = el("input");
+        input.type = "checkbox";
+        input.checked = current.node?.[key] !== false;
+        input.addEventListener("change", () => {
+          current.node = current.node || {};
+          current.node[key] = input.checked;
+          if (key === "show_detail") state.ui.cardDetail = input.checked;
+          else state.ui.cardValue = input.checked;
+          requestDraw();
+        });
+        label.appendChild(input);
+        nodeRows.appendChild(label);
+      };
+      addNodeToggle("show_detail", "\u663E\u793A\u8282\u70B9\u7C7B\u578B/\u7AEF\u53E3");
+      addNodeToggle("show_value", "\u663E\u793A\u8282\u70B9\u6570\u503C");
       ui.modalCard.replaceChildren();
       ui.modalCard.append(
         el("h3", null, "\u89C6\u56FE\u8BBE\u8BA1"),
@@ -11448,7 +11473,9 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
         modeRow,
         tokenGrid,
         el("h4", null, "\u5E03\u5C40"),
-        layoutRows
+        layoutRows,
+        el("h4", null, "\u8282\u70B9\u5361\u7247\u5B57\u6BB5"),
+        nodeRows
       );
       const actions = div("modal-actions");
       actions.appendChild(button("\u5E94\u7528\u5E76\u4FDD\u5B58", "btn primary", async () => {

@@ -76,6 +76,8 @@ declare function setStatusHint(hint: string): void;
     drawingSheet?: string;
     drawingLabels?: boolean;
     drawingPage?: number;
+    cardDetail?: boolean;
+    cardValue?: boolean;
     showPins?: boolean;
     [k: string]: unknown;
   }
@@ -3159,8 +3161,8 @@ declare function setStatusHint(hint: string): void;
       }
     }
     const k = state.view.k;
-    const showDetail = k > 0.38;
-    const showValue = k > 0.52;
+    const showDetail = state.ui.cardDetail !== false && k > 0.38;
+    const showValue = state.ui.cardValue !== false && k > 0.52;
     const nameSize = clamp(12.5 * k, 6.5, 17);
     const metaSize = clamp(7.5 * k, 5, 11);
     const valueSize = clamp(8.6 * k, 5, 12);
@@ -8250,6 +8252,8 @@ declare function setStatusHint(hint: string): void;
           drawingSheet: String(state.ui.drawingSheet || 'A3'),
           drawingLabels: Boolean(state.ui.drawingLabels),
           drawingPage: Math.max(1, Math.min(9, Number(state.ui.drawingPage) || 1)),
+          cardDetail: state.ui.cardDetail !== false,
+          cardValue: state.ui.cardValue !== false,
           symbolScale: Number(state.ui.symbolScale) || 1.2,
           glyphColor: state.ui.glyphColor || '#1f5f5b',
         },
@@ -11363,6 +11367,8 @@ declare function setStatusHint(hint: string): void;
     if (typeof uiSettings.drawingSheet === 'string' && SHEET_SIZES[uiSettings.drawingSheet]) state.ui.drawingSheet = uiSettings.drawingSheet;
     if (typeof uiSettings.drawingLabels === 'boolean') state.ui.drawingLabels = uiSettings.drawingLabels;
     if (Number.isFinite(Number(uiSettings.drawingPage))) state.ui.drawingPage = Math.max(1, Math.min(9, Number(uiSettings.drawingPage)));
+    if (typeof uiSettings.cardDetail === 'boolean') state.ui.cardDetail = uiSettings.cardDetail;
+    if (typeof uiSettings.cardValue === 'boolean') state.ui.cardValue = uiSettings.cardValue;
     if (Number.isFinite(Number(uiSettings.symbolScale))) state.ui.symbolScale = clamp(Number(uiSettings.symbolScale), 0.6, 2.5);
     if (typeof uiSettings.glyphColor === 'string') state.ui.glyphColor = uiSettings.glyphColor;
     requestDraw();
@@ -12736,6 +12742,8 @@ declare function setStatusHint(hint: string): void;
       const response = await jsonRequest('/api/ui', 'GET');
       if (!response) return;
       let current = response.current || response.defaults;
+      state.ui.cardDetail = current.node?.show_detail !== false;
+      state.ui.cardValue = current.node?.show_value !== false;
       const tokenLabels = {
         background: '背景', surface: '表面', panel: '面板', text: '文字', muted: '次要文字',
         accent: '强调色', grid: '网格', edge: '连线', node: '节点', danger: '警示', success: '成功',
@@ -12791,6 +12799,25 @@ declare function setStatusHint(hint: string): void;
         label.appendChild(input);
         layoutRows.appendChild(label);
       }
+      const nodeRows = div('ui-layout-rows');
+      const addNodeToggle = (key: 'show_detail' | 'show_value', labelText: string) => {
+        const label = div('ui-field wide');
+        label.appendChild(el('span', null, labelText));
+        const input = el('input');
+        input.type = 'checkbox';
+        input.checked = current.node?.[key] !== false;
+        input.addEventListener('change', () => {
+          current.node = current.node || {};
+          current.node[key] = input.checked;
+          if (key === 'show_detail') state.ui.cardDetail = input.checked;
+          else state.ui.cardValue = input.checked;
+          requestDraw();
+        });
+        label.appendChild(input);
+        nodeRows.appendChild(label);
+      };
+      addNodeToggle('show_detail', '显示节点类型/端口');
+      addNodeToggle('show_value', '显示节点数值');
       ui.modalCard.replaceChildren();
       ui.modalCard.append(
         el('h3', null, '视图设计'),
@@ -12799,6 +12826,8 @@ declare function setStatusHint(hint: string): void;
         tokenGrid,
         el('h4', null, '布局'),
         layoutRows,
+        el('h4', null, '节点卡片字段'),
+        nodeRows,
       );
       const actions = div('modal-actions');
       actions.appendChild(button('应用并保存', 'btn primary', async () => {

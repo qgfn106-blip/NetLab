@@ -43,7 +43,13 @@ DEFAULT_UI: dict[str, Any] = {
     "mode": "professional",
     "tokens": dict(DEFAULT_TOKENS),
     "layout": dict(DEFAULT_LAYOUT),
-    "node": {"radius": 10.0, "show_ports": True, "show_values": True},
+    "node": {
+        "radius": 10.0,
+        "show_ports": True,
+        "show_values": True,
+        "show_detail": True,
+        "show_value": True,
+    },
     "edge": {"route": "orthogonal", "arrow": True},
 }
 

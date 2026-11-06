@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from netlab.core.compute.computes import COMPUTE_SPECS, prepare_compute
-from netlab.core.compute.fem import FemConfig, FemModel, FemSimulation
+from netlab.core.compute.fem import FemConfig, FemModel
 from netlab.core.model.graph import ComputeContext, Network, Node
 from netlab.core.common.limits import ComputeError, ValidationError  # noqa: F401
 from netlab.core.compute.linalg import cont2discrete, expm, tustin_tf

@@ -9,7 +9,6 @@ import pytest
 
 from netlab.core.compute.computes import COMPUTE_SPECS
 from netlab.core.model.plugins import PluginManager, version_satisfies
-from netlab.core.common.limits import ValidationError
 
 
 def _write_plugin(

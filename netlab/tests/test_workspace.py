@@ -12,7 +12,6 @@ import json
 import pytest
 
 from netlab.core.model.project import (
-    build_project,
     project_current_network,
     save_project,
 )

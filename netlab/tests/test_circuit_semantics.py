@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from netlab.core.model.scene import Scene
 
@@ -87,7 +86,7 @@ def test_unwired_device_is_skipped_not_blocking():
 def test_single_ended_source_auto_grounds_free_pin():
     """D43：电源只接一端时，空脚自动对地，并在引擎里登记。"""
     scene = Scene("circuit")
-    gnd = node(scene, "gnd", "ground")
+    node(scene, "gnd", "ground")
     n1 = node(scene, "n1")
     src = device(scene, "V1", "vsource", wave="dc", offset=5.0, amplitude=0.0)
     wire(scene, "W+", src, n1, "+")

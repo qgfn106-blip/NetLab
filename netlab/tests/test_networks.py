@@ -19,7 +19,6 @@ from netlab.core.model.project import (
 )
 from netlab.core.model.scene import Scene
 from netlab.core.compute.simulation import Simulation
-from netlab.core.model.templates import build_template
 
 
 def build_simulation(name: str = "a") -> Simulation:

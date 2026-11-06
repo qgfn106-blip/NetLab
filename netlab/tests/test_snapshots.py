@@ -7,7 +7,6 @@ API 快照/列表/恢复往返。
 from __future__ import annotations
 
 import hashlib
-import json
 from datetime import datetime, timedelta
 
 import pytest
@@ -22,7 +21,6 @@ from netlab.core.model.workspace import (
     load_snapshot,
     prune_snapshots,
     write_snapshot,
-    workspace_for,
 )
 
 

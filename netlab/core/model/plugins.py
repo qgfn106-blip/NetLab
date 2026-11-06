@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import copy
 import importlib.util
 import json
 import logging
@@ -18,7 +17,7 @@ import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Callable
+from typing import Any
 
 from ... import __version__ as HOST_VERSION
 from ...plugin_api.v1 import (
@@ -37,12 +36,10 @@ from ..compute.computes import COMPUTE_SPECS, ComputeSpec
 from ..compute.methods import METHOD_SPECS, MethodSpec
 from ..compute.nodal import ELEMENT_SPECS, ElementSpec
 from ..compute.analysis_plugins import (
-    ANALYSIS_SPECS,
     register_analysis,
     unregister_analysis,
 )
 from .engine_registry import (
-    ENGINE_SPECS,
     register_engine,
     unregister_engine,
 )

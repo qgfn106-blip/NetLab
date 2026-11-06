@@ -1,0 +1,14 @@
+[flake8]
+max-line-length = 88
+extend-ignore = E203, E501, W503
+exclude =
+    .git,
+    __pycache__,
+    node_modules,
+    .tsbuild,
+    build,
+    dist,
+    netlab/_vendor
+per-file-ignores =
+    netlab/server.py:E402
+    netlab/core/compute/nodal.py:E402

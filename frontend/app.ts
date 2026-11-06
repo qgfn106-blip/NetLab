@@ -1,3 +1,6 @@
+declare const desc: HTMLElement;
+declare function setStatusHint(hint: string): void;
+
 /* Netlab 拓扑网络仿真台 — 前端交互脚本
  *
  * 设计约束：
@@ -12,11 +15,21 @@
 
   interface SizeRec { w: number; h: number; dpr: number }
   interface ViewRec { x: number; y: number; k: number }
-  interface PointerRec { x: number; y: number; wx: number; wy: number }
+  interface PointerRec { x: number; y: number; wx?: number; wy?: number }
   interface SelectionRec { type: string | null; id: string | null }
-  interface HoverRec { id: string; [k: string]: unknown }
+  interface HoverRec { id?: string; [k: string]: unknown }
   interface HoverWaypointRec { edgeId: string; index: number }
-  interface FemHoverRec { i: number; j: number; value: number }
+  interface FemHoverRec { i: number; j: number; value: number; sx: number; sy: number }
+  interface WireToolRec { first?: { kind?: string; nodeId: string; pin?: string } | null; [k: string]: unknown }
+  interface TemplateRec { name: string; label: string; mode?: string; description?: string; sim?: { fps?: number; dt?: number; steps_per_frame?: number; [k: string]: unknown }; [k: string]: unknown }
+  interface OpElementRec { current?: number; voltage_difference?: number; power?: number; [k: string]: unknown }
+  interface HelpInfoRec { title?: string; description?: string; range?: string; unit?: string; def?: unknown; formula?: string; source?: string; role?: string; [k: string]: unknown }
+  type FloatGeo = { left: number; top: number; width: number; height: number };
+  type PreviewNode = { id: string; label: string; kind: string; x: number; y: number };
+  type IroPicker = { on(ev: string, cb: (color: { hexString: string }) => void): void };
+  type IroGlobal = { ColorPicker: new (el: HTMLElement, opts?: Record<string, unknown>) => IroPicker };
+  interface PayloadRec { name: string; kind: string; params: Record<string, unknown>; data?: Record<string, unknown>; delay?: boolean; source_port?: string; target_port?: string; waypoints?: Array<{ x: number; y: number }>; route?: string; enabled?: boolean; [k: string]: unknown }
+  interface EdgeBodyRec { source: string; target: string; kind: string; params: Record<string, unknown>; enabled: boolean; route?: string; delay?: boolean; auto_delay?: boolean; source_pin?: string; target_pin?: string; [k: string]: unknown }
   interface ChartRec {
     selected: Set<string>;
     window: number;
@@ -88,7 +101,7 @@
     autosave: boolean;
     autosaveInterval: number;
     autosavedAt: number;
-    recent: string[];
+    recent: { path: string; name: string; at?: number }[];
     desktop: boolean;
     [k: string]: unknown;
   }
@@ -112,10 +125,10 @@
     id: string;
     name: string;
     kind: string;
-    anchors?: unknown[];
+    anchors?: { source?: string; target?: string; [k: string]: unknown };
     delay?: number;
     enabled?: boolean;
-    layout?: unknown;
+    layout?: LayoutRec;
     params?: Record<string, unknown>;
     route?: unknown;
     source: string;
@@ -125,7 +138,7 @@
     target_pin?: string;
     target_port?: string;
     state?: unknown;
-    waypoints?: unknown[];
+    waypoints?: { x: number; y: number }[];
     [k: string]: unknown;
   }
   interface SceneRec {
@@ -134,6 +147,7 @@
     integration?: unknown;
     mode?: string;
     revision: number;
+    sim?: SimRec;
     [k: string]: unknown;
   }
   interface SimRec {
@@ -144,6 +158,12 @@
     actual_fps?: number;
     config?: { fps?: number; steps_per_frame?: number; dt?: number; [k: string]: unknown };
     stats?: { kind?: string; matrix_size?: number; [k: string]: unknown };
+    dt?: number;
+    time?: number;
+    alerts?: number;
+    warnings?: number;
+    scene?: SimStats;
+    degraded?: DegradedRec;
     [k: string]: unknown;
   }
   interface LimitsRec { nodes: number; edges: number; [k: string]: unknown }
@@ -167,18 +187,18 @@
     time: number;
     [k: string]: unknown;
   }
-  interface FrameItem { t: number; v: Record<string, number>; field?: unknown }
+  interface FrameItem { t: number; v: Record<string, number>; field?: unknown; min?: number; max?: number }
   interface NetworkItem { id: string; name: string; current?: boolean; [k: string]: unknown }
-  interface BlockItem { id: string; name: string; [k: string]: unknown }
+  interface BlockItem { id: string; name: string; nodes?: NodeItem[]; edges?: EdgeItem[]; ports?: PortSpec[]; version?: number; model?: string; kind?: string; label?: string; mode?: string; node_count?: number; builtin?: boolean; inputs?: PortSpec[]; outputs?: PortSpec[]; params?: unknown[]; expression?: string; description?: string; source?: string; [k: string]: unknown }
   interface DocItem { slug: string; title: string; [k: string]: unknown }
   interface DragRec {
     anchor?: string;
     diameter?: number;
-    end?: unknown;
+    end?: string;
     id?: string;
     index?: number;
     sourceId?: string;
-    targetId?: string;
+    targetId?: string | null;
     pin?: string;
     type?: string;
     startX?: number;
@@ -193,6 +213,35 @@
     moved?: boolean;
     [k: string]: unknown;
   }
+  interface SnapshotRec { scene?: SceneRec; sim?: SimRec; limits?: LimitsRec; fem?: FemRec; [k: string]: unknown }
+  interface DegradedItemRec { id: string; version: number; [k: string]: unknown }
+  interface DataHolder { name?: string; data?: Record<string, unknown>; output?: unknown; state?: unknown; [k: string]: unknown }
+  interface BoxRec { x: number; y: number; w: number; h: number; [k: string]: unknown }
+  interface Pt { x: number; y: number }
+  interface BezierRec { p0: Pt; p1: Pt; p2: Pt; p3: Pt }
+  interface MenuItemRec { label?: string; hint?: string; sep?: boolean; disabled?: boolean; action?: (() => void) | null; children?: MenuItemRec[]; [k: string]: unknown }
+  interface DeclaredItemRec { kind?: string; function?: string; name?: string; [k: string]: unknown }
+  interface RailItemRec { [k: string]: unknown }
+  interface IssueRec { code?: string; message?: string; [k: string]: unknown }
+  interface ComplexLike { real?: number; re?: number; imag?: number; im?: number }
+  interface TfMetricsRec { final?: number; peak_value?: number; peak_time?: number; overshoot_pct?: number; rise_time?: number; settling_time?: number; steady_state_error?: number; [k: string]: unknown }
+  interface TfStepRec { metrics?: TfMetricsRec; stable?: boolean; t?: number[]; y?: number[]; [k: string]: unknown }
+  interface TfBodeRec { omega?: number[]; magnitude_db?: number[]; phase_deg?: number[]; [k: string]: unknown }
+  interface StateSpaceRec { order?: number; [k: string]: unknown }
+  interface TfDataRec { step?: TfStepRec; bode?: TfBodeRec; poles?: ComplexLike[]; zeros?: ComplexLike[]; assumptions?: string[]; stability?: 'stable' | 'marginal' | 'unstable'; expression?: string; order?: number; relative_order?: number; dc_gain?: number; dc_gain_finite?: boolean; state_space?: StateSpaceRec; [k: string]: unknown }
+  interface PerfRowRec { name?: string; count?: number; total_ms?: number; mean_ms?: number; max_ms?: number; [k: string]: unknown }
+  interface CacheEntryRec { path?: string; size?: number; exists?: boolean; [k: string]: unknown }
+  interface LayoutRec { x: number; y: number; rot: number; [k: string]: unknown }
+  interface SimStats { kind?: string; matrix_size?: number; step_ms?: number; iterations?: number; [k: string]: unknown }
+  interface DegradedRec { read_only?: boolean; missing?: DegradedItemRec[]; message?: string; [k: string]: unknown }
+  interface ClipboardRec { nodes: NodeItem[]; edges: EdgeItem[]; networkId?: string; [k: string]: unknown }
+  interface FemMeshRec { nx: number; ny: number; elements: number[][]; x: number[]; y: number[]; [k: string]: unknown }
+  interface ExtItemRec { label?: string; kind?: string; type?: string; filename?: string; sha256?: string; error?: string; params?: unknown[]; source?: unknown; [k: string]: unknown }
+  interface ExtResultRec { kind?: string; message?: string; detail?: unknown; [k: string]: unknown }
+  interface SpectrumRec { magnitude?: number[]; freqs?: number[]; [k: string]: unknown }
+  interface AcResultRec { probes?: Record<string, unknown>; input?: string; frequencies?: number[]; [k: string]: unknown }
+  type FieldKey = string
+  interface FloatWindowSpec { minWidth?: number; minHeight?: number; [k: string]: unknown }
   interface Ui {
     main: HTMLElement;
     panel: HTMLElement;
@@ -255,6 +304,7 @@
     moduleMeta: HTMLElement;
     moduleStage: HTMLElement;
     moduleCanvas: HTMLCanvasElement;
+    phaseCanvas: HTMLCanvasElement;
     moduleEmpty: HTMLElement;
     moduleDock: HTMLElement;
     moduleWinClose: HTMLElement;
@@ -318,7 +368,7 @@
   }
   interface State {
     catalog: CatalogRec | null;
-    templates: unknown[];
+    templates: TemplateRec[];
     mode: string;
     scene: SceneRec | null;
     sim: SimRec | null;
@@ -387,7 +437,7 @@
     multi: MultiRec;
     undoStack: unknown[];
     redoStack: unknown[];
-    clipboard: unknown;
+    clipboard: ClipboardRec | null;
     specKind: string;
     ext: ExtRec;
     lastLiveError: number;
@@ -413,14 +463,14 @@
     shuttingDown: boolean;
     project: ProjectRec;
     acResult?: unknown;
-    acRevision?: number;
+    acRevision?: number | null;
     floatZ?: number;
     hoverWaypoint?: HoverWaypointRec | null;
     plotkitActive?: boolean;
     plotkitMode?: string;
-    precomputedRevision?: number;
-    precomputedSeconds?: number;
-    wireTool?: string;
+    precomputedRevision?: number | null;
+    precomputedSeconds?: number | null;
+    wireTool?: WireToolRec | null;
   }
 
 
@@ -484,6 +534,17 @@
     label?: string;
     params?: ParamSpec[];
     ports?: PortSpec[];
+    inputs?: PortSpec[];
+    outputs?: PortSpec[];
+    mode?: string;
+    model?: string;
+    version?: number;
+    node_count?: number;
+    builtin?: boolean;
+    formula?: string;
+    description?: string;
+    source?: string;
+    source_path?: string;
     [k: string]: unknown;
   }
   const ui: Ui = {
@@ -546,7 +607,7 @@
     moduleWinHint: $('#moduleWinHint'),
     modulePorts: $('#modulePorts'),
     moduleMeta: $('#moduleMeta'),
-    moduleStage: document.querySelector('#moduleWin .modwin-stage'),
+    moduleStage: (document.querySelector('#moduleWin .modwin-stage') as HTMLElement),
     moduleCanvas: $<HTMLCanvasElement>('#moduleCanvas'),
     moduleEmpty: $('#moduleEmpty'),
     moduleDock: $('#moduleDock'),
@@ -753,7 +814,7 @@
   };
 
   // 浏览器模式的工程文件选择器（桌面模式走原生对话框）。
-  let projectFileInput = null;
+  let projectFileInput: HTMLInputElement | null = null;
 
   function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string | null, text?: string | number | null): HTMLElementTagNameMap[K];
   function el<T extends HTMLElement = HTMLElement>(tag: string, cls?: string | null, text?: string | number | null): T;
@@ -768,7 +829,7 @@
     return el<HTMLDivElement>('div', cls, text);
   }
 
-  function button(label?: string | null, cls?: string | null, onClick?: (event: MouseEvent) => void): HTMLButtonElement {
+  function button(label?: string | null, cls?: string | null, onClick?: ((event: MouseEvent) => void) | null): HTMLButtonElement {
     const node = el<HTMLButtonElement>('button', cls || 'btn', label);
     node.type = 'button';
     if (onClick) node.addEventListener('click', onClick);
@@ -813,7 +874,7 @@
     if (!state.chart.colors.has(key)) {
       state.chart.colors.set(key, CHART_PALETTE[hashString(key) % CHART_PALETTE.length]);
     }
-    return C(state.chart.colors.get(key));
+    return C((state.chart.colors.get(key) as string));
   }
 
   interface ApiOptions {
@@ -821,6 +882,11 @@
     headers?: Record<string, string>;
     method?: string;
     body?: string;
+    quiet?: boolean;
+    skipConfirm?: boolean;
+    min?: number;
+    max?: number;
+    step?: number | string;
     [k: string]: unknown;
   }
   interface TaskOptions {
@@ -835,7 +901,7 @@
     if (group === 'fn') return state.fnRole === 'edge' ? 'edge-fn' : 'node-fn';
     if (group === 'analysis' || group === 'modules') {
       const sub = $('.panel-group.active .group-subnav [data-sub].active');
-      return sub ? sub.dataset.sub : (group === 'modules' ? 'blocks' : 'chart');
+      return sub ? (sub.dataset.sub as string) : (group === 'modules' ? 'blocks' : 'chart');
     }
     if (group === 'fem') return 'fem';
     return 'inspect';
@@ -945,11 +1011,11 @@
   }
 
   function callBridge(method: string, args: unknown[] = []) {
-    const bridge = desktopBridge();
-    if (!bridge || typeof bridge[method] !== 'function') return Promise.resolve(null);
+    const bridge = desktopBridge() as (NetlabDesktopApi & { setDirty?: (dirty: boolean) => void }) | null;
+    if (!bridge || typeof (bridge as NetlabDesktopApi & Record<string, unknown>)[method] !== 'function') return Promise.resolve(null);
     return new Promise((resolve) => {
       try {
-        bridge[method](...args, (result) => resolve(result));
+        (bridge as NetlabDesktopApi & Record<string, (...args: unknown[]) => unknown>)[method](...args, (result: unknown) => resolve(result));
       } catch (error) {
         toast(`桌面桥调用失败（${method}）：${(error as Error)?.message || error}`, 'error', 6000);
         resolve(null);
@@ -970,7 +1036,7 @@
   async function api(path: string, options: ApiOptions = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), Number(options.timeoutMs) || 15000);
-    const headers = { 'Content-Type': 'application/json' };
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (DESKTOP_TOKEN) headers['X-Netlab-Token'] = DESKTOP_TOKEN;
     const config = {
       headers,
@@ -1015,7 +1081,7 @@
   // PlotKit 子应用是独立页面，拿不到 api() 的请求头；桌面 token 只放在 URL 片段里，
   // 由宿主注入子应用首页的 shim 读取后立即抹掉，再给同源 /plotkit/api/ 请求补头。
   // 不要改成查询串：查询串会进日志/Referer，也会被服务端访问日志记下来。
-  function plotkitFrameUrl(extra) {
+  function plotkitFrameUrl(extra: string | Record<string, string>) {
     const params = new URLSearchParams(extra || {});
     const query = params.toString();
     const hash = DESKTOP_TOKEN ? `#netlabToken=${encodeURIComponent(DESKTOP_TOKEN)}` : '';
@@ -1025,7 +1091,7 @@
   function toast(message: string, type: string = 'info', timeout: number = 4200) {
     const node = div(`toast ${type}`, message);
     ui.toasts.appendChild(node);
-    while (ui.toasts.children.length > 4) ui.toasts.firstChild.remove();
+    while (ui.toasts.children.length > 4) ui.toasts.firstChild!.remove();
     setTimeout(() => {
       node.style.opacity = '0';
       node.style.transform = 'translateY(4px)';
@@ -1083,7 +1149,7 @@
    * 2. 快照同步与全局 UI
    * ==================================================================== */
 
-  function applySnapshot(snapshot) {
+  function applySnapshot(snapshot: SnapshotRec) {
     if (!snapshot || typeof snapshot !== 'object' || !snapshot.scene) return;
     const sim = snapshot.sim || state.sim;
     const previousCursor = state.cursor;
@@ -1106,7 +1172,7 @@
       state.precomputedRevision = null;
     }
     if (snapshot.limits) state.limits = snapshot.limits;
-    state.mode = state.scene.mode || state.mode;
+    state.mode = state.scene!.mode || state.mode;
 
     if (resetFrames || (sim && Number(sim.cursor) < previousCursor)) {
       state.frames = [];
@@ -1141,9 +1207,9 @@
     updateModeUI();
     syncUI();
     updateInfoBar();
-    const degraded = sim && sim.degraded;
+    const degraded = (sim && sim.degraded) as DegradedRec | null;
     if (degraded && degraded.read_only) {
-      const missing = (degraded.missing || []).map((item) => `${item.id}@v${item.version}`).join('、');
+      const missing = (degraded.missing || []).map((item: DegradedItemRec) => `${item.id}@v${item.version}`).join('、');
       showBanner(`降级只读：${degraded.message}${missing ? `（缺失：${missing}）` : ''}`);
       state.degradedBanner = true;
     } else if (state.degradedBanner) {
@@ -1186,7 +1252,7 @@
     ui.statusLimits.textContent = `节点 ${nodes}/${maxNodes} · 连接 ${edges}/${maxEdges}`;
     ui.statusMode.textContent = modeLabel(state.mode);
 
-    const stats = sim.scene || {};
+    const stats = (sim.scene || {}) as SimStats;
     const revision = state.scene?.revision ?? 0;
     if (stats.kind === 'circuit') {
       ui.statusEngine.textContent = `MNA ${stats.matrix_size || 0}×${stats.matrix_size || 0}`;
@@ -1208,7 +1274,7 @@
     const simError = sim.error || null;
     const message = simError || engineError;
     if (message) {
-      if (state.dismissedError !== message) showBanner(message);
+      if (state.dismissedError !== message) showBanner((message as string));
     } else {
       state.dismissedError = null;
       hideBanner();
@@ -1237,8 +1303,8 @@
     }
     const integration = $('[data-role="integration"]');
     if (integration) {
-      integration.disabled = state.mode !== 'circuit';
-      if (state.scene) integration.value = state.scene.integration || 'trapezoidal';
+      (integration as HTMLButtonElement).disabled = state.mode !== 'circuit';
+      if (state.scene) (integration as HTMLInputElement).value = (state.scene.integration || 'trapezoidal') as string;
     }
     const integrationNote = $('[data-role="integration-note"]');
     if (integrationNote) {
@@ -1248,7 +1314,7 @@
     }
   }
 
-  function updateRunButton(running) {
+  function updateRunButton(running: boolean) {
     ui.runBtn.classList.toggle('running', Boolean(running));
     ui.runBtn.setAttribute('aria-pressed', running ? 'true' : 'false');
     ui.runIcon.textContent = running ? '⏸' : '▶';
@@ -1287,7 +1353,7 @@
     scheduleChartDraw();
   }
 
-  function ingestFrame(frame) {
+  function ingestFrame(frame: FrameItem) {
     if (!frame || !frame.v) return;
     for (const [key, raw] of Object.entries(frame.v)) {
       if (typeof raw !== 'number' || !Number.isFinite(raw)) continue;
@@ -1322,9 +1388,9 @@
     }
   }
 
-  function displayDataFor(record, liveMap) {
+  function displayDataFor(record: DataHolder, liveMap: Map<string, Record<string, unknown>>) {
     const merged = Object.assign({}, record?.data || {});
-    const live = liveMap.get(record?.name);
+    const live = liveMap.get((record?.name as string));
     if (live) {
       for (const [key, value] of Object.entries(live)) {
         if (typeof value === 'number' && Number.isFinite(value)) merged[key] = value;
@@ -1333,12 +1399,12 @@
     return merged;
   }
 
-  function nodeDisplayData(node) {
+  function nodeDisplayData(node: NodeItem) {
     return displayDataFor(node, state.nodeValues);
   }
 
-  function edgeDisplayData(edge) {
-    const merged = Object.assign({}, edge?.output || {}, edge?.state || {});
+  function edgeDisplayData(edge: EdgeItem) {
+    const merged = Object.assign({}, edge?.output || {}, edge?.state || {}) as Record<string, number>;
     const live = state.edgeValues.get(edge?.name);
     if (live) {
       for (const [key, value] of Object.entries(live)) {
@@ -1390,7 +1456,7 @@
     };
   }
 
-  function nodeDiameter(node) {
+  function nodeDiameter(node: NodeItem) {
     if (
       state.scene?.mode === 'circuit'
       && state.ui?.symbol === 'gb'
@@ -1405,7 +1471,7 @@
     return NODE_RADIUS * 2;
   }
 
-  function nodeRect(node) {
+  function nodeRect(node: NodeItem) {
     const k = state.view.k;
     if (isPinNode(node)) {
       return deviceRect(node);
@@ -1425,26 +1491,26 @@
   }
 
   // ---- R20：器件节点（组件框 + 引脚） --------------------------------------
-  function deviceElementSpec(node) {
+  function deviceElementSpec(node: NodeItem) {
     const element = String(node?.params?.element || '');
     return (state.catalog?.elements || []).find((spec: SpecRec) => spec.kind === element) || null;
   }
 
-  function isModuleNode(node) {
+  function isModuleNode(node: NodeItem) {
     return state.scene?.mode === 'circuit' && node?.kind === 'module';
   }
 
   // 电路里"带引脚的东西"：器件与模块实例都按引脚连线。
-  function isPinNode(node) {
+  function isPinNode(node: NodeItem) {
     return state.scene?.mode === 'circuit'
       && (node?.kind === 'device' || node?.kind === 'module');
   }
 
-  function modulePorts(node) {
+  function modulePorts(node: NodeItem) {
     return Array.isArray(node?.params?.ports) ? node.params.ports : [];
   }
 
-  function devicePins(node) {
+  function devicePins(node: NodeItem): PortSpec[] {
     if (node?.kind === 'module') {
       // R24/D49：模块实例的端口就是引脚，方向决定它画在哪一侧。
       return modulePorts(node).map((port: PortSpec) => ({
@@ -1458,15 +1524,15 @@
         module: true,
       }));
     }
-    return deviceElementSpec(node)?.pins || [];
+    return (deviceElementSpec(node)?.pins || []) as PortSpec[];
   }
 
-  function devicePinGroups(node) {
+  function devicePinGroups(node: NodeItem) {
     const pins = devicePins(node);
-    const left = [];
-    const right = [];
-    const top = [];
-    const bottom = [];
+    const left: PortSpec[] = [];
+    const right: PortSpec[] = [];
+    const top: PortSpec[] = [];
+    const bottom: PortSpec[] = [];
     if (pins.length === 2) {
       return { left: [pins[0]], right: [pins[1]], top: [], bottom: [] };
     }
@@ -1486,7 +1552,7 @@
     return { left, right, top, bottom };
   }
 
-  function deviceWorldSize(node) {
+  function deviceWorldSize(node: NodeItem) {
     const groups = devicePinGroups(node);
     const maxSide = Math.max(
       groups.left.length, groups.right.length,
@@ -1497,7 +1563,7 @@
     return { w, h };
   }
 
-  function deviceRect(node) {
+  function deviceRect(node: NodeItem) {
     const { w: worldW, h: worldH } = deviceWorldSize(node);
     const k = state.view.k;
     const center = worldToScreen(node.position || { x: 0, y: 0 });
@@ -1515,7 +1581,7 @@
     };
   }
 
-  function devicePinLocal(node, pin: PortSpec) {
+  function devicePinLocal(node: NodeItem, pin: PortSpec) {
     const { w, h } = deviceWorldSize(node);
     const groups = devicePinGroups(node);
     const leftIndex = groups.left.findIndex((item) => item.name === pin.name);
@@ -1537,7 +1603,7 @@
     return { x: 0, y: 0, side: 'center' };
   }
 
-  function devicePinWired(node, pinName: string) {
+  function devicePinWired(node: NodeItem, pinName: string) {
     return (state.scene?.edges || []).some((edge) => {
       if (edge.kind !== 'wire' || !edge.enabled) return false;
       if (edge.source === node.id && edge.source_pin === pinName) return true;
@@ -1545,25 +1611,25 @@
     });
   }
 
-  function deviceSupplyLabel(node, pin: PortSpec) {
+  function deviceSupplyLabel(node: NodeItem, pin: PortSpec) {
     // R21：V± 未接线时显示参数默认值，接线后只显示引脚名，避免“值/来源”混淆。
     const element = String(node?.params?.element || '');
     if (!['opamp', 'comparator'].includes(element)) return pin.name;
     if (pin.name !== 'V+' && pin.name !== 'V-') return pin.name;
     if (devicePinWired(node, pin.name)) return pin.name;
-    const value = pin.name === 'V+' ? node.params.vcc : node.params.vee;
+    const value = pin.name === 'V+' ? node.params!.vcc : node.params!.vee;
     if (!Number.isFinite(Number(value))) return pin.name;
     const text = `${Number(value).toPrecision(3)}V`;
     return `${pin.name} ${text}`;
   }
 
-  function deviceMissingPins(node) {
+  function deviceMissingPins(node: NodeItem) {
     return devicePins(node)
       .filter((pin: PortSpec) => pin.required && !devicePinWired(node, pin.name))
       .map((pin: PortSpec) => pin.name);
   }
 
-  function deviceImplicitGroundPin(node) {
+  function deviceImplicitGroundPin(node: NodeItem) {
     // R21/D43：两端电源只接一端时，空脚自动对地并画出接地标记。
     const element = String(node?.params?.element || '');
     if (!['vsource', 'isource'].includes(element)) return null;
@@ -1571,14 +1637,14 @@
     return missing.length === 1 ? missing[0] : null;
   }
 
-  function deviceInactive(node) {
+  function deviceInactive(node: NodeItem) {
     // 运行中“未参与求解”器件：缺必接引脚，但电源的单端自动接地不算。
     const implicit = deviceImplicitGroundPin(node);
-    return deviceMissingPins(node).some((pin: PortSpec) => pin !== implicit);
+    return deviceMissingPins(node).some((pin: string) => pin !== implicit);
   }
 
-  function devicePinScreen(node, pinName: string) {
-    const pin = devicePins(node).find((item) => item.name === pinName);
+  function devicePinScreen(node: NodeItem, pinName: string) {
+    const pin = devicePins(node).find((item: PortSpec) => item.name === pinName);
     if (!pin) return nodeCenterScreen(node);
     const rect = deviceRect(node);
     const local = devicePinLocal(node, pin);
@@ -1591,17 +1657,17 @@
     return { x: Math.round(x / grid) * grid, y: Math.round(y / grid) * grid };
   }
 
-  function portOut(node) {
+  function portOut(node: NodeItem) {
     const rect = nodeRect(node);
     return { x: rect.cx + rect.r, y: rect.cy };
   }
 
-  function portIn(node) {
+  function portIn(node: NodeItem) {
     const rect = nodeRect(node);
     return { x: rect.cx - rect.r, y: rect.cy };
   }
 
-  function curveFor(edge) {
+  function curveFor(edge: EdgeItem) {
     const source = nodeById(edge.source);
     const target = nodeById(edge.target);
     if (!source || !target) return null;
@@ -1640,12 +1706,12 @@
     };
   }
 
-  function nodeCenterScreen(node) {
+  function nodeCenterScreen(node: NodeItem) {
     const rect = nodeRect(node);
     return { x: rect.cx, y: rect.cy };
   }
 
-  function anchorPoint(node, side, toward) {
+  function anchorPoint(node: NodeItem, side: string, toward: Pt) {
     const rect = nodeRect(node);
     if (side === 'left') return { x: rect.cx - rect.r, y: rect.cy };
     if (side === 'right') return { x: rect.cx + rect.r, y: rect.cy };
@@ -1687,8 +1753,8 @@
     for (const edge of candidates) {
       const waypoints = edge.waypoints || [];
       for (let index = 0; index < waypoints.length; index += 1) {
-        const wx = Number(waypoints[index].x) || 0;
-        const wy = Number(waypoints[index].y) || 0;
+        const wx = Number(waypoints!![index].x) || 0;
+        const wy = Number(waypoints!![index].y) || 0;
         const screen = {
           x: state.view.x + wx * state.view.k,
           y: state.view.y + wy * state.view.k,
@@ -1701,7 +1767,7 @@
     return null;
   }
 
-  function anchorSideFor(node, screenPoint) {
+  function anchorSideFor(node: NodeItem, screenPoint: Pt) {
     const rect = nodeRect(node);
     const radius = Math.max(rect.r, 1);
     const dx = (screenPoint.x - rect.cx) / radius;
@@ -1711,7 +1777,7 @@
     return dy >= 0 ? 'bottom' : 'top';
   }
 
-  function anchorScreenPoint(node, side) {
+  function anchorScreenPoint(node: NodeItem, side: string) {
     const rect = nodeRect(node);
     const r = rect.r;
     if (side === 'left') return { x: rect.cx - r, y: rect.cy };
@@ -1721,7 +1787,7 @@
     return { x: rect.cx, y: rect.cy };
   }
 
-  function edgePathPoints(edge) {
+  function edgePathPoints(edge: EdgeItem) {
     const source = nodeById(edge.source);
     const target = nodeById(edge.target);
     if (!source || !target) return null;
@@ -1761,7 +1827,7 @@
     }
     if (route === 'manual' && Array.isArray(edge.waypoints) && edge.waypoints.length) {
       const points = [start];
-      for (const item of edge.waypoints) points.push(worldToScreen(item));
+      for (const item of edge.waypoints) points.push(worldToScreen((item as { x: number; y: number; })));
       points.push(end);
       return points;
     }
@@ -1837,7 +1903,7 @@
     return best;
   }
 
-  function vectorForNode(node) {
+  function vectorForNode(node: NodeItem) {
     const data = nodeDisplayData(node);
     let vx = data.vx;
     let vy = data.vy;
@@ -1860,7 +1926,7 @@
     return { vx, vy, magnitude, source };
   }
 
-  function bezierPoint(curve, t: number) {
+  function bezierPoint(curve: BezierRec, t: number) {
     const mt = 1 - t;
     const a = mt * mt * mt;
     const b = 3 * mt * mt * t;
@@ -1872,7 +1938,7 @@
     };
   }
 
-  function roundRectPath(context, x: number, y: number, w: number, h: number, r) {
+  function roundRectPath(context: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
     const radius = Math.max(0, Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2));
     context.beginPath();
     context.moveTo(x + radius, y);
@@ -1912,19 +1978,19 @@
     vector_transform: '#4a6f8a',
   };
 
-  function nodeColor(node) {
+  function nodeColor(node: NodeItem) {
     if (node.kind === 'ground') return C('#6f695f');
     if (state.mode === 'circuit') return C('#9a6a1c');
-    if (KIND_COLORS[node.kind]) return C(KIND_COLORS[node.kind]);
+    if (KIND_COLORS[node.kind as keyof typeof KIND_COLORS]) return C(KIND_COLORS[node.kind as keyof typeof KIND_COLORS]);
     const spec = getNodeSpec(node.kind);
-    return C(GROUP_COLORS[spec?.group] || '#a8541f');
+    return C(GROUP_COLORS[spec?.group as keyof typeof GROUP_COLORS] || '#a8541f');
   }
 
-  function nodeKindLabel(node) {
-    return KIND_SHORT[node.kind] || String(node.kind || '').toUpperCase().slice(0, 9);
+  function nodeKindLabel(node: NodeItem) {
+    return KIND_SHORT[node.kind as keyof typeof KIND_SHORT] || String(node.kind || '').toUpperCase().slice(0, 9);
   }
 
-  function nodeValueText(node) {
+  function nodeValueText(node: NodeItem) {
     const data = nodeDisplayData(node);
     const fields = Object.keys(data).filter((key: string) => typeof data[key] === 'number' && Number.isFinite(data[key]));
     if (!fields.length) return '—';
@@ -1934,15 +2000,15 @@
     return ordered.slice(0, 2).map((key: string) => `${key} ${fmt(data[key], 3)}`).join('  ·  ');
   }
 
-  function edgeValueText(edge) {
+  function edgeValueText(edge: EdgeItem) {
     const data = edgeDisplayData(edge);
     const field = ['current', 'voltage_difference', 'power', 'voltage']
       .find((key: string) => typeof data[key] === 'number');
     return field ? `${field} ${fmt(data[field], 3)}` : '';
   }
 
-  const __gridPattern = { key: '', pattern: null };
-  function gridPattern(step, dpr, color: string) {
+  const __gridPattern: { key: string; pattern: CanvasPattern | null } = { key: '', pattern: null };
+  function gridPattern(step: number, dpr: number, color: string) {
     const key = `${step.toFixed(3)}|${dpr}|${color}`;
     if (__gridPattern.key === key) return __gridPattern.pattern;
     try {
@@ -1951,9 +2017,9 @@
       tile.width = size;
       tile.height = size;
       const tctx = tile.getContext('2d');
-      tctx.scale(dpr, dpr);
-      tctx.fillStyle = color;
-      tctx.fillRect(0, 0, 1, 1);
+      tctx!.scale(dpr, dpr);
+      tctx!.fillStyle = color;
+      tctx!.fillRect(0, 0, 1, 1);
       __gridPattern.key = key;
       __gridPattern.pattern = ctx.createPattern(tile, 'repeat');
     } catch (error) {
@@ -2007,7 +2073,7 @@
     }
 
     // CAD 式捕捉点：拖动时高亮最近的网格交点
-    const dragging = state.drag && ['node', 'waypoint', 'resize', 'endpoint'].includes(state.drag.type);
+    const dragging = state.drag && ['node', 'waypoint', 'resize', 'endpoint'].includes((state.drag.type as string));
     const pointer = state.pointer;
     if (
       dragging
@@ -2022,7 +2088,7 @@
         x: Math.round(pointer.x / grid) * grid,
         y: Math.round(pointer.y / grid) * grid,
       };
-      const sp = (worldToScreen as (x: number, y: number) => { x: number; y: number })(snapped.x, snapped.y);
+      const sp = (worldToScreen as Function)(snapped.x, snapped.y);
       const size = 7;
       ctx.strokeStyle = C('rgba(168, 84, 31, 0.85)');
       ctx.lineWidth = 1.2;
@@ -2065,7 +2131,7 @@
     return Math.round(chosen / quarter) * quarter;
   }
 
-  function drawCircuitGlyph(edge, points: Array<{ x: number; y: number }>, color: string) {
+  function drawCircuitGlyph(edge: EdgeItem, points: Array<{ x: number; y: number }>, color: string) {
     if (state.view.k < 0.35) return;
     const mid = pathMidpoint(points);
     if (!mid) return;
@@ -2091,18 +2157,18 @@
     ctx2.lineCap = 'round';
     ctx2.lineJoin = 'round';
     const S = 9;
-    const line = (x1, y1, x2, y2) => {
+    const line = (x1: number, y1: number, x2: number, y2: number) => {
       ctx2.beginPath(); ctx2.moveTo(x1, y1); ctx2.lineTo(x2, y2); ctx2.stroke();
     };
-    const poly = (coords) => {
-      ctx2.beginPath(); ctx2.moveTo(coords[0], coords[1]);
-      for (let i = 2; i < coords.length; i += 2) ctx2.lineTo(coords[i], coords[i + 1]);
+    const poly = (coords: number[]) => {
+      ctx2.beginPath(); ctx2.moveTo(((coords[0])), coords[1]);
+      for (let i = 2; i < coords.length; i += 2) ctx2.lineTo(((coords[i])), coords[i + 1]);
       ctx2.stroke();
     };
     const kind = String(edge.kind || '');
     if (kind === 'wire') return;
     if (kind === 'resistor') {
-      poly([-S, 0, -6, 0, -4.5, -4, -1.5, 4, 1.5, -4, 4.5, 4, 6, 0, S, 0]);
+      poly([-S, 0, -6, 0, -4.5, -4, -1.5, 4, 1.5, -4, 4.5, 4, 6, 0, ((S)), 0]);
     } else if (kind === 'capacitor') {
       line(-S, 0, -2.5, 0); line(2.5, 0, S, 0); line(-2.5, -6, -2.5, 6); line(2.5, -6, 2.5, 6);
     } else if (kind === 'inductor') {
@@ -2205,10 +2271,10 @@
   }
 
 
-  function elementValueText(edge) {
+  function elementValueText(edge: EdgeItem) {
     const params = edge.params || {};
     const kind = String(edge.kind || '');
-    const unit = (value, suffix) => (value == null ? '' : `${Number(value).toPrecision(4)}${suffix}`);
+    const unit = (value: unknown, suffix: string) => (value == null ? '' : `${Number(value).toPrecision(4)}${suffix}`);
     if (kind === 'resistor') return unit(params.R, ' Ω');
     if (kind === 'capacitor') return unit(params.C, ' F');
     if (kind === 'inductor') return unit(params.L, ' H');
@@ -2226,7 +2292,7 @@
     return '';
   }
 
-  function circuitWireGap(points: Array<{ x: number; y: number }>, middle, gapLength) {
+  function circuitWireGap(points: Array<{ x: number; y: number }>, middle: Pt, gapLength: number) {
     // 在符号处把导线断开：只擦掉中点附近的一小段（不是整块贴图底）
     const half = gapLength / 2;
     const segments = [];
@@ -2337,21 +2403,21 @@
     ],
   };
 
-  function elementPins(edge) {
-    return ELEMENT_PIN_GEOMETRY[edge.kind] || [
+  function elementPins(edge: EdgeItem) {
+    return ELEMENT_PIN_GEOMETRY[edge.kind as keyof typeof ELEMENT_PIN_GEOMETRY] || [
       { name: 'pin1', x: -18, y: 0, bind: 'source', role: 'passive' },
       { name: 'pin2', x: 18, y: 0, bind: 'target', role: 'passive' },
     ];
   }
 
-  function elementLayoutCenter(edge, points: Array<{ x: number; y: number }>) {
+  function elementLayoutCenter(edge: EdgeItem, points: Array<{ x: number; y: number }>) {
     if (edge.layout && Number.isFinite(edge.layout.x) && Number.isFinite(edge.layout.y)) {
       return worldToScreen(edge.layout);
     }
     return pathMidpoint(points) || { x: 0, y: 0 };
   }
 
-  function elementRot(edge) {
+  function elementRot(edge: EdgeItem) {
     if (edge.layout && Number.isFinite(Number(edge.layout.rot))) return (Number(edge.layout.rot) * Math.PI) / 180;
     return 0;
   }
@@ -2362,7 +2428,7 @@
     return base * ((Number(state.ui?.symbolScale) || 1.2) / 1.2);
   }
 
-  function pinScreenPoint(edge, pin: PortSpec, points: Array<{ x: number; y: number }>, scale: number = 1) {
+  function pinScreenPoint(edge: EdgeItem, pin: { name: string; x: number; y: number; [k: string]: unknown }, points: Array<{ x: number; y: number }>, scale: number = 1) {
     const center = elementLayoutCenter(edge, points);
     const angle = elementRot(edge);
     const cos = Math.cos(angle);
@@ -2373,12 +2439,12 @@
     return { x: wx, y: wy };
   }
 
-  function edgeAnchorTowards(node, otherNode) {
-    const other = nodeCenterScreen(otherNode);
+  function edgeAnchorTowards(node: NodeItem, otherNode: NodeItem | null) {
+    const other = nodeCenterScreen((otherNode as NodeItem));
     return anchorPoint(node, 'auto', other);
   }
 
-  function circuitPinPath(edge, source, target) {
+  function circuitPinPath(edge: EdgeItem, source: NodeItem, target: NodeItem) {
     if (state.scene?.mode !== 'circuit' || state.ui?.symbol !== 'gb') return null;
     if (edge.kind === 'wire') return null;
     if (!edge.layout) return null;
@@ -2395,17 +2461,17 @@
     return [start, pin1, pin2, end];
   }
 
-  function wirePathPoints(edge, source, target) {
-    const start = isPinNode(source)
-      ? devicePinScreen(source, edge.source_pin)
-      : anchorPoint(source, 'auto', nodeCenterScreen(target));
-    const end = isPinNode(target)
-      ? devicePinScreen(target, edge.target_pin)
-      : anchorPoint(target, 'auto', nodeCenterScreen(source));
+  function wirePathPoints(edge: EdgeItem, source: Pt, target: Pt) {
+    const start = isPinNode((source as NodeItem))
+      ? devicePinScreen((source as NodeItem), (edge.source_pin as string))
+      : anchorPoint((source as NodeItem), 'auto', nodeCenterScreen((target as NodeItem)));
+    const end = isPinNode((target as NodeItem))
+      ? devicePinScreen((target as NodeItem), (edge.target_pin as string))
+      : anchorPoint((target as NodeItem), 'auto', nodeCenterScreen((source as NodeItem)));
     let route = edge.route || 'auto';
     if (route === 'auto' && state.ui?.circuitOrthogonal !== false) route = 'orthogonal';
     if (route === 'manual' && Array.isArray(edge.waypoints) && edge.waypoints.length) {
-      return [start, ...edge.waypoints.map((item) => worldToScreen(item)), end];
+      return [start, ...edge.waypoints.map((item: Pt) => worldToScreen(item)), end];
     }
     if (route === 'straight') return [start, end];
     if (Math.abs(end.x - start.x) >= Math.abs(end.y - start.y)) {
@@ -2416,7 +2482,7 @@
     return [start, { x: start.x, y: midY }, { x: end.x, y: midY }, end];
   }
 
-  function drawMultiPinWires(edge, color: string) {
+  function drawMultiPinWires(edge: EdgeItem, color: string) {
     if (state.scene?.mode !== 'circuit' || state.ui?.symbol !== 'gb' || !edge.layout) return;
     const pins = elementPins(edge);
     // 多引脚元件（运放/ADC/变压器…）主路径不画，所有引脚都由这里接线；
@@ -2435,7 +2501,7 @@
         : pin.bind === 'target'
           ? edge.target
           : edge.params?.[pin.bind];
-      const node = nodeId ? nodeById(nodeId) : null;
+      const node = nodeId ? nodeById((nodeId as string)) : null;
       if (!node) continue;
       const from = pinScreenPoint(edge, pin, points, symbolScalePx());
       const to = anchorPoint(node, 'auto', center);
@@ -2456,7 +2522,7 @@
     }
   }
 
-  function elementIdentifier(edge) {
+  function elementIdentifier(edge: EdgeItem) {
     // GB 标识：位号 + 极性/类型简称；名称本身已是 R1/C1 时直接用。
     const name = String(edge.name || '');
     const kind = String(edge.kind || '');
@@ -2472,7 +2538,7 @@
   }
 
 
-  function segmentIntersection(a, b, c, d) {
+  function segmentIntersection(a: Pt, b: Pt, c: Pt, d: Pt) {
     const r = { x: b.x - a.x, y: b.y - a.y };
     const s = { x: d.x - c.x, y: d.y - c.y };
     const denom = r.x * s.y - r.y * s.x;
@@ -2483,10 +2549,10 @@
     return { x: a.x + r.x * t, y: a.y + r.y * t };
   }
 
-  function circuitCrossingMap(edges) {
+  function circuitCrossingMap(edges: EdgeItem[]) {
     const map = new Map();
     if (state.scene?.mode !== 'circuit' || state.ui?.symbol !== 'gb' || edges.length > 160) return map;
-    const paths = edges.map((edge) => ({ id: edge.id, points: edgePathPoints(edge) || [] }));
+    const paths = edges.map((edge: EdgeItem) => ({ id: edge.id, points: edgePathPoints(edge) || [] }));
     for (let i = 0; i < paths.length; i += 1) {
       for (let j = i + 1; j < paths.length; j += 1) {
         const first = paths[i];
@@ -2521,14 +2587,14 @@
     }
   }
 
-  function labelCollisionFree(cx: number, cy: number, width: number, height: number, occupied) {
+  function labelCollisionFree(cx: number, cy: number, width: number, height: number, occupied: BoxRec[]) {
     const candidates = [
       [0, 0], [0, -14], [0, 14], [0, -28], [0, 28],
       [width / 2 + 12, 0], [-width / 2 - 12, 0],
     ];
     for (const [dx, dy] of candidates) {
       const rect = { x: cx + dx - width / 2, y: cy + dy - height / 2, w: width, h: height };
-      const hit = occupied.some((item) =>
+      const hit = occupied.some((item: BoxRec) =>
         rect.x < item.x + item.w && rect.x + rect.w > item.x && rect.y < item.y + item.h && rect.y + rect.h > item.y);
       if (!hit) return rect;
     }
@@ -2561,7 +2627,7 @@
   }
 
 
-  function circuitPinSegments(edge, source, target) {
+  function circuitPinSegments(edge: EdgeItem, source: NodeItem, target: NodeItem) {
     if (state.scene?.mode !== 'circuit' || state.ui?.symbol !== 'gb' || !edge.layout) return null;
     const pins = elementPins(edge);
     if (pins.length !== 2) return null;
@@ -2579,7 +2645,7 @@
     return { before, after };
   }
 
-  function drawEdges(now) {
+  function drawEdges(now: number) {
     const edges = (state.scene?.edges || []).slice().sort((a, b) => {
       if (a.id === state.selection.id) return 1;
       if (b.id === state.selection.id) return -1;
@@ -2709,7 +2775,7 @@
         if (state.drag?.type === 'endpoint' && state.drag.id === edge.id) {
           const node = nodeById(state.drag.end === 'source' ? edge.source : edge.target);
           if (node && state.drag.anchor !== 'auto') {
-            const snapPoint = anchorScreenPoint(node, state.drag.anchor);
+            const snapPoint = anchorScreenPoint(node, (state.drag.anchor as string));
             ctx.beginPath();
             ctx.arc(snapPoint.x, snapPoint.y, 7, 0, Math.PI * 2);
             ctx.fillStyle = C('rgba(168, 84, 31, 0.18)');
@@ -2723,7 +2789,7 @@
 
       if (edge.route === 'manual' && (selected || state.drag?.type === 'waypoint' || state.hoverWaypoint?.edgeId === edge.id)) {
         for (const item of edge.waypoints || []) {
-          const point = (worldToScreen as (x: number, y: number) => { x: number; y: number })(item.x, item.y);
+          const point = (worldToScreen as Function)(item.x, item.y);
           const index = (edge.waypoints || []).indexOf(item);
           const active = (state.drag?.type === 'waypoint' && state.drag.id === edge.id && state.drag.index === index)
             || (state.hoverWaypoint?.edgeId === edge.id && state.hoverWaypoint.index === index);
@@ -2754,7 +2820,7 @@
   }
 
 
-  function drawGbCircuitNode(ctx: CanvasRenderingContext2D, node, cx: number, cy: number, radius, accent: string, isSelected: boolean, isHovered: boolean, k: number) {
+  function drawGbCircuitNode(ctx: CanvasRenderingContext2D, node: NodeItem, cx: number, cy: number, radius: number, accent: string, isSelected: boolean, isHovered: boolean, k: number) {
     const style = state.ui?.nodeStyle || 'circle';
     const color = isSelected ? C('#a8541f') : isHovered ? '#5f584e' : '#7b7266';
     ctx.save();
@@ -2809,7 +2875,7 @@
     ctx.restore();
   }
 
-  function drawGbFunctionGlyph(ctx: CanvasRenderingContext2D, node, cx: number, cy: number, radius, accent: string, isSelected: boolean, isHovered: boolean, k: number) {
+  function drawGbFunctionGlyph(ctx: CanvasRenderingContext2D, node: NodeItem, cx: number, cy: number, radius: number, accent: string, isSelected: boolean, isHovered: boolean, k: number) {
     const color = isSelected ? C('#a8541f') : isHovered ? '#5f584e' : accent;
     const R = radius * 0.92;
     const fontPx = Math.max(10, Math.round(R * 0.8));
@@ -2870,7 +2936,7 @@
     ctx.restore();
   }
 
-  function drawGbDeviceNode(ctx: CanvasRenderingContext2D, node, rect, accent: string, isSelected: boolean, isHovered: boolean, k: number) {
+  function drawGbDeviceNode(ctx: CanvasRenderingContext2D, node: NodeItem, rect: BoxRec, accent: string, isSelected: boolean, isHovered: boolean, k: number) {
     const color = isSelected ? C('#a8541f') : isHovered ? '#5f584e' : accent;
     const inactive = Boolean(state.sim?.running) && deviceInactive(node);
     ctx.save();
@@ -2894,13 +2960,13 @@
     ctx.fill();
     ctx.stroke();
     const spec = deviceElementSpec(node);
-    const cx = rect.cx;
-    const cy = rect.cy;
+    const cx = rect.cx as number;
+    const cy = rect.cy as number;
     ctx.fillStyle = color;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `600 ${clamp(9 * k, 7, 12)}px "Cascadia Code", Consolas, monospace`;
-    ctx.fillText(spec?.label || node.params?.block_name || node.params?.element || '器件', cx, cy);
+    ctx.fillText((spec?.label || node.params?.block_name || node.params?.element || '器件') as string, cx, cy);
     const showNames = k > 0.55 && state.ui.showPins !== false;
     for (const pin of devicePins(node)) {
       const local = devicePinLocal(node, pin);
@@ -2940,7 +3006,7 @@
     const implicitPin = deviceImplicitGroundPin(node);
     if (implicitPin) {
       // R21/D43：单端电源的空脚画接地标记（可见，不是隐藏接地）。
-      const local = devicePinLocal(node, devicePins(node).find((pin: PortSpec) => pin.name === implicitPin));
+      const local = devicePinLocal(node, (devicePins(node).find((pin: PortSpec) => pin.name === implicitPin) as PortSpec));
       const gx = cx + local.x * k;
       const gy = cy + local.y * k;
       const dir = local.side === 'top' ? -1 : 1;
@@ -3144,8 +3210,8 @@
         && state.ui?.nodeStyle !== 'box'
         && (node.kind === 'node' || node.kind === 'ground');
       if (circuitPorts) {
-        const points = [];
-        for (const edge of state.scene.edges || []) {
+        const points: Array<{ x: number; y: number }> = [];
+        for (const edge of state.scene!.edges || []) {
           if (!edge.enabled || (edge.source !== node.id && edge.target !== node.id)) continue;
           const other = nodeById(edge.source === node.id ? edge.target : edge.source);
           if (!other) continue;
@@ -3208,10 +3274,10 @@
     const tool = state.wireTool;
     if (tool?.first) {
       const first = tool.first;
-      const node = nodeById(first.nodeId);
+      const node = nodeById((first.nodeId as string | null));
       if (!node) return;
       const start = first.kind === 'pin'
-        ? devicePinScreen(node, first.pin)
+        ? devicePinScreen(node, (first.pin as string))
         : worldToScreen(node.position || { x: 0, y: 0 });
       const end = state.pointer
         ? { x: state.pointer.x, y: state.pointer.y }
@@ -3236,10 +3302,10 @@
     }
     const drag = state.drag;
     if (!drag || (drag.type !== 'link' && drag.type !== 'pin')) return;
-    const source = nodeById(drag.sourceId);
+    const source = nodeById((drag.sourceId as string | null));
     if (!source) return;
     const start = drag.type === 'pin'
-      ? devicePinScreen(source, drag.pin)
+      ? devicePinScreen(source, (drag.pin as string))
       : portOut(source);
     const target = drag.targetId ? nodeById(drag.targetId) : null;
     const end = target ? portIn(target) : { x: state.pointer.x, y: state.pointer.y };
@@ -3291,10 +3357,10 @@
   function drawSelectionBox() {
     const drag = state.drag;
     if (!drag || drag.type !== 'box') return;
-    const x = Math.min(drag.startX, drag.x);
-    const y = Math.min(drag.startY, drag.y);
-    const w = Math.abs(drag.x - drag.startX);
-    const h = Math.abs(drag.y - drag.startY);
+    const x = Math.min((drag.startX as number), (drag.x as number));
+    const y = Math.min((drag.startY as number), (drag.y as number));
+    const w = Math.abs(drag.x! - drag.startX!);
+    const h = Math.abs(drag.y! - drag.startY!);
     ctx.save();
     // 固定半透明：深色主题下若走 C() 的 legacy 映射，某些 token 会退化成近黑实心
     const dark = themeKey() === 'dark';
@@ -3314,14 +3380,14 @@
     let target = null;
     let label = '';
     if (drag && drag.type === 'waypoint') {
-      const edge = edgeById(drag.id);
-      const point = edge?.waypoints?.[drag.index];
+      const edge = edgeById((drag.id as string | null));
+      const point = edge?.waypoints?.[drag.index as number];
       if (point) {
         target = worldToScreen(point);
-        label = `拐点 ${drag.index + 1}`;
+        label = `拐点 ${drag.index! + 1}`;
       }
     } else if (drag && drag.type === 'node') {
-      const node = nodeById(drag.id);
+      const node = nodeById((drag.id as string | null));
       if (node?.position) {
         target = worldToScreen(node.position);
         label = '节点';
@@ -3336,7 +3402,7 @@
       const edge = edgeById(state.hoverWaypoint.edgeId);
       const point = edge?.waypoints?.[state.hoverWaypoint.index];
       if (point) {
-        target = worldToScreen(point);
+        target = worldToScreen((point as { x: number; y: number; }));
         label = `拐点 ${state.hoverWaypoint.index + 1}`;
       }
     }
@@ -3393,14 +3459,14 @@
     state.needsDraw = true;
   }
 
-  const __graphMs = [];
-  function __dbgGraph(ms) {
+  const __graphMs: number[] = [];
+  function __dbgGraph(ms: number) {
     __graphMs.push(Math.round(ms * 10) / 10);
     if (__graphMs.length > 300) __graphMs.splice(0, 150);
-    window.__graphMs = __graphMs;
+    (window as Window & { __graphMs?: number[] }).__graphMs = __graphMs;
   }
 
-  function animationLoop(timestamp) {
+  function animationLoop(timestamp: number) {
     if (state.shuttingDown) return;
     if (state.workspace === 'network') {
       if (state.sim?.running && timestamp - (state.lastPaint || 0) >= 33) {
@@ -3432,10 +3498,10 @@
     let maxX = -Infinity;
     let maxY = -Infinity;
     for (const node of nodes) {
-      minX = Math.min(minX, node.position.x - NODE_W / 2);
-      maxX = Math.max(maxX, node.position.x + NODE_W / 2);
-      minY = Math.min(minY, node.position.y - NODE_H / 2);
-      maxY = Math.max(maxY, node.position.y + NODE_H / 2);
+      minX = Math.min(minX, node.position!.x - NODE_W / 2);
+      maxX = Math.max(maxX, node.position!.x + NODE_W / 2);
+      minY = Math.min(minY, node.position!.y - NODE_H / 2);
+      maxY = Math.max(maxY, node.position!.y + NODE_H / 2);
     }
     const margin = 90;
     const boxW = Math.max(1, maxX - minX + margin * 2);
@@ -3451,7 +3517,7 @@
     if (announce) toast('已适配视图', 'info', 1200);
   }
 
-  function zoomAt(factor, screenX: number, screenY: number) {
+  function zoomAt(factor: number, screenX: number, screenY: number) {
     const next = clamp(state.view.k * factor, 0.12, 3.2);
     const ratio = next / state.view.k;
     state.view.x = screenX - (screenX - state.view.x) * ratio;
@@ -3461,7 +3527,7 @@
     requestDraw();
   }
 
-  function zoomCenter(factor) {
+  function zoomCenter(factor: number) {
     zoomAt(factor, state.canvasSize.w / 2, state.canvasSize.h / 2);
   }
 
@@ -3473,7 +3539,7 @@
     };
   }
 
-  function distance(ax, ay, bx, by) {
+  function distance(ax: number, ay: number, bx: number, by: number) {
     return Math.hypot(ax - bx, ay - by);
   }
 
@@ -3611,7 +3677,7 @@
         if (ui.statusHint) ui.statusHint.textContent = '导线工具：起点已选，点击第二个端点（Esc 取消）';
         requestDraw();
       } else {
-        void completeWireTool(endpoint);
+        void completeWireTool(((endpoint)));
       }
       event.preventDefault();
       return;
@@ -3644,7 +3710,7 @@
           type: 'endpoint',
           id: endpoint.id,
           end: endpoint.end,
-          anchor: (edgeRecord?.anchors && edgeRecord.anchors[endpoint.end]) || 'auto',
+          anchor: ((edgeRecord?.anchors && edgeRecord.anchors[endpoint.end]) || 'auto') as string,
           moved: false,
         };
         canvas.setPointerCapture(event.pointerId);
@@ -3726,14 +3792,14 @@
 
     if (hit && hit.type === 'node') {
       const node = hit.node;
-      void selectEntity('node', node.id);
+      void selectEntity('node', node!.id);
       state.drag = {
         type: 'node',
-        id: node.id,
+        id: node!.id,
         startX: point.x,
         startY: point.y,
-        originX: node.position.x,
-        originY: node.position.y,
+        originX: node!.position!.x,
+        originY: node!.position!.y,
         moved: false,
       };
       canvas.setPointerCapture(event.pointerId);
@@ -3810,19 +3876,19 @@
     }
 
     if (drag.type === 'pan') {
-      state.view.x = drag.viewX + (point.x - drag.startX);
-      state.view.y = drag.viewY + (point.y - drag.startY);
+      state.view.x = drag.viewX! + (point.x - drag.startX!);
+      state.view.y = drag.viewY! + (point.y - drag.startY!);
       drag.moved = true;
       requestDraw();
       return;
     }
 
     if (drag.type === 'resize') {
-      const node = nodeById(drag.id);
+      const node = nodeById((drag.id as string | null));
       if (!node) return;
       const rect = nodeRect(node);
       const world = screenToWorld(point.x, point.y);
-      const center = { x: node.position.x, y: node.position.y };
+      const center = { x: node.position!.x, y: node.position!.y };
       const raw = Math.hypot(world.x - center.x, world.y - center.y) * 2;
       const snapped = state.ui?.snap && !event.altKey
         ? Math.round(raw / (Number(state.ui.grid) || 20)) * (Number(state.ui.grid) || 20)
@@ -3838,24 +3904,24 @@
     }
 
     if (drag.type === 'endpoint') {
-      const edge = edgeById(drag.id);
+      const edge = edgeById((drag.id as string | null));
       if (!edge) return;
       const node = nodeById(drag.end === 'source' ? edge.source : edge.target);
       if (!node) return;
       const side = anchorSideFor(node, point);
       drag.anchor = side;
-      edge.anchors = Object.assign({}, edge.anchors || {}, { [drag.end]: side });
+      edge.anchors = Object.assign({}, edge.anchors || {}, { [drag.end as string]: side });
       drag.moved = true;
       requestDraw();
       return;
     }
 
     if (drag.type === 'waypoint') {
-      const edge = edgeById(drag.id);
+      const edge = edgeById((drag.id as string | null));
       if (!edge) return;
       const world = screenToWorld(point.x, point.y);
       const snapped = snapWorld(world.x, world.y, event.altKey);
-      edge.waypoints[drag.index] = { x: snapped.x, y: snapped.y };
+      edge.waypoints![drag.index as number] = { x: snapped.x, y: snapped.y };
       drag.moved = true;
       requestDraw();
       return;
@@ -3863,13 +3929,13 @@
 
     if (drag.type === 'node') {
       const k = state.view.k;
-      const node = nodeById(drag.id);
+      const node = nodeById((drag.id as string | null));
       if (!node) return;
-      const rawX = clamp(drag.originX + (point.x - drag.startX) / k, -10000, 10000);
-      const rawY = clamp(drag.originY + (point.y - drag.startY) / k, -10000, 10000);
+      const rawX = clamp(drag.originX! + (point.x - drag.startX!) / k, -10000, 10000);
+      const rawY = clamp(drag.originY! + (point.y - drag.startY!) / k, -10000, 10000);
       const snapped = snapWorld(rawX, rawY, event.altKey);
-      node.position.x = snapped.x;
-      node.position.y = snapped.y;
+      node.position!.x = snapped.x;
+      node.position!.y = snapped.y;
       drag.moved = true;
       requestDraw();
       return;
@@ -3895,10 +3961,10 @@
     }
 
     if (drag.type === 'box') {
-      const x1 = Math.min(drag.startX, drag.x);
-      const x2 = Math.max(drag.startX, drag.x);
-      const y1 = Math.min(drag.startY, drag.y);
-      const y2 = Math.max(drag.startY, drag.y);
+      const x1 = Math.min((drag.startX as number), (drag.x as number));
+      const x2 = Math.max((drag.startX as number), (drag.x as number));
+      const y1 = Math.min((drag.startY as number), (drag.y as number));
+      const y2 = Math.max((drag.startY as number), (drag.y as number));
       if (x2 - x1 > 3 && y2 - y1 > 3) {
         const nodes = (state.scene?.nodes || []).filter((node) => {
           const rect = nodeRect(node);
@@ -3920,21 +3986,21 @@
     }
 
     if (drag.type === 'node' && drag.moved) {
-      queuePositionSave(drag.id);
+      queuePositionSave((drag.id as string));
     }
 
     if (drag.type === 'resize' && drag.moved) {
-      const node = nodeById(drag.id);
+      const node = nodeById((drag.id as string | null));
       if (node) void patchNodeGeometry(node.id, { size: { w: node.size?.w || nodeDiameter(node) } });
     }
 
     if (drag.type === 'waypoint' && drag.moved) {
-      const edge = edgeById(drag.id);
+      const edge = edgeById((drag.id as string | null));
       if (edge) void patchEdgeGeometry(edge.id, { waypoints: edge.waypoints });
     }
 
     if (drag.type === 'endpoint' && drag.moved) {
-      const edge = edgeById(drag.id);
+      const edge = edgeById((drag.id as string | null));
       if (edge) void patchEdgeGeometry(edge.id, { anchors: edge.anchors });
     }
 
@@ -3942,7 +4008,7 @@
       const point = pointerPosition(event);
       const target = nearestNodeWithin(point.x, point.y, 18);
       if (target) {
-        openLinkMenu(target.id, point.x, point.y, drag.sourceId);
+        openLinkMenu(target.id, point.x, point.y, (drag.sourceId as string | null));
       }
       requestDraw();
     }
@@ -3951,7 +4017,7 @@
       const point = pointerPosition(event);
       const target = nearestNodeWithin(point.x, point.y, 18);
       if (target && (target.kind === 'node' || target.kind === 'ground')) {
-        void createWire(drag.sourceId, target.id, drag.pin);
+        void createWire((drag.sourceId as string), target.id, (drag.pin as string));
       } else {
         toast('请把引脚拖到网络节点（电学节点/接地）', 'error', 3500);
       }
@@ -3976,7 +4042,7 @@
   function onWheel(event: MouseEvent) {
     event.preventDefault();
     const point = pointerPosition(event);
-    const factor = Math.exp(-event.deltaY * 0.0015);
+    const factor = Math.exp(-(event as Event as WheelEvent).deltaY * 0.0015);
     zoomAt(factor, point.x, point.y);
   }
 
@@ -4019,13 +4085,13 @@
     const hit = hitTest(point.x, point.y);
     if (!hit) return null;
     if (hit.type === 'pin') return { kind: 'pin', nodeId: hit.id, pin: hit.pin };
-    if (hit.type === 'node' && (hit.node.kind === 'node' || hit.node.kind === 'ground')) {
+    if (hit.type === 'node' && (hit.node!.kind === 'node' || hit.node!.kind === 'ground')) {
       return { kind: 'net', nodeId: hit.id };
     }
     return null;
   }
 
-  function startWireTool(first = null) {
+  function startWireTool(first: { kind?: string; nodeId: string; pin?: string } | null = null) {
     state.wireTool = { first };
     const hint = first
       ? `导线工具：起点已选，点击第二个端点（网络节点或器件引脚）`
@@ -4042,23 +4108,23 @@
     requestDraw();
   }
 
-  async function completeWireTool(second) {
+  async function completeWireTool(second: { kind?: string; nodeId: string; pin?: string } | null) {
     const first = state.wireTool?.first;
     if (!first) return;
     let sourceId = '';
     let targetId = '';
     let sourcePin = '';
-    if (first.kind === 'pin' && second.kind === 'net') {
-      sourceId = first.nodeId;
-      targetId = second.nodeId;
-      sourcePin = first.pin;
-    } else if (first.kind === 'net' && second.kind === 'pin') {
-      sourceId = second.nodeId;
-      targetId = first.nodeId;
-      sourcePin = second.pin;
-    } else if (first.kind === 'net' && second.kind === 'net') {
-      sourceId = first.nodeId;
-      targetId = second.nodeId;
+    if (first.kind === 'pin' && second!.kind === 'net') {
+      sourceId = first.nodeId as string;
+      targetId = second!.nodeId as string;
+      sourcePin = first.pin as string;
+    } else if (first.kind === 'net' && second!.kind === 'pin') {
+      sourceId = second!.nodeId as string;
+      targetId = first.nodeId as string;
+      sourcePin = second!.pin as string;
+    } else if (first.kind === 'net' && second!.kind === 'net') {
+      sourceId = first.nodeId as string;
+      targetId = second!.nodeId as string;
     } else {
       toast('导线只允许「器件引脚 ↔ 网络节点」或「网络 ↔ 网络」', 'error', 3600);
       return;
@@ -4097,16 +4163,16 @@
     const items = [];
     if (hit && hit.type === 'pin') {
       const node = hit.node;
-      const wires = pinWires(hit.id, hit.pin);
+      const wires = pinWires(hit.id, (hit.pin as string));
       items.push({
         label: '引脚信息',
-        hint: `${node.name}.${hit.pin}${wires.length ? ` · ${wires.length} 条导线` : ' · 未接线'}`,
-        action: () => toast(`${node.name}.${hit.pin}：${wires.length ? `已接 ${wires.length} 条导线` : '未接线'}`, 'info', 3000),
+        hint: `${node!.name}.${hit.pin}${wires.length ? ` · ${wires.length} 条导线` : ' · 未接线'}`,
+        action: () => toast(`${node!.name}.${hit.pin}：${wires.length ? `已接 ${wires.length} 条导线` : '未接线'}`, 'info', 3000),
       });
       items.push({
         label: '从此引脚建线…',
         hint: '点击后选另一个网络节点',
-        action: () => startWireTool({ kind: 'pin', nodeId: node.id, pin: hit.pin }),
+        action: () => startWireTool({ kind: 'pin', nodeId: node!.id, pin: hit.pin }),
       });
       if (wires.length) {
         items.push({
@@ -4115,51 +4181,51 @@
           danger: true,
           action: async () => {
             for (const wire of wires) await deleteEdge(wire.id);
-            toast(`已断开 ${node.name}.${hit.pin} 的 ${wires.length} 条导线`, 'ok', 2400);
+            toast(`已断开 ${node!.name}.${hit.pin} 的 ${wires.length} 条导线`, 'ok', 2400);
           },
         });
       }
-      openGenericMenu(ui.linkMenu, point.x, point.y, `引脚 · ${node.name}.${hit.pin}`, items);
+      openGenericMenu(ui.linkMenu, point.x, point.y, `引脚 · ${node!.name}.${hit.pin}`, items);
       return;
     }
     if (hit && hit.type === 'node') {
       const node = hit.node;
-      const isDevice = node.kind === 'device';
+      const isDevice = node!.kind === 'device';
       items.push({
         label: isDevice ? '器件属性' : '节点属性',
-        hint: node.name,
+        hint: node!.name,
         action: () => {
           void selectEntity('node', hit.id, true);
           switchTab('inspect');
         },
       });
-      if (!isDevice && node.kind !== 'ground' && state.mode === 'circuit') {
+      if (!isDevice && node!.kind !== 'ground' && state.mode === 'circuit') {
         items.push({
           label: '设为接地',
           hint: '多接地会自动合并为 0V',
           action: () => void convertNodeToGround(hit.id),
         });
       }
-      if (node.kind === 'node' && state.mode === 'circuit') {
-        const marked = Boolean(node.params?.port_name);
-        const current = node.params?.port_direction || 'inout';
-        const portName = marked ? String(node.params.port_name) : node.name;
+      if (node!.kind === 'node' && state.mode === 'circuit') {
+        const marked = Boolean(node!.params?.port_name);
+        const current = node!.params?.port_direction || 'inout';
+        const portName = marked ? String(node!.params!.port_name) : node!.name;
         items.push({
           label: marked ? '改端口方向' : '设为模块端口',
           hint: marked
-            ? `当前「${portName}」· ${MODULE_DIR_LABEL[current] || '双向'}`
+            ? `当前「${portName}」· ${MODULE_DIR_LABEL[current as keyof typeof MODULE_DIR_LABEL] || '双向'}`
             : '先选方向，封装时按方向画引脚',
           children: PORT_DIRECTION_CHOICES.map(([value, label, hint]) => ({
             label: `${label}${marked && value === current ? ' · 当前' : ''}`,
             hint,
-            action: () => void setNetPort(node.id, portName, value),
+            action: () => void setNetPort(node!.id, portName, value),
           })),
         });
         if (marked) {
           items.push({
             label: '取消模块端口',
             hint: `当前端口 ${portName}`,
-            action: () => void setNetPort(node.id, '', 'inout'),
+            action: () => void setNetPort(node!.id, '', 'inout'),
           });
         }
       }
@@ -4195,25 +4261,25 @@
         danger: true,
         action: () => deleteNode(hit.id),
       });
-      openGenericMenu(ui.linkMenu, point.x, point.y, `${isDevice ? '器件' : '节点'} · ${node.name}`, items);
+      openGenericMenu(ui.linkMenu, point.x, point.y, `${isDevice ? '器件' : '节点'} · ${node!.name}`, items);
       return;
     }
     if (hit && hit.type === 'edge') {
       items.push({
         label: '连接属性',
-        hint: hit.edge.name,
+        hint: hit.edge!.name,
         action: () => {
           void selectEntity('edge', hit.id, true);
           switchTab('inspect');
         },
       });
       items.push({ label: '复制', hint: 'Ctrl+C', action: () => copySelection(false) });
-      if (hit.edge.kind === 'wire') {
+      if (hit.edge!.kind === 'wire') {
         items.push({
           label: '添加拐点（中点）',
-          action: () => void addWireWaypoint(hit.edge),
+          action: () => void addWireWaypoint((hit.edge as EdgeItem)),
         });
-        if ((hit.edge.waypoints || []).length) {
+        if ((hit.edge!.waypoints || []).length) {
           items.push({
             label: '清除拐点',
             hint: '恢复自动布线',
@@ -4223,12 +4289,12 @@
         items.push({
           label: '选中整条网络',
           hint: '同端点的导线一起选中',
-          action: () => selectWireNetwork(hit.edge),
+          action: () => selectWireNetwork((hit.edge as EdgeItem)),
         });
       }
       if (state.mode !== 'circuit') {
         items.push({
-          label: hit.edge.delay ? '取消单步延迟' : '设为单步延迟',
+          label: hit.edge!.delay ? '取消单步延迟' : '设为单步延迟',
           hint: '用于切断代数环',
           action: () => toggleEdgeDelay(hit.id),
         });
@@ -4236,11 +4302,11 @@
       items.push({ sep: true });
       items.push({
         label: '删除连接',
-        hint: hit.edge.name,
+        hint: hit.edge!.name,
         danger: true,
         action: () => deleteEdge(hit.id),
       });
-      openGenericMenu(ui.linkMenu, point.x, point.y, `连接 · ${hit.edge.name}`, items);
+      openGenericMenu(ui.linkMenu, point.x, point.y, `连接 · ${hit.edge!.name}`, items);
       return;
     }
     items.push({
@@ -4302,7 +4368,7 @@
   function queuePositionSave(nodeId: string) {
     const node = nodeById(nodeId);
     if (!node) return;
-    state.dirtyPositions.set(nodeId, { x: node.position.x, y: node.position.y });
+    state.dirtyPositions.set(nodeId, { x: node.position!.x, y: node.position!.y });
     clearTimeout(state.positionTimer);
     state.positionTimer = setTimeout(flushPositions, 180);
   }
@@ -4325,7 +4391,7 @@
     }
   }
 
-  async function patchNodeGeometry(nodeId: string, payload) {
+  async function patchNodeGeometry(nodeId: string, payload: Record<string, unknown>) {
     const response = await task(() =>
       jsonRequest(`/api/nodes/${encodeURIComponent(nodeId)}`, 'PATCH', payload),
     );
@@ -4335,7 +4401,7 @@
   }
 
   // R24/D49：把网络节点标记/取消为模块端口。
-  async function setNetPort(nodeId: string, portName, direction = 'inout') {
+  async function setNetPort(nodeId: string, portName: string, direction = 'inout') {
     const node = nodeById(nodeId);
     if (!node) return;
     const params = portName
@@ -4354,7 +4420,7 @@
     toast(params.port_name ? `已标记端口「${params.port_name}」` : '已取消端口标记', 'ok', 2200);
   }
 
-  async function patchEdgeGeometry(edgeId: string, payload) {
+  async function patchEdgeGeometry(edgeId: string, payload: Record<string, unknown>) {
     const response = await task(() =>
       jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, 'PATCH', payload),
     );
@@ -4373,7 +4439,7 @@
     }, 70);
   }
 
-  const PANEL_GROUPS = {
+  const PANEL_GROUPS: Record<string, { group: string; role?: string; sub?: string }> = {
     inspect: { group: 'inspect' },
     'node-fn': { group: 'fn', role: 'node' },
     'edge-fn': { group: 'fn', role: 'edge' },
@@ -4407,7 +4473,7 @@
     $$('.panel-group').forEach((node) => node.classList.toggle('active', node.dataset.group === group));
   }
 
-  function setGroupSub(group: string, sub) {
+  function setGroupSub(group: string, sub: string) {
     const host = $(`.panel-group[data-group="${group}"]`);
     if (!host) return;
     const attr = group === 'fn' ? 'fnrole' : 'sub';
@@ -4489,10 +4555,10 @@
     return [$('#plotkitFrame'), $('#plotkitInlineHost iframe')].filter(Boolean);
   }
 
-  function notifyPlotkit(visible) {
+  function notifyPlotkit(visible: boolean) {
     for (const frame of plotkitFrames()) {
       try {
-        frame.contentWindow?.postMessage({ type: 'plotkit-visibility', visible: Boolean(visible) }, '*');
+        (frame as HTMLIFrameElement).contentWindow?.postMessage({ type: 'plotkit-visibility', visible: Boolean(visible) }, '*');
       } catch (err) { /* 跨源/未加载完成时忽略 */ }
     }
     // 同步告诉后端：面板不可见就别采样（否则 2Hz 白跑，还让数据集无限增长）。
@@ -4525,7 +4591,7 @@
     ui.linkMenu.classList.add('hidden');
   }
 
-  function openGenericMenu(popup: HTMLElement, x: number, y: number, title: string, items) {
+  function openGenericMenu(popup: HTMLElement, x: number, y: number, title: string, items: MenuItemRec[]) {
     popup.replaceChildren();
     popup.appendChild(div('popup-title', title));
     for (const item of items) {
@@ -4542,7 +4608,7 @@
         node.addEventListener('click', (event: MouseEvent) => {
           event.stopPropagation();
           const children = [
-            ...item.children,
+            ...(item.children as MenuItemRec[]),
             { sep: true },
             {
               label: '‹ 返回',
@@ -4562,7 +4628,7 @@
       if (item.hint) node.appendChild(el('small', null, item.hint));
       node.addEventListener('click', () => {
         closePopups();
-        item.action();
+        (item as { action: () => void }).action();
       });
       popup.appendChild(node);
     }
@@ -4578,7 +4644,7 @@
   // 信号流/矢量场的计算节点分类顺序；未列出的组按 catalog 出现顺序补在后面。
   const COMPUTE_GROUP_ORDER = ['基础', '动态', '高级', '矢量', '模块', '接口'];
 
-  function buildAddMenuItems(placeX, placeY) {
+  function buildAddMenuItems(placeX: number, placeY: number) {
     const list = kindListFor('node');
     const items = [];
     if (state.mode !== 'circuit') {
@@ -4640,7 +4706,7 @@
           children: specs.map((spec: SpecRec) => ({
             label: spec.label,
             hint: spec.description,
-            action: () => addDeviceAt(spec.kind, placeX, placeY),
+            action: () => addDeviceAt((spec.kind), placeX, placeY),
           })),
         });
       }
@@ -4675,10 +4741,10 @@
     };
   }
 
-  function openLinkMenu(targetId: string, x: number, y: number, forcedSourceId) {
+  function openLinkMenu(targetId: string, x: number, y: number, forcedSourceId: string | null) {
     const sourceId = forcedSourceId || state.drag?.sourceId;
     const target = nodeById(targetId);
-    const source = nodeById(sourceId);
+    const source = nodeById((sourceId as string | null));
     if (!source || !target) return;
     if (state.mode === 'circuit' && source.id === target.id) {
       toast('电路元件两端不能是同一个节点', 'error');
@@ -4712,7 +4778,7 @@
       state.drag = null;
       return;
     }
-    const netKind = (node) => node.kind === 'node' || node.kind === 'ground';
+    const netKind = (node: NodeItem) => node.kind === 'node' || node.kind === 'ground';
     const items = [];
     if (state.mode === 'circuit' && netKind(source) && netKind(target)) {
       items.push({
@@ -4731,7 +4797,7 @@
     state.drag = null;
   }
 
-  let modalResolver = null;
+  let modalResolver: ((value: boolean) => void) | null = null;
 
   function closeModal() {
     ui.modal.classList.add('hidden');
@@ -4741,7 +4807,7 @@
     if (resolver) resolver(false);
   }
 
-  function confirmModal(title: string, message: string, confirmLabel = '确定', danger = false) {
+  function confirmModal(title: string, message: string | Node, confirmLabel = '确定', danger = false) {
     return new Promise((resolve) => {
       if (modalResolver) modalResolver(false);
       modalResolver = resolve;
@@ -4769,13 +4835,13 @@
         if (event.target === ui.modal) cancel.click();
       };
       const onKey = (event: MouseEvent) => {
-        if (event.key === 'Escape') {
+        if ((event as Event as KeyboardEvent).key === 'Escape') {
           event.preventDefault();
-          document.removeEventListener('keydown', onKey, true);
+          document.removeEventListener('keydown', onKey as EventListener, true);
           cancel.click();
         }
       };
-      document.addEventListener('keydown', onKey, true);
+      document.addEventListener('keydown', onKey as EventListener, true);
     });
   }
 
@@ -4809,7 +4875,7 @@
     if (badge) badge.classList.add('hidden');
   }
 
-  async function selectEntity(type: string, id: string, force = false) {
+  async function selectEntity(type: string | null, id: string | null, force = false) {
     if (!type || !id) {
       clearSelection();
       return;
@@ -4882,7 +4948,7 @@
     toast(`已全选 ${state.multi.nodes.size} 节点 / ${state.multi.edges.size} 连接`, 'info', 1800);
   }
 
-  function clipboardPayload() {
+  function clipboardPayload(): ClipboardRec | null {
     const { nodes, edges } = multiSelection();
     if (!nodes.size && !edges.size) return null;
     const nodeSet = new Set(nodes);
@@ -4913,7 +4979,7 @@
     }
   }
 
-  function uniquePasteName(base: string, reserved) {
+  function uniquePasteName(base: string, reserved: Set<string>) {
     const existing = new Set((state.scene?.nodes || []).map((node) => node.name));
     let candidate = `${String(base || 'node').slice(0, 24)}_copy`;
     let index = 2;
@@ -4947,7 +5013,7 @@
     let edgesCreated = 0;
     for (const node of clipboard.nodes) {
       const payload = {
-        name: uniquePasteName(node.name, reserved),
+        name: uniquePasteName(node.name, (reserved as Set<string>)),
         kind: node.kind,
         params: node.params || {},
         data: node.data || {},
@@ -5003,7 +5069,7 @@
     state.redoStack.length = 0;
   }
 
-  async function restoreSceneSnapshot(payload) {
+  async function restoreSceneSnapshot(payload: Record<string, unknown>) {
     const current = await captureSceneSnapshot();
     // 库文件（blocks）用当前值：撤销不得复活已删除的库模块（D25）。
     const merged = { ...payload, blocks: current?.blocks || [] };
@@ -5024,7 +5090,7 @@
     }
     const current = await captureSceneSnapshot();
     if (current) state.redoStack.push(current);
-    await task(() => restoreSceneSnapshot(snapshot), { dirty: true, history: false });
+    await task(() => restoreSceneSnapshot((snapshot as Record<string, unknown>)), { dirty: true, history: false });
     toast('已撤销', 'ok', 1600);
   }
 
@@ -5036,11 +5102,11 @@
     }
     const current = await captureSceneSnapshot();
     if (current) state.undoStack.push(current);
-    await task(() => restoreSceneSnapshot(snapshot), { dirty: true, history: false });
+    await task(() => restoreSceneSnapshot((snapshot as Record<string, unknown>)), { dirty: true, history: false });
     toast('已重做', 'ok', 1600);
   }
 
-  function formatAny(value) {
+  function formatAny(value: unknown) {
     if (typeof value === 'number') return fmt(value, 5);
     if (typeof value === 'boolean') return value ? 'true' : 'false';
     if (value === null || value === undefined) return '—';
@@ -5051,7 +5117,7 @@
     return String(value);
   }
 
-  function valueToText(value) {
+  function valueToText(value: unknown) {
     if (typeof value === 'string') return value;
     if (value === null || value === undefined) return '';
     if (typeof value === 'object') return JSON.stringify(value, null, 0);
@@ -5085,7 +5151,7 @@
       const computes = state.catalog.computes || [];
       if (state.mode === 'vector') {
         return computes.slice().sort((a, b) => {
-          const rank = (item) => (item.group === '矢量' ? 0 : 1);
+          const rank = (item: SpecRec) => (item.group === '矢量' ? 0 : 1);
           return rank(a) - rank(b);
         });
       }
@@ -5095,14 +5161,14 @@
     const methods = state.catalog.methods || [];
     if (state.mode === 'vector') {
       return methods.slice().sort((a, b) => {
-        const rank = (item) => (item.group === '矢量' ? 0 : 1);
+        const rank = (item: SpecRec) => (item.group === '矢量' ? 0 : 1);
         return rank(a) - rank(b);
       });
     }
     return methods;
   }
 
-  function buildKindSelect(role: string, currentKind, currentId = null) {
+  function buildKindSelect(role: string, currentKind: string, currentId: string | null = null) {
     const select = el('select');
     select.dataset.role = 'kind';
     const list = kindListFor(role);
@@ -5114,7 +5180,7 @@
       if (!groups.has(group)) groups.set(group, []);
       groups.get(group).push(spec);
     }
-    const appendOption = (parent, spec: SpecRec) => {
+    const appendOption = (parent: HTMLElement, spec: SpecRec) => {
       const option = el('option', null, spec.label);
       option.value = spec.kind;
       if (spec.kind === currentKind) option.selected = true;
@@ -5123,14 +5189,14 @@
     if (state.mode !== 'circuit' && role === 'node') {
       for (const [group, specs] of groups) {
         const wrapper = group ? el('optgroup') : select;
-        if (group) wrapper.label = group;
+        if (group) (wrapper as HTMLOptGroupElement).label = group;
         specs.forEach((spec: SpecRec) => appendOption(wrapper, spec));
         if (group) select.appendChild(wrapper);
       }
     } else {
       for (const specs of groups.values()) specs.forEach((spec: SpecRec) => appendOption(select, spec));
     }
-    if (!$$('option', select).some((option) => option.value === currentKind)) {
+    if (!$$('option', select).some((option) => (option as HTMLInputElement).value === currentKind)) {
       const option = el('option', null, currentKind || '—');
       option.value = currentKind || '';
       option.selected = true;
@@ -5173,7 +5239,7 @@
     return 0;
   }
 
-  function bestUnitFactor(value) {
+  function bestUnitFactor(value: number) {
     const magnitude = Math.abs(Number(value) || 0);
     if (!magnitude) return 1;
     for (const item of UNIT_PREFIXES) {
@@ -5182,22 +5248,22 @@
     return UNIT_PREFIXES[UNIT_PREFIXES.length - 1].factor;
   }
 
-  function trimNumber(value) {
+  function trimNumber(value: number) {
     if (!Number.isFinite(value)) return '';
     return String(Number(value.toPrecision(12)));
   }
 
-  function buildParamField(param: ParamSpec, value) {
+  function buildParamField(param: ParamSpec, value: unknown) {
     const wrap = div('field');
     wrap.dataset.param = param.key;
-    wrap.dataset.type = param.type || 'float';
-    wrap.dataset.label = param.label || param.key;
+    wrap.dataset.type = (param.type || 'float') as string;
+    wrap.dataset.label = (param.label || param.key) as string;
     const labelText = param.label || param.key;
     const type = param.type || 'float';
 
     if (type === 'bool') {
       const row = div('switch-row');
-      row.appendChild(el('span', null, labelText));
+      row.appendChild(el('span', null, labelText as string));
       const input = el('input');
       input.type = 'checkbox';
       input.checked = Boolean(value);
@@ -5206,14 +5272,14 @@
       wrap.appendChild(row);
     } else {
       const prefixable = type === 'float' && PREFIXABLE_UNITS.has(String(param.unit || ''));
-      const fieldLabel = numberedField(labelText, prefixable ? '' : (param.unit || ''));
-      typeLabelHelp(fieldLabel, param);
+      const fieldLabel = numberedField((labelText as string), prefixable ? '' : (param.unit || '') as string);
+      typeLabelHelp((fieldLabel), param);
       wrap.appendChild(fieldLabel);
-      let control;
-      let unitSelect = null;
+      let control: HTMLElement & { value?: string; type?: string; step?: string; min?: string; max?: string };
+      let unitSelect: HTMLSelectElement | null = null;
       if (type === 'choice') {
         control = el('select');
-        for (const choice of param.choices || []) {
+        for (const choice of (param.choices as Array<{ label?: string; value: string }> || [])) {
           const option = el('option', null, choice.label || choice.value);
           option.value = choice.value;
           if (String(value) === String(choice.value)) option.selected = true;
@@ -5254,18 +5320,18 @@
           unitSelect.value = String(factor);
           unitSelect.dataset.factor = String(factor);
           unitSelect.addEventListener('change', () => {
-            const oldFactor = Number(unitSelect.dataset.factor) || 1;
-            const nextFactor = Number(unitSelect.value) || 1;
+            const oldFactor = Number(unitSelect!.dataset.factor) || 1;
+            const nextFactor = Number(unitSelect!.value) || 1;
             const number = Number(control.value);
             if (Number.isFinite(number)) control.value = trimNumber((number * oldFactor) / nextFactor);
-            unitSelect.dataset.factor = String(nextFactor);
+            unitSelect!.dataset.factor = String(nextFactor);
             try {
               localStorage.setItem(unitStorageKey(param), String(nextFactor));
             } catch (error) {
               // localStorage 不可用时只影响本次会话
             }
-            const baseMin = unitSelect.dataset.baseMin;
-            const baseMax = unitSelect.dataset.baseMax;
+            const baseMin = unitSelect!.dataset.baseMin;
+            const baseMax = unitSelect!.dataset.baseMax;
             control.min = baseMin === '' ? '' : String(Number(baseMin) / nextFactor);
             control.max = baseMax === '' ? '' : String(Number(baseMax) / nextFactor);
           });
@@ -5290,7 +5356,7 @@
         control.spellcheck = false;
         control.addEventListener('blur', () => {
           try {
-            JSON.parse(control.value);
+            JSON.parse((control.value as string));
             control.classList.remove('invalid');
           } catch (error) {
             control.classList.add('invalid');
@@ -5300,12 +5366,12 @@
         control = el('input');
         control.type = 'text';
         control.value = value === undefined || value === null ? '' : String(value);
-        if (param.placeholder) control.placeholder = param.placeholder;
+        if (param.placeholder) (control as HTMLInputElement).placeholder = param.placeholder as string;
         if (param.key === 'expr') control.classList.add('mono');
       }
       control.dataset.role = 'param-input';
       if (param.placeholder && (type === 'json' || type === 'matrix' || type === 'list' || type === 'mapping')) {
-        control.placeholder = param.placeholder;
+        (control as HTMLInputElement).placeholder = param.placeholder as string;
       }
       if (unitSelect) {
         const unitRow = div('param-unit-row');
@@ -5316,12 +5382,12 @@
       }
     }
 
-    if (param.help) wrap.appendChild(div('help', param.help));
+    if (param.help) wrap.appendChild(div('help', (param.help as string | number | null | undefined)));
     return wrap;
   }
 
   function applyPresetOnModelChange(container: HTMLElement, spec: SpecRec) {
-    const presets = spec.presets || {};
+    const presets = (spec.presets || {}) as Record<string, Record<string, unknown>>;
     const modelField = container.querySelector('[data-param="model"]');
     if (!modelField || !Object.keys(presets).length) return;
     const select = modelField.querySelector('select');
@@ -5333,8 +5399,8 @@
         const field = container.querySelector(`[data-param="${key}"]`);
         const input = field ? field.querySelector('input') : null;
         if (!input) continue;
-        const unit = field.querySelector('[data-role="param-unit"]');
-        const factor = unit ? (Number(unit.value) || 1) : 1;
+        const unit = field!.querySelector('[data-role="param-unit"]');
+        const factor = unit ? (Number((unit as HTMLInputElement).value) || 1) : 1;
         input.value = trimNumber(Number(value) / factor);
       }
     });
@@ -5356,13 +5422,13 @@
     const waveField = container.querySelector('[data-param="wave"]');
     const select = waveField ? waveField.querySelector('select') : null;
     if (!select) return;
-    const allowed = new Set(WAVE_FIELDS[select.value] || []);
-    for (const field of container.querySelectorAll('.field[data-param]')) {
-      const key = field.dataset.param;
+    const allowed = new Set(WAVE_FIELDS[select.value as keyof typeof WAVE_FIELDS] || []);
+    for (const field of container.querySelectorAll<HTMLElement>('.field[data-param]')) {
+      const key = field.dataset.param as string;
       if (key === 'wave') continue;
       field.hidden = !allowed.has(key);
     }
-    const hint = waveField.querySelector('[data-role="wave-hint"]');
+    const hint = waveField!.querySelector('[data-role="wave-hint"]');
     if (hint) {
       hint.textContent = select.value === 'dc'
         ? 'DC 模式只使用「偏置 / 直流电压」；幅值、频率等不参与计算。'
@@ -5384,7 +5450,7 @@
     applyWaveFieldVisibility(container);
   }
 
-  function buildParamFields(spec: SpecRec, params) {
+  function buildParamFields(spec: SpecRec, params: Record<string, unknown>) {
     const container = div('params-grid');
     container.dataset.role = 'params';
     if (!spec || !Array.isArray(spec.params) || !spec.params.length) {
@@ -5401,39 +5467,39 @@
     return container;
   }
 
-  function collectParamValues(container: HTMLElement) {
-    const values = {};
+  function collectParamValues(container: HTMLElement): Record<string, unknown> {
+    const values: Record<string, unknown> = {};
     for (const wrapper of $$('[data-param]', container)) {
-      const key = wrapper.dataset.param;
+      const key = wrapper.dataset.param as string;
       const type = wrapper.dataset.type;
       const label = wrapper.dataset.label || key;
       const input = wrapper.querySelector('input, select, textarea');
       if (!input) continue;
       if (type === 'bool') {
-        values[key] = Boolean(input.checked);
+        values[key] = Boolean((input as HTMLInputElement).checked);
       } else if (type === 'float' || type === 'int') {
-        const text = String(input.value).trim();
+        const text = String((input as HTMLInputElement).value).trim();
         if (!text) throw new Error(`参数「${label}」不能为空`);
         const number = Number(text);
         if (!Number.isFinite(number)) throw new Error(`参数「${label}」必须是有限数字`);
         if (type === 'int' && !Number.isInteger(number)) throw new Error(`参数「${label}」必须是整数`);
         const unitSelect = wrapper.querySelector('[data-role="param-unit"]');
-        values[key] = unitSelect ? number * (Number(unitSelect.value) || 1) : number;
+        values[key] = unitSelect ? number * (Number((unitSelect as HTMLInputElement).value) || 1) : number;
       } else if (type === 'json' || type === 'matrix' || type === 'list' || type === 'mapping') {
         try {
-          values[key] = JSON.parse(input.value);
+          values[key] = JSON.parse((input as HTMLInputElement).value);
         } catch (error) {
           input.classList.add('invalid');
           throw new Error(`参数「${label}」不是合法 JSON`);
         }
       } else {
-        values[key] = input.value;
+        values[key] = (input as HTMLInputElement).value;
       }
     }
     return values;
   }
 
-  function dataRow(key: string, value) {
+  function dataRow(key: string, value: unknown) {
     const row = div('data-row');
     const keyInput = el('input');
     keyInput.type = 'text';
@@ -5459,26 +5525,26 @@
   }
 
   function collectData(container: HTMLElement) {
-    const result = {};
+    const result: Record<string, unknown> = {};
     for (const row of $$('.data-row', container)) {
-      const key = row.querySelector('.data-key').value.trim();
+      const key = (row!.querySelector('.data-key') as HTMLInputElement).value.trim();
       if (!key) continue;
       if (Object.prototype.hasOwnProperty.call(result, key)) {
         throw new Error(`数据字段「${key}」重复`);
       }
-      result[key] = parseSmartValue(row.querySelector('.data-val').value);
+      result[key] = parseSmartValue((row!.querySelector('.data-val') as HTMLInputElement).value);
     }
     return result;
   }
 
-  function sectionLabel(text: string, note: string) {
+  function sectionLabel(text: string, note?: string) {
     const label = div('section-label');
     label.appendChild(el('span', null, text));
     if (note) label.appendChild(el('em', null, note));
     return label;
   }
 
-  function section(title: string, note: string, ...children) {
+  function section(title: string, note?: string, ...children: Node[]) {
     const wrapper = div('section');
     wrapper.appendChild(sectionLabel(title, note));
     for (const child of children) wrapper.appendChild(child);
@@ -5510,7 +5576,7 @@
     state.inspectorId = null;
   }
 
-  function buildDevicePinList(node) {
+  function buildDevicePinList(node: NodeItem) {
     const container = div('kv');
     const wires = (state.scene?.edges || []).filter((edge) => edge.kind === 'wire');
     const pins = devicePins(node);
@@ -5555,7 +5621,7 @@
     }
   }
 
-  function buildHeader(titleText, subtitle, specLabel) {
+  function buildHeader(titleText: string, subtitle: string, specLabel: string) {
     const head = div('insp-head');
     const title = div('insp-title');
     const heading = el('h2', null, titleText);
@@ -5571,7 +5637,7 @@
     return { head, heading, badge };
   }
 
-  function renderNodeInspector(node) {
+  function renderNodeInspector(node: NodeItem) {
     const isModule = state.mode === 'circuit' && node.kind === 'module';
     const isDevice = state.mode === 'circuit' && node.kind === 'device';
     const spec = isDevice ? deviceElementSpec(node) : (isModule ? null : getNodeSpec(node.kind));
@@ -5622,7 +5688,7 @@
       kindField.appendChild(div('help', `${specLabel}（${node.params?.element || '?'}）`));
     } else {
       kindField.appendChild(numberedField('计算方法', state.mode === 'circuit' ? '电学节点类型' : '节点内部计算'));
-      kindSelect = buildKindSelect('node', node.kind, node.id);
+      kindSelect = buildKindSelect('node', node.kind, ((node.id)));
       kindField.appendChild(kindSelect);
       kindField.appendChild(div('help', spec?.description || ''));
     }
@@ -5645,7 +5711,7 @@
     sizeField.appendChild(sizeInput);
     identity.appendChild(sizeField);
 
-    const params = buildParamFields(spec, node.params || {});
+    const params = buildParamFields((spec as SpecRec), node.params || {});
     if (state.mode === 'circuit' && node.kind === 'node') {
       // R24/D49：网络节点可标记为模块端口，封装时按端口暴露到外部。
       const portName = div('field');
@@ -5674,7 +5740,7 @@
       params.append(portName, portDir);
     }
 
-    let dataEditor = null;
+    let dataEditor: HTMLElement | null = null;
     if (state.mode !== 'circuit') {
       dataEditor = div('data-rows');
       dataEditor.dataset.role = 'data';
@@ -5684,8 +5750,8 @@
       }
       const addRow = button('＋ 添加字段', 'btn tiny', () => {
         const row = dataRow('', '');
-        dataEditor.appendChild(row);
-        row.querySelector('.data-key').focus();
+        dataEditor!.appendChild(row);
+        (row!.querySelector('.data-key') as HTMLElement).focus();
         markDirty();
       });
       const note = div('help', '计算节点会覆盖输出字段的值；手动数据源则以这里的值为准。值为数字、true/false、JSON 数组/对象或文本。');
@@ -5732,7 +5798,7 @@
     form.append(
       identity,
       ...(pinSection ? [pinSection] : []),
-      section('参数', spec?.notes || '', params),
+      section('参数', (spec?.notes || '') as string, params),
       ...(dataEditor ? [section('节点数据', '实时字段', dataEditor)] : []),
       section('实时值', '随帧更新', live),
       section('内部状态', '只读', statePre),
@@ -5741,7 +5807,7 @@
 
     if (kindSelect) kindSelect.addEventListener('change', () => {
       const nextSpec = getNodeSpec(kindSelect.value);
-      const nextParams = buildParamFields(nextSpec, specDefaults(nextSpec));
+      const nextParams = buildParamFields((nextSpec as SpecRec), specDefaults(nextSpec));
       const current = form.querySelector('[data-role="params"]');
       if (current) current.replaceWith(nextParams);
       desc.textContent = nextSpec?.description || '';
@@ -5751,7 +5817,7 @@
 
     form.addEventListener('input', markDirty);
     form.addEventListener('change', markDirty);
-    form.addEventListener('submit', (event: MouseEvent) => {
+    form.addEventListener('submit', (event: SubmitEvent) => {
       event.preventDefault();
       void applyInspector();
     });
@@ -5762,7 +5828,7 @@
     updateInspectorLive();
   }
 
-  function renderWireInspector(edge) {
+  function renderWireInspector(edge: EdgeItem) {
     const source = nodeById(edge.source);
     const target = nodeById(edge.target);
     const { head } = buildHeader(
@@ -5798,7 +5864,7 @@
       row.dataset.role = 'waypoint-row';
       for (const [axis, value] of [['x', x], ['y', y]]) {
         const field = div('field');
-        field.appendChild(numberedField(axis.toUpperCase(), ''));
+        field.appendChild(numberedField((axis as string).toUpperCase(), ''));
         const input = el('input');
         input.type = 'number';
         input.step = '10';
@@ -5820,8 +5886,8 @@
     const addPoint = button('＋ 添加折点', 'btn tiny', () => {
       const rows = [...waypoints.querySelectorAll('[data-role="waypoint-row"]')];
       const last = rows.length ? rows[rows.length - 1] : null;
-      const x = last ? Number(last.querySelector('[data-role="waypoint-x"]').value) + 40 : 0;
-      const y = last ? Number(last.querySelector('[data-role="waypoint-y"]').value) : 0;
+      const x = last ? Number((last!.querySelector('[data-role="waypoint-x"]') as HTMLInputElement).value) + 40 : 0;
+      const y = last ? Number((last!.querySelector('[data-role="waypoint-y"]') as HTMLInputElement).value) : 0;
       appendPoint(x, y);
       markDirty();
     });
@@ -5837,7 +5903,7 @@
       section('折点', '可设置多个折点；有折点时路由自动变为手动', waypoints),
       addPoint,
       section('参数', '', params), actions);
-    form.addEventListener('submit', (event: MouseEvent) => {
+    form.addEventListener('submit', (event: SubmitEvent) => {
       event.preventDefault();
       void applyInspector();
     });
@@ -5846,7 +5912,7 @@
     state.inspectorDirty = false;
   }
 
-  function renderEdgeInspector(edge) {
+  function renderEdgeInspector(edge: EdgeItem) {
     if (edge.kind === 'wire') {
       renderWireInspector(edge);
       return;
@@ -5878,7 +5944,7 @@
 
     const kindField = div('field');
     kindField.appendChild(numberedField('传递方式', state.mode === 'circuit' ? '电路元件' : '连接函数'));
-    const kindSelect = buildKindSelect('edge', edge.kind, edge.id);
+    const kindSelect = buildKindSelect('edge', edge.kind, ((edge.id)));
     kindField.appendChild(kindSelect);
     const desc = div('help', spec?.description || '');
     kindField.appendChild(desc);
@@ -5961,17 +6027,17 @@
       geometry.appendChild(clear);
     }
 
-    const params = buildParamFields(spec, edge.params || {});
+    const params = buildParamFields((spec as SpecRec), edge.params || {});
 
     let portSection = null;
     if (state.mode !== 'circuit') {
-      const sourceSpec = getNodeSpec(source?.kind);
-      const targetSpec = getNodeSpec(target?.kind);
+      const sourceSpec = getNodeSpec((source?.kind as string));
+      const targetSpec = getNodeSpec((target?.kind as string));
       const outputs = Array.isArray(sourceSpec?.outputs) ? sourceSpec.outputs : [];
       const inputs = Array.isArray(targetSpec?.inputs) ? targetSpec.inputs : [];
       if (outputs.length || inputs.length) {
         const grid = div('params-grid');
-        const makePort = (role: string, options, current) => {
+        const makePort = (role: string, options: (string | PortSpec)[], current: string) => {
           const wrapper = div('field');
           wrapper.appendChild(numberedField(role === 'source' ? '源端口' : '目标端口',
             role === 'source' ? '取源节点的哪个输出字段' : '写入目标节点的哪个输入端口'));
@@ -5980,7 +6046,7 @@
           const empty = el('option', null, '（不绑定，兼容旧语义）');
           empty.value = '';
           select.appendChild(empty);
-          const names = options.map((item) => (typeof item === 'string' ? item : item.name));
+          const names = options.map((item: string | PortSpec) => (typeof item === 'string' ? item : item.name));
           if (current && !names.includes(current)) names.push(current);
           for (const name of names) {
             const option = el('option', null, name);
@@ -6030,7 +6096,7 @@
       identity,
       geometry,
       ...(portSection ? [portSection] : []),
-      section('参数', spec?.notes || '', params),
+      section('参数', (spec?.notes || '') as string, params),
       section('实时输出', '随帧更新', live),
       section('连接状态', '只读', statePre),
       actions,
@@ -6038,7 +6104,7 @@
 
     kindSelect.addEventListener('change', () => {
       const nextSpec = getEdgeSpec(kindSelect.value);
-      const nextParams = buildParamFields(nextSpec, specDefaults(nextSpec));
+      const nextParams = buildParamFields((nextSpec as SpecRec), specDefaults(nextSpec));
       const current = form.querySelector('[data-role="params"]');
       if (current) current.replaceWith(nextParams);
       desc.textContent = nextSpec?.description || '';
@@ -6048,7 +6114,7 @@
 
     form.addEventListener('input', markDirty);
     form.addEventListener('change', markDirty);
-    form.addEventListener('submit', (event: MouseEvent) => {
+    form.addEventListener('submit', (event: SubmitEvent) => {
       event.preventDefault();
       void applyInspector();
     });
@@ -6059,7 +6125,7 @@
     updateInspectorLive();
   }
 
-  async function applyInspector(options = {}) {
+  async function applyInspector(options: ApiOptions = {}) {
     if (!state.selection.type) return true;
     const form = ui.inspector.querySelector('[data-role="form"]');
     if (!form) return true;
@@ -6069,24 +6135,24 @@
     }
     state.busy = true;
     try {
-      const name = form.querySelector('[data-role="name"]').value.trim();
-      const kind = form.querySelector('[data-role="kind"]').value;
-      const params = collectParamValues(form.querySelector('[data-role="params"]'));
+      const name = (form!.querySelector('[data-role="name"]') as HTMLInputElement).value.trim();
+      const kind = (form!.querySelector('[data-role="kind"]') as HTMLInputElement).value;
+      const params = collectParamValues((form.querySelector('[data-role="params"]') as HTMLElement));
 
       if (state.selection.type === 'node') {
         const node = selectedNode();
         if (!node) return false;
-        const payload = { name, kind, params };
+        const payload: PayloadRec = { name, kind, params };
         if (node.kind === 'device') params.element = String(node.params?.element || '');
         if (state.mode !== 'circuit') {
           const dataHost = form.querySelector('[data-role="data"]');
-          if (dataHost) payload.data = collectData(dataHost);
+          if (dataHost) payload.data = collectData((dataHost as HTMLElement));
         }
         const response = await jsonRequest(`/api/nodes/${encodeURIComponent(node.id)}`, 'PATCH', payload);
-        const index = state.scene.nodes.findIndex((item) => item.id === node.id);
-        if (index >= 0) state.scene.nodes[index] = response.node;
+        const index = state.scene!.nodes.findIndex((item) => item.id === node.id);
+        if (index >= 0) state.scene!.nodes[index] = response.node;
         if (response.sim) state.sim = response.sim;
-        state.scene.revision = response.revision ?? state.scene.revision;
+        state.scene!.revision = response.revision ?? state.scene!.revision;
         state.inspectorDirty = false;
         syncUI();
         updateScenePanelValues();
@@ -6099,28 +6165,28 @@
 
       const edge = selectedEdge();
       if (!edge) return false;
-      const payload = { name, kind, params };
-      if (state.mode !== 'circuit') payload.delay = Boolean(form.querySelector('[data-role="delay"]')?.checked);
+      const payload: PayloadRec = { name, kind, params };
+      if (state.mode !== 'circuit') payload.delay = Boolean((form.querySelector('[data-role="delay"]') as HTMLInputElement)?.checked);
       else payload.delay = false;
       const sourcePortBox = form.querySelector('[data-role="source-port"]');
       const targetPortBox = form.querySelector('[data-role="target-port"]');
-      if (sourcePortBox) payload.source_port = sourcePortBox.value;
-      if (targetPortBox) payload.target_port = targetPortBox.value;
+      if (sourcePortBox) payload.source_port = (sourcePortBox as HTMLInputElement).value;
+      if (targetPortBox) payload.target_port = (targetPortBox as HTMLInputElement).value;
       const waypointBox = form.querySelector('[data-role="waypoints"]');
       if (waypointBox) {
         payload.waypoints = [...waypointBox.querySelectorAll('[data-role="waypoint-row"]')].map((row) => ({
-          x: Number(row.querySelector('[data-role="waypoint-x"]').value) || 0,
-          y: Number(row.querySelector('[data-role="waypoint-y"]').value) || 0,
+          x: Number((row.querySelector('[data-role="waypoint-x"]') as HTMLInputElement).value) || 0,
+          y: Number((row.querySelector('[data-role="waypoint-y"]') as HTMLInputElement).value) || 0,
         }));
-        payload.route = payload.waypoints.length ? 'manual' : 'auto';
+        payload.route = (payload.waypoints as Array<{ x: number; y: number }>).length ? 'manual' : 'auto';
       }
       const enabledBox = form.querySelector('[data-role="enabled"]');
-      if (enabledBox) payload.enabled = Boolean(enabledBox.checked);
+      if (enabledBox) payload.enabled = Boolean((enabledBox as HTMLInputElement).checked);
       const response = await jsonRequest(`/api/edges/${encodeURIComponent(edge.id)}`, 'PATCH', payload);
-      const index = state.scene.edges.findIndex((item) => item.id === edge.id);
-      if (index >= 0) state.scene.edges[index] = response.edge;
+      const index = state.scene!.edges.findIndex((item) => item.id === edge.id);
+      if (index >= 0) state.scene!.edges[index] = response.edge;
       if (response.sim) state.sim = response.sim;
-      state.scene.revision = response.revision ?? state.scene.revision;
+      state.scene!.revision = response.revision ?? state.scene!.revision;
       state.inspectorDirty = false;
       syncUI();
       updateScenePanelValues();
@@ -6146,7 +6212,7 @@
       const data = nodeDisplayData(selected);
       for (const value of $$('[data-live-node-value]', ui.inspector)) {
         if (value.dataset.node !== selected.id) continue;
-        value.textContent = formatAny(data[value.dataset.field]);
+        value.textContent = formatAny(data[value.dataset.field as string]);
       }
       const inputs = ui.inspector.querySelector('[data-live-inputs]');
       if (inputs) inputs.textContent = String(Object.keys(selected.inputs || {}).length);
@@ -6162,7 +6228,7 @@
       const data = edgeDisplayData(edge);
       for (const value of $$('[data-live-edge-value]', ui.inspector)) {
         if (value.dataset.edge !== edge.id) continue;
-        value.textContent = formatAny(data[value.dataset.field]);
+        value.textContent = formatAny(data[value.dataset.field as string]);
       }
       const statePre = ui.inspector.querySelector('[data-live-state]');
       if (statePre) {
@@ -6198,7 +6264,7 @@
   }
 
   function specByKind(role: string, kind: string) {
-    const lists = specListForMode();
+    const lists = specListForMode() as { nodes: SpecRec[]; edges: SpecRec[] };
     const list = role === 'edge' ? lists.edges : lists.nodes;
     return (list || []).find((spec: SpecRec) => spec.kind === kind) || null;
   }
@@ -6239,18 +6305,18 @@
     for (const param of params) {
       const row = el('tr');
       const nameCell = el('td');
-      nameCell.appendChild(el('code', null, param.label || param.key));
+      nameCell.appendChild(el('code', null, (param.label || param.key) as string));
       nameCell.appendChild(el('span', 'spec-key', param.key));
       row.appendChild(nameCell);
-      row.appendChild(el('td', null, param.type));
+      row.appendChild(el('td', null, param.type as string));
       const def = param.default;
       row.appendChild(
         el('td', null, typeof def === 'object' && def !== null ? JSON.stringify(def) : String(def ?? '')),
       );
-      row.appendChild(el('td', null, param.unit || '—'));
+      row.appendChild(el('td', null, (param.unit || '—') as string));
       row.appendChild(el('td', null, paramRangeText(param) || '—'));
       row.appendChild(el('td', null, param.required ? '是' : ''));
-      const helpCell = el('td', 'spec-help', param.help || '');
+      const helpCell = el('td', 'spec-help', (param.help || '') as string);
       attachParamHelp(helpCell, param, spec, state.specRole || 'node');
       row.appendChild(helpCell);
       table.appendChild(row);
@@ -6259,7 +6325,7 @@
     return wrap;
   }
 
-  function sourceBlock(source) {
+  function sourceBlock(source: string) {
     const text = String(source || '');
     if (!text.trim()) {
       return div('help spec-no-source', '源码不可用：该实现没有可直接读取的 Python 源码（可能由内置 C 扩展或动态生成）。');
@@ -6280,7 +6346,7 @@
     const fnRole = state.fnRole || 'node';
     const rawTarget = specTarget();
     const target = rawTarget && rawTarget.role === fnRole ? rawTarget : null;
-    const lists = specListForMode();
+    const lists = specListForMode() as { nodes: SpecRec[]; edges: SpecRec[] };
     const roleList = fnRole === 'edge' ? lists.edges : lists.nodes;
     let spec = target?.spec || null;
     if (!spec) {
@@ -6349,7 +6415,7 @@
       const lineCount = String(spec.source).split('\n').length;
       sourceHead.appendChild(el('span', 'spec-key', `${lineCount} 行`));
     }
-    host.appendChild(section('源码', 'inspect 读取的真实实现', sourceHead, sourceBlock(spec.source)));
+    host.appendChild(section('源码', 'inspect 读取的真实实现', sourceHead, sourceBlock((spec.source as string))));
 
     if (!spec.builtin) {
       const note = div('help', '这是用户扩展提供的实现：代码在服务端本进程执行，不是沙箱。');
@@ -6365,8 +6431,8 @@
     if (tab === 'spec' || tab === 'node-fn' || tab === 'edge-fn') renderSpecPane();
   }
 
-  function applyExtensionResult(box) {
-    const saved = state.ext.result;
+  function applyExtensionResult(box: HTMLElement) {
+    const saved = state.ext.result as ExtResultRec | null;
     if (!box || !saved) return;
     box.className = `ext-result ${saved.kind}`;
     box.replaceChildren();
@@ -6378,14 +6444,14 @@
     }
   }
 
-  function showExtensionResult(kind: string, message: string, detail) {
+  function showExtensionResult(kind: string, message: string, detail?: unknown) {
     state.ext.result = { kind, message: message || '', detail };
     const box = ui.extPane?.querySelector('[data-role="ext-result"]');
     if (!box) {
       if (message) toast(message, kind === 'error' ? 'error' : kind === 'ok' ? 'ok' : 'info', 6000);
       return;
     }
-    applyExtensionResult(box);
+    applyExtensionResult((box as HTMLElement));
   }
 
   async function refreshExtensions() {
@@ -6404,7 +6470,7 @@
 
   function extensionEditorCode() {
     const area = ui.extPane?.querySelector('[data-role="ext-code"]');
-    return area ? area.value : state.ext.code;
+    return area ? (area as HTMLInputElement).value : state.ext.code;
   }
 
   async function validateExtension() {
@@ -6418,7 +6484,7 @@
       showExtensionResult(
         'ok',
         declared.length
-          ? `校验通过：声明了 ${declared.length} 个 kind（${declared.map((item) => item.kind || item.function).join('、')}）`
+          ? `校验通过：声明了 ${declared.length} 个 kind（${declared.map((item: DeclaredItemRec) => item.kind || item.function).join('、')}）`
           : '校验通过：没有检测到 node/method 声明，启用后不会注册任何东西。',
         declared,
       );
@@ -6430,7 +6496,7 @@
   async function activateExtension() {
     const code = extensionEditorCode();
     const filenameInput = ui.extPane?.querySelector('[data-role="ext-filename"]');
-    const filename = filenameInput ? filenameInput.value.trim() : '';
+    const filename = filenameInput ? (filenameInput as HTMLInputElement).value.trim() : '';
     const confirmed = await confirmModal(
       '启用这段 Python 扩展？',
       '扩展会在后端本进程以完整 Python 权限执行，这不是沙箱。只启用你自己写的或来源可信的代码。',
@@ -6479,12 +6545,12 @@
     }
   }
 
-  function loadExtensionIntoEditor(kind: string, code) {
+  function loadExtensionIntoEditor(kind: string, code: string) {
     state.ext.code = String(code || '');
     const area = ui.extPane?.querySelector('[data-role="ext-code"]');
-    if (area) area.value = state.ext.code;
+    if (area) (area as HTMLInputElement).value = state.ext.code;
     const nameInput = ui.extPane?.querySelector('[data-role="ext-filename"]');
-    if (nameInput) nameInput.value = String(kind || '').replace(/[^\w.-]+/g, '_');
+    if (nameInput) (nameInput as HTMLInputElement).value = String(kind || '').replace(/[^\w.-]+/g, '_');
     showExtensionResult('info', `已载入 ${kind} 的源码到编辑器`);
   }
 
@@ -6528,7 +6594,7 @@
       button('新建模板', 'btn tiny', () => {
         state.ext.code = EXTENSION_TEMPLATE;
         const area = ui.extPane.querySelector('[data-role="ext-code"]');
-        if (area) area.value = state.ext.code;
+        if (area) (area as HTMLInputElement).value = state.ext.code;
         showExtensionResult('info', '已填入最小可运行模板，改完点「校验」再「启用」。');
       }),
       button('校验', 'btn tiny', () => void validateExtension()),
@@ -6572,10 +6638,10 @@
 
     const listBlock = div('ext-list');
     listBlock.dataset.role = 'ext-list';
-    if (!state.ext.list.length) {
+    if (!(state.ext.list as ExtItemRec[]).length) {
       listBlock.appendChild(div('help', '当前没有已启用的用户扩展。'));
     }
-    for (const item of state.ext.list) {
+    for (const item of (state.ext.list as ExtItemRec[])) {
       const card = div('ext-item');
       const top = div('ext-item-head');
       top.appendChild(el('b', null, item.label || item.kind));
@@ -6593,15 +6659,15 @@
       card.appendChild(meta);
       const actions = div('ext-item-actions');
       actions.appendChild(
-        button('载入编辑器', 'btn tiny', () => loadExtensionIntoEditor(item.kind, item.source)),
+        button('载入编辑器', 'btn tiny', () => loadExtensionIntoEditor((item.kind as string), (item.source as string))),
       );
-      actions.appendChild(button('停用', 'btn tiny danger', () => void deactivateExtension(item.kind)));
+      actions.appendChild(button('停用', 'btn tiny danger', () => void deactivateExtension((item.kind as string))));
       card.appendChild(actions);
       listBlock.appendChild(card);
     }
-    host.appendChild(section('已启用的扩展', `${state.ext.list.length} 个`, listBlock));
+    host.appendChild(section('已启用的扩展', `${(state.ext.list as ExtItemRec[]).length} 个`, listBlock));
 
-    const scanned = Array.isArray(state.ext.scan) ? state.ext.scan : [];
+    const scanned = (Array.isArray(state.ext.scan) ? state.ext.scan : []) as ExtItemRec[];
     if (scanned.length) {
       const scanBlock = div('ext-list');
       for (const item of scanned) {
@@ -6614,7 +6680,7 @@
         } else {
           const actions = div('ext-item-actions');
           actions.appendChild(
-            button('载入编辑器', 'btn tiny', () => loadExtensionIntoEditor(item.filename || '', item.code || '')),
+            button('载入编辑器', 'btn tiny', () => loadExtensionIntoEditor((item.filename || '') as string, (item.code || '') as string)),
           );
           card.appendChild(actions);
         }
@@ -6636,22 +6702,22 @@
       toast('至少选中两个节点/器件才能对齐', 'info', 2400);
       return;
     }
-    const xs = targets.map((node) => node.position.x);
-    const ys = targets.map((node) => node.position.y);
+    const xs = targets.map((node) => node!.position!.x);
+    const ys = targets.map((node) => node!.position!.y);
     const minX = Math.min(...xs);
     const maxX = Math.max(...xs);
     const minY = Math.min(...ys);
     const maxY = Math.max(...ys);
     const positions = targets.map((node) => {
-      let x = node.position.x;
-      let y = node.position.y;
+      let x = node!.position!.x;
+      let y = node!.position!.y;
       if (mode === 'left') x = minX;
       else if (mode === 'right') x = maxX;
       else if (mode === 'centerX') x = (minX + maxX) / 2;
       else if (mode === 'top') y = minY;
       else if (mode === 'bottom') y = maxY;
       else if (mode === 'centerY') y = (minY + maxY) / 2;
-      return { id: node.id, position: { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 } };
+      return { id: node!.id, position: { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 } };
     });
     try {
       await jsonRequest('/api/positions', 'POST', { positions });
@@ -6662,24 +6728,24 @@
     }
   }
 
-  async function distributeSelection(axis) {
+  async function distributeSelection(axis: string) {
     const targets = [...multiSelection().nodes].map((id: string) => nodeById(id)).filter(Boolean);
     if (targets.length < 3) {
       toast('等距分布至少需要三个节点/器件', 'info', 2400);
       return;
     }
     const key = axis === 'y' ? 'y' : 'x';
-    const sorted = [...targets].sort((a, b) => a.position[key] - b.position[key]);
-    const first = sorted[0].position[key];
-    const last = sorted[sorted.length - 1].position[key];
+    const sorted = [...targets].sort((a, b) => a!.position![key] - b!.position![key]);
+    const first = sorted![0]!.position![key as 'x' | 'y'];
+    const last = sorted![sorted.length - 1]!.position![key as 'x' | 'y'];
     const step = (last - first) / (sorted.length - 1);
     const positions = sorted.map((node, index: number) => {
       const value = index === 0 || index === sorted.length - 1
-        ? node.position[key]
+        ? node!.position![key]
         : first + step * index;
-      const x = key === 'x' ? value : node.position.x;
-      const y = key === 'y' ? value : node.position.y;
-      return { id: node.id, position: { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 } };
+      const x = key === 'x' ? value : node!.position!.x;
+      const y = key === 'y' ? value : node!.position!.y;
+      return { id: node!.id, position: { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 } };
     });
     try {
       await jsonRequest('/api/positions', 'POST', { positions });
@@ -6690,7 +6756,7 @@
     }
   }
 
-  function selectWireNetwork(edge) {
+  function selectWireNetwork(edge: EdgeItem) {
     const ends = new Set([edge.source, edge.target]);
     const wires = (state.scene?.edges || []).filter(
       (item) => item.kind === 'wire' && (ends.has(item.source) || ends.has(item.target)),
@@ -6702,12 +6768,12 @@
     toast(`已选中 ${wires.length} 条导线 / ${ends.size} 个端点`, 'info', 2200);
   }
 
-  async function addWireWaypoint(edge) {
+  async function addWireWaypoint(edge: EdgeItem) {
     const source = nodeById(edge.source);
     const target = nodeById(edge.target);
     if (!source || !target) return;
-    const x = (source.position.x + target.position.x) / 2;
-    const y = (source.position.y + target.position.y) / 2;
+    const x = (source.position!.x + target.position!.x) / 2;
+    const y = (source.position!.y + target.position!.y) / 2;
     const waypoints = [...(edge.waypoints || []), { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 }];
     try {
       await jsonRequest(`/api/edges/${encodeURIComponent(edge.id)}`, 'PATCH', {
@@ -6756,14 +6822,14 @@
     }
     let done = 0;
     for (const node of targets) {
-      if (node.kind === 'ground') continue;
+      if (node!.kind === 'ground') continue;
       try {
-        await jsonRequest(`/api/nodes/${encodeURIComponent(node.id)}`, 'PATCH', {
+        await jsonRequest(`/api/nodes/${encodeURIComponent(node!.id)}`, 'PATCH', {
           size: { w: Math.round(width) },
         });
         done += 1;
       } catch (error) {
-        toast(`设置 ${node.name} 失败：${(error as Error).message}`, 'error', 4000);
+        toast(`设置 ${node!.name} 失败：${(error as Error).message}`, 'error', 4000);
       }
     }
     if (done) {
@@ -6807,8 +6873,8 @@
     }
   }
 
-  async function addDeviceAt(element: HTMLElement, screenX: number, screenY: number) {
-    const spec = getEdgeSpec(element);
+  async function addDeviceAt(element: string, screenX: number, screenY: number) {
+    const spec = getEdgeSpec((element));
     if (!spec) {
       toast(`当前模式没有器件类型 ${element}`, 'error');
       return;
@@ -6834,11 +6900,11 @@
     toast(`已添加器件 ${response.node.name}`, 'ok', 2000);
   }
 
-  async function createWire(deviceId, netId, pinName: string) {
+  async function createWire(deviceId: string, netId: string, pinName: string) {
     return createWireBetween(deviceId, netId, pinName, '');
   }
 
-  async function createWireBetween(sourceId: string, targetId: string, sourcePin, targetPin) {
+  async function createWireBetween(sourceId: string, targetId: string, sourcePin: string | null, targetPin: string | null) {
     const source = nodeById(sourceId);
     const target = nodeById(targetId);
     if (!source || !target) {
@@ -6854,7 +6920,7 @@
       toast('导线不允许直接连接两个器件（请经网络节点）', 'error', 3500);
       return;
     }
-    const body = {
+    const body: EdgeBodyRec = {
       source: source.id,
       target: target.id,
       kind: 'wire',
@@ -6864,13 +6930,13 @@
     };
     // 模块实例以前被漏掉（只判 kind==='device'），导致连到模块上的导线不带引脚。
     // 只有唯一端口时直接用它——用户从模块符号上拖线时不必再挑一次引脚。
-    const pinFor = (node, pin: PortSpec) => {
+    const pinFor = (node: NodeItem, pin: string | null) => {
       if (pin) return pin;
       const pins = devicePins(node);
       return pins.length === 1 ? String(pins[0].name || '') : '';
     };
-    if (isPinNode(source)) body.source_pin = pinFor(source, sourcePin);
-    if (isPinNode(target)) body.target_pin = pinFor(target, targetPin);
+    if (isPinNode(source)) body.source_pin = pinFor(source, ((sourcePin)));
+    if (isPinNode(target)) body.target_pin = pinFor(target, ((targetPin)));
     const response = await task(() => jsonRequest('/api/edges', 'POST', body));
     if (!response) return;
     applySnapshot(response);
@@ -6897,7 +6963,7 @@
     const form = el('form');
     form.autocomplete = 'off';
     const rows = div('inline-fields');
-    const makeSelect = (roleLabel) => {
+    const makeSelect = (roleLabel: string) => {
       const wrap = div('field');
       wrap.appendChild(numberedField(roleLabel, ''));
       const select = el('select');
@@ -6921,17 +6987,17 @@
       for (const item of [first, second]) {
         const node = nodeById(item.select.value);
         item.pinSelect.replaceChildren();
-        const blank = el('option', null, isPinNode(node) ? '（请选择引脚）' : '—');
+        const blank = el('option', null, isPinNode((node as NodeItem)) ? '（请选择引脚）' : '—');
         blank.value = '';
         item.pinSelect.appendChild(blank);
-        if (isPinNode(node)) {
-          for (const pin of devicePins(node)) {
+        if (isPinNode((node as NodeItem))) {
+          for (const pin of devicePins((node as NodeItem))) {
             const option = el('option', null, `${pin.name}（${pin.role}${pin.required ? ' · 必接' : ''}）`);
             option.value = pin.name;
             item.pinSelect.appendChild(option);
           }
         }
-        item.pinSelect.disabled = !isPinNode(node);
+        item.pinSelect.disabled = !isPinNode((node as NodeItem));
       }
     };
     first.select.addEventListener('change', refreshPins);
@@ -6947,13 +7013,13 @@
     create.addEventListener('click', () => {
       const a = nodeById(first.select.value);
       const b = nodeById(second.select.value);
-      const aPin = isPinNode(a) ? first.pinSelect.value : '';
-      const bPin = isPinNode(b) ? second.pinSelect.value : '';
-      if (isPinNode(a) && !aPin) {
+      const aPin = isPinNode((a as NodeItem)) ? first.pinSelect.value : '';
+      const bPin = isPinNode((b as NodeItem)) ? second.pinSelect.value : '';
+      if (isPinNode((a as NodeItem)) && !aPin) {
         toast('端点 A 是器件，请选择引脚', 'error', 3000);
         return;
       }
-      if (isPinNode(b) && !bPin) {
+      if (isPinNode((b as NodeItem)) && !bPin) {
         toast('端点 B 是器件，请选择引脚', 'error', 3000);
         return;
       }
@@ -6966,13 +7032,13 @@
     ui.modal.classList.remove('hidden');
   }
 
-  async function createEdge(source, target, kind: string) {
+  async function createEdge(source: string, target: string, kind: string) {
     const spec = getEdgeSpec(kind);
     if (!spec) {
       toast(`当前模式没有连接类型 ${kind}`, 'error');
       return;
     }
-    const body = {
+    const body: EdgeBodyRec = {
       source,
       target,
       kind,
@@ -6998,8 +7064,8 @@
     if (!edge) return;
     const response = await task(() => jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, 'PATCH', { delay: !edge.delay }));
     if (!response) return;
-    const index = state.scene.edges.findIndex((item) => item.id === edgeId);
-    if (index >= 0) state.scene.edges[index] = response.edge;
+    const index = state.scene!.edges.findIndex((item) => item.id === edgeId);
+    if (index >= 0) state.scene!.edges[index] = response.edge;
     if (response.sim) state.sim = response.sim;
     syncUI();
     requestDraw();
@@ -7121,16 +7187,16 @@
     }
     const levels = Array.from(groups.keys()).sort((a, b) => a - b);
     const mid = (levels[0] + levels[levels.length - 1]) / 2;
-    const old = new Map(nodes.map((node) => [node.id, { x: node.position.x, y: node.position.y }]));
+    const old = new Map(nodes.map((node) => [node.id, { x: node.position!.x, y: node.position!.y }]));
 
     for (const level of levels) {
-      const members = groups.get(level).sort((a, b) => {
-        if (a.position.y !== b.position.y) return a.position.y - b.position.y;
+      const members = groups.get(level).sort((a: NodeItem, b: NodeItem) => {
+        if (a.position!.y !== b.position!.y) return a.position!.y - b.position!.y;
         return a.name.localeCompare(b.name);
       });
-      members.forEach((node, index: number) => {
-        node.position.x = (level - mid) * 276;
-        node.position.y = (index - (members.length - 1) / 2) * 128;
+      members.forEach((node: NodeItem, index: number) => {
+        node.position!.x = (level - mid) * 276;
+        node.position!.y = (index - (members.length - 1) / 2) * 128;
       });
     }
 
@@ -7138,7 +7204,7 @@
     try {
       const items = nodes.map((node) => ({
         id: node.id,
-        position: { x: Number(node.position.x.toFixed(3)), y: Number(node.position.y.toFixed(3)) },
+        position: { x: Number(node.position!.x.toFixed(3)), y: Number(node.position!.y.toFixed(3)) },
       }));
       await jsonRequest('/api/positions', 'POST', { positions: items });
       fitView();
@@ -7147,8 +7213,8 @@
       for (const node of nodes) {
         const previous = old.get(node.id);
         if (previous) {
-          node.position.x = previous.x;
-          node.position.y = previous.y;
+          node.position!.x = previous.x;
+          node.position!.y = previous.y;
         }
       }
       requestDraw();
@@ -7160,14 +7226,14 @@
    * 8. 场景面板：模式、节奏、统计、模板、导入导出
    * ==================================================================== */
 
-  function fieldFor(labelText: string, unitText: string, input) {
+  function fieldFor(labelText: string, unitText: string, input: HTMLInputElement) {
     const wrapper = div('field');
     wrapper.appendChild(numberedField(labelText, unitText));
     wrapper.appendChild(input);
     return wrapper;
   }
 
-  function numberInput(value, options = {}) {
+  function numberInput(value: number, options: ApiOptions = {}) {
     const input = el('input');
     input.type = 'number';
     if (options.min !== undefined) input.min = String(options.min);
@@ -7190,7 +7256,7 @@
     const modeSection = section('工作模式', '切换会重建空白场景');
     const segmented = div('segmented');
     segmented.dataset.role = 'mode';
-    for (const item of modes) {
+    for (const item of (modes as Array<{ value: string; label: string; description?: string }>)) {
       const btn = button(item.label, '', () => void switchMode(item.value));
       btn.dataset.mode = item.value;
       btn.classList.toggle('active', item.value === state.mode);
@@ -7254,7 +7320,7 @@
     const precisionRow = div('inline-fields');
     precisionRow.appendChild(el('span', null, '时间步长预设'));
     for (const [label, value] of [['快速 1e-4', 1e-4], ['标准 1e-5', 1e-5], ['高精度 1e-6', 1e-6], ['超高 1e-7', 1e-7]]) {
-      const preset = button(label, 'btn tiny', () => {
+      const preset = button((label as string | null | undefined), 'btn tiny', () => {
         dtInput.value = String(value);
         if (lockInput.checked) {
           lockInput.checked = false;
@@ -7276,7 +7342,7 @@
 
     const solverSection = section('求解器设置', '电路模式：Newton 收敛与失败救急');
     const solverGrid = div('inline-fields');
-    const solverInput = (label: string, unit, name: string, value, min, max, step) => {
+    const solverInput = (label: string, unit: string, name: string, value: number, min: number, max: number, step: number | string) => {
       const input = numberInput(value, { min, max, step });
       input.dataset.solver = name;
       return fieldFor(label, unit, input);
@@ -7316,7 +7382,7 @@
     const integrationSection = section('积分方法', '仅电路模式');
     const integration = el('select');
     integration.dataset.role = 'integration';
-    for (const item of state.catalog?.integration || []) {
+    for (const item of ((state.catalog?.integration as Array<{ value: string; label: string }>) || [])) {
       const option = el('option', null, item.label || item.value);
       option.value = item.value;
       integration.appendChild(option);
@@ -7337,7 +7403,7 @@
       const title = el('strong');
       title.append(el('span', null, template.label));
       title.append(document.createTextNode('  '));
-      const modeBadge = el('span', 'tpl-mode', modeLabel(template.mode));
+      const modeBadge = el('span', 'tpl-mode', modeLabel((template.mode as string)));
       title.appendChild(modeBadge);
       item.appendChild(title);
       item.appendChild(el('small', null, template.description));
@@ -7413,8 +7479,8 @@
     projectFileInput.accept = '.netlab,application/json,.json';
     projectFileInput.className = 'hidden-input';
     projectFileInput.addEventListener('change', () => {
-      const file = projectFileInput.files && projectFileInput.files[0];
-      projectFileInput.value = '';
+      const file = projectFileInput!.files && projectFileInput!.files[0];
+      projectFileInput!.value = '';
       if (!file) return;
       if (file.size > 8 * 1024 * 1024) {
         toast('工程文件超过 8 MB，已拒绝', 'error', 6000);
@@ -7536,9 +7602,9 @@
     updateScenePanelValues();
   }
 
-  function setStat(key: string, value) {
+  function setStat(key: string, value: unknown) {
     const node = $(`[data-stat="${key}"]`, ui.scenePane);
-    if (node) node.textContent = value;
+    if (node) node.textContent = value as string;
   }
 
   function updateScenePanelValues() {
@@ -7547,11 +7613,11 @@
     const sim = state.sim;
     const config = sim?.config;
     if (config) {
-      const setValue = (name: string, value) => {
+      const setValue = (name: string, value: unknown) => {
         const input = $(`[data-sim="${name}"]`, pane);
         if (!input) return;
         if (document.activeElement === input) return;
-        input.value = String(value);
+        (input as HTMLInputElement).value = String(value);
       };
       setValue('fps', config.fps);
       setValue('steps', config.steps_per_frame);
@@ -7561,11 +7627,11 @@
         if (config[key] !== undefined) setValue(key, config[key]);
       }
       const lock = $('[data-sim="lock"]', pane);
-      if (lock) lock.checked = Boolean(config.lock_dt);
+      if (lock) (lock as HTMLInputElement).checked = Boolean(config.lock_dt);
       const realtime = $('[data-sim="realtime"]', pane);
-      if (realtime) realtime.checked = Boolean(config.realtime);
+      if (realtime) (realtime as HTMLInputElement).checked = Boolean(config.realtime);
       const dtInput = $('[data-sim="dt"]', pane);
-      if (dtInput) dtInput.disabled = Boolean(config.lock_dt);
+      if (dtInput) (dtInput as HTMLButtonElement).disabled = Boolean(config.lock_dt);
 
       const note = $('[data-role="sim-note"]', pane);
       if (note) {
@@ -7583,10 +7649,10 @@
     }
 
     const scene = state.scene;
-    const stats = sim?.scene || {};
+    const stats = (sim?.scene || {}) as SimStats;
     setStat('nodes', String(scene?.nodes?.length ?? 0));
     setStat('edges', String(scene?.edges?.length ?? 0));
-    const stepMs = Number(scene?.stats?.step_ms ?? stats.step_ms ?? 0);
+    const stepMs = Number((scene?.stats as SimStats)?.step_ms ?? stats.step_ms ?? 0);
     const stepEl = $('[data-stat="step"]', pane);
     if (stepEl) {
       stepEl.replaceChildren(
@@ -7602,8 +7668,8 @@
 
     const integration = $('[data-role="integration"]', pane);
     if (integration && scene) {
-      integration.value = scene.integration || 'trapezoidal';
-      integration.disabled = state.mode !== 'circuit';
+      (integration as HTMLInputElement).value = (scene.integration || 'trapezoidal') as string;
+      (integration as HTMLButtonElement).disabled = state.mode !== 'circuit';
     }
     const note = $('[data-role="integration-note"]', pane);
     if (note) {
@@ -7629,34 +7695,34 @@
     const realtimeInput = $('[data-sim="realtime"]', pane);
     if (!fpsInput || !stepsInput || !dtInput || !sampleInput) return null;
 
-    const fps = Number(fpsInput.value);
-    const steps = Number(stepsInput.value);
-    const sample = Number(sampleInput.value);
-    const lock = Boolean(lockInput?.checked);
-    let dt = Number(dtInput.value);
+    const fps = Number((fpsInput as HTMLInputElement).value);
+    const steps = Number((stepsInput as HTMLInputElement).value);
+    const sample = Number((sampleInput as HTMLInputElement).value);
+    const lock = Boolean((lockInput as HTMLInputElement)?.checked);
+    let dt = Number((dtInput as HTMLInputElement).value);
     if (!Number.isInteger(fps) || fps < 1 || fps > 240) throw new Error('帧率必须是 1–240 的整数');
     if (!Number.isInteger(steps) || steps < 1 || steps > 200) throw new Error('每帧步数必须是 1–200 的整数');
     if (!Number.isInteger(sample) || sample < 1 || sample > 100) throw new Error('采样间隔必须是 1–100 的整数');
     if (lock) dt = 1 / (fps * steps);
     if (!Number.isFinite(dt) || dt < 1e-9 || dt > 10) throw new Error('dt 必须在 1e-9 到 10 s 之间');
     if (dt * steps > 10) throw new Error('每帧推进的仿真时间过大，请减小 dt 或步数');
-    const readSolver = (name: string, label: string, lo, hi, integer = false) => {
+    const readSolver = (name: string, label: string, lo: number, hi: number, integer = false) => {
       const input = $(`[data-solver="${name}"]`, pane);
       if (!input) return undefined;
-      const value = Number(input.value);
+      const value = Number((input as HTMLInputElement).value);
       if (!Number.isFinite(value) || value < lo || value > hi) {
         throw new Error(`${label}必须在 ${lo}–${hi} 之间`);
       }
       if (integer && !Number.isInteger(value)) throw new Error(`${label}必须是整数`);
       return value;
     };
-    const payload = {
+    const payload: Record<string, number | boolean> = {
       fps,
       steps_per_frame: steps,
       dt,
       sample_every: sample,
       lock_dt: lock,
-      realtime: Boolean(realtimeInput?.checked),
+      realtime: Boolean((realtimeInput as HTMLInputElement)?.checked),
     };
     const solverFields = [
       ['reltol', '相对容差 reltol', 1e-15, 0.1, false],
@@ -7668,8 +7734,8 @@
       ['residual_tol', '残差容差', 0, 1, false],
     ];
     for (const [key, label, lo, hi, integer] of solverFields) {
-      const value = readSolver(key, label, lo, hi, integer);
-      if (value !== undefined) payload[key] = value;
+      const value = readSolver(key as string, label as string, lo as number, hi as number, integer as boolean);
+      if (value !== undefined) payload[key as string] = value;
     }
     return payload;
   }
@@ -7697,7 +7763,7 @@
     toast('仿真设置已更新', 'ok', 1600);
   }
 
-  async function changeIntegration(value) {
+  async function changeIntegration(value: string) {
     if (state.mode !== 'circuit') {
       toast('积分方法只用于电路模式', 'info', 1800);
       updateScenePanelValues();
@@ -7713,7 +7779,7 @@
     toast(`积分方法已切换为 ${value === 'trapezoidal' ? '梯形法' : '后向欧拉'}`, 'ok', 2000);
   }
 
-  async function switchMode(mode: string, options = {}) {
+  async function switchMode(mode: string, options: ApiOptions = {}) {
     if (mode === state.mode) return;
     if (!options.skipConfirm) {
       const confirmed = await confirmModal(
@@ -7823,7 +7889,7 @@
     toast('场景已导出', 'ok', 1800);
   }
 
-  async function importSceneFile(file) {
+  async function importSceneFile(file: File) {
     if (file.size > MAX_IMPORT_BYTES) {
       toast('场景文件超过 2 MB，已拒绝', 'error', 6000);
       return;
@@ -7880,7 +7946,7 @@
     if (!state.booted && !state.scene) return;
     if (!state.project.dirty) {
       state.project.dirty = true;
-      const bridge = desktopBridge();
+      const bridge = desktopBridge() as (NetlabDesktopApi & { setDirty?: (dirty: boolean) => void }) | null;
       if (bridge && typeof bridge.setDirty === 'function') {
         try {
           bridge.setDirty(true);
@@ -7895,7 +7961,7 @@
   function projectSaved() {
     state.project.dirty = false;
     state.project.autosavedAt = 0;
-    const bridge = desktopBridge();
+    const bridge = desktopBridge() as (NetlabDesktopApi & { setDirty?: (dirty: boolean) => void }) | null;
     if (bridge && typeof bridge.setDirty === 'function') {
       try {
         bridge.setDirty(false);
@@ -7915,7 +7981,7 @@
 
   function rememberRecent(path: string, name: string) {
     if (!path) return;
-    const entry = { path, name: name || baseName(path), at: Date.now() };
+    const entry: { path: string; name: string; at?: number } = { path, name: name || baseName(path), at: Date.now() };
     state.project.recent = [entry]
       .concat(state.project.recent.filter((item) => item.path !== path))
       .slice(0, 6);
@@ -7955,15 +8021,15 @@
         parts.push(`自动保存 ${at.toLocaleTimeString('zh-CN', { hour12: false })}`);
       }
       pathNode.textContent = parts.join(' · ');
-      pathNode.title = state.project.path || '';
+      (pathNode as HTMLElement).title = state.project.path || '';
       pathNode.classList.toggle('dirty', state.project.dirty);
     }
     const nameInput = pane.querySelector('[data-role="project-name"]');
     if (nameInput && document.activeElement !== nameInput) {
-      nameInput.value = state.project.name || '';
+      (nameInput as HTMLInputElement).value = state.project.name || '';
     }
     const autosaveInput = pane.querySelector('[data-role="project-autosave"]');
-    if (autosaveInput) autosaveInput.checked = Boolean(state.project.autosave);
+    if (autosaveInput) (autosaveInput as HTMLInputElement).checked = Boolean(state.project.autosave);
     const recentBox = pane.querySelector('[data-role="project-recent"]');
     if (recentBox) {
       recentBox.replaceChildren();
@@ -8010,7 +8076,7 @@
     return response && response.project ? response.project : null;
   }
 
-  function downloadText(text: string, filename) {
+  function downloadText(text: string, filename: string) {
     const blob = new Blob([text], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = el('a');
@@ -8023,7 +8089,7 @@
   }
 
   async function saveProject(forceDialog = false) {
-    const bridge = desktopBridge();
+    const bridge = desktopBridge() as (NetlabDesktopApi & { setDirty?: (dirty: boolean) => void }) | null;
     let project = null;
     try {
       project = await buildProjectPayload();
@@ -8042,10 +8108,10 @@
     }
     let path = '';
     if (!forceDialog && state.project.path) {
-      path = await callBridge('saveProjectTo', [state.project.path, text]);
+      path = (await callBridge('saveProjectTo', [state.project.path, text])) as string;
     }
     if (!path) {
-      path = await callBridge('saveProject', [text, safeName]);
+      path = (await callBridge('saveProject', [text, safeName])) as string;
     }
     if (!path) return false;
     state.project.path = path;
@@ -8095,7 +8161,7 @@
       const warn = div('help trust-warn');
       warn.textContent = '选择「拒绝」后工程不会被载入；扩展代码保持不执行。';
       body.appendChild(warn);
-      trust = await confirmModal('工程包含 Python 扩展', body, '信任并载入', true);
+      trust = (await confirmModal('工程包含 Python 扩展', ((body)), '信任并载入', true)) as boolean;
       if (!trust) {
         toast('已取消：未启用工程内扩展，工程未载入', 'info', 5000);
         return false;
@@ -8120,7 +8186,7 @@
     state.values.clear();
     state.nodeValues.clear();
     state.edgeValues.clear();
-    applySnapshot({ scene: response.scene, sim: response.sim, limits: state.limits });
+    applySnapshot({ scene: response.scene, sim: response.sim, limits: (state.limits as LimitsRec | undefined) });
     state.cursor = Number(response.sim?.cursor || 0);
     if (response.fem && state.fem) state.fem = Object.assign({}, state.fem, response.fem);
     applyProjectUi(response.ui);
@@ -8137,7 +8203,7 @@
     const rails = response.migration?.rails || [];
     if (rails.length) {
       // R21/D42：旧比较器/运放 OUT− 已断开；接地者行为不变，非地者提示复核。
-      const lines = rails.slice(0, 6).map((item) => {
+      const lines = rails.slice(0, 6).map((item: RailItemRec) => {
         const risk = item.net_is_ground ? '地，行为不变' : '非地，请复核';
         return `· ${item.network || ''} ${item.device}：断开 OUT− → ${item.removed_net}（${risk}）`;
       });
@@ -8149,20 +8215,20 @@
   }
 
   async function openProject() {
-    const bridge = desktopBridge();
+    const bridge = desktopBridge() as (NetlabDesktopApi & { setDirty?: (dirty: boolean) => void }) | null;
     if (bridge) {
       const text = await callBridge('openProject', []);
-      if (text) await importProjectText(text, (await callBridge('currentPath', [])) || '');
+      if (text) await importProjectText((text as string), ((await callBridge('currentPath', [])) as string) || '');
       return;
     }
-    projectFileInput.click();
+    projectFileInput!.click();
   }
 
   async function openProjectPath(path: string) {
-    const bridge = desktopBridge();
+    const bridge = desktopBridge() as (NetlabDesktopApi & { setDirty?: (dirty: boolean) => void }) | null;
     if (!bridge) return;
     const text = await callBridge('openProjectPath', [path]);
-    if (text) await importProjectText(text, path);
+    if (text) await importProjectText((text as string), path);
   }
 
   async function newProject() {
@@ -8194,14 +8260,14 @@
   }
 
   async function recoverAutosave() {
-    const bridge = desktopBridge();
+    const bridge = desktopBridge() as (NetlabDesktopApi & { setDirty?: (dirty: boolean) => void }) | null;
     let text = '';
     if (bridge) {
       if (!(await callBridge('hasAutosave', []))) {
         toast('没有可恢复的自动保存', 'info', 2600);
         return false;
       }
-      text = await callBridge('recoverAutosave', []);
+      text = (await callBridge('recoverAutosave', [])) as string;
     } else {
       try {
         const raw = localStorage.getItem(AUTOSAVE_KEY);
@@ -8244,7 +8310,7 @@
       const project = await buildProjectPayload();
       if (!project) return;
       const text = JSON.stringify(project);
-      const bridge = desktopBridge();
+      const bridge = desktopBridge() as (NetlabDesktopApi & { setDirty?: (dirty: boolean) => void }) | null;
       if (bridge) {
         const path = await callBridge('autosave', [text]);
         if (path) state.project.autosavedAt = Date.now();
@@ -8260,7 +8326,7 @@
   }
 
   async function maybeOfferRecovery() {
-    const bridge = desktopBridge();
+    const bridge = desktopBridge() as (NetlabDesktopApi & { setDirty?: (dirty: boolean) => void }) | null;
     let available = false;
     try {
       if (bridge) {
@@ -8293,13 +8359,13 @@
       state.project.desktop = true;
       updateProjectPanel();
     });
-    window.addEventListener('beforeunload', (event: MouseEvent) => {
+    window.addEventListener('beforeunload', (event: BeforeUnloadEvent) => {
       if (!state.project.dirty || isDesktop()) return;
       event.preventDefault();
       event.returnValue = '工程有未保存的修改。';
       return event.returnValue;
     });
-    window.netlabDesktopCommand = (name: string, payload) => {
+    ((window.netlabDesktopCommand as (name: string, payload: unknown) => void) as (name: string, payload: unknown) => void) = (name: string, payload: unknown) => {
       const command = String(name || '');
       if (command === 'new') void newProject();
       else if (command === 'open') void openProject();
@@ -8416,7 +8482,7 @@
   function updateSignalListValues() {
     for (const node of $$('[data-signal-value]', ui.signalList)) {
       const key = node.dataset.signalValue;
-      node.textContent = state.values.has(key) ? fmt(state.values.get(key), 3) : '—';
+      node.textContent = state.values.has((key as string)) ? fmt(state.values.get((key as string)), 3) : '—';
     }
   }
 
@@ -8444,11 +8510,11 @@
   function updateLegendValues() {
     for (const node of $$('[data-legend-value]', ui.legend)) {
       const key = node.dataset.legendValue;
-      node.textContent = state.values.has(key) ? fmt(state.values.get(key), 4) : '—';
+      node.textContent = state.values.has((key as string)) ? fmt(state.values.get((key as string)), 4) : '—';
     }
   }
 
-  function nearestFrame(time) {
+  function nearestFrame(time: number) {
     const frames = state.frames;
     if (!frames.length) return null;
     let low = 0;
@@ -8614,7 +8680,7 @@
   }
 
   /* ---- 相图 ------------------------------------------------------------ */
-  function phaseStateKeys(node) {
+  function phaseStateKeys(node: NodeItem) {
     const prefix = `state:${node.name}:`;
     return (state.probeKeys || [])
       .filter((key: string) => key.startsWith(prefix))
@@ -8804,8 +8870,8 @@
     spanX = maxX - minX;
     spanY = maxY - minY;
     const scale = size / Math.max(spanX, spanY, 1.0e-3);
-    const mapX = (value) => px + size / 2 + (value - (minX + maxX) / 2) * scale;
-    const mapY = (value) => py + size / 2 - (value - (minY + maxY) / 2) * scale;
+    const mapX = (value: number) => px + size / 2 + (value - (minX + maxX) / 2) * scale;
+    const mapY = (value: number) => py + size / 2 - (value - (minY + maxY) / 2) * scale;
 
     // 网格
     phaseCtx.strokeStyle = C('#e3ddd0');
@@ -9022,9 +9088,9 @@
     }
   }
 
-  function instrumentFieldLabel(field) {
+  function instrumentFieldLabel(field: FieldKey) {
     const map = { voltage: '电压', current: '电流', power: '功率', voltage_difference: '压差' };
-    return map[field] || field || '值';
+    return map[field as keyof typeof map] || field || '值';
   }
 
   function instrumentKeyLabel(key: string) {
@@ -9053,7 +9119,7 @@
     });
   }
 
-  function fillInstrumentSelect(select, current, placeholder) {
+  function fillInstrumentSelect(select: HTMLInputElement | HTMLSelectElement, current: string | null, placeholder: string) {
     if (!select) return '';
     select.innerHTML = '';
     const none = document.createElement('option');
@@ -9080,13 +9146,13 @@
     if (!ui.instPane) return;
     const firstRun = !state.instrument.meterKey
       && !state.instrument.lx && !state.instrument.ly
-      && state.instrument.channels.every((key: string) => !key);
-    state.instrument.meterKey = fillInstrumentSelect(ui.instMeterKey, state.instrument.meterKey, '选择电压 / 电流信号');
+      && state.instrument.channels.every((key: string | null) => !key);
+    state.instrument.meterKey = fillInstrumentSelect(((ui.instMeterKey)), state.instrument.meterKey, '选择电压 / 电流信号');
     state.instrument.channels = [0, 1, 2, 3].map((i: number) => (
-      fillInstrumentSelect(ui.instCh[i], state.instrument.channels[i], `CH${i + 1} 未接`) || null
+      fillInstrumentSelect(((ui.instCh[i])), state.instrument.channels[i], `CH${i + 1} 未接`) || null
     ));
-    state.instrument.lx = fillInstrumentSelect(ui.instLX, state.instrument.lx, 'X 未接');
-    state.instrument.ly = fillInstrumentSelect(ui.instLY, state.instrument.ly, 'Y 未接');
+    state.instrument.lx = fillInstrumentSelect(((ui.instLX)), state.instrument.lx, 'X 未接');
+    state.instrument.ly = fillInstrumentSelect(((ui.instLY)), state.instrument.ly, 'Y 未接');
     if (firstRun && state.probeKeys.length) {
       // 首次打开仪器页时自动接上「第一个电压 + 第一个电流」，避免空白页
       const volts = state.probeKeys.filter((key: string) => key.endsWith(':voltage'));
@@ -9103,11 +9169,11 @@
       if (ui.instLX) ui.instLX.value = ch1;
       if (ui.instLY) ui.instLY.value = ch2;
     }
-    state.instrument.channels.forEach((key: string, i: number) => {
+    state.instrument.channels.forEach((key: string | null, i: number) => {
       const dot = ui.instCh[i]?.closest('.inst-ch')?.querySelector('.dot');
       if (!dot) return;
       dot.classList.toggle('on', Boolean(key));
-      dot.style.color = key ? INST_COLORS[i] : '';
+      (dot as HTMLElement).style.color = key ? INST_COLORS[i] : '';
     });
     if (ui.instWindow) ui.instWindow.value = String(state.instrument.window);
     if (ui.instTrail) ui.instTrail.value = String(state.instrument.trail);
@@ -9134,7 +9200,7 @@
     let max = -Infinity;
     let last = 0;
     for (const frame of frames) {
-      const value = frame.v?.[key];
+      const value = frame.v?.[key as string];
       if (typeof value !== 'number' || !Number.isFinite(value)) continue;
       count += 1;
       sum += value;
@@ -9147,7 +9213,7 @@
     return { count, last, mean: sum / count, rms: Math.sqrt(square / count), min, max, pp: max - min };
   }
 
-  function instrumentSurface(context, canvas, size, fill) {
+  function instrumentSurface(context: CanvasRenderingContext2D, canvas: HTMLCanvasElement, size: SizeRec, fill: string) {
     if (!context || !canvas) return null;
     const { w, h, dpr } = size;
     if (w < 20 || h < 20) return null;
@@ -9158,7 +9224,7 @@
     return { w, h };
   }
 
-  function instrumentHint(context, w: number, h: number, text: string) {
+  function instrumentHint(context: CanvasRenderingContext2D, w: number, h: number, text: string) {
     context.fillStyle = C('#969083');
     context.font = '12px "Segoe UI", "Microsoft YaHei", sans-serif';
     context.textAlign = 'center';
@@ -9190,7 +9256,7 @@
   function renderInstrumentLegend(frames: FrameItem[]) {
     if (!ui.instLegend) return;
     ui.instLegend.innerHTML = '';
-    state.instrument.channels.forEach((key: string, index: number) => {
+    state.instrument.channels.forEach((key: string | null, index: number) => {
       if (!key) return;
       const stats = instrumentStats(frames, key);
       const item = document.createElement('div');
@@ -9209,8 +9275,8 @@
     });
   }
 
-  function drawScope(frames: FrameItem[], window) {
-    const surface = instrumentSurface(scopeCtx, scopeCanvas, state.instrument.scopeSize, '#faf8f2');
+  function drawScope(frames: FrameItem[], window: number) {
+    const surface = instrumentSurface((scopeCtx as CanvasRenderingContext2D), scopeCanvas, state.instrument.scopeSize, '#faf8f2');
     if (!surface) return;
     const { w, h } = surface;
     const left = 46;
@@ -9219,27 +9285,27 @@
     const bottom = 20;
     const plotW = Math.max(10, w - left - right);
     const plotH = Math.max(10, h - top - bottom);
-    scopeCtx.strokeStyle = C('#e7e2d7');
-    scopeCtx.lineWidth = 1;
-    scopeCtx.beginPath();
+    scopeCtx!.strokeStyle = C('#e7e2d7');
+    scopeCtx!.lineWidth = 1;
+    scopeCtx!.beginPath();
     for (let i = 0; i <= 4; i += 1) {
       const y = top + (plotH * i) / 4 + 0.5;
-      scopeCtx.moveTo(left, y);
-      scopeCtx.lineTo(left + plotW, y);
+      scopeCtx!.moveTo(left, y);
+      scopeCtx!.lineTo(left + plotW, y);
     }
     for (let i = 0; i <= 4; i += 1) {
       const x = left + (plotW * i) / 4 + 0.5;
-      scopeCtx.moveTo(x, top);
-      scopeCtx.lineTo(x, top + plotH);
+      scopeCtx!.moveTo(x, top);
+      scopeCtx!.lineTo(x, top + plotH);
     }
-    scopeCtx.stroke();
+    scopeCtx!.stroke();
 
     const channels = state.instrument.channels
-      .map((key: string, index: number) => ({ key, index }))
+      .map((key: string | null, index: number) => ({ key, index }))
       .filter((entry) => entry.key && state.probeKeys.includes(entry.key));
     if (!frames.length || !channels.length) {
       instrumentHint(
-        scopeCtx, w, h,
+        (scopeCtx as CanvasRenderingContext2D), w, h,
         channels.length ? '运行仿真后显示波形' : '给 CH1–CH4 接上信号',
       );
       renderInstrumentLegend([]);
@@ -9252,7 +9318,7 @@
     let amp = 0;
     for (const { key } of channels) {
       for (const frame of frames) {
-        const value = frame.v?.[key];
+        const value = frame.v?.[key as string];
         if (Number.isFinite(value)) amp = Math.max(amp, Math.abs(value));
       }
     }
@@ -9260,66 +9326,66 @@
     const xOf = (t: number) => left + plotW * ((t - start) / span);
     const yOf = (v: number) => top + plotH / 2 - (v / amp) * (plotH / 2);
 
-    scopeCtx.strokeStyle = C('#c9c2b4');
-    scopeCtx.beginPath();
-    scopeCtx.moveTo(left, top + plotH / 2 + 0.5);
-    scopeCtx.lineTo(left + plotW, top + plotH / 2 + 0.5);
-    scopeCtx.stroke();
+    scopeCtx!.strokeStyle = C('#c9c2b4');
+    scopeCtx!.beginPath();
+    scopeCtx!.moveTo(left, top + plotH / 2 + 0.5);
+    scopeCtx!.lineTo(left + plotW, top + plotH / 2 + 0.5);
+    scopeCtx!.stroke();
 
     for (const { key, index } of channels) {
-      scopeCtx.strokeStyle = INST_COLORS[index];
-      scopeCtx.lineWidth = 1.5;
-      scopeCtx.beginPath();
+      scopeCtx!.strokeStyle = INST_COLORS[index];
+      scopeCtx!.lineWidth = 1.5;
+      scopeCtx!.beginPath();
       let started = false;
       for (const frame of frames) {
-        const value = frame.v?.[key];
+        const value = frame.v?.[key as string];
         if (typeof value !== 'number' || !Number.isFinite(value)) continue;
         const x = xOf(frame.t);
         const y = yOf(value);
         if (!started) {
-          scopeCtx.moveTo(x, y);
+          scopeCtx!.moveTo(x, y);
           started = true;
         } else {
-          scopeCtx.lineTo(x, y);
+          scopeCtx!.lineTo(x, y);
         }
       }
-      scopeCtx.stroke();
+      scopeCtx!.stroke();
     }
 
-    scopeCtx.fillStyle = C('#969083');
-    scopeCtx.font = '9px "Segoe UI", "Microsoft YaHei", sans-serif';
-    scopeCtx.textAlign = 'right';
-    scopeCtx.textBaseline = 'middle';
-    scopeCtx.fillText(fmt(amp, 2), left - 5, top + 6);
-    scopeCtx.fillText('0', left - 5, top + plotH / 2);
-    scopeCtx.fillText(fmt(-amp, 2), left - 5, top + plotH - 6);
-    scopeCtx.textBaseline = 'top';
-    scopeCtx.textAlign = 'left';
-    scopeCtx.fillText(`${fmt(start, 3)} s`, left, top + plotH + 4);
-    scopeCtx.textAlign = 'right';
-    scopeCtx.fillText(`${fmt(last, 3)} s`, left + plotW, top + plotH + 4);
+    scopeCtx!.fillStyle = C('#969083');
+    scopeCtx!.font = '9px "Segoe UI", "Microsoft YaHei", sans-serif';
+    scopeCtx!.textAlign = 'right';
+    scopeCtx!.textBaseline = 'middle';
+    scopeCtx!.fillText(fmt(amp, 2), left - 5, top + 6);
+    scopeCtx!.fillText('0', left - 5, top + plotH / 2);
+    scopeCtx!.fillText(fmt(-amp, 2), left - 5, top + plotH - 6);
+    scopeCtx!.textBaseline = 'top';
+    scopeCtx!.textAlign = 'left';
+    scopeCtx!.fillText(`${fmt(start, 3)} s`, left, top + plotH + 4);
+    scopeCtx!.textAlign = 'right';
+    scopeCtx!.fillText(`${fmt(last, 3)} s`, left + plotW, top + plotH + 4);
     renderInstrumentLegend(frames);
   }
 
   function drawLissajous(frames: FrameItem[]) {
-    const surface = instrumentSurface(lissCtx, lissCanvas, state.instrument.lissSize, '#faf8f2');
+    const surface = instrumentSurface((lissCtx as CanvasRenderingContext2D), lissCanvas, state.instrument.lissSize, '#faf8f2');
     if (!surface) return;
     const { w, h } = surface;
     const pad = 14;
-    lissCtx.strokeStyle = C('#e7e2d7');
-    lissCtx.lineWidth = 1;
-    lissCtx.beginPath();
-    lissCtx.moveTo(w / 2 + 0.5, pad);
-    lissCtx.lineTo(w / 2 + 0.5, h - pad);
-    lissCtx.moveTo(pad, h / 2 + 0.5);
-    lissCtx.lineTo(w - pad, h / 2 + 0.5);
-    lissCtx.stroke();
+    lissCtx!.strokeStyle = C('#e7e2d7');
+    lissCtx!.lineWidth = 1;
+    lissCtx!.beginPath();
+    lissCtx!.moveTo(w / 2 + 0.5, pad);
+    lissCtx!.lineTo(w / 2 + 0.5, h - pad);
+    lissCtx!.moveTo(pad, h / 2 + 0.5);
+    lissCtx!.lineTo(w - pad, h / 2 + 0.5);
+    lissCtx!.stroke();
 
     const xKey = state.instrument.lx;
     const yKey = state.instrument.ly;
     const ready = Boolean(xKey && yKey && state.probeKeys.includes(xKey) && state.probeKeys.includes(yKey));
     if (!ready || !frames.length) {
-      instrumentHint(lissCtx, w, h, ready ? '运行仿真后显示李萨如图' : '选择 X / Y 两路信号');
+      instrumentHint((lissCtx as CanvasRenderingContext2D), w, h, ready ? '运行仿真后显示李萨如图' : '选择 X / Y 两路信号');
       return;
     }
     const trail = clamp(Math.round(Number(state.instrument.trail) || 600), 20, 4000);
@@ -9336,9 +9402,9 @@
     const xOf = (v: number) => w / 2 + (v / amp) * (size / 2);
     const yOf = (v: number) => h / 2 - (v / amp) * (size / 2);
 
-    lissCtx.strokeStyle = C('#c2542f');
-    lissCtx.lineWidth = 1.2;
-    lissCtx.beginPath();
+    lissCtx!.strokeStyle = C('#c2542f');
+    lissCtx!.lineWidth = 1.2;
+    lissCtx!.beginPath();
     let started = false;
     let tail = null;
     for (const frame of slice) {
@@ -9349,27 +9415,27 @@
       const px = xOf(x);
       const py = yOf(y);
       if (!started) {
-        lissCtx.moveTo(px, py);
+        lissCtx!.moveTo(px, py);
         started = true;
       } else {
-        lissCtx.lineTo(px, py);
+        lissCtx!.lineTo(px, py);
       }
       tail = { x: px, y: py };
     }
-    lissCtx.stroke();
+    lissCtx!.stroke();
     if (tail) {
-      lissCtx.fillStyle = C('#c2542f');
-      lissCtx.beginPath();
-      lissCtx.arc(tail.x, tail.y, 2.5, 0, Math.PI * 2);
-      lissCtx.fill();
+      lissCtx!.fillStyle = C('#c2542f');
+      lissCtx!.beginPath();
+      lissCtx!.arc(tail.x, tail.y, 2.5, 0, Math.PI * 2);
+      lissCtx!.fill();
     }
-    lissCtx.fillStyle = C('#969083');
-    lissCtx.font = '9px "Segoe UI", "Microsoft YaHei", sans-serif';
-    lissCtx.textAlign = 'left';
-    lissCtx.textBaseline = 'top';
-    lissCtx.fillText(`X ${xKey.split(':').slice(1, -1).join(':')}`, pad, pad - 10 + 0.5);
-    lissCtx.textBaseline = 'bottom';
-    lissCtx.fillText(`Y ${yKey.split(':').slice(1, -1).join(':')}`, pad, h - 1);
+    lissCtx!.fillStyle = C('#969083');
+    lissCtx!.font = '9px "Segoe UI", "Microsoft YaHei", sans-serif';
+    lissCtx!.textAlign = 'left';
+    lissCtx!.textBaseline = 'top';
+    lissCtx!.fillText(`X ${xKey.split(':').slice(1, -1).join(':')}`, pad, pad - 10 + 0.5);
+    lissCtx!.textBaseline = 'bottom';
+    lissCtx!.fillText(`Y ${yKey.split(':').slice(1, -1).join(':')}`, pad, h - 1);
   }
 
   function drawInstruments() {
@@ -9391,55 +9457,55 @@
     const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5);
     for (const [target, key] of [[scopeCanvas, 'scopeSize'], [lissCanvas, 'lissSize']]) {
       if (!target) continue;
-      const wrap = target.parentElement;
+      const wrap = (target as HTMLCanvasElement).parentElement;
       if (!wrap) continue;
       const rect = wrap.getBoundingClientRect();
       const w = Math.max(1, Math.floor(rect.width));
       const h = Math.max(1, Math.floor(rect.height));
-      state.instrument[key] = { w, h, dpr };
-      target.width = Math.max(1, Math.round(w * dpr));
-      target.height = Math.max(1, Math.round(h * dpr));
+      state.instrument[key as string] = { w, h, dpr };
+      (target as HTMLCanvasElement).width = Math.max(1, Math.round(w * dpr));
+      (target as HTMLCanvasElement).height = Math.max(1, Math.round(h * dpr));
     }
     scheduleChartDraw();
   }
 
   function bindInstrumentEvents() {
-    const bind = (element: HTMLElement, event: MouseEvent, handler) => {
-      if (element) element.addEventListener(event, handler);
+    const bind = (element: HTMLElement, event: string, handler: (event: MouseEvent) => void) => {
+      if (element) element.addEventListener(event, handler as EventListener);
     };
-    bind(ui.instMeterKey, 'change', () => {
+    bind(ui.instMeterKey, (('change')), () => {
       state.instrument.meterKey = ui.instMeterKey.value || '';
       saveInstrumentPrefs();
       scheduleChartDraw();
     });
     ui.instCh.forEach((select, index: number) => {
-      bind(select, 'change', () => {
+      bind(select, (('change')), () => {
         state.instrument.channels[index] = select.value || null;
         const dot = select.closest('.inst-ch')?.querySelector('.dot');
         if (dot) {
           dot.classList.toggle('on', Boolean(select.value));
-          dot.style.color = select.value ? INST_COLORS[index] : '';
+          (dot as HTMLElement).style.color = select.value ? INST_COLORS[index] : '';
         }
         saveInstrumentPrefs();
         scheduleChartDraw();
       });
     });
-    bind(ui.instLX, 'change', () => {
+    bind(ui.instLX, (('change')), () => {
       state.instrument.lx = ui.instLX.value || '';
       saveInstrumentPrefs();
       scheduleChartDraw();
     });
-    bind(ui.instLY, 'change', () => {
+    bind(ui.instLY, (('change')), () => {
       state.instrument.ly = ui.instLY.value || '';
       saveInstrumentPrefs();
       scheduleChartDraw();
     });
-    bind(ui.instWindow, 'input', () => {
+    bind(ui.instWindow, (('input')), () => {
       state.instrument.window = clamp(Number(ui.instWindow.value) || 5, 0.1, 120);
       saveInstrumentPrefs();
       scheduleChartDraw();
     });
-    bind(ui.instTrail, 'input', () => {
+    bind(ui.instTrail, (('input')), () => {
       state.instrument.trail = clamp(Math.round(Number(ui.instTrail.value) || 600), 20, 4000);
       saveInstrumentPrefs();
       scheduleChartDraw();
@@ -9590,7 +9656,7 @@
       chartCtx.strokeStyle = item.color;
       chartCtx.lineWidth = 1.6;
       chartCtx.beginPath();
-      item.points.forEach((point: { x: number; y: number }, index: number) => {
+      item.points.forEach((point: { t: number; v: number }, index: number) => {
         const x = xOf(point.t);
         const y = yOf(point.v);
         if (index === 0) chartCtx.moveTo(x, y);
@@ -9604,7 +9670,7 @@
       chartCtx.fill();
     }
 
-    const hover = state.chart.hover;
+    const hover = state.chart.hover as (HoverRec & { x: number; y: number }) | null;
     if (hover && hover.x >= left && hover.x <= left + plotW && hover.y >= top && hover.y <= top + plotH) {
       const t = tMin + ((hover.x - left) / plotW) * spanT;
       const frame = nearestFrame(t);
@@ -9691,14 +9757,14 @@
     updateFemPanelValues();
   }
 
-  function applyFemSnapshot(snapshot) {
+  function applyFemSnapshot(snapshot: FemRec) {
     if (!snapshot) return;
     state.fem = snapshot;
     state.femMesh = snapshot.mesh || state.femMesh;
-    state.femMeshRevision = snapshot.mesh_revision || state.femMeshRevision;
+    state.femMeshRevision = (snapshot.mesh_revision as number) || state.femMeshRevision;
     state.femCursor = Number(snapshot.cursor) || 0;
     if (Array.isArray(snapshot.field)) {
-      state.femFrames = [{ t: snapshot.time || 0, field: snapshot.field, min: snapshot.stats?.min, max: snapshot.stats?.max }];
+      state.femFrames = [{ t: snapshot.time || 0, field: snapshot.field, min: (snapshot.stats?.min as number | undefined), max: (snapshot.stats?.max as number | undefined) }] as FrameItem[];
       while (state.femFrames.length > 600) state.femFrames.shift();
     }
     updateFemPanelValues();
@@ -9754,8 +9820,8 @@
     }
   }
 
-  async function femControl(action: string, steps) {
-    const body = { action };
+  async function femControl(action: string, steps?: number) {
+    const body: { action: string; steps?: number } = { action };
     if (steps !== undefined) body.steps = steps;
     const response = await task(() => jsonRequest('/api/fem/control', 'POST', body), { dirty: false });
     if (!response) return;
@@ -9795,10 +9861,10 @@
     };
   }
 
-  function femColor(value, minimum, maximum) {
+  function femColor(value: number, minimum: number, maximum: number) {
     const span = Math.max(1.0e-9, maximum - minimum);
     const t = clamp((value - minimum) / span, 0, 1);
-    const stops = [
+    const stops: Array<[number, number[]]> = [
       [0.00, [247, 244, 236]],
       [0.22, [236, 223, 204]],
       [0.45, [214, 169, 132]],
@@ -9824,13 +9890,13 @@
     const { w, h } = state.femSize;
     const { size, x0, y0 } = femLayout(w, h);
     if (x < x0 || x > x0 + size || y < y0 || y > y0 + size) return null;
-    const mesh = state.femMesh;
+    const mesh = state.femMesh as FemMeshRec;
     const nx = mesh.nx;
     const ny = mesh.ny;
     const i = clamp(Math.round(((x - x0) / size) * nx), 0, nx);
     const j = clamp(Math.round((1 - (y - y0) / size) * ny), 0, ny);
     const index = j * (nx + 1) + i;
-    const value = state.fem.field?.[index];
+    const value = (state.fem.field as number[] | undefined)?.[index];
     if (typeof value !== 'number') return null;
     return {
       x, y, i, j, index, value,
@@ -9857,12 +9923,12 @@
       return;
     }
 
-    const mesh = state.femMesh;
-    const field = state.fem.field || [];
+    const mesh = state.femMesh as FemMeshRec;
+    const field = (state.fem.field || []) as number[];
     const stats = state.fem.stats || {};
     const config = state.fem.config || {};
-    const minimum = Number.isFinite(stats.min) ? stats.min : Math.min(...field);
-    const maximum = Number.isFinite(stats.max) ? stats.max : Math.max(...field);
+    const minimum = Number.isFinite(stats.min as number) ? (stats.min as number) : Math.min(...(field as number[]));
+    const maximum = Number.isFinite(stats.max as number) ? (stats.max as number) : Math.max(...(field as number[]));
     const { size, x0, y0 } = femLayout(w, h);
     const nx = Math.max(1, mesh.nx);
     const ny = Math.max(1, mesh.ny);
@@ -9885,7 +9951,7 @@
         for (let sx = 0; sx < sub; sx += 1) {
           const u = (sx + 0.5) / sub;
           const temp = (1 - u) * (1 - v) * t0 + u * (1 - v) * t1 + u * v * t2 + (1 - u) * v * t3;
-          femCtx.fillStyle = femColor(temp, minimum, maximum);
+          femCtx.fillStyle = femColor(temp, (minimum as number), maximum);
           femCtx.fillRect(
             ex + (sx * cellW) / sub,
             eyTop + (sy * cellH) / sub,
@@ -9958,7 +10024,7 @@
     const barH = size - 12;
     const gradient = femCtx.createLinearGradient(0, barY, 0, barY + barH);
     for (let index = 0; index <= 10; index += 1) {
-      gradient.addColorStop(1 - index / 10, femColor(minimum + ((maximum - minimum) * index) / 10, minimum, maximum));
+      gradient.addColorStop(1 - index / 10, femColor(minimum + ((maximum - minimum) * index) / 10, (minimum as number), maximum));
     }
     femCtx.fillStyle = gradient;
     femCtx.fillRect(barX, barY, barW, barH);
@@ -10023,7 +10089,7 @@
   function readFemConfig() {
     const read = (key: string) => {
       const input = $(`[data-fem="${key}"]`, ui.femPanel);
-      return input ? Number(input.value) : NaN;
+      return input ? Number((input as HTMLInputElement).value) : NaN;
     };
     const config = {
       nx: read('nx'), ny: read('ny'), dt: read('dt'), fps: read('fps'),
@@ -10094,9 +10160,9 @@
       ['initial_temperature', '初始温度', 20, -500, 1000, 1],
     ];
     for (const [key, labelText, value, minimum, maximum, step] of fields) {
-      const input = numberInput(value, { min: minimum, max: maximum, step });
-      input.dataset.fem = key;
-      grid.appendChild(fieldFor(labelText, '', input));
+      const input = numberInput((value as number), { min: (minimum as number | undefined), max: (maximum as number | undefined), step });
+      input.dataset.fem = key as string;
+      grid.appendChild(fieldFor((labelText as string), '', input));
     }
     configSection.appendChild(grid);
     const actions = div('fem-actions');
@@ -10136,10 +10202,10 @@
   function updateFemPanelValues() {
     if (!ui.femPanel || ui.femPanel.dataset.ready !== '1' || !state.fem) return;
     const config = state.fem.config || {};
-    const setValue = (key: string, value) => {
+    const setValue = (key: string, value: unknown) => {
       const input = $(`[data-fem="${key}"]`, ui.femPanel);
       if (!input || document.activeElement === input) return;
-      input.value = String(value);
+      (input as HTMLInputElement).value = String(value);
     };
     setValue('nx', config.nx);
     setValue('ny', config.ny);
@@ -10158,9 +10224,9 @@
     setValue('initial_temperature', config.initial_temperature);
 
     const stats = state.fem.stats || {};
-    const setStat = (key: string, value) => {
+    const setStat = (key: string, value: unknown) => {
       const node = $(`[data-femstat="${key}"]`, ui.femPanel);
-      if (node) node.textContent = value;
+      if (node) node.textContent = value as string;
     };
     setStat('dof', String(stats.dof ?? '—'));
     setStat('elements', String(stats.elements ?? '—'));
@@ -10329,8 +10395,8 @@
     scheduleChartDraw();
   }
 
-  async function networkControl(action: string, steps) {
-    const body = { action };
+  async function networkControl(action: string, steps?: number) {
+    const body: { action: string; steps?: number } = { action };
     if (steps !== undefined) body.steps = steps;
     const response = await task(() => jsonRequest('/api/control', 'POST', body), { dirty: false });
     if (!response) return;
@@ -10347,7 +10413,7 @@
     if (action === 'reset') toast('仿真已重置；探针与仪器设置保留', 'ok', 2200);
   }
 
-  async function control(action: string, steps, opts) {
+  async function control(action: string, steps?: number, opts?: Record<string, unknown>) {
     // 运行前提示：建议先预计算，否则 PlotKit 面板拿不到整段数据（只能边跑边截断）
     const running = !!(state.sim && state.sim.running);
     if ((action === 'toggle' || action === 'run') && !running && !(opts && opts.skipWarn)
@@ -10412,30 +10478,30 @@
       const b = document.createElement('button');
       b.textContent = v + 's';
       b.style.cssText = 'padding:3px 9px;border:1px solid var(--line,#cfc6b5);border-radius:999px;background:transparent;color:inherit;cursor:pointer;font:inherit;';
-      b.onclick = () => { sec.value = String(v); };
-      chips.appendChild(b);
+      b.onclick = () => { (sec! as HTMLInputElement).value = String(v); };
+      chips!.appendChild(b);
     });
     const close = () => overlay.remove();
     overlay.onclick = (ev) => { if (ev.target === overlay) close(); };
-    card.querySelector('#runWarnCancel').onclick = close;
-    card.querySelector('#runWarnRun').onclick = () => {
-      if (card.querySelector('#runWarnNever').checked) void setPref('runWarn', false);
+    (card!.querySelector('#runWarnCancel') as HTMLElement).onclick = close;
+    (card!.querySelector('#runWarnRun') as HTMLElement).onclick = () => {
+      if ((card!.querySelector('#runWarnNever') as HTMLInputElement).checked) void setPref('runWarn', false);
       close();
-      void control('toggle', undefined, { skipWarn: true });
+      void control('toggle', ((undefined)), { skipWarn: true });
     };
-    card.querySelector('#runWarnPre').onclick = async () => {
-      const seconds = Math.max(1, Math.min(120, Math.round(Number(sec.value) || 5)));
-      if (card.querySelector('#runWarnNever').checked) void setPref('runWarn', false);
+    (card!.querySelector('#runWarnPre') as HTMLElement).onclick = async () => {
+      const seconds = Math.max(1, Math.min(120, Math.round(Number((sec! as HTMLInputElement).value) || 5)));
+      if ((card!.querySelector('#runWarnNever') as HTMLInputElement).checked) void setPref('runWarn', false);
       const btn = card.querySelector('#runWarnPre');
       const stopBtn = card.querySelector('#runWarnStop');
-      btn.disabled = true; btn.textContent = '预计算中…'; info.textContent = `正在计算 0→${seconds}s…`;
-      stopBtn.style.display = 'inline-block'; stopBtn.disabled = false; stopBtn.textContent = '停止计算';
-      stopBtn.onclick = async () => {
-        stopBtn.disabled = true; stopBtn.textContent = '正在停止…';
+      (btn! as HTMLButtonElement).disabled = true; btn!.textContent = '预计算中…'; info!.textContent = `正在计算 0→${seconds}s…`;
+      (stopBtn! as HTMLElement).style.display = 'inline-block'; (stopBtn! as HTMLButtonElement).disabled = false; stopBtn!.textContent = '停止计算';
+      (stopBtn! as HTMLElement).onclick = async () => {
+        (stopBtn! as HTMLButtonElement).disabled = true; stopBtn!.textContent = '正在停止…';
         try {
           await api('/api/control', { method: 'POST', body: JSON.stringify({ action: 'cancel_precompute' }) });
         } catch (error) {
-          info.textContent = `取消失败：${(error as Error).message || '请求失败'}`;
+          info!.textContent = `取消失败：${(error as Error).message || '请求失败'}`;
         }
       };
       try {
@@ -10444,11 +10510,11 @@
           body: JSON.stringify({ seconds }),
         });
         if (!pre || pre.ok === false) {
-          info.textContent = '预计算失败：' + ((pre && pre.error) || '未知错误') + '，可直接运行或缩小时间窗重试。';
+          info!.textContent = '预计算失败：' + ((pre && pre.error) || '未知错误') + '，可直接运行或缩小时间窗重试。';
           return;
         }
         if (pre.cancelled) {
-          info.textContent = `已停止：保留前 ${pre.frames ?? '?'} 帧（${Number(pre.last_time || 0).toFixed(3)}s）。`;
+          info!.textContent = `已停止：保留前 ${pre.frames ?? '?'} 帧（${Number(pre.last_time || 0).toFixed(3)}s）。`;
           return;
         }
         state.precomputedSeconds = seconds;
@@ -10458,7 +10524,7 @@
         const preNote = pre.degraded
           ? `（步长受 20 万步上限限制：请求 ${Number(pre.requested_dt).toExponential(1)}s，实际 ${Number(pre.dt_used).toExponential(1)}s）`
           : '';
-        info.textContent = `完成：${seconds}s / ${pre.frames ?? '?'} 帧 / ${Math.round(pre.elapsed_ms || 0)} ms${preNote}`;
+        info!.textContent = `完成：${seconds}s / ${pre.frames ?? '?'} 帧 / ${Math.round(pre.elapsed_ms || 0)} ms${preNote}`;
         toast(
           pre.degraded
             ? `预计算完成但已降级步长（${Number(pre.dt_used).toExponential(1)}s）：${pre.frames ?? '?'} 帧，缩小时间窗可提高精度`
@@ -10468,16 +10534,16 @@
         );
         close();
         const tab = document.querySelector('[data-sub="plotkit"]');
-        if (tab) tab.click();
+        if (tab) (tab as HTMLElement).click();
         setTimeout(() => refreshPkChannels(true), 400);
       } catch (error) {
-        info.textContent = `预计算失败：${(error as Error).message || '请求失败'}；可直接运行或检查桌面会话。`;
+        info!.textContent = `预计算失败：${(error as Error).message || '请求失败'}；可直接运行或检查桌面会话。`;
       } finally {
-        stopBtn.style.display = 'none';
-        btn.disabled = false; btn.textContent = '预计算并接入';
+        (stopBtn! as HTMLElement).style.display = 'none';
+        (btn! as HTMLButtonElement).disabled = false; btn!.textContent = '预计算并接入';
       }
     };
-    sec.focus();
+    (sec! as HTMLElement).focus();
   }
 
   async function maybeAutostart() {
@@ -10692,12 +10758,12 @@
         }
         const entry = el('button', 'menu-item');
         entry.type = 'button';
-        entry.disabled = Boolean(item.disabled);
+        entry.disabled = Boolean((item as { disabled?: boolean }).disabled);
         entry.appendChild(el('strong', null, item.label));
         if (item.hint) entry.appendChild(el('small', null, item.hint));
         entry.addEventListener('click', () => {
           closeMenus();
-          if (!item.disabled) item.action();
+          if (!(item as { disabled?: boolean }).disabled) (item as { action: () => void }).action();
         });
         panel.appendChild(entry);
       }
@@ -10711,17 +10777,17 @@
       host.appendChild(wrap);
     }
     document.addEventListener('pointerdown', (event: PointerEvent) => {
-      if (!event.target.closest('.menu')) closeMenus();
+      if (!(event.target! as Element).closest('.menu')) closeMenus();
     });
-    document.addEventListener('keydown', (event: MouseEvent) => {
-      if (event.key === 'Escape') closeMenus();
+    document.addEventListener('keydown', (event: KeyboardEvent) => {
+      if ((event as Event as KeyboardEvent).key === 'Escape') closeMenus();
     });
   }
 
-  function setInfo(key: string, value) {
+  function setInfo(key: string, value: unknown) {
     if (!ui.infoBar) return;
     const node = ui.infoBar.querySelector(`[data-info="${key}"]`);
-    if (node) node.textContent = value;
+    if (node) node.textContent = value as string;
   }
 
   function updateInfoBar() {
@@ -10729,7 +10795,7 @@
     const modeLabel = { signal: '信号流', circuit: '电路', vector: '矢量' }[state.mode] || state.mode || '—';
     const network = state.currentNetwork?.name || '网络 1';
     const total = state.networks?.length || 1;
-    const sim = state.sim || {};
+    const sim = (state.sim || {}) as SimRec;
     setInfo('project', `${state.project.name || '未命名工程'}${state.project.dirty ? ' *' : ''}`);
     setInfo('network', total > 1 ? `${network} (${total})` : network);
     setInfo('mode', modeLabel);
@@ -10784,7 +10850,7 @@
       item.title = `${network.name} · ${network.mode} · ${network.nodes} 节点 / ${network.edges} 连接`;
       const dot = div('dot');
       const label = el('span', null, network.name);
-      const meta = el('span', 'meta', network.nodes);
+      const meta = el('span', 'meta', network.nodes as number);
       item.append(dot, label, meta);
       item.addEventListener('click', () => void switchNetwork(network.id));
       item.addEventListener('dblclick', () => void renameNetwork(network.id));
@@ -10797,7 +10863,7 @@
   }
 
   /* 网络列表右键菜单（R02 / D49-D50，P7-07）：把封装入口放到网络这一层 */
-  function openNetworkMenu(network, x: number, y: number) {
+  function openNetworkMenu(network: NetworkItem, x: number, y: number) {
     const isCurrent = Boolean(network.current);
     const picked = isCurrent ? multiSelection().nodes.size : 0;
     const tempModule = String(network.name || '').startsWith('模块 ');
@@ -10837,7 +10903,7 @@
   }
 
   /* 轻量浮层菜单：给右键 / 局部入口复用 */
-  let floatingMenu = null;
+  let floatingMenu: HTMLElement | null = null;
 
   function closeFloatingMenu() {
     if (!floatingMenu) return;
@@ -10845,7 +10911,7 @@
     floatingMenu = null;
   }
 
-  function showFloatingMenu(x: number, y: number, items, title: string = '') {
+  function showFloatingMenu(x: number, y: number, items: MenuItemRec[], title: string = '') {
     closeFloatingMenu();
     const box = div('ctxmenu');
     box.setAttribute('role', 'menu');
@@ -10857,12 +10923,12 @@
       }
       const entry = el('button', 'menu-item');
       entry.type = 'button';
-      entry.disabled = Boolean(item.disabled);
+      entry.disabled = Boolean((item as { disabled?: boolean }).disabled);
       entry.appendChild(el('strong', null, item.label));
       if (item.hint) entry.appendChild(el('small', null, item.hint));
       entry.addEventListener('click', () => {
         closeFloatingMenu();
-        if (!item.disabled) item.action();
+        if (!(item as { disabled?: boolean }).disabled) (item as { action: () => void }).action();
       });
       box.appendChild(entry);
     }
@@ -10884,7 +10950,7 @@
     window.addEventListener('resize', () => closeFloatingMenu());
   }
 
-  async function switchNetwork(networkId) {
+  async function switchNetwork(networkId: string) {
     if (!networkId || networkId === state.currentNetwork?.id) return;
     const response = await task(() =>
       jsonRequest(`/api/networks/${encodeURIComponent(networkId)}/activate`, 'POST', {}),
@@ -10897,7 +10963,7 @@
     state.values.clear();
     state.nodeValues.clear();
     state.edgeValues.clear();
-    applySnapshot({ scene: response.scene, sim: response.sim, limits: state.limits });
+    applySnapshot({ scene: response.scene, sim: response.sim, limits: (state.limits as LimitsRec | undefined) });
     state.cursor = Number(response.sim?.cursor || 0);
     await fetchNetworks();
     renderInspector();
@@ -10962,7 +11028,7 @@
     }
   }
 
-  function applyNetCollapsed(collapsed) {
+  function applyNetCollapsed(collapsed: boolean) {
     ui.main.classList.toggle('net-hidden', collapsed);
     if (ui.netHanger) {
       ui.netHanger.textContent = collapsed ? '›' : '‹';
@@ -11052,7 +11118,7 @@
 
   async function snapSceneToGrid() {
     const grid = Number(state.ui.grid) || 20;
-    const snapValue = (value) => Math.round(value / grid) * grid;
+    const snapValue = (value: number) => Math.round(value / grid) * grid;
     const nodes = (state.scene?.nodes || []).filter((node) => {
       const x = Number(node.position?.x || 0);
       const y = Number(node.position?.y || 0);
@@ -11067,7 +11133,7 @@
     }
     await pushUndoSnapshot();
     for (const node of nodes) {
-      const position = { x: snapValue(Number(node.position.x) || 0), y: snapValue(Number(node.position.y) || 0) };
+      const position = { x: snapValue(Number(node.position!.x) || 0), y: snapValue(Number(node.position!.y) || 0) };
       await task(() => jsonRequest(`/api/nodes/${encodeURIComponent(node.id)}`, 'PATCH', { position }), { history: false });
     }
     for (const edge of edges) {
@@ -11091,20 +11157,20 @@
     toast(`符号风格：${state.ui.symbol === 'gb' ? 'GB 矩形' : '经典圆形'}（仅本工程）`, 'info', 2600);
   }
 
-  function applyProjectUi(uiSettings) {
+  function applyProjectUi(uiSettings: Record<string, unknown>) {
     if (!uiSettings || typeof uiSettings !== 'object') return;
     if (uiSettings.grid && typeof uiSettings.grid === 'object') {
-      if (typeof uiSettings.grid.snap === 'boolean') state.ui.snap = uiSettings.grid.snap;
-      if (typeof uiSettings.grid.show === 'boolean') state.ui.showGrid = uiSettings.grid.show;
-      if (typeof uiSettings.grid.markers === 'boolean') state.ui.snapMarkers = uiSettings.grid.markers;
-      if (typeof uiSettings.grid.orthogonal === 'boolean') state.ui.circuitOrthogonal = uiSettings.grid.orthogonal;
-      const size = Number(uiSettings.grid.size);
+      if (typeof (uiSettings.grid as { [k: string]: unknown }).snap === 'boolean') state.ui.snap = (uiSettings.grid as { [k: string]: unknown }).snap as boolean;
+      if (typeof (uiSettings.grid as { [k: string]: unknown }).show === 'boolean') state.ui.showGrid = (uiSettings.grid as { [k: string]: unknown }).show as boolean;
+      if (typeof (uiSettings.grid as { [k: string]: unknown }).markers === 'boolean') state.ui.snapMarkers = (uiSettings.grid as { [k: string]: unknown }).markers as boolean;
+      if (typeof (uiSettings.grid as { [k: string]: unknown }).orthogonal === 'boolean') state.ui.circuitOrthogonal = (uiSettings.grid as { [k: string]: unknown }).orthogonal as boolean;
+      const size = Number((uiSettings.grid as { [k: string]: unknown }).size);
       if (Number.isFinite(size) && size >= 5 && size <= 80) state.ui.grid = size;
     }
     if (uiSettings.symbol === 'gb' || uiSettings.symbol === 'classic') {
       state.ui.symbol = uiSettings.symbol;
     }
-    if (['circle', 'dot', 'box'].includes(uiSettings.nodeStyle)) state.ui.nodeStyle = uiSettings.nodeStyle;
+    if (['circle', 'dot', 'box'].includes((uiSettings.nodeStyle as string))) state.ui.nodeStyle = uiSettings.nodeStyle as string;
     if (typeof uiSettings.drawingMode === 'boolean') state.ui.drawingMode = uiSettings.drawingMode;
     if (Number.isFinite(Number(uiSettings.symbolScale))) state.ui.symbolScale = clamp(Number(uiSettings.symbolScale), 0.6, 2.5);
     if (typeof uiSettings.glyphColor === 'string') state.ui.glyphColor = uiSettings.glyphColor;
@@ -11115,7 +11181,7 @@
    * 8.7 模块库面板（R02：封装 / 实例化 / 导入）
    * ==================================================================== */
 
-  function blockBadges(spec: SpecRec) {
+  function blockBadges(spec: BlockItem) {
     const badges = [
       spec.mode,
       spec.model || 'behavioral',
@@ -11182,7 +11248,7 @@
       return;
     }
     if (!response) return;
-    applySnapshot({ scene: response.scene, sim: response.sim, limits: state.limits });
+    applySnapshot({ scene: response.scene, sim: response.sim, limits: (state.limits as LimitsRec | undefined) });
     state.multi.nodes.clear();
     state.multi.edges.clear();
     clearSelection();
@@ -11193,7 +11259,7 @@
   async function retryDegradedProject() {
     const response = await task(() => jsonRequest('/api/project/retry', 'POST', {}));
     if (!response) return;
-    applySnapshot({ scene: response.scene, sim: response.sim, limits: state.limits });
+    applySnapshot({ scene: response.scene, sim: response.sim, limits: (state.limits as LimitsRec | undefined) });
     if (response.degraded) {
       toast('库文件仍缺失，已保持降级只读', 'error', 3200);
     } else {
@@ -11216,12 +11282,12 @@
     const graph = ui.graph;
     if (!graph) return;
     graph.addEventListener('dragover', (event: MouseEvent) => {
-      if (!event.dataTransfer || !event.dataTransfer.types.includes('text/netlab-block')) return;
+      if (!(event as Event as DragEvent).dataTransfer || !((event as Event as DragEvent).dataTransfer as DataTransfer).types.includes('text/netlab-block')) return;
       event.preventDefault();
-      event.dataTransfer.dropEffect = 'copy';
+      ((event as Event as DragEvent).dataTransfer as DataTransfer).dropEffect = 'copy';
     });
     graph.addEventListener('drop', async (event: MouseEvent) => {
-      const blockId = event.dataTransfer?.getData('text/netlab-block');
+      const blockId = (event as Event as DragEvent).dataTransfer?.getData('text/netlab-block');
       if (!blockId) return;
       event.preventDefault();
       const rect = graph.getBoundingClientRect();
@@ -11246,7 +11312,7 @@
       jsonRequest(`/api/blocks/${encodeURIComponent(blockId)}/open-internal`, 'POST', {}),
     );
     if (!response) return false;
-    applySnapshot({ scene: response.scene, sim: response.sim, limits: state.limits });
+    applySnapshot({ scene: response.scene, sim: response.sim, limits: (state.limits as LimitsRec | undefined) });
     await fetchNetworks();
     fitView();
     toast('已在临时网络中打开模块内部', 'ok', 3000);
@@ -11264,17 +11330,17 @@
   ];
 
   // 模块库卡片上的端口摘要：电路模块按方向分组，信号块仍是「入 → 出」。
-  function describeBlockPorts(spec: SpecRec) {
+  function describeBlockPorts(spec: BlockItem) {
     const ports = Array.isArray(spec?.ports) ? spec.ports : [];
     if (String(spec?.mode || '') === 'circuit' && ports.length) {
-      const grouped = { input: [], output: [], inout: [] };
+      const grouped: Record<string, string[]> = { input: [], output: [], inout: [] };
       for (const port of ports) {
-        const bucket = grouped[port.direction] || grouped.inout;
+        const bucket = grouped[port.direction as string] || grouped.inout;
         bucket.push(port.name);
       }
       const parts = [];
       for (const key of ['input', 'output', 'inout']) {
-        if (grouped[key].length) parts.push(`${MODULE_DIR_LABEL[key]} ${grouped[key].join('/')}`);
+        if (grouped[key].length) parts.push(`${MODULE_DIR_LABEL[key as keyof typeof MODULE_DIR_LABEL]} ${grouped[key].join('/')}`);
       }
       return parts.join('   ') || '无端口';
     }
@@ -11301,7 +11367,7 @@
       if (!ports.length) side.appendChild(div('help', '这个模块没有端口。'));
       for (const port of ports) {
         const row = div('port-row');
-        row.appendChild(el('span', 'port-dir', MODULE_DIR_GLYPH[port.direction] || '·'));
+        row.appendChild(el('span', 'port-dir', MODULE_DIR_GLYPH[port.direction as keyof typeof MODULE_DIR_GLYPH] || '·'));
         const name = el('span', 'port-name', port.name);
         name.title = `${port.name} · ${port.direction}${port.net ? ` · ${port.net}` : ''}`;
         row.appendChild(name);
@@ -11328,7 +11394,7 @@
 
   function drawModulePreview() {
     const canvas = ui.moduleCanvas;
-    const block = state.moduleBlock;
+    const block = state.moduleBlock as BlockItem | null;
     const stage = ui.moduleStage;
     if (!canvas || !stage || !block) return;
     const ctx = canvas.getContext('2d');
@@ -11345,7 +11411,7 @@
     ctx.fillStyle = C('#faf8f2');
     ctx.fillRect(0, 0, width, height);
 
-    const nodes = (block.nodes || []).map((node) => ({
+    const nodes = (block.nodes || []).map((node: NodeItem) => ({
       id: String(node.id || ''),
       label: String(node.params?.port_name || node.name || node.label || node.kind || node.id || '?'),
       kind: String(node.kind || ''),
@@ -11358,8 +11424,8 @@
     if (isEmpty) return;
 
     const portNets = new Set(modulePortList(block).map((port: PortSpec) => port.net).filter(Boolean));
-    const xs = nodes.map((node) => node.x);
-    const ys = nodes.map((node) => node.y);
+    const xs = nodes.map((node: PreviewNode) => node.x);
+    const ys = nodes.map((node: PreviewNode) => node.y);
     const minX = Math.min(...xs);
     const maxX = Math.max(...xs);
     const minY = Math.min(...ys);
@@ -11370,8 +11436,8 @@
     const scale = Math.min((width - pad * 2) / spanX, (height - pad * 2) / spanY, 1.15);
     const offsetX = (width - spanX * scale) / 2 - minX * scale;
     const offsetY = (height - spanY * scale) / 2 - minY * scale;
-    const project = (node) => ({ x: node.x * scale + offsetX, y: node.y * scale + offsetY });
-    const byId = new Map(nodes.map((node) => [node.id, node]));
+    const project = (node: NodeItem | PreviewNode) => ({ x: node.x * scale + offsetX, y: node.y * scale + offsetY });
+    const byId = new Map(nodes.map((node: PreviewNode) => [node.id, node]));
 
     ctx.strokeStyle = C('#ded7c8');
     ctx.lineWidth = 1;
@@ -11391,7 +11457,7 @@
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (const node of nodes) {
-      const point = project(node);
+      const point = project((node as NodeItem));
       const isPort = portNets.has(node.id);
       const isGround = node.kind === 'ground';
       const isDevice = node.kind === 'device';
@@ -11425,7 +11491,7 @@
     if (ui.moduleDock) ui.moduleDock.classList.toggle('on', Boolean(state.moduleDock));
   }
 
-  function openModuleInternal(blockId: string, block: BlockItem) {
+  function openModuleInternal(blockId: string, block?: BlockItem) {
     const run = async () => {
       let target = block;
       if (!target) {
@@ -11434,7 +11500,7 @@
           { dirty: false },
         );
         if (!response?.block) return;
-        target = response.block;
+        target = response.block as BlockItem;
       }
       state.moduleBlock = target;
       if (ui.moduleWinTitle) ui.moduleWinTitle.textContent = target.name || target.id || '模块内部';
@@ -11491,7 +11557,7 @@
     ui.moduleWinClose?.addEventListener('click', () => closeModuleInternal());
     ui.moduleDock?.addEventListener('click', () => toggleModuleDock());
     ui.moduleEdit?.addEventListener('click', () => {
-      const block = state.moduleBlock;
+      const block = state.moduleBlock as BlockItem | null;
       if (!block?.id) return;
       // 打开成功才收窗：失败（例如内部网络缺接地）时保留预览，错误由 task 统一提示
       void openBlockInternal(block.id).then((ok) => {
@@ -11499,7 +11565,7 @@
       });
     });
     ui.moduleAddInstance?.addEventListener('click', () => {
-      const block = state.moduleBlock;
+      const block = state.moduleBlock as BlockItem | null;
       if (!block?.id) return;
       void instantiateBlockFromLibrary(block.id);
     });
@@ -11540,7 +11606,7 @@
         );
         if (!report) return;
         if (!report.ok) {
-          const lines = (report.blocking || []).map((item) => `· [${item.code}] ${item.message}`);
+          const lines = (report.blocking || []).map((item: IssueRec) => `· [${item.code}] ${item.message}`);
           showBanner(`模块校验未通过：${lines.join('；')}`);
           toast('模块校验未通过，已阻止导入（报告见顶部横幅）', 'error', 6000);
           return;
@@ -11548,11 +11614,11 @@
         if ((report.warnings || []).length) {
           const body = div('help');
           body.textContent = (report.warnings || [])
-            .map((item) => `· [${item.code}] ${item.message}`)
+            .map((item: IssueRec) => `· [${item.code}] ${item.message}`)
             .join('；');
           const proceed = await confirmModal(
             `模块有 ${report.warnings.length} 条警告`,
-            body,
+            ((body)),
             '仍然导入',
             false,
           );
@@ -11582,7 +11648,7 @@
     return keys[0] || '';
   }
 
-  async function analysisGet(path: string, query: string) {
+  async function analysisGet(path: string, query?: Record<string, string>) {
     const qs = query ? `?${new URLSearchParams(query)}` : '';
     return task(() => jsonRequest(`${path}${qs}`, 'GET'), { dirty: false });
   }
@@ -11619,7 +11685,7 @@
     const response = await analysisGet('/api/analysis/spectrum', { key });
     if (!response) return;
     state.analysisSpectrum = response;
-    const peaks = (response.peaks || []).map((p) => `${fmt(p.freq, 3)} Hz  |X|=${fmt(p.magnitude, 4)}`).join('\n');
+    const peaks = (response.peaks || []).map((p: { freq: number; magnitude: number }) => `${fmt(p.freq, 3)} Hz  |X|=${fmt(p.magnitude, 4)}`).join('\n');
     setAnalysisOutput([`FFT（${response.window} 窗，dt=${fmt(response.dt, 5)} s）`, peaks, `来源：${response.source}`].join('\n'));
     drawAnalysisSpectrum();
   }
@@ -11640,13 +11706,13 @@
   async function runAnalysisMath() {
     const response = await analysisGet('/api/analysis/math');
     if (!response) return;
-    const lines = (response.rows || []).map((row) => `${row.name} (${row.kind})\n  ${row.formula || '（无公式）'}`);
+    const lines = (response.rows || []).map((row: { name: string; kind: string; formula?: string }) => `${row.name} (${row.kind})\n  ${row.formula || '（无公式）'}`);
     setAnalysisOutput([`数学形式（${(response.rows || []).length} 个节点）`, ...lines, `来源：${response.source}`].join('\n'));
   }
 
   async function runAnalysisTransfer() {
-    const input = $('#analysisInputNode')?.value?.trim();
-    const output = $('#analysisOutputNode')?.value?.trim();
+    const input = ($('#analysisInputNode') as HTMLInputElement)?.value?.trim();
+    const output = ($('#analysisOutputNode') as HTMLInputElement)?.value?.trim();
     if (!input || !output) return toast('填写输入/输出节点名', 'info', 2400);
     const out = $('#analysisTFOut');
     if (out) out.textContent = '分析中…';
@@ -11676,7 +11742,7 @@
     }
   }
 
-  function fmtComplex(value) {
+  function fmtComplex(value: ComplexLike | null | undefined) {
     const real = Number(value?.real ?? value?.re ?? 0);
     const imag = Number(value?.imag ?? value?.im ?? 0);
     if (!Number.isFinite(real) || !Number.isFinite(imag)) return '—';
@@ -11685,11 +11751,11 @@
     return `${fmt(real, 4)} ${sign} ${fmt(Math.abs(imag), 4)}j`;
   }
 
-  function analysisTFSummary(data) {
-    const step = data.step || {};
-    const metrics = step.metrics || {};
+  function analysisTFSummary(data: TfDataRec) {
+    const step = (data.step || {}) as TfStepRec;
+    const metrics = (step.metrics || {}) as TfMetricsRec;
     const stability =
-      { stable: '稳定', marginal: '临界稳定', unstable: '不稳定' }[data.stability] || data.stability || '未知';
+      { stable: '稳定', marginal: '临界稳定', unstable: '不稳定' }[data.stability as 'stable' | 'marginal' | 'unstable'] || data.stability || '未知';
     const lines = [
       `G(s) = ${data.expression}`,
       `阶数 ${data.order}，相对阶 ${data.relative_order}`,
@@ -11710,8 +11776,8 @@
   }
 
   async function runAnalysisTF() {
-    const node = $('#analysisTFNode')?.value?.trim() || '';
-    const expr = $('#analysisTFExpr')?.value?.trim() || '';
+    const node = ($('#analysisTFNode') as HTMLInputElement)?.value?.trim() || '';
+    const expr = ($('#analysisTFExpr') as HTMLInputElement)?.value?.trim() || '';
     if (!node && !expr) return toast('选择传递函数节点或输入 s 域表达式', 'info', 2400);
     const out = $('#analysisTFOut');
     if (out) out.textContent = '分析中…';
@@ -11739,19 +11805,19 @@
     const dpr = window.devicePixelRatio || 1;
     const width = canvas.clientWidth || 360;
     const height = canvas.clientHeight || 210;
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, height);
-    const view = $('#analysisTFView')?.value || 'bode';
-    if (view === 'step') drawTFStep(ctx, data, width, height);
-    else if (view === 'poles') drawTFPoles(ctx, data, width, height);
-    else drawTFBode(ctx, data, width, height);
+    (canvas as HTMLCanvasElement).width = Math.round(width * dpr);
+    (canvas as HTMLCanvasElement).height = Math.round(height * dpr);
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d');
+    ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx!.clearRect(0, 0, width, height);
+    const view = ($('#analysisTFView') as HTMLInputElement)?.value || 'bode';
+    if (view === 'step') drawTFStep((ctx as CanvasRenderingContext2D), (data as TfDataRec), width, height);
+    else if (view === 'poles') drawTFPoles((ctx as CanvasRenderingContext2D), (data as TfDataRec), width, height);
+    else drawTFBode((ctx as CanvasRenderingContext2D), (data as TfDataRec), width, height);
   }
 
-  function tfRange(values) {
-    const finite = values.filter((value) => Number.isFinite(value));
+  function tfRange(values: number[]) {
+    const finite = values.filter((value: number) => Number.isFinite(value));
     if (!finite.length) return [0, 1];
     let low = Math.min(...finite);
     let high = Math.max(...finite);
@@ -11763,8 +11829,8 @@
     return [low - pad, high + pad];
   }
 
-  function drawTFBode(ctx: CanvasRenderingContext2D, data, width: number, height: number) {
-    const bode = data.bode || {};
+  function drawTFBode(ctx: CanvasRenderingContext2D, data: TfDataRec, width: number, height: number) {
+    const bode = (data.bode || {}) as TfBodeRec;
     const omega = (bode.omega || []).map(Number);
     const magnitude = (bode.magnitude_db || []).map(Number);
     const phase = (bode.phase_deg || []).map(Number);
@@ -11785,7 +11851,7 @@
     const axis = 'rgba(104, 94, 78, 0.42)';
     ctx.font = '9px "Cascadia Code", Consolas, monospace';
 
-    const panel = (base: string, values, color: string, unit) => {
+    const panel = (base: number, values: number[], color: string, unit: string) => {
       const [low, high] = tfRange(values);
       ctx.strokeStyle = grid;
       ctx.fillStyle = C('#7b7266');
@@ -11854,8 +11920,8 @@
     ctx.fillText('rad/s', left + plotWidth - 34, height - 5);
   }
 
-  function drawTFStep(ctx: CanvasRenderingContext2D, data, width: number, height: number) {
-    const step = data.step || {};
+  function drawTFStep(ctx: CanvasRenderingContext2D, data: TfDataRec, width: number, height: number) {
+    const step = (data.step || {}) as TfStepRec;
     const time = (step.t || []).map(Number);
     const values = (step.y || []).map(Number);
     if (time.length < 2 || !values.some(Number.isFinite)) return;
@@ -11867,7 +11933,7 @@
     const plotHeight = Math.max(24, height - top - bottom);
     const [low, high] = tfRange(values);
     const xAt = (index: number) => left + plotWidth * ((time[index] - time[0]) / Math.max(time[time.length - 1] - time[0], 1e-9));
-    const yAt = (value) => top + plotHeight * (1 - (value - low) / Math.max(high - low, 1e-9));
+    const yAt = (value: number) => top + plotHeight * (1 - (value - low) / Math.max(high - low, 1e-9));
     const grid = 'rgba(104, 94, 78, 0.18)';
     const axis = 'rgba(104, 94, 78, 0.42)';
     ctx.font = '9px "Cascadia Code", Consolas, monospace';
@@ -11887,13 +11953,13 @@
     ctx.moveTo(left, top + plotHeight + 0.5);
     ctx.lineTo(left + plotWidth, top + plotHeight + 0.5);
     ctx.stroke();
-    const metrics = step.metrics || {};
+    const metrics = (step.metrics || {}) as TfMetricsRec;
     if (Number.isFinite(metrics.final)) {
       ctx.setLineDash([4, 4]);
       ctx.strokeStyle = 'rgba(63, 111, 143, 0.55)';
       ctx.beginPath();
-      ctx.moveTo(left, yAt(metrics.final));
-      ctx.lineTo(left + plotWidth, yAt(metrics.final));
+      ctx.moveTo(left, yAt((metrics.final as number)));
+      ctx.lineTo(left + plotWidth, yAt((metrics.final as number)));
       ctx.stroke();
       ctx.setLineDash([]);
     }
@@ -11922,11 +11988,11 @@
       let best = Infinity;
       for (let index = 0; index < Math.min(time.length, values.length); index += 1) {
         if (!Number.isFinite(time[index])) continue;
-        const distance = Math.abs(time[index] - metrics.peak_time);
+        const distance = Math.abs(time[index] - metrics.peak_time!);
         if (distance < best) { best = distance; peakIndex = index; }
       }
       const px = xAt(peakIndex);
-      const py = yAt(metrics.peak_value);
+      const py = yAt((metrics.peak_value as number));
       ctx.fillStyle = C('#8a4b12');
       ctx.beginPath();
       ctx.arc(px, py, 2.6, 0, Math.PI * 2);
@@ -11945,7 +12011,7 @@
     ctx.fillText(`${fmt(time[time.length - 1], 3)} s`, left + plotWidth, height - 5);
   }
 
-  function drawTFPoles(ctx: CanvasRenderingContext2D, data, width: number, height: number) {
+  function drawTFPoles(ctx: CanvasRenderingContext2D, data: TfDataRec, width: number, height: number) {
     const poles = data.poles || [];
     const zeros = data.zeros || [];
     const left = 18;
@@ -11963,8 +12029,8 @@
     const cx = left + plotWidth / 2;
     const cy = top + plotHeight / 2;
     const scale = Math.min(plotWidth / (2 * extent), plotHeight / (2 * extent));
-    const xAt = (real) => cx + real * scale;
-    const yAt = (imag) => cy - imag * scale;
+    const xAt = (real: number) => cx + real * scale;
+    const yAt = (imag: number) => cy - imag * scale;
     ctx.fillStyle = 'rgba(63, 111, 143, 0.08)';
     ctx.fillRect(left, top, plotWidth / 2, plotHeight);
     const grid = 'rgba(104, 94, 78, 0.18)';
@@ -12016,7 +12082,7 @@
   }
 
   function exportTFStateSpace() {
-    const space = state.analysisTF?.state_space;
+    const space = (state.analysisTF as TfDataRec | null)?.state_space;
     if (!space) {
       toast('当前传递函数没有 A/B/C/D（静态增益或 z 域结果）', 'info', 3200);
       return;
@@ -12026,7 +12092,7 @@
     toast(`已导出 ${space.order} 阶 A/B/C/D`, 'ok', 2600);
   }
 
-  async function sendCurveToPlotKit(name: string, x: number, y: number, xLabel, yLabel) {
+  async function sendCurveToPlotKit(name: string, x: number[], y: number[], xLabel: string, yLabel: string) {
     if (!Array.isArray(x) || !Array.isArray(y) || x.length < 2 || x.length !== y.length) {
       toast('这条曲线为空，无法发送到 PlotKit', 'info', 2800);
       return null;
@@ -12048,12 +12114,12 @@
   }
 
   async function sendTFToPlotKit() {
-    const step = state.analysisTF?.step;
+    const step = (state.analysisTF as TfDataRec | null)?.step;
     if (!step?.t || !step?.y) {
       toast('先推导一条传递函数阶跃响应', 'info', 3000);
       return;
     }
-    await sendCurveToPlotKit('TF 阶跃响应', step.t, step.y, 't / s', '幅值');
+    await sendCurveToPlotKit('TF 阶跃响应', ((step.t)), step.y, 't / s', '幅值');
   }
 
   function phaseSeriesForPlotKit() {
@@ -12091,10 +12157,10 @@
       toast('当前相图没有可发送的轨迹', 'info', 3000);
       return;
     }
-    await sendCurveToPlotKit(series.name, series.x, series.y, series.xLabel, series.yLabel);
+    await sendCurveToPlotKit(series.name as string, ((series.x)) as number[], series.y as number[], series.xLabel as string, series.yLabel as string);
   }
 
-  async function exportAnalysisCsv(keys = null, defaultName = 'analysis') {
+  async function exportAnalysisCsv(keys: string[] | null = null, defaultName = 'analysis') {
     const name = window.prompt('CSV 文件名（写入 exports/，同名自动加序号）', defaultName);
     if (name === null) return;
     const key = analysisSignalKey();
@@ -12109,16 +12175,16 @@
 
   function drawAnalysisSpectrum() {
     const canvas = $('#analysisChart');
-    const data = state.analysisSpectrum;
+    const data = state.analysisSpectrum as SpectrumRec | null;
     if (!canvas || !data) return;
     const dpr = window.devicePixelRatio || 1;
     const width = canvas.clientWidth || 320;
     const height = canvas.clientHeight || 150;
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, height);
+    (canvas as HTMLCanvasElement).width = Math.round(width * dpr);
+    (canvas as HTMLCanvasElement).height = Math.round(height * dpr);
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d');
+    ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx!.clearRect(0, 0, width, height);
     const mags = data.magnitude || [];
     const freqs = data.freqs || [];
     if (!mags.length) return;
@@ -12128,19 +12194,19 @@
     for (let index = 0; index < n; index += 1) {
       const value = mags[index] / peak;
       const barH = Math.max(0, Math.min(1, value)) * (height - 18);
-      ctx.fillStyle = index === 0 ? '#b09a78' : C('rgba(168, 84, 31, 0.55)');
-      ctx.fillRect(index * bw, height - 14 - barH, Math.max(1, bw - 0.5), barH);
+      ctx!.fillStyle = index === 0 ? '#b09a78' : C('rgba(168, 84, 31, 0.55)');
+      ctx!.fillRect(index * bw, height - 14 - barH, Math.max(1, bw - 0.5), barH);
     }
-    ctx.strokeStyle = 'rgba(104, 94, 78, 0.4)';
-    ctx.beginPath();
-    ctx.moveTo(0, height - 14.5);
-    ctx.lineTo(width, height - 14.5);
-    ctx.stroke();
-    ctx.fillStyle = C('#7b7266');
-    ctx.font = '9px "Cascadia Code", Consolas, monospace';
-    ctx.fillText('0 Hz', 2, height - 3);
+    ctx!.strokeStyle = 'rgba(104, 94, 78, 0.4)';
+    ctx!.beginPath();
+    ctx!.moveTo(0, height - 14.5);
+    ctx!.lineTo(width, height - 14.5);
+    ctx!.stroke();
+    ctx!.fillStyle = C('#7b7266');
+    ctx!.font = '9px "Cascadia Code", Consolas, monospace';
+    ctx!.fillText('0 Hz', 2, height - 3);
     const maxFreq = freqs.length ? freqs[Math.min(freqs.length - 1, 399)] : 0;
-    ctx.fillText(`${fmt(maxFreq, 1)} Hz`, width - 44, height - 3);
+    ctx!.fillText(`${fmt(maxFreq, 1)} Hz`, width - 44, height - 3);
   }
 
   function renderAnalysisPanel() {
@@ -12249,7 +12315,7 @@
     const tfOut = el('pre', 'analysis-out');
     tfOut.id = 'analysisTFOut';
     tfOut.textContent = state.analysisTF
-      ? analysisTFSummary(state.analysisTF)
+      ? analysisTFSummary((state.analysisTF as TfDataRec))
       : '选传递函数节点或直接写 s 表达式，点「分析」得到 Bode / 阶跃 / 零极点。';
     tfSection.appendChild(tfOut);
     host.appendChild(tfSection);
@@ -12304,7 +12370,7 @@
         if (!response) return;
         profileToggle.checked = Boolean(response.enabled);
         const rows = (response.entries || []).map(
-          (item) => `${item.name}\t${item.count} 次\t总 ${item.total_ms} ms\t均 ${item.mean_ms} ms\t峰 ${item.max_ms} ms`,
+          (item: PerfRowRec) => `${item.name}\t${item.count} 次\t总 ${item.total_ms} ms\t均 ${item.mean_ms} ms\t峰 ${item.max_ms} ms`,
         );
         profileOut.textContent = [
           `计时：${response.enabled ? '开' : '关'}  样本 ${response.samples}/${response.capacity}`,
@@ -12320,7 +12386,7 @@
     if (state.analysisTF) drawAnalysisTF();
   }
 
-  function applyUiTokens(tokens, mode: string) {
+  function applyUiTokens(tokens: Record<string, string>, mode?: string) {
     const root = document.documentElement;
     const tokenVars = {
       background: '--paper',
@@ -12337,7 +12403,7 @@
     };
     for (const [key, value] of Object.entries(tokens || {})) {
       root.style.setProperty(`--nl-${key}`, value);
-      const target = tokenVars[key];
+      const target = tokenVars[key as keyof typeof tokenVars];
       if (target) root.style.setProperty(target, value);
     }
     if (tokens?.accent) root.style.setProperty('--accent-strong', tokens.accent);
@@ -12356,9 +12422,9 @@
     }
   }
 
-  function openIroColorPopover(anchor, value, onChange) {
+  function openIroColorPopover(anchor: HTMLElement, value: string, onChange: (value: string) => void) {
     document.querySelectorAll('.iro-popover').forEach((node) => node.remove());
-    if (!window.iro || typeof window.iro.ColorPicker !== 'function') {
+    if (!(window as Window & { iro?: IroGlobal }).iro || typeof (window as Window & { iro?: IroGlobal }).iro!.ColorPicker !== 'function') {
       anchor.click();
       return;
     }
@@ -12377,11 +12443,11 @@
     pop.appendChild(host);
     pop.appendChild(button('关闭', 'btn tiny', () => pop.remove()));
     document.body.appendChild(pop);
-    const picker = new window.iro.ColorPicker(host, { width: 220, color: value || '#000000' });
-    picker.on('color:change', (color: string) => onChange(color.hexString));
+    const picker = new (window as Window & { iro?: IroGlobal }).iro!.ColorPicker(host, { width: 220, color: value || '#000000' });
+    picker.on('color:change', (color: { hexString: string }) => onChange(color.hexString));
     setTimeout(() => {
       const close = (event: MouseEvent) => {
-        if (pop.contains(event.target) || event.target === anchor) return;
+        if (pop.contains((event.target as Node | null)) || event.target === anchor) return;
         pop.remove();
         document.removeEventListener('pointerdown', close);
       };
@@ -12398,14 +12464,14 @@
         background: '背景', surface: '表面', panel: '面板', text: '文字', muted: '次要文字',
         accent: '强调色', grid: '网格', edge: '连线', node: '节点', danger: '警示', success: '成功',
       };
-      const tokenInputs = {};
+      const tokenInputs: Record<string, HTMLInputElement> = {};
       const tokenGrid = div('ui-token-grid');
       for (const [key, value] of Object.entries(current.tokens || {})) {
         const label = div('ui-field');
-        label.appendChild(el('span', null, tokenLabels[key] || key));
+        label.appendChild(el('span', null, tokenLabels[key as keyof typeof tokenLabels] || key));
         const input = el('input', 'ui-color');
         input.type = 'color';
-        input.value = value;
+        input.value = value as string;
         input.dataset.token = key;
         input.addEventListener('input', () => {
           current.tokens[key] = input.value;
@@ -12531,10 +12597,10 @@
     }
   }
 
-  async function compareBuiltinBlock(spec: SpecRec) {
+  async function compareBuiltinBlock(spec: BlockItem) {
     try {
       const result = await jsonRequest(
-        `/api/blocks/${encodeURIComponent(spec.id)}/compare`,
+        `/api/blocks/${encodeURIComponent((spec.id as string | number | boolean))}/compare`,
         'POST',
         { duration: 0.02, dt: 0.001 },
       );
@@ -12633,15 +12699,15 @@
       const info = div('block-info');
       const name = el('strong', null, spec.name || spec.id);
       const badges = div('block-badges');
-      for (const badge of blockBadges(spec)) badges.appendChild(el('span', 'badge gray', badge));
+      for (const badge of blockBadges(((spec)))) badges.appendChild(el('span', 'badge gray', badge));
       info.append(name, badges);
-      const ports = el('small', 'block-ports', describeBlockPorts(spec));
+      const ports = el('small', 'block-ports', describeBlockPorts(((spec))));
       info.appendChild(ports);
       item.draggable = true;
       item.addEventListener('dragstart', (event: MouseEvent) => {
-        if (!event.dataTransfer) return;
-        event.dataTransfer.setData('text/netlab-block', spec.id);
-        event.dataTransfer.effectAllowed = 'copy';
+        if (!(event as Event as DragEvent).dataTransfer) return;
+        ((event as Event as DragEvent).dataTransfer as DataTransfer).setData('text/netlab-block', spec.id);
+        ((event as Event as DragEvent).dataTransfer as DataTransfer).effectAllowed = 'copy';
       });
       const actions = div('block-actions');
       actions.appendChild(button('实例化', 'btn tiny primary', () => void instantiateBlockFromLibrary(spec.id)));
@@ -12651,15 +12717,15 @@
         : '在内部浮窗中预览模块结构';
       actions.appendChild(openBtn);
       if (spec.builtin) {
-        const compareBtn = button('行为/结构对比', 'btn tiny', () => void compareBuiltinBlock(spec));
+        const compareBtn = button('行为/结构对比', 'btn tiny', () => void compareBuiltinBlock(((spec))));
         compareBtn.title = '运行行为快速模型与 structural 内部场景，对比同一输入的输出';
         actions.appendChild(compareBtn);
       }
-      const renameBtn = button('改名', 'btn tiny', () => void renameLibraryBlock(spec));
+      const renameBtn = button('改名', 'btn tiny', () => void renameLibraryBlock(((spec))));
       renameBtn.title = spec.builtin ? '内置模块只读，请先另存为副本' : '改模块名字（文件名同步改，引用不变）';
       renameBtn.disabled = Boolean(spec.builtin);
       actions.appendChild(renameBtn);
-      const deleteBtn = button('删除', 'btn tiny danger', () => void deleteLibraryBlock(spec));
+      const deleteBtn = button('删除', 'btn tiny danger', () => void deleteLibraryBlock(((spec))));
       deleteBtn.disabled = Boolean(spec.builtin);
       deleteBtn.title = spec.builtin ? '内置模块只读，不能删除' : '从库里删掉这个模块文件';
       actions.appendChild(deleteBtn);
@@ -12673,7 +12739,7 @@
     pane.replaceChildren(host);
   }
 
-  function findBlockNameClash(name: string, ignoreId) {
+  function findBlockNameClash(name: string, ignoreId: string | null) {
     const wanted = String(name || '').trim().toLowerCase();
     if (!wanted) return null;
     return (
@@ -12684,8 +12750,8 @@
     );
   }
 
-  async function renameLibraryBlock(spec: SpecRec) {
-    const proposed = window.prompt(`模块新名字（当前：${spec.name || spec.id}）`, spec.name || '');
+  async function renameLibraryBlock(spec: BlockItem) {
+    const proposed = window.prompt(`模块新名字（当前：${spec.name || spec.id}）`, (spec.name || '') as string);
     if (proposed === null) return;
     const name = proposed.trim();
     if (!name) {
@@ -12693,14 +12759,14 @@
       return;
     }
     if (name === spec.name) return;
-    const clash = findBlockNameClash(name, spec.id);
+    const clash = findBlockNameClash(name, (spec.id as string | null));
     if (clash) {
       toast(`模块名已存在：「${clash.name}」，请换一个名字`, 'error', 3600);
       return;
     }
-    const run = async (force) => {
+    const run = async (force: boolean) => {
       const body = await jsonRequest(
-        `/api/blocks/${encodeURIComponent(spec.id)}/rename`,
+        `/api/blocks/${encodeURIComponent((spec.id as string | number | boolean))}/rename`,
         'POST',
         { name, force },
       );
@@ -12722,7 +12788,7 @@
     }
   }
 
-  async function deleteLibraryBlock(spec: SpecRec) {
+  async function deleteLibraryBlock(spec: BlockItem) {
     if (
       !window.confirm(
         `删除模块「${spec.name || spec.id}」？\n库里对应的 .block 文件会被删除，已经放进画布的实例会变成缺失状态。`,
@@ -12730,9 +12796,9 @@
     ) {
       return;
     }
-    const run = async (force) => {
+    const run = async (force: boolean) => {
       const body = await jsonRequest(
-        `/api/blocks/${encodeURIComponent(spec.id)}/delete`,
+        `/api/blocks/${encodeURIComponent((spec.id as string | number | boolean))}/delete`,
         'POST',
         { version: spec.version, force },
       );
@@ -12755,7 +12821,7 @@
   }
 
   function initStatusToggles() {
-    const bind = (id: string, key: string, label: string) => {
+    const bind = (id: string, key: string, label?: (active: boolean) => string) => {
       const node = $(`#${id}`);
       if (!node) return;
       const sync = () => {
@@ -12781,7 +12847,7 @@
     if (styleBtn) {
       const labels = { circle: '节点·圆', dot: '节点·点', box: '节点·框' };
       const order = ['circle', 'dot', 'box'];
-      const sync = () => { styleBtn.textContent = labels[state.ui.nodeStyle || 'circle']; };
+      const sync = () => { styleBtn.textContent = labels[(state.ui.nodeStyle || 'circle') as keyof typeof labels]; };
       styleBtn.addEventListener('click', () => {
         const index = order.indexOf(state.ui.nodeStyle || 'circle');
         state.ui.nodeStyle = order[(index + 1) % order.length];
@@ -12794,7 +12860,7 @@
     }
   }
 
-  function applyPanelHidden(hidden, persist = true) {
+  function applyPanelHidden(hidden: boolean, persist = true) {
     ui.main.classList.toggle('panel-hidden', hidden);
     ui.panel?.classList.toggle('collapsed', hidden);
     if (ui.panelHanger) {
@@ -12911,7 +12977,7 @@
 
     if (ui.workspaceSwitch) {
       $$('button[data-workspace]', ui.workspaceSwitch).forEach((buttonNode) => {
-        buttonNode.addEventListener('click', () => void switchWorkspace(buttonNode.dataset.workspace));
+        buttonNode.addEventListener('click', () => void switchWorkspace((buttonNode.dataset.workspace as string)));
       });
     }
     setWorkspaceButtons();
@@ -12919,12 +12985,12 @@
     $$('.panel-tab').forEach((tab) => {
       tab.addEventListener('click', () => {
         const group = tab.dataset.group;
-        switchTab(group === 'inspect' ? 'inspect' : defaultTabForGroup(group));
+        switchTab(group === 'inspect' ? 'inspect' : (defaultTabForGroup((group as string)) as string));
       });
     });
     $$('#panel .group-subnav').forEach((nav) => {
       nav.addEventListener('click', (event: MouseEvent) => {
-        const target = event.target.closest('button');
+        const target = (event.target! as Element).closest('button');
         if (!target) return;
         if (target.dataset.fnrole) {
           state.fnRole = target.dataset.fnrole;
@@ -12980,7 +13046,7 @@
         const keys = stateKeys.length >= 2
           ? stateKeys.slice(0, 2)
           : (node ? [`n:${node.name}:x`, `n:${node.name}:y`] : null);
-        void exportAnalysisCsv(keys, 'phase');
+        void exportAnalysisCsv((keys as null | undefined), 'phase');
       });
     }
     if (ui.phasePlotkit) {
@@ -13116,7 +13182,7 @@
         if (!recordingStale()) return;
         leaveReplay();
         await control('reset');
-        await control('run', undefined, { skipWarn: true });
+        await control('run', ((undefined)), { skipWarn: true });
         toast('场景已修改，旧记录清除并重新求解', 'ok', 2400);
       });
     }
@@ -13142,13 +13208,13 @@
     });
 
     document.addEventListener('pointerdown', (event: PointerEvent) => {
-      if (event.target.closest('.popup')) return;
+      if ((event.target! as Element).closest('.popup')) return;
       closePopups();
     }, true);
 
-    document.addEventListener('keydown', (event: MouseEvent) => {
+    document.addEventListener('keydown', (event: KeyboardEvent) => {
       if (state.shuttingDown) return;
-      if (event.key === 'Escape') {
+      if ((event as Event as KeyboardEvent).key === 'Escape') {
         closePopups();
         if (state.wireTool) cancelWireTool();
         if (!ui.modal.classList.contains('hidden')) closeModal();
@@ -13156,7 +13222,7 @@
       }
       if (isFormTarget(event.target)) return;
       if (event.ctrlKey || event.metaKey) {
-        const key = event.key.toLowerCase();
+        const key = (event as Event as KeyboardEvent).key.toLowerCase();
         if (key === 's' && event.altKey) {
           event.preventDefault();
           void saveProject(true);
@@ -13189,32 +13255,32 @@
         }
         return;
       }
-      if (event.key === ' ') {
+      if ((event as Event as KeyboardEvent).key === ' ') {
         event.preventDefault();
         void control('toggle');
-      } else if (event.key === 's' || event.key === 'S') {
+      } else if ((event as Event as KeyboardEvent).key === 's' || (event as Event as KeyboardEvent).key === 'S') {
         event.preventDefault();
         void control('step', 1);
-      } else if (event.key === 'r' || event.key === 'R') {
+      } else if ((event as Event as KeyboardEvent).key === 'r' || (event as Event as KeyboardEvent).key === 'R') {
         event.preventDefault();
         void control('reset');
-      } else if (state.workspace === 'network' && (event.key === 'f' || event.key === 'F')) {
+      } else if (state.workspace === 'network' && ((event as Event as KeyboardEvent).key === 'f' || (event as Event as KeyboardEvent).key === 'F')) {
         event.preventDefault();
         fitView(true);
-      } else if (state.workspace === 'network' && (event.key === 'a' || event.key === 'A')) {
+      } else if (state.workspace === 'network' && ((event as Event as KeyboardEvent).key === 'a' || (event as Event as KeyboardEvent).key === 'A')) {
         event.preventDefault();
         const place = centerPlacement();
         openAddMenu(state.canvasSize.w / 2, state.canvasSize.h / 2, place.x, place.y);
-      } else if (state.workspace === 'network' && (event.key === 'Delete' || event.key === 'Backspace')) {
+      } else if (state.workspace === 'network' && ((event as Event as KeyboardEvent).key === 'Delete' || (event as Event as KeyboardEvent).key === 'Backspace')) {
         event.preventDefault();
         void deleteSelection();
-      } else if (state.workspace === 'network' && (event.key === '+' || event.key === '=')) {
+      } else if (state.workspace === 'network' && ((event as Event as KeyboardEvent).key === '+' || (event as Event as KeyboardEvent).key === '=')) {
         event.preventDefault();
         zoomCenter(1.2);
-      } else if (state.workspace === 'network' && (event.key === '-' || event.key === '_')) {
+      } else if (state.workspace === 'network' && ((event as Event as KeyboardEvent).key === '-' || (event as Event as KeyboardEvent).key === '_')) {
         event.preventDefault();
         zoomCenter(1 / 1.2);
-      } else if (event.key === '?') {
+      } else if ((event as Event as KeyboardEvent).key === '?') {
         event.preventDefault();
         showHelp();
       }
@@ -13313,7 +13379,7 @@
   }
 
   // 只读调试钩子：给 CDP/自动化验证计算屏幕坐标用，不改变业务行为。
-  window.__netlabDebug = {
+  (window as Window & { __netlabDebug?: unknown }).__netlabDebug = {
     state,
     nodeRect,
     edgePathPoints,
@@ -13368,7 +13434,7 @@
     return THEME_TOKENS[themeKey()];
   }
 
-  function mixHex(foreground, background, amount) {
+  function mixHex(foreground: string, background: string, amount: number) {
     const a = hexToRgb(foreground);
     const b = hexToRgb(background);
     if (!a || !b) return foreground;
@@ -13386,17 +13452,17 @@
     '176,118,42': 'amber',
   };
 
-  function C(value) {
+  function C(value: string) {
     const raw = String(value || '').trim();
     const legacy = raw.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([0-9.]+))?\s*\)$/i);
     if (legacy) {
-      const target = LEGACY_RGB[`${legacy[1]},${legacy[2]},${legacy[3]}`];
-      const hex = target ? tokens()[target] : '';
-      const rgb = hex ? hexToRgb(hex) : null;
+      const target = LEGACY_RGB[`${legacy[1]},${legacy[2]},${legacy[3]}` as keyof typeof LEGACY_RGB];
+      const hex = target ? (tokens() as Record<string, string>)[target] : '';
+      const rgb = hex ? (hexToRgb(hex) as number[] & { r: number; g: number; b: number }) : null;
       if (rgb) return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${legacy[4] ?? 1})`;
     }
-    const token = COLOR_ALIAS[raw.toLowerCase()];
-    if (token) return tokens()[token];
+    const token = COLOR_ALIAS[raw.toLowerCase() as keyof typeof COLOR_ALIAS];
+    if (token) return (tokens() as Record<string, string>)[token];
     if (themeKey() === 'dark') return mixHex(raw, '#e0e3dc', 0.42);
     return raw;
   }
@@ -13430,7 +13496,7 @@
     }
   }
 
-  function resolveTheme(pref) {
+  function resolveTheme(pref: string) {
     if (pref === 'light' || pref === 'dark') return pref;
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
@@ -13476,10 +13542,10 @@
 
   const PREF_SETTING_KEYS = { theme: 'theme', motion: 'ui_motion', perf: 'ui_perf', accent: 'ui_accent', guide: 'ui_guide' };
 
-  async function setPref(key: string, value) {
+  async function setPref(key: string, value: unknown) {
     state.prefs[key] = value;
     applyAppearance();
-    const settingKey = PREF_SETTING_KEYS[key];
+    const settingKey = PREF_SETTING_KEYS[key as keyof typeof PREF_SETTING_KEYS];
     if (!settingKey) return;
     try {
       const response = await jsonRequest('/api/settings', 'PATCH', { [settingKey]: value });
@@ -13491,7 +13557,7 @@
 
   function syncPrefControls() {
     const prefs = state.prefs || {};
-    const paint = (host, value) => {
+    const paint = (host: HTMLElement, value: string) => {
       if (!host) return;
       $$('button[data-value]', host).forEach((node) => {
         const on = node.dataset.value === value;
@@ -13505,7 +13571,7 @@
     paint($('#segInfoBar'), prefs.infobar === false ? 'off' : 'on');
     paint($('#segGuide'), prefs.guide === 'never' ? 'never' : 'always');
     paint($('#segAutosave'), state.project.autosave ? 'on' : 'off');
-    if ($('#selAutosaveInterval')) $('#selAutosaveInterval').value = String(Math.round(state.project.autosaveInterval / 1000));
+    if ($('#selAutosaveInterval')) ($('#selAutosaveInterval') as HTMLInputElement).value = String(Math.round(state.project.autosaveInterval / 1000));
     const swatches = $('#accentSwatches');
     if (swatches) {
       $$('button', swatches).forEach((node) => {
@@ -13517,34 +13583,34 @@
 
   function initAppearanceControls() {
     $('#segTheme')?.addEventListener('click', (event: MouseEvent) => {
-      const target = event.target.closest('button[data-value]');
+      const target = (event.target! as Element).closest('button[data-value]') as HTMLElement | null;
       if (target) void setPref('theme', target.dataset.value);
     });
     $('#segMotion')?.addEventListener('click', (event: MouseEvent) => {
-      const target = event.target.closest('button[data-value]');
+      const target = (event.target! as Element).closest('button[data-value]') as HTMLElement | null;
       if (target) void setPref('motion', target.dataset.value);
     });
     $('#segPerf')?.addEventListener('click', (event: MouseEvent) => {
-      const target = event.target.closest('button[data-value]');
+      const target = (event.target! as Element).closest('button[data-value]') as HTMLElement | null;
       if (target) void setPref('perf', target.dataset.value);
     });
     $('#segInfoBar')?.addEventListener('click', (event: MouseEvent) => {
-      const target = event.target.closest('button[data-value]');
+      const target = (event.target! as Element).closest('button[data-value]') as HTMLElement | null;
       if (!target) return;
       state.prefs.infobar = target.dataset.value !== 'off';
       applyAppearance();
     });
     $('#segGuide')?.addEventListener('click', (event: MouseEvent) => {
-      const target = event.target.closest('button[data-value]');
+      const target = (event.target! as Element).closest('button[data-value]') as HTMLElement | null;
       if (target) void setPref('guide', target.dataset.value);
     });
     $('#segAutosave')?.addEventListener('click', (event: MouseEvent) => {
-      const target = event.target.closest('button[data-value]');
+      const target = (event.target! as Element).closest('button[data-value]') as HTMLElement | null;
       if (!target) return;
       void saveAutosaveSetting({ autosave_enabled: target.dataset.value === 'on' });
     });
     $('#selAutosaveInterval')?.addEventListener('change', () => {
-      const seconds = Number($('#selAutosaveInterval').value);
+      const seconds = Number(($('#selAutosaveInterval') as HTMLInputElement).value);
       if (Number.isFinite(seconds)) void saveAutosaveSetting({ autosave_interval_seconds: seconds });
     });
 
@@ -13564,9 +13630,9 @@
     });
   }
 
-  async function saveAutosaveSetting(patch) {
-    state.project.autosave = patch.autosave_enabled !== undefined ? patch.autosave_enabled : state.project.autosave;
-    if (patch.autosave_interval_seconds) state.project.autosaveInterval = patch.autosave_interval_seconds * 1000;
+  async function saveAutosaveSetting(patch: Record<string, unknown>) {
+    state.project.autosave = (patch.autosave_enabled !== undefined ? patch.autosave_enabled : state.project.autosave) as boolean;
+    if (patch.autosave_interval_seconds) state.project.autosaveInterval = (patch.autosave_interval_seconds as number) * 1000;
     syncPrefControls();
     try {
       const response = await jsonRequest('/api/settings', 'PATCH', patch);
@@ -13594,7 +13660,7 @@
     ui.settingsWin.hidden = true;
   }
 
-  function setSettingsPane(pane) {
+  function setSettingsPane(pane: string) {
     $$('#settingsWin .setwin-nav button[data-pane]').forEach((node) => {
       node.classList.toggle('active', node.dataset.pane === pane);
     });
@@ -13611,8 +13677,8 @@
 
   function initSettingsWin() {
     $('#settingsWin .setwin-nav')?.addEventListener('click', (event: MouseEvent) => {
-      const target = event.target.closest('button[data-pane]');
-      if (target) setSettingsPane(target.dataset.pane);
+      const target = (event.target! as Element).closest('button[data-pane]') as HTMLElement | null;
+      if (target) setSettingsPane((target.dataset.pane as string));
     });
     ui.settingsClose?.addEventListener('click', closeSettings);
     $$('#settingsWin [data-doc]').forEach((node) => {
@@ -13666,7 +13732,7 @@
   function initGuide() {
     if (!ui.guide) return;
     $$('.guide-mode').forEach((node) => {
-      node.addEventListener('click', () => selectGuideMode(node.dataset.mode));
+      node.addEventListener('click', () => selectGuideMode((node.dataset.mode as string)));
     });
     // 开始页标题区 = 窗口拖动柄：拖动它移动整个窗口（仅桌面壳；浏览器没有窗口可动）。
     // 旧实现拖动的是卡片本身（translate），在整屏开始页里视觉上等于没反应，已移除。
@@ -13675,11 +13741,11 @@
       if (!handle) return;
       const desktop = window.netlabDesktop;
       if (!desktop || typeof desktop.attachWindowDrag !== 'function') return;
-      handle.style.cursor = 'grab';
-      desktop.attachWindowDrag(handle, {
+      (handle as HTMLElement).style.cursor = 'grab';
+      desktop.attachWindowDrag((handle as HTMLElement), {
         dblclick: false,
-        onStart: () => { handle.style.cursor = 'grabbing'; },
-        onEnd: () => { handle.style.cursor = 'grab'; },
+        onStart: () => { (handle as HTMLElement).style.cursor = 'grabbing'; },
+        onEnd: () => { (handle as HTMLElement).style.cursor = 'grab'; },
       });
     })();
     ui.guideEnter?.addEventListener('click', () => void enterGuideScene());
@@ -13700,8 +13766,8 @@
         openDoc(node.dataset.doc);
       });
     });
-    document.addEventListener('keydown', (event: MouseEvent) => {
-      if (event.key === 'Enter' && !ui.guide.hidden && !event.target.closest('input, textarea, select')) {
+    document.addEventListener('keydown', (event: KeyboardEvent) => {
+      if ((event as Event as KeyboardEvent).key === 'Enter' && !ui.guide.hidden && !(event.target! as Element).closest('input, textarea, select')) {
         event.preventDefault();
         void enterGuideScene();
       }
@@ -13721,7 +13787,7 @@
     return state.docs;
   }
 
-  function docBySlug(slug) {
+  function docBySlug(slug: string) {
     return (state.docs || []).find((doc) => doc.slug === slug) || null;
   }
 
@@ -13766,7 +13832,7 @@
   function ensurePlotkitFrame() {
     const frame = $('#plotkitFrame');
     if (frame && !plotkitReady) {
-      frame.src = plotkitFrameUrl({ embed: '1' });
+      (frame as HTMLIFrameElement).src = plotkitFrameUrl({ embed: '1' });
       plotkitReady = true;
     }
     return frame;
@@ -13789,7 +13855,7 @@
         host.hidden = false;
         host.appendChild(frame);
       }
-      document.querySelector('[data-sub="plotkit"]')?.click();
+      (document.querySelector('[data-sub="plotkit"]') as HTMLElement)?.click();
       if (typeof setStatusHint === 'function') setStatusHint('绘图已嵌在右侧面板 · 点「浮出窗口」可拖到画布上');
     } else if (mode === 'float') {
       if (host) host.hidden = true;
@@ -13826,7 +13892,7 @@
   }
 
   // ---- VS Code 代码工作区（非模态浮窗；iframe 直连本地 code server） ----------
-  let vscodeStarting = null;
+  let vscodeStarting: Promise<unknown> | null = null;
 
   async function ensureVscodeFrame() {
     const frame = $('#vscodeFrame');
@@ -13844,7 +13910,7 @@
         if (!info || !info.url) {
           throw new Error((info && info.error) || 'VS Code Server 不可用');
         }
-        frame.src = info.url;
+        (frame as HTMLIFrameElement).src = info.url;
         frame.dataset.ready = '1';
         if (status) status.hidden = true;
         try { localStorage.setItem('netlab.vscode.used', '1'); } catch (e) {}
@@ -13907,7 +13973,7 @@
     ui.docTitle.textContent = `NETLAB · ${doc.title}`;
     renderDocNav();
     renderDocBody(doc);
-    ui.docContent.parentElement.scrollTop = 0;
+    ui.docContent.parentElement!.scrollTop = 0;
     ui.docSearch.value = '';
     ui.docResults.replaceChildren();
     placeDocWindow();
@@ -13939,13 +14005,13 @@
     }
   }
 
-  function renderDocBody(doc) {
+  function renderDocBody(doc: DocItem) {
     if (!ui.docContent) return;
-    const fragment = renderMarkdown(doc.text || '');
+    const fragment = renderMarkdown((doc.text || '') as string);
     ui.docContent.replaceChildren(fragment);
   }
 
-  function renderInline(text: string, target) {
+  function renderInline(text: string, target: HTMLElement) {
     const source = String(text || '');
     const pattern = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
     let cursor = 0;
@@ -14089,7 +14155,7 @@
   // ---- 内部浮窗（文档中心 / 设置窗共用：拖动 · 缩放 · 最小化 · 最大化） -------
   function placeFloatWindow(root: HTMLElement, key: string) {
     if (!root) return;
-    const geo = state[key];
+    const geo = (state as State & Record<string, FloatGeo | undefined>)[key];
     if (!geo) {
       root.classList.remove('moved');
       root.style.left = '';
@@ -14123,28 +14189,28 @@
     if (!root.classList.contains('maximized')) placeFloatWindow(root, key);
   }
 
-  function initFloatWindow(root: HTMLElement, key: string, spec: SpecRec = {}) {
+  function initFloatWindow(root: HTMLElement, key: string, spec: FloatWindowSpec = {}) {
     if (!root) return;
     const minWidth = spec.minWidth || 420;
     const minHeight = spec.minHeight || 320;
     root.addEventListener('pointerdown', () => raiseFloatWindow(root), true);
     const head = root.querySelector('.floatwin-head');
     if (head) {
-      let drag = null;
-      head.addEventListener('pointerdown', (event: PointerEvent) => {
-        if (event.target.closest('button')) return;
+      let drag: { dx: number; dy: number } | null = null;
+      (head as HTMLElement).addEventListener('pointerdown', (event: PointerEvent) => {
+        if ((event.target! as Element).closest('button')) return;
         if (root.classList.contains('maximized') || root.classList.contains('minimized')) return;
         const rect = root.getBoundingClientRect();
         drag = { dx: event.clientX - rect.left, dy: event.clientY - rect.top };
         head.setPointerCapture(event.pointerId);
       });
-      head.addEventListener('pointermove', (event: PointerEvent) => {
+      (head as HTMLElement).addEventListener('pointermove', (event: PointerEvent) => {
         if (!drag) return;
         const rect = root.getBoundingClientRect();
         // 标题栏始终留在视口内，且窗口底边不越界（否则右下角缩放柄会移到屏幕外）
         const maxTop = Math.max(40, window.innerHeight - rect.height - 8);
         const maxLeft = Math.max(8, window.innerWidth - 140);
-        state[key] = {
+        (state as State & Record<string, FloatGeo>)[key] = {
           left: clamp(event.clientX - drag.dx, 8, maxLeft),
           top: clamp(event.clientY - drag.dy, 40, maxTop),
           width: rect.width,
@@ -14155,8 +14221,8 @@
       const stopDrag = () => { drag = null; };
       head.addEventListener('pointerup', stopDrag);
       head.addEventListener('pointercancel', stopDrag);
-      head.addEventListener('dblclick', (event: MouseEvent) => {
-        if (event.target.closest('button')) return;
+      (head as HTMLElement).addEventListener('dblclick', (event: MouseEvent) => {
+        if ((event.target! as Element).closest('button')) return;
         toggleFloatMaximize(root, key);
       });
     }
@@ -14166,16 +14232,16 @@
     root.querySelector('.floatwin-max')?.addEventListener('click', () => toggleFloatMaximize(root, key));
     const grip = root.querySelector('.floatwin-resize');
     if (grip) {
-      let resize = null;
-      grip.addEventListener('pointerdown', (event: PointerEvent) => {
+      let resize: { x: number; y: number; w: number; h: number; left: number; top: number } | null = null;
+      (grip as HTMLElement).addEventListener('pointerdown', (event: PointerEvent) => {
         if (root.classList.contains('maximized') || root.classList.contains('minimized')) return;
         const rect = root.getBoundingClientRect();
         resize = { x: event.clientX, y: event.clientY, w: rect.width, h: rect.height, left: rect.left, top: rect.top };
         grip.setPointerCapture(event.pointerId);
       });
-      grip.addEventListener('pointermove', (event: PointerEvent) => {
+      (grip as HTMLElement).addEventListener('pointermove', (event: PointerEvent) => {
         if (!resize) return;
-        state[key] = {
+        (state as State & Record<string, FloatGeo>)[key] = {
           left: resize.left,
           top: resize.top,
           width: clamp(resize.w + event.clientX - resize.x, minWidth, Math.max(minWidth, window.innerWidth - resize.left - 12)),
@@ -14192,11 +14258,11 @@
   // ---- 电路分析浮窗（R26）：DC 工作点 / AC 小信号扫频 -----------------------
   function analEscape(text: string) {
     return String(text ?? '').replace(/[&<>"]/g, (ch) => (
-      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' } as Record<string, string>)[ch]
     ));
   }
 
-  function analNum(value, digits: number = 6) {
+  function analNum(value: unknown, digits: number = 6) {
     const num = Number(value);
     if (!Number.isFinite(num)) return '—';
     const abs = Math.abs(num);
@@ -14204,7 +14270,7 @@
     return String(Number(num.toFixed(digits)));
   }
 
-  function analToken(name: string, fallback) {
+  function analToken(name: string, fallback: string) {
     const value = getComputedStyle(document.documentElement).getPropertyValue(name);
     return (value || '').trim() || fallback;
   }
@@ -14232,7 +14298,7 @@
     if (win) win.hidden = true;
   }
 
-  function selectAnalTab(tab) {
+  function selectAnalTab(tab: string) {
     for (const btn of $$('.anal-tab')) {
       btn.classList.toggle('active', btn.dataset.anal === tab);
     }
@@ -14245,7 +14311,7 @@
   function fillAcSources() {
     const select = $('#analAcInput');
     if (!select) return;
-    const previous = select.value;
+    const previous = (select as HTMLInputElement).value;
     const nodes = state.scene?.nodes || [];
     const sources = nodes.filter((node) => {
       const kind = node.kind === 'device' ? node.params?.element : node.kind;
@@ -14255,7 +14321,7 @@
       + sources.map((node) => (
         `<option value="${analEscape(node.name)}">${analEscape(node.name)}</option>`
       )).join('');
-    if (sources.some((node) => node.name === previous)) select.value = previous;
+    if (sources.some((node) => node.name === previous)) (select as HTMLInputElement).value = previous;
   }
 
   async function runOperatingPoint() {
@@ -14269,7 +14335,7 @@
       const nodeRows = Object.entries(result.node_voltages || {}).map(([name, value]) => (
         `<tr><td>${analEscape(name)}</td><td class="num">${analNum(value)}</td></tr>`
       )).join('');
-      const elementRows = Object.entries(result.elements || {}).map(([name, info]) => (
+      const elementRows = Object.entries((result.elements || {}) as Record<string, OpElementRec>).map(([name, info]) => (
         `<tr><td>${analEscape(name)}</td><td class="num">${analNum(info.current)}</td>`
         + `<td class="num">${analNum(info.voltage_difference)}</td>`
         + `<td class="num">${analNum(info.power)}</td></tr>`
@@ -14297,12 +14363,12 @@
     analysisWarn();
     const meta = $('#analAcMeta');
     const params = new URLSearchParams();
-    const input = $('#analAcInput')?.value || '';
+    const input = ($('#analAcInput') as HTMLInputElement)?.value || '';
     if (input) params.set('input', input);
-    params.set('f_start', $('#analAcF1')?.value || '10');
-    params.set('f_stop', $('#analAcF2')?.value || '1000000');
-    params.set('points', $('#analAcPts')?.value || '121');
-    params.set('scale', $('#analAcScale')?.value || 'log');
+    params.set('f_start', ($('#analAcF1') as HTMLInputElement)?.value || '10');
+    params.set('f_stop', ($('#analAcF2') as HTMLInputElement)?.value || '1000000');
+    params.set('points', ($('#analAcPts') as HTMLInputElement)?.value || '121');
+    params.set('scale', ($('#analAcScale') as HTMLInputElement)?.value || 'log');
     // 默认只看节点电压（元件电流曲线太密，需要时可在后端 probes 指定）
     // 接地节点电压恒为 0，且后端 AC 探针不接受 ground，一并排除
     const probeNames = (state.scene?.nodes || [])
@@ -14315,7 +14381,7 @@
       const data = await api(`/api/ac-sweep?${params.toString()}`);
       state.acResult = data.result || null;
       state.acRevision = state.scene?.revision ?? null;
-      const result = state.acResult;
+      const result = state.acResult as AcResultRec | null;
       const count = Object.keys(result?.probes || {}).length;
       if (meta) {
         meta.textContent = `${count} 条曲线 · 激励 ${result?.input || '—'} · ${result?.frequencies?.length || 0} 点`;
@@ -14335,28 +14401,28 @@
     const rect = canvas.getBoundingClientRect();
     if (rect.width < 40 || rect.height < 40) return;
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.round(rect.width * dpr);
-    canvas.height = Math.round(rect.height * dpr);
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    (canvas as HTMLCanvasElement).width = Math.round(rect.width * dpr);
+    (canvas as HTMLCanvasElement).height = Math.round(rect.height * dpr);
+    const ctx = (canvas as HTMLCanvasElement).getContext('2d');
+    ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
     const W = rect.width;
     const H = rect.height;
     const ink = analToken('--ink', '#080a08');
     const muted = analToken('--muted', '#7b7266');
     const line = analToken('--line', '#d9d3c7');
-    ctx.clearRect(0, 0, W, H);
-    const result = state.acResult;
+    ctx!.clearRect(0, 0, W, H);
+    const result = state.acResult as AcResultRec | null;
     const legend = $('#analAcLegend');
     if (!result || !result.frequencies?.length) {
       if (legend) legend.innerHTML = '';
-      ctx.fillStyle = muted;
-      ctx.font = '12.5px "Microsoft YaHei UI", sans-serif';
-      ctx.fillText('选择激励与频率范围后点「开始扫频」', 16, 26);
+      ctx!.fillStyle = muted;
+      ctx!.font = '12.5px "Microsoft YaHei UI", sans-serif';
+      ctx!.fillText('选择激励与频率范围后点「开始扫频」', 16, 26);
       return;
     }
     const freqs = result.frequencies;
     const probes = Object.entries(result.probes || {});
-    const scale = $('#analAcScale')?.value || 'log';
+    const scale = ($('#analAcScale') as HTMLInputElement)?.value || 'log';
     const f0 = freqs[0];
     const f1 = freqs[freqs.length - 1];
     const padL = 52;
@@ -14369,7 +14435,7 @@
     const magTop = padT;
     const phaseTop = padT + magH + gap;
     const plotW = Math.max(40, W - padL - padR);
-    const xOf = (f) => {
+    const xOf = (f: number) => {
       if (scale === 'log') {
         const lo = Math.log10(Math.max(f0, 1e-9));
         const hi = Math.log10(Math.max(f1, 1e-9));
@@ -14383,7 +14449,7 @@
     let minDb = 0;
     let maxDb = 0;
     for (const [, info] of probes) {
-      for (const value of info.db || []) {
+      for (const value of (info as { db?: number[] }).db || []) {
         if (!Number.isFinite(value)) continue;
         minDb = Math.min(minDb, value);
         maxDb = Math.max(maxDb, value);
@@ -14396,32 +14462,32 @@
       minDb -= 3;
       maxDb += 3;
     }
-    const yMag = (db) => magTop + (1 - (db - minDb) / (maxDb - minDb || 1)) * magH;
-    const yPhase = (deg) => phaseTop + (1 - (deg + 180) / 360) * phaseH;
+    const yMag = (db: number) => magTop + (1 - (db - minDb) / (maxDb - minDb || 1)) * magH;
+    const yPhase = (deg: number) => phaseTop + (1 - (deg + 180) / 360) * phaseH;
 
-    ctx.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx!.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
     // 幅度区网格
-    ctx.strokeStyle = line;
-    ctx.lineWidth = 1;
+    ctx!.strokeStyle = line;
+    ctx!.lineWidth = 1;
     for (let i = 0; i <= 4; i += 1) {
       const y = magTop + (magH * i) / 4;
-      ctx.beginPath();
-      ctx.moveTo(padL, y);
-      ctx.lineTo(padL + plotW, y);
-      ctx.stroke();
-      ctx.fillStyle = muted;
+      ctx!.beginPath();
+      ctx!.moveTo(padL, y);
+      ctx!.lineTo(padL + plotW, y);
+      ctx!.stroke();
+      ctx!.fillStyle = muted;
       const value = maxDb - ((maxDb - minDb) * i) / 4;
-      ctx.fillText(`${value.toFixed(0)} dB`, 6, y + 4);
+      ctx!.fillText(`${value.toFixed(0)} dB`, 6, y + 4);
     }
     // 相位区网格
     for (const deg of [-180, -90, 0, 90, 180]) {
       const y = yPhase(deg);
-      ctx.beginPath();
-      ctx.moveTo(padL, y);
-      ctx.lineTo(padL + plotW, y);
-      ctx.stroke();
-      ctx.fillStyle = muted;
-      ctx.fillText(`${deg}°`, 18, y + 4);
+      ctx!.beginPath();
+      ctx!.moveTo(padL, y);
+      ctx!.lineTo(padL + plotW, y);
+      ctx!.stroke();
+      ctx!.fillStyle = muted;
+      ctx!.fillText(`${deg}°`, 18, y + 4);
     }
     // 频率刻度
     const ticks = 5;
@@ -14429,24 +14495,24 @@
       const ratio = i / (ticks - 1);
       const f = scale === 'log' ? 10 ** (Math.log10(f0) + (Math.log10(f1) - Math.log10(f0)) * ratio) : f0 + (f1 - f0) * ratio;
       const x = padL + plotW * ratio;
-      ctx.strokeStyle = line;
-      ctx.beginPath();
-      ctx.moveTo(x, magTop);
-      ctx.lineTo(x, magTop + magH + gap + phaseH);
-      ctx.stroke();
-      ctx.fillStyle = muted;
+      ctx!.strokeStyle = line;
+      ctx!.beginPath();
+      ctx!.moveTo(x, magTop);
+      ctx!.lineTo(x, magTop + magH + gap + phaseH);
+      ctx!.stroke();
+      ctx!.fillStyle = muted;
       const label = f >= 1e6 ? `${(f / 1e6).toFixed(1)}M` : f >= 1e3 ? `${(f / 1e3).toFixed(1)}k` : f >= 1 ? `${f.toFixed(0)}` : f.toExponential(0);
-      ctx.fillText(label, x - 8, H - 8);
+      ctx!.fillText(label, x - 8, H - 8);
     }
     // 曲线
-    const swatches = [];
+    const swatches: string[] = [];
     probes.forEach(([name, info], index: number) => {
       const color = PALETTE[index % PALETTE.length];
       swatches.push(`<span><i style="background:${color}"></i>${analEscape(name)}</span>`);
-      const draw = (values, yFn) => {
-        ctx.beginPath();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.6;
+      const draw = (values: number[], yFn: (value: number) => number) => {
+        ctx!.beginPath();
+        ctx!.strokeStyle = color;
+        ctx!.lineWidth = 1.6;
         let started = false;
         for (let i = 0; i < freqs.length; i += 1) {
           const value = values?.[i];
@@ -14454,26 +14520,26 @@
           const x = xOf(freqs[i]);
           const y = yFn(value);
           if (!started) {
-            ctx.moveTo(x, y);
+            ctx!.moveTo(x, y);
             started = true;
           } else {
-            ctx.lineTo(x, y);
+            ctx!.lineTo(x, y);
           }
         }
-        if (started) ctx.stroke();
+        if (started) ctx!.stroke();
       };
-      draw(info.db, yMag);
-      draw(info.phase_deg, yPhase);
+      draw((info as { db: number[] }).db, yMag);
+      draw((info as { phase_deg: number[] }).phase_deg, yPhase);
     });
     if (legend) legend.innerHTML = swatches.join('');
-    ctx.fillStyle = ink;
-    ctx.font = '11.5px "Microsoft YaHei UI", sans-serif';
-    ctx.fillText('幅值', 6, magTop + 8);
-    ctx.fillText('相位', 6, phaseTop + 10);
+    ctx!.fillStyle = ink;
+    ctx!.font = '11.5px "Microsoft YaHei UI", sans-serif';
+    ctx!.fillText('幅值', 6, magTop + 8);
+    ctx!.fillText('相位', 6, phaseTop + 10);
   }
 
   // ---- PlotKit 数据接入：把探针通道挑给 PlotKit -------------------------
-  let pkChannelCache = [];
+  let pkChannelCache: string[] = [];
 
   function pkKeyShort(key: string) {
     const parts = String(key).split(':');
@@ -14483,13 +14549,13 @@
 
   function pkCheckedKeys() {
     return Array.from(document.querySelectorAll('#pkChannelList input[type=checkbox]'))
-      .filter((el) => el.checked).map((el) => el.value);
+      .filter((el) => (el as HTMLInputElement).checked).map((el) => (el as HTMLInputElement).value);
   }
 
-  function renderPkChannels(selected) {
+  function renderPkChannels(selected: Set<string> | string[]) {
     const box = $('#pkChannelList');
     if (!box) return;
-    const want = new Set(selected && selected.length ? selected : pkCheckedKeys());
+    const want = new Set(selected && (selected as Set<string> & { length?: number }).length ? selected : pkCheckedKeys());
     box.textContent = '';
     if (!pkChannelCache.length) {
       const empty = document.createElement('span');
@@ -14529,7 +14595,7 @@
     box.appendChild(empty);
   }
 
-  async function refreshPkChannels(keepSelection) {
+  async function refreshPkChannels(keepSelection?: boolean) {
     const hint = $('#pkDataHint');
     try {
       const data = await api('/api/plotkit/channels');
@@ -14589,7 +14655,7 @@
 
   function reloadPlotkitFrame() {
     const frame = $('#plotkitFrame');
-    if (frame) frame.src = plotkitFrameUrl({ embed: '1', r: String(Date.now()) });
+    if (frame) (frame as HTMLIFrameElement).src = plotkitFrameUrl({ embed: '1', r: String(Date.now()) });
   }
 
   async function applyPkChannels() {
@@ -14597,7 +14663,7 @@
     const hint = $('#pkDataHint');
     const applyBtn = $('#pkChApply');
     const seconds = Math.max(1, Math.min(120, Number(state.chart && state.chart.window) || 5));
-    if (applyBtn) applyBtn.disabled = true;
+    if (applyBtn) (applyBtn as HTMLButtonElement).disabled = true;
     try {
       // 先登记选中通道，再预计算：桥的同步线程可能在预计算期间就消费帧，顺序反过来
       // 会让旧选择吃掉整段预计算，新选中的通道则永远停在 NaN（2026-11-03 修复）。
@@ -14641,7 +14707,7 @@
       if (hint) hint.textContent = `接入失败：${message}`;
       toast(`接入失败：${message}`, 'warn', 4000);
     } finally {
-      if (applyBtn) applyBtn.disabled = false;
+      if (applyBtn) (applyBtn as HTMLButtonElement).disabled = false;
     }
   }
 
@@ -14660,16 +14726,16 @@
     const nodeBtn = $('#pkChNode');
     const apply = $('#pkChApply');
     if (all) all.addEventListener('click', () => {
-      document.querySelectorAll('#pkChannelList input').forEach((i: number) => { i.checked = true; });
+      document.querySelectorAll<HTMLInputElement>('#pkChannelList input').forEach((i: HTMLInputElement) => { i.checked = true; });
     });
     if (none) none.addEventListener('click', () => {
-      document.querySelectorAll('#pkChannelList input').forEach((i: number) => { i.checked = false; });
+      document.querySelectorAll<HTMLInputElement>('#pkChannelList input').forEach((i: HTMLInputElement) => { i.checked = false; });
     });
     if (nodeBtn) nodeBtn.addEventListener('click', () => {
       const keys = pkKeysForSelectedNode();
       if (!keys) return;
       if (!keys.length) { toast('这个节点没有探针通道', 'warn', 2400); return; }
-      document.querySelectorAll('#pkChannelList input').forEach((i: number) => { i.checked = keys.indexOf(i.value) >= 0; });
+      document.querySelectorAll<HTMLInputElement>('#pkChannelList input').forEach((i: HTMLInputElement) => { i.checked = keys.indexOf(i.value) >= 0; });
       toast(`已勾选该节点的 ${keys.length} 条通道`, 'info', 2200);
     });
     if (apply) apply.addEventListener('click', applyPkChannels);
@@ -14698,7 +14764,7 @@
     $('#analRunAc')?.addEventListener('click', () => void runAcSweep());
     initFloatWindow(win, 'analGeo', { minWidth: 560, minHeight: 420 });
     window.addEventListener('resize', () => {
-      if (!win.hidden && !win.querySelector('.anal-pane[data-anal-pane="ac"]')?.hidden) {
+      if (!win.hidden && !(win.querySelector('.anal-pane[data-anal-pane="ac"]') as HTMLElement)?.hidden) {
         drawAcChart();
       }
     });
@@ -14708,12 +14774,12 @@
     if (!ui.docWin) return;
     ui.docWin.querySelector('#docWinClose')?.addEventListener('click', closeDoc);
     ui.docSearch?.addEventListener('input', () => searchDocs(ui.docSearch.value));
-    ui.docSearch?.addEventListener('keydown', (event: MouseEvent) => {
-      if (event.key === 'Enter') {
+    ui.docSearch?.addEventListener('keydown', (event: KeyboardEvent) => {
+      if ((event as Event as KeyboardEvent).key === 'Enter') {
         const first = ui.docResults.querySelector('.doc-hit');
-        if (first) first.click();
+        if (first) (first as HTMLElement).click();
       }
-      if (event.key === 'Escape') {
+      if ((event as Event as KeyboardEvent).key === 'Escape') {
         ui.docSearch.value = '';
         searchDocs('');
       }
@@ -14748,7 +14814,7 @@
     if (ui.qcard) ui.qcard.hidden = true;
   }
 
-  function showHelpCard(anchor, info) {
+  function showHelpCard(anchor: HTMLElement, info: HelpInfoRec) {
     if (!ui.qcard) return;
     ui.qcard.replaceChildren();
     const head = div('qcard-head');
@@ -14774,7 +14840,7 @@
       const jump = button('查看实现页 →', 'btn tiny', () => {
         hideHelpCard();
         switchTab(info.role === 'edge' ? 'edge-fn' : 'node-fn');
-        toast(info.source, 'info', 5200);
+        toast((info.source as string), 'info', 5200);
       });
       actions.appendChild(jump);
       ui.qcard.appendChild(actions);
@@ -14788,16 +14854,16 @@
     ui.qcard.style.top = `${top}px`;
   }
 
-  function attachParamHelp(cell, param: ParamSpec, spec: SpecRec, role: string) {
+  function attachParamHelp(cell: HTMLElement, param: ParamSpec, spec: SpecRec, role: string) {
     if (!cell) return;
     const ask = button('?', 'qbtn', (event: MouseEvent) => {
       event.preventDefault();
       event.stopPropagation();
       showHelpCard(ask, {
         title: `${param.label || param.key}（${param.key}）`,
-        description: param.help,
+        description: (param.help as string | undefined),
         range: paramRangeText(param),
-        unit: param.unit,
+        unit: (param.unit as string | undefined),
         def: param.default,
         formula: spec?.formula || '',
         source: spec?.source_path || '',
@@ -14821,11 +14887,11 @@
 
   // ---- 键盘：文档与设置窗 ----------------------------------------------------
   function initShellKeys() {
-    document.addEventListener('keydown', (event: MouseEvent) => {
+    document.addEventListener('keydown', (event: KeyboardEvent) => {
       // 合成事件可能把 document 当 target（无 closest），统一兜一层
       const target = event.target instanceof Element ? event.target : null;
       const typing = target?.closest('input, textarea, select, [contenteditable="true"]');
-      if (event.key === 'Escape') {
+      if ((event as Event as KeyboardEvent).key === 'Escape') {
         if (floatingMenu) {
           closeFloatingMenu();
           event.preventDefault();
@@ -14858,7 +14924,7 @@
         return;
       }
       if (typing) return;
-      const key = event.key.toLowerCase();
+      const key = (event as Event as KeyboardEvent).key.toLowerCase();
       if (event.ctrlKey && key === 'k') {
         event.preventDefault();
         openDoc(state.docSlug || 'quickstart');
@@ -14869,13 +14935,13 @@
         event.preventDefault();
         openDoc('quickstart');
       }
-      if (event.key === '?') {
+      if ((event as Event as KeyboardEvent).key === '?') {
         event.preventDefault();
         openDoc('shortcuts');
       }
     });
     document.addEventListener('click', (event: MouseEvent) => {
-      if (ui.qcard && !ui.qcard.hidden && !event.target.closest('#qcard, .qbtn')) hideHelpCard();
+      if (ui.qcard && !ui.qcard.hidden && !(event.target! as Element).closest('#qcard, .qbtn')) hideHelpCard();
     });
   }
 
@@ -14893,16 +14959,16 @@
     return rgb ? rgb.join(', ') : '155, 114, 71';
   }
 
-  function typeLabelHelp(label: string, param: ParamSpec) {
+  function typeLabelHelp(label: HTMLElement, param: ParamSpec) {
     if (!label || !param) return;
     const ask = button('?', 'qbtn inline', (event: MouseEvent) => {
       event.preventDefault();
       event.stopPropagation();
       showHelpCard(ask, {
         title: `${param.label || param.key}（${param.key}）`,
-        description: param.help,
+        description: (param.help as string | undefined),
         range: paramRangeText(param),
-        unit: param.unit,
+        unit: (param.unit as string | undefined),
         def: param.default,
         role: state.selection?.type === 'edge' ? 'edge' : 'node',
       });
@@ -14913,7 +14979,7 @@
 
 
   // ---- 缓存体检与安全清理（D88）----
-  function cacheHuman(n) {
+  function cacheHuman(n: number) {
     n = Number(n) || 0;
     if (n >= 1073741824) return (n / 1073741824).toFixed(1) + ' GB';
     if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
@@ -14947,11 +15013,11 @@
       </div>`;
     document.body.appendChild(win);
     win.addEventListener('click', (ev) => {
-      if (ev.target === win || ev.target.closest('[data-close]')) win.style.display = 'none';
+      if (ev.target === win || (ev.target! as Element).closest('[data-close]')) win.style.display = 'none';
     });
-    win.querySelector('[data-act="scan"]').addEventListener('click', () => renderCacheBody());
-    win.querySelector('[data-act="safe"]').addEventListener('click', () => cleanCache(false));
-    win.querySelector('[data-act="caution"]').addEventListener('click', () => cleanCache(true));
+    win!.querySelector('[data-act="scan"]')!.addEventListener('click', () => renderCacheBody());
+    win!.querySelector('[data-act="safe"]')!.addEventListener('click', () => cleanCache(false));
+    win!.querySelector('[data-act="caution"]')!.addEventListener('click', () => cleanCache(true));
     return win;
   }
 
@@ -14966,34 +15032,34 @@
     body.textContent = '正在扫描…';
     api('/api/cache/status').then((data) => {
       body.textContent = '';
-      const entries = (data.entries || []).filter((e) => e.exists);
+      const entries = (data.entries || []).filter((e: CacheEntryRec) => e.exists);
       if (!entries.length) {
         body.textContent = '没有发现可清理的缓存。';
         return;
       }
       const tierName = { safe: '安全', caution: '谨慎', protected: '保护' };
-      entries.forEach((e) => {
+      entries.forEach((e: CacheEntryRec) => {
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--line,#cfc6b5);';
         const tag = document.createElement('span');
-        tag.textContent = tierName[e.tier] || e.tier;
+        tag.textContent = (tierName[e.tier as keyof typeof tierName] || e.tier) as string;
         tag.style.cssText = 'flex:none;font-size:11px;padding:1px 6px;border-radius:9px;border:1px solid var(--line,#cfc6b5);color:var(--muted,#7b7266);';
         const mid = document.createElement('div');
         mid.style.cssText = 'flex:1;min-width:0;';
         const t = document.createElement('div');
-        t.textContent = e.label;
+        t.textContent = e.label as string;
         const p = document.createElement('div');
-        p.textContent = e.path;
+        p.textContent = e.path as string;
         p.style.cssText = 'font-size:11px;color:var(--muted,#7b7266);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
         mid.append(t, p);
         if (e.note) {
           const n = document.createElement('div');
-          n.textContent = e.note;
+          n.textContent = e.note as string;
           n.style.cssText = 'font-size:11px;color:var(--muted,#7b7266);';
           mid.appendChild(n);
         }
         const size = document.createElement('span');
-        size.textContent = cacheHuman(e.bytes);
+        size.textContent = cacheHuman((e.bytes as number));
         size.style.cssText = 'flex:none;font-variant-numeric:tabular-nums;';
         row.append(tag, mid, size);
         body.appendChild(row);
@@ -15011,7 +15077,7 @@
     });
   }
 
-  function cleanCache(withCaution) {
+  function cleanCache(withCaution: boolean) {
     const msg = document.getElementById('cacheMsg');
     if (withCaution && !window.confirm('谨慎档会删掉浏览器用户数据（面板宽度等界面偏好会重置）。继续？')) return;
     if (msg) msg.textContent = '正在清理…';

@@ -109,16 +109,16 @@ def test_ratio_gate_blocks_large_reactive_fraction() -> None:
 def test_ac_sweep_modes_agree() -> None:
     frequencies = [10.0, 100.0, 1.0e3, 1.0e4, 1.0e5]
     reset_diagnostics()
-    off = Simulation(_rc_ladder(parts=100, cap_every=10)).ac_sweep(
-        frequencies, probes=["n100"]
+    off = Simulation(_rc_ladder(parts=200, cap_every=10)).ac_sweep(
+        frequencies, probes=["n200"]
     )
     assert snapshot()["counters"] == {}
     import os
 
     os.environ["NETLAB_MATH_ACCEL"] = "shadow"
     try:
-        shadow = Simulation(_rc_ladder(parts=100, cap_every=10)).ac_sweep(
-            frequencies, probes=["n100"]
+        shadow = Simulation(_rc_ladder(parts=200, cap_every=10)).ac_sweep(
+            frequencies, probes=["n200"]
         )
         counters = snapshot()["counters"]
         assert counters.get("p3.shadow", 0) >= 1
@@ -127,8 +127,8 @@ def test_ac_sweep_modes_agree() -> None:
     reset_diagnostics()
     os.environ["NETLAB_MATH_ACCEL"] = "on"
     try:
-        on = Simulation(_rc_ladder(parts=100, cap_every=10)).ac_sweep(
-            frequencies, probes=["n100"]
+        on = Simulation(_rc_ladder(parts=200, cap_every=10)).ac_sweep(
+            frequencies, probes=["n200"]
         )
         counters = snapshot()["counters"]
         assert counters.get("p3.used", 0) >= 1
@@ -136,15 +136,27 @@ def test_ac_sweep_modes_agree() -> None:
         os.environ.pop("NETLAB_MATH_ACCEL", None)
     for mode_result in (shadow, on):
         np.testing.assert_allclose(
-            mode_result["probes"]["n100"]["magnitude"],
-            off["probes"]["n100"]["magnitude"],
+            mode_result["probes"]["n200"]["magnitude"],
+            off["probes"]["n200"]["magnitude"],
             rtol=1e-9,
             atol=1e-12,
         )
-        off_magnitude = np.asarray(off["probes"]["n100"]["magnitude"])
+        off_magnitude = np.asarray(off["probes"]["n200"]["magnitude"])
         mask = off_magnitude > max(1.0, float(off_magnitude.max())) * 1.0e-9
         np.testing.assert_allclose(
-            np.asarray(mode_result["probes"]["n100"]["phase_deg"])[mask],
-            np.asarray(off["probes"]["n100"]["phase_deg"])[mask],
+            np.asarray(mode_result["probes"]["n200"]["phase_deg"])[mask],
+            np.asarray(off["probes"]["n200"]["phase_deg"])[mask],
             atol=1e-8,
         )
+
+
+def test_small_matrix_skips_woodbury(monkeypatch: pytest.MonkeyPatch) -> None:
+    """n<160 时 on 路径必须直接退回稠密解，不产生 Woodbury 记录。"""
+    monkeypatch.setenv("NETLAB_MATH_ACCEL", "on")
+    reset_diagnostics()
+    result = Simulation(_rc_ladder(parts=50, cap_every=10)).ac_sweep(
+        [10.0, 100.0, 1.0e3], probes=["n50"]
+    )
+    counters = snapshot()["counters"]
+    assert counters.get("p3.used", 0) == 0
+    assert len(result["probes"]["n50"]["magnitude"]) == 3

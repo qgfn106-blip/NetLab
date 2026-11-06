@@ -23,7 +23,11 @@ from ..common.limits import ComputeError, ConflictError, ValidationError
 from .linalg import solve_linear
 from .math_accel.config import math_accel_mode
 from .math_accel.diagnostics import record as record_math_diag
-from .math_accel.woodbury_ac import ACWoodburySolver, collect_reactive_stamps
+from .math_accel.woodbury_ac import (
+    AC_WOODBURY_MIN_SIZE,
+    ACWoodburySolver,
+    collect_reactive_stamps,
+)
 from .params import ParamSpec, choice_param, float_param, validate_params
 
 from .waveform import WAVEFORM_SPECS, waveform_value
@@ -2380,7 +2384,7 @@ class CircuitSolver:
             stamp_count = 0
             base_matrix: np.ndarray | None = None
             base_rhs: np.ndarray | None = None
-            if mode != "off":
+            if mode != "off" and size >= AC_WOODBURY_MIN_SIZE:
                 omega0 = 2.0 * math.pi * math.sqrt(min(freqs) * max(freqs))
                 ctx0 = StampContext(
                     A=np.zeros((size, size), dtype=complex),
@@ -2406,6 +2410,9 @@ class CircuitSolver:
                         base -= stamp.conductance(omega0) * np.outer(vector, vector)
                     base_matrix = base
                     base_rhs = np.array(ctx0.rhs, dtype=complex, copy=True)
+                    # 快速路径下 base_matrix 与频率无关，悬空检查只需做一次；
+                    # 逐频点重复 np.any(...,axis=1) 是 O(n²) 的无谓开销。
+                    self._check_floating(base_matrix)
                     solver = ACWoodburySolver(base, stamps, omega0)
                     record_math_diag("p3.init", solver.summary())
                 except Exception as exc:  # pragma: no cover - 防御性回退
@@ -2451,7 +2458,8 @@ class CircuitSolver:
                         if hasattr(element, "value"):
                             element.value = 1.0 if element is input_element else 0.0
                         element.stamp(ctx)
-                self._check_floating(ctx.A)
+                if not fast:
+                    self._check_floating(ctx.A)
                 solution = None
                 if fast:
                     solution = solver.solve(omega, ctx.rhs)

@@ -637,7 +637,7 @@
   - 分支：从 `main` 新开 `feat/math-accel-shadow`，不带入 `feat/ts-migration` 改动。
 - **验收**：四关——①条件边界（输入/精度/规模条件写清）②性质测试（mathspec 全绿）③影子评测（新旧相对误差 <1e-10、双路计时；P1 至少两类真实矩阵 factor ≥15% 或 fill-in ≥20% 才进实现清单）④回退与指标（`NETLAB_MATH_ACCEL=off` 可关闭、回退路径可用、指标可观测）。
 - **权重·期次**：⭐⭐⭐ / M1（2026-11-06 立项；M0 mathspec 原型 3–5 天，M1a=P1、M1b=P3、M1c=P5、M1d 收尾验收）。
-- **现状**：**M0–M1d 完成（2026-11-06）**——mathspec 新增 `ac_sweep_woodbury.py`/`ordering_eval.py`（全量 107 passed）；netlab 新增 `math_accel` 四模块与 `nodal.ac_sweep` 的 off/shadow/on 分支（全量 **601 passed / 1 skipped in 99.80s**，默认 off 行为不变）；P3 实测 101 节点/2001 频点 1.50×、201 节点/501 频点 2.09×（fast path 复用静态矩阵）；P1 真实语料 **1/2 达标、未过 DoD → 生产 `_solve_sparse` 保持 COLAMD**（报告 `mathspec/research/P1_ORDERING_REPORT.md`，合成 n=400 `MMD_AT_PLUS_A` 0.793×/0.625× 为后续信号）；P5 `Recorder.quality` + 只读 `/api/diagnostics/telemetry`/`math-accel` 已实现（`test_telemetry_quality.py` 4 条）；M1d 集成回归完成。
+- **现状**：**M0–M1d 完成（2026-11-06）**——mathspec 新增 `ac_sweep_woodbury.py`/`ordering_eval.py`（全量 107 passed）；netlab 新增 `math_accel` 四模块与 `nodal.ac_sweep` 的 off/shadow/on 分支（全量 **602 passed / 1 skipped**，默认 off 行为不变）；P3 仅 `n≥160` 且 `r/n≤0.10` 启用 Woodbury（小矩阵直接稠密解；n=201 1.59×、n=301 4.85×，fast path 复用静态矩阵）；P1 真实语料 **1/2 达标、未过 DoD → 生产 `_solve_sparse` 保持 COLAMD**（报告 `mathspec/research/P1_ORDERING_REPORT.md`，合成 n=400 `MMD_AT_PLUS_A` 0.793×/0.625× 为后续信号）；P5 `Recorder.quality` + 只读 `/api/diagnostics/telemetry`/`math-accel` 已实现（`test_telemetry_quality.py` 4 条）；M1d 集成回归完成。
 
 ## 4. 权重与依赖
 

@@ -22,6 +22,10 @@ import numpy as np
 
 from .config import math_accel_mode  # noqa: F401  (re-export for convenience)
 
+#: 小矩阵上 Python/Woodbury 的固定开销超过稠密直接解收益；实测 n<160 时
+#: ``on`` 路径反而更慢（n=51/101 约 0.6–0.9×），故生产侧只在大矩阵启用。
+AC_WOODBURY_MIN_SIZE = 160
+
 
 @dataclass(frozen=True)
 class ReactiveStamp:

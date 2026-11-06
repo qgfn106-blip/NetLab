@@ -1,6 +1,6 @@
 # NetLab 数学成果接入规划与影子验证计划
 
-> 版本：v1.4（M0 完成、M1a P1 评测完成、M1b P3 影子实现 + fast path 性能验证、M1c P5 遥测完成、M1d 集成回归完成）
+> 版本：v1.5（M0 完成、M1a P1 评测完成、M1b P3 影子实现 + fast path + n≥160 小矩阵守卫、M1c P5 遥测完成、M1d 集成回归完成）
 > 日期：2026-11-06
 > 状态：**M0–M1d 已完成**——M0 mathspec 原型、M1a P1 排序评测、M1b P3 影子路径、M1c P5 遥测、M1d 集成回归均通过测试；P1 真实语料 1/2 未过 DoD，生产路径保持 COLAMD（评测器与合成证据保留）；P5 只读诊断口径已就绪。默认 `off`，不改变既有行为。
 > 上游依据：[UNIFIED_SIM_MATH_SPEC.md](UNIFIED_SIM_MATH_SPEC.md)（数学规范）、[PERFORMANCE_AND_CONCURRENCY.md](PERFORMANCE_AND_CONCURRENCY.md)（研究记录）、`NetlabHome/mathspec/`（零耦合参考实现，当前 107 passed）。
@@ -259,7 +259,7 @@ on     : 新路径为主 → 守卫失败则回退旧路径 → 记录 fallback 
 | **M1d** | 影子集成回归 | `NETLAB_MATH_ACCEL` 开关、诊断记录、全量测试 | 默认 off 零影响；shadow 全绿；PR 可评审 | M1b/M1c | 1–2 天 |
 | **M2（可选）** | `on` 启用评审 | 指标汇总、PR 合并 | 达到 §5.3 全部门槛 + 人工评审 | M1d | 1 天 |
 
-**实施状态（2026-11-06）**：M0 完成（`mathspec` 新增 `ac_sweep_woodbury.py`、`ordering_eval.py`，9 条测试全过，全套 107 passed）；M1a 完成（真实语料 1/2 达标、未过 DoD → 生产保持 COLAMD；合成 n=400 `MMD_AT_PLUS_A` factor 0.793×/fill 0.625× 为观察信号）；M1b 完成（`netlab/core/compute/math_accel/` 四模块 + `nodal.ac_sweep` 分支，5 条专项测试全过，netlab 全量 601 passed / 1 skipped）；M1c 完成（`Recorder.quality` + `/api/diagnostics/telemetry`/`math-accel`，4 条测试）；M1d 完成（默认 `off` 零影响对拍、shadow/on 定向回归通过、netlab 全量 601 passed / 1 skipped、mathspec 107 passed；无行为回退）。
+**实施状态（2026-11-06）**：M0 完成（`mathspec` 新增 `ac_sweep_woodbury.py`、`ordering_eval.py`，9 条测试全过，全套 107 passed）；M1a 完成（真实语料 1/2 达标、未过 DoD → 生产保持 COLAMD；合成 n=400 `MMD_AT_PLUS_A` factor 0.793×/fill 0.625× 为观察信号）；M1b 完成（`netlab/core/compute/math_accel/` 四模块 + `nodal.ac_sweep` 分支，6 条专项测试全过；`AC_WOODBURY_MIN_SIZE=160` 小矩阵回退，n=201 1.59×、n=301 4.85×；netlab 全量 602 passed / 1 skipped）；M1c 完成（`Recorder.quality` + `/api/diagnostics/telemetry`/`math-accel`，4 条测试）；M1d 完成（默认 `off` 零影响对拍、shadow/on 定向回归通过、mathspec 107 passed；无行为回退）。
 
 ---
 

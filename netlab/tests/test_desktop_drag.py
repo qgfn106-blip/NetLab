@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]  # NetlabHome/
-SHIM = ROOT / "frontend" / "desktop-shim.js"
+SHIM = ROOT / "frontend" / "desktop-shim.ts"
 
 
 def test_bridge_exposes_move_api():

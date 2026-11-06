@@ -34,3 +34,4 @@ desktop.ini
 NetlabExtras/
 layout.json
 vscode-extensions/netlab-sidebar/node_modules/
+node_modules/

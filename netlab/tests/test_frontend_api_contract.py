@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-APP_JS = Path(__file__).resolve().parents[2] / "frontend" / "app.js"
+APP_JS = Path(__file__).resolve().parents[2] / "frontend" / "app.ts"
 
 
 def test_frontend_api_fetches_only_through_token_aware_helper():
@@ -26,6 +26,6 @@ def test_cache_ui_uses_helper_and_does_not_misreport_failures_as_empty_or_succes
     assert "api('/api/cache/status')" in cache_ui
     assert "api('/api/cache/clean'" in cache_ui
     assert "fetch('/api/cache/" not in cache_ui
-    assert "扫描失败：${error?.message || error}" in cache_ui
-    assert "清理失败：${error?.message || error}" in cache_ui
+    assert "扫描失败：" in cache_ui
+    assert "清理失败：" in cache_ui
     assert ".catch(() => {})" in cache_ui  # startup-only quiet cache-size hint

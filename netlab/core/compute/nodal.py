@@ -520,6 +520,17 @@ class CurrentSource(CircuitElement):
         return self.value * getattr(self, "source_scale", 1.0)
 
 
+class ActuatorCurrent(CurrentSource):
+    """R06/P4：受控电流源；``state['drive']`` 由 CircuitEngine 每拍写入。"""
+
+    kind = "actuator_i"
+    label = "受控电流源"
+
+    def prepare(self, dt: float, time: float) -> None:
+        CircuitElement.prepare(self, dt, time)
+        self.value = float(self.state.get("drive", 0.0))
+
+
 class Switch(CircuitElement):
     kind = "switch"
     label = "开关"
@@ -1286,6 +1297,30 @@ ELEMENT_SPECS: dict[str, ElementSpec] = {
         + "/".join(DFF_MODELS),
         presets=DFF_MODELS,
     ),
+    "if_voltage_to_signal": ElementSpec(
+        kind="if_voltage_to_signal",
+        label="电压→信号接口",
+        description="R06/P4 电路侧接口：高阻采样节点电压并写入信号字段。",
+        params=(ParamSpec("signal", "信号字段", "text", "voltage"),),
+        cls=SensorElement,
+        group="受控源",
+        formula="v_signal = v(node)",
+        notes="与 sensor 同模型；用于显式标注跨域边界",
+    ),
+    "if_signal_to_current": ElementSpec(
+        kind="if_signal_to_current",
+        label="信号→电流源接口",
+        description="R06/P4 电路侧接口：按信号字段驱动电流源。",
+        params=(
+            ParamSpec("source", "信号来源（节点.字段）", "text", ""),
+            float_param("gain", "增益", 1.0, step=0.1),
+            float_param("offset", "偏置", 0.0, unit="A", step=0.1),
+        ),
+        cls=ActuatorCurrent,
+        group="受控源",
+        formula="i_out = gain * signal + offset",
+        notes="驱动值由 CircuitEngine 在每步 MNA 前读取，显式一拍延迟",
+    ),
 }
 
 
@@ -1333,6 +1368,10 @@ PIN_BINDINGS: dict[str, tuple[str, str, dict[str, str]]] = {
         {"S1": "secondary_source", "S2": "secondary_target"},
     ),
     "dflipflop": ("Q+", "Q-", {"D": "d_node", "CLK": "clk_node"}),
+    "thyristor": ("A", "K", {"G": "gate_node"}),
+    "igbt": ("C", "E", {"G": "gate_node"}),
+    "jfet": ("D", "S", {"G": "gate_node"}),
+    "relay": ("COIL1", "COIL2", {"COM": "com_node", "NO": "no_node"}),
     "ne555": ("OUT", "GND", {"VCC": "vcc_node"}),
     "ldo": ("OUT", "GND", {"IN": "vin_node"}),
     "and_gate": ("Y", "GND", {"A": "in_a", "B": "in_b", "VDD": "vdd_node"}),
@@ -2630,6 +2669,11 @@ from .magnetics import MAGNETIC_SPECS as _MAGNETIC_SPECS
 for _kind, _spec in _MAGNETIC_SPECS.items():
     ELEMENT_SPECS[_kind] = ElementSpec(**_spec)
 
+from .powerelectronics import POWER_ELECTRONIC_SPECS as _POWER_SPECS
+
+for _kind, _spec in _POWER_SPECS.items():
+    ELEMENT_SPECS[_kind] = ElementSpec(**_spec)
+
 
 # ---- R22/D46：元件分类（catalog group 是唯一来源） --------------------------
 #: 菜单里的固定分组顺序；新增元件必须登记，否则测试会报“未分类”。
@@ -2644,6 +2688,7 @@ ELEMENT_GROUP_ORDER: tuple[str, ...] = (
     "数字与逻辑",
     "计时与电源管理",
     "磁性",
+    "功率电子与电机",
 )
 
 ELEMENT_GROUPS: dict[str, str] = {
@@ -2679,6 +2724,13 @@ ELEMENT_GROUPS: dict[str, str] = {
     "ldo": "计时与电源管理",
     "transformer": "磁性",
     "coupling_inductor": "磁性",
+    "thyristor": "功率电子与电机",
+    "igbt": "功率电子与电机",
+    "jfet": "功率电子与电机",
+    "relay": "功率电子与电机",
+    "motor": "功率电子与电机",
+    "if_voltage_to_signal": "受控源",
+    "if_signal_to_current": "受控源",
 }
 
 for _kind, _group in ELEMENT_GROUPS.items():

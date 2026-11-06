@@ -252,7 +252,10 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       nodeStyle: "circle",
       symbolScale: 1.2,
       glyphColor: "#1f5f5b",
-      drawingMode: false
+      drawingMode: false,
+      drawingSheet: "A3",
+      drawingLabels: false,
+      drawingPage: 1
     },
     // R30：外观偏好、文档与引导状态
     prefs: { theme: "light", motion: "low", perf: "perf", accent: "", guide: "always", infobar: true, runWarn: true },
@@ -1546,6 +1549,60 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       line(5, -4, 5, -6);
       line(-2.5, 4, 5, 4);
       line(5, 4, 5, 6);
+    } else if (kind === "thyristor") {
+      line(-S, 0, -4, 0);
+      ctx2.beginPath();
+      ctx2.moveTo(-4, -5);
+      ctx2.lineTo(-4, 5);
+      ctx2.lineTo(4, 0);
+      ctx2.closePath();
+      ctx2.fill();
+      line(4, -5.5, 4, 5.5);
+      line(4, 0, S, 0);
+      line(-4, -1.5, -8, 4.5);
+      line(-8, 4.5, -6.5, 4.5);
+    } else if (kind === "igbt") {
+      line(-S, 0, -6, 0);
+      line(-4, -5, -4, 5);
+      line(-2.5, -5, -2.5, 5);
+      line(-2.5, -4, 6, -4);
+      line(6, -4, 6, -7);
+      line(-2.5, 4, 6, 4);
+      line(6, 4, 6, 7);
+      line(-2.5, 0, 2, 0);
+      line(2, 0, 2, 3);
+    } else if (kind === "jfet") {
+      line(-S, 0, -5, 0);
+      line(-4, -5, -4, 5);
+      line(-2, -5, -2, 5);
+      line(-2, -4, 6, -4);
+      line(6, -4, 6, -7);
+      line(-2, 4, 6, 4);
+      line(6, 4, 6, 7);
+      line(-4, 0, 2, 0);
+      line(2, 0, 0.5, -1.5);
+      line(2, 0, 0.5, 1.5);
+    } else if (kind === "relay") {
+      ctx2.strokeRect(-8, -5.5, 8, 11);
+      line(-S, 0, -8, 0);
+      line(0, -5.5, 0, -9);
+      line(0, 5.5, 0, 9);
+      line(0, 5.5, 7, 5.5);
+      line(7, 5.5, 7, 1);
+      ctx2.beginPath();
+      ctx2.arc(7, 0, 1.2, 0, Math.PI * 2);
+      ctx2.fill();
+      line(7, -1.2, S, -1.2);
+    } else if (kind === "motor") {
+      ctx2.beginPath();
+      ctx2.arc(0, 0, 7, 0, Math.PI * 2);
+      ctx2.stroke();
+      line(-S, 0, -7, 0);
+      line(7, 0, S, 0);
+      ctx2.font = '8px "Cascadia Code", Consolas, monospace';
+      ctx2.textAlign = "center";
+      ctx2.textBaseline = "middle";
+      ctx2.fillText("M", 0, 0.5);
     } else if (kind === "dflipflop") {
       ctx2.strokeRect(-7, -7, 14, 14);
       line(-7, 4, -10, 6);
@@ -1722,6 +1779,31 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       { name: "Q2", x: 7, y: 2, bind: "q2_node", role: "out" },
       { name: "Q3", x: 7, y: 6, bind: "q3_node", role: "out" },
       { name: "COM", x: 0, y: 7, bind: "target", role: "power" }
+    ],
+    thyristor: [
+      { name: "A", x: 7, y: -4.5, bind: "source", role: "out" },
+      { name: "K", x: 7, y: 4.5, bind: "target", role: "out" },
+      { name: "G", x: -7, y: 4.5, bind: "gate_node", role: "in" }
+    ],
+    igbt: [
+      { name: "C", x: 6, y: -7, bind: "source", role: "out" },
+      { name: "E", x: 6, y: 7, bind: "target", role: "out" },
+      { name: "G", x: -6, y: 0, bind: "gate_node", role: "in" }
+    ],
+    jfet: [
+      { name: "D", x: 6, y: -7, bind: "source", role: "out" },
+      { name: "S", x: 6, y: 7, bind: "target", role: "out" },
+      { name: "G", x: -6, y: 0, bind: "gate_node", role: "in" }
+    ],
+    relay: [
+      { name: "COIL1", x: -8, y: -9, bind: "source", role: "in" },
+      { name: "COIL2", x: 0, y: 9, bind: "target", role: "in" },
+      { name: "COM", x: 0, y: 9, bind: "com_node", role: "out" },
+      { name: "NO", x: 7, y: -1.2, bind: "no_node", role: "out" }
+    ],
+    motor: [
+      { name: "+", x: -18, y: 0, bind: "source", role: "in" },
+      { name: "-", x: 18, y: 0, bind: "target", role: "out" }
     ]
   };
   function elementPins(edge) {
@@ -1914,29 +1996,95 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     }
     return { x: cx - width / 2, y: cy - height / 2, w: width, h: height };
   }
+  const SHEET_SIZES = {
+    A4: { w: 297, h: 210, label: "A4" },
+    A3: { w: 420, h: 297, label: "A3" },
+    A2: { w: 594, h: 420, label: "A2" },
+    A1: { w: 841, h: 594, label: "A1" }
+  };
   function drawDrawingFrame(width, height) {
-    const margin = 18;
+    if (state.scene?.mode !== "circuit") return;
+    const sheet = SHEET_SIZES[String(state.ui?.drawingSheet || "A3")] || SHEET_SIZES.A3;
+    const page = Math.max(1, Math.min(9, Number(state.ui?.drawingPage) || 1));
+    const margin = 12;
+    const scale = Math.min((width - margin * 2) / sheet.w, (height - margin * 2) / sheet.h);
+    const pw = sheet.w * scale;
+    const ph = sheet.h * scale;
+    const x = (width - pw) / 2;
+    const y = (height - ph) / 2;
     ctx.save();
-    ctx.strokeStyle = C("#4d463c");
-    ctx.lineWidth = 1.4;
-    ctx.strokeRect(margin, margin, width - margin * 2, height - margin * 2);
-    const boxW = 300;
-    const boxH = 62;
-    const x = width - margin - boxW;
-    const y = height - margin - boxH;
     ctx.fillStyle = C("#fffdf8");
-    ctx.fillRect(x, y, boxW, boxH);
-    ctx.strokeRect(x, y, boxW, boxH);
-    ctx.fillStyle = C("#11100e");
-    ctx.textAlign = "left";
+    ctx.fillRect(x, y, pw, ph);
+    ctx.strokeStyle = C("#3b352c");
+    ctx.lineWidth = 2.2;
+    ctx.strokeRect(x, y, pw, ph);
+    ctx.lineWidth = 0.9;
+    ctx.strokeRect(x + 4, y + 4, pw - 8, ph - 8);
+    const cols = 8;
+    const rows = 6;
+    ctx.font = '9px "Cascadia Code", Consolas, monospace';
+    ctx.fillStyle = C("#5b554b");
+    ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+    for (let i = 1; i < cols; i += 1) {
+      const gx = x + pw * i / cols;
+      ctx.beginPath();
+      ctx.moveTo(gx, y + 4);
+      ctx.lineTo(gx, y + 12);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(gx, y + ph - 4);
+      ctx.lineTo(gx, y + ph - 12);
+      ctx.stroke();
+      ctx.fillText(String(i), gx, y + 16);
+      ctx.fillText(String(i), gx, y + ph - 16);
+    }
+    for (let i = 1; i < rows; i += 1) {
+      const gy = y + ph * i / rows;
+      ctx.beginPath();
+      ctx.moveTo(x + 4, gy);
+      ctx.lineTo(x + 12, gy);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + pw - 4, gy);
+      ctx.lineTo(x + pw - 12, gy);
+      ctx.stroke();
+      ctx.fillText(String.fromCharCode(64 + i), x + 16, gy);
+      ctx.fillText(String.fromCharCode(64 + i), x + pw - 16, gy);
+    }
+    const boxW = Math.min(pw * 0.58, 180 * scale);
+    const boxH = Math.min(ph * 0.22, 56 * scale);
+    const bx = x + pw - 4 - boxW;
+    const by = y + ph - 4 - boxH;
+    ctx.fillStyle = C("#fffdf8");
+    ctx.fillRect(bx, by, boxW, boxH);
+    ctx.strokeStyle = C("#3b352c");
+    ctx.lineWidth = 1.1;
+    ctx.strokeRect(bx, by, boxW, boxH);
+    ctx.beginPath();
+    ctx.moveTo(bx, by + boxH * 0.52);
+    ctx.lineTo(bx + boxW, by + boxH * 0.52);
+    ctx.moveTo(bx + boxW * 0.62, by);
+    ctx.lineTo(bx + boxW * 0.62, by + boxH);
+    ctx.stroke();
+    ctx.textAlign = "left";
+    ctx.fillStyle = C("#11100e");
     ctx.font = '600 11px "Segoe UI", "Microsoft YaHei", sans-serif';
-    ctx.fillText(state.project?.name || "\u672A\u547D\u540D\u5DE5\u7A0B", x + 10, y + 16);
+    ctx.fillText(state.project?.name || "\u672A\u547D\u540D\u5DE5\u7A0B", bx + 8, by + 14);
     ctx.font = '9px "Cascadia Code", Consolas, monospace';
     ctx.fillStyle = C("#6f695f");
-    ctx.fillText(`${state.currentNetwork?.name || "\u7F51\u7EDC"} \xB7 ${state.scene?.mode || ""} \xB7 R19`, x + 10, y + 34);
-    ctx.fillText((/* @__PURE__ */ new Date()).toISOString().slice(0, 19).replace("T", " "), x + 10, y + 50);
+    ctx.fillText(`${state.currentNetwork?.name || "\u7F51\u7EDC"} \xB7 ${sheet.label} \xB7 \u7B2C ${page} \u9875`, bx + 8, by + 30);
+    ctx.fillText(`\u6BD4\u4F8B 1:1 \xB7 ${pipeModeLabel(state.scene?.mode || "")}`, bx + 8, by + boxH - 12);
+    ctx.textAlign = "right";
+    ctx.fillText("NetLab / GB", bx + boxW - 8, by + 14);
+    ctx.fillText((/* @__PURE__ */ new Date()).toISOString().slice(0, 10), bx + boxW - 8, by + boxH - 12);
     ctx.restore();
+  }
+  function pipeModeLabel(mode) {
+    if (mode === "circuit") return "\u7535\u8DEF";
+    if (mode === "vector") return "\u77E2\u91CF\u573A";
+    if (mode === "signal") return "\u4FE1\u53F7\u6D41";
+    return mode;
   }
   function circuitPinSegments(edge, source, target) {
     if (state.scene?.mode !== "circuit" || state.ui?.symbol !== "gb" || !edge.layout) return null;
@@ -1973,7 +2121,7 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.strokeStyle = color;
-      ctx.lineWidth = selected ? 2.1 : hovered ? 1.7 : 1.15;
+      ctx.lineWidth = selected ? 2.1 : hovered ? 1.7 : state.ui?.drawingMode ? edge.kind === "wire" ? 1.75 : 1.3 : 1.15;
       if (!edge.enabled) ctx.setLineDash([3, 5]);
       else if (edge.delay) ctx.setLineDash([7, 5]);
       const circuitGb = state.scene?.mode === "circuit" && state.ui?.symbol === "gb";
@@ -2051,6 +2199,24 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
             ctx.font = '9px "Cascadia Code", Consolas, monospace';
             ctx.fillText(value, middle.x, middle.y + 5);
           }
+        }
+      }
+      if (state.ui?.drawingMode && state.ui?.drawingLabels && state.view.k > 0.42) {
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = '8px "Cascadia Code", Consolas, monospace';
+        const mid = pathMidpoint(points);
+        if (edge.kind === "wire" && mid) {
+          const text = edge.name || "W";
+          const w = ctx.measureText(text).width + 6;
+          ctx.fillStyle = "rgba(255, 253, 248, 0.94)";
+          ctx.fillRect(mid.x - w / 2, mid.y - 12, w, 11);
+          ctx.fillStyle = C("#5b554b");
+          ctx.fillText(text, mid.x, mid.y - 6.5);
+        } else {
+          ctx.fillStyle = C("#5b554b");
+          ctx.fillText("1", points[0].x + 6, points[0].y - 6);
+          ctx.fillText("2", points[points.length - 1].x - 6, points[points.length - 1].y - 6);
         }
       }
       if (selected) {
@@ -3979,6 +4145,42 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
         }
       };
       document.addEventListener("keydown", onKey, true);
+    });
+  }
+  let modeResolver = null;
+  function chooseModeModal() {
+    return new Promise((resolve) => {
+      if (modeResolver) modeResolver(null);
+      modeResolver = resolve;
+      ui.modalCard.replaceChildren();
+      const finish = (value) => {
+        ui.modal.classList.add("hidden");
+        ui.modalCard.replaceChildren();
+        const inner = modeResolver;
+        modeResolver = null;
+        if (inner) inner(value);
+      };
+      const heading = el("h3", null, "\u65B0\u5EFA\u5DE5\u7A0B\uFF1A\u9009\u62E9\u573A\u666F\u6A21\u5F0F");
+      const body = el("p", null, "\u6A21\u5F0F\u51B3\u5B9A\u53EF\u7528\u5143\u4EF6\u4E0E\u6C42\u89E3\u5668\uFF1B\u521B\u5EFA\u540E\u4ECD\u53EF\u901A\u8FC7\u6253\u5F00\u5DE5\u7A0B\u5207\u6362\u3002");
+      const list = div("modal-actions");
+      const make = (mode, label, hint) => {
+        const item = button(`${label} \xB7 ${hint}`, "btn", () => finish(mode));
+        item.style.flex = "1";
+        return item;
+      };
+      const cancel = button("\u53D6\u6D88", "btn", () => finish(null));
+      list.append(
+        make("signal", "\u4FE1\u53F7\u6D41", "\u589E\u76CA/\u6C42\u548C/\u6EE4\u6CE2"),
+        make("circuit", "\u7535\u8DEF", "\u5668\u4EF6\u8282\u70B9\u4E0E MNA"),
+        make("vector", "\u77E2\u91CF\u573A", "\u6709\u9650\u5143/\u573A\u6C42\u89E3")
+      );
+      const actions = div("modal-actions");
+      actions.append(cancel);
+      ui.modalCard.append(heading, body, list, actions);
+      ui.modal.classList.remove("hidden");
+      ui.modal.onclick = (event) => {
+        if (event.target === ui.modal) finish(null);
+      };
     });
   }
   function showHelp() {
@@ -6503,6 +6705,7 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     const dataSection = section("\u573A\u666F\u6570\u636E", "JSON");
     const fileRow = div("file-row");
     fileRow.appendChild(button("\u5BFC\u51FA JSON", "btn", () => void exportScene()));
+    fileRow.appendChild(button("\u5BFC\u51FA\u539F\u7406\u56FE SVG", "btn", () => void exportSchematic()));
     fileRow.appendChild(button("\u5BFC\u5165 JSON", "btn", () => importInput.click()));
     dataSection.appendChild(fileRow);
     const importInput = el("input");
@@ -6800,6 +7003,31 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     setTimeout(() => URL.revokeObjectURL(url), 2e3);
     toast("\u573A\u666F\u5DF2\u5BFC\u51FA", "ok", 1800);
   }
+  async function exportSchematic() {
+    if (state.scene?.mode !== "circuit") {
+      toast("\u539F\u7406\u56FE\u5BFC\u51FA\u4EC5\u652F\u6301\u7535\u8DEF\u6A21\u5F0F", "info", 2600);
+      return;
+    }
+    const params = new URLSearchParams({
+      name: state.project?.name || "",
+      network: state.currentNetwork?.name || ""
+    });
+    const payload = await task(
+      () => jsonRequest(`/api/export/schematic?${params.toString()}`, "GET"),
+      { dirty: false }
+    );
+    if (!payload?.svg) return;
+    const blob = new Blob([String(payload.svg)], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const link = el("a");
+    link.href = url;
+    link.download = String(payload.filename || "schematic.svg");
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2e3);
+    toast("\u539F\u7406\u56FE SVG \u5DF2\u5BFC\u51FA", "ok", 1800);
+  }
   async function importSceneFile(file) {
     if (file.size > MAX_IMPORT_BYTES) {
       toast("\u573A\u666F\u6587\u4EF6\u8D85\u8FC7 2 MB\uFF0C\u5DF2\u62D2\u7EDD", "error", 6e3);
@@ -6960,6 +7188,9 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
           symbol: state.ui.symbol,
           nodeStyle: state.ui.nodeStyle || "circle",
           drawingMode: Boolean(state.ui.drawingMode),
+          drawingSheet: String(state.ui.drawingSheet || "A3"),
+          drawingLabels: Boolean(state.ui.drawingLabels),
+          drawingPage: Math.max(1, Math.min(9, Number(state.ui.drawingPage) || 1)),
           symbolScale: Number(state.ui.symbolScale) || 1.2,
           glyphColor: state.ui.glyphColor || "#1f5f5b"
         }
@@ -7117,14 +7348,20 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     if (text) await importProjectText(text, path);
   }
   async function newProject() {
+    const mode = await chooseModeModal();
+    if (!mode) return;
+    const labels = { signal: "\u4FE1\u53F7\u6D41", circuit: "\u7535\u8DEF", vector: "\u77E2\u91CF\u573A" };
     const confirmed = await confirmModal(
       "\u65B0\u5EFA\u5DE5\u7A0B\uFF1F",
-      "\u5F53\u524D\u573A\u666F\u4F1A\u88AB\u7A7A\u767D\u573A\u666F\u66FF\u6362\uFF0C\u672A\u4FDD\u5B58\u7684\u4FEE\u6539\u5C06\u4E22\u5931\u3002\u9700\u8981\u4FDD\u7559\u8BF7\u5148\u4FDD\u5B58\u6216\u5BFC\u51FA\u3002",
+      `\u5C06\u521B\u5EFA\u7A7A\u767D\u300C${labels[mode]}\u300D\u573A\u666F\uFF1B\u5F53\u524D\u573A\u666F\u4F1A\u88AB\u66FF\u6362\uFF0C\u672A\u4FDD\u5B58\u7684\u4FEE\u6539\u5C06\u4E22\u5931\u3002`,
       "\u65B0\u5EFA",
       true
     );
     if (!confirmed) return;
-    const response = await task(() => jsonRequest("/api/scene/clear", "POST"), { dirty: false });
+    const response = await task(
+      () => jsonRequest(`/api/scene/clear?mode=${encodeURIComponent(mode)}`, "POST"),
+      { dirty: false }
+    );
     if (!response) return;
     state.selection = { type: null, id: null };
     state.inspectorId = null;
@@ -9833,6 +10070,9 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     }
     if (["circle", "dot", "box"].includes(uiSettings.nodeStyle)) state.ui.nodeStyle = uiSettings.nodeStyle;
     if (typeof uiSettings.drawingMode === "boolean") state.ui.drawingMode = uiSettings.drawingMode;
+    if (typeof uiSettings.drawingSheet === "string" && SHEET_SIZES[uiSettings.drawingSheet]) state.ui.drawingSheet = uiSettings.drawingSheet;
+    if (typeof uiSettings.drawingLabels === "boolean") state.ui.drawingLabels = uiSettings.drawingLabels;
+    if (Number.isFinite(Number(uiSettings.drawingPage))) state.ui.drawingPage = Math.max(1, Math.min(9, Number(uiSettings.drawingPage)));
     if (Number.isFinite(Number(uiSettings.symbolScale))) state.ui.symbolScale = clamp(Number(uiSettings.symbolScale), 0.6, 2.5);
     if (typeof uiSettings.glyphColor === "string") state.ui.glyphColor = uiSettings.glyphColor;
     requestDraw();
@@ -12147,6 +12387,9 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     paint($("#segMotion"), prefs.motion || "low");
     paint($("#segPerf"), prefs.perf || "perf");
     paint($("#segInfoBar"), prefs.infobar === false ? "off" : "on");
+    paint($("#segSheet"), String(state.ui?.drawingSheet || "A3"));
+    paint($("#segDrawLabels"), state.ui?.drawingLabels ? "on" : "off");
+    paint($("#segDrawPage"), String(state.ui?.drawingPage || 1));
     paint($("#segGuide"), prefs.guide === "never" ? "never" : "always");
     paint($("#segAutosave"), state.project.autosave ? "on" : "off");
     if ($("#selAutosaveInterval")) $("#selAutosaveInterval").value = String(Math.round(state.project.autosaveInterval / 1e3));
@@ -12176,6 +12419,25 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       if (!target) return;
       state.prefs.infobar = target.dataset.value !== "off";
       applyAppearance();
+    });
+    const bindDrawingSeg = (id, apply) => {
+      $(id)?.addEventListener("click", (event) => {
+        const target = event.target.closest("button[data-value]");
+        if (!target) return;
+        apply(String(target.dataset.value || ""));
+        markProjectDirty();
+        requestDraw();
+        syncPrefControls();
+      });
+    };
+    bindDrawingSeg("#segSheet", (value) => {
+      state.ui.drawingSheet = value;
+    });
+    bindDrawingSeg("#segDrawLabels", (value) => {
+      state.ui.drawingLabels = value === "on";
+    });
+    bindDrawingSeg("#segDrawPage", (value) => {
+      state.ui.drawingPage = Math.max(1, Math.min(9, Number(value) || 1));
     });
     $("#segGuide")?.addEventListener("click", (event) => {
       const target = event.target.closest("button[data-value]");

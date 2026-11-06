@@ -974,6 +974,15 @@ def export_scene(include_state: bool = Query(default=False)) -> Response:
     return fast_json(SERVICE.scene.to_payload(include_state=include_state))
 
 
+@app.get("/api/export/schematic")
+def export_schematic(name: str = Query(""), network: str = Query("")) -> dict[str, Any]:
+    """R18/R19：用 SchemDraw 把当前电路场景直接输出为静态 SVG。"""
+    from .core.compute.schematic_export import scene_to_svg, svg_filename
+
+    svg = scene_to_svg(SERVICE.scene, project_name=name, network_name=network)
+    return {"ok": True, "svg": svg, "filename": svg_filename(name)}
+
+
 @app.post("/api/scene")
 def import_scene(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
     if len(str(payload)) > 2_000_000:
@@ -1008,8 +1017,18 @@ def migrate_scene_devices() -> dict[str, Any]:
 
 
 @app.post("/api/scene/clear")
-def clear_scene() -> dict[str, Any]:
-    name = "blank_signal" if SERVICE.scene.mode == "signal" else "blank_circuit"
+def clear_scene(mode: str | None = Query(None)) -> dict[str, Any]:
+    if mode is None:
+        name = "blank_signal" if SERVICE.scene.mode == "signal" else "blank_circuit"
+    else:
+        names = {
+            "signal": "blank_signal",
+            "circuit": "blank_circuit",
+            "vector": "blank_vector",
+        }
+        if mode not in names:
+            raise ValidationError(f"未知场景模式：{mode!r}")
+        name = names[mode]
     SERVICE.load_scene(build_template(name))
     return SERVICE.snapshot()
 

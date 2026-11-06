@@ -689,9 +689,9 @@ class CircuitEngine(_Engine):
             if element is None:
                 continue
             kind = str(record.params.get("element") or "")
-            if kind == "sensor":
+            if kind in ("sensor", "if_voltage_to_signal"):
                 self.bridge_sensors.append((record, element))
-            elif kind == "actuator":
+            elif kind in ("actuator", "if_signal_to_current"):
                 self.bridge_actuators.append((record, element))
 
     def capture_checkpoint(self) -> dict[str, Any]:

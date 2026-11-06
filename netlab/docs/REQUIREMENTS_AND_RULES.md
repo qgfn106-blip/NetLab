@@ -1,6 +1,6 @@
 # Netlab 需求 · 决策 · 执行计划（2026-10-25 修订版）
 
-> 最后修改：2026-11-06 21:39（P18 Python PEP 8 收尾完成：netlab/PlotKit flake8 清零、配置入两仓库 .flake8；测试 606 passed / 470 passed）
+> 最后修改：2026-11-07 00:25（R15 第四批功率电子 + R06 电路侧接口/新建模式选择；R18 图纸增强；R19 SchemDraw 静态导出）
 > 本版**取代** 2026-10-24 版的需求口径。旧条文不删除，凡被推翻或细化的条目一律进 §7「已废弃口径」。
 > 每条需求统一六段式：**原话 / 解读 / 拟改架构 / 验收 / 权重·期次 / 现状**。
 > **现状**一栏只写本次会话内读代码或跑测试能证明的事实；没有证据的一律标「待核实」。
@@ -188,7 +188,7 @@
 - **拟改架构**：块与场景 mode 匹配校验；新增接口块（电压↔信号、信号↔电流源）；引擎边界只传标量。
 - **验收**：signal 块放入 circuit 被拒并给替换建议；经接口块能跨界且数值正确；接口块有单测。
 - **权重·期次**：⭐⭐⭐ / P1（接口块）/ P4（电路侧完善）
-- **现状**：**2026-10-26 P1 部分完成**——① 跨模式拒绝：`Scene._check_block_mode` 在 add_node / update_node / load_payload 三处校验，模块 mode 与场景不一致即 ValidationError（提示改用同模式模块或显式接口），实例化 API 返回 422；② 新增两个显式接口节点：`if_signal_to_vector`（u → x=u·cosθ, y=u·sinθ）、`if_vector_to_signal`（x/y/模长 → 标量，可缩放），已登记公式与 catalog；③ 单测覆盖角度映射、分量/模长、跨模式拒绝。**未做**：circuit 侧接口块（电压↔信号、信号↔电流源）按 R06 期次留给 P4。
+- **现状**：**2026-10-26 P1 部分完成**——① 跨模式拒绝：`Scene._check_block_mode` 在 add_node / update_node / load_payload 三处校验，模块 mode 与场景不一致即 ValidationError（提示改用同模式模块或显式接口），实例化 API 返回 422；② 新增两个显式接口节点：`if_signal_to_vector`（u → x=u·cosθ, y=u·sinθ）、`if_vector_to_signal`（x/y/模长 → 标量，可缩放），已登记公式与 catalog；③ 单测覆盖角度映射、分量/模长、跨模式拒绝。**2026-11-07 电路侧接口完成**——新增 `if_voltage_to_signal`（复用 `SensorElement`，高阻采样并写 `voltage` 字段）与 `if_signal_to_current`（`ActuatorCurrent`，按 `state['drive']` 驱动电流源，显式一拍延迟）；两者登记 catalog/group，`test_powerelectronics.py` 覆盖存在性；新建工程流程改为先选 `signal/circuit/vector` 模式，再 POST `/api/scene/clear?mode=...`（未知模式 422）。
 
 ### R07 一工程多网络（层）
 
@@ -274,6 +274,7 @@
 - **权重·期次**：⭐⭐⭐ / P4
 - **现状**：**2026-10-26 P4 批次 1–2 完成**——`element_catalog()` 共 **14 种**：原有 9 种（R/C/L/电压源/电流源/二极管/开关/VCVS/VCCS）+ 本批新增 5 种行为元件：`opamp`（tanh 平滑饱和，闭环增益/饱和有测试）、`comparator`（高增益+迟滞，双向饱和）、`zener`（正向 PN + softplus 平滑击穿钳位，`ron` 动态电阻）、`led`（二极管电学行为）、`dflipflop`（上升沿 Q←D、单步延迟、保持）。GB 符号：电路模式 + `ui.symbol=gb` 时按元件 kind 绘制符号（电阻锯齿、电容双板、电感弧、电压/电流源圆、二极管/稳压管/LED、开关、VCVS/VCCS 菱形、运放/比较器三角、D 触发器矩形）；符号放大 1.6–2.4×、主题色描边、与导线同线宽且无贴图底（导线在符号处自然穿过）；**电路节点改为 CAD 式小圆/实心点/小方框（样式可选）**，接地用标准接地符号；GB 功能节点按类型画专属符号（Σ/三角 K/∫/τ/f(x)/~/s/M/I/O/B），未知回落小圆+标签，截图 [assets/p4-gb-symbols.png](assets/p4-gb-symbols.png)。行为测试 `test_p4_elements.py` 6 项。**未做**：晶闸管/IGBT/JFET/继电器/电机等清单内尚未建模的功率/执行器件；第二批复用 R05 块机制的「内部电路」双模型视图；元件级 GB 图形细化（当前为通用绘制，非标准图纸级）。
 - **2026-10-26 第三批收尾**：新增 `netlab/core/compute/magnetics.py`——`transformer`（理想变压器 v2 = n·v1、i1 + n·i2 = 0，可选励磁电感 Lm>0 时加第 3 条支路）与 `coupling_inductor`（v1 = L1·di1/dt + M·di2/dt，v2 = M·di1/dt + L2·di2/dt，M = k·sqrt(L1·L2)，梯形/后向欧拉伴随模型）；新增 `adc4`（逐次逼近：每个 CLK 上升沿比较一位，8→4→2→1 共 4 拍，结果锁存到 Q3..Q0）。catalog 27→**30** 种；GB 符号：变压器/互感（双绕组 + 铁芯/虚线耦合）、ADC（矩形 + 阶梯 + 7 引脚）；截图 [assets/r15-transformer.png](assets/r15-transformer.png)、[assets/r15-coupling.png](assets/r15-coupling.png)、[assets/r15-adc.png](assets/r15-adc.png)。证据 `test_magnetics.py` 4 项 + `test_digital.py` ADC 1 项；195 passed。
+- **2026-11-07 第四批完成（功率电子与电机）**：新增 `netlab/core/compute/powerelectronics.py`——`thyristor`（Vgt 触发、Ih 维持电流关断）、`igbt`（Vge≥Vth 压控开关）、`jfet`（耗尽型 Vgs>Vp 导通）、`relay`（线圈电流≥Ion 吸合，COM/NO 触点）、`motor`（反电动势 v=R·i+Ke·ω，机械方程 J·dω/dt=Kt·i−b·ω−Tload，后向欧拉）；catalog 30→**39**（含两个跨域接口）。前端补五个 GB 风格 glyph 与多引脚几何；`test_powerelectronics.py` 6 项（触发/锁存、压控、耗尽、触点、升速、catalog）。**未做**：器件物理级开关损耗/温度模型、内部电路双模型视图。
 
 ### R16 数据保护（横切）
 
@@ -305,6 +306,7 @@
 - **现状**：**2026-10-26 首批完成**——位号（R1/L1/C1/V1 等）+ 参数（`10 Ω`、`0.01 H`、`0.001 F`、`sine 1 V/50 Hz`）常显；≥3 线汇合画实心节点；符号处导线断开（只擦中点一小段，不用贴图底）；正交布线；电路节点小圆/点/框可选；截图 [assets/cad-schematic.png](assets/cad-schematic.png)。**未做**：图纸模式（隐藏网格/图框）、端子号/线号、线宽分级、完整国标尺寸与多页图幅。
 - **2026-10-26 方向对齐修正**：元件符号的**引脚轴 = 符号所在处（中点）的导线方向**，旋转量化到 0/90/180/270（`quarter`），解决正交折线末段长度为 0 时角度误判为 0、导致符号与竖线垂直的问题；新增 `trip_unit`「脱扣器示意」模板（整流→RC→分压→比较器→D 触发器→LED，15 元件）用于演示图纸规范，截图 [assets/trip-unit.png](assets/trip-unit.png)。
 - **2026-10-26 标注与端口方向**：电路图**只显示元件名，不显示数值**；横向导线标注在上方、纵向导线标注在右侧（避免压住符号/连线）；电路 GB 小节点的端口点按**实际入边/出边锚点**绘制（随导线方向旋转），不再固定左右；新增 `opamp_internal`「运放内部（宏模型）」模板（差分输入→VCVS 增益级→RC 极点→缓冲→输出电阻/负载），截图 [assets/opamp-internal.png](assets/opamp-internal.png)。
+- **2026-11-07 图纸模式增强（仅电路）**：`drawDrawingFrame` 只在 `scene.mode==='circuit'` 生效；新增 A4/A3/A2/A1 图纸比例、8×6 分区刻度、右下简化 GB 标题栏（工程名/网络/图幅/第 N 页/比例/日期）；图纸模式线宽分级（导线 1.75 / 器件 1.3）；可选线号（wire 名）与两端端子号 1/2；视图页新增图幅/标注/页号三个持久化设置。**未做**：完整国标尺寸公差、自动分页与跨页连接符。
 
 ### R19 电气图纸模型与 Agent 绘制规范
 
@@ -316,6 +318,7 @@
 - **现状**：**2026-10-26 数据层首批完成**——① `netlab/core/model/schematic.py`：`pins_for`/`apply_pin_bindings`（多端 `pins{引脚:节点}`→params 绑定）、`auto_layout`（BFS 分层 + 220/120 网格步长 + lane，确定性，rot 量化 30°）、`apply_layout`、`validate_schematic`；② `EdgeRecord.layout`（x/y/rot 校验 30° 倍数）+ API `pins`/`layout` 透传；③ 前端符号位置与旋转优先读 `layout`，工程页「自动布局（电路）」按钮（应用后 fitView，可撤销）；④ 测试 `test_schematic.py` 5 项。**2026-10-26 第三批首批**：新增 `netlab/core/compute/transistors.py`——NPN/PNP（分段线性 B-E + β 集电极电流）、NMOS/PMOS（平方律、栅极无直流）；catalog 14→18 种；`test_transistors.py` 4 项；GB 符号补 BJT/MOS 与位号 Q。**2026-10-26 第三批第二批**：新增 `netlab/core/compute/logic.py`——与/或/非/异或门行为模型（输出经 Ron 接 VDD/GND 的平滑开关，阈值/斜率可调），catalog 18→22；`test_logic.py` 4 项真值表；**2026-10-26 第三批第三批**：新增 `netlab/core/compute/timers.py`——`ne555`（行为级无稳态方波，freq/duty/vhigh/vlow）与 `ldo`（Vout=min(Vtarget,Vin−dropout)）；catalog 22→24；`test_timers.py` 3 项（555 高低电平、LDO 稳压/压差、catalog）。**2026-10-26 第三批第四批**：新增 `netlab/core/compute/digital.py`——`counter4`（4 位计数器，CLK 上升沿 +1、RST 高有效，`branch_width=4` 多输出）与 `dac4`（Vref·code/15）；求解器支持多支路元件（branch_width）；catalog 24→26；`test_digital.py` 3 项。**2026-10-26 第三批第五批**：新增 `shift4`（4 位串入并出移位寄存器，CLK 上升沿 D→Q0→…→Q3，RST 高有效），catalog 26→27；`test_digital.py` 5 项（新增串入并出、复位清零）。**未做**：ADC、变压器/互感；R19 参考级图纸已暂停。
 - **2026-10-26 渲染修复（R19/R18 的接线层）**：① 手动布线 `waypoints` 之前把数字传给 `worldToScreen(point)`，路径点是 `null`（手动折线完全不显示）——改为传对象；② `elementLayoutCenter` 同样误用，导致多引脚元件的引脚引线坐标 NaN、从未画出——已修；③ 多引脚引脚几何改为**符号本地单位**并按 `symbolScalePx()` 与符号同步缩放（此前按世界单位画，引线飘在符号外）；④ 2 引脚但绑定参数端点的元件（变压器副边）不再被主线引脚吸附改写；⑤ 手动布线边优先 waypoints，不被引脚吸附覆盖。截图见 R15 2026-10-26 收尾三条。
 - **2026-10-26 渲染补全（部分）**：位号补全（按类型补 R/C/L/D/ZD/LED/V/I/U/E/G）、`layout.rot` 判标签方向、交叉弧（`drawCrossingHops`）与标注避让、图纸模式（栅格/端口隐藏 + 图框标题栏）已实现；**引脚引线方案经实测在密集图上会与其他符号重叠，已回退为“符号沿导线中点”渲染**，引脚几何仅用于绑定/校验。当前 trip_unit 仍属“可读示意”，未达到参考图纸的整洁度；截图 [assets/r19-schematic-final.png](assets/r19-schematic-final.png)。
+- **2026-11-07 静态原理图导出（SchemDraw，可选依赖）**：新增 `netlab/core/compute/schematic_export.py`，把当前 circuit 场景的节点坐标与元件 kind 映射为 SchemDraw 符号，输出静态 SVG；支持 R/C/L/源/二极管/开关/运放/BJT/MOS/晶闸管/IGBT/JFET/继电器/电机/变压器等，未知器件回落为带标签连线；`GET /api/export/schematic?name=&network=` 返回 `{ok,svg,filename}`；前端「导出原理图 SVG」按钮。SchemDraw 未安装时抛可读 `ComputeError`（pip install schemdraw）；`test_schematic_export.py` 3 项。**边界**：只做“已有网络结构→静态图”，不做交互式标准图纸，也不保证国标尺寸公差。
 
 ### R20 多端口元件节点化（器件节点 + 显式端口）
 

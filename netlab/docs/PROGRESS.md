@@ -1,10 +1,10 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-06 12:15
+> 最后修改：2026-11-06 12:22
 
 | 项 | 内容 |
 | --- | --- |
-| 记录时间 | 2026-11-06 05:40（Asia/Shanghai） |
+| 记录时间 | 2026-11-06 12:22（Asia/Shanghai） |
 | 当前阶段 | **2026-11-06 前端 JS→TS 迁移规划（R41 / P16，执行中：vscode 扩展、PlotKit render2d、view3d、app、nsview、netlab desktop-shim 已完成类型化；§7.76）**；R40 全栈扩展架构实现（§7.74）+ 全量文档重构（§7.75）：`netlab.plugin_api.v1`、插件加载器/管理页、`AnalysisSpec`/`EngineProtocol`、工程 v6、`netlab-ui/1` 与简单画布；README/ARCHITECTURE/OPERATION/INSTALL/MATH 及架构图/演示视频同步；静态 **3.20.1**，全量 **589 passed**。上一阶段 **§7.72**：R31 并网逆变器（P11-01…P11-07，581 passed、3.19.0）；**§7.71**：R39 复数分析层（561 passed、3.18.0）。 |
 | 基线 | 修改前 43 passed（2026-10-24 14:26） |
 | 当前测试 | **589 passed**（2026-11-06 02:00 全量 `python -m pytest netlab/tests -q`，3 warnings，69.95 s，退出码 0；stderr **0 次** `0xc0000139`；新增 R40 插件/工程/UI 目标测试 8 条） |
@@ -2068,7 +2068,7 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 
 ## §7.76 前端 JavaScript → TypeScript 全局迁移（规划，2026-11-06）
 
-**状态：一期 P16 已完成——7 个文件（vscode 扩展、PlotKit `render2d`/`view3d`/`app`/`nsview`、netlab `desktop-shim`/`app.js`）全部严格类型化并通过 DoD（tsc strict 0、AST/行为等价、Python 契约测试全绿）；二期 P17 模块化暂挂。** 需求与验收口径见 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) R41 / §5 P16（一期类型化）/ P17（二期模块化，暂挂）；决策 D100–D109。
+**状态：一期 P16 已完成——7 个文件（vscode 扩展、PlotKit `render2d`/`view3d`/`app`/`nsview`、netlab `desktop-shim`/`app.js`）全部严格类型化并通过 DoD（tsc strict 0、AST/行为等价、Python 契约测试全绿）；二期 P17 模块化设计中（详细设计与验收口径见 [TS_P17_MODULE_DESIGN.md](TS_P17_MODULE_DESIGN.md)）。** 需求与验收口径见 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) R41 / §5 P16（一期类型化）/ P17（二期模块化，暂挂）；决策 D100–D109。
 
 **为什么做**：`frontend/app.js` 13,806 行单一大 IIFE、无类型无模块，维护成本高；`/api` 契约仅靠 Python 字符串匹配测试、前端无类型约束易漂移；缺模块化基建。
 
@@ -2101,7 +2101,7 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 **DoD（每个文件全过才进下一个）**：①`tsc` strict + `eslint` 0 error + `prettier` 已格式化（或已登记临时豁免）②迁移前后 e2e 基线逐条一致、控制台 0 报错 ③现有 Python 契约测试全绿（改名 / 路径同步更新并保留）④版号三处同步（`frontend/index.html` `?v=`、`frontend/app.js` `UI_BUILD`、`netlab/server.py` `APP_BUILD`）⑤提交干净（精确 pathspec）。
 **一期收尾门禁**：临时豁免清零、`tsc --strict` 全绿、全部 e2e 基线通过。
 
-**下一步**：一期 P16 已收官——vscode 扩展 `cf9d633`、PlotKit `render2d` `885014b` / `view3d` `394e979` / `app` `08691bd` / `nsview` `795aaad`、netlab `desktop-shim` `4eeed2e` / `app.js` `7a5cdce` 全部完成。PlotKit 运行时内置副本已同步（`python -m netlab.plotkit_vendor install --force`，55 文件，vendor 忽略 `*.ts`、只随包 `.js`），提交 `0f41632`。待办：PlotKit 分支+tag 因代理 127.0.0.1:7897 暂断仍待补推；后续按 R42/P18 做 Python PEP 8 规范化。二期 P17（转 ES Modules、拆文件、补纯函数单测）暂挂。
+**下一步**：一期 P16 已收官——vscode 扩展 `cf9d633`、PlotKit `render2d` `885014b` / `view3d` `394e979` / `app` `08691bd` / `nsview` `795aaad`、netlab `desktop-shim` `4eeed2e` / `app.js` `7a5cdce` 全部完成。PlotKit 运行时内置副本已同步（`python -m netlab.plotkit_vendor install --force`，55 文件，vendor 忽略 `*.ts`、只随包 `.js`），提交 `0f41632`。待办：PlotKit 分支+tag 因代理 127.0.0.1:7897 暂断仍待补推；后续按 R42/P18 做 Python PEP 8 规范化。二期 P17（转 ES Modules、拆文件、补纯函数单测）设计中，详见 TS_P17_MODULE_DESIGN.md。
 
 **后续（TS 全量完成后另立）**：按 R42 / P18 对 netlab + PlotKit 全部 Python 代码做 PEP 8 规范化（纯风格、不影响任何功能）。
 

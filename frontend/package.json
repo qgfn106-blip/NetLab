@@ -1,0 +1,8 @@
+{
+  "name": "netlab-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:utils": "node --test tests/*.test.mjs"
+  }
+}

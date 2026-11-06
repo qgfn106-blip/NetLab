@@ -1,3 +1,4 @@
+import { fmt, intText, clamp, hashString, baseName } from './app.utils.js';
 declare const desc: HTMLElement;
 declare function setStatusHint(hint: string): void;
 
@@ -836,39 +837,13 @@ declare function setStatusHint(hint: string): void;
     return node;
   }
 
-  function fmt(value: unknown, digits: number = 4): string {
-    const number = typeof value === 'number' ? value : Number(value);
-    if (!Number.isFinite(number)) return '—';
-    const magnitude = Math.abs(number);
-    if (magnitude !== 0 && (magnitude >= 1e5 || magnitude < 1e-3)) {
-      return number.toExponential(3);
-    }
-    let text = number.toFixed(digits);
-    if (text.includes('.')) text = text.replace(/0+$/, '').replace(/\.$/, '');
-    return text === '-0' ? '0' : text;
-  }
 
-  function intText(value: unknown): string {
-    const number = Number(value);
-    return Number.isFinite(number) ? String(Math.round(number)) : '0';
-  }
 
-  function clamp(value: number, low: number, high: number): number {
-    return Math.min(high, Math.max(low, value));
-  }
 
   function clone<T>(value: T): T {
     return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
   }
 
-  function hashString(text: string): number {
-    let hash = 2166136261;
-    for (let i = 0; i < text.length; i += 1) {
-      hash ^= text.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
-    }
-    return hash >>> 0;
-  }
 
   function colorForKey(key: string): string {
     if (!state.chart.colors.has(key)) {
@@ -1023,11 +998,6 @@ declare function setStatusHint(hint: string): void;
     });
   }
 
-  function baseName(path: string) {
-    const text = String(path || '').replace(/[\\/]+$/, '');
-    const cut = Math.max(text.lastIndexOf('/'), text.lastIndexOf('\\'));
-    return cut >= 0 ? text.slice(cut + 1) : text;
-  }
 
   /* ======================================================================
    * 1. 网络请求与提示

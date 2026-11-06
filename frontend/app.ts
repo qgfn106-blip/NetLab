@@ -419,7 +419,8 @@ declare function setStatusHint(hint: string): void;
     blocksStructural: boolean;
     analysisLast: string;
     analysisSpectrum: unknown;
-    analysisTF: unknown;
+    analysisTF: TfDataRec | null;
+    tfCursor: number | null;
     degradedBanner: boolean;
     ui: UiPrefsRec;
     prefs: PrefsRec;
@@ -748,6 +749,7 @@ declare function setStatusHint(hint: string): void;
     analysisLast: '',
     analysisSpectrum: null,
     analysisTF: null,
+    tfCursor: null,
     degradedBanner: false,
     ui: {
       snap: true,
@@ -11991,6 +11993,7 @@ declare function setStatusHint(hint: string): void;
     const canvas = $('#analysisTFChart');
     const data = state.analysisTF;
     if (!canvas || !data) return;
+    attachTfCursor();
     const dpr = window.devicePixelRatio || 1;
     const width = canvas.clientWidth || 360;
     const height = canvas.clientHeight || 210;
@@ -12107,6 +12110,90 @@ declare function setStatusHint(hint: string): void;
     ctx.textAlign = 'left';
     ctx.fillStyle = C('#7b7266');
     ctx.fillText('rad/s', left + plotWidth - 34, height - 5);
+
+    const cursor = state.tfCursor;
+    if (cursor != null && cursor >= 0 && cursor < omega.length) {
+      const x = xAt(cursor);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(168, 84, 31, 0.55)';
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x, top);
+      ctx.lineTo(x, phaseTop + plotHeight);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const dot = (base: number, value: number) => {
+        if (!Number.isFinite(value)) return;
+        const [low, high] = tfRange(base === top ? magnitude : phase);
+        const y = base + plotHeight * (1 - (value - low) / Math.max(high - low, 1e-9));
+        ctx.fillStyle = C('#a8541f');
+        ctx.beginPath();
+        ctx.arc(x, y, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+      };
+      dot(top, magnitude[cursor]);
+      dot(phaseTop, phase[cursor]);
+      const label = `ω=${fmt(omega[cursor], 3)}  |G|=${fmt(magnitude[cursor], 2)} dB  ∠=${fmt(phase[cursor], 1)}°`;
+      ctx.font = '10px "Cascadia Code", Consolas, monospace';
+      const labelWidth = ctx.measureText(label).width + 12;
+      ctx.fillStyle = 'rgba(251, 248, 242, 0.94)';
+      ctx.strokeStyle = 'rgba(168, 84, 31, 0.35)';
+      ctx.beginPath();
+      ctx.roundRect(left + 4, top + 3, Math.min(labelWidth, plotWidth - 8), 18, 4);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = C('#5f3a20');
+      ctx.textAlign = 'left';
+      ctx.fillText(label, left + 10, top + 16);
+      ctx.restore();
+    }
+  }
+
+  function tfBodeCursorFromEvent(event: MouseEvent): number | null {
+    const data = state.analysisTF as TfDataRec | null;
+    const canvas = $('#analysisTFChart') as HTMLCanvasElement | null;
+    const bode = data?.bode;
+    if (!canvas || !bode?.omega?.length) return null;
+    const rect = canvas.getBoundingClientRect();
+    const left = 44;
+    const right = 10;
+    const width = rect.width;
+    const plotWidth = Math.max(24, width - left - right);
+    const x = event.clientX - rect.left;
+    if (x < left || x > left + plotWidth) return null;
+    const omega = bode.omega.map(Number);
+    const logMin = Math.log10(Math.max(omega[0], 1e-9));
+    const logMax = Math.log10(Math.max(omega[omega.length - 1], 1e-8));
+    const target = logMin + ((x - left) / plotWidth) * Math.max(logMax - logMin, 1e-9);
+    let best = 0;
+    let bestDistance = Infinity;
+    for (let index = 0; index < omega.length; index += 1) {
+      const distance = Math.abs(Math.log10(Math.max(omega[index], 1e-9)) - target);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = index;
+      }
+    }
+    return best;
+  }
+
+  function attachTfCursor() {
+    const canvas = $('#analysisTFChart') as HTMLCanvasElement | null;
+    if (!canvas || canvas.dataset.tfCursor === '1') return;
+    canvas.dataset.tfCursor = '1';
+    canvas.addEventListener('mousemove', (event: MouseEvent) => {
+      const view = ($('#analysisTFView') as HTMLInputElement)?.value || 'bode';
+      if (view !== 'bode') return;
+      const index = tfBodeCursorFromEvent(event);
+      if (index == null) return;
+      state.tfCursor = index;
+      drawAnalysisTF();
+    });
+    canvas.addEventListener('mouseleave', () => {
+      if (state.tfCursor == null) return;
+      state.tfCursor = null;
+      drawAnalysisTF();
+    });
   }
 
   function drawTFStep(ctx: CanvasRenderingContext2D, data: TfDataRec, width: number, height: number) {
@@ -14394,9 +14481,12 @@ declare function setStatusHint(hint: string): void;
     return fragment;
   }
 
-  function searchDocs(query: string) {
+  let docSearchSeq = 0;
+
+  async function searchDocs(query: string) {
     if (!ui.docResults) return;
     const text = String(query || '').trim().toLowerCase();
+    const seq = ++docSearchSeq;
     ui.docResults.replaceChildren();
     if (!text) {
       ui.docMain.classList.remove('searching');
@@ -14417,19 +14507,45 @@ declare function setStatusHint(hint: string): void;
         }
       }
     }
-    if (!hits.length) {
+    let extra: Array<Record<string, string>> = [];
+    try {
+      const response = await api(`/api/help/search?q=${encodeURIComponent(text)}&limit=12`);
+      extra = (response?.items || []).filter((item: Record<string, string>) => item.kind !== 'doc');
+    } catch {
+      extra = [];
+    }
+    if (seq !== docSearchSeq) return;
+    if (!hits.length && !extra.length) {
       ui.docResults.appendChild(div('doc-empty', '没有匹配的段落；试试「节点」「求解器」「快捷键」等关键词。'));
       return;
     }
     for (const hit of hits) {
       const node = button('', 'doc-hit', () => {
-        openDoc(hit.slug);
+        void openDoc(hit.slug);
         ui.docSearch.value = query;
-        searchDocs(query);
+        void searchDocs(query);
       });
       node.appendChild(el('b', null, hit.title));
       node.appendChild(el('span', null, hit.snippet));
       ui.docResults.appendChild(node);
+    }
+    if (extra.length) {
+      ui.docResults.appendChild(el('div', 'doc-sec', '节点 / 元件 / 模板'));
+      for (const item of extra) {
+        const title = `${item.title} · ${item.subtitle}`;
+        const node = button('', 'doc-hit', () => {
+          if (item.kind === 'template') {
+            closeDoc();
+            void loadTemplate(item.ref || '', item.title || '');
+          } else {
+            toast(`${item.title}：${item.text || '无更多说明'}`, 'info', 4200);
+          }
+        });
+        node.appendChild(el('b', null, item.title || item.ref || ''));
+        node.appendChild(el('span', null, item.text || item.subtitle || ''));
+        ui.docResults.appendChild(node);
+        node.title = title;
+      }
     }
   }
 

@@ -459,6 +459,128 @@ def index() -> Response:
     return FileResponse(page, headers={"Cache-Control": "no-store"})
 
 
+@app.get("/api/help/search")
+def help_search(
+    q: str = Query("", max_length=80), limit: int = Query(20, ge=1, le=50)
+) -> dict[str, Any]:
+    """R14：跨元件/节点/模板/文档的只读搜索。"""
+    needle = q.strip().casefold()
+    if not needle:
+        return {"q": q, "items": [], "count": 0}
+    items: list[dict[str, Any]] = []
+
+    def push(
+        kind: str, title: str, subtitle: str, text: str, score: int, **extra: Any
+    ) -> None:
+        items.append(
+            {
+                "kind": kind,
+                "title": title,
+                "subtitle": subtitle,
+                "text": text,
+                "score": score,
+                **extra,
+            }
+        )
+
+    catalog = SERVICE.scene.catalog()
+    for kind_key, rows in (
+        ("element", catalog.get("elements", [])),
+        ("circuit_node", catalog.get("circuit_nodes", [])),
+        ("compute", catalog.get("computes", [])),
+        ("method", catalog.get("methods", [])),
+    ):
+        for row in rows:
+            haystack = " ".join(
+                str(row.get(key, ""))
+                for key in ("kind", "label", "description", "formula", "notes", "group")
+            ).casefold()
+            if needle not in haystack:
+                continue
+            title = str(row.get("label") or row.get("kind") or "")
+            exact = 3 if needle in str(row.get("kind", "")).casefold() else 2
+            push(
+                kind_key,
+                title,
+                f"{row.get('kind', '')} · {row.get('group', '')}",
+                str(row.get("description") or row.get("formula") or ""),
+                exact,
+                ref=str(row.get("kind") or ""),
+            )
+    for row in template_catalog():
+        haystack = f"{row.get('id', '')} {row.get('name', '')} {row.get('description', '')}".casefold()
+        if needle not in haystack:
+            continue
+        push(
+            "template",
+            str(row.get("name") or row.get("id") or ""),
+            f"模板 · {row.get('mode', '')}",
+            str(row.get("description") or ""),
+            2,
+            ref=str(row.get("id") or ""),
+        )
+
+    docs_dir = Path(__file__).resolve().parent / "docs"
+    for path in sorted(docs_dir.glob("*.md")):
+        try:
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        hit = 0
+        for number, line in enumerate(lines, start=1):
+            if needle not in line.casefold():
+                continue
+            push(
+                "doc",
+                path.name,
+                f"第 {number} 行",
+                line.strip()[:220],
+                1,
+                ref=path.name,
+                line=number,
+            )
+            hit += 1
+            if hit >= 3:
+                break
+
+    items.sort(key=lambda item: (-item["score"], item["kind"], item["title"]))
+    return {"q": q, "items": items[:limit], "count": len(items)}
+
+
+@app.get("/api/help/doc", include_in_schema=False)
+def help_doc(path: str = Query(...), line: int = Query(1, ge=1)) -> HTMLResponse:
+    """打开 docs/*.md 的只读纯文本页，用于搜索结果新窗口。"""
+    import html as html_module
+
+    docs_dir = (Path(__file__).resolve().parent / "docs").resolve()
+    target = (docs_dir / path).resolve()
+    if (
+        target.parent != docs_dir
+        or target.suffix.lower() != ".md"
+        or not target.is_file()
+    ):
+        raise NotFoundError(f"文档不存在：{path}")
+    rows = []
+    for number, text in enumerate(
+        target.read_text(encoding="utf-8", errors="replace").splitlines(), start=1
+    ):
+        escaped = html_module.escape(text)
+        if number == line:
+            rows.append(
+                f'<span id="L{number}" class="hit">{number:>4}  {escaped}</span>'
+            )
+        else:
+            rows.append(f'<span id="L{number}">{number:>4}  {escaped}</span>')
+    body = "\n".join(rows)
+    page = f"""<!doctype html><meta charset="utf-8"><title>{html_module.escape(path)}</title>
+<style>body{{background:#fbf8f2;color:#2c2a26;font:14px/1.55 ui-monospace,Consolas,monospace;margin:24px}}
+pre{{white-space:pre-wrap}} .hit{{background:#ffe08a}} .bar{{font-family:system-ui;margin-bottom:12px}}</style>
+<div class="bar">{html_module.escape(path)} · 第 {line} 行 · <a href="/api/help/doc?path={html_module.escape(path)}">从头查看</a></div>
+<pre>{body}</pre>
+<script>document.getElementById('L{line}')?.scrollIntoView({{block:'center'}})</script>"""
+    return HTMLResponse(page, headers={"Cache-Control": "no-store"})
+
+
 @app.get("/api/catalog")
 def catalog() -> dict[str, Any]:
     manager = get_plugin_manager()

@@ -241,6 +241,7 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     analysisLast: "",
     analysisSpectrum: null,
     analysisTF: null,
+    tfCursor: null,
     degradedBanner: false,
     ui: {
       snap: true,
@@ -10656,6 +10657,7 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     const canvas2 = $("#analysisTFChart");
     const data = state.analysisTF;
     if (!canvas2 || !data) return;
+    attachTfCursor();
     const dpr = window.devicePixelRatio || 1;
     const width = canvas2.clientWidth || 360;
     const height = canvas2.clientHeight || 210;
@@ -10767,6 +10769,87 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     ctx2.textAlign = "left";
     ctx2.fillStyle = C("#7b7266");
     ctx2.fillText("rad/s", left + plotWidth - 34, height - 5);
+    const cursor = state.tfCursor;
+    if (cursor != null && cursor >= 0 && cursor < omega.length) {
+      const x = xAt(cursor);
+      ctx2.save();
+      ctx2.strokeStyle = "rgba(168, 84, 31, 0.55)";
+      ctx2.setLineDash([4, 3]);
+      ctx2.beginPath();
+      ctx2.moveTo(x, top);
+      ctx2.lineTo(x, phaseTop + plotHeight);
+      ctx2.stroke();
+      ctx2.setLineDash([]);
+      const dot = (base, value) => {
+        if (!Number.isFinite(value)) return;
+        const [low, high] = tfRange(base === top ? magnitude : phase);
+        const y = base + plotHeight * (1 - (value - low) / Math.max(high - low, 1e-9));
+        ctx2.fillStyle = C("#a8541f");
+        ctx2.beginPath();
+        ctx2.arc(x, y, 2.6, 0, Math.PI * 2);
+        ctx2.fill();
+      };
+      dot(top, magnitude[cursor]);
+      dot(phaseTop, phase[cursor]);
+      const label = `\u03C9=${fmt(omega[cursor], 3)}  |G|=${fmt(magnitude[cursor], 2)} dB  \u2220=${fmt(phase[cursor], 1)}\xB0`;
+      ctx2.font = '10px "Cascadia Code", Consolas, monospace';
+      const labelWidth = ctx2.measureText(label).width + 12;
+      ctx2.fillStyle = "rgba(251, 248, 242, 0.94)";
+      ctx2.strokeStyle = "rgba(168, 84, 31, 0.35)";
+      ctx2.beginPath();
+      ctx2.roundRect(left + 4, top + 3, Math.min(labelWidth, plotWidth - 8), 18, 4);
+      ctx2.fill();
+      ctx2.stroke();
+      ctx2.fillStyle = C("#5f3a20");
+      ctx2.textAlign = "left";
+      ctx2.fillText(label, left + 10, top + 16);
+      ctx2.restore();
+    }
+  }
+  function tfBodeCursorFromEvent(event) {
+    const data = state.analysisTF;
+    const canvas2 = $("#analysisTFChart");
+    const bode = data?.bode;
+    if (!canvas2 || !bode?.omega?.length) return null;
+    const rect = canvas2.getBoundingClientRect();
+    const left = 44;
+    const right = 10;
+    const width = rect.width;
+    const plotWidth = Math.max(24, width - left - right);
+    const x = event.clientX - rect.left;
+    if (x < left || x > left + plotWidth) return null;
+    const omega = bode.omega.map(Number);
+    const logMin = Math.log10(Math.max(omega[0], 1e-9));
+    const logMax = Math.log10(Math.max(omega[omega.length - 1], 1e-8));
+    const target = logMin + (x - left) / plotWidth * Math.max(logMax - logMin, 1e-9);
+    let best = 0;
+    let bestDistance = Infinity;
+    for (let index = 0; index < omega.length; index += 1) {
+      const distance2 = Math.abs(Math.log10(Math.max(omega[index], 1e-9)) - target);
+      if (distance2 < bestDistance) {
+        bestDistance = distance2;
+        best = index;
+      }
+    }
+    return best;
+  }
+  function attachTfCursor() {
+    const canvas2 = $("#analysisTFChart");
+    if (!canvas2 || canvas2.dataset.tfCursor === "1") return;
+    canvas2.dataset.tfCursor = "1";
+    canvas2.addEventListener("mousemove", (event) => {
+      const view = $("#analysisTFView")?.value || "bode";
+      if (view !== "bode") return;
+      const index = tfBodeCursorFromEvent(event);
+      if (index == null) return;
+      state.tfCursor = index;
+      drawAnalysisTF();
+    });
+    canvas2.addEventListener("mouseleave", () => {
+      if (state.tfCursor == null) return;
+      state.tfCursor = null;
+      drawAnalysisTF();
+    });
   }
   function drawTFStep(ctx2, data, width, height) {
     const step = data.step || {};
@@ -12974,9 +13057,11 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     }
     return fragment;
   }
-  function searchDocs(query) {
+  let docSearchSeq = 0;
+  async function searchDocs(query) {
     if (!ui.docResults) return;
     const text = String(query || "").trim().toLowerCase();
+    const seq = ++docSearchSeq;
     ui.docResults.replaceChildren();
     if (!text) {
       ui.docMain.classList.remove("searching");
@@ -12997,19 +13082,45 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
         }
       }
     }
-    if (!hits.length) {
+    let extra = [];
+    try {
+      const response = await api(`/api/help/search?q=${encodeURIComponent(text)}&limit=12`);
+      extra = (response?.items || []).filter((item) => item.kind !== "doc");
+    } catch {
+      extra = [];
+    }
+    if (seq !== docSearchSeq) return;
+    if (!hits.length && !extra.length) {
       ui.docResults.appendChild(div("doc-empty", "\u6CA1\u6709\u5339\u914D\u7684\u6BB5\u843D\uFF1B\u8BD5\u8BD5\u300C\u8282\u70B9\u300D\u300C\u6C42\u89E3\u5668\u300D\u300C\u5FEB\u6377\u952E\u300D\u7B49\u5173\u952E\u8BCD\u3002"));
       return;
     }
     for (const hit of hits) {
       const node = button("", "doc-hit", () => {
-        openDoc(hit.slug);
+        void openDoc(hit.slug);
         ui.docSearch.value = query;
-        searchDocs(query);
+        void searchDocs(query);
       });
       node.appendChild(el("b", null, hit.title));
       node.appendChild(el("span", null, hit.snippet));
       ui.docResults.appendChild(node);
+    }
+    if (extra.length) {
+      ui.docResults.appendChild(el("div", "doc-sec", "\u8282\u70B9 / \u5143\u4EF6 / \u6A21\u677F"));
+      for (const item of extra) {
+        const title = `${item.title} \xB7 ${item.subtitle}`;
+        const node = button("", "doc-hit", () => {
+          if (item.kind === "template") {
+            closeDoc();
+            void loadTemplate(item.ref || "", item.title || "");
+          } else {
+            toast(`${item.title}\uFF1A${item.text || "\u65E0\u66F4\u591A\u8BF4\u660E"}`, "info", 4200);
+          }
+        });
+        node.appendChild(el("b", null, item.title || item.ref || ""));
+        node.appendChild(el("span", null, item.text || item.subtitle || ""));
+        ui.docResults.appendChild(node);
+        node.title = title;
+      }
     }
   }
   function placeFloatWindow(root, key) {

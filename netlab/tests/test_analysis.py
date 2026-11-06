@@ -47,6 +47,9 @@ def test_spectrum_peak_and_period():
     assert period["ok"] is True
     assert period["period"] == pytest.approx(0.2, abs=0.02)
     assert period["candidates"]
+    assert period["candidates"][0]["windows"] >= 1
+    assert "score_std" in period["candidates"][0]
+    assert "period_std" in period
 
 
 def test_period_diagnoses_nonperiodic():

@@ -1,0 +1,8 @@
+{
+  "drag_region": 29,
+  "has_autosave_roundtrip": "true",
+  "has_bridge": true,
+  "has_command": true,
+  "has_win_ctl": true,
+  "title": "Netlab · 可解释仿真环境"
+}

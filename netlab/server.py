@@ -66,6 +66,9 @@ from .core.compute.simulation import default_simulation
 from .core.model.templates import TEMPLATES, build_template, template_catalog
 from . import vscode_bridge
 from .core.compute import accel, analysis, profiling
+from .core.compute.math_accel.diagnostics import (
+    snapshot as math_accel_diagnostics_snapshot,
+)
 from .core.model import block_validate, blocklib, extensions, schematic
 from .core.model.plugins import get_plugin_manager
 from .core.model.engine_registry import plugin_modes
@@ -752,6 +755,20 @@ def health() -> dict[str, Any]:
         "mode": SERVICE.scene.mode,
         "fem_running": FEM.running,
     }
+
+
+@app.get("/api/diagnostics/telemetry")
+def diagnostics_telemetry() -> dict[str, Any]:
+    """P5：只读遥测质量口径；不改变 /api/live 的任何字段与语义。"""
+    return {"ok": True, "telemetry": SERVICE.current.telemetry_quality()}
+
+
+@app.get("/api/diagnostics/math-accel")
+def diagnostics_math_accel(
+    limit: int = Query(default=50, ge=1, le=256),
+) -> dict[str, Any]:
+    """P3/P1 影子诊断事件（只读环形缓冲）。"""
+    return {"ok": True, "events": math_accel_diagnostics_snapshot(limit)}
 
 
 # ---- 仿真控制 --------------------------------------------------------------

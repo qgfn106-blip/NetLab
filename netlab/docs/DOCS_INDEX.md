@@ -1,6 +1,6 @@
 # Netlab 文档索引（DOCS INDEX）
 
-> 最后核对：2026-11-06 18:20 · 当前基线：静态 3.20.1 / 589 passed / R01–R43 / D1–D119；新增 **CODE_STANDARDS.md（代码规范，强制）**
+> 最后核对：2026-11-06 19:45 · 当前基线：静态 3.20.1 / 603 passed / R01–R43 / D1–D119；新增 **CODE_STANDARDS.md（代码规范，强制）**
 > 目的：先在这里找文档，不要凭文件名猜新旧。**历史文档保留原文，但不得作为当前实现口径。**
 
 ## 1. 建议阅读路线
@@ -69,7 +69,7 @@
 
 | 文档 | 用途 | 状态 |
 | --- | --- | --- |
-| [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) | R01–R43 需求、D1–D118 决策、分期、不做清单 | 当前 |
+| [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) | R01–R43 需求、D1–D119 决策、分期、不做清单 | 当前 |
 | [PROGRESS.md](PROGRESS.md) | 执行证据与验收记录（含 §7.70–§7.78） | 当前 |
 | [BACKLOG.md](BACKLOG.md) | 当前主线、剩余项、待拍板决定 | 当前 |
 | [LESSONS.md](LESSONS.md) | 踩坑与经验（按 §7.x 记录） | 当前 |

@@ -77,13 +77,37 @@ class Recorder:
         repr=False,
         compare=False,
     )
+    #: P5 遥测质量口径：当前链路无量化/压缩；字段固定，供
+    #: ``/api/diagnostics/telemetry`` 只读查询，不进入 ``/api/live``。
+    quality: dict[str, Any] = field(
+        default_factory=lambda: {
+            "sample_dt": None,
+            "quant_bits": None,
+            "interp_error_bound": None,
+            "interp_error_bound_method": "requires_M2_upper_bound",
+            "fifo_depth": None,
+            "delay_bound": None,
+            "delay_bound_method": "requires_fifo_service_model",
+            "assumptions": [
+                "当前 /api/live 链路无量化/压缩（quant_bits=None）",
+                "interp_error_bound 需要 M=max|f''| 上界，未估计时为 null",
+                "delay_bound 需要 FIFO 服务参数，未建模时为 null",
+            ],
+        }
+    )
 
     def __post_init__(self) -> None:
         self.frames = deque(maxlen=self.capacity)
         #: 探针名缓存：帧结构一旦确定就复用同一个 list，避免每拍/每次轮询重建。
         self._keys: list[str] | None = None
+        self.quality["fifo_depth"] = self.capacity
 
-    def push(self, time_value: float, probes: dict[str, float]) -> None:
+    def push(
+        self,
+        time_value: float,
+        probes: dict[str, float],
+        sample_dt: float | None = None,
+    ) -> None:
         if not probes:
             return
         self.seq += 1
@@ -93,6 +117,8 @@ class Recorder:
             or any(key not in probes for key in self._keys)
         ):
             self._keys = list(probes)
+        if sample_dt is not None:
+            self.quality["sample_dt"] = round(float(sample_dt), 12)
         self.frames.append(
             {
                 "seq": self.seq,
@@ -152,9 +178,26 @@ class Recorder:
         self.frames.clear()
         self._keys = None
         self.seq = 0
+        self.quality["sample_dt"] = None
         # 每次清空都换一个代次：即使清空时一帧都没录过（seq 不变），下游也能
         # 看出这是新的一段记录。
         self.generation = uuid.uuid4().hex
+
+    def quality_snapshot(self) -> dict[str, Any]:
+        """P5：只读遥测质量元数据快照（不改变录制状态）。"""
+        return {
+            "sample_dt": self.quality["sample_dt"],
+            "quant_bits": self.quality["quant_bits"],
+            "interp_error_bound": self.quality["interp_error_bound"],
+            "interp_error_bound_method": self.quality["interp_error_bound_method"],
+            "fifo_depth": self.quality["fifo_depth"],
+            "delay_bound": self.quality["delay_bound"],
+            "delay_bound_method": self.quality["delay_bound_method"],
+            "assumptions": list(self.quality["assumptions"]),
+            "frames_recorded": len(self.frames),
+            "capacity": self.capacity,
+            "probe_keys": self.keys(),
+        }
 
     def __len__(self) -> int:
         return len(self.frames)
@@ -257,7 +300,11 @@ class Simulation:
         self.steps += 1
         if sample_every <= 1 or self.steps == 1 or self.steps % sample_every == 0:
             try:
-                self.recorder.push(self.time, self.scene.probes())
+                self.recorder.push(
+                    self.time,
+                    self.scene.probes(),
+                    sample_dt=step_dt * max(1, sample_every),
+                )
             except Exception as exc:
                 self._record_error(exc)
                 return False
@@ -625,6 +672,15 @@ class Simulation:
                 "sim": self._info_locked(),
                 "limits": {"max_steps": 1000},
             }
+
+    def telemetry_quality(self) -> dict[str, Any]:
+        """P5：只读遥测质量口径（采样/量化/插值/FIFO），不进入 /api/live。"""
+        with self.lock:
+            payload = self.recorder.quality_snapshot()
+            payload["sim_time"] = self.time
+            payload["steps"] = self.steps
+            payload["running"] = self.running
+            return payload
 
     def live(self, cursor: int, limit: int = 400) -> dict[str, Any]:
         if not isinstance(cursor, int) or cursor < 0:

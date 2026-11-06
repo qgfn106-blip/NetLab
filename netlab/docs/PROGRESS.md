@@ -1,19 +1,19 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-06 15:45
+> 最后修改：2026-11-06 19:45
 
 | 项 | 内容 |
 | --- | --- |
-| 记录时间 | 2026-11-06 15:45（Asia/Shanghai） |
-| 当前阶段 | **2026-11-06 文档体系整理（§7.77）：P16/P17 前端迁移均完成；R43 数学成果接入（M1）规划完成、netlab 代码未改；已完成/过期文档合并清理完成**。静态 **3.20.1**，全量 **589 passed**；mathspec 参考实现 **98 passed**。上一阶段 **§7.76**：前端 JS→TS 迁移（P16/P17）；**§7.74**：R40 全栈扩展架构；**§7.72**：R31 并网逆变器。 |
+| 记录时间 | 2026-11-06 19:45（Asia/Shanghai） |
+| 当前阶段 | **2026-11-06 R43 数学加速（M1）M0–M1d 完成（§7.80）：P3 Woodbury 影子路径（n≥160 守卫；真实参数规模族 n≥301 2.29–2.32×、n=201 1.84×）、P1 排序只读评测（真实语料 1/2 未过 DoD，生产保持 COLAMD）、P5 遥测只读诊断 + 设置页「诊断」误差合同均已落地；默认 `NETLAB_MATH_ACCEL=off` 行为不变；M1d 集成回归完成**。静态 **3.20.1**，netlab 全量 **603 passed / 1 skipped**；mathspec 参考实现 **107 passed**。上一阶段 **§7.79**：R43 M1a P1 排序评测 + M1c P5 遥测；**§7.78**：R43 M0/M1b 影子实现；**§7.77**：文档体系整理；**§7.76**：前端 JS→TS 迁移（P16/P17）。 |
 | 基线 | 修改前 43 passed（2026-10-24 14:26） |
-| 当前测试 | **589 passed**（2026-11-06 02:00 全量 `python -m pytest netlab/tests -q`，3 warnings，69.95 s，退出码 0；stderr **0 次** `0xc0000139`；新增 R40 插件/工程/UI 目标测试 8 条） |
+| 当前测试 | **603 passed / 1 skipped**（2026-11-06 19:43 全量 `python -m pytest netlab/tests -q`，3 warnings，89.99 s，退出码 0；含 R43 P3 大梯形新增测试） |
 | 本地备份 | `NetlabExtras/backups/ProjectPoint_backups/netlab_3_20_1_20261106_0205`（10 文件 + MANIFEST.sha256，iro.js 颜色选择器集成备份，mismatches=0）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_20_0_20261106_0136`（36 文件 + MANIFEST.sha256，R40 代码 + 文档重构最终备份，mismatches=0）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_19_0_20261105_1450`（28 文件 + MANIFEST.sha256，§7.72 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_18_0_20261105_1340`（15 文件 + MANIFEST.sha256，§7.71 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_17_1_20261105_0845`（15 文件 + MANIFEST.sha256，§7.70 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_17_0_20261105_0345`（23 文件 + MANIFEST.sha256，§7.69 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_final_20261105_0205`（14 文件 + MANIFEST.sha256，§7.68 最终集成检查）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_r38_20261105_0155`（9 文件 + MANIFEST.sha256，§7.67 相图指标/CSV）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p5_20261105_0140`（12 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p4_20261105_0125`（本轮 §7.65 的 analysis.py / test_network_tf.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p3_20261105_0110`（§7.64 的 graph.py / computes.py / scene.py / test_algebraic_solver.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p2_20261105_0055`（§7.63 的 graph.py / scene.py / test_algebraic_solver.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p1_20261105_0040`（§7.62 的 graph.py / computes.py / scene.py / test_solver_plan.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_plan_20261104_2355`（本轮规划文档 4 文件 + MANIFEST.sha256，R36–R38/D92–D94）、`NetlabExtras/backups/ProjectPoint_backups/netlab_control_20261104_1815`（本轮 14 文件 + MANIFEST.sha256，§7.61）、`NetlabExtras/backups/ProjectPoint_backups/netlab_import_20261104_1423`（§7.60 10 文件 + MANIFEST.sha256，§7.60）、`NetlabExtras/backups/ProjectPoint_backups/netlab_guard_20261104_1356`（本轮 5 文件 + MANIFEST.sha256，§7.59）、`NetlabExtras/backups/ProjectPoint_backups/netlab_delayfix_20261104_1315`（本轮 7 文件 + MANIFEST.sha256，§7.58）、`NetlabExtras/backups/ProjectPoint_backups/netlab_menu_20261104_0756`（§7.57 7 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_fields_20261104_0225`（21 文件 + MANIFEST.sha256，R35/D91）、`NetlabExtras/backups/ProjectPoint_backups/netlab_audit_20261103_1920`（15 文件 + MANIFEST.sha256，架构审计 §7.55）、`NetlabExtras/backups/ProjectPoint_backups/netlab_transfer_20261103_1602`（14 文件 + MANIFEST.sha256，R34/D90）、`netlab_20261101_2010`（本轮 7 源文件 + 5 文档 + 5 测试 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_plotkit_token_20261103_1253`（8 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_free_layout_20261103_1430`（P4 自由布局）、`NetlabExtras/backups/ProjectPoint_backups/netlab_layer_window_20261103_1450`（P3 图层浮窗）、`NetlabExtras/backups/ProjectPoint_backups/netlab_notes_20261103_1508`（P5 批注）、`NetlabExtras/backups/ProjectPoint_backups/netlab_precision_20261103_1552`（PlotKit 预览精度 §7.53）、`NetlabExtras/backups/ProjectPoint_backups/netlab_20261024_142654`、`_1727`、`netlab_20261025_0125`、`netlab_20261025_1306`（P0-0）、`netlab_20261026_0348p1retry`（P1 收口）、`netlab_20261026_1240`（R15 收尾）、`netlab_20261026_1318`（R20 模型批基础层）、`netlab_20261026_1322`（R20 模型批功能完成）、`netlab_20261026_1330`（R20 UI 批）、`netlab_20261026_1335`（R20 UI 迁移动作）、`netlab_20261026_1340`（R20 信号端口）、`netlab_20261026_1415`（纯导线/共集示例）、`netlab_20261027_0150`（P7-01 前快照）、`netlab_20261027_1744`（P7-03 收尾）、`netlab_20261027_1753`（R22 参数放宽/单位）、`netlab_20261027_1856`（三极管型号预设）、`netlab_20261027_2218`（拐点拖动）、`netlab_20261027_2324`（P7-03/P7-05 收尾）、`netlab_20261027_2330`（P0 求解可靠性）、`netlab_20261028_0016`（P0 收尾/P7-05）、`netlab_20261028_0048`（电源波形界面）、`netlab_20261028_0103`（dt 精度预设）、`netlab_20261028_0114`（奇异阈值/步长原位微调）、`netlab_20261028_0318`（P0 求解加固：事务/均衡/断点/超时）、`netlab_20261028_0405`（Phase D/E 代码前快照）、`netlab_20261028_0434`（R26 代码前快照）、`netlab_20261028_1219`（工程校验和修复前 `project.py`）、`project_20261028_1219`（用户工程文件前快照）、`netlab_20261028_1855`（R27 后端/前端快照）、`docs_20261028_1932`（公开仓库文档前快照）、`docs_20261028_2108`（R28 文档前快照）、`web_20261028_2130`（演示页与 workflow 删除前快照）、`ui_20261028_2205`（R29 回放滑块前 static 快照）、`netlab_ui_20261028_2242`（R30 UI 集中优化前 netlab 全量）；文档快照见 `docs_20261026_*、docs_20261027_1744、netlab_docs_20261028_0420、netlab_docs_20261028_0445` |
 | 备份清单 | 各自目录下 `MANIFEST.sha256` |
 | 版本控制 | 用户已授权 GitHub `qgfn106-blip` 做版本管理/备份（2026-10-24）；仓库在 `NetlabHome/.git`，本地备份同时保留；GitHub `main` 已包含功能提交 `f564485` 与文档补记 `261f8a`（功能提交 tree `9ea4909842a34dc496cc0c1dd9b4ff38a1977854`，与本地 `51b1eba` 一致） |
 | 速查文档 | **[AGENT_GUIDE.md](AGENT_GUIDE.md)（开工先读）**、**[UI_SPEC.md](UI_SPEC.md)（UI 设计语言/组件/接口）**、[FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md)、[LESSONS.md](LESSONS.md)、[REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)、[SOLVER_CODE_MAP.md](SOLVER_CODE_MAP.md)；仓库根 `AGENTS.md` 指向本套文档 |
 | 下一步 | R40 插件/UI/工程 v6 首版与全量文档重构已完成（§7.74/§7.75）；R31 P11-01…P11-07 已完成（§7.72）；R19 参考级图纸暂停；R25 完整电路级内部结构留后续 |
-| 需求口径 | **以 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) 的 R01–R43 + D1–D118 为准**；本文档 §7 为执行进度地图 |
+| 需求口径 | **以 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) 的 R01–R43 + D1–D119 为准**；本文档 §7 为执行进度地图 |
 
 > 本文件只记录**已实际验证**的内容；未完成的能力明确标为“未接通/未实现”，
 > 不把计划写成已完成。
@@ -2133,4 +2133,39 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 
 **同步**：`BACKLOG.md` 口径改为 R01–R43 / D1–D118、3.20.1；`PROGRESS.md` 需求口径与当前阶段同步。
 
-**验证**：`docs/specs/*` 作为已实现功能的验收证据保留；mathspec 最近一次全量 `python -m pytest mathspec/tests -q` = **98 passed**（不影响 netlab 589 passed 基线）。
+---
+
+## §7.78 R43 M1 数学加速影子实现（2026-11-06 18:30）
+
+**状态：M0/M1b 完成；M1c/M1d 未开始**。用户要求按文档规范开始改底层代码并从 main 新开分支。
+
+- 分支：`feat/math-accel-shadow`（从 `main` 新开，未带入 `feat/ts-migration`）。
+- M0（mathspec）：新增 `experiments/ac_sweep_woodbury.py`（双参数仿射族 + Woodbury）与 `experiments/ordering_eval.py`（COLAMD/MMD_ATA/MMD_AT_PLUS_A/NATURAL + RCM/MIN_DEGREE/NESTED_DISSECTION 评测）；新增测试 9 条，mathspec 全量 **107 passed in 5.66s**。
+- M1b（netlab）：新增 `netlab/core/compute/math_accel/{config,diagnostics,woodbury_ac,__init__}.py`；`nodal.ac_sweep` 增加 `off|shadow|on` 分支——默认 off 行为不变，shadow 只对拍不生效，on 在 `r/n≤0.10` 走 Woodbury、`0.10<r/n≤0.25` 仅影子、`>0.25` 直接解；条件数/主元守卫 + 残差修正。
+- 测试：`netlab/tests/test_math_accel.py` **5 passed**；`test_solver_analysis.py`+`test_complex_support.py` **22 passed**；netlab 全量 **594 passed, 1 skipped in 101.71s**。
+- 性能实测（2026-11-06，RC 梯形）：2001 频点/101 节点：off 1131.5 ms / shadow 1305.1 ms / on 755.7 ms（**1.50×**）；501 频点/201 节点：off 966.8 ms / on 463.0 ms（**2.09×**）。`on` 路径已加 fast path：复用 `base_matrix/base_rhs`，跳过逐频点重复 stamp；收益随规模增长。
+- 文档：`MATH_INTEGRATION_PLAN.md` 升 v1.1（§11 实施记录、里程碑状态）、REQUIREMENTS R43 现状、BACKLOG M1 行同步。
+
+**验证**：`docs/specs/*` 作为已实现功能的验收证据保留；mathspec 最近一次全量 `python -m pytest mathspec/tests -q` = **107 passed**（不影响 netlab 594 passed 基线）。
+
+---
+
+## §7.79 R43 M1a P1 排序评测 + M1c P5 遥测（2026-11-06 18:40）
+
+**状态：M1a/M1c/M1d 完成**。
+
+- **P1（M1a）**：新增 `netlab/core/compute/math_accel/ordering_eval.py`（只读导出真实 MNA 矩阵 + 7 种排序对照）与 `tools/eval_mna_ordering.py`；`netlab/tests/test_ordering_eval.py` 3 条通过。真实语料只有 2 个 circuit 工程（`grid_inverter_switch.netlab` 23 阶、`未命名工程.netlab` 7 阶），计时抖动明显，**1/2 达标，未通过 DoD → 生产 `_solve_sparse` 保持 COLAMD 不替换**。合成电路状矩阵 n=400 上 `MMD_AT_PLUS_A` factor 0.793×、fill 0.625×，作为扩大语料后的观察信号。报告：`mathspec/research/P1_ORDERING_REPORT.md` / `P1_ORDERING_RESULTS.csv`。
+- **P5（M1c）**：`Recorder.quality` 固定 schema（`sample_dt`/`quant_bits`/`interp_error_bound`/`fifo_depth`/`delay_bound`/`assumptions`）、`Recorder.quality_snapshot()`、`Simulation.telemetry_quality()`；`server.py` 新增只读 `GET /api/diagnostics/telemetry` 与 `GET /api/diagnostics/math-accel`，`/api/live` 顶层结构与行为零变化。`netlab/tests/test_telemetry_quality.py` 4 条通过。
+- **文档**：`MATH_INTEGRATION_PLAN.md` 升 v1.3（§11 补 M1a/M1c 实施记录）；REQUIREMENTS R43 现状、BACKLOG M1 行同步。
+- **测试**：netlab 全量 **602 passed, 1 skipped in 116.37s**；mathspec 107 passed。
+- **小矩阵守卫（M1b 收尾）**：新增 `AC_WOODBURY_MIN_SIZE=160`。实测 501 频点：n=51 off 71.3ms/on 77.7ms（0.92×）、n=101 173.9/171.1（1.02×）、n=201 1027.8/647.1（1.59×）、n=301 5187.9/1070.3（4.85×）；n<160 直接回退稠密解，`test_math_accel.py` 增至 6 条。
+
+## §7.80 R43 M1 收尾：P3 真实语料验证 + P5 前端误差合同（2026-11-06 19:45）
+
+**状态：完成（代码已改，待提交）**
+
+- **P3 真实语料**：`NetlabHome/MyProject` 7 个工程仅 2 个 circuit（`grid_inverter_switch.netlab` n=16 含 6 个 nmos；`未命名工程.netlab` n=4 含 opamp），两者 AC 均不支持 → **直接真实工程样本为 0**。用真实参数（Rg=10Ω、C=50µF、L1=2mH）构造 201/301/399 阶、r/n≈0.10 的 RC 传输线，501 频点：off 617.0/1328.5/2445.7 ms，on 335.3/580.0/1054.7 ms（**1.84× / 2.29× / 2.32×**），归一化误差 6.3e-14/1.7e-13/1.4e-13。新增 `tools/eval_p3_ac_corpus.py`、报告 `mathspec/research/P3_AC_CORPUS_REPORT.md` + `.csv`；`test_math_accel.py` 增至 7 条（大梯形 n=399 对拍）。
+- **P5 前端误差合同**：设置窗新增第 4 个「诊断」pane，展示采样间隔 / 量化位数 / 插值误差界 / FIFO 深度 / 延迟上界 / 合同状态 / 假设，可手动刷新；`frontend/app.ts` 新增 `TelemetryQuality` 类型与 `refreshTelemetryQuality()`，只读 `GET /api/diagnostics/telemetry`，不触碰 `/api/live` 响应结构；`frontend/index.html` 增加对应 pane。
+- **验证**：netlab 全量 **603 passed, 1 skipped in 89.99s**；mathspec **107 passed**；前端 `npm.cmd run typecheck` 通过、esbuild 构建通过、`node --test tests/*.test.mjs` **5 passed**。
+- **文档**：`MATH_INTEGRATION_PLAN.md` 升 v1.6；REQUIREMENTS R43 现状更新；BACKLOG/DOCS_INDEX/FRAMEWORK_CHEATSHEET 基线改 **603 passed**。
+

@@ -37,29 +37,54 @@ class VortexStats:
     def as_dict(self) -> dict:
         """非有限值一律给 None（JSON 不能表达 NaN，前端显示成「—」）。"""
         out = {
-            "t": self.t, "tau": self.tau,
-            "u_max": self.u_max, "omega_max": self.omega_max,
-            "enstrophy": self.enstrophy, "kinetic": self.kinetic,
-            "core_radius": self.core_radius, "axial_extent": self.axial_extent,
-            "elongation": self.elongation, "divergence_rel": self.divergence_rel,
-            "re_theta": self.re_theta, "n_grid": self.n_grid,
+            "t": self.t,
+            "tau": self.tau,
+            "u_max": self.u_max,
+            "omega_max": self.omega_max,
+            "enstrophy": self.enstrophy,
+            "kinetic": self.kinetic,
+            "core_radius": self.core_radius,
+            "axial_extent": self.axial_extent,
+            "elongation": self.elongation,
+            "divergence_rel": self.divergence_rel,
+            "re_theta": self.re_theta,
+            "n_grid": self.n_grid,
         }
-        return {k: (float(v) if isinstance(v, (int, float)) and np.isfinite(v) else None)
-                for k, v in out.items()}
+        return {
+            k: (float(v) if isinstance(v, (int, float)) and np.isfinite(v) else None)
+            for k, v in out.items()
+        }
 
 
-def _polar_grid(t: float, p: SimilarityParams, table, *, n_r: int, n_z: int,
-                r_max: float, z_max: float):
-    r = np.linspace(0.002, r_max, n_r)   # 轴上留 2 mm：r->0 处 (1/r)dr(r u_r) 会放大数值噪声
+def _polar_grid(
+    t: float,
+    p: SimilarityParams,
+    table,
+    *,
+    n_r: int,
+    n_z: int,
+    r_max: float,
+    z_max: float,
+):
+    r = np.linspace(
+        0.002, r_max, n_r
+    )  # 轴上留 2 mm：r->0 处 (1/r)dr(r u_r) 会放大数值噪声
     z = np.linspace(-z_max, z_max, n_z)
     R, Z = np.meshgrid(r, z, indexing="ij")
     ur, ut, uz = velocity_at(R, Z, t, p, table)
     return r, z, R, Z, ur, ut, uz
 
 
-def analyze(p: SimilarityParams | None = None, t: float = 0.5, *,
-            table: dict | None = None, n_r: int = 320, n_z: int = 320,
-            r_max: float | None = None, z_max: float = 1.2) -> VortexStats:
+def analyze(
+    p: SimilarityParams | None = None,
+    t: float = 0.5,
+    *,
+    table: dict | None = None,
+    n_r: int = 320,
+    n_z: int = 320,
+    r_max: float | None = None,
+    z_max: float = 1.2,
+) -> VortexStats:
     """解析列：在细 r–z 网格上算峰值、能量、Enstrophy、涡核尺度。
 
     采样半径默认按剖面自适应（r_max ≈ 2.2·√X₀）：写死 0.35 时，一旦把涡核
@@ -69,8 +94,9 @@ def analyze(p: SimilarityParams | None = None, t: float = 0.5, *,
     if r_max is None:
         r_max = max(0.35, 2.2 * float(np.sqrt(max(p.x0, 1e-6))))
     table = table if table is not None else profile_table(p)
-    r, z, R, Z, ur, ut, uz = _polar_grid(t, p, table, n_r=n_r, n_z=n_z,
-                                         r_max=r_max, z_max=z_max)
+    r, z, R, Z, ur, ut, uz = _polar_grid(
+        t, p, table, n_r=n_r, n_z=n_z, r_max=r_max, z_max=z_max
+    )
 
     dr = r[1] - r[0]
     dz = z[1] - z[0]
@@ -80,9 +106,9 @@ def analyze(p: SimilarityParams | None = None, t: float = 0.5, *,
     d_uz_dr = np.gradient(uz, dr, axis=0)
     w_theta = d_ur_dz - d_uz_dr
     w_z = (np.gradient(R * ut, dr, axis=0)) / np.maximum(R, 1e-12)
-    w2 = w_theta ** 2 + w_z ** 2
+    w2 = w_theta**2 + w_z**2
 
-    speed2 = ur ** 2 + ut ** 2 + uz ** 2
+    speed2 = ur**2 + ut**2 + uz**2
     dV = 2.0 * np.pi * R * dr * dz
 
     # 涡核半径：u_θ 降到轴上值的 1/e 处的 r（取 |z| 最小的那一行附近平均）
@@ -104,29 +130,39 @@ def analyze(p: SimilarityParams | None = None, t: float = 0.5, *,
     else:
         axial = float("nan")
 
-    div = (np.gradient(R * ur, dr, axis=0) / np.maximum(R, 1e-12)
-           + np.gradient(uz, dz, axis=1))
+    div = np.gradient(R * ur, dr, axis=0) / np.maximum(R, 1e-12) + np.gradient(
+        uz, dz, axis=1
+    )
     u_rms = float(np.sqrt(np.mean(speed2)))
-    div_rel = float(np.sqrt(np.mean(div ** 2)) / u_rms) if u_rms > 0 else float("nan")
+    div_rel = float(np.sqrt(np.mean(div**2)) / u_rms) if u_rms > 0 else float("nan")
 
     tau = p.t_blow - t
     return VortexStats(
-        t=float(t), tau=float(tau),
+        t=float(t),
+        tau=float(tau),
         u_max=float(np.sqrt(speed2.max())),
         omega_max=float(np.sqrt(w2.max())),
         enstrophy=float(0.5 * np.sum(w2 * dV)),
         kinetic=float(0.5 * np.sum(speed2 * dV)),
         core_radius=core_r,
         axial_extent=axial,
-        elongation=float(axial / core_r) if core_r and core_r == core_r else float("nan"),
+        elongation=(
+            float(axial / core_r) if core_r and core_r == core_r else float("nan")
+        ),
         divergence_rel=div_rel,
         re_theta=float(np.sqrt(speed2.max()) * core_r / p.nu),
     )
 
 
-def grid_stats(p: SimilarityParams | None = None, t: float = 0.5, *,
-               table: dict | None = None, n: int = 64,
-               extent: float = 0.6, z_extent: float = 1.0) -> VortexStats:
+def grid_stats(
+    p: SimilarityParams | None = None,
+    t: float = 0.5,
+    *,
+    table: dict | None = None,
+    n: int = 64,
+    extent: float = 0.6,
+    z_extent: float = 1.0,
+) -> VortexStats:
     """网格列：在 n³ 笛卡尔网格上做有限差分（含方位角离散误差）。"""
     p = p or SimilarityParams()
     table = table if table is not None else profile_table(p)
@@ -152,8 +188,8 @@ def grid_stats(p: SimilarityParams | None = None, t: float = 0.5, *,
     wy = dU_dz - dW_dx
     wz = dV_dx - dU_dy
 
-    w2 = wx ** 2 + wy ** 2 + wz ** 2
-    speed2 = U ** 2 + V ** 2 + W ** 2
+    w2 = wx**2 + wy**2 + wz**2
+    speed2 = U**2 + V**2 + W**2
     dV_cell = h * h * hz
 
     div = dU_dx + dV_dy + dW_dz
@@ -169,7 +205,8 @@ def grid_stats(p: SimilarityParams | None = None, t: float = 0.5, *,
         core = float(h * abs(idx[0] - mid))
 
     return VortexStats(
-        t=float(t), tau=float(p.t_blow - t),
+        t=float(t),
+        tau=float(p.t_blow - t),
         u_max=float(np.sqrt(speed2.max())),
         omega_max=float(np.sqrt(w2.max())),
         enstrophy=float(0.5 * np.sum(w2) * dV_cell),
@@ -177,14 +214,22 @@ def grid_stats(p: SimilarityParams | None = None, t: float = 0.5, *,
         core_radius=core,
         axial_extent=float("nan"),
         elongation=float("nan"),
-        divergence_rel=float(np.sqrt(np.mean(div ** 2)) / u_rms) if u_rms else float("nan"),
-        re_theta=float(np.sqrt(speed2.max()) * core / p.nu) if core == core else float("nan"),
+        divergence_rel=(
+            float(np.sqrt(np.mean(div**2)) / u_rms) if u_rms else float("nan")
+        ),
+        re_theta=(
+            float(np.sqrt(speed2.max()) * core / p.nu) if core == core else float("nan")
+        ),
         n_grid=n,
     )
 
 
-def convergence(p: SimilarityParams | None = None, t: float = 0.5, *,
-                sizes: tuple[int, ...] = (32, 64, 128)) -> list[dict]:
+def convergence(
+    p: SimilarityParams | None = None,
+    t: float = 0.5,
+    *,
+    sizes: tuple[int, ...] = (32, 64, 128),
+) -> list[dict]:
     """同一时刻、不同网格分辨率的诊断，用来看「网格值受 N 限制」。"""
     p = p or SimilarityParams()
     table = profile_table(p)

@@ -57,7 +57,9 @@ def show_figure(
         except Exception as exc:  # noqa: BLE001 - 降级到浏览器
             figure.warnings.append(f"window sink 不可用（{exc}），已降级为 browser")
 
-    return _show_browser(figure, port=port, open=open_browser, block=block, timeout=timeout, title=title)
+    return _show_browser(
+        figure, port=port, open=open_browser, block=block, timeout=timeout, title=title
+    )
 
 
 def _show_inline(figure: Any, *, title: str | None) -> Any:
@@ -89,7 +91,9 @@ def _show_browser(
             return server
         try:
             deadline = time.time() + timeout
-            while server._thread is not None and server._thread.is_alive():  # noqa: SLF001
+            while (
+                server._thread is not None and server._thread.is_alive()
+            ):  # noqa: SLF001
                 if time.time() > deadline and timeout > 0 and not should_open:
                     break
                 time.sleep(0.2)

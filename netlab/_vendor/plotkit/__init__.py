@@ -114,9 +114,15 @@ def register_layer(
       `style["passthrough"]`，不再当作未知参数忽略/报错。
     """
     spec = _reg.register(
-        kind, dimension, builder,
-        defaults=defaults, passthrough=passthrough, aliases=aliases,
-        description=description, interactive=interactive, overwrite=overwrite,
+        kind,
+        dimension,
+        builder,
+        defaults=defaults,
+        passthrough=passthrough,
+        aliases=aliases,
+        description=description,
+        interactive=interactive,
+        overwrite=overwrite,
     )
     if preset:
         _presets.register_preset(

@@ -70,7 +70,7 @@ class DataSet:
         self._buf = values if isinstance(values, np.ndarray) else np.asarray(values)
         self._len = int(self._buf.shape[0])
         self.history = list(history) if history else []
-        self._pyr = None          # 多级摘要（数据金字塔），懒建
+        self._pyr = None  # 多级摘要（数据金字塔），懒建
         self._pyr_version = -1
 
     @property
@@ -100,7 +100,7 @@ class DataSet:
             if self._len:
                 grown[: self._len] = self._buf[: self._len]
             self._buf = grown
-        self._buf[self._len:need] = array
+        self._buf[self._len : need] = array
         self._len = need
 
     @property
@@ -111,7 +111,9 @@ class DataSet:
     def snapshot(self) -> dict[str, Any]:
         return {
             "meta": self.meta.as_dict(),
-            "history": [{"version": v, "length": n, "at": t} for v, n, t in self.history],
+            "history": [
+                {"version": v, "length": n, "at": t} for v, n, t in self.history
+            ],
         }
 
 
@@ -129,14 +131,21 @@ def _as_array(values: Any, *, name: str) -> np.ndarray:
     if array.ndim > 3:
         raise ValueError(f"数据集 {name} 最多三维，收到 {array.ndim} 维")
     if array.dtype == object:
-        raise TypeError(f"数据集 {name} 是 object 数组（不可序列化），请先转成数值或字符串列表")
+        raise TypeError(
+            f"数据集 {name} 是 object 数组（不可序列化），请先转成数值或字符串列表"
+        )
     return np.array(array, copy=True)
 
 
 class DataStore:
     """会话级数据集容器。线程安全靠调用方（FastAPI 单进程内串行推帧）。"""
 
-    def __init__(self, *, namespace: str = "session", tmpdir: str | os.PathLike[str] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        namespace: str = "session",
+        tmpdir: str | os.PathLike[str] | None = None,
+    ) -> None:
         self.namespace = namespace
         self.tmpdir = Path(tmpdir) if tmpdir else None
         self._sets: dict[str, DataSet] = {}
@@ -161,7 +170,7 @@ class DataStore:
         if hit and hit[0] == stamp:
             return hit[1]
         levels = build_pyramid(x_set.values[:n], y_set.values[:n])
-        if len(self._pyramids) > 16:      # 只留最近若干对，避免长会话攒满
+        if len(self._pyramids) > 16:  # 只留最近若干对，避免长会话攒满
             self._pyramids.pop(next(iter(self._pyramids)))
         self._pyramids[key] = (stamp, levels)
         return levels
@@ -187,7 +196,9 @@ class DataStore:
             raise ValueError(f"life 必须是 {LIVES} 之一，收到 {life!r}")
         key = self._resolve(name, create=True)
         if key in self._sets and not overwrite:
-            raise KeyError(f"数据集已存在: {name}（改值请用 push()，或 overwrite=True）")
+            raise KeyError(
+                f"数据集已存在: {name}（改值请用 push()，或 overwrite=True）"
+            )
         array = _as_array(values, name=name)
         previous = self._sets.get(key)
         version = int(previous.meta.version) + 1 if previous is not None else 1
@@ -217,9 +228,13 @@ class DataStore:
         array = _as_array(values, name=name)
         if data.meta.life == "append":
             if data.values.ndim != array.ndim:
-                raise ValueError(f"数据集 {name} 维度不一致: {data.values.ndim} vs {array.ndim}")
+                raise ValueError(
+                    f"数据集 {name} 维度不一致: {data.values.ndim} vs {array.ndim}"
+                )
             if array.ndim == 2 and data.values.shape[1:] != array.shape[1:]:
-                raise ValueError(f"数据集 {name} 列数不一致: {data.values.shape[1:]} vs {array.shape[1:]}")
+                raise ValueError(
+                    f"数据集 {name} 列数不一致: {data.values.shape[1:]} vs {array.shape[1:]}"
+                )
             data.append(array)
         else:
             data.values = array
@@ -245,7 +260,7 @@ class DataStore:
         n = int(data.values.shape[0])
         if n <= keep:
             return data.meta
-        data._buf = data._buf[n - keep: n].copy()
+        data._buf = data._buf[n - keep : n].copy()
         data._len = keep
         data.meta.length = keep
         data.meta.shape = tuple(int(s) for s in data._buf.shape)
@@ -319,7 +334,7 @@ class DataStore:
                 continue
             meta = data.meta.as_dict()
             items.append(meta)
-            for tag in (meta["tags"] or ["未分组"]):
+            for tag in meta["tags"] or ["未分组"]:
                 groups.setdefault(tag, []).append(key)
         return {"namespace": self.namespace, "datasets": items, "groups": groups}
 
@@ -335,7 +350,15 @@ class DataStore:
         with target.open("w", newline="", encoding="utf-8") as handle:
             writer = csv.writer(handle)
             writer.writerow(["name", "unit", "role", "version", "tags"])
-            writer.writerow([data.meta.name, data.meta.unit, data.meta.role, data.meta.version, ";".join(data.meta.tags)])
+            writer.writerow(
+                [
+                    data.meta.name,
+                    data.meta.unit,
+                    data.meta.role,
+                    data.meta.version,
+                    ";".join(data.meta.tags),
+                ]
+            )
             for row in data.values:
                 writer.writerow(np.atleast_1d(row).tolist())
         return target

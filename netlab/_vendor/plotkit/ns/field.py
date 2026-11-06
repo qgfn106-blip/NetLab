@@ -53,13 +53,13 @@ __all__ = [
 class SimilarityParams:
     """剖面参数。h 是论文里的小指数，X₀/η₀/α 控制核心粗细与轴向包络。"""
 
-    h: float = 0.005         # 论文约束 0 < h < 1/100；UI 允许放大到 0.2 仅作视觉演示
-    x0: float = 0.6          # 核心尺度（相似坐标 X 方向）
-    eta0: float = 1.0        # 轴向包络宽度
-    c_inf: float = 1.0       # 远场涡量强度系数
-    alpha: float = 0.6       # 轴向速度相对强度
-    nu: float = 1e-3         # 运动黏度（仅用于 Re 诊断）
-    t_blow: float = 1.0      # 奇异时间 T*
+    h: float = 0.005  # 论文约束 0 < h < 1/100；UI 允许放大到 0.2 仅作视觉演示
+    x0: float = 0.6  # 核心尺度（相似坐标 X 方向）
+    eta0: float = 1.0  # 轴向包络宽度
+    c_inf: float = 1.0  # 远场涡量强度系数
+    alpha: float = 0.6  # 轴向速度相对强度
+    nu: float = 1e-3  # 运动黏度（仅用于 Re 诊断）
+    t_blow: float = 1.0  # 奇异时间 T*
 
     def __post_init__(self) -> None:
         if not (0.0 < self.h < 0.5):
@@ -113,8 +113,9 @@ def _q_from_eta(eta: np.ndarray, tau: float) -> np.ndarray:
     return tau / denom
 
 
-def inverse_map(z: np.ndarray, r: np.ndarray, t: float, p: SimilarityParams,
-                *, iters: int = 12) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def inverse_map(
+    z: np.ndarray, r: np.ndarray, t: float, p: SimilarityParams, *, iters: int = 12
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """物理坐标 → 相似坐标 (X, η, q)。
 
     解 τ = q − z²·q^(1−2D) 里的 q（论文写作 q ≍ τ + |z|^(1/D)）。
@@ -154,8 +155,9 @@ def _shape(X: np.ndarray, p: SimilarityParams) -> np.ndarray:
     return np.sqrt(X) / (1.0 + np.power(X / p.x0, p.h + 1.0))
 
 
-def profile_table(p: SimilarityParams, *, n_x: int = 512, n_eta: int = 257,
-                  x_max: float = 40.0):
+def profile_table(
+    p: SimilarityParams, *, n_x: int = 512, n_eta: int = 257, x_max: float = 40.0
+):
     """在相似坐标 (X, η) 上算 E、U、V₀ 三张表（CPU 侧唯一的重活）。
 
     返回 dict：
@@ -170,7 +172,7 @@ def profile_table(p: SimilarityParams, *, n_x: int = 512, n_eta: int = 257,
     X = x_max * u * u
     eta = np.linspace(-0.995, 0.995, n_eta)
 
-    Xg, Eg = np.meshgrid(X, eta)          # (n_eta, n_x)
+    Xg, Eg = np.meshgrid(X, eta)  # (n_eta, n_x)
     s = _shape(Xg, p)
     env = _sech2(Eg / p.eta0)
 
@@ -181,7 +183,7 @@ def profile_table(p: SimilarityParams, *, n_x: int = 512, n_eta: int = 257,
     # ---- V₀：由不可压条件 ∂_X V₀ = −q ∂_z u_z（**固定 r**）沿 X 积分 ------
     # 关键：∂_z 要在固定 r 下求。u_z = q^(−A)U(X,η) 里 q、η、X 都随 z 变
     # （X = r²/(2q)），只对 η 求导会漏掉 X 那一支，残差 10–40%。
-    tau_ref = 0.5                                    # 只用来标定 η→z 的映射，结果与 τ 无关
+    tau_ref = 0.5  # 只用来标定 η→z 的映射，结果与 τ 无关
     d_z = 1e-4
 
     def _q(e):
@@ -189,17 +191,18 @@ def profile_table(p: SimilarityParams, *, n_x: int = 512, n_eta: int = 257,
 
     def _uz_at(z_phys, r_phys):
         Xq, eq, qq = inverse_map(z_phys, r_phys, tau_ref, p)
-        _, Uq, _ = _sample({"u": u, "X": X, "eta": eta, "E": E, "U": U, "V0": np.zeros_like(U)},
-                           Xq, eq)
+        _, Uq, _ = _sample(
+            {"u": u, "X": X, "eta": eta, "E": E, "U": U, "V0": np.zeros_like(U)}, Xq, eq
+        )
         return np.power(qq, -p.A) * Uq
 
-    q_row = _q(eta)[:, None]                         # (n_eta, 1)
-    z_row = np.power(q_row, p.D) * eta[:, None]      # (n_eta, 1)
-    r_grid = np.sqrt(2.0 * q_row * X[None, :])       # (n_eta, n_x)
+    q_row = _q(eta)[:, None]  # (n_eta, 1)
+    z_row = np.power(q_row, p.D) * eta[:, None]  # (n_eta, 1)
+    r_grid = np.sqrt(2.0 * q_row * X[None, :])  # (n_eta, n_x)
 
     duz_dz = (_uz_at(z_row + d_z, r_grid) - _uz_at(z_row - d_z, r_grid)) / (2.0 * d_z)
     integrand = -q_row * duz_dz
-    dX = np.diff(X, prepend=X[0])                    # 非均匀网格：必须逐格乘步长
+    dX = np.diff(X, prepend=X[0])  # 非均匀网格：必须逐格乘步长
     V0 = np.cumsum(integrand * dX, axis=1)
     V0[:, 0] = 0.0
 
@@ -212,8 +215,9 @@ def _sample(table: dict, X: np.ndarray, eta: np.ndarray):
     es = table["eta"]
     nx, ne = us.size, es.size
 
-    fu = np.clip(np.sqrt(np.maximum(X, 0.0) / table["X"][-1]) * (nx - 1),
-                 0.0, nx - 1.000001)
+    fu = np.clip(
+        np.sqrt(np.maximum(X, 0.0) / table["X"][-1]) * (nx - 1), 0.0, nx - 1.000001
+    )
     fe = np.clip((eta - es[0]) / (es[-1] - es[0]) * (ne - 1), 0.0, ne - 1.000001)
     i0 = fu.astype(np.int64)
     j0 = fe.astype(np.int64)
@@ -250,8 +254,13 @@ def velocity_at(r, z, t: float, p: SimilarityParams, table: dict | None = None):
 class SimilarityField:
     """解析自相似场，实现 NSField 协议（点采样，无状态）。"""
 
-    def __init__(self, params: SimilarityParams | None = None, *,
-                 n_x: int = 512, n_eta: int = 257):
+    def __init__(
+        self,
+        params: SimilarityParams | None = None,
+        *,
+        n_x: int = 512,
+        n_eta: int = 257,
+    ):
         self.params = params or SimilarityParams()
         self.table = profile_table(self.params, n_x=n_x, n_eta=n_eta)
 
@@ -285,15 +294,24 @@ def _read_hdf5(path, group: str | None = None) -> dict[str, np.ndarray]:
         node = fh[group] if group else None
         if node is None:
             candidates = [fh]
-            fh.visit(lambda name: candidates.append(fh[name])
-                     if isinstance(fh[name], h5py.Group) else None)
+            fh.visit(
+                lambda name: (
+                    candidates.append(fh[name])
+                    if isinstance(fh[name], h5py.Group)
+                    else None
+                )
+            )
             for cand in candidates:
                 if need.issubset(set(cand.keys())):
                     node = cand
                     break
         if node is None:
             raise KeyError(f"{path} 里找不到同时包含 {sorted(need)} 的组")
-        data = {key: np.asarray(node[key][()]) for key in node.keys() if key in need | {"t", "scattered"}}
+        data = {
+            key: np.asarray(node[key][()])
+            for key in node.keys()
+            if key in need | {"t", "scattered"}
+        }
     if "t" not in data:
         data["t"] = np.array([0.0])
     return data
@@ -327,7 +345,8 @@ class ArrayField:
             self.scattered = bool(hint)
         else:
             self.scattered = bool(
-                self.x.ndim == 1 and self.x.size == self.y.size == self.z.size
+                self.x.ndim == 1
+                and self.x.size == self.y.size == self.z.size
                 and self.x.size > 8
                 and self.u.shape[-1] == self.x.size
             )
@@ -342,8 +361,10 @@ class ArrayField:
 
     @property
     def bounds(self):
-        return ((float(self.x[0]), float(self.y[0]), float(self.z[0])),
-                (float(self.x[-1]), float(self.y[-1]), float(self.z[-1])))
+        return (
+            (float(self.x[0]), float(self.y[0]), float(self.z[0])),
+            (float(self.x[-1]), float(self.y[-1]), float(self.z[-1])),
+        )
 
     def _build_cells(self) -> None:
         """把散点装进均匀桶网格（每桶约 1 个点），查询时只看 3×3×3 邻域。"""
@@ -353,7 +374,9 @@ class ArrayField:
         n = self.x.size
         cell = float(np.cbrt(span.prod() / max(n, 1)) * 2.0)
         cell = max(cell, float(span.max()) / 64.0)
-        idx = np.floor((np.stack([self.x, self.y, self.z], axis=1) - lo) / cell).astype(np.int64)
+        idx = np.floor((np.stack([self.x, self.y, self.z], axis=1) - lo) / cell).astype(
+            np.int64
+        )
         buckets: dict[tuple[int, int, int], list[int]] = {}
         for i, key in enumerate(map(tuple, idx)):
             buckets.setdefault(key, []).append(i)
@@ -363,7 +386,11 @@ class ArrayField:
         if self._cells is None:
             self._build_cells()
         assert self._cells is not None
-        lo, cell, buckets = self._cells["lo"], self._cells["cell"], self._cells["buckets"]
+        lo, cell, buckets = (
+            self._cells["lo"],
+            self._cells["cell"],
+            self._cells["buckets"],
+        )
         ti = int(np.argmin(np.abs(self.t - t)))
         U = self.u[ti] if self.u.ndim == 2 else self.u
         V = self.v[ti] if self.v.ndim == 2 else self.v
@@ -378,32 +405,45 @@ class ArrayField:
             for dx in (-1, 0, 1):
                 for dy in (-1, 0, 1):
                     for dz in (-1, 0, 1):
-                        idx.extend(buckets.get((key[0] + dx, key[1] + dy, key[2] + dz), ()))
+                        idx.extend(
+                            buckets.get((key[0] + dx, key[1] + dy, key[2] + dz), ())
+                        )
             if not idx:
                 continue
             cand = np.asarray(idx, dtype=np.int64)
             d2 = np.sum((coords[cand] - pts[j]) ** 2, axis=1)
             if float(d2.min()) < 1e-18:
-                out[j] = (float(U[cand[int(np.argmin(d2))]]),
-                          float(V[cand[int(np.argmin(d2))]]),
-                          float(W[cand[int(np.argmin(d2))]]))
+                out[j] = (
+                    float(U[cand[int(np.argmin(d2))]]),
+                    float(V[cand[int(np.argmin(d2))]]),
+                    float(W[cand[int(np.argmin(d2))]]),
+                )
                 continue
             w = 1.0 / (d2 + 1e-12)
             w = w / w.sum()
-            out[j] = (float(np.dot(w, U[cand])), float(np.dot(w, V[cand])),
-                      float(np.dot(w, W[cand])))
+            out[j] = (
+                float(np.dot(w, U[cand])),
+                float(np.dot(w, V[cand])),
+                float(np.dot(w, W[cand])),
+            )
         return out
 
     def _frame(self, t: float) -> np.ndarray:
         """取最接近 t 的那一帧，形状统一成 `(nz, ny, nx, 3)`。"""
         ti = int(np.argmin(np.abs(self.t - t)))
-        stack = np.stack([self.u[ti] if self.u.ndim == 4 else self.u,
-                          self.v[ti] if self.v.ndim == 4 else self.v,
-                          self.w[ti] if self.w.ndim == 4 else self.w], axis=-1)
+        stack = np.stack(
+            [
+                self.u[ti] if self.u.ndim == 4 else self.u,
+                self.v[ti] if self.v.ndim == 4 else self.v,
+                self.w[ti] if self.w.ndim == 4 else self.w,
+            ],
+            axis=-1,
+        )
         if stack.shape[:3] != (self.z.size, self.y.size, self.x.size):
             raise ValueError(
                 f"ArrayField 期望 u/v/w 形状 (nz,ny,nx) 或 (nt,nz,ny,nx)，"
-                f"实际 {stack.shape[:3]}，坐标 {self.z.size}×{self.y.size}×{self.x.size}")
+                f"实际 {stack.shape[:3]}，坐标 {self.z.size}×{self.y.size}×{self.x.size}"
+            )
         return stack.astype(np.float64)
 
     def velocity(self, points: np.ndarray, t: float) -> np.ndarray:
@@ -412,12 +452,16 @@ class ArrayField:
         if self.scattered:
             return self._scattered_velocity(pts, t)
         grid = self._frame(t)
+
         def axis(coord, values):
             i = np.searchsorted(values, coord) - 1
             i = np.clip(i, 0, values.size - 2)
             span = values[i + 1] - values[i]
-            frac = np.clip((coord - values[i]) / np.where(span == 0, 1.0, span), 0.0, 1.0)
+            frac = np.clip(
+                (coord - values[i]) / np.where(span == 0, 1.0, span), 0.0, 1.0
+            )
             return i, frac
+
         ix, fx = axis(pts[:, 0], self.x)
         iy, fy = axis(pts[:, 1], self.y)
         iz, fz = axis(pts[:, 2], self.z)
@@ -431,6 +475,7 @@ class ArrayField:
                     w = wz * wy * wx
                     out += w[:, None] * grid[iz + dz, iy + dy, ix + dx]
         return out
+
 
 @dataclass(frozen=True)
 class PhysicalParams:
@@ -458,13 +503,23 @@ class PhysicalParams:
         if not (0.02 <= self.a <= 6.0):
             raise ValueError("a 必须在 0.02..6.0")
         x0 = float(self.r_core) ** 2
-        c_inf = float(self.gamma) / _circulation_unit(x0, float(self.eta0), float(self.h),
-                                                     r_ref=float(self.r_core))
-        return SimilarityParams(h=self.h, x0=x0, eta0=self.eta0, c_inf=c_inf,
-                                alpha=float(self.a), nu=self.nu, t_blow=self.t_blow)
+        c_inf = float(self.gamma) / _circulation_unit(
+            x0, float(self.eta0), float(self.h), r_ref=float(self.r_core)
+        )
+        return SimilarityParams(
+            h=self.h,
+            x0=x0,
+            eta0=self.eta0,
+            c_inf=c_inf,
+            alpha=float(self.a),
+            nu=self.nu,
+            t_blow=self.t_blow,
+        )
 
 
-def _circulation_unit(x0: float, eta0: float, h: float, *, r_ref: float = 0.775) -> float:
+def _circulation_unit(
+    x0: float, eta0: float, h: float, *, r_ref: float = 0.775
+) -> float:
     """c∞=1 时，r=2·r_core 圆周上的环量（η=0 赤道面，q 取 0.5）。"""
     q = 0.5
     r = 2.0 * r_ref

@@ -91,20 +91,35 @@ def doctor_report() -> dict:
 
 
 def _print_report(report: dict) -> None:
-    print(f"python   {report['versions']['python']}   ({report['versions']['executable']})")
-    for name in ("numpy", "matplotlib", "pillow", "fastapi", "uvicorn", "pyvista", "vtk", "pywebview"):
+    print(
+        f"python   {report['versions']['python']}   ({report['versions']['executable']})"
+    )
+    for name in (
+        "numpy",
+        "matplotlib",
+        "pillow",
+        "fastapi",
+        "uvicorn",
+        "pyvista",
+        "vtk",
+        "pywebview",
+    ):
         row = report["requirements"].get(name)
         have = report["versions"].get(name, "missing")
         if row is None:
             print(f"{name:<9}{have}")
         else:
-            print(f"{name:<9}{have:<12}需要 >= {row['need']:<6}{'OK' if row['ok'] else '不满足'}")
+            print(
+                f"{name:<9}{have:<12}需要 >= {row['need']:<6}{'OK' if row['ok'] else '不满足'}"
+            )
     for feature, info in report["optional"].items():
         state = "可用" if info["ok"] else "缺少 " + ", ".join(info["missing"])
         print(f"[{feature:<7}] {state}")
     if report["notes"]:
         print("注意：" + report["notes"])
-    print("结论：" + ("环境满足要求" if report["ok"] else "；".join(report["problems"])))
+    print(
+        "结论：" + ("环境满足要求" if report["ok"] else "；".join(report["problems"]))
+    )
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
@@ -227,7 +242,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_ns.set_defaults(func=_cmd_ns)
 
     p_r3 = sub.add_parser("render3d", help="批量渲染三维帧（发给运行中的服务）")
-    p_r3.add_argument("--payload", required=True, help="frames.json：{frames:[{spec:...}], data:{...}}")
+    p_r3.add_argument(
+        "--payload",
+        required=True,
+        help="frames.json：{frames:[{spec:...}], data:{...}}",
+    )
     p_r3.add_argument("--out", default="frames.zip", help="输出 zip 路径")
     p_r3.add_argument("--url", default="http://127.0.0.1:8750", help="PlotKit 服务地址")
     p_r3.add_argument("--width", type=int, default=0)

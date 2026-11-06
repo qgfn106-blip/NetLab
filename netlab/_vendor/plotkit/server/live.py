@@ -17,7 +17,14 @@ def free_port(host: str = "127.0.0.1") -> int:
 
 
 class LiveServer:
-    def __init__(self, figure: Any, *, host: str = "127.0.0.1", port: int = 0, title: str | None = None) -> None:
+    def __init__(
+        self,
+        figure: Any,
+        *,
+        host: str = "127.0.0.1",
+        port: int = 0,
+        title: str | None = None,
+    ) -> None:
         self.figure = figure
         self.host = host
         self.port = int(port) or free_port(host)
@@ -33,12 +40,16 @@ class LiveServer:
         try:
             import uvicorn
         except ImportError as exc:  # pragma: no cover - 环境相关
-            raise ImportError("需要 uvicorn：pip install -e \".[server]\"") from exc
+            raise ImportError('需要 uvicorn：pip install -e ".[server]"') from exc
 
         app = create_app(self.figure, title=self.title)
-        config = uvicorn.Config(app, host=self.host, port=self.port, log_level="warning", access_log=False)
+        config = uvicorn.Config(
+            app, host=self.host, port=self.port, log_level="warning", access_log=False
+        )
         self._server = uvicorn.Server(config)
-        self._thread = threading.Thread(target=self._server.run, name="plotkit-live", daemon=True)
+        self._thread = threading.Thread(
+            target=self._server.run, name="plotkit-live", daemon=True
+        )
         self._thread.start()
 
         deadline = time.time() + timeout

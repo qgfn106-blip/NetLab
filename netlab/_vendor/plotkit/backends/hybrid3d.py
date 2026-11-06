@@ -55,8 +55,7 @@ def _fmt(value: float) -> str:
 def _pick_edges(corners, px, bounds):
     """挑三条"最靠下"的包围盒边当坐标轴（屏幕上最低的那条通常不被遮挡）。"""
     (x0, x1, y0, y1, z0, z1) = bounds
-    index = {(x, y, z): i
-             for i, (x, y, z) in enumerate(corners)}
+    index = {(x, y, z): i for i, (x, y, z) in enumerate(corners)}
     axes = []
     specs = [
         ("x", (x0, x1), [("y", y0), ("y", y1)], [("z", z0), ("z", z1)]),
@@ -77,7 +76,7 @@ def _pick_edges(corners, px, bounds):
                 if i_lo is None or i_hi is None:
                     continue
                 y_mean = (px[i_lo][1] + px[i_hi][1]) / 2.0
-                if best is None or y_mean > best[0]:   # 屏幕 y 向下为正：取最大=最靠下
+                if best is None or y_mean > best[0]:  # 屏幕 y 向下为正：取最大=最靠下
                     best = (y_mean, i_lo, i_hi)
         if best is not None:
             axes.append((name, lo, hi, px[best[1]], px[best[2]]))
@@ -111,8 +110,17 @@ def _scalar_info(spec: Mapping[str, Any], store):
     return None
 
 
-def _compose(spec: Mapping[str, Any], store, image: np.ndarray, info: Mapping[str, Any],
-             *, width: int, height: int, dpi: int, fmt: str) -> bytes:
+def _compose(
+    spec: Mapping[str, Any],
+    store,
+    image: np.ndarray,
+    info: Mapping[str, Any],
+    *,
+    width: int,
+    height: int,
+    dpi: int,
+    fmt: str,
+) -> bytes:
 
     figure_cfg = spec.get("figure") or {}
     face = str(figure_cfg.get("facecolor") or "white")
@@ -122,12 +130,23 @@ def _compose(spec: Mapping[str, Any], store, image: np.ndarray, info: Mapping[st
 
     rc = {"svg.fonttype": "none"} if fmt == "svg" else {}
     with rc_context(rc):
-        return _compose_figure(spec, store, image, info, width=width, height=height,
-                               dpi=dpi, fmt=fmt, face=face, figure_cfg=figure_cfg)
+        return _compose_figure(
+            spec,
+            store,
+            image,
+            info,
+            width=width,
+            height=height,
+            dpi=dpi,
+            fmt=fmt,
+            face=face,
+            figure_cfg=figure_cfg,
+        )
 
 
-def _compose_figure(spec, store, image, info, *, width, height, dpi, fmt, face,
-                    figure_cfg) -> bytes:
+def _compose_figure(
+    spec, store, image, info, *, width, height, dpi, fmt, face, figure_cfg
+) -> bytes:
     from matplotlib.backends.backend_agg import FigureCanvasAgg
     from matplotlib.figure import Figure
 
@@ -147,12 +166,18 @@ def _compose_figure(spec, store, image, info, *, width, height, dpi, fmt, face,
     # 包围盒的 12 条棱：细灰线，纯矢量
     (x0, x1, y0, y1, z0, z1) = bounds
     edges = [
-        ((x0, y0, z0), (x1, y0, z0)), ((x0, y1, z0), (x1, y1, z0)),
-        ((x0, y0, z1), (x1, y0, z1)), ((x0, y1, z1), (x1, y1, z1)),
-        ((x0, y0, z0), (x0, y1, z0)), ((x1, y0, z0), (x1, y1, z0)),
-        ((x0, y0, z1), (x0, y1, z1)), ((x1, y0, z1), (x1, y1, z1)),
-        ((x0, y0, z0), (x0, y0, z1)), ((x1, y0, z0), (x1, y0, z1)),
-        ((x0, y1, z0), (x0, y1, z1)), ((x1, y1, z0), (x1, y1, z1)),
+        ((x0, y0, z0), (x1, y0, z0)),
+        ((x0, y1, z0), (x1, y1, z0)),
+        ((x0, y0, z1), (x1, y0, z1)),
+        ((x0, y1, z1), (x1, y1, z1)),
+        ((x0, y0, z0), (x0, y1, z0)),
+        ((x1, y0, z0), (x1, y1, z0)),
+        ((x0, y0, z1), (x0, y1, z1)),
+        ((x1, y0, z1), (x1, y1, z1)),
+        ((x0, y0, z0), (x0, y0, z1)),
+        ((x1, y0, z0), (x1, y0, z1)),
+        ((x0, y1, z0), (x0, y1, z1)),
+        ((x1, y1, z0), (x1, y1, z1)),
     ]
     index = {c: i for i, c in enumerate(corners)}
     for a, b in edges:
@@ -160,28 +185,53 @@ def _compose_figure(spec, store, image, info, *, width, height, dpi, fmt, face,
         if ia is None or ib is None:
             continue
         (xa, ya), (xb, yb) = px[ia], px[ib]
-        ax.plot([xa, xb], [ya, yb], color=_EDGE_COLOR, linewidth=0.6, alpha=0.55, zorder=2)
+        ax.plot(
+            [xa, xb], [ya, yb], color=_EDGE_COLOR, linewidth=0.6, alpha=0.55, zorder=2
+        )
 
     # 三条主轴的刻度 + 轴名（矢量文字）
-    label_of = {"x": str(figure_cfg.get("xlabel") or "x"),
-                "y": str(figure_cfg.get("ylabel") or "y"),
-                "z": str(figure_cfg.get("zlabel") or "z")}
+    label_of = {
+        "x": str(figure_cfg.get("xlabel") or "x"),
+        "y": str(figure_cfg.get("ylabel") or "y"),
+        "z": str(figure_cfg.get("zlabel") or "z"),
+    }
     for name, lo, hi, p_lo, p_hi in _pick_edges(corners, px, bounds):
-        ax.plot([p_lo[0], p_hi[0]], [p_lo[1], p_hi[1]], color=_AXIS_COLOR,
-                linewidth=1.1, zorder=3)
+        ax.plot(
+            [p_lo[0], p_hi[0]],
+            [p_lo[1], p_hi[1]],
+            color=_AXIS_COLOR,
+            linewidth=1.1,
+            zorder=3,
+        )
         for value in _nice_ticks(lo, hi):
             t = (value - lo) / (hi - lo) if hi > lo else 0.0
             tx = p_lo[0] + (p_hi[0] - p_lo[0]) * t
             ty = p_lo[1] + (p_hi[1] - p_lo[1]) * t
             ax.plot([tx], [ty], marker="|", color=_AXIS_COLOR, markersize=4, zorder=3)
-            ax.annotate(_fmt(value), (tx, ty), xytext=(0, -9), textcoords="offset points",
-                        ha="center", va="top", fontsize=7.5, color=_AXIS_COLOR, zorder=4)
+            ax.annotate(
+                _fmt(value),
+                (tx, ty),
+                xytext=(0, -9),
+                textcoords="offset points",
+                ha="center",
+                va="top",
+                fontsize=7.5,
+                color=_AXIS_COLOR,
+                zorder=4,
+            )
         # 轴名放在末端外侧
         dx, dy = p_hi[0] - p_lo[0], p_hi[1] - p_lo[1]
         norm = math.hypot(dx, dy) or 1.0
-        ax.annotate(label_of[name], (p_hi[0] + dx / norm * 16, p_hi[1] + dy / norm * 16),
-                    ha="center", va="center", fontsize=9, color=_AXIS_COLOR,
-                    fontweight="bold", zorder=4)
+        ax.annotate(
+            label_of[name],
+            (p_hi[0] + dx / norm * 16, p_hi[1] + dy / norm * 16),
+            ha="center",
+            va="center",
+            fontsize=9,
+            color=_AXIS_COLOR,
+            fontweight="bold",
+            zorder=4,
+        )
 
     scalar = _scalar_info(spec, store)
     if scalar is not None:
@@ -201,25 +251,62 @@ def _compose_figure(spec, store, image, info, *, width, height, dpi, fmt, face,
             frac = i / (steps - 1)
             y_rect = y0 + hgt * (1.0 - frac)
             h_rect = hgt / steps + 0.8
-            quads.append([(x0, y_rect), (x0 + w, y_rect),
-                          (x0 + w, y_rect + h_rect), (x0, y_rect + h_rect)])
+            quads.append(
+                [
+                    (x0, y_rect),
+                    (x0 + w, y_rect),
+                    (x0 + w, y_rect + h_rect),
+                    (x0, y_rect + h_rect),
+                ]
+            )
             colors.append(cmap(frac))
-        ax.add_collection(PolyCollection(quads, facecolors=colors, edgecolors="none",
-                                         zorder=3))
-        ax.add_patch(Rectangle((x0, y0), w, hgt, facecolor="none",
-                               edgecolor=_AXIS_COLOR, linewidth=0.6, zorder=4))
+        ax.add_collection(
+            PolyCollection(quads, facecolors=colors, edgecolors="none", zorder=3)
+        )
+        ax.add_patch(
+            Rectangle(
+                (x0, y0),
+                w,
+                hgt,
+                facecolor="none",
+                edgecolor=_AXIS_COLOR,
+                linewidth=0.6,
+                zorder=4,
+            )
+        )
         for i in range(5):
             frac = i / 4
             value = lo + (hi - lo) * frac
             ty = y0 + hgt * (1.0 - frac)
-            ax.plot([x0 + w, x0 + w + 4], [ty, ty], color=_AXIS_COLOR, linewidth=0.6, zorder=4)
-            ax.annotate(_fmt(value), (x0 + w + 6, ty), ha="left", va="center",
-                        fontsize=7.5, color=_AXIS_COLOR, zorder=5)
+            ax.plot(
+                [x0 + w, x0 + w + 4],
+                [ty, ty],
+                color=_AXIS_COLOR,
+                linewidth=0.6,
+                zorder=4,
+            )
+            ax.annotate(
+                _fmt(value),
+                (x0 + w + 6, ty),
+                ha="left",
+                va="center",
+                fontsize=7.5,
+                color=_AXIS_COLOR,
+                zorder=5,
+            )
 
     title = figure_cfg.get("title")
     if title:
-        fig.text(0.5, 0.975, str(title), ha="center", va="top", fontsize=11,
-                 color="#111827", zorder=5)
+        fig.text(
+            0.5,
+            0.975,
+            str(title),
+            ha="center",
+            va="top",
+            fontsize=11,
+            color="#111827",
+            zorder=5,
+        )
 
     # 图层标签 = 图例（矢量），用一小块色块 + 文字
     labels = []
@@ -229,12 +316,26 @@ def _compose_figure(spec, store, image, info, *, width, height, dpi, fmt, face,
             labels.append(str(text))
     if labels:
         for i, text in enumerate(labels[:6]):
-            fig.text(0.985, 0.94 - i * 0.045, text, ha="right", va="top", fontsize=8,
-                     color=_AXIS_COLOR, zorder=5)
+            fig.text(
+                0.985,
+                0.94 - i * 0.045,
+                text,
+                ha="right",
+                va="top",
+                fontsize=8,
+                color=_AXIS_COLOR,
+                zorder=5,
+            )
 
     buffer = io.BytesIO()
-    fig.savefig(buffer, format=fmt, dpi=dpi, facecolor=face, bbox_inches=None,
-                metadata={"Date": None} if fmt != "png" else {"Software": None})
+    fig.savefig(
+        buffer,
+        format=fmt,
+        dpi=dpi,
+        facecolor=face,
+        bbox_inches=None,
+        metadata={"Date": None} if fmt != "png" else {"Software": None},
+    )
     return buffer.getvalue()
 
 
@@ -252,11 +353,26 @@ def render_hybrid(
     """三维混合出图：3D 场景位图 + 矢量坐标轴/刻度/标题。"""
     fmt = (fmt or "svg").lower()
     if fmt not in ("svg", "pdf", "png"):
-        raise pyvista_backend.BackendUnsupported(f"混合出图不支持 {fmt!r}（支持 svg/pdf/png）")
+        raise pyvista_backend.BackendUnsupported(
+            f"混合出图不支持 {fmt!r}（支持 svg/pdf/png）"
+        )
     image, info = pyvista_backend.render_scene_threaded(
-        spec, store, width=width, height=height, dpi=dpi,
-        xlim=tuple(xlim) if xlim else None, ylim=tuple(ylim) if ylim else None,
+        spec,
+        store,
+        width=width,
+        height=height,
+        dpi=dpi,
+        xlim=tuple(xlim) if xlim else None,
+        ylim=tuple(ylim) if ylim else None,
         decorate=False,
     )
-    return _compose(spec, store, np.asarray(image), info, width=int(width), height=int(height),
-                    dpi=int(dpi), fmt=fmt)
+    return _compose(
+        spec,
+        store,
+        np.asarray(image),
+        info,
+        width=int(width),
+        height=int(height),
+        dpi=int(dpi),
+        fmt=fmt,
+    )

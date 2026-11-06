@@ -123,11 +123,15 @@ def register(
 def resolve(kind: str) -> LayerSpec:
     real = ALIASES.get(kind, kind)
     if real not in LAYER_SPECS:
-        raise KeyError(f"未注册的图层类型: {kind!r}（已注册: {', '.join(sorted(LAYER_SPECS))}）")
+        raise KeyError(
+            f"未注册的图层类型: {kind!r}（已注册: {', '.join(sorted(LAYER_SPECS))}）"
+        )
     return LAYER_SPECS[real]
 
 
-def attach_builder(kind: str, backend: str, builder: Builder, *, overwrite: bool = False) -> LayerSpec:
+def attach_builder(
+    kind: str, backend: str, builder: Builder, *, overwrite: bool = False
+) -> LayerSpec:
     """给已注册的 kind 追加一个后端的 builder（可选后端在自己的模块里调用）。
 
     matplotlib 的 builder 在 mpl_backend 里一次性注册；pyvista 等可选后端被 import 时
@@ -141,7 +145,9 @@ def attach_builder(kind: str, backend: str, builder: Builder, *, overwrite: bool
     if spec is None:
         raise KeyError(f"未注册的图层类型: {kind!r}")
     if backend in spec.builders and not overwrite:
-        raise ValueError(f"{real}: 后端 {backend} 已注册 builder（要覆盖请传 overwrite=True）")
+        raise ValueError(
+            f"{real}: 后端 {backend} 已注册 builder（要覆盖请传 overwrite=True）"
+        )
     table = dict(spec.builders)
     table[backend] = builder
     new_spec = replace(spec, builders=table).validate()

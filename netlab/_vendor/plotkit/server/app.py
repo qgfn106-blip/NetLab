@@ -39,7 +39,9 @@ from .assets import STATIC_DIR
 MAGIC = b"PK01"
 
 
-def _binary_xyz(x: np.ndarray, y: np.ndarray, z: np.ndarray, meta: Mapping[str, Any]) -> bytes:
+def _binary_xyz(
+    x: np.ndarray, y: np.ndarray, z: np.ndarray, meta: Mapping[str, Any]
+) -> bytes:
     """帧格式：magic(4) + meta_len(4) + npoints(4) + meta json + float32 交错 (x,y,z)。
 
     三维视图直接把这段 buffer 传给 WebGL 的 ARRAY_BUFFER，不做任何解析。
@@ -53,7 +55,6 @@ def _binary_xyz(x: np.ndarray, y: np.ndarray, z: np.ndarray, meta: Mapping[str, 
     return header + meta_bytes + rows.tobytes(order="C")
 
 
-
 def _binary_field(values: np.ndarray, meta: Mapping[str, Any]) -> bytes:
     """三维标量场帧：magic(4)+meta_len(4)+n(4)+meta+float32 原始数组（x 变化最快）。
 
@@ -65,7 +66,9 @@ def _binary_field(values: np.ndarray, meta: Mapping[str, Any]) -> bytes:
     return header + meta_bytes + array.tobytes(order="C")
 
 
-def _binary_points(points: np.ndarray, scalars: np.ndarray, meta: Mapping[str, Any]) -> bytes:
+def _binary_points(
+    points: np.ndarray, scalars: np.ndarray, meta: Mapping[str, Any]
+) -> bytes:
     """点云帧：magic+meta_len+n+meta + float32 xyz + float32 scalar。"""
     meta_bytes = json.dumps(dict(meta), ensure_ascii=False).encode("utf-8")
     xyz = np.ascontiguousarray(points, dtype="<f4")
@@ -103,7 +106,7 @@ def _parse_limits(raw: str | None) -> tuple[float, float] | None:
         return None
     parts = [p for p in str(raw).replace(" ", "").split(",") if p]
     if len(parts) != 2:
-        raise HTTPException(400, f"视窗参数必须是 \"lo,hi\"，收到 {raw!r}")
+        raise HTTPException(400, f'视窗参数必须是 "lo,hi"，收到 {raw!r}')
     lo, hi = float(parts[0]), float(parts[1])
     if not (lo < hi):
         raise HTTPException(400, f"视窗下界必须小于上界，收到 {raw!r}")
@@ -125,12 +128,17 @@ def _cached(request: Request, key: tuple, build, media_type: str) -> Response:
                     if cached is not None:
                         hit = True
                         payload, tag, extra = cached
-                        headers = {"ETag": tag, "Cache-Control": "no-store, max-age=0",
-                                   "X-PlotKit-Render": "hit"}
+                        headers = {
+                            "ETag": tag,
+                            "Cache-Control": "no-store, max-age=0",
+                            "X-PlotKit-Render": "hit",
+                        }
                         headers.update(extra or {})
                         if request.headers.get("if-none-match") == tag:
                             return Response(status_code=304, headers=headers)
-                        return Response(content=payload, media_type=media_type, headers=headers)
+                        return Response(
+                            content=payload, media_type=media_type, headers=headers
+                        )
                     payload, extra = build()
         except (SpecError, ValueError) as exc:
             raise HTTPException(400, str(exc)) from exc
@@ -144,8 +152,11 @@ def _cached(request: Request, key: tuple, build, media_type: str) -> Response:
         payload, tag, extra = cached
         _RENDER_CACHE.move_to_end(key)
 
-    headers = {"ETag": tag, "Cache-Control": "no-store, max-age=0",
-               "X-PlotKit-Render": "hit" if hit else "miss"}
+    headers = {
+        "ETag": tag,
+        "Cache-Control": "no-store, max-age=0",
+        "X-PlotKit-Render": "hit" if hit else "miss",
+    }
     headers.update(extra or {})
     if request.headers.get("if-none-match") == tag:
         return Response(status_code=304, headers=headers)
@@ -154,7 +165,6 @@ def _cached(request: Request, key: tuple, build, media_type: str) -> Response:
 
 def _etag(payload: bytes) -> str:
     return '"' + hashlib.sha1(payload).hexdigest()[:16] + '"'
-
 
 
 def _write_json_atomic(path: Path, payload: Mapping[str, Any]) -> None:
@@ -170,11 +180,16 @@ def _write_json_atomic(path: Path, payload: Mapping[str, Any]) -> None:
         raise
 
 
-def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path | None = None,
-               with_ns: bool = False) -> FastAPI:
+def create_app(
+    figure: Any,
+    *,
+    title: str | None = None,
+    layout_path: str | Path | None = None,
+    with_ns: bool = False,
+) -> FastAPI:
     """`figure` 是 plotkit.api.native.Figure。"""
     app = FastAPI(title=title or "PlotKit", docs_url=None, redoc_url=None)
-    if with_ns:                      # 同一个进程里同时提供二维图与 NS 三维涡旋接口
+    if with_ns:  # 同一个进程里同时提供二维图与 NS 三维涡旋接口
         from .ns_app import router as ns_router
 
         app.include_router(ns_router)
@@ -190,7 +205,6 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
         if "/static/" in path or path.endswith("/static") or path.endswith("/"):
             response.headers["Cache-Control"] = "no-store, max-age=0"
         return response
-
 
     @app.get("/")
     def index() -> FileResponse:
@@ -223,11 +237,15 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
     @app.put("/api/spec")
     async def put_spec(request: Request) -> JSONResponse:
         payload = await request.json()
-        report = validate_spec(payload, store=figure.store, known_kinds=reg.known_kind_names())
+        report = validate_spec(
+            payload, store=figure.store, known_kinds=reg.known_kind_names()
+        )
         if not report.ok:
             return JSONResponse({"ok": False, **report.as_dict()}, status_code=400)
         figure.spec = payload
-        return JSONResponse({"ok": True, "warnings": [i.as_dict() for i in report.warnings]})
+        return JSONResponse(
+            {"ok": True, "warnings": [i.as_dict() for i in report.warnings]}
+        )
 
     def _time_info() -> dict[str, Any]:
         lo, hi = figure.time_bounds()
@@ -244,9 +262,14 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
 
         for name in list(figure.store.names()):
             meta = figure.store.meta(name)
-            figure.store.add(name, np.zeros(0, dtype="float64"),
-                             unit=meta.get("unit", ""), role=meta.get("role", "series"),
-                             life=meta.get("life", "append"), overwrite=True)
+            figure.store.add(
+                name,
+                np.zeros(0, dtype="float64"),
+                unit=meta.get("unit", ""),
+                role=meta.get("role", "series"),
+                life=meta.get("life", "append"),
+                overwrite=True,
+            )
         figure.clear()
         return {"ok": True, "datasets": len(figure.store)}
 
@@ -272,8 +295,15 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
         xv, yv = xv[i0:stop], yv[i0:stop]
         if pixels:
             xv, yv = downsample_xy(xv, yv, pixels, per_pixel=per_pixel)
-        meta = {"x": x, "y": y, "i0": i0, "i1": (stop if stop is not None else int(xv.size))}
-        return Response(content=_binary_series(xv, yv, meta), media_type="application/octet-stream")
+        meta = {
+            "x": x,
+            "y": y,
+            "i0": i0,
+            "i1": (stop if stop is not None else int(xv.size)),
+        }
+        return Response(
+            content=_binary_series(xv, yv, meta), media_type="application/octet-stream"
+        )
 
     @app.get("/api/column")
     def column(name: str, pixels: int | None = None) -> Response:
@@ -291,8 +321,9 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
             idx = np.linspace(0, total - 1, int(pixels)).astype(np.int64)
             values = values[idx]
         meta = {"name": name, "n": int(values.size), "total": total}
-        return Response(content=_binary_field(values, meta),
-                        media_type="application/octet-stream")
+        return Response(
+            content=_binary_field(values, meta), media_type="application/octet-stream"
+        )
 
     @app.get("/api/xyz")
     def xyz(x: str, y: str, z: str, max: int = 200_000) -> Response:
@@ -310,8 +341,9 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
             idx = np.linspace(0, n - 1, limit).astype(np.int64)
             xv, yv, zv = xv[idx], yv[idx], zv[idx]
         meta = {"x": x, "y": y, "z": z, "n": int(xv.size), "total": int(n)}
-        return Response(content=_binary_xyz(xv, yv, zv, meta),
-                        media_type="application/octet-stream")
+        return Response(
+            content=_binary_xyz(xv, yv, zv, meta), media_type="application/octet-stream"
+        )
 
     @app.get("/api/mesh")
     def mesh(x: str, y: str, z: str, stride: int = 1) -> Response:
@@ -346,7 +378,7 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
             zv = zv[::step, ::step]
 
         ny, nx = zv.shape
-        gx, gy = np.meshgrid(xv, yv)                     # (ny, nx)
+        gx, gy = np.meshgrid(xv, yv)  # (ny, nx)
         verts = np.empty((nx * ny, 3), dtype="<f4")
         verts[:, 0] = gx.ravel().astype(np.float32, copy=False)
         verts[:, 1] = gy.ravel().astype(np.float32, copy=False)
@@ -365,24 +397,42 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
         c = idx[1:, :-1].ravel()
         d = idx[1:, 1:].ravel()
         tris = np.empty((a.size * 2, 3), dtype="<u4")
-        tris[0::2] = np.stack([a, b, d], axis=1)         # 逆时针，正面朝 +z
+        tris[0::2] = np.stack([a, b, d], axis=1)  # 逆时针，正面朝 +z
         tris[1::2] = np.stack([a, d, c], axis=1)
 
-        meta = {"x": x, "y": y, "z": z, "nx": int(nx), "ny": int(ny),
-                "nvert": int(verts.size // 3), "ntri": int(tris.shape[0])}
+        meta = {
+            "x": x,
+            "y": y,
+            "z": z,
+            "nx": int(nx),
+            "ny": int(ny),
+            "nvert": int(verts.size // 3),
+            "ntri": int(tris.shape[0]),
+        }
         meta_bytes = json.dumps(meta, ensure_ascii=False).encode("utf-8")
-        header = MAGIC + struct.pack("<III", len(meta_bytes), int(verts.size // 3),
-                                     int(tris.shape[0]))
-        body = verts.tobytes(order="C") + normals.tobytes(order="C") + tris.tobytes(order="C")
-        return Response(content=header + meta_bytes + body,
-                        media_type="application/octet-stream")
-
+        header = MAGIC + struct.pack(
+            "<III", len(meta_bytes), int(verts.size // 3), int(tris.shape[0])
+        )
+        body = (
+            verts.tobytes(order="C")
+            + normals.tobytes(order="C")
+            + tris.tobytes(order="C")
+        )
+        return Response(
+            content=header + meta_bytes + body, media_type="application/octet-stream"
+        )
 
     @app.get("/api/volume")
-    def volume(x: str = Query(...), y: str = Query(...), z: str = Query(...),
-               values: str = Query(...), stride: int = Query(1, ge=1, le=8),
-               t: float | None = Query(None), mode: str = Query("field"),
-               level: float | None = Query(None)) -> Response:
+    def volume(
+        x: str = Query(...),
+        y: str = Query(...),
+        z: str = Query(...),
+        values: str = Query(...),
+        stride: int = Query(1, ge=1, le=8),
+        t: float | None = Query(None),
+        mode: str = Query("field"),
+        level: float | None = Query(None),
+    ) -> Response:
         """三维标量场。values 形状 (nz, ny, nx)，x 变化最快。
 
         mode="field"   原始 float32 场（浏览器自绘）；
@@ -408,40 +458,77 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
         if mode == "surface":
             import pyvista as pv
 
-            grid = pv.ImageData(dimensions=(nx, ny, nz),
-                                spacing=(float(np.ptp(xv)) / max(nx - 1, 1),
-                                         float(np.ptp(yv)) / max(ny - 1, 1),
-                                         float(np.ptp(zv)) / max(nz - 1, 1)),
-                                origin=(float(xv.min()), float(yv.min()), float(zv.min())))
+            grid = pv.ImageData(
+                dimensions=(nx, ny, nz),
+                spacing=(
+                    float(np.ptp(xv)) / max(nx - 1, 1),
+                    float(np.ptp(yv)) / max(ny - 1, 1),
+                    float(np.ptp(zv)) / max(nz - 1, 1),
+                ),
+                origin=(float(xv.min()), float(yv.min()), float(zv.min())),
+            )
             grid.point_data["value"] = field.ravel(order="C")
-            lv = float(level) if level is not None else float(vmin + 0.25 * (vmax - vmin))
+            lv = (
+                float(level)
+                if level is not None
+                else float(vmin + 0.25 * (vmax - vmin))
+            )
             surf = grid.contour([lv], scalars="value")
             surf = surf.triangulate()
             if surf.n_points == 0:
                 raise HTTPException(400, "该等值面在数据范围内没有交点，换一个 level")
-            surf.compute_normals(point_normals=True, cell_normals=False,
-                                 auto_orient_normals=True, inplace=True)
+            surf.compute_normals(
+                point_normals=True,
+                cell_normals=False,
+                auto_orient_normals=True,
+                inplace=True,
+            )
             verts = np.asarray(surf.points, dtype="<f4")
             faces = np.asarray(surf.faces, dtype=np.int64).reshape(-1, 4)[:, 1:]
             tris = faces.astype("<u4")
             nrm = np.asarray(surf.point_data.get("Normals"), dtype="<f4")
-            if nrm.shape != verts.shape:            # 兜底：法线缺失时按面法线平均
+            if nrm.shape != verts.shape:  # 兜底：法线缺失时按面法线平均
                 nrm = np.zeros_like(verts)
-            meta = {"x": x, "y": y, "z": z, "nx": int(nx), "ny": int(ny), "nz": int(nz),
-                    "nvert": int(verts.shape[0]), "ntri": int(tris.shape[0]),
-                    "level": lv, "vmin": vmin, "vmax": vmax}
+            meta = {
+                "x": x,
+                "y": y,
+                "z": z,
+                "nx": int(nx),
+                "ny": int(ny),
+                "nz": int(nz),
+                "nvert": int(verts.shape[0]),
+                "ntri": int(tris.shape[0]),
+                "level": lv,
+                "vmin": vmin,
+                "vmax": vmax,
+            }
             mb = json.dumps(meta, ensure_ascii=False).encode("utf-8")
-            header = MAGIC + struct.pack("<III", len(mb), int(verts.shape[0]), int(tris.shape[0]))
-            body = verts.tobytes(order="C") + nrm.astype("<f4").tobytes(order="C") + tris.tobytes(order="C")
-            return Response(content=header + mb + body, media_type="application/octet-stream")
+            header = MAGIC + struct.pack(
+                "<III", len(mb), int(verts.shape[0]), int(tris.shape[0])
+            )
+            body = (
+                verts.tobytes(order="C")
+                + nrm.astype("<f4").tobytes(order="C")
+                + tris.tobytes(order="C")
+            )
+            return Response(
+                content=header + mb + body, media_type="application/octet-stream"
+            )
 
-        meta = {"nx": int(nx), "ny": int(ny), "nz": int(nz),
-                "x": [float(xv.min()), float(xv.max())],
-                "y": [float(yv.min()), float(yv.max())],
-                "z": [float(zv.min()), float(zv.max())],
-                "vmin": vmin, "vmax": vmax, "t": t}
-        return Response(content=_binary_field(field, meta),
-                        media_type="application/octet-stream")
+        meta = {
+            "nx": int(nx),
+            "ny": int(ny),
+            "nz": int(nz),
+            "x": [float(xv.min()), float(xv.max())],
+            "y": [float(yv.min()), float(yv.max())],
+            "z": [float(zv.min()), float(zv.max())],
+            "vmin": vmin,
+            "vmax": vmax,
+            "t": t,
+        }
+        return Response(
+            content=_binary_field(field, meta), media_type="application/octet-stream"
+        )
 
     MAX_BATCH_FRAMES = 600
 
@@ -486,9 +573,14 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
             spec = frame.get("spec") if isinstance(frame, dict) else None
             spec = spec or figure.spec
             t_val = frame.get("t") if isinstance(frame, dict) else None
-            jobs.append((spec, store, {"width": width, "height": height,
-                                       "dpi": dpi, "fmt": "png"},
-                         None if t_val is None else float(t_val)))
+            jobs.append(
+                (
+                    spec,
+                    store,
+                    {"width": width, "height": height, "dpi": dpi, "fmt": "png"},
+                    None if t_val is None else float(t_val),
+                )
+            )
 
         from ..backends.series import pop_trange, push_trange, time_bounds
 
@@ -512,9 +604,22 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
         from ..backends import mpl_backend, pyvista_backend, pyvista_pool
         from ..backends.pyvista_pool import workers_default
 
-        three_d = {"volume", "particles", "segments", "surface", "trisurf", "scatter3d",
-                   "line3d", "quiver3d", "bar3d", "hist3d", "voxels", "stream3d",
-                   "stem3d", "text3d"}
+        three_d = {
+            "volume",
+            "particles",
+            "segments",
+            "surface",
+            "trisurf",
+            "scatter3d",
+            "line3d",
+            "quiver3d",
+            "bar3d",
+            "hist3d",
+            "voxels",
+            "stream3d",
+            "stem3d",
+            "text3d",
+        }
 
         def _is_3d(spec: dict) -> bool:
             for layer in (spec or {}).get("layers") or []:
@@ -532,7 +637,10 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
                 if _is_3d(job[0]):
                     pool_jobs.append((i, job))
                 else:
-                    out = _with_time(job, lambda spec, st, **kw: mpl_backend.render_bytes(spec, st, **kw))
+                    out = _with_time(
+                        job,
+                        lambda spec, st, **kw: mpl_backend.render_bytes(spec, st, **kw),
+                    )
                     payloads[i] = out if isinstance(out, bytes) else out[0]
             # 进程池要给每个 worker 重新 import VTK（约 2–3 s），所以**先量一帧**再决定：
             # 单帧 < 250 ms 或剩余帧太少 → 全部进程内串行（实测 48 帧 500×360 曲面：
@@ -542,9 +650,15 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
             if pool_jobs:
                 head_i, head_job = pool_jobs[0]
                 t0 = _time.perf_counter()
-                result = _with_time(head_job,
-                                    lambda spec, st, **kw: pyvista_backend.render_result(spec, st, **kw))
-                payloads[head_i] = result.payload if hasattr(result, "payload") else result
+                result = _with_time(
+                    head_job,
+                    lambda spec, st, **kw: pyvista_backend.render_result(
+                        spec, st, **kw
+                    ),
+                )
+                payloads[head_i] = (
+                    result.payload if hasattr(result, "payload") else result
+                )
                 per_frame = _time.perf_counter() - t0
                 rest = pool_jobs[1:]
                 # 有逐帧 t 时必须留在进程内：trange 走 ContextVar，跨进程会丢
@@ -554,17 +668,30 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
                 elif timed:
                     effective = 1
                 else:
-                    effective = workers_default() if (per_frame >= 0.25 and len(rest) >= 4) else 1
+                    effective = (
+                        workers_default()
+                        if (per_frame >= 0.25 and len(rest) >= 4)
+                        else 1
+                    )
                 if rest and effective > 1:
-                    rendered = pyvista_pool.render_many([job for _, job in rest], workers=effective)
+                    rendered = pyvista_pool.render_many(
+                        [job for _, job in rest], workers=effective
+                    )
                     for (i, _), data in zip(rest, rendered):
                         payloads[i] = data
                 else:
                     for i, job in rest:
-                        out2 = _with_time(job, lambda spec, st, **kw: pyvista_backend.render_result(spec, st, **kw))
+                        out2 = _with_time(
+                            job,
+                            lambda spec, st, **kw: pyvista_backend.render_result(
+                                spec, st, **kw
+                            ),
+                        )
                         payloads[i] = out2.payload if hasattr(out2, "payload") else out2
         except Exception as exc:  # noqa: BLE001 - 整批失败才报 500
-            raise HTTPException(500, f"批量渲染失败：{type(exc).__name__}: {exc}") from exc
+            raise HTTPException(
+                500, f"批量渲染失败：{type(exc).__name__}: {exc}"
+            ) from exc
 
         import io as _io
         import zipfile as _zip
@@ -573,13 +700,22 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
         with _zip.ZipFile(buffer, "w", compression=_zip.ZIP_STORED) as bundle:
             for i, data in enumerate(payloads, start=1):
                 bundle.writestr(f"frame_{i:04d}.png", data)
-        return Response(content=buffer.getvalue(), media_type="application/zip",
-                        headers={"X-PlotKit-Frames": str(len(payloads)),
-                                 "X-PlotKit-Workers": str(workers or "auto")})
+        return Response(
+            content=buffer.getvalue(),
+            media_type="application/zip",
+            headers={
+                "X-PlotKit-Frames": str(len(payloads)),
+                "X-PlotKit-Workers": str(workers or "auto"),
+            },
+        )
 
     @app.get("/api/segments")
-    def segments(x: str = Query(...), y: str = Query(...), z: str = Query(...),
-                 stride: int = Query(1, ge=1, le=16)) -> Response:
+    def segments(
+        x: str = Query(...),
+        y: str = Query(...),
+        z: str = Query(...),
+        stride: int = Query(1, ge=1, le=16),
+    ) -> Response:
         """多段折线的端点（第 2i、2i+1 个点连成一段），float32 平铺。"""
         try:
             xv = np.asarray(figure.store.values(x), dtype=np.float64).ravel()
@@ -590,22 +726,37 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
         n = min(xv.size, yv.size, zv.size)
         step = max(1, int(stride))
         pts = np.stack([xv[:n], yv[:n], zv[:n]], axis=1)[::step]
-        meta = {"x": x, "y": y, "z": z, "n": int(pts.shape[0]),
-                "bbox": [pts.min(axis=0).tolist(), pts.max(axis=0).tolist()]}
-        return Response(content=_binary_points(pts, None, meta),
-                        media_type="application/octet-stream")
+        meta = {
+            "x": x,
+            "y": y,
+            "z": z,
+            "n": int(pts.shape[0]),
+            "bbox": [pts.min(axis=0).tolist(), pts.max(axis=0).tolist()],
+        }
+        return Response(
+            content=_binary_points(pts, None, meta),
+            media_type="application/octet-stream",
+        )
 
     @app.get("/api/particles")
-    def particles(x: str = Query(...), y: str = Query(...), z: str = Query(...),
-                  c: str | None = Query(None), stride: int = Query(1, ge=1, le=16),
-                  t: float | None = Query(None)) -> Response:
+    def particles(
+        x: str = Query(...),
+        y: str = Query(...),
+        z: str = Query(...),
+        c: str | None = Query(None),
+        stride: int = Query(1, ge=1, le=16),
+        t: float | None = Query(None),
+    ) -> Response:
         """时空点云（浏览器里用柔光点精灵画）：可选 c 作为每点标量着色。"""
         try:
             xv = np.asarray(figure.store.values(x), dtype=np.float64).ravel()
             yv = np.asarray(figure.store.values(y), dtype=np.float64).ravel()
             zv = np.asarray(figure.store.values(z), dtype=np.float64).ravel()
-            cv = (np.asarray(figure.store.values(c), dtype=np.float64).ravel()
-                  if c else np.zeros_like(xv))
+            cv = (
+                np.asarray(figure.store.values(c), dtype=np.float64).ravel()
+                if c
+                else np.zeros_like(xv)
+            )
         except (KeyError, IndexError) as exc:
             raise HTTPException(404, f"未知数据集：{exc}") from exc
         if not (xv.size == yv.size == zv.size == cv.size):
@@ -613,18 +764,24 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
         pts = np.stack([xv, yv, zv], axis=1)[::stride]
         scl = cv[::stride]
         finite = scl[np.isfinite(scl)]
-        meta = {"count": int(pts.shape[0]),
-                "x": [float(xv.min()), float(xv.max())],
-                "y": [float(yv.min()), float(yv.max())],
-                "z": [float(zv.min()), float(zv.max())],
-                "cmin": float(finite.min()) if finite.size else 0.0,
-                "cmax": float(finite.max()) if finite.size else 1.0,
-                "t": t}
-        return Response(content=_binary_points(pts, scl, meta),
-                        media_type="application/octet-stream")
+        meta = {
+            "count": int(pts.shape[0]),
+            "x": [float(xv.min()), float(xv.max())],
+            "y": [float(yv.min()), float(yv.max())],
+            "z": [float(zv.min()), float(zv.max())],
+            "cmin": float(finite.min()) if finite.size else 0.0,
+            "cmax": float(finite.max()) if finite.size else 1.0,
+            "t": t,
+        }
+        return Response(
+            content=_binary_points(pts, scl, meta),
+            media_type="application/octet-stream",
+        )
 
     @app.get("/api/timeline")
-    def timeline(x: str, y: str, z: str, t: str | None = None, frames: int = 240) -> Any:
+    def timeline(
+        x: str, y: str, z: str, t: str | None = None, frames: int = 240
+    ) -> Any:
         """三维时间轴：把 (x, y, z[, t]) 重采样成固定帧数，前端拖动/播放只改标记点与轨迹。"""
         frames = _clamp(frames, 2, 4000)
         try:
@@ -677,7 +834,9 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
         xs, ys, zs = xs[:n], ys[:n], zs[:n]
 
         try:
-            mvp = np.asarray(payload["mvp"], dtype=float).reshape(4, 4).T  # JS 给的是列主序
+            mvp = (
+                np.asarray(payload["mvp"], dtype=float).reshape(4, 4).T
+            )  # JS 给的是列主序
             x0, y0, x1, y1 = [float(v) for v in payload["rect"]]
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(400, f"mvp/rect 不合法：{exc}") from exc
@@ -694,9 +853,15 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
         ndc[ok] = clip[ok, :3] / w[ok, None]
         lo_x, hi_x = min(x0, x1), max(x0, x1)
         lo_y, hi_y = min(y0, y1), max(y0, y1)
-        mask = (ok & (ndc[:, 0] >= lo_x) & (ndc[:, 0] <= hi_x)
-                & (ndc[:, 1] >= lo_y) & (ndc[:, 1] <= hi_y)
-                & (ndc[:, 2] >= -1.0) & (ndc[:, 2] <= 1.0))
+        mask = (
+            ok
+            & (ndc[:, 0] >= lo_x)
+            & (ndc[:, 0] <= hi_x)
+            & (ndc[:, 1] >= lo_y)
+            & (ndc[:, 1] <= hi_y)
+            & (ndc[:, 2] >= -1.0)
+            & (ndc[:, 2] <= 1.0)
+        )
 
         stats: dict[str, dict[str, float]] = {}
         for name, arr in (("x", xs), ("y", ys), ("z", zs)):
@@ -721,8 +886,14 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
         }
 
     @app.get("/api/pick")
-    def pick(x: float, y: float, sx: float = 1.0, sy: float = 1.0,
-             tol: float = 0.03, layer: str | None = None) -> dict[str, Any]:
+    def pick(
+        x: float,
+        y: float,
+        sx: float = 1.0,
+        sy: float = 1.0,
+        tol: float = 0.03,
+        layer: str | None = None,
+    ) -> dict[str, Any]:
         """hover 精确拾取：在数据点上找最近邻（按视窗跨度归一化），而不是从像素反推。"""
         sx = abs(sx) or 1.0
         sy = abs(sy) or 1.0
@@ -746,9 +917,14 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
             dist = ((xv - x) / sx) ** 2 + ((yv - y) / sy) ** 2
             i = int(np.argmin(dist))
             if best is None or dist[i] < best["d2"]:
-                best = {"d2": float(dist[i]), "x": float(xv[i]), "y": float(yv[i]),
-                        "i": i, "layer": item.get("id"),
-                        "label": (item.get("label") or item.get("kind") or "")}
+                best = {
+                    "d2": float(dist[i]),
+                    "x": float(xv[i]),
+                    "y": float(yv[i]),
+                    "i": i,
+                    "layer": item.get("id"),
+                    "label": (item.get("label") or item.get("kind") or ""),
+                }
         if best is None or best["d2"] > tol * tol:
             return {"hit": False}
         best.pop("d2")
@@ -800,30 +976,54 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
         fmt = (fmt or "png").lower()
         if fmt not in ("png", "svg"):
             raise HTTPException(400, f"不支持的格式 {fmt!r}（png / svg）")
-        width, height, dpi = _clamp(w, 80, 4000), _clamp(h, 60, 4000), _clamp(dpi, 40, 400)
+        width, height, dpi = (
+            _clamp(w, 80, 4000),
+            _clamp(h, 60, 4000),
+            _clamp(dpi, 40, 400),
+        )
         xr, yr = _parse_limits(xlim), _parse_limits(ylim)
         backend = (backend or "").strip().lower() or None
         key = (figure.revision, "render", width, height, dpi, fmt, xr, yr, t, backend)
 
         def build():
-            payload, limits = figure.render(width=width, height=height, dpi=dpi, fmt=fmt,
-                                            xlim=xr, ylim=yr, with_limits=True, t_end=t,
-                                            backend=backend)
-            extra = {"X-PlotKit-Backend": str((limits or {}).get("backend") or backend or "mpl")}
+            payload, limits = figure.render(
+                width=width,
+                height=height,
+                dpi=dpi,
+                fmt=fmt,
+                xlim=xr,
+                ylim=yr,
+                with_limits=True,
+                t_end=t,
+                backend=backend,
+            )
+            extra = {
+                "X-PlotKit-Backend": str(
+                    (limits or {}).get("backend") or backend or "mpl"
+                )
+            }
             if limits:
                 if limits.get("xlim") and limits.get("ylim"):
-                    extra["X-PlotKit-Xlim"] = f"{limits['xlim'][0]:.6g},{limits['xlim'][1]:.6g}"
-                    extra["X-PlotKit-Ylim"] = f"{limits['ylim'][0]:.6g},{limits['ylim'][1]:.6g}"
+                    extra["X-PlotKit-Xlim"] = (
+                        f"{limits['xlim'][0]:.6g},{limits['xlim'][1]:.6g}"
+                    )
+                    extra["X-PlotKit-Ylim"] = (
+                        f"{limits['ylim'][0]:.6g},{limits['ylim'][1]:.6g}"
+                    )
                 if limits.get("box"):
                     extra["X-PlotKit-Box"] = ",".join(f"{v:.5f}" for v in limits["box"])
                 if limits.get("px"):
                     extra["X-PlotKit-Px"] = f"{limits['px'][0]},{limits['px'][1]}"
                 if limits.get("slots"):
                     extra["X-PlotKit-Axes"] = ";".join(
-                        f"{s['slot']}," + ",".join(f"{v:.5f}" for v in s["box"]) for s in limits["slots"])
+                        f"{s['slot']}," + ",".join(f"{v:.5f}" for v in s["box"])
+                        for s in limits["slots"]
+                    )
             return payload, extra
 
-        return _cached(request, key, build, "image/png" if fmt == "png" else "image/svg+xml")
+        return _cached(
+            request, key, build, "image/png" if fmt == "png" else "image/svg+xml"
+        )
 
     @app.get("/api/anim")
     def anim(
@@ -835,16 +1035,37 @@ def create_app(figure: Any, *, title: str | None = None, layout_path: str | Path
         fmt: str = "gif",
     ) -> Response:
         """动画（P13-06/07）：按 `figure.anim` 逐帧渲染，合成 GIF 或 MP4。"""
-        width, height, dpi = _clamp(w, 80, 4000), _clamp(h, 60, 4000), _clamp(dpi, 40, 400)
+        width, height, dpi = (
+            _clamp(w, 80, 4000),
+            _clamp(h, 60, 4000),
+            _clamp(dpi, 40, 400),
+        )
         fmt = (fmt or "gif").lower()
         builders = {
-            "gif": ("image/gif", lambda: (figure.animate_gif(width=width, height=height, dpi=dpi, fps=fps), {})),
-            "mp4": ("video/mp4", lambda: (figure.animate_mp4(width=width, height=height, dpi=dpi, fps=fps), {})),
+            "gif": (
+                "image/gif",
+                lambda: (
+                    figure.animate_gif(width=width, height=height, dpi=dpi, fps=fps),
+                    {},
+                ),
+            ),
+            "mp4": (
+                "video/mp4",
+                lambda: (
+                    figure.animate_mp4(width=width, height=height, dpi=dpi, fps=fps),
+                    {},
+                ),
+            ),
         }
         if fmt not in builders:
             raise HTTPException(400, f"不支持的动画格式 {fmt!r}（gif / mp4）")
         media_type, build = builders[fmt]
-        return _cached(request, (figure.revision, "anim", width, height, dpi, fps, fmt), build, media_type)
+        return _cached(
+            request,
+            (figure.revision, "anim", width, height, dpi, fps, fmt),
+            build,
+            media_type,
+        )
 
     @app.get("/api/png")
     def png(dpi: int | None = None) -> Response:

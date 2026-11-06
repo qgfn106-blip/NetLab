@@ -20,7 +20,7 @@ from typing import Any, Mapping
 
 BACKEND_MPL = "mpl"
 BACKEND_PYVISTA = "pyvista"
-BACKEND_VISPY = "vispy"      # 预留：没有 builder，永远不会被选中（文档 §9）
+BACKEND_VISPY = "vispy"  # 预留：没有 builder，永远不会被选中（文档 §9）
 KNOWN_BACKENDS = (BACKEND_MPL, BACKEND_PYVISTA, BACKEND_VISPY)
 
 
@@ -140,7 +140,11 @@ def _unsupported_layers(spec: Mapping[str, Any], backend: str) -> list[str]:
 
 def choose(spec: Mapping[str, Any], requested: str | None = None) -> str:
     """决定用哪个后端；不改变默认行为（默认 matplotlib）。"""
-    want = (requested or os.environ.get("PLOTKIT_BACKEND") or _figure_backend(spec) or "").strip().lower()
+    want = (
+        (requested or os.environ.get("PLOTKIT_BACKEND") or _figure_backend(spec) or "")
+        .strip()
+        .lower()
+    )
     if not want:
         want = BACKEND_MPL
 
@@ -155,7 +159,9 @@ def choose(spec: Mapping[str, Any], requested: str | None = None) -> str:
         return BACKEND_PYVISTA
 
     if want not in KNOWN_BACKENDS:
-        raise BackendUnavailable(f"未知后端 {want!r}（可选：{', '.join(KNOWN_BACKENDS)}, auto）")
+        raise BackendUnavailable(
+            f"未知后端 {want!r}（可选：{', '.join(KNOWN_BACKENDS)}, auto）"
+        )
 
     if not available()[want]:
         hint = "pip install pyvista" if want == BACKEND_PYVISTA else ""
@@ -165,7 +171,8 @@ def choose(spec: Mapping[str, Any], requested: str | None = None) -> str:
     missing = _unsupported_layers(spec, want)
     if missing:
         raise BackendUnsupported(
-            f"后端 {want} 暂不支持图层：{', '.join(sorted(set(missing)))}")
+            f"后端 {want} 暂不支持图层：{', '.join(sorted(set(missing)))}"
+        )
     return want
 
 
@@ -199,12 +206,26 @@ def render_result(
         from . import mpl_backend
 
         out = mpl_backend.render_bytes(
-            spec, store, width=width, height=height, dpi=dpi, fmt=fmt,
-            xlim=xlim, ylim=ylim, with_limits=with_limits,
+            spec,
+            store,
+            width=width,
+            height=height,
+            dpi=dpi,
+            fmt=fmt,
+            xlim=xlim,
+            ylim=ylim,
+            with_limits=with_limits,
         )
         payload, limits = out if with_limits else (out, None)
-        return RenderResult(payload=payload, fmt=fmt, width=width, height=height,
-                            dpi=dpi, backend=BACKEND_MPL, limits=limits)
+        return RenderResult(
+            payload=payload,
+            fmt=fmt,
+            width=width,
+            height=height,
+            dpi=dpi,
+            backend=BACKEND_MPL,
+            limits=limits,
+        )
 
     try:
         from . import pyvista_backend
@@ -215,26 +236,51 @@ def render_result(
             from . import hybrid3d
 
             payload = hybrid3d.render_hybrid(
-                spec, store, width=width, height=height, dpi=dpi, fmt=fmt,
-                xlim=xlim, ylim=ylim,
+                spec,
+                store,
+                width=width,
+                height=height,
+                dpi=dpi,
+                fmt=fmt,
+                xlim=xlim,
+                ylim=ylim,
             )
             limits = None
             if with_limits:
                 try:
                     _, info = pyvista_backend.render_scene_threaded(
-                        spec, store, width=width, height=height, dpi=dpi)
+                        spec, store, width=width, height=height, dpi=dpi
+                    )
                     b = info["bounds"]
-                    limits = {"xlim": [b[0], b[1]], "ylim": [b[2], b[3]],
-                              "zlim": [b[4], b[5]], "backend": BACKEND_PYVISTA}
+                    limits = {
+                        "xlim": [b[0], b[1]],
+                        "ylim": [b[2], b[3]],
+                        "zlim": [b[4], b[5]],
+                        "backend": BACKEND_PYVISTA,
+                    }
                 except Exception:
                     limits = None
-            return RenderResult(payload=payload, fmt=fmt, width=width, height=height,
-                                dpi=dpi, backend=BACKEND_PYVISTA, limits=limits,
-                                meta={"hybrid": True})
+            return RenderResult(
+                payload=payload,
+                fmt=fmt,
+                width=width,
+                height=height,
+                dpi=dpi,
+                backend=BACKEND_PYVISTA,
+                limits=limits,
+                meta={"hybrid": True},
+            )
 
         return pyvista_backend.render_result(
-            spec, store, width=width, height=height, dpi=dpi, fmt=fmt,
-            xlim=xlim, ylim=ylim, with_limits=with_limits,
+            spec,
+            store,
+            width=width,
+            height=height,
+            dpi=dpi,
+            fmt=fmt,
+            xlim=xlim,
+            ylim=ylim,
+            with_limits=with_limits,
         )
     except (BackendUnsupported, BackendUnavailable) as exc:
         # 要矢量图时**始终**回退 mpl：VTK 9.x 的 OpenGL2 后端把 GL2PS 导出退化成
@@ -245,13 +291,27 @@ def render_result(
         from . import mpl_backend
 
         out = mpl_backend.render_bytes(
-            spec, store, width=width, height=height, dpi=dpi, fmt=fmt,
-            xlim=xlim, ylim=ylim, with_limits=with_limits,
+            spec,
+            store,
+            width=width,
+            height=height,
+            dpi=dpi,
+            fmt=fmt,
+            xlim=xlim,
+            ylim=ylim,
+            with_limits=with_limits,
         )
         payload, limits = out if with_limits else (out, None)
-        return RenderResult(payload=payload, fmt=fmt, width=width, height=height,
-                            dpi=dpi, backend=BACKEND_MPL, limits=limits,
-                            meta={"fallback": BACKEND_MPL, "reason": str(exc)[:200]})
+        return RenderResult(
+            payload=payload,
+            fmt=fmt,
+            width=width,
+            height=height,
+            dpi=dpi,
+            backend=BACKEND_MPL,
+            limits=limits,
+            meta={"fallback": BACKEND_MPL, "reason": str(exc)[:200]},
+        )
 
 
 class RendererSelector:
@@ -265,7 +325,9 @@ class RendererSelector:
     `render()` 之后 `backend` 会更新成**实际**出图的后端（`auto` 回退时会变）。
     """
 
-    def __init__(self, spec: Mapping[str, Any], *, requested: str | None = None) -> None:
+    def __init__(
+        self, spec: Mapping[str, Any], *, requested: str | None = None
+    ) -> None:
         self.spec = spec
         self.requested = (requested or "").strip().lower() or None
         self.backend = choose(spec, self.requested)
@@ -282,6 +344,8 @@ class RendererSelector:
         }
 
     def render(self, store: Any, **kwargs: Any) -> RenderResult:
-        result = render_result(self.spec, store, backend=self.requested or self.backend, **kwargs)
+        result = render_result(
+            self.spec, store, backend=self.requested or self.backend, **kwargs
+        )
         self.backend = result.backend
         return result

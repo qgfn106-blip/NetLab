@@ -69,7 +69,9 @@ def _run_on_worker(fn):
     global _WORKER
     with _WORKER_LOCK:
         if _WORKER is None or not _WORKER.is_alive():
-            _WORKER = threading.Thread(target=_worker_loop, name="plotkit-vtk", daemon=True)
+            _WORKER = threading.Thread(
+                target=_worker_loop, name="plotkit-vtk", daemon=True
+            )
             _WORKER.start()
     box: dict[str, Any] = {}
     event = threading.Event()
@@ -140,8 +142,10 @@ def _scene_key(spec: Mapping[str, Any], store) -> str:
     """
     slim = {
         "figure": spec.get("figure") or {},
-        "layers": [{k: v for k, v in layer.items() if k != "view"}
-                   for layer in (spec.get("layers") or [])],
+        "layers": [
+            {k: v for k, v in layer.items() if k != "view"}
+            for layer in (spec.get("layers") or [])
+        ],
     }
     try:
         blob = json.dumps(slim, sort_keys=True, default=str)
@@ -177,6 +181,7 @@ def _acquire_plotter(pv, width: int, height: int, scene_key: str = ""):
         plotter = pv.Plotter(off_screen=True, window_size=(int(width), int(height)))
         _PLOTTERS[key] = plotter
         return plotter, False
+
 
 SUPPORTED_KINDS = (
     "volume",
@@ -236,7 +241,7 @@ class _Item:
     color: str | None = None
     cmap: str = "viridis"
     opacity: float = 1.0
-    mode: str = "surface"          # surface | wireframe | points | lines | labels
+    mode: str = "surface"  # surface | wireframe | points | lines | labels
     point_size: float = 8.0
     line_width: float = 2.0
     labels: Any = None
@@ -264,14 +269,21 @@ def build_surface(layer, store) -> list[_Item]:
         field = np.ravel(_values(layer, store, "scalar"))
         if field.size != nx * ny:
             raise BackendUnsupported(
-                f"surface: scalar {scalar_key!r} 有 {field.size} 个点，几何是 {nx * ny}")
+                f"surface: scalar {scalar_key!r} 有 {field.size} 个点，几何是 {nx * ny}"
+            )
         grid["value"] = field
     else:
         grid["value"] = np.ravel(Z)
-    return [_Item(mesh=grid, scalars="value", cmap=str(style.get("cmap") or "viridis"),
-                  opacity=float(style.get("opacity", 1.0)),
-                  mode="wireframe" if style.get("wireframe") else "surface",
-                  kwargs={"clim": style["clim"]} if style.get("clim") else {})]
+    return [
+        _Item(
+            mesh=grid,
+            scalars="value",
+            cmap=str(style.get("cmap") or "viridis"),
+            opacity=float(style.get("opacity", 1.0)),
+            mode="wireframe" if style.get("wireframe") else "surface",
+            kwargs={"clim": style["clim"]} if style.get("clim") else {},
+        )
+    ]
 
 
 def build_trisurf(layer, store) -> list[_Item]:
@@ -284,8 +296,14 @@ def build_trisurf(layer, store) -> list[_Item]:
     poly = pv.PolyData(np.column_stack([x, y, z]), faces)
     poly["value"] = z
     style = _style(layer)
-    return [_Item(mesh=poly, scalars="value", cmap=str(style.get("cmap") or "viridis"),
-                  opacity=float(style.get("opacity", 1.0)))]
+    return [
+        _Item(
+            mesh=poly,
+            scalars="value",
+            cmap=str(style.get("cmap") or "viridis"),
+            opacity=float(style.get("opacity", 1.0)),
+        )
+    ]
 
 
 def build_segments(layer, store) -> list[_Item]:
@@ -311,25 +329,41 @@ def build_segments(layer, store) -> list[_Item]:
     color = style.get("color")
     rgb = None
     if isinstance(color, str) and color.startswith("#") and len(color) >= 7:
-        rgb = tuple(int(color[i:i + 2], 16) / 255.0 for i in (1, 3, 5))
+        rgb = tuple(int(color[i : i + 2], 16) / 255.0 for i in (1, 3, 5))
     elif color:
         rgb = tuple(float(c) for c in color)
-    return [_Item(mesh=poly, color=rgb,
-                  line_width=float(style.get("width", 1.2) or 1.2), mode="lines")]
+    return [
+        _Item(
+            mesh=poly,
+            color=rgb,
+            line_width=float(style.get("width", 1.2) or 1.2),
+            mode="lines",
+        )
+    ]
 
 
 def build_scatter3d(layer, store) -> list[_Item]:
     pv = _pv()
     x, y, z = _xyz(layer, store)
     poly = pv.PolyData(np.column_stack([x, y, z]))
-    poly["value"] = _values(layer, store, "scalar") if (layer.get("data") or {}).get("scalar") else z
+    poly["value"] = (
+        _values(layer, store, "scalar")
+        if (layer.get("data") or {}).get("scalar")
+        else z
+    )
     style = _style(layer)
     marker = style.get("marker") or {}
-    return [_Item(mesh=poly, scalars=None if style.get("color") else "value",
-                  color=str(style["color"]) if style.get("color") else None,
-                  cmap=str(style.get("cmap") or "viridis"),
-                  opacity=float(style.get("opacity", 1.0)), mode="points",
-                  point_size=float(marker.get("size", 6) or 6) * 1.6)]
+    return [
+        _Item(
+            mesh=poly,
+            scalars=None if style.get("color") else "value",
+            color=str(style["color"]) if style.get("color") else None,
+            cmap=str(style.get("cmap") or "viridis"),
+            opacity=float(style.get("opacity", 1.0)),
+            mode="points",
+            point_size=float(marker.get("size", 6) or 6) * 1.6,
+        )
+    ]
 
 
 def build_line3d(layer, store) -> list[_Item]:
@@ -337,8 +371,14 @@ def build_line3d(layer, store) -> list[_Item]:
     x, y, z = _xyz(layer, store)
     poly = pv.lines_from_points(np.column_stack([x, y, z]))
     style = _style(layer)
-    return [_Item(mesh=poly, color=str(style.get("color") or "#2f6fd0"),
-                  mode="lines", line_width=float(style.get("width", 1.8) or 1.8))]
+    return [
+        _Item(
+            mesh=poly,
+            color=str(style.get("color") or "#2f6fd0"),
+            mode="lines",
+            line_width=float(style.get("width", 1.8) or 1.8),
+        )
+    ]
 
 
 def build_volume(layer, store) -> list[_Item]:
@@ -353,7 +393,8 @@ def build_volume(layer, store) -> list[_Item]:
     if values.shape != (zs.size, ys.size, xs.size):
         raise BackendUnsupported(
             f"volume: values 形状应为 (nz, ny, nx) = {(zs.size, ys.size, xs.size)}，"
-            f"收到 {values.shape}")
+            f"收到 {values.shape}"
+        )
     grid = pv.ImageData(dimensions=(xs.size, ys.size, zs.size))
     grid.origin = (float(xs[0]), float(ys[0]), float(zs[0]))
     grid.spacing = (
@@ -369,10 +410,20 @@ def build_volume(layer, store) -> list[_Item]:
         opacity = [0.0, 0.05, 0.18, 0.45, 0.85]
     else:
         opacity = float(opacity)
-    return [_Item(mesh=grid, scalars="values", cmap=str(style.get("cmap") or "magma"),
-                  opacity=1.0, mode="volume",
-                  kwargs={"opacity": opacity, "shade": bool(style.get("shade", True)),
-                          "blending": "composite"})]
+    return [
+        _Item(
+            mesh=grid,
+            scalars="values",
+            cmap=str(style.get("cmap") or "magma"),
+            opacity=1.0,
+            mode="volume",
+            kwargs={
+                "opacity": opacity,
+                "shade": bool(style.get("shade", True)),
+                "blending": "composite",
+            },
+        )
+    ]
 
 
 def build_quiver3d(layer, store) -> list[_Item]:
@@ -387,16 +438,27 @@ def build_quiver3d(layer, store) -> list[_Item]:
     scale = float(_style(layer).get("length", 0.6) or 0.6)
     glyph = poly.glyph(orient="vectors", scale=False, factor=scale)
     style = _style(layer)
-    return [_Item(mesh=glyph, color=str(style.get("color") or "#c2410c"), mode="surface")]
+    return [
+        _Item(mesh=glyph, color=str(style.get("color") or "#c2410c"), mode="surface")
+    ]
 
 
 def _box_batch(pv, x, y, z, dx, dy, dz):
     """把一批柱/体素拼成一个 PolyData（逐柱 add_mesh 会慢到不可用）。"""
     parts = []
     for xi, yi, zi, dxi, dyi, dzi in zip(x, y, z, dx, dy, dz):
-        parts.append(pv.Box(bounds=(float(xi), float(xi) + float(dxi),
-                                    float(yi), float(yi) + float(dyi),
-                                    float(zi), float(zi) + float(dzi))))
+        parts.append(
+            pv.Box(
+                bounds=(
+                    float(xi),
+                    float(xi) + float(dxi),
+                    float(yi),
+                    float(yi) + float(dyi),
+                    float(zi),
+                    float(zi) + float(dzi),
+                )
+            )
+        )
     if not parts:
         return None
     return parts[0].merge(parts[1:]) if len(parts) > 1 else parts[0]
@@ -418,8 +480,13 @@ def build_bar3d(layer, store) -> list[_Item]:
     mesh = _box_batch(pv, x, y, base, dx, dy, dz)
     if mesh is None:
         raise BackendUnsupported("bar3d 没有可画的数据")
-    return [_Item(mesh=mesh, color=str(style.get("color") or "#3b82f6"),
-                  opacity=float(style.get("opacity", 1.0)))]
+    return [
+        _Item(
+            mesh=mesh,
+            color=str(style.get("color") or "#3b82f6"),
+            opacity=float(style.get("opacity", 1.0)),
+        )
+    ]
 
 
 def build_hist3d(layer, store) -> list[_Item]:
@@ -432,12 +499,18 @@ def build_hist3d(layer, store) -> list[_Item]:
     X, Y = np.meshgrid(xe[:-1], ye[:-1])
     dx = np.full(counts.size, float(np.diff(xe).mean()) * 0.9)
     dy = np.full(counts.size, float(np.diff(ye).mean()) * 0.9)
-    mesh = _box_batch(pv, X.ravel(), Y.ravel(), np.zeros(counts.size),
-                      dx, dy, counts.ravel())
+    mesh = _box_batch(
+        pv, X.ravel(), Y.ravel(), np.zeros(counts.size), dx, dy, counts.ravel()
+    )
     if mesh is None:
         raise BackendUnsupported("hist3d 没有可画的数据")
-    return [_Item(mesh=mesh, color=str(style.get("color") or "#6366f1"),
-                  opacity=float(style.get("opacity", 1.0)))]
+    return [
+        _Item(
+            mesh=mesh,
+            color=str(style.get("color") or "#6366f1"),
+            opacity=float(style.get("opacity", 1.0)),
+        )
+    ]
 
 
 def build_voxels(layer, store) -> list[_Item]:
@@ -450,9 +523,17 @@ def build_voxels(layer, store) -> list[_Item]:
     image = pv.ImageData(dimensions=(nx + 1, ny + 1, nz + 1))
     # VTK 单元序是 x 最快 → Fortran ravel
     image.cell_data["value"] = np.ravel(grid, order="F")
-    filled = image.threshold(0.0, scalars="value") if float(np.min(grid)) >= 0 else image
-    return [_Item(mesh=filled, scalars="value", cmap=str(style.get("cmap") or "viridis"),
-                  opacity=float(style.get("opacity", 0.9)))]
+    filled = (
+        image.threshold(0.0, scalars="value") if float(np.min(grid)) >= 0 else image
+    )
+    return [
+        _Item(
+            mesh=filled,
+            scalars="value",
+            cmap=str(style.get("cmap") or "viridis"),
+            opacity=float(style.get("opacity", 0.9)),
+        )
+    ]
 
 
 def build_stream3d(layer, store) -> list[_Item]:
@@ -464,8 +545,14 @@ def build_stream3d(layer, store) -> list[_Item]:
         raise BackendUnsupported("stream3d 没有生成任何轨迹")
     parts = [pv.lines_from_points(p) for p in paths]
     mesh = parts[0].merge(parts[1:]) if len(parts) > 1 else parts[0]
-    return [_Item(mesh=mesh, color=str(style.get("color") or "#0f766e"), mode="lines",
-                  line_width=float(style.get("width", 1.0) or 1.0))]
+    return [
+        _Item(
+            mesh=mesh,
+            color=str(style.get("color") or "#0f766e"),
+            mode="lines",
+            line_width=float(style.get("width", 1.0) or 1.0),
+        )
+    ]
 
 
 def build_stem3d(layer, store) -> list[_Item]:
@@ -477,12 +564,18 @@ def build_stem3d(layer, store) -> list[_Item]:
     for i, (xi, yi, zi) in enumerate(zip(x, y, z)):
         points.extend([[xi, yi, 0.0], [xi, yi, zi]])
         lines.append([2, 2 * i, 2 * i + 1])
-    poly = pv.PolyData(np.array(points, dtype=float), lines=np.array(lines, dtype=np.int64).ravel())
+    poly = pv.PolyData(
+        np.array(points, dtype=float), lines=np.array(lines, dtype=np.int64).ravel()
+    )
     color = str(style.get("color") or "#2563eb")
     tips = pv.PolyData(np.column_stack([x, y, z]))
     return [
-        _Item(mesh=poly, color=color, mode="lines",
-              line_width=float(style.get("width", 1.2) or 1.2)),
+        _Item(
+            mesh=poly,
+            color=color,
+            mode="lines",
+            line_width=float(style.get("width", 1.2) or 1.2),
+        ),
         _Item(mesh=tips, color=color, mode="points", point_size=7.0),
     ]
 
@@ -496,8 +589,14 @@ def build_text3d(layer, store) -> list[_Item]:
     if labels is None:
         labels = [f"{v:.3g}" for v in z]
     poly = pv.PolyData(np.column_stack([x, y, z]))
-    return [_Item(mesh=poly, mode="labels", labels=list(labels),
-                  color=str(_style(layer).get("color") or "#111827"))]
+    return [
+        _Item(
+            mesh=poly,
+            mode="labels",
+            labels=list(labels),
+            color=str(_style(layer).get("color") or "#111827"),
+        )
+    ]
 
 
 def _build_particles(layer, store) -> list[_Item]:
@@ -589,7 +688,9 @@ def _view_bounds(layers, xlim=None, ylim=None):
     return (x0, x1, y0, y1, z0, z1)
 
 
-def _apply_view(plotter, figure: Mapping[str, Any], bounds=None, layer_view=None) -> None:
+def _apply_view(
+    plotter, figure: Mapping[str, Any], bounds=None, layer_view=None
+) -> None:
     """按 elev/azim 摆相机。
 
     不能依赖 `camera_position = "iso"`：某些 VTK 版本上它会静默失败，相机留在默认的
@@ -605,21 +706,31 @@ def _apply_view(plotter, figure: Mapping[str, Any], bounds=None, layer_view=None
     zoom = float(figure.get("zoom", layer_view.get("zoom", 1.0)) or 1.0)
     e = math.radians(elev)
     a = math.radians(azim)
-    direction = np.array([math.cos(e) * math.cos(a),
-                          math.cos(e) * math.sin(a),
-                          math.sin(e)], dtype=float)
+    direction = np.array(
+        [math.cos(e) * math.cos(a), math.cos(e) * math.sin(a), math.sin(e)], dtype=float
+    )
     try:
         box = tuple(bounds) if bounds else tuple(plotter.bounds)
-        center = np.array([(box[0] + box[1]) / 2.0, (box[2] + box[3]) / 2.0,
-                           (box[4] + box[5]) / 2.0], dtype=float)
+        center = np.array(
+            [(box[0] + box[1]) / 2.0, (box[2] + box[3]) / 2.0, (box[4] + box[5]) / 2.0],
+            dtype=float,
+        )
         radius = max(box[1] - box[0], box[3] - box[2], box[5] - box[4], 1e-6) * 0.5
         # 球面正好装进视锥的距离 = r / sin(fov/2)；再留 5% 余量，避免边缘被裁
         fov = float(getattr(plotter.camera, "view_angle", 30.0) or 30.0)
-        distance = radius / max(math.sin(math.radians(fov / 2.0)), 1e-6) * 1.05 / max(zoom, 1e-3)
+        distance = (
+            radius
+            / max(math.sin(math.radians(fov / 2.0)), 1e-6)
+            * 1.05
+            / max(zoom, 1e-3)
+        )
         # 直接设相机，不走 view_vector()+reset_camera()：
         # 后者每帧要重算包围盒并触发一次完整 render，实测 300k 点 188ms/帧 → 6.6ms/帧
-        plotter.camera_position = [tuple(center + distance * direction),
-                                   tuple(center), (0.0, 0.0, 1.0)]
+        plotter.camera_position = [
+            tuple(center + distance * direction),
+            tuple(center),
+            (0.0, 0.0, 1.0),
+        ]
         plotter.camera.clipping_range = (distance * 0.01, distance * 10.0)
     except Exception:  # pragma: no cover
         pass
@@ -644,11 +755,29 @@ def render_result(
     `wglMakeCurrent failed ... (code 6)` 并渲染出黑图（2026-10-31 实测）。
     """
     if threading.current_thread() is _worker_thread_handle():
-        return _render_sync(spec, store, width=width, height=height, dpi=dpi, fmt=fmt,
-                            xlim=xlim, ylim=ylim, with_limits=with_limits)
+        return _render_sync(
+            spec,
+            store,
+            width=width,
+            height=height,
+            dpi=dpi,
+            fmt=fmt,
+            xlim=xlim,
+            ylim=ylim,
+            with_limits=with_limits,
+        )
     return _run_on_worker(
-        lambda: _render_sync(spec, store, width=width, height=height, dpi=dpi, fmt=fmt,
-                             xlim=xlim, ylim=ylim, with_limits=with_limits)
+        lambda: _render_sync(
+            spec,
+            store,
+            width=width,
+            height=height,
+            dpi=dpi,
+            fmt=fmt,
+            xlim=xlim,
+            ylim=ylim,
+            with_limits=with_limits,
+        )
     )
 
 
@@ -703,20 +832,36 @@ def _render_sync(
         if title:
             # font_size 在 VTK 里是"字体相对大小"，11 会渲染成 ~45px 并被视口裁掉；
             # 用 5 + 像素定位，标题才完整落在左上角
-            plotter.add_text(str(title), position=(14, int(height) - 16), font_size=5,
-                             color="#111827")
+            plotter.add_text(
+                str(title),
+                position=(14, int(height) - 16),
+                font_size=5,
+                color="#111827",
+            )
         plotter.show_bounds(
-            grid=False, location="outer", show_xaxis=True, show_yaxis=True, show_zaxis=True,
+            grid=False,
+            location="outer",
+            show_xaxis=True,
+            show_yaxis=True,
+            show_zaxis=True,
             xtitle=str(figure.get("xlabel") or "x"),
             ytitle=str(figure.get("ylabel") or "y"),
             ztitle=str(figure.get("zlabel") or "z"),
-            color="#374151", font_size=10,
+            color="#374151",
+            font_size=10,
             # 默认刻度太密：透视图下角上的数字会叠在一起（"3.0 3.0"），z 轴又短，4 个标签就撞车
-            n_xlabels=4, n_ylabels=4, n_zlabels=2, fmt="%.2g",
+            n_xlabels=4,
+            n_ylabels=4,
+            n_zlabels=2,
+            fmt="%.2g",
         )
     # 相机每次都重设（转视角时不重建场景，只走这一步）
-    _apply_view(plotter, figure, _view_bounds(layers, xlim, ylim),
-                layer_view=(layers[0].get("view") or {}))
+    _apply_view(
+        plotter,
+        figure,
+        _view_bounds(layers, xlim, ylim),
+        layer_view=(layers[0].get("view") or {}),
+    )
     image = plotter.screenshot(return_img=True)
     payload = _encode_png(image)
     out_fmt = "png"
@@ -724,13 +869,24 @@ def _render_sync(
 
     limits = None
     if with_limits:
-        limits = {"xlim": [float(bounds[0]), float(bounds[1])],
-                  "ylim": [float(bounds[2]), float(bounds[3])],
-                  "zlim": [float(bounds[4]), float(bounds[5])]}
-    return RenderResult(payload=payload, fmt=out_fmt, width=width, height=height,
-                        dpi=dpi, backend=BACKEND_PYVISTA, limits=limits,
-                        meta={"kinds": [str((l.get("kind") or "")) for l in layers],
-                              "scene_cached": bool(cached)})
+        limits = {
+            "xlim": [float(bounds[0]), float(bounds[1])],
+            "ylim": [float(bounds[2]), float(bounds[3])],
+            "zlim": [float(bounds[4]), float(bounds[5])],
+        }
+    return RenderResult(
+        payload=payload,
+        fmt=out_fmt,
+        width=width,
+        height=height,
+        dpi=dpi,
+        backend=BACKEND_PYVISTA,
+        limits=limits,
+        meta={
+            "kinds": [str((l.get("kind") or "")) for l in layers],
+            "scene_cached": bool(cached),
+        },
+    )
 
 
 def _project(plotter, points):
@@ -793,16 +949,34 @@ def render_scene(
         if decorate:
             title = figure.get("title")
             if title:
-                plotter.add_text(str(title), position=(14, int(height) - 16), font_size=5,
-                                 color="#111827")
-            plotter.show_bounds(grid=False, location="outer", color="#374151", font_size=10,
-                                n_xlabels=4, n_ylabels=4, n_zlabels=2, fmt="%.2g")
+                plotter.add_text(
+                    str(title),
+                    position=(14, int(height) - 16),
+                    font_size=5,
+                    color="#111827",
+                )
+            plotter.show_bounds(
+                grid=False,
+                location="outer",
+                color="#374151",
+                font_size=10,
+                n_xlabels=4,
+                n_ylabels=4,
+                n_zlabels=2,
+                fmt="%.2g",
+            )
 
-    _apply_view(plotter, figure, _view_bounds(layers, xlim, ylim),
-                layer_view=(layers[0].get("view") or {}))
+    _apply_view(
+        plotter,
+        figure,
+        _view_bounds(layers, xlim, ylim),
+        layer_view=(layers[0].get("view") or {}),
+    )
     image = plotter.screenshot(return_img=True)
     b = plotter.bounds
-    corners = [(x, y, z) for x in (b[0], b[1]) for y in (b[2], b[3]) for z in (b[4], b[5])]
+    corners = [
+        (x, y, z) for x in (b[0], b[1]) for y in (b[2], b[3]) for z in (b[4], b[5])
+    ]
     info = {
         "bounds": tuple(float(v) for v in b),
         "size": (int(width), int(height)),
@@ -833,28 +1007,46 @@ def supports(layer: Mapping[str, Any]) -> bool:
 def _add_item(plotter, item: _Item) -> None:
     kwargs: dict[str, Any] = {"opacity": float(item.opacity)}
     if item.mode == "points":
-        kwargs.update({"style": "points", "point_size": float(item.point_size),
-                       "render_points_as_spheres": True})
+        kwargs.update(
+            {
+                "style": "points",
+                "point_size": float(item.point_size),
+                "render_points_as_spheres": True,
+            }
+        )
     elif item.mode == "lines":
         kwargs.update({"style": "surface", "line_width": float(item.line_width)})
     elif item.mode == "wireframe":
         kwargs.update({"style": "wireframe"})
 
     if item.mode == "labels":
-        plotter.add_point_labels(item.mesh.points, item.labels, font_size=10,
-                                 text_color=item.color or "#111827", shape_opacity=0.0)
+        plotter.add_point_labels(
+            item.mesh.points,
+            item.labels,
+            font_size=10,
+            text_color=item.color or "#111827",
+            shape_opacity=0.0,
+        )
         return
 
     if item.scalars:
-        kwargs.update({
-            "scalars": item.scalars, "cmap": item.cmap,
-            "show_scalar_bar": not _SUPPRESS_SCALAR_BAR,
-            "scalar_bar_args": {
-                "title": "", "position_x": 0.86, "position_y": 0.12,
-                "width": 0.06, "height": 0.62, "vertical": True,
-                "label_font_size": 9, "fmt": "%.2f",
-            },
-        })
+        kwargs.update(
+            {
+                "scalars": item.scalars,
+                "cmap": item.cmap,
+                "show_scalar_bar": not _SUPPRESS_SCALAR_BAR,
+                "scalar_bar_args": {
+                    "title": "",
+                    "position_x": 0.86,
+                    "position_y": 0.12,
+                    "width": 0.06,
+                    "height": 0.62,
+                    "vertical": True,
+                    "label_font_size": 9,
+                    "fmt": "%.2f",
+                },
+            }
+        )
     else:
         kwargs["color"] = item.color or "#3b82f6"
         kwargs["show_scalar_bar"] = False

@@ -31,7 +31,9 @@ def _free_port(host: str) -> int:
         return int(sock.getsockname()[1])
 
 
-def serve(app, *, host: str = "127.0.0.1", port: int = 0, ready_timeout: float = 20.0) -> ServerHandle:
+def serve(
+    app, *, host: str = "127.0.0.1", port: int = 0, ready_timeout: float = 20.0
+) -> ServerHandle:
     """在后台线程启动 uvicorn，返回可访问的 URL。
 
     只绑 127.0.0.1：桌面壳不需要对外暴露；端口 0 = 让系统挑空闲端口。
@@ -39,9 +41,13 @@ def serve(app, *, host: str = "127.0.0.1", port: int = 0, ready_timeout: float =
     import uvicorn
 
     port = int(port) or _free_port(host)
-    config = uvicorn.Config(app, host=host, port=port, log_level="warning", access_log=False)
+    config = uvicorn.Config(
+        app, host=host, port=port, log_level="warning", access_log=False
+    )
     server = uvicorn.Server(config)
-    thread = threading.Thread(target=server.run, name="plotkit-desktop-server", daemon=True)
+    thread = threading.Thread(
+        target=server.run, name="plotkit-desktop-server", daemon=True
+    )
     thread.start()
 
     deadline = time.monotonic() + ready_timeout

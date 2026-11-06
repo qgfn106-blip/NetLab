@@ -423,6 +423,7 @@ declare function setStatusHint(hint: string): void;
     analysisSpectrum: unknown;
     analysisTF: TfDataRec | null;
     tfCursor: number | null;
+    tfDragging: boolean;
     degradedBanner: boolean;
     ui: UiPrefsRec;
     prefs: PrefsRec;
@@ -752,6 +753,7 @@ declare function setStatusHint(hint: string): void;
     analysisSpectrum: null,
     analysisTF: null,
     tfCursor: null,
+    tfDragging: false,
     degradedBanner: false,
     ui: {
       snap: true,
@@ -12133,9 +12135,12 @@ declare function setStatusHint(hint: string): void;
         const [low, high] = tfRange(base === top ? magnitude : phase);
         const y = base + plotHeight * (1 - (value - low) / Math.max(high - low, 1e-9));
         ctx.fillStyle = C('#a8541f');
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.lineWidth = 1.4;
         ctx.beginPath();
-        ctx.arc(x, y, 2.6, 0, Math.PI * 2);
+        ctx.arc(x, y, 3.4, 0, Math.PI * 2);
         ctx.fill();
+        ctx.stroke();
       };
       dot(top, magnitude[cursor]);
       dot(phaseTop, phase[cursor]);
@@ -12145,17 +12150,20 @@ declare function setStatusHint(hint: string): void;
       ctx.fillStyle = 'rgba(251, 248, 242, 0.94)';
       ctx.strokeStyle = 'rgba(168, 84, 31, 0.35)';
       ctx.beginPath();
-      ctx.roundRect(left + 4, top + 3, Math.min(labelWidth, plotWidth - 8), 18, 4);
+      ctx.roundRect(left + 4, top + 3, Math.min(labelWidth, plotWidth - 8), 30, 4);
       ctx.fill();
       ctx.stroke();
       ctx.fillStyle = C('#5f3a20');
       ctx.textAlign = 'left';
-      ctx.fillText(label, left + 10, top + 16);
+      ctx.fillText(label, left + 10, top + 15);
+      ctx.font = '8px "Cascadia Code", Consolas, monospace';
+      ctx.fillStyle = C('#8a7b68');
+      ctx.fillText('拖动读数 · ← → 吸附采样点（Shift ×10）', left + 10, top + 27);
       ctx.restore();
     }
   }
 
-  function tfBodeCursorFromEvent(event: MouseEvent): number | null {
+  function tfBodeCursorFromEvent(event: MouseEvent, clamp = false): number | null {
     const data = state.analysisTF as TfDataRec | null;
     const canvas = $('#analysisTFChart') as HTMLCanvasElement | null;
     const bode = data?.bode;
@@ -12165,8 +12173,12 @@ declare function setStatusHint(hint: string): void;
     const right = 10;
     const width = rect.width;
     const plotWidth = Math.max(24, width - left - right);
-    const x = event.clientX - rect.left;
-    if (x < left || x > left + plotWidth) return null;
+    let x = event.clientX - rect.left;
+    if (clamp) {
+      x = Math.max(left, Math.min(left + plotWidth, x));
+    } else if (x < left || x > left + plotWidth) {
+      return null;
+    }
     const omega = bode.omega.map(Number);
     const logMin = Math.log10(Math.max(omega[0], 1e-9));
     const logMax = Math.log10(Math.max(omega[omega.length - 1], 1e-8));
@@ -12187,17 +12199,50 @@ declare function setStatusHint(hint: string): void;
     const canvas = $('#analysisTFChart') as HTMLCanvasElement | null;
     if (!canvas || canvas.dataset.tfCursor === '1') return;
     canvas.dataset.tfCursor = '1';
-    canvas.addEventListener('mousemove', (event: MouseEvent) => {
-      const view = ($('#analysisTFView') as HTMLInputElement)?.value || 'bode';
-      if (view !== 'bode') return;
-      const index = tfBodeCursorFromEvent(event);
+    canvas.tabIndex = 0;
+    canvas.style.cursor = 'crosshair';
+    const active = () =>
+      (($('#analysisTFView') as HTMLInputElement)?.value || 'bode') === 'bode';
+    const move = (event: MouseEvent, clamp = false) => {
+      if (!active()) return;
+      const index = tfBodeCursorFromEvent(event, clamp);
       if (index == null) return;
       state.tfCursor = index;
       drawAnalysisTF();
+    };
+    canvas.addEventListener('mousemove', (event) => {
+      move(event, state.tfDragging);
+    });
+    canvas.addEventListener('mousedown', (event) => {
+      if (!active()) return;
+      state.tfDragging = true;
+      canvas.style.cursor = 'grabbing';
+      move(event, true);
+      event.preventDefault();
+    });
+    window.addEventListener('mouseup', () => {
+      if (!state.tfDragging) return;
+      state.tfDragging = false;
+      canvas.style.cursor = 'crosshair';
     });
     canvas.addEventListener('mouseleave', () => {
-      if (state.tfCursor == null) return;
+      if (state.tfDragging || state.tfCursor == null) return;
       state.tfCursor = null;
+      drawAnalysisTF();
+    });
+    canvas.addEventListener('keydown', (event) => {
+      if (!active() || state.tfCursor == null) return;
+      const omegaLength = (state.analysisTF as TfDataRec | null)?.bode?.omega?.length || 0;
+      if (!omegaLength) return;
+      const step = event.shiftKey ? 10 : 1;
+      if (event.key === 'ArrowLeft') {
+        state.tfCursor = Math.max(0, state.tfCursor - step);
+      } else if (event.key === 'ArrowRight') {
+        state.tfCursor = Math.min(omegaLength - 1, state.tfCursor + step);
+      } else {
+        return;
+      }
+      event.preventDefault();
       drawAnalysisTF();
     });
   }
@@ -14548,6 +14593,9 @@ declare function setStatusHint(hint: string): void;
       ui.docResults.appendChild(div('doc-empty', '没有匹配的段落；试试「节点」「求解器」「快捷键」等关键词。'));
       return;
     }
+    if (hits.length) {
+      ui.docResults.appendChild(el('div', 'doc-sec', `文档段落 · ${hits.length}`));
+    }
     for (const hit of hits) {
       const node = button('', 'doc-hit', () => {
         void openDoc(hit.slug);
@@ -14559,21 +14607,47 @@ declare function setStatusHint(hint: string): void;
       ui.docResults.appendChild(node);
     }
     if (extra.length) {
-      ui.docResults.appendChild(el('div', 'doc-sec', '节点 / 元件 / 模板'));
+      const order = ['element', 'circuit_node', 'compute', 'method', 'template', 'doc'];
+      const buckets = new Map<string, { label: string; items: Array<Record<string, string>> }>();
       for (const item of extra) {
-        const title = `${item.title} · ${item.subtitle}`;
-        const node = button('', 'doc-hit', () => {
-          if (item.kind === 'template') {
-            closeDoc();
-            void loadTemplate(item.ref || '', item.title || '');
-          } else {
-            toast(`${item.title}：${item.text || '无更多说明'}`, 'info', 4200);
-          }
-        });
-        node.appendChild(el('b', null, item.title || item.ref || ''));
-        node.appendChild(el('span', null, item.text || item.subtitle || ''));
-        ui.docResults.appendChild(node);
-        node.title = title;
+        const key = String(item.kind || 'other');
+        if (!buckets.has(key)) {
+          buckets.set(key, { label: String(item.kind_label || key), items: [] });
+        }
+        buckets.get(key)!.items.push(item);
+      }
+      const keys = [
+        ...order.filter((key) => buckets.has(key)),
+        ...[...buckets.keys()].filter((key) => !order.includes(key)),
+      ];
+      for (const key of keys) {
+        const bucket = buckets.get(key)!;
+        ui.docResults.appendChild(
+          el('div', 'doc-sec', `${bucket.label} · ${bucket.items.length}`),
+        );
+        for (const item of bucket.items) {
+          const node = button('', 'doc-hit', () => {
+            if (item.kind === 'template') {
+              closeDoc();
+              void loadTemplate(item.ref || '', item.title || '');
+            } else if (item.kind === 'doc' && item.ref) {
+              window.open(
+                `/api/help/doc?path=${encodeURIComponent(item.ref)}&line=${Number(item.line) || 1}`,
+                '_blank',
+                'noopener',
+              );
+            } else {
+              toast(`${item.title}：${item.text || '无更多说明'}`, 'info', 4200);
+            }
+          });
+          const head = el('b', null, item.title || item.ref || '');
+          const badge = el('i', 'doc-kind', item.kind_label || item.kind || '');
+          head.appendChild(badge);
+          node.appendChild(head);
+          node.appendChild(el('span', null, item.text || item.subtitle || ''));
+          ui.docResults.appendChild(node);
+          node.title = `${item.title} · ${item.subtitle}`;
+        }
       }
     }
   }

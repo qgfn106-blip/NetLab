@@ -36,6 +36,20 @@ def test_scene_to_svg_contains_symbols():
     assert svg.lstrip().startswith("<?xml")
     assert "<svg" in svg
     assert "R1" in svg
+    assert "测试工程" in svg
+    assert "节点 ·" in svg
+    assert "<g transform=" in svg
+
+
+def test_scene_to_svg_labels_values_and_grid_fallback():
+    from netlab.core.compute.schematic_export import scene_to_svg
+
+    scene = _circuit()
+    for node in scene.nodes.values():
+        node.position = {"x": 0.0, "y": 0.0}
+    svg = scene_to_svg(scene, project_name="grid", network_name="n")
+    assert "1000Ω" in svg
+    assert svg.count("<svg") == 1
 
 
 def test_scene_to_svg_rejects_non_circuit():

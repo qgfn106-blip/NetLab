@@ -19,6 +19,9 @@ def test_help_search_finds_element_by_kind() -> None:
     assert payload["count"] >= 1
     kinds = {(item["kind"], item.get("ref")) for item in payload["items"]}
     assert ("element", "thyristor") in kinds
+    assert payload["items"][0]["kind"] == "element"
+    assert payload["groups"][0]["label"] == "元件"
+    assert payload["items"][0]["kind_label"] == "元件"
 
 
 def test_help_search_finds_template_and_doc() -> None:

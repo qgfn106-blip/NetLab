@@ -121,6 +121,7 @@ NetlabHome/
 | `graph.py` | 1129 | **`Network`**（有向节点/连接图）、`Node`、`Connection`、`ComputeContext`、`SolverPlan`（R36/P1 断点 + SCC）与 `_step_solved()`（R36/P2 线性 SCC / P3 阻尼 Newton）。 |
 | `workspace.py` | 533 | 工作区：工程目录、共享库、用户设置、快照。 |
 | `schematic.py` | 373 | 图纸模型数据层：引脚表、边布局、确定性自动布局与校验。 |
+| `schematic_export.py` | 约 190 | SchemDraw 静态原理图导出：元件映射、网格回退、打印图框与标题栏。 |
 | `networks.py` | 330 | **`NetworkContainer`**：多网络容器，属性访问转发到当前网络，持久化 `ui`/`plugins`。 |
 | `block_validate.py` | 224 | 模块导入前校验（阻断级/警告级 + 干跑一步）。 |
 | `ports.py` | 194 | 端口契约：器件节点引脚声明、`PortSpec`。 |
@@ -258,6 +259,7 @@ NetlabHome/
 | 工作区 | `GET /api/workspace`、`…/create|save|open|snapshots|snapshot|restore` | `901…1010` |
 | 分析 | `GET /api/analysis/{metrics,spectrum,period,math,transfer}`、`POST /api/analysis/export` | `1066/1079/1086/1093/1098/1117` |
 | 图纸 / 性能 | `GET/POST /api/schematic/layout`、`GET /api/profile` | `1134/1139/1156` |
+| 导出 / 帮助 | `GET /api/export/schematic`、`GET /api/help/search`、`GET /api/help/doc` | `server.py:863/462/550` |
 | 功能块 | `GET /api/blocks`、`…/validate`、`…/{id}/open-internal`、`…/save-copy`、`…/references` | `1187/1202/1245/1282/1304` |
 | 扩展 / FEM / 文档 | 应用内 Python 扩展、二维有限元、应用内文档中心 | `1510` 起、`1546` 起、`1557` 起、`1636` 起 |
 

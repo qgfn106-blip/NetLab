@@ -1,6 +1,6 @@
 # Netlab 文档索引（DOCS INDEX）
 
-> 最后核对：2026-11-06 · 当前基线：静态 3.20.0 / 589 passed / R01–R40 / D1–D99
+> 最后核对：2026-11-06 15:45 · 当前基线：静态 3.20.1 / 589 passed / R01–R43 / D1–D118
 > 目的：先在这里找文档，不要凭文件名猜新旧。**历史文档保留原文，但不得作为当前实现口径。**
 
 ## 1. 建议阅读路线
@@ -37,6 +37,9 @@
 | [FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md) | 机制速查、常见坑、token 节约 | 当前 |
 | [MODULES_HOWTO.md](MODULES_HOWTO.md) | 模块化/封装/内部结构操作 | 当前 |
 | [SCHEMATIC_DRAWING_SPEC.md](SCHEMATIC_DRAWING_SPEC.md) | 电路图绘制规范 | 当前 |
+| [PERFORMANCE_AND_CONCURRENCY.md](PERFORMANCE_AND_CONCURRENCY.md) | 并发/性能评估研究：多线程·多进程·异步·数据压缩编解码·计算优化（评估记录，非实现口径） | 当前（研究） |
+| [MATH_INTEGRATION_PLAN.md](MATH_INTEGRATION_PLAN.md) | R43 数学成果接入计划：P1 稀疏排序 / P3 AC 扫频 Woodbury / P5 遥测误差预算，影子验证 M0–M1d | 当前 |
+| [UNIFIED_SIM_MATH_SPEC.md](UNIFIED_SIM_MATH_SPEC.md) | 统一仿真数学规范（当前仅 §17 可观测性；§0–§16 待按并行会话版本恢复） | 研究（部分） |
 | [WORKTREE_RULES.md](WORKTREE_RULES.md) | 多工作树/多会话规范 | 当前 |
 | [VSCODE_INTEGRATION.md](VSCODE_INTEGRATION.md) | VS Code 内嵌集成 | 当前 |
 
@@ -65,11 +68,10 @@
 
 | 文档 | 用途 | 状态 |
 | --- | --- | --- |
-| [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) | R01–R40 需求、D1–D99 决策、分期、不做清单 | 当前 |
-| [PROGRESS.md](PROGRESS.md) | 执行证据与验收记录（含 §7.70–§7.73） | 当前 |
+| [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) | R01–R43 需求、D1–D118 决策、分期、不做清单 | 当前 |
+| [PROGRESS.md](PROGRESS.md) | 执行证据与验收记录（含 §7.70–§7.78） | 当前 |
 | [BACKLOG.md](BACKLOG.md) | 当前主线、剩余项、待拍板决定 | 当前 |
 | [LESSONS.md](LESSONS.md) | 踩坑与经验（按 §7.x 记录） | 当前 |
-| [DOCUMENTATION_PLAN.md](DOCUMENTATION_PLAN.md) | 本轮文档重构计划与验收 | 当前 |
 | [AGENT_GUIDE.md](AGENT_GUIDE.md) | Agent 开工三问、文档路由、闸门 | 当前 |
 
 ### 2.6 功能规格（spec，按日期归档）
@@ -89,13 +91,10 @@
 
 这些文档保留当时的决策与技术评估，**不再作为当前行为依据**；引用时请标注“历史”。
 
+> 2026-11-06 文档整理：已删除 7 个已完成/过期文档（`DOCUMENTATION_PLAN.md`、`IMPLEMENTATION_PLAN.md`、`QT_NATIVE_SPEC.md`、`NGSPICE_SOLVER_COMPARISON.md`、`SOLVER_OPTIMIZATION_PLAN.md`、`SOLVER_OPTIMIZATION_REPORT.md`、`TS_P17_MODULE_DESIGN.md`）；原文见 git 历史。`docs/specs/*` 作为已实现功能的验收证据保留。
+
 | 文档 | 状态 | 说明 |
 | --- | --- | --- |
-| [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | historical | 早期（R01–R17）实施计划，已被 PROGRESS/BACKLOG 取代 |
-| [QT_NATIVE_SPEC.md](QT_NATIVE_SPEC.md) | superseded | Qt 原生界面规格；D78 已撤回，仅作历史依据 |
-| [NGSPICE_SOLVER_COMPARISON.md](NGSPICE_SOLVER_COMPARISON.md) | historical | 2026-10-27 求解器对比评估 |
-| [SOLVER_OPTIMIZATION_PLAN.md](SOLVER_OPTIMIZATION_PLAN.md) | historical | 早期求解器优化计划 |
-| [SOLVER_OPTIMIZATION_REPORT.md](SOLVER_OPTIMIZATION_REPORT.md) | historical | 早期优化实施报告 |
 | [SOLVER_CODE_MAP.md](SOLVER_CODE_MAP.md) | reference | 求解器代码地图，按当前代码需复核后使用 |
 | [adr/0001-schematic-layer.md](adr/0001-schematic-layer.md) | accepted | 示意图层决策（仍有效） |
 
@@ -106,3 +105,5 @@
 3. 图片放 `docs/assets/`，命名 `功能-场景.png`；README/OPERATION 只引用当前截图。
 4. 数学公式标注实现位置 `文件:函数`，不写无法在代码中定位的抽象公式。
 5. 每轮全量验证后更新 `PROGRESS.md` 与备份 `MANIFEST.sha256`。
+6. 文档分层：项目入口（README/ARCHITECTURE/OPERATION/INSTALL）→ 开发规范（AGENT_GUIDE/CODE_GUIDE/MATH）→ 需求与计划（REQUIREMENTS/BACKLOG/PROGRESS）→ 研究记录（PERFORMANCE/UNIFIED/MATH_INTEGRATION_PLAN）→ 历史档（historical，标注状态）。研究记录不参与“当前实现口径”判断。
+7. 已完成的一次性计划/报告在结论并入 PROGRESS 或需求台账后删除；同类文档优先合并，不并行保留多份。删除前在本索引登记日期与清单。

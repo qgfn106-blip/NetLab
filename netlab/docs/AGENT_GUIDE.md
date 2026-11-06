@@ -49,7 +49,7 @@
 | 封装/使用模块、端口方向、模块库 | [MODULES_HOWTO.md](MODULES_HOWTO.md) | UI_SPEC §5.7 §5.8；PROGRESS §7.21–§7.25 |
 | 改前端面板、画布、交互 | [UI_SPEC.md](UI_SPEC.md) | CHEATSHEET §6、ARCHITECTURE §11；电路图先读 [SCHEMATIC_DRAWING_SPEC.md](SCHEMATIC_DRAWING_SPEC.md) 与 [GLOSSARY.md](GLOSSARY.md) |
 | 改前端 **API 请求 / 数据面板 / 鉴权相关** | 本文 §1.1 契约红线 | [LESSONS.md](LESSONS.md) 末节「PlotKit 桌面 token 误报」、`netlab/tests/test_plotkit_frontend_auth.py` |
-| 改**原生界面**（Qt Widgets） | 已于 2026-11-02（D78）整体移除，仅作历史：[QT_NATIVE_SPEC.md](QT_NATIVE_SPEC.md) |
+| 改**原生界面**（Qt Widgets） | 已于 2026-11-02（D78）整体移除，仅作历史（`QT_NATIVE_SPEC.md` 已删除，原文见 git 历史） |
 | 想知道**现在要做什么、还差什么** | [BACKLOG.md](BACKLOG.md) | `.scratch/netlab-qt/issues/01–15`、`netlab/ui/` 各模块 docstring |
 | 改工程文件、校验和、目录 | CHEATSHEET §8 | [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) R01/R16、`netlab/core/model/project.py` |
 | 改桌面外壳、bat 启动 | CHEATSHEET §9 | `netlab/desktop/*`、[LESSONS.md](LESSONS.md)「bat 三坑」 |
@@ -58,7 +58,7 @@
 | 加/改需求、规则、优先级 | REQUIREMENTS §2 §3 §5 | §7 已废弃口径、§9 变更记录 |
 | 想知道"为什么这么设计" | REQUIREMENTS §2 台账 | ARCHITECTURE 对应章节 |
 | 研究底层求解原理（节点/连接/计算/求解器/时间） | [SOLVER_CODE_MAP.md](SOLVER_CODE_MAP.md) | 本文档 §1 调用链、`graph.py` / `nodal.py` 原文 |
-| 想知道历史计划 | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) 顶部「变动索引」 | 该文档旧正文（可能已失效） |
+| 想知道历史计划 | `IMPLEMENTATION_PLAN.md`（已删除，原文见 git 历史） | 旧正文可能已失效 |
 
 **检索配方**（比翻目录快）：
 

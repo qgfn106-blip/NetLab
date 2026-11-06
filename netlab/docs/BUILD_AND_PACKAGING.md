@@ -62,7 +62,7 @@ python -m netlab.plotkit_vendor install --src ../PlotKit/src/plotkit --force
 
 `netlab/plotkit_vendor.py` 的 IGNORE 已排除 `*.ts` / `*.tsbuildinfo`，vendor 只随包 `.js`。
 
-## 5. 单 exe 桌面分发（规划，未强制）
+## 5. 单 exe 桌面分发（POC 已验证，2026-11-06）
 
 把程序交给普通用户可打包为单安装器（与上面的前端构建正交，B 方案下先 `npm run build` 再打包）：
 
@@ -71,3 +71,16 @@ python -m netlab.plotkit_vendor install --src ../PlotKit/src/plotkit --force
 3. CI（GitHub Actions windows runner）打 tag 时自动出包并上传 Release。
 
 注意：体积数百 MB、Windows-only、需代码签名（SmartScreen）、PyInstaller `hiddenimports` 需按插件/后端补齐。
+
+## 6. POC 结果（2026-11-06，Windows / anaconda base）
+
+- **入口脚本**：`tools/packaging/netlab_entry.py`（frozen 时把 `NETLAB_FRONTEND_DIR` 指到 `_MEIPASS/frontend`，再 `from netlab.desktop.webview_app import main`）。
+- **构建**（在 `NetlabHome/` 下）：`python -m PyInstaller netlab.spec`（spec 已提交）。关键点：
+  - `--add-data frontend;frontend`、`--add-data extensions;extensions`、`--add-data netlab/_vendor;netlab/_vendor`（vendor 运行时副本必须打进包）；
+  - `--collect-all webview`、`--collect-all pythonnet`（WebView2 需要 pythonnet/clr）、`--collect-submodules netlab`、`--exclude-module netlab.tests`；
+  - **排除 `PyQt5/PySide6/PyQt6/PySide2`**（anaconda 同时装多个 Qt 绑定会导致 `multiple Qt bindings` 构建失败）、补 `uvicorn.*` hidden-imports。
+- **产物**：`dist/netlab/netlab.exe`（onedir）。
+- **冒烟（真窗口）**：`dist\netlab\netlab.exe --probe` → exit 0，`has_bridge=true / has_win_ctl=true / has_command=true / has_autosave_roundtrip='true' / drag_region=29 / rss_tree_mb≈712`；即打包后 WebView2 壳、JS↔Python 桥接、前端（含 PlotKit vendor）均正常。
+- **体积**：本次用 anaconda base，`dist/netlab` ≈ **1.63 GB**（含大量无关包如 torch/notebook），**不代表最终体积**；正式出包应在干净 venv（仅装运行依赖 + pyinstaller + pywebview + pythonnet）下构建，预期可压到数百 MB。
+- **单文件安装器**：`tools/packaging/netlab.iss`（Inno Setup 6）。本机未装 Inno Setup（`iscc` 不在 PATH），故**未产出单 exe 安装器**，属下一步（装 Inno 后 `ISCC netlab.iss`，或试 PyInstaller onefile）。
+- **建议**：PyInstaller onefile 启动需解压、且 pythonnet/WebView2 对路径敏感，**推荐 onedir + Inno** 而非 onefile。

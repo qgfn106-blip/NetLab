@@ -35,3 +35,7 @@ NetlabExtras/
 layout.json
 vscode-extensions/netlab-sidebar/node_modules/
 node_modules/
+
+# PyInstaller 打包产物（POC，2026-11-06）：构建目录与 dist 不入库；spec 入库以便复现
+build/
+dist/

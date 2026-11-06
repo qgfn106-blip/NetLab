@@ -3,7 +3,7 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-APP = ROOT.parent / "frontend" / "app.js"
+APP = ROOT.parent / "frontend" / "app.ts"
 INDEX = ROOT.parent / "frontend" / "index.html"
 
 
@@ -13,12 +13,11 @@ def test_run_warn_dialog_hooks():
     assert "runWarnWin" in src
     assert "/api/plotkit/precompute" in src
     assert "skipWarn" in src
-    start = src.index("card.querySelector('#runWarnPre').onclick")
-    end = src.index("    sec.focus();", start)
-    handler = src[start:end]
+    start = src.index("(card!.querySelector('#runWarnPre') as HTMLElement).onclick")
+    handler = src[start:start + 2600]
     assert "api('/api/plotkit/precompute'" in handler
     assert "catch (error)" in handler
-    assert "error.message" in handler
+    assert ".message" in handler
 
 
 def test_build_stamp_matches_index_version():

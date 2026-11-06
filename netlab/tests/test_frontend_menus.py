@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-APP_JS = Path(__file__).resolve().parents[2] / "frontend" / "app.js"
+APP_JS = Path(__file__).resolve().parents[2] / "frontend" / "app.ts"
 
 
 def _build_add_menu_body() -> str:
@@ -29,7 +29,7 @@ def test_signal_add_menu_groups_compute_nodes_by_catalog_group():
     assert "if (state.mode !== 'circuit')" in body
     assert "const group = String(spec.group || '未分类');" in body
     assert "label: `节点 · ${group}`" in body
-    assert "children: specs.map((spec) => ({" in body
+    assert "children: specs.map((spec: SpecRec) => ({" in body
     assert "action: () => addNodeAt(spec.kind, placeX, placeY)" in body
 
 
@@ -37,5 +37,5 @@ def test_vector_add_menu_puts_vector_group_first():
     body = _build_add_menu_body()
 
     assert (
-        "['矢量', ...COMPUTE_GROUP_ORDER.filter((group) => group !== '矢量')]" in body
+        "['矢量', ...COMPUTE_GROUP_ORDER.filter((group: string) => group !== '矢量')]" in body
     )

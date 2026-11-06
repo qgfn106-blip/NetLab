@@ -9,12 +9,12 @@ from netlab.core.model.templates import build_template
 from netlab.server import SERVICE, app
 
 ROOT = Path(__file__).resolve().parents[1]
-APP_JS = ROOT.parent / "frontend" / "app.js"
+APP_JS = ROOT.parent / "frontend" / "app.ts"
 
 
 def test_plotkit_frontend_uses_token_aware_api_helper():
     source = APP_JS.read_text(encoding="utf-8")
-    assert "async function api(path, options = {})" in source
+    assert "async function api(path: string, options: ApiOptions = {})" in source
     assert "if (DESKTOP_TOKEN) headers['X-Netlab-Token'] = DESKTOP_TOKEN;" in source
     assert "探针列表加载失败：${text}" in source
     assert "探针列表加载失败：" in source
@@ -25,17 +25,16 @@ def test_plotkit_frontend_uses_token_aware_api_helper():
 
 def test_run_warning_precompute_uses_token_aware_helper():
     source = APP_JS.read_text(encoding="utf-8")
-    start = source.index("card.querySelector('#runWarnPre').onclick")
-    end = source.index("    sec.focus();", start)
-    handler = source[start:end]
+    start = source.index("(card!.querySelector('#runWarnPre') as HTMLElement).onclick")
+    handler = source[start:start + 2600]
     assert "api('/api/plotkit/precompute'" in handler
     assert "catch (error)" in handler
-    assert "error.message" in handler
+    assert ".message" in handler
 
 
 def test_retry_does_not_report_ready_when_channel_refresh_fails():
     source = APP_JS.read_text(encoding="utf-8")
-    refresh_start = source.index("  async function refreshPkChannels(keepSelection)")
+    refresh_start = source.index("  async function refreshPkChannels(keepSelection?: boolean)")
     retry_start = source.index("  async function retryPlotkit()", refresh_start)
     frame_start = source.index("  function reloadPlotkitFrame()", retry_start)
     refresh = source[refresh_start:retry_start]

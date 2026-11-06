@@ -2,6 +2,8 @@
  * 渲染在服务端（matplotlib，D33）：前端只显示 PNG，并把缩放/平移翻译成新的 xlim/ylim；
  * 拖动期间只做 CSS 变换（0 延迟），停手 120 ms 才回后端重绘（D34）；hover 读数本地算，不发请求。 */
 "use strict";
+import './view3d.js';
+import './render2d.js';
 /* ================= /TypeScript 类型 ================= */
 const $ = (id) => document.getElementById(id);
 // 嵌在别人页面里时（netlab 浮窗/停靠），默认收起右侧面板，把宽度全留给图

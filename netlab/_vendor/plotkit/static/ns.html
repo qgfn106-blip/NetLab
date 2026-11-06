@@ -143,8 +143,8 @@
 <div id="legend"><span style="bottom:-2px">低</span><span style="top:-2px">高 Ω</span></div>
 <div id="mode"></div>
 
-<script src="/nsview.js"></script>
-<script>
+<script type="module" src="/nsview.js"></script>
+<script type="module">
 // 支持 ?t=0.6&h=0.005&x0=0.6&eta0=1.0&particles=120000 直接打开到某一时刻（验收/出图用）
 const Q = new URLSearchParams(location.search);
 const qnum = (key, dflt) => (Q.has(key) ? Number(Q.get(key)) : dflt);

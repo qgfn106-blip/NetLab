@@ -622,7 +622,7 @@ def _host_index_html() -> str:
     from plotkit.server.assets import STATIC_DIR
 
     html = (Path(STATIC_DIR) / "index.html").read_text(encoding="utf-8")
-    position = html.find("<script src=")
+    position = html.find("<script")
     if position < 0:
         return html
     return html[:position] + _HOST_SHIM + "\n  " + html[position:]

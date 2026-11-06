@@ -1474,3 +1474,4 @@ void main() {
     }
     return { NSView };
 })();
+window.NS = NS;

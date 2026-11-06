@@ -1,6 +1,6 @@
 # Netlab 需求 · 决策 · 执行计划（2026-10-25 修订版）
 
-> 最后修改：2026-11-06 18:15（新增「代码规范（强制）」开篇；文档整理：合并已完成文档、同步 R43 / D112–D118）
+> 最后修改：2026-11-06 18:30（新增「代码规范（强制）」开篇；文档整理：合并已完成文档、同步 R43 / D112–D118；R43 M1b 影子与性能实测）
 > 本版**取代** 2026-10-24 版的需求口径。旧条文不删除，凡被推翻或细化的条目一律进 §7「已废弃口径」。
 > 每条需求统一六段式：**原话 / 解读 / 拟改架构 / 验收 / 权重·期次 / 现状**。
 > **现状**一栏只写本次会话内读代码或跑测试能证明的事实；没有证据的一律标「待核实」。
@@ -630,14 +630,14 @@
 - **原话**（2026-11-06）：「先把现在项目代码结构和数学成果分析一下，尝试把数学成果放入netlab代码优化，先只做规划与计划，不要直接改代码。过程中思考能否产生新的数学工具，并尝试迭代算法」；随后确认：目标 **A+B（运行更快 + 结果更可信）**；第一波 **B 三件套 = P3 + P1 + P5**；接入方式 **影子模式 `NETLAB_MATH_ACCEL=off|shadow|on`（默认 off）**；P3 用 **双参数仿射族 Woodbury**；P1 先做排序评测器；P5 只做只读诊断层。
 - **解读**：`mathspec/` 作为零耦合"数学试验室"，先在参考实现中证明算法与误差界，再以影子模式接入 netlab：**默认 off 不改行为**；shadow 时新旧路径对拍（相对误差 <1e-10）+ 双路计时；验证通过才允许 on/替换。第一波只做三件低风险、可度量的事：P1 稀疏排序评测、P3 AC 扫频广义 Woodbury、P5 遥测质量元数据 + 只读诊断 API。
 - **拟改架构 / 范围**：
-  - 计划文档：[MATH_INTEGRATION_PLAN.md](MATH_INTEGRATION_PLAN.md)（v1.1，M0–M1d，已记录 M0/M1b 实施证据）。
+  - 计划文档：[MATH_INTEGRATION_PLAN.md](MATH_INTEGRATION_PLAN.md)（v1.2，M0–M1d，已记录 M0/M1b 实施证据）。
   - P1：对真实 MNA 矩阵评测 COLAMD（现状）/ MMD_ATA / MMD_AT_PLUS_A / NATURAL + 自研 min-degree / nested dissection 预置换；指标 fill-in `nnz(L+U)`、factor/solve 时间、峰值内存。
   - P3：`A(ω)=A(ω0)+UΣ(ω)Vᵀ`，一次分解 A(ω0) 后逐频点 r×r 小解；门控 `r/n≤0.10` 启用、`0.10<r/n≤0.25` 仅 shadow、`>0.25` 回退直接解；加条件数/主元守卫。
   - P5：Recorder 侧 quality 元数据（`sample_dt`、`quant_bits`、`interp_error_bound`、`fifo_depth`/`delay_bound`）+ 只读 `/api/diagnostics/telemetry`；**不改 `/api/live` 响应结构**，前端暂不接。
   - 分支：从 `main` 新开 `feat/math-accel-shadow`，不带入 `feat/ts-migration` 改动。
 - **验收**：四关——①条件边界（输入/精度/规模条件写清）②性质测试（mathspec 全绿）③影子评测（新旧相对误差 <1e-10、双路计时；P1 至少两类真实矩阵 factor ≥15% 或 fill-in ≥20% 才进实现清单）④回退与指标（`NETLAB_MATH_ACCEL=off` 可关闭、回退路径可用、指标可观测）。
 - **权重·期次**：⭐⭐⭐ / M1（2026-11-06 立项；M0 mathspec 原型 3–5 天，M1a=P1、M1b=P3、M1c=P5、M1d 收尾验收）。
-- **现状**：**M0 完成、M1b 影子实现完成（2026-11-06）**——mathspec 新增 `ac_sweep_woodbury.py`/`ordering_eval.py`（全量 107 passed）；netlab 新增 `math_accel` 四模块与 `nodal.ac_sweep` 的 off/shadow/on 分支（全量 **594 passed / 1 skipped**，默认 off 行为不变）；P1 真实工程语料与 P5 遥测尚未开始。
+- **现状**：**M0 完成、M1b 影子实现完成（2026-11-06）**——mathspec 新增 `ac_sweep_woodbury.py`/`ordering_eval.py`（全量 107 passed）；netlab 新增 `math_accel` 四模块与 `nodal.ac_sweep` 的 off/shadow/on 分支（全量 **594 passed / 1 skipped in 101.71s**，默认 off 行为不变）；P3 实测 101 节点/2001 频点 1.50×、201 节点/501 频点 2.09×（fast path 复用静态矩阵）；P1 真实工程语料与 P5 遥测尚未开始。
 
 ## 4. 权重与依赖
 

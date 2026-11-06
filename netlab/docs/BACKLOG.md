@@ -1,6 +1,6 @@
 # Netlab 主线待办（BACKLOG）
 
-> 最后修改：2026-11-06 15:45
+> 最后修改：2026-11-06 18:30
 > 用途：**一页回答「现在要做什么、还有什么没做」**。需求与决策的唯一口径仍是
 > [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)（R01–R43 / D1–D118），进度证据在
 > [PROGRESS.md](PROGRESS.md)。本文只做**汇总与排序**，不重复定义需求。

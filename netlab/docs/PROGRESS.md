@@ -1,6 +1,6 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-06 15:45
+> 最后修改：2026-11-06 18:30
 
 | 项 | 内容 |
 | --- | --- |
@@ -2135,14 +2135,15 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 
 ---
 
-## §7.78 R43 M1 数学加速影子实现（2026-11-06 18:25）
+## §7.78 R43 M1 数学加速影子实现（2026-11-06 18:30）
 
 **状态：M0/M1b 完成；M1c/M1d 未开始**。用户要求按文档规范开始改底层代码并从 main 新开分支。
 
 - 分支：`feat/math-accel-shadow`（从 `main` 新开，未带入 `feat/ts-migration`）。
 - M0（mathspec）：新增 `experiments/ac_sweep_woodbury.py`（双参数仿射族 + Woodbury）与 `experiments/ordering_eval.py`（COLAMD/MMD_ATA/MMD_AT_PLUS_A/NATURAL + RCM/MIN_DEGREE/NESTED_DISSECTION 评测）；新增测试 9 条，mathspec 全量 **107 passed in 5.66s**。
 - M1b（netlab）：新增 `netlab/core/compute/math_accel/{config,diagnostics,woodbury_ac,__init__}.py`；`nodal.ac_sweep` 增加 `off|shadow|on` 分支——默认 off 行为不变，shadow 只对拍不生效，on 在 `r/n≤0.10` 走 Woodbury、`0.10<r/n≤0.25` 仅影子、`>0.25` 直接解；条件数/主元守卫 + 残差修正。
-- 测试：`netlab/tests/test_math_accel.py` **5 passed**；`test_solver_analysis.py`+`test_complex_support.py` **22 passed**；netlab 全量 **594 passed, 1 skipped in 103.50s**。
+- 测试：`netlab/tests/test_math_accel.py` **5 passed**；`test_solver_analysis.py`+`test_complex_support.py` **22 passed**；netlab 全量 **594 passed, 1 skipped in 101.71s**。
+- 性能实测（2026-11-06，RC 梯形）：2001 频点/101 节点：off 1131.5 ms / shadow 1305.1 ms / on 755.7 ms（**1.50×**）；501 频点/201 节点：off 966.8 ms / on 463.0 ms（**2.09×**）。`on` 路径已加 fast path：复用 `base_matrix/base_rhs`，跳过逐频点重复 stamp；收益随规模增长。
 - 文档：`MATH_INTEGRATION_PLAN.md` 升 v1.1（§11 实施记录、里程碑状态）、REQUIREMENTS R43 现状、BACKLOG M1 行同步。
 
-**验证**：`docs/specs/*` 作为已实现功能的验收证据保留；mathspec 最近一次全量 `python -m pytest mathspec/tests -q` = **98 passed**（不影响 netlab 589 passed 基线）。
+**验证**：`docs/specs/*` 作为已实现功能的验收证据保留；mathspec 最近一次全量 `python -m pytest mathspec/tests -q` = **107 passed**（不影响 netlab 594 passed 基线）。

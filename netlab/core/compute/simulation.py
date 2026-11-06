@@ -23,6 +23,11 @@ from ..common.limits import (
     as_int,
 )
 from ..model.scene import Scene
+from .telemetry_quality import (
+    fifo_delay_bound,
+    interpolation_error_bound,
+    sample_dt_from_frames,
+)
 
 #: 录制环形缓冲的帧数上限。2026-11-03：1200 → 6000。
 #: 预计算按这个容量反推 ``sample_every``（整段 0→T 必须装得下），所以它同时
@@ -184,16 +189,41 @@ class Recorder:
         self.generation = uuid.uuid4().hex
 
     def quality_snapshot(self) -> dict[str, Any]:
-        """P5：只读遥测质量元数据快照（不改变录制状态）。"""
+        """P5：只读遥测质量元数据快照（不改变录制状态）。
+
+        误差界按当前录制窗口现场计算，因此不需要在每次 ``push`` 时增加开销；
+        ``interp_error_bound`` 是样本二阶差分派生的估计（见模块
+        :mod:`netlab.core.compute.telemetry_quality`），不是未观测极值的证书。
+        """
+        sample_dt = self.quality["sample_dt"]
+        if sample_dt is None:
+            sample_dt = sample_dt_from_frames(self.frames)
+        interp_bound = interpolation_error_bound(self.frames)
+        delay_bound = fifo_delay_bound(self.capacity, sample_dt, len(self.frames))
+        if interp_bound is None:
+            interp_method = "insufficient_samples"
+        else:
+            interp_method = "sample_second_difference/8"
+        if delay_bound is None:
+            delay_method = "insufficient_samples"
+        else:
+            delay_method = "capacity_x_sample_dt"
+        assumptions = [
+            "当前 /api/live 链路无量化/压缩（quant_bits=None 表示未启用量化）",
+            "interp_error_bound=max|Δ²y|/8，基于均匀采样假设与观测到的最坏二阶差分；"
+            "不是对采样点之间未观测极值的严格证书",
+            "delay_bound=capacity×sample_dt，表示读取 FIFO 窗口最旧帧的最大数据年龄；"
+            "不含磁盘/网络传输延迟",
+        ]
         return {
-            "sample_dt": self.quality["sample_dt"],
+            "sample_dt": sample_dt,
             "quant_bits": self.quality["quant_bits"],
-            "interp_error_bound": self.quality["interp_error_bound"],
-            "interp_error_bound_method": self.quality["interp_error_bound_method"],
+            "interp_error_bound": interp_bound,
+            "interp_error_bound_method": interp_method,
             "fifo_depth": self.quality["fifo_depth"],
-            "delay_bound": self.quality["delay_bound"],
-            "delay_bound_method": self.quality["delay_bound_method"],
-            "assumptions": list(self.quality["assumptions"]),
+            "delay_bound": delay_bound,
+            "delay_bound_method": delay_method,
+            "assumptions": assumptions,
             "frames_recorded": len(self.frames),
             "capacity": self.capacity,
             "probe_keys": self.keys(),

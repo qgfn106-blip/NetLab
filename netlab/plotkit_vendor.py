@@ -27,8 +27,13 @@ from pathlib import Path
 VENDOR_DIR = Path(__file__).resolve().parent / "_vendor"
 TARGET = VENDOR_DIR / "plotkit"
 IGNORE = shutil.ignore_patterns(
-    "__pycache__", "*.pyc", "*.pyo", ".pytest_cache", "*.egg-info",
-    "*.ts", "*.tsbuildinfo"
+    "__pycache__",
+    "*.pyc",
+    "*.pyo",
+    ".pytest_cache",
+    "*.egg-info",
+    "*.ts",
+    "*.tsbuildinfo",
 )
 
 

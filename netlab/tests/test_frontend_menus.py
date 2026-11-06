@@ -37,5 +37,6 @@ def test_vector_add_menu_puts_vector_group_first():
     body = _build_add_menu_body()
 
     assert (
-        "['矢量', ...COMPUTE_GROUP_ORDER.filter((group: string) => group !== '矢量')]" in body
+        "['矢量', ...COMPUTE_GROUP_ORDER.filter((group: string) => group !== '矢量')]"
+        in body
     )

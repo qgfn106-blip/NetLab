@@ -14,7 +14,7 @@ def test_run_warn_dialog_hooks():
     assert "/api/plotkit/precompute" in src
     assert "skipWarn" in src
     start = src.index("(card!.querySelector('#runWarnPre') as HTMLElement).onclick")
-    handler = src[start:start + 2600]
+    handler = src[start : start + 2600]
     assert "api('/api/plotkit/precompute'" in handler
     assert "catch (error)" in handler
     assert ".message" in handler

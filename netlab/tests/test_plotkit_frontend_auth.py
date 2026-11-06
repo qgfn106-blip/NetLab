@@ -26,7 +26,7 @@ def test_plotkit_frontend_uses_token_aware_api_helper():
 def test_run_warning_precompute_uses_token_aware_helper():
     source = APP_JS.read_text(encoding="utf-8")
     start = source.index("(card!.querySelector('#runWarnPre') as HTMLElement).onclick")
-    handler = source[start:start + 2600]
+    handler = source[start : start + 2600]
     assert "api('/api/plotkit/precompute'" in handler
     assert "catch (error)" in handler
     assert ".message" in handler
@@ -34,7 +34,9 @@ def test_run_warning_precompute_uses_token_aware_helper():
 
 def test_retry_does_not_report_ready_when_channel_refresh_fails():
     source = APP_JS.read_text(encoding="utf-8")
-    refresh_start = source.index("  async function refreshPkChannels(keepSelection?: boolean)")
+    refresh_start = source.index(
+        "  async function refreshPkChannels(keepSelection?: boolean)"
+    )
     retry_start = source.index("  async function retryPlotkit()", refresh_start)
     frame_start = source.index("  function reloadPlotkitFrame()", retry_start)
     refresh = source[refresh_start:retry_start]

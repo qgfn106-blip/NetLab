@@ -80,6 +80,6 @@ def test_scene_records_auto_delay_edges():
     assert edge.delay is True
     assert edge.auto_delay is True
     engine = scene.ensure_engine()
-    assert [connection.name for connection in engine.network.auto_delayed_connections()] == [
-        edge.name
-    ]
+    assert [
+        connection.name for connection in engine.network.auto_delayed_connections()
+    ] == [edge.name]

@@ -45,7 +45,9 @@ def _validate_for_file(payload: Any) -> dict[str, Any]:
     except Exception:
         pass
     project = validate_project(payload, library=library, allow_degraded=True)
-    original_blocks = (payload or {}).get("blocks") if isinstance(payload, dict) else None
+    original_blocks = (
+        (payload or {}).get("blocks") if isinstance(payload, dict) else None
+    )
     if original_blocks is not None:
         project["blocks"] = json.loads(json.dumps(original_blocks))
     project.pop("degraded", None)
@@ -110,7 +112,9 @@ class WebviewBridge:
     def save_project(self, payload_json: str, suggested_name: str = "") -> str:
         try:
             payload = _validate_for_file(json.loads(payload_json))
-            default_name = (suggested_name or payload.get("name") or "netlab-project").strip()
+            default_name = (
+                suggested_name or payload.get("name") or "netlab-project"
+            ).strip()
             if not default_name.lower().endswith(PROJECT_SUFFIX):
                 default_name += PROJECT_SUFFIX
             path = self._dialog(save=True, default_name=default_name)

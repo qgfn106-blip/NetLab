@@ -95,19 +95,17 @@ def _parse(expression: str) -> ast.Expression:
         if count > _MAX_NODES:
             raise ComputeError("表达式过于复杂")
         if not isinstance(node, _ALLOWED_NODES):
-            raise ComputeError(
-                f"表达式包含不允许的语法：{type(node).__name__}"
-            )
-        if isinstance(node, ast.Constant) and not isinstance(
-            node.value, (int, float)
-        ):
+            raise ComputeError(f"表达式包含不允许的语法：{type(node).__name__}")
+        if isinstance(node, ast.Constant) and not isinstance(node.value, (int, float)):
             raise ComputeError("表达式只允许数字常量")
         if isinstance(node, ast.Name) and not node.id.isidentifier():
             raise ComputeError("表达式包含非法变量名")
     return tree
 
 
-def _eval(node: ast.AST, variables: dict[str, float], expression: str, depth: int = 0) -> float:
+def _eval(
+    node: ast.AST, variables: dict[str, float], expression: str, depth: int = 0
+) -> float:
     if depth > _MAX_DEPTH:
         raise ComputeError("表达式嵌套过深")
     if isinstance(node, ast.Expression):
@@ -159,7 +157,9 @@ def _eval(node: ast.AST, variables: dict[str, float], expression: str, depth: in
                 raise ComputeError("表达式幂运算溢出") from exc
         raise ComputeError("不支持的二元运算符")
     if isinstance(node, ast.BoolOp):
-        values = [_eval(value, variables, expression, depth + 1) for value in node.values]
+        values = [
+            _eval(value, variables, expression, depth + 1) for value in node.values
+        ]
         if isinstance(node.op, ast.And):
             return 1.0 if all(values) else 0.0
         if isinstance(node.op, ast.Or):
@@ -217,7 +217,7 @@ def evaluate(expression: str, variables: dict[str, float]) -> float:
         raise ComputeError("表达式过长")
     tree = _parse(expression.strip())
     # 变量表也做一次有限性检查，防止上游误传 NaN。
-    clean = {};
+    clean = {}
     for key, value in variables.items():
         number = float(value)
         if not math.isfinite(number):

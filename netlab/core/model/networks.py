@@ -78,7 +78,9 @@ class NetworkContainer:
         # 仅代理 Simulation 的成员；下划线/内部名字必须走显式方法，避免意外递归。
         if name.startswith("_"):
             raise AttributeError(name)
-        current = self.__dict__.get("_entries", {}).get(self.__dict__.get("_current", ""))
+        current = self.__dict__.get("_entries", {}).get(
+            self.__dict__.get("_current", "")
+        )
         if current is None:
             raise AttributeError(name)
         return getattr(current, name)
@@ -146,9 +148,11 @@ class NetworkContainer:
         self._require_writable()
         mode = self.current.scene.mode
         template = build_template(
-            {"signal": "blank_signal", "circuit": "blank_circuit", "vector": "blank_vector"}[
-                mode
-            ]
+            {
+                "signal": "blank_signal",
+                "circuit": "blank_circuit",
+                "vector": "blank_vector",
+            }[mode]
         )
         simulation = Simulation(Scene(mode))
         try:
@@ -189,7 +193,11 @@ class NetworkContainer:
         simulation.shutdown()
         if was_current:
             self.current.ensure_thread()
-        return {"removed": network_id, "current": self._current, "networks": self.list_networks()}
+        return {
+            "removed": network_id,
+            "current": self._current,
+            "networks": self.list_networks(),
+        }
 
     def switch(self, network_id: str) -> dict[str, Any]:
         simulation = self._entry(network_id)

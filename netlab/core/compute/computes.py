@@ -90,7 +90,9 @@ def solver_traits(kind: str, params: dict[str, Any]) -> dict[str, bool]:
     elif kind == "state_space":
         traits["stateful"] = True
         matrix = np.asarray(params.get("D", [[0.0]]), dtype=float)
-        traits["direct_feedthrough"] = bool(matrix.size and np.any(np.abs(matrix) > 1.0e-12))
+        traits["direct_feedthrough"] = bool(
+            matrix.size and np.any(np.abs(matrix) > 1.0e-12)
+        )
     elif kind == "transfer_function":
         try:
             transfer = transfer_from_params(params)
@@ -107,7 +109,13 @@ def solver_traits(kind: str, params: dict[str, Any]) -> dict[str, bool]:
         else:
             traits["stateful"] = False
             traits["direct_feedthrough"] = True
-    elif kind in {"clip", "oscillator", "nonlinear_plant", "sliding_mode", "vector_transform"}:
+    elif kind in {
+        "clip",
+        "oscillator",
+        "nonlinear_plant",
+        "sliding_mode",
+        "vector_transform",
+    }:
         traits["linear"] = False
         traits["nonlinear"] = True
         if kind in {"oscillator", "nonlinear_plant", "sliding_mode"}:
@@ -140,12 +148,24 @@ def _port_value(ctx: ComputeContext, port: str, field: str) -> float | None:
     payload = getattr(ctx, "ports", {}).get(port)
     if not payload:
         return None
-    if port in payload and isinstance(payload[port], (int, float)) and not isinstance(payload[port], bool):
+    if (
+        port in payload
+        and isinstance(payload[port], (int, float))
+        and not isinstance(payload[port], bool)
+    ):
         return float(payload[port])
-    if "value" in payload and isinstance(payload["value"], (int, float)) and not isinstance(payload["value"], bool):
+    if (
+        "value" in payload
+        and isinstance(payload["value"], (int, float))
+        and not isinstance(payload["value"], bool)
+    ):
         return float(payload["value"])
     for item in payload.values():
-        if isinstance(item, (int, float)) and not isinstance(item, bool) and math.isfinite(float(item)):
+        if (
+            isinstance(item, (int, float))
+            and not isinstance(item, bool)
+            and math.isfinite(float(item))
+        ):
             return float(item)
     return None
 
@@ -192,8 +212,16 @@ register(
         group="基础",
         description="把每条入边指定字段相加，写入输出字段；可为单条连接设置权重。",
         params=(
-            ParamSpec("field", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
-            ParamSpec("output", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
+            ParamSpec(
+                "field",
+                "输入字段",
+                "text",
+                "value",
+                help="留空或 auto 时自动匹配，优先 value",
+            ),
+            ParamSpec(
+                "output", "输出字段", "text", "value", help="留空或 auto 时写入 value"
+            ),
             json_param("weights", "连接权重", {}, help='例如 {"R1": 0.5}'),
         ),
         factory=_sum_factory,
@@ -222,8 +250,16 @@ register(
         group="基础",
         description="把所有入边求和后乘增益再加偏置：y = offset + gain·Σu。",
         params=(
-            ParamSpec("field", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
-            ParamSpec("output", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
+            ParamSpec(
+                "field",
+                "输入字段",
+                "text",
+                "value",
+                help="留空或 auto 时自动匹配，优先 value",
+            ),
+            ParamSpec(
+                "output", "输出字段", "text", "value", help="留空或 auto 时写入 value"
+            ),
             float_param("gain", "增益", 1.0, step=0.1),
             float_param("offset", "偏置", 0.0, step=0.1),
         ),
@@ -262,8 +298,16 @@ register(
         group="动态",
         description="一阶低通/惯性环节：τ·dy/dt = u - y，按后向/前向混合的一阶近似推进。",
         params=(
-            ParamSpec("field", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
-            ParamSpec("output", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
+            ParamSpec(
+                "field",
+                "输入字段",
+                "text",
+                "value",
+                help="留空或 auto 时自动匹配，优先 value",
+            ),
+            ParamSpec(
+                "output", "输出字段", "text", "value", help="留空或 auto 时写入 value"
+            ),
             float_param("tau", "时间常数 τ", 0.1, unit="s", positive=True, step=0.01),
             float_param("initial", "初值", 0.0, step=0.1),
         ),
@@ -306,8 +350,16 @@ register(
         group="动态",
         description="对输入求积分并限幅：y += gain·u·dt，适合作为状态变量。",
         params=(
-            ParamSpec("field", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
-            ParamSpec("output", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
+            ParamSpec(
+                "field",
+                "输入字段",
+                "text",
+                "value",
+                help="留空或 auto 时自动匹配，优先 value",
+            ),
+            ParamSpec(
+                "output", "输出字段", "text", "value", help="留空或 auto 时写入 value"
+            ),
             float_param("gain", "增益", 1.0, step=0.1),
             float_param("initial", "初值", 0.0, step=0.1),
             float_param("lower", "下限", -1.0e6),
@@ -380,7 +432,9 @@ def _expression_factory(params: dict[str, Any]) -> Handler:
         # R36/P3：每拍把当前时间作为保留变量 t（含 time 别名）注入，
         # 供时变参数表达式使用；用户显式映射同名变量时以映射为准。
         values = {"t": float(ctx.time), "time": float(ctx.time)}
-        values.update({name: resolve(ctx, source) for name, source in variables.items()})
+        values.update(
+            {name: resolve(ctx, source) for name, source in variables.items()}
+        )
         return {output: evaluate_expression(expression, values)}
 
     return handler
@@ -490,7 +544,7 @@ register(
                 "角度来源",
                 "text",
                 "theta.voltage",
-                help='格式「连接名.字段」，角度单位为弧度',
+                help="格式「连接名.字段」，角度单位为弧度",
             ),
             ParamSpec("a_source", "a 相来源", "text", "a.voltage"),
             ParamSpec("b_source", "b 相来源", "text", "b.voltage"),
@@ -592,7 +646,9 @@ register(
         group="变换",
         description="SRF-PLL：三相电压相位检测、PI 环路滤波、VCO 积分与频率限幅。",
         params=(
-            float_param("nominal_frequency", "额定频率", 50.0, unit="Hz", positive=True),
+            float_param(
+                "nominal_frequency", "额定频率", 50.0, unit="Hz", positive=True
+            ),
             float_param("kp", "比例增益", 20.0, step=1.0),
             float_param("ki", "积分增益", 1000.0, step=10.0),
             float_param("theta0", "初始相位", 0.0, unit="rad"),
@@ -732,7 +788,9 @@ def _transfer_function_factory(params: dict[str, Any]) -> Handler:
         raise ComputeError(
             f"初始状态长度 {len(raw_x0)} 与传递函数阶数 {a.shape[0]} 不一致"
         )
-    x0 = np.asarray(raw_x0, dtype=float) if raw_x0 else np.zeros(a.shape[0], dtype=float)
+    x0 = (
+        np.asarray(raw_x0, dtype=float) if raw_x0 else np.zeros(a.shape[0], dtype=float)
+    )
     model = StateSpaceModel(
         a=a,
         b=b,
@@ -786,8 +844,16 @@ register(
             list_param("zeros", "零点", []),
             list_param("poles", "极点", [-1.0]),
             float_param("gain", "增益", 1.0, step=0.1),
-            ParamSpec("field", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
-            ParamSpec("output", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
+            ParamSpec(
+                "field",
+                "输入字段",
+                "text",
+                "value",
+                help="留空或 auto 时自动匹配，优先 value",
+            ),
+            ParamSpec(
+                "output", "输出字段", "text", "value", help="留空或 auto 时写入 value"
+            ),
             choice_param("method", "离散化方法", "zoh", DISCRETIZATION_METHODS),
             list_param(
                 "x0",
@@ -826,8 +892,16 @@ register(
         group="基础",
         description="对输入求和后做上下限截断，可用于饱和环节。",
         params=(
-            ParamSpec("field", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
-            ParamSpec("output", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
+            ParamSpec(
+                "field",
+                "输入字段",
+                "text",
+                "value",
+                help="留空或 auto 时自动匹配，优先 value",
+            ),
+            ParamSpec(
+                "output", "输出字段", "text", "value", help="留空或 auto 时写入 value"
+            ),
             float_param("minimum", "下限", -10.0, step=0.5),
             float_param("maximum", "上限", 10.0, step=0.5),
         ),
@@ -923,7 +997,9 @@ def _oscillator_factory(params: dict[str, Any]) -> Handler:
         diff_x = _loose_sum(ctx, "dx")
         diff_y = _loose_sum(ctx, "dy")
 
-        def derivative(t: float, x: float, y: float, z: float) -> tuple[float, float, float]:
+        def derivative(
+            t: float, x: float, y: float, z: float
+        ) -> tuple[float, float, float]:
             drive = forcing * math.sin(two_pi * frequency * t)
             if system == "duffing":
                 dx = y
@@ -948,7 +1024,10 @@ def _oscillator_factory(params: dict[str, Any]) -> Handler:
             return dx, dy, dz
 
         nxt = _rk4_3d(ctx.dt, current, ctx.time - ctx.dt, derivative)
-        if not all(math.isfinite(value) for value in nxt) or max(abs(v) for v in nxt) > 1.0e6:
+        if (
+            not all(math.isfinite(value) for value in nxt)
+            or max(abs(v) for v in nxt) > 1.0e6
+        ):
             raise ComputeError("非线性振子发散了，请减小 dt 或耦合增益")
         state["x"], state["y"], state["z"] = nxt
         vx, vy, vz = derivative(ctx.time, *nxt)
@@ -1012,7 +1091,9 @@ def _nonlinear_plant_factory(params: dict[str, Any]) -> Handler:
         control = _loose_sum(ctx, "u")
         external = _loose_sum(ctx, "w")
 
-        def derivative(t: float, px: float, pv: float, _z: float) -> tuple[float, float, float]:
+        def derivative(
+            t: float, px: float, pv: float, _z: float
+        ) -> tuple[float, float, float]:
             dx = pv
             dv = (
                 -a * px
@@ -1025,7 +1106,11 @@ def _nonlinear_plant_factory(params: dict[str, Any]) -> Handler:
             return dx, dv, 0.0
 
         nxt = _rk4_3d(ctx.dt, (x, v, 0.0), ctx.time - ctx.dt, derivative)
-        if not math.isfinite(nxt[0]) or not math.isfinite(nxt[1]) or abs(nxt[0]) > 1.0e6:
+        if (
+            not math.isfinite(nxt[0])
+            or not math.isfinite(nxt[1])
+            or abs(nxt[0]) > 1.0e6
+        ):
             raise ComputeError("非线性被控对象发散了，请检查控制增益或减小 dt")
         state["x"], state["v"] = nxt[0], nxt[1]
         return {
@@ -1184,6 +1269,7 @@ def _module_port_factory(params: dict[str, Any]) -> Handler | None:
         return None
     if role == "interface" and str(params.get("direction", "")) == "output":
         pass
+
     # 端口节点 / 内部输出接口：把入边上的所有数值字段按字段名求和。
     def handler(ctx: ComputeContext) -> NodeData:
         totals: dict[str, float] = {}
@@ -1202,9 +1288,26 @@ def _module_port_factory(params: dict[str, Any]) -> Handler | None:
 
 _MODULE_COMMON_PARAMS = (
     ParamSpec("port_name", "端口名称", "text", "port"),
-    ParamSpec("role", "角色", "choice", "port", choices=(("port", "父场景端口"), ("interface", "内部接口"))),
+    ParamSpec(
+        "role",
+        "角色",
+        "choice",
+        "port",
+        choices=(("port", "父场景端口"), ("interface", "内部接口")),
+    ),
     json_param("fields", "字段", ["voltage"], help='例如 ["voltage"] 或 ["x","y"]'),
-    ParamSpec("dtype", "数据类型", "choice", "signal", choices=(("signal", "标量"), ("vector", "二维矢量"), ("bit", "逻辑位"), ("any", "任意"))),
+    ParamSpec(
+        "dtype",
+        "数据类型",
+        "choice",
+        "signal",
+        choices=(
+            ("signal", "标量"),
+            ("vector", "二维矢量"),
+            ("bit", "逻辑位"),
+            ("any", "任意"),
+        ),
+    ),
     float_param("default", "默认值", 0.0, step=0.1),
     ParamSpec("block_id", "所属功能块", "text", ""),
 )
@@ -1254,8 +1357,12 @@ register(
         params=(
             ParamSpec("block_id", "功能块 id", "text", ""),
             ParamSpec("block_name", "功能块名称", "text", ""),
-            json_param("input_nodes", "输入端口节点", {}, help="端口名 → 父场景节点 id"),
-            json_param("output_nodes", "输出端口节点", {}, help="端口名 → 父场景节点 id"),
+            json_param(
+                "input_nodes", "输入端口节点", {}, help="端口名 → 父场景节点 id"
+            ),
+            json_param(
+                "output_nodes", "输出端口节点", {}, help="端口名 → 父场景节点 id"
+            ),
             ParamSpec(
                 "internal_sim",
                 "按内部结构仿真",
@@ -1298,8 +1405,22 @@ register(
         group="接口",
         description="把标量信号按给定角度映射成二维矢量；显式声明跨模式换算，不做隐式转换。",
         params=(
-            ParamSpec("input_field", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
-            float_param("angle", "矢量角度", 0.0, unit="°", minimum=-360.0, maximum=360.0, step=15.0),
+            ParamSpec(
+                "input_field",
+                "输入字段",
+                "text",
+                "value",
+                help="留空或 auto 时自动匹配，优先 value",
+            ),
+            float_param(
+                "angle",
+                "矢量角度",
+                0.0,
+                unit="°",
+                minimum=-360.0,
+                maximum=360.0,
+                step=15.0,
+            ),
             ParamSpec("output_x", "输出 x 字段", "text", "x"),
             ParamSpec("output_y", "输出 y 字段", "text", "y"),
         ),
@@ -1342,7 +1463,12 @@ register(
         group="接口",
         description="从二维矢量取分量或模长，映射成标量信号；换算显式可查。",
         params=(
-            choice_param("component", "取法", "magnitude", (("x", "x 分量"), ("y", "y 分量"), ("magnitude", "模长"))),
+            choice_param(
+                "component",
+                "取法",
+                "magnitude",
+                (("x", "x 分量"), ("y", "y 分量"), ("magnitude", "模长")),
+            ),
             ParamSpec("input_x", "输入 x 字段", "text", "x"),
             ParamSpec("input_y", "输入 y 字段", "text", "y"),
             ParamSpec("output_field", "输出字段", "text", "voltage"),

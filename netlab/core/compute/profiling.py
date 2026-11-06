@@ -77,9 +77,9 @@ class Profiler:
                     "total_ms": round(values[1] * 1000.0, 4),
                     "max_ms": round(values[2] * 1000.0, 4),
                     "last_ms": round(values[3] * 1000.0, 4),
-                    "mean_ms": round(values[1] * 1000.0 / values[0], 4)
-                    if values[0]
-                    else 0.0,
+                    "mean_ms": (
+                        round(values[1] * 1000.0 / values[0], 4) if values[0] else 0.0
+                    ),
                 }
                 for name, values in self._totals.items()
             ]

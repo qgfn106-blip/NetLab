@@ -27,7 +27,12 @@ from .core.compute.fem import FemSimulation
 
 #: 服务端代码版本（与 frontend/index.html 的 ?v= 对齐）；用于检测「前端已更新、后端进程仍是旧的」
 APP_BUILD = "3.20.1"
-from .core.common.limits import ConflictError, NetlabError, NotFoundError, ValidationError
+from .core.common.limits import (
+    ConflictError,
+    NetlabError,
+    NotFoundError,
+    ValidationError,
+)
 from .core.model.networks import NetworkContainer
 from .core.model.project import (
     compute_checksum,
@@ -65,8 +70,16 @@ from .core.model import block_validate, blocklib, extensions, schematic
 from .core.model.plugins import get_plugin_manager
 from .core.model.engine_registry import plugin_modes
 from .core.model.ui_profile import default_ui, normalize_ui, ui_catalog
-from .core.model.blocks import build_block_from_scene, encapsulate_nodes, instantiate_block
-from .core.compute.analysis_plugins import analysis_catalog, run_analysis as run_plugin_analysis
+from .core.model.blocks import (
+    build_block_from_scene,
+    encapsulate_nodes,
+    instantiate_block,
+)
+from .core.compute.analysis_plugins import (
+    analysis_catalog,
+    run_analysis as run_plugin_analysis,
+)
+
 
 def _resolve_frontend_dir() -> Path:
     """前端资源目录：环境变量 > NetlabHome/frontend > 包内 static（历史回退）。"""
@@ -192,7 +205,9 @@ async def desktop_token_guard(request: Request, call_next):
         _DESKTOP_TOKEN
         and is_guarded_api_path(path)
         and path != "/api/health"
-        and not secrets.compare_digest(request.headers.get("x-netlab-token") or "", _DESKTOP_TOKEN)
+        and not secrets.compare_digest(
+            request.headers.get("x-netlab-token") or "", _DESKTOP_TOKEN
+        )
     ):
         return JSONResponse(
             status_code=403,
@@ -207,7 +222,9 @@ async def netlab_error_handler(_request, exc: NetlabError) -> JSONResponse:
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_error_handler(_request, exc: RequestValidationError) -> JSONResponse:
+async def validation_error_handler(
+    _request, exc: RequestValidationError
+) -> JSONResponse:
     messages = []
     for error in exc.errors():
         location = ".".join(str(part) for part in error.get("loc", ()))
@@ -331,7 +348,9 @@ class SolveWindowRequest(BaseModel):
 class ControlRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    action: Literal["run", "pause", "toggle", "step", "reset", "zero", "cancel_precompute"]
+    action: Literal[
+        "run", "pause", "toggle", "step", "reset", "zero", "cancel_precompute"
+    ]
     steps: int | None = None
 
 
@@ -584,9 +603,14 @@ def plotkit_channels() -> dict[str, Any]:
         except Exception:
             pass
     if not PLOTKIT_MOUNTED:
-        return {"mounted": False, "channels": [], "selected": [],
-                "available": available, "build": APP_BUILD,
-                "diag": plotkit_bridge.diagnose()}
+        return {
+            "mounted": False,
+            "channels": [],
+            "selected": [],
+            "available": available,
+            "build": APP_BUILD,
+            "diag": plotkit_bridge.diagnose(),
+        }
     try:
         return {
             "mounted": True,
@@ -596,8 +620,14 @@ def plotkit_channels() -> dict[str, Any]:
             "build": APP_BUILD,
         }
     except Exception as exc:  # pragma: no cover - 取决于运行状态
-        return {"mounted": True, "channels": [], "selected": [], "available": available,
-                "build": APP_BUILD, "error": str(exc)}
+        return {
+            "mounted": True,
+            "channels": [],
+            "selected": [],
+            "available": available,
+            "build": APP_BUILD,
+            "error": str(exc),
+        }
 
 
 @app.post("/api/plotkit/channels")
@@ -689,7 +719,9 @@ def plotkit_precompute(payload: dict[str, Any] | None = None) -> dict[str, Any]:
         except Exception:
             cfg = {}
         raw_dt = (payload or {}).get("dt")
-        requested_dt = float(raw_dt) if raw_dt is not None else float(cfg.get("dt") or 0.01)
+        requested_dt = (
+            float(raw_dt) if raw_dt is not None else float(cfg.get("dt") or 0.01)
+        )
         if not (1.0e-9 <= requested_dt <= 10.0):
             requested_dt = 0.01
         step_dt, degraded = precompute_step_dt(seconds, requested_dt)
@@ -785,9 +817,7 @@ def ac_sweep(
     else:
         frequencies = np.linspace(f_start, f_stop, int(points)).tolist()
     wanted = [item.strip() for item in probes.split(",") if item.strip()] or None
-    result = SERVICE.current.ac_sweep(
-        frequencies, input_source=input, probes=wanted
-    )
+    result = SERVICE.current.ac_sweep(frequencies, input_source=input, probes=wanted)
     return {"result": result, "sim": SERVICE.info()}
 
 
@@ -800,7 +830,11 @@ def update_config(request: ConfigUpdate) -> dict[str, Any]:
 
 @app.post("/api/mode")
 def switch_mode(request: ModeRequest) -> dict[str, Any]:
-    name = {"signal": "blank_signal", "circuit": "blank_circuit", "vector": "blank_vector"}[request.mode]
+    name = {
+        "signal": "blank_signal",
+        "circuit": "blank_circuit",
+        "vector": "blank_vector",
+    }[request.mode]
     payload = build_template(name)
     SERVICE.load_scene(payload)
     return SERVICE.snapshot()
@@ -899,9 +933,7 @@ def delete_edge(edge_id: str) -> dict[str, Any]:
 
 @app.post("/api/positions")
 def update_positions(request: PositionsUpdate) -> dict[str, Any]:
-    items = [
-        {"id": item.id, "position": item.position} for item in request.positions
-    ]
+    items = [{"id": item.id, "position": item.position} for item in request.positions]
     SERVICE.mutate(lambda scene: scene.update_positions(items))
     return {"ok": True, "revision": SERVICE.scene.revision}
 
@@ -940,9 +972,13 @@ def migrate_scene_devices() -> dict[str, Any]:
     if scene.mode != "circuit":
         raise ValidationError("只有电路场景可以迁移为器件模型")
     before = scene.to_payload(include_state=False)
-    before_devices = sum(1 for node in before.get("nodes") or [] if node.get("kind") == "device")
+    before_devices = sum(
+        1 for node in before.get("nodes") or [] if node.get("kind") == "device"
+    )
     migrated = migrate_scene_to_devices(before)
-    devices = sum(1 for node in migrated.get("nodes") or [] if node.get("kind") == "device")
+    devices = sum(
+        1 for node in migrated.get("nodes") or [] if node.get("kind") == "device"
+    )
     wires = sum(1 for edge in migrated.get("edges") or [] if edge.get("kind") == "wire")
     SERVICE.load_scene(migrated)
     snapshot = SERVICE.snapshot()
@@ -1178,7 +1214,12 @@ def networks_delete(network_id: str) -> dict[str, Any]:
 @app.post("/api/networks/{network_id}/activate")
 def networks_activate(network_id: str) -> dict[str, Any]:
     SERVICE.switch(network_id)
-    return {"scene": SERVICE.scene.runtime_state(), "sim": SERVICE.info(), "networks": SERVICE.list_networks(), "current": SERVICE.current_id}
+    return {
+        "scene": SERVICE.scene.runtime_state(),
+        "sim": SERVICE.info(),
+        "networks": SERVICE.list_networks(),
+        "current": SERVICE.current_id,
+    }
 
 
 @app.post("/api/networks/run-all")
@@ -1294,10 +1335,10 @@ def workspace_save(request: WorkspaceSaveRequest) -> dict[str, Any]:
 @app.post("/api/workspace/open")
 def workspace_open(request: WorkspacePathRequest) -> dict[str, Any]:
     global CURRENT_WORKSPACE
-    workspace, project = load_workspace(
-        request.path, library_root=request.library_root
+    workspace, project = load_workspace(request.path, library_root=request.library_root)
+    result = _apply_project(
+        project, request.trust_extensions, library=str(workspace.library)
     )
-    result = _apply_project(project, request.trust_extensions, library=str(workspace.library))
     CURRENT_WORKSPACE = workspace.root
     result["workspace"] = workspace.as_dict()
     result["library"] = scan_library(workspace)
@@ -1435,7 +1476,11 @@ def _current_network_name() -> str:
 
 
 def _exports_dir() -> Path:
-    base = CURRENT_WORKSPACE / "exports" if CURRENT_WORKSPACE is not None else Path.cwd() / "exports"
+    base = (
+        CURRENT_WORKSPACE / "exports"
+        if CURRENT_WORKSPACE is not None
+        else Path.cwd() / "exports"
+    )
     return base
 
 
@@ -1456,14 +1501,18 @@ def analysis_metrics(
 def analysis_spectrum(
     key: str = Query(...), t0: float | None = None, t1: float | None = None
 ) -> dict[str, Any]:
-    return _analysis_call(lambda: analysis.spectrum(SERVICE.current, key, t0, t1), "频谱计算")
+    return _analysis_call(
+        lambda: analysis.spectrum(SERVICE.current, key, t0, t1), "频谱计算"
+    )
 
 
 @app.get("/api/analysis/period")
 def analysis_period(
     key: str = Query(...), t0: float | None = None, t1: float | None = None
 ) -> dict[str, Any]:
-    return _analysis_call(lambda: analysis.recommend_period(SERVICE.current, key, t0, t1), "周期推荐")
+    return _analysis_call(
+        lambda: analysis.recommend_period(SERVICE.current, key, t0, t1), "周期推荐"
+    )
 
 
 @app.get("/api/analysis/math")
@@ -1618,7 +1667,10 @@ def _library_path(library: str | None = None) -> Path:
 @app.get("/api/blocks")
 def blocks_list(library: str = Query("")) -> dict[str, Any]:
     target = _library_path(library or None)
-    return {"library": str(target), "blocks": blocklib.scan_library(target, include_builtin=True)}
+    return {
+        "library": str(target),
+        "blocks": blocklib.scan_library(target, include_builtin=True),
+    }
 
 
 class BlockValidateRequest(BaseModel):
@@ -1674,7 +1726,9 @@ class BlockSaveCopyRequest(BaseModel):
 
 
 @app.post("/api/blocks/{block_id}/open-internal")
-def blocks_open_internal(block_id: str, request: BlockOpenInternalRequest) -> dict[str, Any]:
+def blocks_open_internal(
+    block_id: str, request: BlockOpenInternalRequest
+) -> dict[str, Any]:
     """把结构模型的内部打开成一个临时网络（D30：独立网络，不做面包屑）。"""
     target = _library_path(request.library)
     block = blocklib.load_block(target, block_id, request.version)
@@ -1813,7 +1867,9 @@ def blocks_rename(block_id: str, request: BlockRenameRequest) -> dict[str, Any]:
             + "、".join(item["name"] for item in references[:5])
             + "；确认改名请带 force=true"
         )
-    block = blocklib.rename_block(target, block_id, request.name, version=request.version)
+    block = blocklib.rename_block(
+        target, block_id, request.name, version=request.version
+    )
     return {
         "block": block.summary(),
         "references": references,
@@ -1873,7 +1929,9 @@ def blocks_import(request: BlockImportRequest) -> dict[str, Any]:
 
 
 @app.get("/api/blocks/{block_id}")
-def blocks_detail(block_id: str, library: str = Query(""), version: int | None = None) -> dict[str, Any]:
+def blocks_detail(
+    block_id: str, library: str = Query(""), version: int | None = None
+) -> dict[str, Any]:
     target = _library_path(library or None)
     versions = blocklib.list_versions(target, block_id)
     block = blocklib.load_block(target, block_id, version)
@@ -1966,6 +2024,7 @@ def settings_patch(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
 @app.get("/api/cache/status")
 def cache_status() -> dict[str, Any]:
     from . import cache_guard
+
     return cache_guard.scan()
 
 
@@ -1973,6 +2032,7 @@ def cache_status() -> dict[str, Any]:
 def cache_clean(payload: dict[str, Any] = Body(default={})) -> dict[str, Any]:
     """默认 dry-run；只有显式 dry_run=False 才真删，且只删 safe（可选 caution）档。"""
     from . import cache_guard
+
     dry_run = bool(payload.get("dry_run", True))
     tiers = ("safe", "caution") if payload.get("caution") else ("safe",)
     return cache_guard.clean(tiers=tiers, dry_run=dry_run)

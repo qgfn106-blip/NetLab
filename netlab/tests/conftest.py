@@ -28,7 +28,6 @@ def client():
         yield test_client
 
 
-
 @pytest.fixture(autouse=True)
 def _clean_plotkit_bridge_state():
     """PlotKit 桥是进程级单例；清掉上个用例留下的通道/可见性状态。

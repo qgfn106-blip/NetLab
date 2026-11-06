@@ -11,7 +11,11 @@ import json
 
 import pytest
 
-from netlab.core.model.project import build_project, project_current_network, save_project
+from netlab.core.model.project import (
+    build_project,
+    project_current_network,
+    save_project,
+)
 from netlab.core.model.scene import Scene
 from netlab.core.compute.simulation import Simulation
 from netlab.core.model.networks import NetworkContainer
@@ -196,9 +200,7 @@ def test_workspace_api_roundtrip(client, tmp_path):
     assert bad.status_code == 422
     assert "拒绝覆盖" in bad.json()["detail"]
 
-    missing = client.post(
-        "/api/workspace/open", json={"path": str(tmp_path / "nope")}
-    )
+    missing = client.post("/api/workspace/open", json={"path": str(tmp_path / "nope")})
     assert missing.status_code == 422
     assert "工程文件不存在" in missing.json()["detail"]
 

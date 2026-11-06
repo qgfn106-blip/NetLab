@@ -32,7 +32,7 @@ SYNC_INTERVAL = 0.5
 MAX_CHANNELS = 64
 #: 分析曲线数据集前缀。它们有自己的 x/y，不能参与 recorder 时间轴对齐。
 ANALYSIS_PREFIX = "analysis:"
-DEFAULT_WINDOW = 5.0   # 秒；与 netlab 老画布的「时间窗」默认值一致
+DEFAULT_WINDOW = 5.0  # 秒；与 netlab 老画布的「时间窗」默认值一致
 #: 探针曲线统一细实线（默认的「线 + 圆点」在高密度下会糊成一片）
 LINE_STYLE = {"mode": "lines", "width": 1.4, "marker": {"symbol": ""}}
 
@@ -52,9 +52,9 @@ def _plotkit_src_candidates() -> list[Path]:
     """PlotKit 源码目录的几个可能位置（同仓库并列布局优先）。"""
     here = Path(__file__).resolve()
     return [
-        here.parents[2] / "PlotKit" / "src",        # ProjectPoint/PlotKit/src
-        here.parents[1] / "PlotKit" / "src",        # NetlabHome/PlotKit/src
-        here.parents[3] / "PlotKit" / "src",        # 更外层
+        here.parents[2] / "PlotKit" / "src",  # ProjectPoint/PlotKit/src
+        here.parents[1] / "PlotKit" / "src",  # NetlabHome/PlotKit/src
+        here.parents[3] / "PlotKit" / "src",  # 更外层
     ]
 
 
@@ -124,7 +124,9 @@ def ensure_plotkit_importable() -> bool:
         finally:
             if inserted and "plotkit" not in sys.modules and entry in sys.path:
                 sys.path.remove(entry)
-    _LAST_ERROR = "找不到可导入的 plotkit；候选：" + "; ".join(errors or [str(p) for p in _plotkit_src_candidates()])
+    _LAST_ERROR = "找不到可导入的 plotkit；候选：" + "; ".join(
+        errors or [str(p) for p in _plotkit_src_candidates()]
+    )
     return False
 
 
@@ -247,8 +249,14 @@ def set_channels(keys: list[str] | None) -> bool:
                 continue
             if "t" in names:
                 import numpy as np
-                figure.add_data(key, np.full(len(figure.store.get("t")), np.nan), role="series",
-                                life="append", tags=[key.split(":")[0]])
+
+                figure.add_data(
+                    key,
+                    np.full(len(figure.store.get("t")), np.nan),
+                    role="series",
+                    life="append",
+                    tags=[key.split(":")[0]],
+                )
                 _REGISTERED.add(key)
     except Exception:
         LOGGER.debug("登记 PlotKit 通道失败", exc_info=True)
@@ -307,7 +315,9 @@ def add_analysis_curve(
     if xs.size > MAX_POINTS:
         indices = np.linspace(0, xs.size - 1, MAX_POINTS, dtype=int)
         xs, ys = xs[indices], ys[indices]
-    slug = "".join(ch if ch.isalnum() or ch in "-_." else "_" for ch in str(name)).strip("_")
+    slug = "".join(
+        ch if ch.isalnum() or ch in "-_." else "_" for ch in str(name)
+    ).strip("_")
     slug = slug or "curve"
     key = f"{ANALYSIS_PREFIX}{slug}"
     x_name = f"{key}:x"
@@ -339,8 +349,17 @@ def build_figure(service: Any) -> Any:
     """按当前场景的探针通道建一张图；没有任何通道时留一张空图。"""
     import plotkit as pk
 
-    fig = pk.figure(size=(10.0, 6.0), dpi=100, theme=_theme_name(service), title="信号（PlotKit 预览）")
-    keys = list(getattr(service, "recorder", None).keys())[:MAX_CHANNELS] if getattr(service, "recorder", None) else []
+    fig = pk.figure(
+        size=(10.0, 6.0),
+        dpi=100,
+        theme=_theme_name(service),
+        title="信号（PlotKit 预览）",
+    )
+    keys = (
+        list(getattr(service, "recorder", None).keys())[:MAX_CHANNELS]
+        if getattr(service, "recorder", None)
+        else []
+    )
     fig.add_data("t", [], unit="s", role="coord", life="append")
     for key in keys:
         fig.add_data(key, [], role="series", life="append", tags=[key.split(":")[0]])
@@ -449,7 +468,9 @@ def _reset(figure: Any, keys: list[str] | None = None) -> None:
         LOGGER.debug("清空绘图历史失败", exc_info=True)
 
 
-def _ensure_channels(figure: Any, frames: list[dict[str, Any]], *, limit: int = 4) -> None:
+def _ensure_channels(
+    figure: Any, frames: list[dict[str, Any]], *, limit: int = 4
+) -> None:
     """场景里新出现的通道自动补成数据集 + 图层（最多 limit 条曲线）。
 
     新通道必须**先补齐到当前 t 的长度**（用 NaN）：中途出现的探针若从 0 长度开始
@@ -463,7 +484,7 @@ def _ensure_channels(figure: Any, frames: list[dict[str, Any]], *, limit: int = 
     }
     incoming: list[str] = []
     for frame in frames:
-        for key in (frame.get("v") or {}):
+        for key in frame.get("v") or {}:
             if key not in existing and key not in incoming:
                 incoming.append(key)
     # 2026-11-03 修复：以前用 len(figure.spec["layers"]) 判上限，但 D-PlotView 只
@@ -476,7 +497,10 @@ def _ensure_channels(figure: Any, frames: list[dict[str, Any]], *, limit: int = 
         if room <= 0:
             return
         figure.add_data(
-            key, np.full(t_len, np.nan, dtype="float64"), role="series", life="append",
+            key,
+            np.full(t_len, np.nan, dtype="float64"),
+            role="series",
+            life="append",
             tags=[key.split(":")[0]],
         )
         _REGISTERED.add(key)
@@ -667,7 +691,9 @@ def mount(app: Any, service: Any | None = None) -> bool:
                 index_html = _host_index_html()
             except Exception:
                 index_html = ""
-                LOGGER.debug("PlotKit 首页注入 shim 失败，回退到子应用自带首页", exc_info=True)
+                LOGGER.debug(
+                    "PlotKit 首页注入 shim 失败，回退到子应用自带首页", exc_info=True
+                )
             if index_html:
                 from fastapi.responses import HTMLResponse
 
@@ -683,10 +709,15 @@ def mount(app: Any, service: Any | None = None) -> bool:
                 for _path in (MOUNT_PATH, MOUNT_PATH + "/"):
                     try:
                         app.add_api_route(
-                            _path, _plotkit_host_index, methods=["GET"], include_in_schema=False
+                            _path,
+                            _plotkit_host_index,
+                            methods=["GET"],
+                            include_in_schema=False,
                         )
                     except Exception:
-                        LOGGER.debug("注册 PlotKit 宿主首页失败：%s", _path, exc_info=True)
+                        LOGGER.debug(
+                            "注册 PlotKit 宿主首页失败：%s", _path, exc_info=True
+                        )
             app.mount(MOUNT_PATH, sub_app)
             stop_event = threading.Event()
             thread = threading.Thread(
@@ -696,10 +727,15 @@ def mount(app: Any, service: Any | None = None) -> bool:
                 daemon=True,
             )
             thread.start()
-            _STATE.update({
-                "figure": figure, "app": sub_app, "thread": thread,
-                "stop": stop_event, "service": target,
-            })
+            _STATE.update(
+                {
+                    "figure": figure,
+                    "app": sub_app,
+                    "thread": thread,
+                    "stop": stop_event,
+                    "service": target,
+                }
+            )
             LOGGER.info("PlotKit 已挂载到 %s", MOUNT_PATH)
             return True
         except Exception:

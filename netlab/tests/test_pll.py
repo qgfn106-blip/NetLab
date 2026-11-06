@@ -42,7 +42,11 @@ def _phase_sources(scene: Scene, frequency: float, jump: float = 0.0):
             name=name,
             kind="expression",
             params={
-                "expr": f"cos({w:.17g}*t + {phase:.17g} + j)" if jump_node else f"cos({w:.17g}*t + {phase:.17g})",
+                "expr": (
+                    f"cos({w:.17g}*t + {phase:.17g} + j)"
+                    if jump_node
+                    else f"cos({w:.17g}*t + {phase:.17g})"
+                ),
                 "variables": variables,
                 "output": "voltage",
             },
@@ -54,12 +58,18 @@ def _phase_sources(scene: Scene, frequency: float, jump: float = 0.0):
 def _run(frequency: float, *, seconds: float = 0.3, jump: float = 0.0):
     scene = Scene("signal")
     a, b, c, jump_node = _phase_sources(scene, frequency, jump)
-    pll = scene.add_node(name="pll", kind="pll", params={"nominal_frequency": 50.0, "kp": 20.0, "ki": 1000.0})
+    pll = scene.add_node(
+        name="pll",
+        kind="pll",
+        params={"nominal_frequency": 50.0, "kp": 20.0, "ki": 1000.0},
+    )
     for edge_name, source in (("a", a), ("b", b), ("c", c)):
         scene.add_edge(name=edge_name, source=source.id, target=pll.id, kind="pass")
     if jump_node is not None:
         for edge_name, target in (("jump_a", a), ("jump_b", b), ("jump_c", c)):
-            scene.add_edge(name=edge_name, source=jump_node.id, target=target.id, kind="pass")
+            scene.add_edge(
+                name=edge_name, source=jump_node.id, target=target.id, kind="pass"
+            )
     errors = []
     engine = scene.ensure_engine()
     for _ in range(int(round(seconds / DT))):

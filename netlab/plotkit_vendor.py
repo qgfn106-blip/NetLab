@@ -26,7 +26,9 @@ from pathlib import Path
 
 VENDOR_DIR = Path(__file__).resolve().parent / "_vendor"
 TARGET = VENDOR_DIR / "plotkit"
-IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo", ".pytest_cache", "*.egg-info")
+IGNORE = shutil.ignore_patterns(
+    "__pycache__", "*.pyc", "*.pyo", ".pytest_cache", "*.egg-info"
+)
 
 
 def candidate_sources() -> list[Path]:
@@ -54,7 +56,9 @@ def _find_package_source(src: Path | None = None) -> Path | None:
             continue
         base = Path(base)
         for candidate in (base, base / "plotkit", base / "src" / "plotkit"):
-            if (candidate / "__init__.py").is_file() and (candidate / "server").is_dir():
+            if (candidate / "__init__.py").is_file() and (
+                candidate / "server"
+            ).is_dir():
                 return candidate
     return None
 
@@ -72,7 +76,7 @@ def _read_version(pkg: Path) -> str:
             marker = key + " = "
             idx = text.find(marker)
             if idx >= 0:
-                tail = text[idx + len(marker):].lstrip()
+                tail = text[idx + len(marker) :].lstrip()
                 quote = tail[:1]
                 if quote in ("'", '"'):
                     end = tail.find(quote, 1)
@@ -110,10 +114,17 @@ def install(src: Path | str | None = None, force: bool = False) -> dict:
     """把 PlotKit 源码复制成 netlab 内置副本。"""
     source = _find_package_source(Path(src) if src else None)
     if source is None:
-        return {"ok": False, "error": "找不到 PlotKit 源码（可设 NETLAB_PLOTKIT_SRC 或传 --src）"}
+        return {
+            "ok": False,
+            "error": "找不到 PlotKit 源码（可设 NETLAB_PLOTKIT_SRC 或传 --src）",
+        }
     if TARGET.exists():
         if not force:
-            return {"ok": False, "error": f"{TARGET} 已存在；要覆盖请加 --force", **status()}
+            return {
+                "ok": False,
+                "error": f"{TARGET} 已存在；要覆盖请加 --force",
+                **status(),
+            }
         shutil.rmtree(TARGET)
     VENDOR_DIR.mkdir(parents=True, exist_ok=True)
     shutil.copytree(source, TARGET, ignore=IGNORE)
@@ -138,9 +149,13 @@ def vendor_path() -> Path | None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="netlab.plotkit_vendor", description="内置/卸载 netlab 的 PlotKit 副本")
+    parser = argparse.ArgumentParser(
+        prog="netlab.plotkit_vendor", description="内置/卸载 netlab 的 PlotKit 副本"
+    )
     parser.add_argument("action", choices=("status", "install", "uninstall"))
-    parser.add_argument("--src", default=None, help="PlotKit 源码目录（默认自动查找 ../PlotKit/src）")
+    parser.add_argument(
+        "--src", default=None, help="PlotKit 源码目录（默认自动查找 ../PlotKit/src）"
+    )
     parser.add_argument("--force", action="store_true", help="install 时覆盖已有副本")
     args = parser.parse_args(argv)
 

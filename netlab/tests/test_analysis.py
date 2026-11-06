@@ -130,10 +130,14 @@ def test_timeout_guard_raises():
 def test_analysis_api(client, tmp_path, monkeypatch):
     monkeypatch.setenv("NETLAB_SETTINGS_DIR", str(tmp_path / "settings"))
     project = tmp_path / "lab" / "proj"
-    created = client.post("/api/workspace/create", json={"path": str(project), "name": "分析"})
+    created = client.post(
+        "/api/workspace/create", json={"path": str(project), "name": "分析"}
+    )
     assert created.status_code == 200, created.text
     # 跑几步产生录制
-    client.patch("/api/config", json={"dt": 0.01, "steps_per_frame": 1, "realtime": False})
+    client.patch(
+        "/api/config", json={"dt": 0.01, "steps_per_frame": 1, "realtime": False}
+    )
     for _ in range(30):
         client.post("/api/control", json={"action": "step", "steps": 1})
     metrics = client.get("/api/analysis/metrics")
@@ -142,7 +146,9 @@ def test_analysis_api(client, tmp_path, monkeypatch):
     key = next(iter(metrics.json()["items"]))
     spectrum = client.get("/api/analysis/spectrum", params={"key": key})
     assert spectrum.status_code == 200, spectrum.text
-    exported = client.post("/api/analysis/export", json={"name": "api-sig", "decimate": 1})
+    exported = client.post(
+        "/api/analysis/export", json={"name": "api-sig", "decimate": 1}
+    )
     assert exported.status_code == 200, exported.text
     body = exported.json()
     assert body["rows"] > 0

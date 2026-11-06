@@ -77,4 +77,3 @@ def test_rejected_precompute_keeps_existing_recording_and_scene():
         assert after == before
     finally:
         sim.shutdown()
-

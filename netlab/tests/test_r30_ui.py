@@ -41,7 +41,11 @@ def test_docs_single_and_unknown_slug(client):
 
 
 def test_ui_settings_defaults_and_validation(client, tmp_path, monkeypatch):
-    from netlab.core.model.workspace import default_settings, load_settings, save_settings
+    from netlab.core.model.workspace import (
+        default_settings,
+        load_settings,
+        save_settings,
+    )
 
     # 隔离到临时设置目录，避免污染本机 %APPDATA%/Netlab 的真实偏好
     monkeypatch.setenv("NETLAB_SETTINGS_DIR", str(tmp_path / "settings"))

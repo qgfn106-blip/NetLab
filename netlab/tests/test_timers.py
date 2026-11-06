@@ -10,8 +10,13 @@ def node(scene, name, kind="node"):
 
 
 def dc(scene, name, a, b, value):
-    return scene.add_edge(name=name, source=a.id, target=b.id, kind="vsource",
-                          params={"wave": "dc", "offset": value, "amplitude": 0.0})
+    return scene.add_edge(
+        name=name,
+        source=a.id,
+        target=b.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": value, "amplitude": 0.0},
+    )
 
 
 def voltage(scene, name):
@@ -23,8 +28,13 @@ def test_ne555_toggles():
     scene = Scene("circuit")
     gnd = node(scene, "gnd", "ground")
     out = node(scene, "out")
-    scene.add_edge(name="U1", source=out.id, target=gnd.id, kind="ne555",
-                   params={"freq": 1000.0, "duty": 0.5, "vhigh": 5.0, "vlow": 0.0})
+    scene.add_edge(
+        name="U1",
+        source=out.id,
+        target=gnd.id,
+        kind="ne555",
+        params={"freq": 1000.0, "duty": 0.5, "vhigh": 5.0, "vlow": 0.0},
+    )
     samples = []
     for _ in range(25):
         scene.step(1e-4)
@@ -43,9 +53,20 @@ def test_ldo_regulates_and_drops_out():
         vcc = node(scene, "vcc")
         out = node(scene, "out")
         dc(scene, "VIN", vcc, gnd, vin)
-        scene.add_edge(name="U1", source=out.id, target=gnd.id, kind="ldo",
-                       params={"vin_node": vcc.id, "vout": 5.0, "dropout": 0.5})
-        scene.add_edge(name="RL", source=out.id, target=gnd.id, kind="resistor", params={"R": 1000.0})
+        scene.add_edge(
+            name="U1",
+            source=out.id,
+            target=gnd.id,
+            kind="ldo",
+            params={"vin_node": vcc.id, "vout": 5.0, "dropout": 0.5},
+        )
+        scene.add_edge(
+            name="RL",
+            source=out.id,
+            target=gnd.id,
+            kind="resistor",
+            params={"R": 1000.0},
+        )
         for _ in range(3):
             scene.step(1e-4)
         return scene

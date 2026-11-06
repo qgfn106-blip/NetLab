@@ -139,7 +139,9 @@ def read_block_file(path: str | Path) -> BlockDef:
 
 
 def _write_document(path: Path, block: BlockDef) -> None:
-    atomic_write(path, json.dumps(render_block_file(block), ensure_ascii=False, indent=2))
+    atomic_write(
+        path, json.dumps(render_block_file(block), ensure_ascii=False, indent=2)
+    )
 
 
 def blocks_root(library: str | Path) -> Path:
@@ -185,7 +187,9 @@ def _legacy_versions(library: str | Path, block_id: str) -> list[dict[str, Any]]
             version = int(path.stem[1:])
         except ValueError:
             continue
-        items.append({"version": version, "path": str(path), "size": path.stat().st_size})
+        items.append(
+            {"version": version, "path": str(path), "size": path.stat().st_size}
+        )
     items.sort(key=lambda item: item["version"])
     return items
 
@@ -227,7 +231,9 @@ def migrate_library(library: str | Path) -> list[str]:
                 target = blocks_root(library) / (
                     _slug(block.name, block.id) + "-" + block.id[:6] + BLOCK_SUFFIX
                 )
-        atomic_write(target, json.dumps(render_block_file(block), ensure_ascii=False, indent=2))
+        atomic_write(
+            target, json.dumps(render_block_file(block), ensure_ascii=False, indent=2)
+        )
         for item in versions:
             Path(item["path"]).unlink(missing_ok=True)
         try:
@@ -277,7 +283,9 @@ def list_versions(library: str | Path, block_id: str) -> list[dict[str, Any]]:
     if path is None:
         raise NotFoundError(f"模块 {block_id!r} 不在库中")
     block = read_block_file(path)
-    return [{"version": int(block.version), "path": str(path), "size": path.stat().st_size}]
+    return [
+        {"version": int(block.version), "path": str(path), "size": path.stat().st_size}
+    ]
 
 
 def write_block(library: str | Path, block: BlockDef) -> Path:
@@ -306,7 +314,9 @@ def write_block(library: str | Path, block: BlockDef) -> Path:
             if int(block.version) <= int(old.version):
                 block.version = int(old.version) + 1
             block.created = old.created or block.created
-    atomic_write(target, json.dumps(render_block_file(block), ensure_ascii=False, indent=2))
+    atomic_write(
+        target, json.dumps(render_block_file(block), ensure_ascii=False, indent=2)
+    )
     if current is not None and target.resolve() != current.resolve():
         current.unlink(missing_ok=True)
         legacy = blocks_root(library) / block.id
@@ -342,7 +352,9 @@ def rename_block(
     if version is not None:
         _check_version(version)
     target = flat_path(library, clean, block_id)
-    atomic_write(target, json.dumps(render_block_file(block), ensure_ascii=False, indent=2))
+    atomic_write(
+        target, json.dumps(render_block_file(block), ensure_ascii=False, indent=2)
+    )
     if target.resolve() != path.resolve():
         path.unlink(missing_ok=True)
     return read_block_file(target)
@@ -361,7 +373,9 @@ def overwrite_block(
         raise NotFoundError(f"模块 {block.id!r} 不在库中，不能覆盖")
     if version is not None:
         block.version = _check_version(version)
-    atomic_write(path, json.dumps(render_block_file(block), ensure_ascii=False, indent=2))
+    atomic_write(
+        path, json.dumps(render_block_file(block), ensure_ascii=False, indent=2)
+    )
     return read_block_file(path)
 
 
@@ -382,7 +396,9 @@ def import_block(
     if path is not None:
         existing = read_block_file(path)
         latest = int(existing.version)
-    target_version = _check_version(version) if version is not None else int(block.version)
+    target_version = (
+        _check_version(version) if version is not None else int(block.version)
+    )
     if latest:
         if target_version <= latest:
             if existing is not None and _same_content(existing, block):
@@ -402,7 +418,9 @@ def import_block(
     }
 
 
-def remove_block(library: str | Path, block_id: str, version: int | None = None) -> list[int]:
+def remove_block(
+    library: str | Path, block_id: str, version: int | None = None
+) -> list[int]:
     """删除模块文件（D6 的「真正删除」；引用扫描由调用方做）。"""
     if is_builtin(block_id):
         raise ValidationError("内置模块只读，不能删除")
@@ -424,7 +442,9 @@ def remove_block(library: str | Path, block_id: str, version: int | None = None)
     return [int(block.version)]
 
 
-def load_block(library: str | Path, block_id: str, version: int | None = None) -> BlockDef:
+def load_block(
+    library: str | Path, block_id: str, version: int | None = None
+) -> BlockDef:
     """按 id 读模块（库里只保留最新版；旧版本引用按最新版加载）。"""
     builtin = builtin_block(block_id)
     if builtin is not None:
@@ -437,10 +457,15 @@ def load_block(library: str | Path, block_id: str, version: int | None = None) -
 
 def block_ref(payload: dict[str, Any]) -> dict[str, Any]:
     """工程里保存的最小引用：只记 id + version（D4）。"""
-    return {"id": str(payload.get("id") or ""), "version": int(payload.get("version") or 1)}
+    return {
+        "id": str(payload.get("id") or ""),
+        "version": int(payload.get("version") or 1),
+    }
 
 
-def ensure_blocks(library: str | Path, payloads: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def ensure_blocks(
+    library: str | Path, payloads: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """保存前把工程用到的块同步进库，返回引用列表；内容不同则版本 +1。"""
     refs: list[dict[str, Any]] = []
     for payload in payloads:

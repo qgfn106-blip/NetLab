@@ -10,8 +10,13 @@ def node(scene, name, kind="node"):
 
 
 def dc(scene, name, a, b, value):
-    return scene.add_edge(name=name, source=a.id, target=b.id, kind="vsource",
-                          params={"wave": "dc", "offset": value, "amplitude": 0.0})
+    return scene.add_edge(
+        name=name,
+        source=a.id,
+        target=b.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": value, "amplitude": 0.0},
+    )
 
 
 def build_gate(gate: str, va: float, vb: float = 0.0) -> Scene:

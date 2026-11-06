@@ -15,10 +15,16 @@ def _rc_discharge() -> Scene:
     scene = Scene("circuit")
     gnd = scene.add_node(name="gnd", kind="ground")
     n1 = scene.add_node(name="n1", kind="node")
-    scene.add_edge(name="C1", source=n1.id, target=gnd.id, kind="capacitor",
-                   params={"C": 1.0e-6, "v0": 5.0})
-    scene.add_edge(name="R1", source=n1.id, target=gnd.id, kind="resistor",
-                   params={"R": 1000.0})
+    scene.add_edge(
+        name="C1",
+        source=n1.id,
+        target=gnd.id,
+        kind="capacitor",
+        params={"C": 1.0e-6, "v0": 5.0},
+    )
+    scene.add_edge(
+        name="R1", source=n1.id, target=gnd.id, kind="resistor", params={"R": 1000.0}
+    )
     return scene
 
 
@@ -28,12 +34,19 @@ def _rl_charge() -> Scene:
     gnd = scene.add_node(name="gnd", kind="ground")
     n1 = scene.add_node(name="n1", kind="node")
     n2 = scene.add_node(name="n2", kind="node")
-    scene.add_edge(name="V1", source=n1.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 5.0, "amplitude": 0.0})
-    scene.add_edge(name="R1", source=n1.id, target=n2.id, kind="resistor",
-                   params={"R": 100.0})
-    scene.add_edge(name="L1", source=n2.id, target=gnd.id, kind="inductor",
-                   params={"L": 1.0e-3})
+    scene.add_edge(
+        name="V1",
+        source=n1.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 5.0, "amplitude": 0.0},
+    )
+    scene.add_edge(
+        name="R1", source=n1.id, target=n2.id, kind="resistor", params={"R": 100.0}
+    )
+    scene.add_edge(
+        name="L1", source=n2.id, target=gnd.id, kind="inductor", params={"L": 1.0e-3}
+    )
     return scene
 
 
@@ -121,7 +134,8 @@ def test_gear2_rl_inductor_current():
     _run(scene, steps, dt, "gear2")
     gear2 = _node_voltage(scene, "n2")
     inductor = next(
-        element for element in scene.ensure_engine().solver.elements
+        element
+        for element in scene.ensure_engine().solver.elements
         if isinstance(element, Inductor)
     )
     current = inductor.state["i"]

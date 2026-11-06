@@ -59,7 +59,9 @@ class Counter4(CircuitElement):
         if rst >= self.vth:
             self.state["counter_value"] = 0
         elif rising:
-            self.state["counter_value"] = (int(self.state.get("counter_value", 0)) + 1) & 0xF
+            self.state["counter_value"] = (
+                int(self.state.get("counter_value", 0)) + 1
+            ) & 0xF
         self.state["clk"] = clk
         count = int(self.state.get("counter_value", 0)) & 0xF
         self.result = {
@@ -290,7 +292,14 @@ DIGITAL_SPECS = {
         label="4 位计数器",
         description="行为级 4 位二进制计数器：CLK 上升沿 +1，RST 高有效，Q0..Q3 输出。",
         params=(
-            choice_param("model", "型号", "74HC161", (("custom", "自定义"),) + tuple((k, k) for k in DIGITAL_MODELS["counter4"]), help="74HC161/163=4 位二进制，CD4029=可预置；选型号填电平/阈值"),
+            choice_param(
+                "model",
+                "型号",
+                "74HC161",
+                (("custom", "自定义"),)
+                + tuple((k, k) for k in DIGITAL_MODELS["counter4"]),
+                help="74HC161/163=4 位二进制，CD4029=可预置；选型号填电平/阈值",
+            ),
             ParamSpec("clk_node", "时钟节点", "node", ""),
             ParamSpec("rst_node", "复位节点", "node", ""),
             *(ParamSpec(f"q{i}_node", f"Q{i} 节点", "node", "") for i in range(4)),
@@ -309,7 +318,14 @@ DIGITAL_SPECS = {
         label="4 位移位寄存器",
         description="行为级串入并出移位寄存器：CLK 上升沿 D→Q0→Q1→Q2→Q3，RST 高有效。",
         params=(
-            choice_param("model", "型号", "74HC595", (("custom", "自定义"),) + tuple((k, k) for k in DIGITAL_MODELS["shift4"]), help="74HC595=串入并出+锁存，74HC164=串入并出，CD4094=8 位；选型号填电平/阈值"),
+            choice_param(
+                "model",
+                "型号",
+                "74HC595",
+                (("custom", "自定义"),)
+                + tuple((k, k) for k in DIGITAL_MODELS["shift4"]),
+                help="74HC595=串入并出+锁存，74HC164=串入并出，CD4094=8 位；选型号填电平/阈值",
+            ),
             ParamSpec("d_node", "串行输入 D", "node", ""),
             ParamSpec("clk_node", "时钟节点", "node", ""),
             ParamSpec("rst_node", "复位节点", "node", ""),
@@ -329,7 +345,13 @@ DIGITAL_SPECS = {
         label="4 位 ADC（逐次逼近）",
         description="行为级逐次逼近 ADC：CLK 上升沿逐位比较，4 拍得到 Q3..Q0。",
         params=(
-            choice_param("model", "型号", "ADC0804", (("custom", "自定义"),) + tuple((k, k) for k in DIGITAL_MODELS["adc4"]), help="ADC0804/0809=8 位 SAR，TLC549=8 位串行；本模型为 4 位行为级"),
+            choice_param(
+                "model",
+                "型号",
+                "ADC0804",
+                (("custom", "自定义"),) + tuple((k, k) for k in DIGITAL_MODELS["adc4"]),
+                help="ADC0804/0809=8 位 SAR，TLC549=8 位串行；本模型为 4 位行为级",
+            ),
             ParamSpec("vin_node", "模拟输入节点", "node", ""),
             ParamSpec("clk_node", "时钟节点", "node", ""),
             *(ParamSpec(f"q{i}_node", f"Q{i} 节点", "node", "") for i in range(1, 4)),
@@ -352,7 +374,13 @@ DIGITAL_SPECS = {
         label="4 位 DAC",
         description="理想 4 位 DAC：按 b0..b3 的数字电平输出 Vref·code/15。",
         params=(
-            choice_param("model", "型号", "DAC0832", (("custom", "自定义"),) + tuple((k, k) for k in DIGITAL_MODELS["dac4"]), help="DAC0832=8 位电流输出，TLC5620/MCP4725=电压输出；本模型为 4 位行为级"),
+            choice_param(
+                "model",
+                "型号",
+                "DAC0832",
+                (("custom", "自定义"),) + tuple((k, k) for k in DIGITAL_MODELS["dac4"]),
+                help="DAC0832=8 位电流输出，TLC5620/MCP4725=电压输出；本模型为 4 位行为级",
+            ),
             *(ParamSpec(f"b{i}_node", f"B{i} 节点", "node", "") for i in range(4)),
             float_param("vref", "参考电压", 5.0, unit="V"),
             float_param("vth", "位阈值", 2.5, unit="V"),

@@ -13,7 +13,9 @@ from typing import Any
 try:  # pragma: no cover - 依赖桌面环境
     from PySide6.QtCore import QObject, QStandardPaths, Signal, Slot
 except Exception as exc:  # pragma: no cover
-    raise RuntimeError("桌面模式需要 PySide6：pip install -r requirements-desktop.txt") from exc
+    raise RuntimeError(
+        "桌面模式需要 PySide6：pip install -r requirements-desktop.txt"
+    ) from exc
 
 from ..core.model.project import (
     PROJECT_SUFFIX,
@@ -47,7 +49,9 @@ def _validate_for_file(payload: Any) -> dict[str, Any]:
     except Exception:
         pass
     project = validate_project(payload, library=library, allow_degraded=True)
-    original_blocks = (payload or {}).get("blocks") if isinstance(payload, dict) else None
+    original_blocks = (
+        (payload or {}).get("blocks") if isinstance(payload, dict) else None
+    )
     if original_blocks is not None:
         project["blocks"] = json.loads(json.dumps(original_blocks))
     project.pop("degraded", None)
@@ -74,7 +78,9 @@ class Bridge(QObject):
     def saveProject(self, payload_json: str, suggested_name: str = "") -> str:
         try:
             payload = _validate_for_file(json.loads(payload_json))
-            default_name = (suggested_name or payload.get("name") or "netlab-project").strip()
+            default_name = (
+                suggested_name or payload.get("name") or "netlab-project"
+            ).strip()
             if not default_name.lower().endswith(PROJECT_SUFFIX):
                 default_name += PROJECT_SUFFIX
             path, _filter = self._dialog_save(default_name)

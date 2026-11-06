@@ -28,10 +28,24 @@ def test_builtin_catalog_has_nine_readonly_structural_blocks():
     blocks = builtin_blocks()
     assert len(blocks) == 9
     assert {block.id for block in blocks} == builtin_ids()
-    expected = {"opamp", "comparator", "dff", "counter4", "shift4", "timer555", "ldo", "adc4", "dac4"}
+    expected = {
+        "opamp",
+        "comparator",
+        "dff",
+        "counter4",
+        "shift4",
+        "timer555",
+        "ldo",
+        "adc4",
+        "dac4",
+    }
     assert {block.metadata.get("slug") for block in blocks} == expected
     assert all(block.builtin and block.model == "structural" for block in blocks)
-    assert {block.name for block in blocks} >= {"内置运放", "内置比较器", "内置 555 定时器"}
+    assert {block.name for block in blocks} >= {
+        "内置运放",
+        "内置比较器",
+        "内置 555 定时器",
+    }
     # 每个块都有可打开的内部节点、边和端口；端口名唯一。
     for block in blocks:
         assert block.nodes and block.edges and block.ports
@@ -63,7 +77,11 @@ def test_builtin_blocks_are_merged_into_library_and_protected(client, tmp_path):
     # 验收②：打开内部后把当前临时网络另存为普通副本，副本可编辑且不再是内置。
     copied = client.post(
         "/api/blocks/save-copy",
-        json={"library": library, "name": "我的运放副本", "description": "由内置运放另存"},
+        json={
+            "library": library,
+            "name": "我的运放副本",
+            "description": "由内置运放另存",
+        },
     )
     assert copied.status_code == 200, copied.text
     copy = copied.json()["block"]
@@ -106,7 +124,12 @@ def test_builtin_block_behavior_path_and_structural_switch(tmp_path):
     assert structural.scene is not None
     out = fast.step(0.001, {"inp": {"voltage": 1.0}, "inn": {"voltage": 0.0}})
     assert out["out"]["voltage"] == 15.0
-    assert structural.step(0.001, {"inp": {"voltage": 1.0}, "inn": {"voltage": 0.0}})["out"]["voltage"] == 15.0
+    assert (
+        structural.step(0.001, {"inp": {"voltage": 1.0}, "inn": {"voltage": 0.0}})[
+            "out"
+        ]["voltage"]
+        == 15.0
+    )
 
 
 def test_internal_sim_param_persists_and_switches_runtime(tmp_path):

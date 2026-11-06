@@ -126,7 +126,9 @@ def _make(kind: str, label: str, logic: str) -> dict[str, Any]:
     spec = dict(LOGIC_SPECS["and_gate"])
     spec.update({"kind": kind, "label": label, "description": f"行为级{label}。"})
     spec["source"] = "netlab/logic.py"
-    spec["cls"] = type(f"Logic_{kind}", (LogicGate,), {"kind": kind, "label": label, "logic": logic})
+    spec["cls"] = type(
+        f"Logic_{kind}", (LogicGate,), {"kind": kind, "label": label, "logic": logic}
+    )
     if logic == "not":
         spec["formula"] = "out = VDD · (1−A)"
     elif logic == "or":
@@ -165,7 +167,9 @@ LOGIC_MODELS = {
 def _with_model(spec: dict[str, Any]) -> dict[str, Any]:
     models = LOGIC_MODELS[spec["kind"]]
     model_param = choice_param(
-        "model", "型号", next(iter(models)),
+        "model",
+        "型号",
+        next(iter(models)),
         (("custom", "自定义"),) + tuple((name, name) for name in models),
         help="74HC=2–6 V CMOS，74LS=5 V TTL，CD4000=3–18 V；选型号会填典型阈值/导通电阻",
     )
@@ -176,7 +180,9 @@ def _with_model(spec: dict[str, Any]) -> dict[str, Any]:
         params = (model_param,) + params
     spec["params"] = params
     spec["presets"] = models
-    spec["notes"] = "行为级；常用型号 " + "/".join(models) + "；无传输延迟/扇出/竞争建模"
+    spec["notes"] = (
+        "行为级；常用型号 " + "/".join(models) + "；无传输延迟/扇出/竞争建模"
+    )
     return spec
 
 

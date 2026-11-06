@@ -158,7 +158,11 @@ def matmul(left: np.ndarray, right: np.ndarray) -> np.ndarray:
     left = np.asarray(left, dtype=float)
     right = np.asarray(right, dtype=float)
     gpu = _probe_gpu()
-    if gpu is not None and _policy() != "cpu" and max(left.shape + right.shape) >= _gpu_min_size():
+    if (
+        gpu is not None
+        and _policy() != "cpu"
+        and max(left.shape + right.shape) >= _gpu_min_size()
+    ):
         try:  # pragma: no cover - 依赖本机 GPU
             out = gpu.asnumpy(gpu.asarray(left) @ gpu.asarray(right))
             synchronize()
@@ -191,11 +195,7 @@ def solve_dense(
     if not np.all(np.isfinite(matrix)) or not np.all(np.isfinite(rhs)):
         raise ComputeError(f"{what}包含 NaN 或无穷大")
     gpu = _probe_gpu()
-    if (
-        gpu is not None
-        and _policy() != "cpu"
-        and matrix.shape[0] >= _gpu_min_size()
-    ):
+    if gpu is not None and _policy() != "cpu" and matrix.shape[0] >= _gpu_min_size():
         try:  # pragma: no cover - 依赖本机 GPU
             device_matrix = gpu.asarray(matrix)
             device_rhs = gpu.asarray(rhs)

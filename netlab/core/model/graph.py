@@ -275,9 +275,7 @@ class Node:
         if not isinstance(result, dict):
             raise ComputeError(f"节点 {self.name!r} 的计算结果必须是字典")
         if trusted:
-            clean = _fast_result(
-                result, where=f"节点 {self.name!r} 的计算结果"
-            )
+            clean = _fast_result(result, where=f"节点 {self.name!r} 的计算结果")
         else:
             clean = json_safe(result, where=f"节点 {self.name!r} 的计算结果")
         if state_arg is not self.state:
@@ -337,7 +335,9 @@ class Connection:
             result = self.method(
                 self.source.view,
                 self.target.view,
-                self._source_params or self._params_view or MappingProxyType(self.params),
+                self._source_params
+                or self._params_view
+                or MappingProxyType(self.params),
                 self.state,
                 dt,
             )
@@ -360,7 +360,9 @@ class Connection:
 class Network:
     """节点与有向连接组成的网络，按依赖顺序推进一步。"""
 
-    def __init__(self, *, auto_delay: bool = False, solve_algebraic: bool = False) -> None:
+    def __init__(
+        self, *, auto_delay: bool = False, solve_algebraic: bool = False
+    ) -> None:
         self.nodes: list[Node] = []
         self.connections: list[Connection] = []
         self.time = 0.0
@@ -539,15 +541,16 @@ class Network:
         """
         enabled = self._enabled_edges(include_delayed=False)
         breakpoints = [
-            node
-            for node in self.nodes
-            if node.stateful and not node.direct_feedthrough
+            node for node in self.nodes if node.stateful and not node.direct_feedthrough
         ]
         breakpoint_set = set(breakpoints)
         direct_nodes = [node for node in self.nodes if node not in breakpoint_set]
         direct_adjacency: dict[Node, list[Node]] = {node: [] for node in direct_nodes}
         for connection in enabled:
-            if connection.source in direct_adjacency and connection.target in direct_adjacency:
+            if (
+                connection.source in direct_adjacency
+                and connection.target in direct_adjacency
+            ):
                 direct_adjacency[connection.source].append(connection.target)
 
         # Tarjan SCC（仅直接馈通子图）。
@@ -612,16 +615,16 @@ class Network:
                 if indegree[target] == 0:
                     ready.append(target)
         if len(ordered) != len(components):  # 理论上已被断点消除；保留防御
-            ordered.extend(index for index in range(len(components)) if index not in ordered)
+            ordered.extend(
+                index for index in range(len(components)) if index not in ordered
+            )
 
         self_loops = {
             component_of[connection.source]
             for connection in enabled
             if connection.source is connection.target
         }
-        breakpoint_indices = {
-            component_of[node] for node in breakpoints
-        }
+        breakpoint_indices = {component_of[node] for node in breakpoints}
         stages: list[SolverStage] = []
         algebraic: list[tuple[str, ...]] = []
         for component_index in ordered:
@@ -689,9 +692,7 @@ class Network:
         self._order = order
         self._incoming = incoming
         self._delayed = self._enabled_edges(include_delayed=True)
-        self._delayed = [
-            connection for connection in self._delayed if connection.delay
-        ]
+        self._delayed = [connection for connection in self._delayed if connection.delay]
         return order
 
     @timed("network.step")
@@ -793,9 +794,7 @@ class Network:
                             if payload is None:
                                 continue
                         else:
-                            payload = connection.evaluate(
-                                dt, time=self.time + dt
-                            )
+                            payload = connection.evaluate(dt, time=self.time + dt)
                         node.inputs[connection.name] = payload
                         if connection.target_port:
                             node.ports[connection.target_port] = payload
@@ -808,9 +807,7 @@ class Network:
     def _incoming_for_step(self) -> dict[Node, list[Connection]]:
         """返回启用入边索引；不依赖 topological_order，供 SCC 路径使用。"""
         if self._incoming is None:
-            incoming: dict[Node, list[Connection]] = {
-                node: [] for node in self.nodes
-            }
+            incoming: dict[Node, list[Connection]] = {node: [] for node in self.nodes}
             for connection in self.connections:
                 if connection.enabled:
                     incoming.setdefault(connection.target, []).append(connection)
@@ -859,11 +856,7 @@ class Network:
                     continue
             elif connection.source in index:
                 source = connection.source
-                payload = {
-                    self._node_output_key(source): float(
-                        values[index[source]]
-                    )
-                }
+                payload = {self._node_output_key(source): float(values[index[source]])}
             else:
                 payload = connection.evaluate(dt, time=self.time + dt)
             inputs[connection.name] = payload
@@ -922,9 +915,7 @@ class Network:
         def residual(values: np.ndarray) -> np.ndarray:
             return np.array(
                 [
-                    self._evaluate_node(
-                        node, values, index, delayed_payloads, dt
-                    )
+                    self._evaluate_node(node, values, index, delayed_payloads, dt)
                     - values[position]
                     for position, node in enumerate(nodes)
                 ],
@@ -962,9 +953,7 @@ class Network:
             accepted = False
             for _ in range(8):
                 candidate = values + alpha * delta
-                trial_norm = float(
-                    np.linalg.norm(residual(candidate), ord=np.inf)
-                )
+                trial_norm = float(np.linalg.norm(residual(candidate), ord=np.inf))
                 if trial_norm < last_norm:
                     values = candidate
                     accepted = True
@@ -1040,9 +1029,7 @@ class Network:
                         )
                     continue
                 if connection.source in index:
-                    edge_gain, edge_offset = self._edge_linear_coefficients(
-                        connection
-                    )
+                    edge_gain, edge_offset = self._edge_linear_coefficients(connection)
                     matrix[position, index[connection.source]] -= (
                         base_gain * weight * edge_gain
                     )

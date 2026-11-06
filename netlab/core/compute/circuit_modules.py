@@ -120,11 +120,12 @@ def encapsulate_circuit(
     records = [scene.nodes[item] for item in selected]
     devices = [item for item in records if item.kind in DEVICE_KINDS]
     nets = [item for item in records if item.kind in NET_KINDS]
-    others = [item.name for item in records if item.kind not in DEVICE_KINDS + NET_KINDS]
+    others = [
+        item.name for item in records if item.kind not in DEVICE_KINDS + NET_KINDS
+    ]
     if others:
         raise ValidationError(
-            "只能封装器件与网络节点，下列节点无法封装："
-            + ", ".join(sorted(others)[:5])
+            "只能封装器件与网络节点，下列节点无法封装：" + ", ".join(sorted(others)[:5])
         )
     if len(devices) > MAX_BLOCK_NODES:
         raise LimitError(f"一次最多封装 {MAX_BLOCK_NODES} 个器件")
@@ -132,13 +133,17 @@ def encapsulate_circuit(
     centroid_x = sum(item.position["x"] for item in records) / len(records)
     centroid_y = sum(item.position["y"] for item in records) / len(records)
 
-    wires = [edge for edge in scene.edges.values() if edge.enabled and edge.kind == "wire"]
+    wires = [
+        edge for edge in scene.edges.values() if edge.enabled and edge.kind == "wire"
+    ]
     internal_wires = [
-        edge for edge in wires
+        edge
+        for edge in wires
         if edge.source in selected_set and edge.target in selected_set
     ]
     boundary_wires = [
-        edge for edge in wires
+        edge
+        for edge in wires
         if (edge.source in selected_set) != (edge.target in selected_set)
     ]
     # 旧模型里器件本身就是一条「元件边」（kind=resistor/vsource/...），不是器件节点。
@@ -148,11 +153,13 @@ def encapsulate_circuit(
         edge for edge in scene.edges.values() if edge.enabled and edge.kind != "wire"
     ]
     internal_elements = [
-        edge for edge in elements
+        edge
+        for edge in elements
         if edge.source in selected_set and edge.target in selected_set
     ]
     straddling = [
-        edge for edge in elements
+        edge
+        for edge in elements
         if (edge.source in selected_set) != (edge.target in selected_set)
     ]
     if straddling:
@@ -196,7 +203,11 @@ def encapsulate_circuit(
         params = payload.get("params")
         if isinstance(params, dict):
             payload["params"] = {
-                key: (id_map[value] if isinstance(value, str) and value in id_map else value)
+                key: (
+                    id_map[value]
+                    if isinstance(value, str) and value in id_map
+                    else value
+                )
                 for key, value in params.items()
             }
         inner_edges.append(payload)
@@ -243,9 +254,7 @@ def encapsulate_circuit(
             outside_id, outside_pin = edge.source, edge.source_pin
         inside = scene.nodes[inside_id]
         outside = scene.nodes[outside_id]
-        key = (
-            f"net:{outside.id}" if outside.kind in NET_KINDS else f"edge:{edge.id}"
-        )
+        key = f"net:{outside.id}" if outside.kind in NET_KINDS else f"edge:{edge.id}"
         if key not in group_index:
             group_index[key] = len(groups)
             groups.append((outside, []))
@@ -425,8 +434,10 @@ def encapsulate_circuit(
                 }
             )
         device_name, device_pin = pin_members[0][0].name, pin_members[0][1]
-        port_base = marker_name or outside.name or (
-            f"{device_name}.{device_pin}" if device_pin else device_name
+        port_base = (
+            marker_name
+            or outside.name
+            or (f"{device_name}.{device_pin}" if device_pin else device_name)
         )
         add_port(port_base, direction, inner_net_id, outside.id)
 
@@ -446,7 +457,8 @@ def encapsulate_circuit(
                     value for value in params.values() if isinstance(value, str)
                 )
         inner_nodes = [
-            node for node in inner_nodes
+            node
+            for node in inner_nodes
             if node["id"] not in net_aliases or node["id"] in referenced
         ]
 
@@ -515,15 +527,14 @@ def encapsulate_circuit(
     # 内部导线与"器件引脚跨界"的导线删除；"网络跨界"的导线保留，稍后改接到
     # 父场景新建的同名网络上（否则外部器件的接线会一起消失）。
     absorbed = {
-        edge.id for edge in boundary_wires
+        edge.id
+        for edge in boundary_wires
         if scene.nodes[edge.source if edge.source in selected_set else edge.target].kind
         in NET_KINDS
     }
     remove_edges = {edge.id for edge in internal_wires}
     remove_edges |= {edge.id for edge in internal_elements}
-    remove_edges |= {
-        edge.id for edge in boundary_wires if edge.id not in absorbed
-    }
+    remove_edges |= {edge.id for edge in boundary_wires if edge.id not in absorbed}
     for edge_id in remove_edges:
         scene.edges.pop(edge_id, None)
     for node_id in selected:
@@ -536,8 +547,7 @@ def encapsulate_circuit(
             "block_id": block.id,
             "block_name": block.name,
             "ports": [
-                {"name": port.name, "direction": port.direction}
-                for port in block.ports
+                {"name": port.name, "direction": port.direction} for port in block.ports
             ],
         },
         position={"x": centroid_x, "y": centroid_y},
@@ -606,8 +616,7 @@ def instantiate_circuit_block(
             "block_id": block.id,
             "block_name": block.name,
             "ports": [
-                {"name": port.name, "direction": port.direction}
-                for port in block.ports
+                {"name": port.name, "direction": port.direction} for port in block.ports
             ],
         },
         position=center,
@@ -639,11 +648,22 @@ class _LightEdge:
     """展平时用的轻量导线记录。"""
 
     __slots__ = (
-        "id", "name", "source", "target", "kind", "params", "state",
-        "delay", "enabled", "source_pin", "target_pin",
+        "id",
+        "name",
+        "source",
+        "target",
+        "kind",
+        "params",
+        "state",
+        "delay",
+        "enabled",
+        "source_pin",
+        "target_pin",
     )
 
-    def __init__(self, payload: dict[str, Any], edge_id: str, source: str, target: str) -> None:
+    def __init__(
+        self, payload: dict[str, Any], edge_id: str, source: str, target: str
+    ) -> None:
         self.id = edge_id
         self.name = str(payload.get("name") or edge_id)[:32]
         self.source = source
@@ -657,7 +677,9 @@ class _LightEdge:
         self.target_pin = str(payload.get("target_pin") or "")
 
 
-def _pinmap(nodes: dict[str, Any], edges: Iterable[Any], module_id: str) -> dict[str, str]:
+def _pinmap(
+    nodes: dict[str, Any], edges: Iterable[Any], module_id: str
+) -> dict[str, str]:
     """某个模块实例「端口名 → 它接到的网络节点 id」。"""
     result: dict[str, str] = {}
     for edge in edges:
@@ -692,7 +714,9 @@ def _expand_block(
     for payload in block.edges:
         source = prefix + str(payload.get("source"))
         target = prefix + str(payload.get("target"))
-        edges.append(_LightEdge(payload, prefix + str(payload.get("id")), source, target))
+        edges.append(
+            _LightEdge(payload, prefix + str(payload.get("id")), source, target)
+        )
 
     for record in list(nodes.values()):
         if record.kind != "module":
@@ -715,13 +739,19 @@ def _expand_block(
             scene, child, child_prefix, depth + 1, merges, extra_nodes, extra_edges
         )
         nodes.pop(record.id, None)
-        edges = [item for item in edges if item.source != record.id and item.target != record.id]
+        edges = [
+            item
+            for item in edges
+            if item.source != record.id and item.target != record.id
+        ]
 
     extra_nodes.update(nodes)
     extra_edges.extend(edges)
 
 
-def flatten_circuit(scene: "Scene") -> tuple[dict[str, Any], list[Any], list[tuple[str, str]]]:
+def flatten_circuit(
+    scene: "Scene",
+) -> tuple[dict[str, Any], list[Any], list[tuple[str, str]]]:
     """电气直连展开（R24/D51）：把电路模块实例摊平成父场景可求解的记录。
 
     返回 ``(额外节点, 额外导线, 需合并的网络对)``；模块引脚与内部端口网络合并后
@@ -748,9 +778,7 @@ def flatten_circuit(scene: "Scene") -> tuple[dict[str, Any], list[Any], list[tup
             if not external:
                 continue  # 悬空端口：校验阶段给警告，求解阶段按悬空网络忽略
             merges.append((external, block_prefix + port.net))
-        _expand_block(
-            scene, block, block_prefix, 1, merges, extra_nodes, extra_edges
-        )
+        _expand_block(scene, block, block_prefix, 1, merges, extra_nodes, extra_edges)
     return extra_nodes, extra_edges, merges
 
 

@@ -136,9 +136,13 @@ TIMER_SPECS = {
         label="555 定时器（无稳态）",
         description="行为级方波源：按 freq/duty 输出 vhigh/vlow，不建模 RC 充放电。",
         params=(
-            choice_param("model", "型号", "NE555",
-                         (("custom", "自定义"),) + tuple((k, k) for k in TIMER_MODELS["ne555"]),
-                         help="NE555/SE555/LM555/LMC555：行为级方波，参数只影响频率/占空比/电平"),
+            choice_param(
+                "model",
+                "型号",
+                "NE555",
+                (("custom", "自定义"),) + tuple((k, k) for k in TIMER_MODELS["ne555"]),
+                help="NE555/SE555/LM555/LMC555：行为级方波，参数只影响频率/占空比/电平",
+            ),
             ParamSpec("vcc_node", "供电节点", "node", ""),
             float_param("freq", "频率", 1000.0, unit="Hz", positive=True),
             float_param("duty", "高电平占空比", 0.5),
@@ -156,9 +160,13 @@ TIMER_SPECS = {
         label="LDO 稳压器",
         description="行为级线性稳压：Vout=min(Vtarget, Vin−dropout)。",
         params=(
-            choice_param("model", "型号", "LM7805",
-                         (("custom", "自定义"),) + tuple((k, k) for k in TIMER_MODELS["ldo"]),
-                         help="固定输出：LM7805/LM7812/AMS1117；可调：LM317（vout=目标值）"),
+            choice_param(
+                "model",
+                "型号",
+                "LM7805",
+                (("custom", "自定义"),) + tuple((k, k) for k in TIMER_MODELS["ldo"]),
+                help="固定输出：LM7805/LM7812/AMS1117；可调：LM317（vout=目标值）",
+            ),
             ParamSpec("vin_node", "输入节点", "node", ""),
             float_param("vout", "目标输出电压", 5.0, unit="V"),
             float_param("dropout", "压差", 0.5, unit="V"),

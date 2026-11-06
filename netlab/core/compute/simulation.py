@@ -87,8 +87,10 @@ class Recorder:
         if not probes:
             return
         self.seq += 1
-        if self._keys is None or len(self._keys) != len(probes) or any(
-            key not in probes for key in self._keys
+        if (
+            self._keys is None
+            or len(self._keys) != len(probes)
+            or any(key not in probes for key in self._keys)
         ):
             self._keys = list(probes)
         self.frames.append(
@@ -253,11 +255,7 @@ class Simulation:
                 return False
         self.time += step_dt
         self.steps += 1
-        if (
-            sample_every <= 1
-            or self.steps == 1
-            or self.steps % sample_every == 0
-        ):
+        if sample_every <= 1 or self.steps == 1 or self.steps % sample_every == 0:
             try:
                 self.recorder.push(self.time, self.scene.probes())
             except Exception as exc:
@@ -313,7 +311,9 @@ class Simulation:
         """请求中断当前预计算；不持有仿真锁，供 API 的并发取消请求使用。"""
         self._precompute_cancel.set()
 
-    def precompute(self, duration: float, dt: float | None = None, sample_every: int | None = None) -> dict[str, Any]:
+    def precompute(
+        self, duration: float, dt: float | None = None, sample_every: int | None = None
+    ) -> dict[str, Any]:
         """P7-05/D48：从 0 开始预计算 0→T，填充录制帧；不改当前场景参数。"""
         with self.lock:
             # 先完成全部校验，再动任何状态：被拒绝的预计算不能清空当前录制帧
@@ -324,7 +324,9 @@ class Simulation:
             step_dt = float(dt if dt is not None else self.config.dt)
             if not (1.0e-9 <= step_dt <= 10.0):
                 raise ValidationError("预计算 dt 必须在 1e-9–10 s 内")
-            sample = int(sample_every if sample_every is not None else self.config.sample_every)
+            sample = int(
+                sample_every if sample_every is not None else self.config.sample_every
+            )
             sample = max(1, min(100, sample))
             count = max(1, int(round(duration / step_dt)))
             if count > MAX_PRECOMPUTE_STEPS:
@@ -481,9 +483,7 @@ class Simulation:
                     payload["max_iter"], "Newton 迭代上限", lo=1, hi=500
                 )
             if "gmin" in payload:
-                config.gmin = as_float(
-                    payload["gmin"], "gmin", positive=True, hi=1.0
-                )
+                config.gmin = as_float(payload["gmin"], "gmin", positive=True, hi=1.0)
             if "gmin_steps" in payload:
                 config.gmin_steps = as_int(
                     payload["gmin_steps"], "gmin 步数", lo=0, hi=100
@@ -498,8 +498,10 @@ class Simulation:
                 )
             if "residual_safety_tol" in payload:
                 config.residual_safety_tol = as_float(
-                    payload["residual_safety_tol"], "残差安全阈值",
-                    nonnegative=True, hi=1.0,
+                    payload["residual_safety_tol"],
+                    "残差安全阈值",
+                    nonnegative=True,
+                    hi=1.0,
                 )
             if "scaling" in payload:
                 config.scaling = as_bool(payload["scaling"], "矩阵均衡")

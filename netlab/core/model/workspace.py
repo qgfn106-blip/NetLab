@@ -220,7 +220,9 @@ def project_file_for(target: str | os.PathLike[str]) -> Path:
     raise ValidationError(f"不是 Netlab 工程路径：{path}")
 
 
-def workspace_for(target: str | os.PathLike[str], *, library_root: str | None = None) -> Workspace:
+def workspace_for(
+    target: str | os.PathLike[str], *, library_root: str | None = None
+) -> Workspace:
     """由工程路径得到工作区视图；库默认在工程父目录的 ``library/``。"""
     project_file = project_file_for(target)
     root = project_file.parent

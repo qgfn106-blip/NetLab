@@ -179,9 +179,10 @@ class Mosfet(CircuitElement):
             # 线性区（triode）：沟道未夹断。
             current = self.k * (over * vds - 0.5 * vds * vds) * clm
             gm = self.k * vds * clm
-            gds = self.k * (over - vds) * clm + 0.5 * self.k * (
-                over * vds - 0.5 * vds * vds
-            ) * 2.0 * self.lam
+            gds = (
+                self.k * (over - vds) * clm
+                + 0.5 * self.k * (over * vds - 0.5 * vds * vds) * 2.0 * self.lam
+            )
         else:
             # 饱和区：沟道夹断后只受沟道长度调制影响。
             current = 0.5 * self.k * over * over * clm
@@ -291,36 +292,171 @@ BJT_LIMIT_PARAMS = (
 
 #: 常用型号的 datasheet 典型值（TA=25°C）。选中型号时前端把这些值填进参数表。
 BJT_PRESETS = {
-    "2N3904": dict(beta=200.0, vbe_on=0.65, Is=1e-14, n=1.0, rin=1000.0, temperature=300.0,
-                   Vceo=40.0, Vcbo=60.0, Vebo=6.0, Ic_max=0.2, Pd=0.625,
-                   hfe_min=100.0, hfe_max=300.0, Vce_sat=0.3, Vbe_sat=0.95, fT=300e6),
-    "BC547": dict(beta=290.0, vbe_on=0.62, Is=1e-14, n=1.0, rin=1000.0, temperature=300.0,
-                  Vceo=45.0, Vcbo=50.0, Vebo=6.0, Ic_max=0.1, Pd=0.625,
-                  hfe_min=110.0, hfe_max=800.0, Vce_sat=0.25, Vbe_sat=0.7, fT=300e6),
-    "2N2222": dict(beta=200.0, vbe_on=0.65, Is=1e-14, n=1.0, rin=1000.0, temperature=300.0,
-                   Vceo=40.0, Vcbo=75.0, Vebo=6.0, Ic_max=0.8, Pd=0.625,
-                   hfe_min=100.0, hfe_max=300.0, Vce_sat=0.3, Vbe_sat=1.2, fT=300e6),
-    "S8050": dict(beta=120.0, vbe_on=0.65, Is=1e-14, n=1.0, rin=1000.0, temperature=300.0,
-                  Vceo=25.0, Vcbo=40.0, Vebo=5.0, Ic_max=0.7, Pd=0.625,
-                  hfe_min=85.0, hfe_max=300.0, Vce_sat=0.6, Vbe_sat=1.2, fT=150e6),
-    "2N3055": dict(beta=50.0, vbe_on=0.7, Is=1e-12, n=1.0, rin=10.0, temperature=300.0,
-                   Vceo=60.0, Vcbo=100.0, Vebo=7.0, Ic_max=15.0, Pd=115.0,
-                   hfe_min=20.0, hfe_max=70.0, Vce_sat=1.1, Vbe_sat=1.5, fT=2.5e6),
+    "2N3904": dict(
+        beta=200.0,
+        vbe_on=0.65,
+        Is=1e-14,
+        n=1.0,
+        rin=1000.0,
+        temperature=300.0,
+        Vceo=40.0,
+        Vcbo=60.0,
+        Vebo=6.0,
+        Ic_max=0.2,
+        Pd=0.625,
+        hfe_min=100.0,
+        hfe_max=300.0,
+        Vce_sat=0.3,
+        Vbe_sat=0.95,
+        fT=300e6,
+    ),
+    "BC547": dict(
+        beta=290.0,
+        vbe_on=0.62,
+        Is=1e-14,
+        n=1.0,
+        rin=1000.0,
+        temperature=300.0,
+        Vceo=45.0,
+        Vcbo=50.0,
+        Vebo=6.0,
+        Ic_max=0.1,
+        Pd=0.625,
+        hfe_min=110.0,
+        hfe_max=800.0,
+        Vce_sat=0.25,
+        Vbe_sat=0.7,
+        fT=300e6,
+    ),
+    "2N2222": dict(
+        beta=200.0,
+        vbe_on=0.65,
+        Is=1e-14,
+        n=1.0,
+        rin=1000.0,
+        temperature=300.0,
+        Vceo=40.0,
+        Vcbo=75.0,
+        Vebo=6.0,
+        Ic_max=0.8,
+        Pd=0.625,
+        hfe_min=100.0,
+        hfe_max=300.0,
+        Vce_sat=0.3,
+        Vbe_sat=1.2,
+        fT=300e6,
+    ),
+    "S8050": dict(
+        beta=120.0,
+        vbe_on=0.65,
+        Is=1e-14,
+        n=1.0,
+        rin=1000.0,
+        temperature=300.0,
+        Vceo=25.0,
+        Vcbo=40.0,
+        Vebo=5.0,
+        Ic_max=0.7,
+        Pd=0.625,
+        hfe_min=85.0,
+        hfe_max=300.0,
+        Vce_sat=0.6,
+        Vbe_sat=1.2,
+        fT=150e6,
+    ),
+    "2N3055": dict(
+        beta=50.0,
+        vbe_on=0.7,
+        Is=1e-12,
+        n=1.0,
+        rin=10.0,
+        temperature=300.0,
+        Vceo=60.0,
+        Vcbo=100.0,
+        Vebo=7.0,
+        Ic_max=15.0,
+        Pd=115.0,
+        hfe_min=20.0,
+        hfe_max=70.0,
+        Vce_sat=1.1,
+        Vbe_sat=1.5,
+        fT=2.5e6,
+    ),
 }
 
 BJT_PRESETS_PNP = {
-    "2N3906": dict(beta=180.0, vbe_on=0.65, Is=1e-14, n=1.0, rin=1000.0, temperature=300.0,
-                   Vceo=40.0, Vcbo=40.0, Vebo=5.0, Ic_max=0.2, Pd=0.625,
-                   hfe_min=100.0, hfe_max=300.0, Vce_sat=0.4, Vbe_sat=0.95, fT=250e6),
-    "BC557": dict(beta=290.0, vbe_on=0.62, Is=1e-14, n=1.0, rin=1000.0, temperature=300.0,
-                  Vceo=45.0, Vcbo=50.0, Vebo=5.0, Ic_max=0.1, Pd=0.625,
-                  hfe_min=110.0, hfe_max=800.0, Vce_sat=0.3, Vbe_sat=0.7, fT=150e6),
-    "S8550": dict(beta=120.0, vbe_on=0.65, Is=1e-14, n=1.0, rin=1000.0, temperature=300.0,
-                  Vceo=25.0, Vcbo=40.0, Vebo=5.0, Ic_max=0.7, Pd=0.625,
-                  hfe_min=85.0, hfe_max=300.0, Vce_sat=0.6, Vbe_sat=1.2, fT=150e6),
-    "2N2907": dict(beta=150.0, vbe_on=0.65, Is=1e-14, n=1.0, rin=1000.0, temperature=300.0,
-                   Vceo=40.0, Vcbo=60.0, Vebo=5.0, Ic_max=0.6, Pd=0.4,
-                   hfe_min=100.0, hfe_max=300.0, Vce_sat=0.4, Vbe_sat=1.3, fT=200e6),
+    "2N3906": dict(
+        beta=180.0,
+        vbe_on=0.65,
+        Is=1e-14,
+        n=1.0,
+        rin=1000.0,
+        temperature=300.0,
+        Vceo=40.0,
+        Vcbo=40.0,
+        Vebo=5.0,
+        Ic_max=0.2,
+        Pd=0.625,
+        hfe_min=100.0,
+        hfe_max=300.0,
+        Vce_sat=0.4,
+        Vbe_sat=0.95,
+        fT=250e6,
+    ),
+    "BC557": dict(
+        beta=290.0,
+        vbe_on=0.62,
+        Is=1e-14,
+        n=1.0,
+        rin=1000.0,
+        temperature=300.0,
+        Vceo=45.0,
+        Vcbo=50.0,
+        Vebo=5.0,
+        Ic_max=0.1,
+        Pd=0.625,
+        hfe_min=110.0,
+        hfe_max=800.0,
+        Vce_sat=0.3,
+        Vbe_sat=0.7,
+        fT=150e6,
+    ),
+    "S8550": dict(
+        beta=120.0,
+        vbe_on=0.65,
+        Is=1e-14,
+        n=1.0,
+        rin=1000.0,
+        temperature=300.0,
+        Vceo=25.0,
+        Vcbo=40.0,
+        Vebo=5.0,
+        Ic_max=0.7,
+        Pd=0.625,
+        hfe_min=85.0,
+        hfe_max=300.0,
+        Vce_sat=0.6,
+        Vbe_sat=1.2,
+        fT=150e6,
+    ),
+    "2N2907": dict(
+        beta=150.0,
+        vbe_on=0.65,
+        Is=1e-14,
+        n=1.0,
+        rin=1000.0,
+        temperature=300.0,
+        Vceo=40.0,
+        Vcbo=60.0,
+        Vebo=5.0,
+        Ic_max=0.6,
+        Pd=0.4,
+        hfe_min=100.0,
+        hfe_max=300.0,
+        Vce_sat=0.4,
+        Vbe_sat=1.3,
+        fT=200e6,
+    ),
 }
 
 MOS_LIMIT_PARAMS = (
@@ -337,7 +473,9 @@ MOS_PRESETS = {
 }
 
 MOS_PRESETS_P = {
-    "IRF9540N": dict(k=0.9, Vth=3.5, Vds_max=100.0, Id_max=19.0, Pd=150.0, Rds_on=0.117),
+    "IRF9540N": dict(
+        k=0.9, Vth=3.5, Vds_max=100.0, Id_max=19.0, Pd=150.0, Rds_on=0.117
+    ),
     "AO3401": dict(k=0.6, Vth=1.2, Vds_max=30.0, Id_max=4.0, Pd=1.4, Rds_on=0.06),
 }
 
@@ -358,8 +496,13 @@ def _bjt_params(presets: dict[str, dict[str, float]], kind: str) -> tuple:
         ("fT", "特征频率 fT", "Hz", True),
     )
     params = [
-        choice_param("model", "型号", next(iter(presets)), model_choices,
-                     help="选择常用型号会填入 datasheet 典型参数；改任意值后仍按当前参数计算"),
+        choice_param(
+            "model",
+            "型号",
+            next(iter(presets)),
+            model_choices,
+            help="选择常用型号会填入 datasheet 典型参数；改任意值后仍按当前参数计算",
+        ),
         float_param("Is", "饱和电流 Is", default["Is"], unit="A", positive=True),
         float_param("n", "发射系数 n", default["n"]),
         float_param("temperature", "温度", default["temperature"], unit="K"),
@@ -368,7 +511,9 @@ def _bjt_params(presets: dict[str, dict[str, float]], kind: str) -> tuple:
         float_param("rin", "B-E 导通电阻", default["rin"], unit="Ω", positive=True),
     ]
     for key, label, unit, positive in limit_specs:
-        params.append(float_param(key, label, float(default[key]), unit=unit, positive=positive))
+        params.append(
+            float_param(key, label, float(default[key]), unit=unit, positive=positive)
+        )
     params.append(ParamSpec("base_node", "基极节点", "node", ""))
     return tuple(params)
 
@@ -405,15 +550,26 @@ BJT_SPECS = {
         label="N 沟道 MOSFET",
         description="平方律三态（截止/线性/饱和）+ 沟道长度调制 + 体效应；含 2N7000/IRF540N/AO3400 常用型号。",
         params=(
-            choice_param("model", "型号", "2N7000", (("custom", "自定义"),) + tuple((k, k) for k in MOS_PRESETS)),
+            choice_param(
+                "model",
+                "型号",
+                "2N7000",
+                (("custom", "自定义"),) + tuple((k, k) for k in MOS_PRESETS),
+            ),
             float_param("k", "跨导系数 k", 0.0064, positive=True),
             float_param("Vth", "阈值电压", 2.1, unit="V"),
-            float_param("lambda", "沟道长度调制 λ", 0.0, unit="1/V", help="0 = 忽略（默认）"),
-            float_param("gamma", "体效应系数 γ", 0.0, unit="V^0.5", help="0 = 忽略（默认）"),
+            float_param(
+                "lambda", "沟道长度调制 λ", 0.0, unit="1/V", help="0 = 忽略（默认）"
+            ),
+            float_param(
+                "gamma", "体效应系数 γ", 0.0, unit="V^0.5", help="0 = 忽略（默认）"
+            ),
             float_param("phi", "表面势 φ", 0.7, unit="V", positive=True),
             *MOS_LIMIT_PARAMS,
             ParamSpec("gate_node", "栅极节点", "node", ""),
-            ParamSpec("body_node", "衬底/体端节点", "node", "", help="缺省接源极（Vbs=0）"),
+            ParamSpec(
+                "body_node", "衬底/体端节点", "node", "", help="缺省接源极（Vbs=0）"
+            ),
         ),
         cls=Mosfet,
         source="netlab/transistors.py",
@@ -431,15 +587,26 @@ BJT_SPECS = {
         label="P 沟道 MOSFET",
         description="PMOS 平方律（三态 + 体效应）；含 IRF9540N/AO3401 常用型号。",
         params=(
-            choice_param("model", "型号", "IRF9540N", (("custom", "自定义"),) + tuple((k, k) for k in MOS_PRESETS_P)),
+            choice_param(
+                "model",
+                "型号",
+                "IRF9540N",
+                (("custom", "自定义"),) + tuple((k, k) for k in MOS_PRESETS_P),
+            ),
             float_param("k", "跨导系数 k", 0.9, positive=True),
             float_param("Vth", "阈值电压", 3.5, unit="V"),
-            float_param("lambda", "沟道长度调制 λ", 0.0, unit="1/V", help="0 = 忽略（默认）"),
-            float_param("gamma", "体效应系数 γ", 0.0, unit="V^0.5", help="0 = 忽略（默认）"),
+            float_param(
+                "lambda", "沟道长度调制 λ", 0.0, unit="1/V", help="0 = 忽略（默认）"
+            ),
+            float_param(
+                "gamma", "体效应系数 γ", 0.0, unit="V^0.5", help="0 = 忽略（默认）"
+            ),
             float_param("phi", "表面势 φ", 0.7, unit="V", positive=True),
             *MOS_LIMIT_PARAMS,
             ParamSpec("gate_node", "栅极节点", "node", ""),
-            ParamSpec("body_node", "衬底/体端节点", "node", "", help="缺省接源极（Vbs=0）"),
+            ParamSpec(
+                "body_node", "衬底/体端节点", "node", "", help="缺省接源极（Vbs=0）"
+            ),
         ),
         cls=PMOS,
         source="netlab/transistors.py",

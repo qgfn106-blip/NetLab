@@ -10,7 +10,7 @@
 
 ## 0. 一句话现状
 
-- **能用的产品**：`start_desktop.bat` / `python -m netlab.desktop` 起 pywebview + WebView2 网页壳（**603 passed**，2026-11-06，静态 3.20.1；全量文档重构 §7.75 完成）。
+- **能用的产品**：`start_desktop.bat` / `python -m netlab.desktop` 起 pywebview + WebView2 网页壳（**606 passed**，2026-11-06，静态 3.20.1；全量文档重构 §7.75 完成）。
 - **界面口径**：前端在 `frontend/`（index.html / app.js / style.css）；Qt 原生界面已按 D78 备份到 Git 分支 `backup/qt-native-2026-11-02` 后删除，不再是产品形态。
 - **已完成（一期）**：R41 前端 JavaScript→TypeScript 全局迁移（一期 P16 类型化、二期 P17 模块化均已完成），tsc strict 0 / node --test 纯函数单测绿 / AST 行为等价 / pytest 589 passed，见 REQUIREMENTS R41 / PROGRESS §7.76。
 - **没做完的主线**：R25 三阶段已交付（P7-09/10/11：9 块/虚拟注册表/只读保护/另存副本/行为快速模型/`internal_sim` 开关/对比 API/UI），剩完整电路级内部结构；R19 参考级图纸暂停。**刚完成**：R31 并网逆变器 P11-01…P11-07（§7.72：L1 平均模型、`abc_dq`、SRF-PLL、dq 电流环、`sensor`/`actuator` 跨域桥、六开关三相桥示例、`cancel_precompute` 中断）；R39 复数分析层（§7.71）；R40 全栈扩展架构（§7.74，设计+代码首版完成，589 passed/3.20.1）；全量 589 passed/3.20.1。
@@ -44,7 +44,7 @@
 | **R37 线性网络总传函预计算与 Bode 幅相** | R36 的全局状态空间装配 | 纯线性网络装配 `A,B,C,D`，`G(s)=C(sI-A)^{-1}B+D`；支持串联 / 并联 / 反馈环；延迟边在 z 域按 `z⁻¹` 精确、s 域标近似；Bode 幅值 + 相位 | 中 |
 | **R38 相平面 + 独立播放 + 数据分析** | R36 的状态通道 | 直接收集 `transfer_function` / 状态空间的真实状态，不从总传函反推；暴露 `state:<node>:<index>`；独立时间轴播放 / 步进 / 循环；峰值、超调、稳态、调节时间、CSV | 中 |
 | **R39 复数分析层（Complex Bridge）** | R37/R38 分析出口 | `complex_support.py` 转换纯函数；`analysis.frequency_response()` 统一 signal/circuit 的 `H(jω)`；signal 精确 `e^{-jωT}`、circuit 复用复数 MNA；`nodal.ac_sweep` 增 `real/imag`；`POST /api/analysis/frequency`；时域/持久化保持实数 | 中 |
-| **M1 数学加速接入（P3+P1+P5，影子验证）** | R36/R37 分析层、mathspec 原型 | 详见 [MATH_INTEGRATION_PLAN.md](MATH_INTEGRATION_PLAN.md)：M0 mathspec 原型 → M1a P1 排序评测 → M1b P3 AC 扫频 Woodbury → M1c P5 遥测误差口径 → M1d 影子集成；`NETLAB_MATH_ACCEL=off` 默认，先影子对拍再启用（M0–M1d 已完成：P1 真实语料未过 DoD 保持 COLAMD；P3 真实参数规模族 n≥301 2.29–2.32×、n=201 1.84×；P5 只读诊断 + 前端「诊断」误差合同；M1d 集成回归通过；见 PROGRESS §7.80） | 中大 |
+| **M1 数学加速接入（P3+P1+P5，影子验证）** | R36/R37 分析层、mathspec 原型 | 详见 [MATH_INTEGRATION_PLAN.md](MATH_INTEGRATION_PLAN.md)：M0 mathspec 原型 → M1a P1 排序评测 → M1b P3 AC 扫频 Woodbury → M1c P5 遥测误差口径 → M1d 影子集成；`NETLAB_MATH_ACCEL=off` 默认，先影子对拍再启用（M0–M1d 已完成：P1 真实语料未过 DoD 保持 COLAMD；P3 真实参数规模族 n≥301 2.29–2.32×、n=201 1.84×；P5 只读诊断 + 前端「诊断」误差合同 + P5.2 真实插值/FIFO 误差界（606 passed）；M1d 集成回归通过；M2 启用评审完成（on 仅 opt-in、默认 off、P1 不替换，见 mathspec/research/M2_GATE_REVIEW.md）；见 PROGRESS §7.82） | 中大 |
 
 > 用户已拍板按文档开工。R36 **P1–P5 已完成**：节点语义标签、`Network.solver_plan()`、自动延迟记录；`Network(solve_algebraic=True)` 按 `(I-A)y=b` 解线性直接馈通环，`Scene.set_algebraic_solver(True)` 后不再自动 `z⁻¹`；非线性/时变直接馈通 SCC 走阻尼 Newton；线性网络 `analysis.transfer_function()` 支持串联/并联/反馈环，`tf_analysis()` 可直接算网络 Bode；`SignalEngine.probes()` 暴露 `state:<node>:<index>`，前端相图支持状态通道与独立播放/步进/循环；全量 525 passed。R37 对外总传函/Bode 已完成（z 域支持纯 gain/sum + 显式延迟）；R38 状态通道/播放/指标/CSV/dt 收敛/无状态提示已完成。
 

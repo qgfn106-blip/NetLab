@@ -13648,7 +13648,7 @@ declare function setStatusHint(hint: string): void;
       const assumptions = (quality.assumptions || []).filter((item) => item.trim().length > 0);
       const missing: string[] = [];
       if (quality.sample_dt === null || quality.sample_dt === undefined) missing.push('sample_dt');
-      if (quality.quant_bits === null || quality.quant_bits === undefined) missing.push('quant_bits');
+      // quant_bits=None 表示"当前链路未启用量化"，是合法状态，不算缺失。
       if (quality.interp_error_bound === null || quality.interp_error_bound === undefined) missing.push('interp_error_bound');
       if (quality.delay_bound === null || quality.delay_bound === undefined) missing.push('delay_bound');
       setQualityText('#diagSampleDt', formatQualityNumber(quality.sample_dt, ' s'));

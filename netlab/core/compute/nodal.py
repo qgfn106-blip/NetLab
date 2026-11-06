@@ -21,6 +21,9 @@ from .profiling import timed
 from ..common.fastcopy import copy_state as _copy_state
 from ..common.limits import ComputeError, ConflictError, ValidationError
 from .linalg import solve_linear
+from .math_accel.config import math_accel_mode
+from .math_accel.diagnostics import record as record_math_diag
+from .math_accel.woodbury_ac import ACWoodburySolver, collect_reactive_stamps
 from .params import ParamSpec, choice_param, float_param, validate_params
 
 from .waveform import WAVEFORM_SPECS, waveform_value
@@ -2371,6 +2374,39 @@ class CircuitSolver:
                 for token in wanted
             }
             size = self.matrix_size
+            # R43/P3 影子路径：默认 off，不改变任何既有行为。
+            mode = math_accel_mode("P3")
+            solver: ACWoodburySolver | None = None
+            stamp_count = 0
+            if mode != "off":
+                omega0 = 2.0 * math.pi * math.sqrt(min(freqs) * max(freqs))
+                ctx0 = StampContext(
+                    A=np.zeros((size, size), dtype=complex),
+                    rhs=np.zeros(size, dtype=complex),
+                    index=self.index,
+                    solution=op,
+                    dt=0.0,
+                    time=0.0,
+                    iteration=0,
+                    mode="ac",
+                    omega=omega0,
+                )
+                for element in self.elements:
+                    if hasattr(element, "value"):
+                        element.value = 1.0 if element is input_element else 0.0
+                    element.stamp(ctx0)
+                try:
+                    stamps = collect_reactive_stamps(self.elements, self.index)
+                    stamp_count = len(stamps)
+                    base = np.array(ctx0.A, dtype=complex, copy=True)
+                    for stamp in stamps:
+                        vector = stamp.vector(size)
+                        base -= stamp.conductance(omega0) * np.outer(vector, vector)
+                    solver = ACWoodburySolver(base, stamps, omega0)
+                    record_math_diag("p3.init", solver.summary())
+                except Exception as exc:  # pragma: no cover - 防御性回退
+                    solver = None
+                    record_math_diag("p3.init_error", {"error": repr(exc)})
             for frequency in freqs:
                 omega = 2.0 * math.pi * frequency
                 ctx = StampContext(
@@ -2389,7 +2425,44 @@ class CircuitSolver:
                         element.value = 1.0 if element is input_element else 0.0
                     element.stamp(ctx)
                 self._check_floating(ctx.A)
-                solution = np.linalg.solve(ctx.A, ctx.rhs)
+                solution = None
+                if solver is not None and solver.usable:
+                    if mode == "on" and solver.ratio <= 0.10:
+                        solution = solver.solve(omega, ctx.rhs)
+                        record_math_diag(
+                            "p3.used",
+                            {
+                                "n": size,
+                                "r": stamp_count,
+                                "ratio": solver.ratio,
+                                "omega": omega,
+                            },
+                        )
+                    elif mode == "shadow" or (mode == "on" and solver.ratio <= 0.25):
+                        direct = np.linalg.solve(ctx.A, ctx.rhs)
+                        try:
+                            shadow = solver.solve(omega, ctx.rhs)
+                            relative = float(
+                                np.linalg.norm(shadow - direct)
+                                / max(np.linalg.norm(direct), 1.0e-300)
+                            )
+                            record_math_diag(
+                                "p3.shadow",
+                                {
+                                    "n": size,
+                                    "r": stamp_count,
+                                    "ratio": solver.ratio,
+                                    "omega": omega,
+                                    "rel_err": relative,
+                                },
+                            )
+                        except Exception as exc:  # pragma: no cover - 防御性回退
+                            record_math_diag(
+                                "p3.shadow_error", {"omega": omega, "error": repr(exc)}
+                            )
+                        solution = direct
+                if solution is None:
+                    solution = np.linalg.solve(ctx.A, ctx.rhs)
                 for token in wanted:
                     value = self._ac_probe(token, ctx, solution, node_names)
                     magnitude = float(abs(value))

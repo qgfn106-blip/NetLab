@@ -12217,6 +12217,53 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       toast(`\u8BBE\u7F6E\u4FDD\u5B58\u5931\u8D25\uFF1A${error.message}`, "error", 3600);
     }
   }
+  function formatQualityNumber(value, unit = "") {
+    if (value === null || value === void 0) return "\u2014";
+    if (!Number.isFinite(value)) return String(value);
+    return `${value.toLocaleString("zh-CN", { maximumFractionDigits: 6 })}${unit}`;
+  }
+  function setQualityText(selector, text) {
+    const node = $(selector);
+    if (node) node.textContent = text;
+  }
+  async function refreshTelemetryQuality() {
+    const status = $("#diagStatus");
+    if (status) status.textContent = "\u8BFB\u53D6\u4E2D\u2026";
+    try {
+      const payload = await api("/api/diagnostics/telemetry");
+      const quality = payload?.telemetry || {};
+      const assumptions = (quality.assumptions || []).filter((item) => item.trim().length > 0);
+      const missing = [];
+      if (quality.sample_dt === null || quality.sample_dt === void 0) missing.push("sample_dt");
+      if (quality.quant_bits === null || quality.quant_bits === void 0) missing.push("quant_bits");
+      if (quality.interp_error_bound === null || quality.interp_error_bound === void 0) missing.push("interp_error_bound");
+      if (quality.delay_bound === null || quality.delay_bound === void 0) missing.push("delay_bound");
+      setQualityText("#diagSampleDt", formatQualityNumber(quality.sample_dt, " s"));
+      setQualityText(
+        "#diagQuantBits",
+        quality.quant_bits === null || quality.quant_bits === void 0 ? "\u672A\u542F\u7528\u91CF\u5316" : `${quality.quant_bits} bit`
+      );
+      setQualityText(
+        "#diagInterpBound",
+        quality.interp_error_bound === null || quality.interp_error_bound === void 0 ? "\u672A\u58F0\u660E" : `${formatQualityNumber(quality.interp_error_bound)}${quality.interp_error_bound_method ? `\uFF08${quality.interp_error_bound_method}\uFF09` : ""}`
+      );
+      setQualityText("#diagFifoDepth", formatQualityNumber(quality.fifo_depth, " \u5E27"));
+      setQualityText(
+        "#diagDelayBound",
+        quality.delay_bound === null || quality.delay_bound === void 0 ? "\u672A\u58F0\u660E" : `${formatQualityNumber(quality.delay_bound, " s")}${quality.delay_bound_method ? `\uFF08${quality.delay_bound_method}\uFF09` : ""}`
+      );
+      setQualityText("#diagAssumptions", assumptions.length ? `\u5047\u8BBE\uFF1A${assumptions.join("\uFF1B")}` : "\u5047\u8BBE\uFF1A\u2014");
+      if (status) {
+        status.textContent = missing.length ? `\u4E0D\u5B8C\u6574\uFF1A\u7F3A\u5C11 ${missing.join("\u3001")}` : "\u5B8C\u6574\uFF08\u53EF\u7528\uFF09";
+        status.dataset.state = missing.length ? "partial" : "ok";
+      }
+    } catch (error) {
+      if (status) {
+        status.textContent = `\u8BFB\u53D6\u5931\u8D25\uFF1A${error.message}`;
+        status.dataset.state = "error";
+      }
+    }
+  }
   function openSettings(pane = "project") {
     if (!ui.settingsWin) return;
     ui.settingsWin.hidden = false;
@@ -12240,16 +12287,24 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     });
     const hint = $("#setWinHint");
     if (hint) {
-      hint.textContent = { project: "SETTINGS \xB7 \u5DE5\u7A0B\u7EA7\uFF0C\u968F .netlab \u4FDD\u5B58", view: "SETTINGS \xB7 \u5168\u5C40\u5916\u89C2\u504F\u597D", interact: "SETTINGS \xB7 \u5168\u5C40\u4EA4\u4E92\u504F\u597D" }[pane] || "";
+      const hints = {
+        project: "SETTINGS \xB7 \u5DE5\u7A0B\u7EA7\uFF0C\u968F .netlab \u4FDD\u5B58",
+        view: "SETTINGS \xB7 \u5168\u5C40\u5916\u89C2\u504F\u597D",
+        interact: "SETTINGS \xB7 \u5168\u5C40\u4EA4\u4E92\u504F\u597D",
+        diag: "SETTINGS \xB7 \u53EA\u8BFB\u8BCA\u65AD\uFF08P5 \u8BEF\u5DEE\u5408\u540C\uFF09"
+      };
+      hint.textContent = hints[pane] || "";
     }
     const main = ui.settingsWin?.querySelector(".setwin-main");
     if (main) main.scrollTop = 0;
+    if (pane === "diag") void refreshTelemetryQuality();
   }
   function initSettingsWin() {
     $("#settingsWin .setwin-nav")?.addEventListener("click", (event) => {
       const target = event.target.closest("button[data-pane]");
       if (target) setSettingsPane(target.dataset.pane);
     });
+    $("#btnDiagRefresh")?.addEventListener("click", () => void refreshTelemetryQuality());
     ui.settingsClose?.addEventListener("click", closeSettings);
     $$("#settingsWin [data-doc]").forEach((node) => {
       node.addEventListener("click", () => openDoc(node.dataset.doc));

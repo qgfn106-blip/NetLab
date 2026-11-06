@@ -13614,6 +13614,74 @@ declare function setStatusHint(hint: string): void;
   }
 
   // ---- 设置窗（非模态内部浮窗） ---------------------------------------------
+  type TelemetryQuality = {
+    sample_dt?: number | null;
+    quant_bits?: number | null;
+    interp_error_bound?: number | null;
+    interp_error_bound_method?: string | null;
+    fifo_depth?: number | null;
+    delay_bound?: number | null;
+    delay_bound_method?: string | null;
+    assumptions?: string[];
+    sim_time?: number;
+    steps?: number;
+    running?: boolean;
+  };
+
+  function formatQualityNumber(value: number | null | undefined, unit = ''): string {
+    if (value === null || value === undefined) return '—';
+    if (!Number.isFinite(value)) return String(value);
+    return `${value.toLocaleString('zh-CN', { maximumFractionDigits: 6 })}${unit}`;
+  }
+
+  function setQualityText(selector: string, text: string) {
+    const node = $(selector);
+    if (node) node.textContent = text;
+  }
+
+  async function refreshTelemetryQuality() {
+    const status = $('#diagStatus');
+    if (status) status.textContent = '读取中…';
+    try {
+      const payload = await api('/api/diagnostics/telemetry');
+      const quality = (payload?.telemetry || {}) as TelemetryQuality;
+      const assumptions = (quality.assumptions || []).filter((item) => item.trim().length > 0);
+      const missing: string[] = [];
+      if (quality.sample_dt === null || quality.sample_dt === undefined) missing.push('sample_dt');
+      if (quality.quant_bits === null || quality.quant_bits === undefined) missing.push('quant_bits');
+      if (quality.interp_error_bound === null || quality.interp_error_bound === undefined) missing.push('interp_error_bound');
+      if (quality.delay_bound === null || quality.delay_bound === undefined) missing.push('delay_bound');
+      setQualityText('#diagSampleDt', formatQualityNumber(quality.sample_dt, ' s'));
+      setQualityText(
+        '#diagQuantBits',
+        quality.quant_bits === null || quality.quant_bits === undefined ? '未启用量化' : `${quality.quant_bits} bit`,
+      );
+      setQualityText(
+        '#diagInterpBound',
+        quality.interp_error_bound === null || quality.interp_error_bound === undefined
+          ? '未声明'
+          : `${formatQualityNumber(quality.interp_error_bound)}${quality.interp_error_bound_method ? `（${quality.interp_error_bound_method}）` : ''}`,
+      );
+      setQualityText('#diagFifoDepth', formatQualityNumber(quality.fifo_depth, ' 帧'));
+      setQualityText(
+        '#diagDelayBound',
+        quality.delay_bound === null || quality.delay_bound === undefined
+          ? '未声明'
+          : `${formatQualityNumber(quality.delay_bound, ' s')}${quality.delay_bound_method ? `（${quality.delay_bound_method}）` : ''}`,
+      );
+      setQualityText('#diagAssumptions', assumptions.length ? `假设：${assumptions.join('；')}` : '假设：—');
+      if (status) {
+        status.textContent = missing.length ? `不完整：缺少 ${missing.join('、')}` : '完整（可用）';
+        status.dataset.state = missing.length ? 'partial' : 'ok';
+      }
+    } catch (error) {
+      if (status) {
+        status.textContent = `读取失败：${(error as Error).message}`;
+        status.dataset.state = 'error';
+      }
+    }
+  }
+
   function openSettings(pane = 'project') {
     if (!ui.settingsWin) return;
     ui.settingsWin.hidden = false;
@@ -13639,10 +13707,17 @@ declare function setStatusHint(hint: string): void;
     });
     const hint = $('#setWinHint');
     if (hint) {
-      hint.textContent = { project: 'SETTINGS · 工程级，随 .netlab 保存', view: 'SETTINGS · 全局外观偏好', interact: 'SETTINGS · 全局交互偏好' }[pane] || '';
+      const hints: Record<string, string> = {
+        project: 'SETTINGS · 工程级，随 .netlab 保存',
+        view: 'SETTINGS · 全局外观偏好',
+        interact: 'SETTINGS · 全局交互偏好',
+        diag: 'SETTINGS · 只读诊断（P5 误差合同）',
+      };
+      hint.textContent = hints[pane] || '';
     }
     const main = ui.settingsWin?.querySelector('.setwin-main');
     if (main) main.scrollTop = 0;
+    if (pane === 'diag') void refreshTelemetryQuality();
   }
 
   function initSettingsWin() {
@@ -13650,6 +13725,7 @@ declare function setStatusHint(hint: string): void;
       const target = (event.target! as Element).closest('button[data-pane]') as HTMLElement | null;
       if (target) setSettingsPane((target.dataset.pane as string));
     });
+    $('#btnDiagRefresh')?.addEventListener('click', () => void refreshTelemetryQuality());
     ui.settingsClose?.addEventListener('click', closeSettings);
     $$('#settingsWin [data-doc]').forEach((node) => {
       node.addEventListener('click', () => openDoc(node.dataset.doc));

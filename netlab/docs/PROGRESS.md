@@ -2064,3 +2064,15 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 **已知限制**：演示视频为 6 张幻灯片的 28 秒概览，不是逐功能录屏；视图设计 v1 使用离线 vendored iro.js 5.5.2 色轮（`frontend/vendor/iro.min.js`）并保留原生 `<input type="color">` 回退；插件为受信任进程内 Python 代码，不是安全沙箱。
 
 **备份**：`NetlabExtras/backups/ProjectPoint_backups/netlab_3_20_0_20261106_0136`（36 文件 + MANIFEST.sha256，R40 代码 + 文档重构最终备份，mismatches=0）。
+
+
+## §7.76 前端 JavaScript → TypeScript 全局迁移 + Python PEP 8（2026-11-06）
+
+**状态：已完成并合入主线（R41 前端 TS 迁移 P16/P17、R42 Python PEP 8 P18）。**
+
+- 一期 P16（类型化）：7 个前端文件（vscode 扩展、PlotKit render2d/view3d/app/nsview、netlab desktop-shim/app.js）全部严格类型化，tsc strict 0、AST/行为等价、Python 契约测试全绿。
+- 二期 P17（模块化）：前端转原生 ES Modules；拆纯函数到 `plot2d.utils`/`plot3d.utils`（PlotKit，19 单测）与 `frontend/app.utils`（netlab，5 单测）；保持离线零第三方、`<script type="module">` 加载。
+- R42/P18（Python）：black 规范化 netlab 121 文件 / PlotKit 92 文件，AST 等价 120/120（去 docstring 亦等价），pytest 全绿。
+- 合并：PlotKit feat 含 origin/main，已 fast-forward → main（32587c4）；NetlabHome 在 origin/main 基线重做迁移（commit 2942c6a 前端、8d58e8d black），验证 tsc 0 / pytest 589 passed / GUI probe（WebView2，ESM）has_bridge+autosave 往返 true。
+- 验证基线：`pytest netlab/tests` 589 passed；PlotKit `tsc` 0 / `npm run test:utils` 19 pass / `pytest` 470 passed；GUI 真窗口 probe 正常。
+

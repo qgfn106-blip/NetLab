@@ -2,7 +2,7 @@
 
 > 最后修改：2026-11-06 01:36
 > 用途：**一页回答「现在要做什么、还有什么没做」**。需求与决策的唯一口径仍是
-> [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)（R01–R40 / D1–D99），进度证据在
+> [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)（R01–R42 / D1–D111），进度证据在
 > [PROGRESS.md](PROGRESS.md)。本文只做**汇总与排序**，不重复定义需求。
 > 维护规则：做完一项就把「状态」改掉并写上证据（测试数 / 截图 / 实测数）；口径冲突以需求台账为准。
 
@@ -128,3 +128,10 @@
 | 2026-11-04 | 预计算反馈环首拍修复（§7.58）：延迟边读取空源节点按 0、`pass` 空 dict 不注入；新增首拍回归测试，全量 487 passed，静态 3.16.14 |
 | 2026-11-04 | 控制链路补强与欠阻尼工程（§7.61）：超调按最终值方向、离散 `1/z` 左补零、`reset_state` 初值快照、`output=auto`、非整数时间网格；交付 `MyProject/underdamped_control.netlab`；全量 504 passed，静态 3.16.14 |
 | 2026-11-05 | **复数分析层 spec**：新增 [spec](specs/2026-11-05-complex-analysis-layer.md)，定义 `analysis.frequency_response()` 公共 seam、`complex_support` 小 seam 与 `POST /api/analysis/frequency`；尚未实现 |
+
+
+## 9. 前端 TypeScript 迁移与 Python PEP 8（已完成，2026-11-06）
+
+- R41 前端 JS→TS（P16 类型化 + P17 模块化）与 R42 Python PEP8（P18）**已完成并合入主线**；详见 REQUIREMENTS 附录 F、PROGRESS §7.76。
+- 验证：netlab tsc 0 / pytest 589 passed / GUI probe（WebView2，ESM）正常；PlotKit tsc 0 / 19 单测 / pytest 470 passed。
+

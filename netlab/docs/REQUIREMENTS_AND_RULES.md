@@ -12,8 +12,8 @@
 
 | 你想干什么 | 看哪一节 |
 | --- | --- |
-| 知道"为什么这么定" | §2 决策台账（D1–D99） |
-| 知道"要做什么、做到什么程度算完" | §3 需求清单（R01–R40） |
+| 知道"为什么这么定" | §2 决策台账（D1–D111） |
+| 知道"要做什么、做到什么程度算完" | §3 需求清单（R01–R42） |
 | 知道"先做哪个" | §4 权重与依赖、§5 分期 |
 | 知道"哪些明确不做" | §6 不做清单 |
 | 知道"旧文档哪句话作废了" | §7 已废弃口径 |
@@ -27,7 +27,7 @@
 
 1. 你 2026-10-25 提出的七大块新要求（模块化文件化、前端信息架构、场景重组、快捷键、多网络、连线与符号、时间与循环）全部并入，旧七项需求被**细化或取代**，映射见 §7。
 2. 新增三条你点名的横切要求：**数据依赖与数据保护**、**性能与计时**、**现代控制理论导向（仅呈现层）**。
-3. 所有决策从问答沉淀成决策台账（本版当时为 **D1–D59**，现已到 **D1–D99**），每个决定都能追到当时的取舍。
+3. 所有决策从问答沉淀成决策台账（本版当时为 **D1–D59**，现已到 **D1–D111**），每个决定都能追到当时的取舍。
 4. 计划从旧的 V2-0…V2-7 改为 **P0–P6**，并明确：P0 是地基（数据模型 + 目录 + 菜单 + 交互基础）先做，且含一个**热修**（现网报错）。
 5. 新增 §6「不做清单」——把"以后再说"和"明确不做"分开写清，避免下个窗口又把它们当需求实现。
 
@@ -122,7 +122,7 @@
 | D81 | **修 PlotKit 面板卡顿（2026-11-02，用户原话「继续完成，并且检查解决plotkit卡顿的问题」）** | 根因三条并全修：①中途出现的探针从 0 长度追加，与 `t` 错位 → `render` 抛「x/y 长度不一致」，曲线永久卡死 → `_ensure_channels` 用 `np.full(len(t),nan)` 补齐、`_ingest` 每次 push 前对齐全部序列；②出图线程与 0.5s 同步线程并发读写 → 中间态同样错位 → `store/registry.py` 加 `DATA_LOCK`（RLock），`_ensure_channels/_ingest/_reset` 与 PlotKit `build()` 共用，渲染由此串行化；③出图贵（900×520=72ms、1200×700=149ms、1600×950=191ms、2400×1400=308ms，且持 GIL 把 step 从 122→138~207µs）→ `renderUrl` 面积上限 1400×1000、实时重绘节流 1Hz、轮询 500→1000ms、拖动预览 70→160ms、同步线程 0.2→0.5s；④面板隐藏仍出图 → `plotVisible()`+`document.hidden`+宿主 `postMessage` 三路判可见；⑤面板先于仿真打开永远 0 图层 → `poll` 在空图层时重取 `api/spec`。验收：面板可见 8 次渲染/8s、切走 0 次、浮窗关闭 0 次；netlab 385 passed（+2 条 `test_plotkit_bridge_sync.py`）、PlotKit 436 passed；静态 3.15.5。详见 PROGRESS §7.38。 |
 ---
 
-## 3. 需求清单（R01–R40）
+## 3. 需求清单（R01–R42）
 
 > 权重：⭐1（可延后）… ⭐5（不做完后面全是坑）。期次指向 §5。
 
@@ -1290,3 +1290,42 @@ MOSFET。
 | D97 | 2026-11-05 | **复数分析层采用边界适配，不做全量 `complex` 迁移**：新增 `complex_support.py` 纯函数与 `analysis.frequency_response()` 统一入口；signal 走逐频点复数节点图、延迟精确 `e^{-jωT}`；circuit 复用 `nodal.ac_sweep` 复数 MNA；AC 结果增 `real/imag`，新增 `POST /api/analysis/frequency`；时域/recorder/JSON/PlotKit 保持实数，`vector` 不纳入 | 用户要求把 float 转为复数的实部、只对必要函数/数据复数化，并覆盖电路与信号流；全量复数会破坏兼容性并给瞬态带来无谓开销 | `netlab/core/compute/complex_support.py`、`analysis.py`、`nodal.py`、`server.py`；新增/扩展 `test_complex_support.py`、`test_frequency_response.py`、`test_analysis_api.py`、`test_solver_analysis.py` | 不做全量复数、vector 复数化、Nyquist/阻抗 UI、MIMO 矩阵传函；不替代符号总传函 | 已完成：signal 精确延迟、circuit 复数 MNA、API/测试通过；时域仍实数 | 3 / P14 / 完成 |
 | D98 | 2026-11-05 | **R31 P11-01…P11-07 按 L1 平均模型 → L2 跨域桥 → 开关级趋势验证交付**：新增 `abc_dq`、`pll`、`pi` 三个 compute；`sensor`/`actuator` 元件与 `CircuitEngine` 固定步内顺序（采样拍后、驱动下一拍）；示例工程 `grid_inverter_avg/current/pll_template/grid_inverter_switch.netlab`；`cancel_precompute` 支持 UI 中断 | 用户要求按顺序完成 R31 需求，并保持旧工程/checksum 兼容；L2 桥必须显式一拍延迟以避免代数环 | `computes.py`、`nodal.py`、`scene.py`、`ports.py`、`simulation.py`、`server.py`、`frontend/app.js`、`MyProject/*.netlab`、R31 测试 | 不做真实器件损耗/10 kHz PWM 载波；不承诺开关级绝对 EMT 精度；R25 完整电路级不在本票 | 已完成：581 passed、81.42 s、3.19.0；P11-06 仅趋势验证 | 4 / P11 / 完成 |
 | D99 | 2026-11-06 | **全栈扩展采用“插件包 + `netlab.plugin_api.v1` 稳定门面 + 声明式 UI”，不改变 NodeRecord/EdgeRecord 核心结构**：插件 manifest 声明 id/version/API/能力/依赖；支持 compute/method/element/analysis/data-format/template/panel/engine（新 mode）；工程 v6 增 `plugins` 锁段，v5 自动迁移；缺插件降级打开、节点标未解析；UI 增加简洁画布与视图内设计，`netlab-ui/1` 只允许声明式布局/令牌/字段/枚举样式，不执行任意 HTML/CSS/JS；插件是受信任进程内代码，不做 OS 沙箱 | 用户要求所有架构（UI 接口、数据接口、底层算法）可扩展、方便自定义接入函数，并保持节点/连接结构；补充要求简洁节点/连接 UI 与可在视图内直接调节设计 | `netlab/plugin_api/v1`、`netlab/core/model/plugins.py`、`analysis_plugins.py`、`engine_registry.py`、`ui_profile.py`、`project.py`、`server.py`、`frontend/app.js`、`extensions/plugins/README.md`；文档 ADR/EXTENSIBILITY/GLOSSARY/EXTENDING/ARCHITECTURE/UI_SPEC | 不替换现有 SignalEngine/CircuitEngine；不开放任意前端代码；不自动下载插件/第三方包；不做在线市场 | 已完成：589 passed（83.05 s）、3.20.0；新增插件/工程/UI 目标测试 8 条 | 4 / P15 / 完成 |
+
+---
+
+## 附录 F　R41 / R42 登记（前端 JS→TS 迁移 / Python PEP 8 规范化）
+
+> 本节为 2026-11-06 前端 TypeScript 化与 Python 规范化两条工程的正式登记，编号接续 R40 / D99。
+
+### R41 前端 JavaScript → TypeScript 全局迁移（P16 一期类型化 / P17 二期模块化）
+- 需求：把前端第一方 JS 全量迁到 TypeScript，保持「零构建、零第三方运行时、离线可用」；产物 .js 提交、仍以 `<script>`/ESM 加载，不引入打包器。
+- 范围（一期 P16）：netlab `frontend/app.js`(13,806 行)、`desktop-shim.js`、`vscode-extensions/netlab-sidebar/extension.js`；PlotKit `static/app.js`/`view3d.js`/`render2d.js`/`nsview.js`。排除 `netlab/tools/*.mjs`、`vendor/iro.min.js`。
+- 目标：可维护性、类型安全、钉死 /api 契约、IDE 体验、模块化基建；全程 tsc strict，临时豁免逐条登记、一期收尾清零。
+- 验收：每文件 tsc strict 0 + AST/行为等价（orig/emit 比对）+ 现有 Python 契约测试全绿 + 版号三处一致 + 提交干净。
+- 二期 P17：前端转原生 ES Modules、拆纯函数到 utils 并补 node:test 单测（PlotKit `plot2d.utils`/`plot3d.utils`；netlab `frontend/app.utils`），保持离线零第三方运行时。
+- 不做：打包器、额外运行时依赖、改动插件代码（plugin_api.v1 为纯 Python，前端仅消费 JSON 契约）。
+- 现状：**已完成并合入主线**（P16 七文件类型化 + P17 模块化，见 PROGRESS §7.76）。
+
+### R42 Python 代码 PEP 8 规范化（P18）
+- 需求：前端 TS 全量重构完成后，对 netlab 与 PlotKit 全部 Python 代码按 PEP 8 规范化与优化，**不影响任何功能**。
+- 执行：black（netlab 121 文件 / PlotKit 92 文件），逐文件 AST 等价校验（去 docstring 后亦等价）。
+- 验收：AST 等价、`pytest` 全绿、`node test:utils` 全绿。
+- 不做：任何语义/API 变更。
+- 现状：**已完成**。
+
+### 决策补录 D100–D111（摘要）
+| 决策 | 结论 |
+| --- | --- |
+| D100 | 迁移采用「开发期 tsc 编译 + 产物 .js 提交」，运行时零构建零第三方，不引入打包器 |
+| D101 | 一期只加类型（.js→.ts 1:1、结构不变、行为零变化），模块化留二期 |
+| D102 | 严格度棘轮：tsconfig 直接 strict，少数文件显式临时豁免、一期收尾清零 |
+| D103 | 行为等价以 e2e 基线 + AST 归一化比对为准（不仅 tsc 通过） |
+| D104 | 打样顺序由小到大：vscode 扩展 → PlotKit render2d/view3d/app/nsview → netlab desktop-shim → app.js |
+| D105 | 代码规范：风格以 Google TS 风格指南为准、类型建模以 TS 手册为准；禁 any/@ts-*；ESLint/Prettier 仅 dev |
+| D106 | 大单 IIFE 类型化先 type 共享 state/ui、加泛型 $ 助手，减少隐式 any |
+| D107 | 二期 P17 用原生 ESM + window.* 兼容层，保留 `<script type="module">` 零构建 |
+| D108 | 拆文件把纯函数抽出到 utils 并补 node:test 单测；拆后不再用整文件 AST 等价，改 GUI smoke + pytest + 单测 |
+| D109 | PlotKit 运行时内置副本 `_vendor/plotkit` 只随包 .js（忽略 *.ts），迁移后须 `plotkit_vendor install --force` 同步 |
+| D110 | 合并前以 origin/main 为基线重做前端迁移（feat 与 origin/main 历史分叉，整支 merge 不可行） |
+| D111 | Python 规范化用 black，逐文件 AST 等价（含去 docstring）作为「不影响功能」证据 |
+

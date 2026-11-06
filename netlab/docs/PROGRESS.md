@@ -1,6 +1,6 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-06 05:40
+> 最后修改：2026-11-06 12:15
 
 | 项 | 内容 |
 | --- | --- |
@@ -2104,3 +2104,12 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 **下一步**：一期 P16 已收官——vscode 扩展 `cf9d633`、PlotKit `render2d` `885014b` / `view3d` `394e979` / `app` `08691bd` / `nsview` `795aaad`、netlab `desktop-shim` `4eeed2e` / `app.js` `7a5cdce` 全部完成。PlotKit 运行时内置副本已同步（`python -m netlab.plotkit_vendor install --force`，55 文件，vendor 忽略 `*.ts`、只随包 `.js`），提交 `0f41632`。待办：PlotKit 分支+tag 因代理 127.0.0.1:7897 暂断仍待补推；后续按 R42/P18 做 Python PEP 8 规范化。二期 P17（转 ES Modules、拆文件、补纯函数单测）暂挂。
 
 **后续（TS 全量完成后另立）**：按 R42 / P18 对 netlab + PlotKit 全部 Python 代码做 PEP 8 规范化（纯风格、不影响任何功能）。
+
+---
+
+### §7.76 附：GUI e2e 基线（2026-11-06）
+
+- 工具：`tools/gui_smoke.py`（起 pywebview/WebView2 真窗口跑 `python -m netlab.desktop --probe`）；基线 `netlab/docs/ts-migration/baseline/2026-11-06/gui-probe.json`。
+- 冒烟项：`has_bridge=true`、`has_win_ctl=true`、`has_command=true`、`has_autosave_roundtrip='true'`（JS→Python 往返）、`drag_region=29`；标题「Netlab · 可解释仿真环境」。
+- 测试：`netlab/tests/test_gui_smoke.py`（默认 skip；`NETLAB_GUI_SMOKE=1` 启用，1 passed）。连跑两次与基线一致。
+- 结论：一期 P16 类型化后 GUI 壳与前端仍正常运行、桥接可用。

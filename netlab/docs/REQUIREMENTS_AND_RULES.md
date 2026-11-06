@@ -1,6 +1,6 @@
 # Netlab 需求 · 决策 · 执行计划（2026-10-25 修订版）
 
-> 最后修改：2026-11-06 20:51（R43 M1a/M1b/M1c 完成；P3 真实参数规模族验证；P5 误差合同接入前端设置页；P5.2 真实插值/FIFO 误差界完成）
+> 最后修改：2026-11-06 21:39（P18 Python PEP 8 收尾完成：netlab/PlotKit flake8 清零、配置入两仓库 .flake8；测试 606 passed / 470 passed）
 > 本版**取代** 2026-10-24 版的需求口径。旧条文不删除，凡被推翻或细化的条目一律进 §7「已废弃口径」。
 > 每条需求统一六段式：**原话 / 解读 / 拟改架构 / 验收 / 权重·期次 / 现状**。
 > **现状**一栏只写本次会话内读代码或跑测试能证明的事实；没有证据的一律标「待核实」。
@@ -39,6 +39,7 @@
 4. 计划从旧的 V2-0…V2-7 改为 **P0–P6**，并明确：P0 是地基（数据模型 + 目录 + 菜单 + 交互基础）先做，且含一个**热修**（现网报错）。
 5. 新增 §6「不做清单」——把"以后再说"和"明确不做"分开写清，避免下个窗口又把它们当需求实现。
 6. **2026-11-06 文档整理**：P16/P17 前端迁移与 R40 已完成；新增 **R43（数学成果接入，M1 影子验证）** 与 **D112–D118**，并将 P17 设计文档的 D112–D117 并入附录 C（原 `TS_P17_MODULE_DESIGN.md` 删除）。
+7. **2026-11-06 P18 收尾**：R42 Python PEP 8 完成——netlab 与 PlotKit 均 `flake8` 0（两仓库新增 `.flake8`）、`black` 88 列校验通过、无 API/数值变化；测试 netlab **606 passed / 1 skipped**、PlotKit **470 passed**；提交 netlab `34bd1c5`、PlotKit `7f7f4c4`。
 
 ---
 
@@ -613,7 +614,7 @@
 
 ### R42 Python 代码 PEP 8 规范化与优化（2026-11-06 立项，排在 TS 重构之后）
 
-- **现状**：**已完成（2026-11-06）**：netlab `121` 个 .py、PlotKit `92` 个 .py 经 `black` 做 PEP 8 规范化；AST 等价校验 netlab 121/121、PlotKit 89 + 3 仅 docstring 缩进（examples/basic.py、tools/coverage.py、tools/dev_serve.py，去 docstring 后 AST 亦一致）；`pytest netlab/tests` 589 passed、PlotKit 470 passed、`node test:utils` 19 passed；提交 netlab `3673808`、PlotKit `32587c4`（均已推 `feat/ts-migration`）。
+- **现状**：**已完成（2026-11-06）**：netlab `121` 个 .py、PlotKit `92` 个 .py 经 `black` 做 PEP 8 规范化；AST 等价校验 netlab 121/121、PlotKit 89 + 3 仅 docstring 缩进（examples/basic.py、tools/coverage.py、tools/dev_serve.py，去 docstring 后 AST 亦一致）；`pytest netlab/tests` 589 passed、PlotKit 470 passed、`node test:utils` 19 passed；提交 netlab `3673808`、PlotKit `32587c4`（均已推 `feat/ts-migration`）。**2026-11-06 P18 收尾**：两仓库新增 `.flake8`（max-line-length=88、extend-ignore E203/E501/W503、排除 vendor/缓存）并清零 flake8（netlab 0 / PlotKit 0），补修未使用 import/局部变量、E741 歧义变量、W605 转义；不改语义。最新测试 netlab **606 passed / 1 skipped**、PlotKit **470 passed**。
 
 - **原话**（2026-11-06）：「然后再补上typescript完全重构完后，对已有的所有python代码 按照 PEP 8 -- Style Guide for Python Code 文档规范 对代码尽量进行代码规范化与优化 不要影响任何功能」。
 - **解读**：在 TypeScript 全量重构（P16/P17）完成之后，对 netlab 与 PlotKit 现有的**全部 Python 代码**按 PEP 8 做风格规范化与适度优化；**首要红线是「不影响任何功能」**——纯风格与可读性改进，不改行为、不改公开 API、不改数据格式与数值结果，以现有全量测试全绿为门禁。
@@ -786,8 +787,9 @@ L3 状态空间一等公民、自定义快捷键、分屏、自定义符号、�
 - **范围**：转 ES Modules、拆文件、为拆出的纯函数补单元测试。D112–D117 已并入附录 C（原 `TS_P17_MODULE_DESIGN.md` 已删除，历史版本见 git）；P17.1–P17.4 已完成。
 - **退出条件**：`tsc` 0 / `node --test` 纯函数单测绿 / parity 与 GUI smoke 一致 / pytest 全绿 / vendor 重装后冒烟一致（已完成）。
 
-### P18 Python 代码 PEP 8 规范化（2026-11-06 立项，排在 TS 重构之后）
+### P18 Python 代码 PEP 8 规范化（2026-11-06 立项，2026-11-06 完成）
 
+- **状态**：已完成。`flake8` 门禁清零（netlab 0 / PlotKit 0），配置见两仓库 `.flake8`；netlab **606 passed / 1 skipped**、PlotKit **470 passed**，无 API/数值变化。
 - **范围**：R42。TS 重构（P16/P17）全部完成后，对 netlab + PlotKit 全部 Python 代码做 PEP 8 规范化与无损优化。
 - **退出条件**：`flake8`（PEP 8）0 error（或豁免清零）+ 全量测试全绿 + e2e 基线一致 + 无 API / 功能 / 数值变化。
 - **红线**：不改功能、不改公共接口、不改数据与数值结果；分模块小步提交，纯格式改动独立成 style commit。

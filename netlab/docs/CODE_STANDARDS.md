@@ -65,6 +65,10 @@
 - 格式化命令（在对应仓库根执行，排除第三方/缓存/构建目录）：
   - netlab：`python -m black netlab --exclude '/(_vendor|__pycache__|node_modules|\.tsbuild|build|dist)/'`
   - PlotKit：`python -m black src tests examples tools`
+- flake8 门禁（P18 起）：
+  - netlab：`python -m flake8 netlab`
+  - PlotKit：`python -m flake8 src tests examples tools`
+  - 两仓库根各有 `.flake8`：`max-line-length=88`、`extend-ignore=E203,E501,W503`（与 black 对齐，见下条）、排除 `_vendor`/缓存/构建；E402 仅在确有运行期 `sys.path`/注册依赖的文件按 per-file-ignores 登记。
 - 注意：`black` 会规范化 docstring 缩进（仅改 `__doc__` 显示，不改逻辑）；`black` 与 `pycodestyle` 在个别规则（E203 切片空格、E501 行宽）上默认冲突，以 `black` 为准。
 
 ---

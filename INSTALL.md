@@ -1,5 +1,7 @@
 # 安装与部署
 
+> 最后更新：2026-11-06
+
 Netlab 是一个纯本地 Web 应用：装好 Python 依赖后，`python -m netlab.run` 会在本机起服务，用浏览器打开 `http://127.0.0.1:8010/` 即可。**不需要联网也能运行**，安装阶段才需要网络（或预先准备的 wheels）。
 
 ## 1. 环境要求
@@ -53,7 +55,7 @@ python -m netlab.desktop
 python -m netlab.desktop --selftest     # 期望输出里 "ok": true
 ```
 
-没有安装 PySide6 时可以用下面的方式做最基本的导入检查：
+没有安装桌面依赖（`pywebview`）时可以用下面的方式做最基本的导入检查：
 
 ```bash
 python -c "import netlab, numpy, scipy, fastapi, uvicorn; print(netlab.__version__)"
@@ -123,7 +125,7 @@ python -m PyInstaller --noconfirm --onefile --name netlab ^
 | 浏览器打开是空白/旧界面 | 强制刷新（Ctrl+F5）；静态资源带 `?v=` 版本键，正常刷新即可 |
 | 启动时出现 `gmpy2` 相关警告 | 可选的加速库在部分环境导入失败，不影响运行；可忽略 |
 | `ModuleNotFoundError: netlab` | 请回到仓库根目录（含 `netlab/` 的目录）再执行 `python -m netlab.run` |
-| 桌面窗口版报 PySide6 缺失 | `python -m pip install -r netlab/requirements-desktop.txt` |
+| 桌面窗口版报 `pywebview` 缺失 | `python -m pip install -r netlab/requirements-desktop.txt` |
 | macOS 提示“无法验证开发者” | 系统设置 → 隐私与安全性 → 仍要打开；或用 `python -m netlab.run` 网页版 |
 | 保存工程提示校验和不匹配 | 工程文件被外部程序改过；请用界面「另存为」重建，或恢复备份 |
 

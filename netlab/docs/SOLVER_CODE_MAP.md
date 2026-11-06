@@ -2,7 +2,7 @@
 
 > 生成时间：2026-10-26。行号以当前工作区为准；代码改动后行号会漂，**以函数名 grep 定位为准**。
 > 本文所有代码片段都是原文摘录（不是示意），可直接对照文件阅读。
-> 最后修改：2026-10-28 19:05（目录整理：`.archify` 引用改到 `NetlabExtras/screenshots/archify/`）。
+> 最后修改：2026-11-06（§0 行数表按当前代码校准；正文行号仍为 2026-10-26 快照，以函数名 grep 定位为准）。
 > 2026-10-26 增补：全流程原理图（§0.1，Archify 交互版）、全流程覆盖清单（§1.1）、时间相关计算代表（§4.7）、数学注解合集（§5.4）、时间语义注解（§6.7）。
 
 ---
@@ -11,12 +11,12 @@
 
 | 顺序 | 文件 | 看什么 | 行数 |
 | --- | --- | --- | --- |
-| 1 | `netlab/core/model/graph.py` | `Node` / `Connection` / `Network.step` —— 信号流的求解内核 | 489 |
-| 2 | `netlab/core/model/scene.py` | `NodeRecord` / `EdgeRecord` / `SignalEngine` —— 界面数据与内核的桥 | 1107 |
-| 3 | `netlab/core/compute/computes.py`、`netlab/core/compute/methods.py` | 节点公式 / 连接函数的注册表与 handler | 893 / 667 |
-| 4 | `netlab/core/compute/nodal.py` | 电路 MNA 求解器 `CircuitSolver` 与元件 `stamp` | 1053 |
-| 5 | `netlab/core/compute/simulation.py` | 后台线程、`dt`、帧时间戳、录制器 | 352 |
-| 6 | `netlab/core/compute/fem.py` | 二维热场有限元（与信号/电路无关的另一条求解路径） | 667 |
+| 1 | `netlab/core/model/graph.py` | `Node` / `Connection` / `Network.step` —— 信号流的求解内核 | 1116 |
+| 2 | `netlab/core/model/scene.py` | `NodeRecord` / `EdgeRecord` / `SignalEngine` —— 界面数据与内核的桥 | 2086 |
+| 3 | `netlab/core/compute/computes.py`、`netlab/core/compute/methods.py` | 节点公式 / 连接函数的注册表与 handler | 1550 / 726 |
+| 4 | `netlab/core/compute/nodal.py` | 电路 MNA 求解器 `CircuitSolver` 与元件 `stamp` | 2579 |
+| 5 | `netlab/core/compute/simulation.py` | 后台线程、`dt`、帧时间戳、录制器 | 659 |
+| 6 | `netlab/core/compute/fem.py` | 二维热场有限元（与信号/电路无关的另一条求解路径） | 684 |
 
 ### 0.1 全流程原理图（先看图，再读代码）
 

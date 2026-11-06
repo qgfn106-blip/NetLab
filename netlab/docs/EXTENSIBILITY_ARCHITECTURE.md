@@ -1,5 +1,6 @@
 # Netlab 全栈扩展架构（Plugin API v1）
 
+> 最后更新：2026-11-06
 > 状态：设计规范，已接受（2026-11-06）
 > 决策记录：[adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md)
 > 迁移指南：[EXTENDING.md](EXTENDING.md)（现有内置扩展方式）
@@ -678,10 +679,9 @@ class VisualSpec:
 ### 10.2 操作
 
 - 扫描插件目录；
-- 启用/禁用；
+- 启用/禁用（同一端点，`enabled` 布尔开关）；
 - 重新加载（无活动场景时）；
 - 查看错误详情；
-- 打开插件目录；
 - 查看/复制插件 id 和版本；
 - 不提供在线市场、不自动下载。
 
@@ -692,10 +692,8 @@ class VisualSpec:
 | GET | `/api/plugins` | 插件摘要、状态、能力、依赖 |
 | GET | `/api/plugins/{id}` | 详情、注册项、错误 |
 | POST | `/api/plugins/scan` | 扫描目录 |
-| POST | `/api/plugins/{id}/enable` | 启用 |
-| POST | `/api/plugins/{id}/disable` | 禁用 |
+| POST | `/api/plugins/{id}/enable` | 启用/禁用（请求体 `{"enabled": true\|false}`，禁用=`false`） |
 | POST | `/api/plugins/{id}/reload` | 重载（无活动场景） |
-| POST | `/api/plugins/open-folder` | 打开插件目录（桌面端） |
 
 所有请求沿用现有 `extra="forbid"` 与统一错误体；管理页不执行插件代码以外的任意输入。
 

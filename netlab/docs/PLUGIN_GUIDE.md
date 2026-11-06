@@ -1,5 +1,7 @@
 # Netlab 插件包指南（R40）
 
+> 最后更新：2026-11-06
+
 每个插件一个子目录：`extensions/plugins/<反向域名 id>/`，目录名必须与
 `plugin.json` 的 `id` 完全一致。
 

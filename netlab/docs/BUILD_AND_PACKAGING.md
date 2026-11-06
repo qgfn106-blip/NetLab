@@ -81,6 +81,7 @@ python -m netlab.plotkit_vendor install --src ../PlotKit/src/plotkit --force
   - **排除 `PyQt5/PySide6/PyQt6/PySide2`**（anaconda 同时装多个 Qt 绑定会导致 `multiple Qt bindings` 构建失败）、补 `uvicorn.*` hidden-imports。
 - **产物**：`dist/netlab/netlab.exe`（onedir）。
 - **冒烟（真窗口）**：`dist\netlab\netlab.exe --probe` → exit 0，`has_bridge=true / has_win_ctl=true / has_command=true / has_autosave_roundtrip='true' / drag_region=29 / rss_tree_mb≈712`；即打包后 WebView2 壳、JS↔Python 桥接、前端（含 PlotKit vendor）均正常。
-- **体积**：本次用 anaconda base，`dist/netlab` ≈ **1.63 GB**（含大量无关包如 torch/notebook），**不代表最终体积**；正式出包应在干净 venv（仅装运行依赖 + pyinstaller + pywebview + pythonnet）下构建，预期可压到数百 MB。
+- **体积（已用干净 venv 复验，2026-11-06）**：干净 venv（Python 3.13 + fastapi/uvicorn/numpy/scipy + pywebview 6.2 + pythonnet 3.2 + pyinstaller 6.22）重建后 `dist/netlab` ≈ **166.8 MB**、`netlab.exe` ≈ **13.3 MB**；`dist\netlab\netlab.exe --probe` exit 0（`has_bridge=true / has_autosave_roundtrip='true'`）。对比：anaconda base 构建曾达 ≈1.63 GB（含 torch/notebook 等无关包），故正式出包务必用干净 venv。
+- **干净 venv 构建步骤**：`python -m venv .venv-pack` → `.venv-pack\Scripts\pip install -r netlab\requirements.txt pywebview pythonnet pyinstaller` → `python -m PyInstaller --noconfirm --clean netlab.spec`。
 - **单文件安装器**：`tools/packaging/netlab.iss`（Inno Setup 6）。本机未装 Inno Setup（`iscc` 不在 PATH），故**未产出单 exe 安装器**，属下一步（装 Inno 后 `ISCC netlab.iss`，或试 PyInstaller onefile）。
 - **建议**：PyInstaller onefile 启动需解压、且 pythonnet/WebView2 对路径敏感，**推荐 onedir + Inno** 而非 onefile。

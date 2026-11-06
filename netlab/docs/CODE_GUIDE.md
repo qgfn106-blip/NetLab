@@ -15,7 +15,7 @@ Netlab 是一个“搭网络 → 点运行 → 看波形”的离散仿真台。
 1. **两种仿真语义并存**：`signal`（字典数据沿有向边传播）与 `circuit`（节点电压法 MNA，支持反馈/双向元件），另有 `vector`（二维矢量场）。三者由 `Scene` 统一装配，见 `netlab/core/model/scene.py:158`（SignalEngine）与 `:464`（CircuitEngine）。
 2. **`Scene` 是模型，`Simulation` 是驱动器**：`Simulation` 持后台线程、锁、配置和录制环形缓冲；`NetworkContainer` 管理一个工程里的多条网络，并把属性访问转发给“当前网络”。
 3. **后端只有一个进程内单例 `SERVICE`**：FastAPI 的每个 `/api/*` 端点几乎都是对 `SERVICE` 的一行转调（`netlab/server.py:75`）。
-4. **前端是纯静态资源，无构建步骤**：`frontend/` 直接由 FastAPI 的 `/static` 挂载；前端与后端只通过 HTTP JSON 通信，不 import 任何 Python。
+4. **前端是 TypeScript 源码经 esbuild 构建的静态资源**：`frontend/`（`app.ts`/`app.utils.ts`/`desktop-shim.ts` 等）由 `frontend/package.json` 的 esbuild 脚本编译为 `*.js`，再由 FastAPI 的 `/static` 挂载；前端与后端只通过 HTTP JSON 通信，不 import 任何 Python。
 
 一句话数据流：
 
@@ -31,11 +31,11 @@ frontend/app.js  ──HTTP──▶  netlab/server.py (SERVICE)  ──▶  Sim
 
 ```
 NetlabHome/
-├─ frontend/                 # 纯静态前端（无构建）：index.html / app.js / style.css / desktop-shim.js
+├─ frontend/                 # TypeScript 源 + esbuild 产物：index.html / app.ts(+app.js) / app.utils.ts(+.js) / style.css / desktop-shim.ts(+.js) / package.json / tsconfig.json
 │  ├─ index.html             # 单页骨架：各 tab-pane 容器、脚本入口
-│  ├─ app.js                 # 全部前端逻辑（≈14.6k 行）：画布、面板、轮询、绘图、相图播放
+│  ├─ app.ts / app.js        # 全部前端逻辑源码（app.ts，esbuild 编译为 app.js）：画布、面板、轮询、绘图、相图播放
 │  ├─ style.css              # 全部样式
-│  └─ desktop-shim.js        # 桌面壳（pywebview）注入的 Promise→QWebChannel 风格原生桥适配
+│  └─ desktop-shim.ts/.js    # 桌面壳（pywebview）注入的 Promise→QWebChannel 风格原生桥适配（ts 源 → js 产物）
 │
 ├─ netlab/                   # Python 包（后端 + 测试 + 文档）
 │  ├─ core/                  # 内核层（本次结构整理的目标）
@@ -43,7 +43,7 @@ NetlabHome/
 │  │  ├─ model/              # 连接与网络：Scene、图、功能块、工程文件、模板、工作区
 │  │  └─ common/             # 公共：limits（上限、错误类型、类型转换）
 │  ├─ desktop/               # 桌面壳：当前入口是 pywebview + WebView2（另有遗留 Qt 文件）
-│  ├─ tests/                 # pytest 测试（81 个 test_*.py 文件）
+│  ├─ tests/                 # pytest 测试（82 个 test_*.py 文件）
 │  ├─ docs/                  # 文档（需求/决策/进度/本导读都在这里）
 │  ├─ server.py              # FastAPI 应用与全部 /api 端点（≈2.2k 行）
 │  ├─ run.py                 # 一键启动：uvicorn + 自动开浏览器
@@ -58,7 +58,7 @@ NetlabHome/
 
 | 目录 | 职责 |
 | --- | --- |
-| `frontend/` | 浏览器端全部 UI 与绘图逻辑，静态文件直出，无打包器。 |
+| `frontend/` | 浏览器端全部 UI 与绘图逻辑；TypeScript 源码经 esbuild 构建为静态 js，无第三方运行时框架/打包器。 |
 | `netlab/` | Python 包根：服务入口、启动器、集成桥（shim 已于 D85 清空）。 |
 | `netlab/core/compute/` | 不关心“场景怎么存”的计算内核：MNA 求解、节点/边算法、分析、FEM。 |
 | `netlab/core/model/` | 关心“场景长什么样”的模型层：记录、图、功能块、工程文件、模板、工作区。 |
@@ -159,10 +159,10 @@ NetlabHome/
 
 | 文件 | 行数 | 职责 |
 | --- | ---: | --- |
-| `frontend/app.js` | 14580 | 全部前端逻辑：API 封装、画布、面板渲染、实时轮询、图表绘制、相图播放条、CSV/A-B-C-D 导出、PlotKit 发送、块行为/结构对比、插件管理/视图设计。 |
-| `frontend/index.html` | 634 | 单页骨架：各 `tab-pane` 容器与脚本入口。 |
-| `frontend/style.css` | 2136 | 全部样式（含主题变量）。 |
-| `frontend/desktop-shim.js` | 139 | 桌面模式下把 Promise 风格原生桥映射成 QWebChannel 风格。 |
+| `frontend/app.ts`（源）/ `app.js`（esbuild 产物） | 15104 / 13594 | 全部前端逻辑：API 封装、画布、面板渲染、实时轮询、图表绘制、相图播放条、CSV/A-B-C-D 导出、PlotKit 发送、块行为/结构对比、插件管理/视图设计。 |
+| `frontend/index.html` | 635 | 单页骨架：各 `tab-pane` 容器与脚本入口。 |
+| `frontend/style.css` | 2283 | 全部样式（含主题变量）。 |
+| `frontend/desktop-shim.ts`（源）/ `.js`（产物） | 390 / 308 | 桌面模式下把 Promise 风格原生桥映射成 QWebChannel 风格。 |
 
 ---
 
@@ -314,7 +314,7 @@ NetlabHome/
 
 1. **`core` 不得 import `server` / `desktop`**：对 `netlab/core/**.py` 做正则检索，无任何 `server`/`desktop` 导入（见 §8 证据）。内核必须能脱离 FastAPI/桌面壳单独测试。
 2. **PlotKit 是单向依赖 `netlab → plotkit`**：`netlab/plotkit_bridge.py:265` `from plotkit.server.app import create_app`；反向在 `PlotKit/` 中检索不到 `import netlab`。不要把 Netlab 的类型塞进 PlotKit。
-3. **前端不得直接 import Python**：`frontend/` 是纯静态资源，只通过 `fetch`/XHR 访问 `/api/*`；后端也不“import 前端”，只用 `FileResponse`/`StaticFiles` 提供文件（`server.py:96`、`:342`）。
+3. **前端不得直接 import Python**：`frontend/` 是静态资源（TypeScript 源码经 esbuild 构建），只通过 `fetch`/XHR 访问 `/api/*`；后端也不“import 前端”，只用 `FileResponse`/`StaticFiles` 提供文件（`server.py:96`、`:342`）。
 4. **渲染线程边界**：仿真线程只写 `Recorder`；HTTP 线程只读 `Recorder`；共享状态一律走 `Simulation.lock` / `NetworkContainer.lock`。新增端点不要在无锁情况下直接改 `Scene`。
 
 ---
@@ -393,7 +393,7 @@ NetlabHome/
 | 结论 | 证据（文件:行） |
 | --- | --- |
 | 前端资源在仓库级 `frontend/`，非 `netlab/frontend` | `netlab/server.py:61-73`（`_resolve_frontend_dir` 指向 `parents[1]/"frontend"`）；目录实测只有 `NetlabHome/frontend/` |
-| 前端纯静态、无构建 | `frontend/` 仅 4 个文件；`server.py:96` `app.mount("/static", StaticFiles(...))` |
+| 前端静态资源（TS 经 esbuild 构建） | `frontend/` 含 `app.ts`/`app.utils.ts`/`desktop-shim.ts` 源与 esbuild 产物；`server.py:130` `app.mount("/static", StaticFiles(...))` |
 | `Scene` 类与 `step` | `netlab/core/model/scene.py:767`、`:875` |
 | `Simulation` / `Recorder` / `SimConfig` | `netlab/core/compute/simulation.py:124` / `:63` / `:30` |
 | 一步仿真的落点 | `simulation.py:189` `_advance_locked`；录制 `:222` 附近 `recorder.push` |

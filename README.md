@@ -1,5 +1,7 @@
 # RHINE LAB · NETLAB
 
+> 最后更新：2026-11-06
+
 > **节点拓扑、非线性动态、二维矢量、二维有限元场与并网逆变器控制，放在同一个可操作的本地仿真台。**
 > 纯本地运行：一个 Python 进程 + 一个浏览器页面，不依赖任何云服务或外网资源。
 
@@ -72,9 +74,10 @@ python -m netlab.desktop
 
 ```
 .
-├─ frontend/              前端（原生 JS / CSS / HTML，无构建步骤）
+├─ frontend/              前端（HTML/CSS/JS；源码 TypeScript，经 esbuild 构建）
 │  ├─ index.html
 │  ├─ style.css
+│  ├─ app.ts / app.utils.ts  前端 TypeScript 源码（esbuild → app.js）
 │  ├─ app.js
 │  └─ desktop-shim.js     桌面壳注入（无边框窗控）
 ├─ netlab/                后端包（服务端 + 计算内核 + 模型 + 插件 API）

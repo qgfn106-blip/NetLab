@@ -3,6 +3,8 @@
 > 本文说明 netlab 各计算内核**实际在解什么方程**。所有公式均与仓库代码逐行核对，
 > 每个公式后标注实现位置（`文件:行 函数名`）。若代码与本文冲突，以代码为准。
 > 面向读者：想搞清楚"这一步到底在解哪个方程"的工程师。
+>
+> 最后更新：2026-11-06
 
 本文只描述 `netlab/core/` 下的计算核心：
 
@@ -321,29 +323,27 @@ $$
 
 ## 5. 直流工作点与 AC 小信号
 
-### 5.1 operating_point（nodal.py:2086）
+### 5.1 operating_point（nodal.py:2223）
 
 `operating_point()` 求 $\mathbf{x}$ 使 $\mathbf{A}_{\text{dc}}\mathbf{x}=\mathbf{z}_{\text{dc}}$：
 
 1. 事务性 checkpoint；
 2. `time=0`，独立源取波形在 $t=0$ 的值（`waveform_value(params, 0)`）；
 3. 初值取**零向量**（不是上一步解）；
-4. `_newton_with_strategies(1e-9, guess, mode="dc")`（nodal.py:2100）；
+4. `_newton_with_strategies(1e-9, guess, mode="dc")`（nodal.py:2237）；
 5. 失败抛 `ComputeError`；成功则以 `dc` 模式 commit 各元件、导出节点电压。
 
 DC 下：电容**开路**（不盖章），电感**短路**（$g=10^5$），非线性器件按工作点线性化。
 
-### 5.2 ac_sweep（nodal.py:2152）
+### 5.2 ac_sweep（nodal.py:2289）
 
 在 DC 工作点处线性化，对每个频率 $\omega$ 组**复数** MNA（`mode="ac"`）：
 
 $$
-\text{电容}\to j\omega C,\qquad \text{电感}\to \frac{1}{j\omega L}\ (\omega=0\ \text{时取}\ 10^5).
+\text{电容}\to j\omega C,\qquad \text{电感}\to \frac{1}{j\omega L}\qquad(\omega=2\pi f>0).
 $$
 
-独立源取单位激励，解复数线性系统得小信号响应。**非线性器件只在工作点取一阶电导**
-（不再迭代），这正是 §5 标题下"为何不支持非线性器件的 AC 分析"的根源：AC 只在其工作点附近线性近似，
-若离开工作点则误差不可控，故仅把工作点电导当作常数使用。
+独立源取单位激励，解复数线性系统得小信号响应。**AC 只支持线性元件与受控源（`AC_KINDS`：电阻/电容/电感/独立源/VCVS/VCCS/开关，`nodal.py:2210-2221`）；含二极管、晶体管、数字器件等非线性元件时，`ac_sweep` 直接抛 `ComputeError`（"AC 分析暂不支持元件…"，`nodal.py:2307-2313`），不做工作点线性化。** AC 频率必须为正的有限数（`nodal.py:2305-2306`）。
 
 ---
 
@@ -789,7 +789,7 @@ R39 的 `analysis.frequency_response()` 对 signal 走 13.1，对 circuit 转调
 
 ### 14.2 预计算 20 万步硬拒绝
 
-`Simulation.precompute()`（`core/compute/simulation.py:288-290`）在**任何** `scene.reset()` / `recorder.clear()`
+`Simulation.precompute()`（`core/compute/simulation.py:314`，步数校验在 `332-335`）在**任何** `scene.reset()` / `recorder.clear()`
 之前完成校验；若
 
 $$
@@ -827,8 +827,8 @@ $$
 | Newton | `nodal.py:1703 _newton_with_strategies`、`nodal.py:1825 _newton_solve` |
 | 后向误差 | `nodal.py:1809 _residual_metric`、`nodal.py:1754 _tolerance` |
 | 稀疏/均衡求解 | `nodal.py:1918 _solve_matrix` |
-| 工作点 | `nodal.py:2086 operating_point` |
-| AC 扫描 | `nodal.py:2152 ac_sweep` |
+| 工作点 | `nodal.py:2223 operating_point` |
+| AC 扫描 | `nodal.py:2289 ac_sweep` |
 | 状态空间离散化 | `linalg.py:125 cont2discrete`、`statespace.py:134 discretized` |
 | FEM 形函数/单元阵 | `fem.py:77 _shape`、`fem.py:160 _element_matrices` |
 | FEM 装配/推进 | `fem.py:210 _assemble`、`fem.py:234 _build_factorization`、`fem.py:309 step` |
@@ -838,6 +838,6 @@ $$
 | 计数器/DAC/ADC/移位 | `digital.py:11/76/188/125` |
 | 555/LDO | `timers.py:11 Astable555`、`timers.py:62 LDO` |
 | 变压器/耦合电感 | `magnetics.py:39/138` |
-| 规模上限 | `limits.py`（常量见 §11.1） |
-| 预计算硬拒绝 | `simulation.py:288` |
+| 规模上限 | `limits.py`（常量见 §14.1） |
+| 预计算硬拒绝 | `simulation.py:314` |
 | 参数校验 | `params.py:31 ParamSpec`、`params.py:49 coerce` |

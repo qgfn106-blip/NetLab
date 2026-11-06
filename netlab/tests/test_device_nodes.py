@@ -295,7 +295,7 @@ def test_all_circuit_kinds_accept_device_nodes(element):
     from netlab.core.model.ports import pins_for_device
 
     scene = Scene("circuit")
-    gnd = node(scene, "gnd", "ground")
+    node(scene, "gnd", "ground")
     nets = [node(scene, f"n{i}") for i in range(8)]
     dev = device(scene, "D1", element)
     for index, pin in enumerate(pins_for_device(element)):
@@ -441,7 +441,7 @@ def test_pure_wire_merges_net_nodes():
 
 def test_pure_wire_rejects_pins_and_device_device():
     scene = Scene("circuit")
-    gnd = node(scene, "gnd", "ground")
+    node(scene, "gnd", "ground")
     a = node(scene, "a")
     b = node(scene, "b")
     with pytest.raises(ValidationError):

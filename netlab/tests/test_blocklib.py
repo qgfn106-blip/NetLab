@@ -190,7 +190,7 @@ def test_blocks_api_scan_import_and_detail(client, tmp_path):
     listed_user = [item for item in listed.json()["blocks"] if not item.get("builtin")]
     assert listed_user[0]["id"] == "aaaaaaaaaaaa"
 
-    detail = client.get(f"/api/blocks/aaaaaaaaaaaa", params={"library": str(library)})
+    detail = client.get("/api/blocks/aaaaaaaaaaaa", params={"library": str(library)})
     assert detail.status_code == 200, detail.text
     assert detail.json()["block"]["model"] == "structural"
     assert [item["version"] for item in detail.json()["versions"]] == [1]

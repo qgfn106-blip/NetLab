@@ -11,8 +11,8 @@ from netlab.core.compute.circuit_modules import (
     instantiate_circuit_block,
     module_net_map,
 )
-from netlab.core.common.limits import ComputeError, ValidationError
-from netlab.core.model.scene import CircuitEngine, Scene
+from netlab.core.common.limits import ValidationError
+from netlab.core.model.scene import Scene
 
 
 def node(scene, name, kind="node", **params):

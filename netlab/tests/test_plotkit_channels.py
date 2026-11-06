@@ -65,8 +65,7 @@ def test_precompute_runs_and_records_frames():
 
 def test_precompute_rejects_absurd_duration():
     c = _client()
-    resp = c.post("/api/plotkit/precompute", json={"seconds": 0})
-    data = resp.json()
+    c.post("/api/plotkit/precompute", json={"seconds": 0})
     # seconds<=0 会被兜底成 5s 并正常执行；真正超限（>120s）应报错而不是崩溃
     resp2 = c.post("/api/plotkit/precompute", json={"seconds": 999})
     assert resp2.status_code == 200

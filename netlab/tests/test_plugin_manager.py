@@ -12,7 +12,9 @@ from netlab.core.model.plugins import PluginManager, version_satisfies
 from netlab.core.common.limits import ValidationError
 
 
-def _write_plugin(root: Path, plugin_id: str = "com.example.demo", *, version: str = "1.0.0") -> None:
+def _write_plugin(
+    root: Path, plugin_id: str = "com.example.demo", *, version: str = "1.0.0"
+) -> None:
     directory = root / plugin_id
     directory.mkdir(parents=True)
     manifest = {

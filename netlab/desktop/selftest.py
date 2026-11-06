@@ -36,9 +36,7 @@ def backend_selftest() -> dict:
                     and bool(project.get("checksum")),
                 }
             )
-            imported = client.post(
-                "/api/project/import", json={"project": project}
-            )
+            imported = client.post("/api/project/import", json={"project": project})
             checks.append(
                 {
                     "name": "project_import",

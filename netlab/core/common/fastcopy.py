@@ -10,6 +10,7 @@
 
 语义与 ``copy.deepcopy`` 一致：返回的对象不会被后续原地修改污染。
 """
+
 from __future__ import annotations
 
 import copy

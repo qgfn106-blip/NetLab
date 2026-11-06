@@ -15,14 +15,38 @@ ELEMENT_PINS: dict[str, tuple[dict[str, Any], ...]] = {
     "vcvs": (
         {"name": "OUT+", "role": "output", "bind": "source", "dx": 0.0, "dy": 0.0},
         {"name": "OUT-", "role": "output", "bind": "target", "dx": 0.0, "dy": 0.0},
-        {"name": "IN+", "role": "input", "bind": "control_source", "dx": 0.0, "dy": 0.0},
-        {"name": "IN-", "role": "input", "bind": "control_target", "dx": 0.0, "dy": 0.0},
+        {
+            "name": "IN+",
+            "role": "input",
+            "bind": "control_source",
+            "dx": 0.0,
+            "dy": 0.0,
+        },
+        {
+            "name": "IN-",
+            "role": "input",
+            "bind": "control_target",
+            "dx": 0.0,
+            "dy": 0.0,
+        },
     ),
     "vccs": (
         {"name": "OUT+", "role": "output", "bind": "source", "dx": 0.0, "dy": 0.0},
         {"name": "OUT-", "role": "output", "bind": "target", "dx": 0.0, "dy": 0.0},
-        {"name": "IN+", "role": "input", "bind": "control_source", "dx": 0.0, "dy": 0.0},
-        {"name": "IN-", "role": "input", "bind": "control_target", "dx": 0.0, "dy": 0.0},
+        {
+            "name": "IN+",
+            "role": "input",
+            "bind": "control_source",
+            "dx": 0.0,
+            "dy": 0.0,
+        },
+        {
+            "name": "IN-",
+            "role": "input",
+            "bind": "control_target",
+            "dx": 0.0,
+            "dy": 0.0,
+        },
     ),
     "opamp": (
         {"name": "IN+", "role": "input", "bind": "vp", "dx": 0.0, "dy": 0.0},
@@ -47,111 +71,147 @@ ELEMENT_PINS: dict[str, tuple[dict[str, Any], ...]] = {
 }
 
 
-ELEMENT_PINS.update({
-    "npn": (
-        {"name": "C", "role": "output", "bind": "source", "dx": 0.0, "dy": 0.0},
-        {"name": "B", "role": "input", "bind": "base_node", "dx": 0.0, "dy": 0.0},
-        {"name": "E", "role": "output", "bind": "target", "dx": 0.0, "dy": 0.0},
-    ),
-    "pnp": (
-        {"name": "C", "role": "output", "bind": "source", "dx": 0.0, "dy": 0.0},
-        {"name": "B", "role": "input", "bind": "base_node", "dx": 0.0, "dy": 0.0},
-        {"name": "E", "role": "output", "bind": "target", "dx": 0.0, "dy": 0.0},
-    ),
-    "nmos": (
-        {"name": "D", "role": "output", "bind": "source", "dx": 0.0, "dy": 0.0},
-        {"name": "G", "role": "input", "bind": "gate_node", "dx": 0.0, "dy": 0.0},
-        {"name": "S", "role": "output", "bind": "target", "dx": 0.0, "dy": 0.0},
-    ),
-    "pmos": (
-        {"name": "D", "role": "output", "bind": "source", "dx": 0.0, "dy": 0.0},
-        {"name": "G", "role": "input", "bind": "gate_node", "dx": 0.0, "dy": 0.0},
-        {"name": "S", "role": "output", "bind": "target", "dx": 0.0, "dy": 0.0},
-    ),
-})
+ELEMENT_PINS.update(
+    {
+        "npn": (
+            {"name": "C", "role": "output", "bind": "source", "dx": 0.0, "dy": 0.0},
+            {"name": "B", "role": "input", "bind": "base_node", "dx": 0.0, "dy": 0.0},
+            {"name": "E", "role": "output", "bind": "target", "dx": 0.0, "dy": 0.0},
+        ),
+        "pnp": (
+            {"name": "C", "role": "output", "bind": "source", "dx": 0.0, "dy": 0.0},
+            {"name": "B", "role": "input", "bind": "base_node", "dx": 0.0, "dy": 0.0},
+            {"name": "E", "role": "output", "bind": "target", "dx": 0.0, "dy": 0.0},
+        ),
+        "nmos": (
+            {"name": "D", "role": "output", "bind": "source", "dx": 0.0, "dy": 0.0},
+            {"name": "G", "role": "input", "bind": "gate_node", "dx": 0.0, "dy": 0.0},
+            {"name": "S", "role": "output", "bind": "target", "dx": 0.0, "dy": 0.0},
+        ),
+        "pmos": (
+            {"name": "D", "role": "output", "bind": "source", "dx": 0.0, "dy": 0.0},
+            {"name": "G", "role": "input", "bind": "gate_node", "dx": 0.0, "dy": 0.0},
+            {"name": "S", "role": "output", "bind": "target", "dx": 0.0, "dy": 0.0},
+        ),
+    }
+)
 
 
-ELEMENT_PINS.update({
-    kind: (
-        {"name": "A", "role": "input", "bind": "in_a", "dx": -18, "dy": -8},
-        {"name": "B", "role": "input", "bind": "in_b", "dx": -18, "dy": 8},
-        {"name": "VDD", "role": "power", "bind": "vdd_node", "dx": 0, "dy": -18},
-        {"name": "Y", "role": "output", "bind": "source", "dx": 20, "dy": 0},
-    )
-    for kind in ("and_gate", "or_gate", "not_gate", "xor_gate")
-})
+ELEMENT_PINS.update(
+    {
+        kind: (
+            {"name": "A", "role": "input", "bind": "in_a", "dx": -18, "dy": -8},
+            {"name": "B", "role": "input", "bind": "in_b", "dx": -18, "dy": 8},
+            {"name": "VDD", "role": "power", "bind": "vdd_node", "dx": 0, "dy": -18},
+            {"name": "Y", "role": "output", "bind": "source", "dx": 20, "dy": 0},
+        )
+        for kind in ("and_gate", "or_gate", "not_gate", "xor_gate")
+    }
+)
 
 
-ELEMENT_PINS.update({
-    "ne555": (
-        {"name": "OUT", "role": "output", "bind": "source", "dx": 18, "dy": 0},
-        {"name": "GND", "role": "power", "bind": "target", "dx": -18, "dy": 8},
-        {"name": "VCC", "role": "power", "bind": "vcc_node", "dx": -18, "dy": -8},
-    ),
-    "ldo": (
-        {"name": "IN", "role": "input", "bind": "vin_node", "dx": -18, "dy": 0},
-        {"name": "OUT", "role": "output", "bind": "source", "dx": 18, "dy": 0},
-        {"name": "GND", "role": "power", "bind": "target", "dx": 0, "dy": 18},
-    ),
-})
+ELEMENT_PINS.update(
+    {
+        "ne555": (
+            {"name": "OUT", "role": "output", "bind": "source", "dx": 18, "dy": 0},
+            {"name": "GND", "role": "power", "bind": "target", "dx": -18, "dy": 8},
+            {"name": "VCC", "role": "power", "bind": "vcc_node", "dx": -18, "dy": -8},
+        ),
+        "ldo": (
+            {"name": "IN", "role": "input", "bind": "vin_node", "dx": -18, "dy": 0},
+            {"name": "OUT", "role": "output", "bind": "source", "dx": 18, "dy": 0},
+            {"name": "GND", "role": "power", "bind": "target", "dx": 0, "dy": 18},
+        ),
+    }
+)
 
 
-ELEMENT_PINS.update({
-    "counter4": (
-        {"name": "CLK", "role": "input", "bind": "clk_node", "dx": -18, "dy": -6},
-        {"name": "RST", "role": "input", "bind": "rst_node", "dx": -18, "dy": 6},
-        {"name": "Q0", "role": "output", "bind": "q0_node", "dx": 18, "dy": -12},
-        {"name": "Q1", "role": "output", "bind": "q1_node", "dx": 18, "dy": -4},
-        {"name": "Q2", "role": "output", "bind": "q2_node", "dx": 18, "dy": 4},
-        {"name": "Q3", "role": "output", "bind": "q3_node", "dx": 18, "dy": 12},
-    ),
-    "dac4": (
-        {"name": "B0", "role": "input", "bind": "b0_node", "dx": -18, "dy": -12},
-        {"name": "B1", "role": "input", "bind": "b1_node", "dx": -18, "dy": -4},
-        {"name": "B2", "role": "input", "bind": "b2_node", "dx": -18, "dy": 4},
-        {"name": "B3", "role": "input", "bind": "b3_node", "dx": -18, "dy": 12},
-        {"name": "OUT", "role": "output", "bind": "source", "dx": 20, "dy": 0},
-        {"name": "GND", "role": "power", "bind": "target", "dx": 0, "dy": 18},
-    ),
-})
+ELEMENT_PINS.update(
+    {
+        "counter4": (
+            {"name": "CLK", "role": "input", "bind": "clk_node", "dx": -18, "dy": -6},
+            {"name": "RST", "role": "input", "bind": "rst_node", "dx": -18, "dy": 6},
+            {"name": "Q0", "role": "output", "bind": "q0_node", "dx": 18, "dy": -12},
+            {"name": "Q1", "role": "output", "bind": "q1_node", "dx": 18, "dy": -4},
+            {"name": "Q2", "role": "output", "bind": "q2_node", "dx": 18, "dy": 4},
+            {"name": "Q3", "role": "output", "bind": "q3_node", "dx": 18, "dy": 12},
+        ),
+        "dac4": (
+            {"name": "B0", "role": "input", "bind": "b0_node", "dx": -18, "dy": -12},
+            {"name": "B1", "role": "input", "bind": "b1_node", "dx": -18, "dy": -4},
+            {"name": "B2", "role": "input", "bind": "b2_node", "dx": -18, "dy": 4},
+            {"name": "B3", "role": "input", "bind": "b3_node", "dx": -18, "dy": 12},
+            {"name": "OUT", "role": "output", "bind": "source", "dx": 20, "dy": 0},
+            {"name": "GND", "role": "power", "bind": "target", "dx": 0, "dy": 18},
+        ),
+    }
+)
 
 
-ELEMENT_PINS.update({
-    "shift4": (
-        {"name": "D", "role": "input", "bind": "d_node", "dx": -18, "dy": -6},
-        {"name": "CLK", "role": "input", "bind": "clk_node", "dx": -18, "dy": 6},
-        {"name": "RST", "role": "input", "bind": "rst_node", "dx": -18, "dy": 14},
-        {"name": "Q0", "role": "output", "bind": "q0_node", "dx": 18, "dy": -12},
-        {"name": "Q1", "role": "output", "bind": "q1_node", "dx": 18, "dy": -4},
-        {"name": "Q2", "role": "output", "bind": "q2_node", "dx": 18, "dy": 4},
-        {"name": "Q3", "role": "output", "bind": "q3_node", "dx": 18, "dy": 12},
-    ),
-})
+ELEMENT_PINS.update(
+    {
+        "shift4": (
+            {"name": "D", "role": "input", "bind": "d_node", "dx": -18, "dy": -6},
+            {"name": "CLK", "role": "input", "bind": "clk_node", "dx": -18, "dy": 6},
+            {"name": "RST", "role": "input", "bind": "rst_node", "dx": -18, "dy": 14},
+            {"name": "Q0", "role": "output", "bind": "q0_node", "dx": 18, "dy": -12},
+            {"name": "Q1", "role": "output", "bind": "q1_node", "dx": 18, "dy": -4},
+            {"name": "Q2", "role": "output", "bind": "q2_node", "dx": 18, "dy": 4},
+            {"name": "Q3", "role": "output", "bind": "q3_node", "dx": 18, "dy": 12},
+        ),
+    }
+)
 
 
-ELEMENT_PINS.update({
-    "transformer": (
-        {"name": "P1", "role": "input", "bind": "source", "dx": -18, "dy": -6},
-        {"name": "P2", "role": "input", "bind": "target", "dx": -18, "dy": 6},
-        {"name": "S1", "role": "output", "bind": "secondary_source", "dx": 18, "dy": -6},
-        {"name": "S2", "role": "output", "bind": "secondary_target", "dx": 18, "dy": 6},
-    ),
-    "coupling_inductor": (
-        {"name": "P1", "role": "input", "bind": "source", "dx": -18, "dy": -6},
-        {"name": "P2", "role": "input", "bind": "target", "dx": -18, "dy": 6},
-        {"name": "S1", "role": "output", "bind": "secondary_source", "dx": 18, "dy": -6},
-        {"name": "S2", "role": "output", "bind": "secondary_target", "dx": 18, "dy": 6},
-    ),
-    "adc4": (
-        {"name": "VIN", "role": "input", "bind": "vin_node", "dx": -18, "dy": -8},
-        {"name": "CLK", "role": "input", "bind": "clk_node", "dx": -18, "dy": 8},
-        {"name": "Q0", "role": "output", "bind": "source", "dx": 18, "dy": -12},
-        {"name": "Q1", "role": "output", "bind": "q1_node", "dx": 18, "dy": -4},
-        {"name": "Q2", "role": "output", "bind": "q2_node", "dx": 18, "dy": 4},
-        {"name": "Q3", "role": "output", "bind": "q3_node", "dx": 18, "dy": 12},
-        {"name": "COM", "role": "power", "bind": "target", "dx": 0, "dy": 18},
-    ),
-})
+ELEMENT_PINS.update(
+    {
+        "transformer": (
+            {"name": "P1", "role": "input", "bind": "source", "dx": -18, "dy": -6},
+            {"name": "P2", "role": "input", "bind": "target", "dx": -18, "dy": 6},
+            {
+                "name": "S1",
+                "role": "output",
+                "bind": "secondary_source",
+                "dx": 18,
+                "dy": -6,
+            },
+            {
+                "name": "S2",
+                "role": "output",
+                "bind": "secondary_target",
+                "dx": 18,
+                "dy": 6,
+            },
+        ),
+        "coupling_inductor": (
+            {"name": "P1", "role": "input", "bind": "source", "dx": -18, "dy": -6},
+            {"name": "P2", "role": "input", "bind": "target", "dx": -18, "dy": 6},
+            {
+                "name": "S1",
+                "role": "output",
+                "bind": "secondary_source",
+                "dx": 18,
+                "dy": -6,
+            },
+            {
+                "name": "S2",
+                "role": "output",
+                "bind": "secondary_target",
+                "dx": 18,
+                "dy": 6,
+            },
+        ),
+        "adc4": (
+            {"name": "VIN", "role": "input", "bind": "vin_node", "dx": -18, "dy": -8},
+            {"name": "CLK", "role": "input", "bind": "clk_node", "dx": -18, "dy": 8},
+            {"name": "Q0", "role": "output", "bind": "source", "dx": 18, "dy": -12},
+            {"name": "Q1", "role": "output", "bind": "q1_node", "dx": 18, "dy": -4},
+            {"name": "Q2", "role": "output", "bind": "q2_node", "dx": 18, "dy": 4},
+            {"name": "Q3", "role": "output", "bind": "q3_node", "dx": 18, "dy": 12},
+            {"name": "COM", "role": "power", "bind": "target", "dx": 0, "dy": 18},
+        ),
+    }
+)
 
 
 def pins_for(kind: str) -> tuple[dict[str, Any], ...]:
@@ -177,7 +237,9 @@ def apply_pin_bindings(edge_payload: dict[str, Any]) -> dict[str, Any]:
     for name, node_id in pins.items():
         pin = table.get(str(name))
         if pin is None:
-            raise ValidationError(f"元件 {kind!r} 没有引脚 {name!r}；可用：{', '.join(table)}")
+            raise ValidationError(
+                f"元件 {kind!r} 没有引脚 {name!r}；可用：{', '.join(table)}"
+            )
         if not isinstance(node_id, str) or not node_id:
             raise ValidationError(f"引脚 {name!r} 的节点 id 不合法")
         bind = str(pin["bind"])
@@ -278,7 +340,13 @@ def auto_layout(scene: Any) -> dict[str, Any]:
             "y": round((source["y"] + target["y"]) / 2 / GRID) * GRID,
             "rot": rot,
         }
-    return {"ok": True, "nodes": nodes, "edges": edges, "grid": GRID, "rot_step": ROT_STEP}
+    return {
+        "ok": True,
+        "nodes": nodes,
+        "edges": edges,
+        "grid": GRID,
+        "rot_step": ROT_STEP,
+    }
 
 
 def apply_layout(scene: Any, layout: dict[str, Any]) -> dict[str, Any]:
@@ -299,7 +367,10 @@ def apply_layout(scene: Any, layout: dict[str, Any]) -> dict[str, Any]:
                 "rot": int(layout_item["rot"]),
             }
     scene._touch()
-    return {"nodes": len(layout.get("nodes") or {}), "edges": len(layout.get("edges") or {})}
+    return {
+        "nodes": len(layout.get("nodes") or {}),
+        "edges": len(layout.get("edges") or {}),
+    }
 
 
 def validate_schematic(scene: Any) -> dict[str, Any]:
@@ -370,4 +441,12 @@ def fill_missing_layout(scene: Any) -> int:
         scene._touch()
     return filled
 
-__all__ = ["auto_layout", "apply_layout", "validate_schematic", "pins_for", "apply_pin_bindings", "fill_missing_layout"]
+
+__all__ = [
+    "auto_layout",
+    "apply_layout",
+    "validate_schematic",
+    "pins_for",
+    "apply_pin_bindings",
+    "fill_missing_layout",
+]

@@ -12,12 +12,19 @@ def node(scene, name, kind="node"):
 
 
 def dc(scene, name, a, b, value):
-    return scene.add_edge(name=name, source=a.id, target=b.id, kind="vsource",
-                          params={"wave": "dc", "offset": value, "amplitude": 0.0})
+    return scene.add_edge(
+        name=name,
+        source=a.id,
+        target=b.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": value, "amplitude": 0.0},
+    )
 
 
 def resistor(scene, name, a, b, value):
-    return scene.add_edge(name=name, source=a.id, target=b.id, kind="resistor", params={"R": value})
+    return scene.add_edge(
+        name=name, source=a.id, target=b.id, kind="resistor", params={"R": value}
+    )
 
 
 def voltage(scene, name):
@@ -36,8 +43,19 @@ def npn_switch(base_voltage: float) -> Scene:
     dc(scene, "VB", base_src, gnd, base_voltage)
     resistor(scene, "RB", base_src, base, 10000.0)
     resistor(scene, "RC", vcc, coll, 1000.0)
-    scene.add_edge(name="Q1", source=coll.id, target=gnd.id, kind="npn",
-                   params={"Is": 1e-14, "n": 1.0, "temperature": 300.0, "beta": 100.0, "base_node": base.id})
+    scene.add_edge(
+        name="Q1",
+        source=coll.id,
+        target=gnd.id,
+        kind="npn",
+        params={
+            "Is": 1e-14,
+            "n": 1.0,
+            "temperature": 300.0,
+            "beta": 100.0,
+            "base_node": base.id,
+        },
+    )
     return scene
 
 
@@ -65,8 +83,19 @@ def test_pnp_switch_on_and_off():
         dc(scene, "VB", base_src, gnd, base_voltage)
         resistor(scene, "RB", base_src, base, 10000.0)
         resistor(scene, "RC", coll, gnd, 1000.0)
-        scene.add_edge(name="Q1", source=coll.id, target=vcc.id, kind="pnp",
-                       params={"Is": 1e-14, "n": 1.0, "temperature": 300.0, "beta": 100.0, "base_node": base.id})
+        scene.add_edge(
+            name="Q1",
+            source=coll.id,
+            target=vcc.id,
+            kind="pnp",
+            params={
+                "Is": 1e-14,
+                "n": 1.0,
+                "temperature": 300.0,
+                "beta": 100.0,
+                "base_node": base.id,
+            },
+        )
         return scene
 
     on = build(0.0)
@@ -90,8 +119,13 @@ def test_nmos_switch():
         dc(scene, "VCC", vcc, gnd, 5.0)
         dc(scene, "VG", gate, gnd, gate_voltage)
         resistor(scene, "RD", vcc, drain, 1000.0)
-        scene.add_edge(name="M1", source=drain.id, target=gnd.id, kind="nmos",
-                       params={"k": 0.001, "Vth": 2.0, "gate_node": gate.id})
+        scene.add_edge(
+            name="M1",
+            source=drain.id,
+            target=gnd.id,
+            kind="nmos",
+            params={"k": 0.001, "Vth": 2.0, "gate_node": gate.id},
+        )
         return scene
 
     on = build(5.0)

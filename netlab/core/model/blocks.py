@@ -234,7 +234,9 @@ class BlockDef:
         )
 
 
-def derive_ports(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> list[PortDef]:
+def derive_ports(
+    nodes: list[dict[str, Any]], edges: list[dict[str, Any]]
+) -> list[PortDef]:
     """从内部接口节点推导端口（封装时使用）。"""
     del edges
     ports: list[PortDef] = []
@@ -299,11 +301,7 @@ class BlockStore:
         return block
 
     def export_user(self) -> list[dict[str, Any]]:
-        return [
-            block.to_payload()
-            for block in self.defs.values()
-            if not block.builtin
-        ]
+        return [block.to_payload() for block in self.defs.values() if not block.builtin]
 
     def all_summaries(self) -> list[dict[str, Any]]:
         return [block.summary() for block in self.defs.values()]
@@ -356,9 +354,7 @@ class BlockRuntime:
         internal_sim: bool = False,
     ) -> None:
         if depth > MAX_BLOCK_DEPTH:
-            raise ComputeError(
-                f"功能块嵌套超过 {MAX_BLOCK_DEPTH} 层，请检查模块引用"
-            )
+            raise ComputeError(f"功能块嵌套超过 {MAX_BLOCK_DEPTH} 层，请检查模块引用")
         self.block = block
         self.store = store
         self.depth = depth
@@ -416,15 +412,16 @@ class BlockRuntime:
         ]
         if missing:
             raise ValidationError(
-                "功能块端口没有对应的内部接口节点："
-                + "、".join(sorted(set(missing)))
+                "功能块端口没有对应的内部接口节点：" + "、".join(sorted(set(missing)))
             )
 
     @property
     def scene(self) -> "Scene":
         return self._scene
 
-    def step(self, dt: float, inputs: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    def step(
+        self, dt: float, inputs: dict[str, dict[str, Any]]
+    ) -> dict[str, dict[str, Any]]:
         """推进内部网络一拍；返回 ``{端口名: {字段: 值}}``。
 
         每个端口单独返回，避免不同端口同名字段互相覆盖。所有跨实例数据
@@ -438,7 +435,9 @@ class BlockRuntime:
         inner = self._scene
         # 1) 把父场景输入端口的数据注入内部接口节点（副本，避免跨实例共享）。
         #    未接线的输入按端口默认值补 0：实例刚拖入画布时不应让整网计算失败。
-        defaults = {port.name: port for port in self.block.ports if port.direction == "input"}
+        defaults = {
+            port.name: port for port in self.block.ports if port.direction == "input"
+        }
         for port_name, node_name in self._input_nodes.items():
             record = next(
                 (item for item in inner.nodes.values() if item.name == node_name),
@@ -465,7 +464,9 @@ class BlockRuntime:
                     else:
                         payload[fld] = float(port.default or 0.0)
             for key, value in payload.items():
-                if isinstance(value, (int, float, bool, str)) and not isinstance(value, complex):
+                if isinstance(value, (int, float, bool, str)) and not isinstance(
+                    value, complex
+                ):
                     record.data[key] = copy.deepcopy(value)
         # 2) 推进内部网络。
         inner.step(dt)
@@ -494,7 +495,9 @@ class BlockRuntime:
                 if isinstance(value, bool) or (
                     isinstance(value, (int, float)) and math.isfinite(float(value))
                 ):
-                    payload[key] = float(value) if not isinstance(value, bool) else value
+                    payload[key] = (
+                        float(value) if not isinstance(value, bool) else value
+                    )
                 elif isinstance(value, str):
                     payload[key] = value
             outputs[port_name] = payload
@@ -618,7 +621,9 @@ def compare_block_modes(
         return {"ok": False, "block_id": block.id, "reason": str(exc)}
 
     output_port = block.output_ports[0].name
-    out_field = block.output_ports[0].fields[0] if block.output_ports[0].fields else "voltage"
+    out_field = (
+        block.output_ports[0].fields[0] if block.output_ports[0].fields else "voltage"
+    )
     times: list[float] = []
     behavior_values: list[float] = []
     structural_values: list[float] = []
@@ -640,15 +645,27 @@ def compare_block_modes(
         s_payload = s_out.get(output_port) or {}
         b_value = b_payload.get(out_field, b_payload.get("voltage", 0.0))
         s_value = s_payload.get(out_field, s_payload.get("voltage", 0.0))
-        b_value = float(b_value) if isinstance(b_value, (int, float)) and not isinstance(b_value, bool) else 0.0
-        s_value = float(s_value) if isinstance(s_value, (int, float)) and not isinstance(s_value, bool) else 0.0
+        b_value = (
+            float(b_value)
+            if isinstance(b_value, (int, float)) and not isinstance(b_value, bool)
+            else 0.0
+        )
+        s_value = (
+            float(s_value)
+            if isinstance(s_value, (int, float)) and not isinstance(s_value, bool)
+            else 0.0
+        )
         times.append(round(index * dt, 9))
         behavior_values.append(round(b_value, 9))
         structural_values.append(round(s_value, 9))
         errors.append(abs(b_value - s_value))
 
     max_abs_diff = max(errors) if errors else 0.0
-    rms_diff = math.sqrt(sum(value * value for value in errors) / len(errors)) if errors else 0.0
+    rms_diff = (
+        math.sqrt(sum(value * value for value in errors) / len(errors))
+        if errors
+        else 0.0
+    )
     return {
         "ok": True,
         "block_id": block.id,
@@ -739,7 +756,8 @@ def build_block_from_scene(
         id=_new_id(),
         name=name,
         mode=scene.mode,
-        description=description or f"另存自场景 {scene.mode}（{len(inner_nodes)} 节点）",
+        description=description
+        or f"另存自场景 {scene.mode}（{len(inner_nodes)} 节点）",
         nodes=inner_nodes,
         edges=inner_edges,
         ports=ports,
@@ -789,25 +807,37 @@ def encapsulate_nodes(
             mapping = record.params.get(key) or {}
             if not isinstance(mapping, dict):
                 continue
-            outside = [str(pid) for pid in mapping.values() if str(pid) not in selected_set]
+            outside = [
+                str(pid) for pid in mapping.values() if str(pid) not in selected_set
+            ]
             if outside:
                 raise ValidationError(
                     f"封装包含功能块节点 {record.name!r} 时，"
                     "必须同时选中它的端口节点"
                 )
     boundary_in = [
-        edge for edge in scene.edges.values()
-        if edge.target in selected_set and edge.source not in selected_set and edge.enabled
+        edge
+        for edge in scene.edges.values()
+        if edge.target in selected_set
+        and edge.source not in selected_set
+        and edge.enabled
     ]
     boundary_out = [
-        edge for edge in scene.edges.values()
-        if edge.source in selected_set and edge.target not in selected_set and edge.enabled
+        edge
+        for edge in scene.edges.values()
+        if edge.source in selected_set
+        and edge.target not in selected_set
+        and edge.enabled
     ]
     if len(boundary_in) + len(boundary_out) > MAX_BLOCK_PORTS:
         raise LimitError(f"封装后的端口不能超过 {MAX_BLOCK_PORTS} 个")
 
-    centroid_x = sum(node.position["x"] for node in selected_nodes) / len(selected_nodes)
-    centroid_y = sum(node.position["y"] for node in selected_nodes) / len(selected_nodes)
+    centroid_x = sum(node.position["x"] for node in selected_nodes) / len(
+        selected_nodes
+    )
+    centroid_y = sum(node.position["y"] for node in selected_nodes) / len(
+        selected_nodes
+    )
 
     inner_nodes: list[dict[str, Any]] = []
     for record in selected_nodes:
@@ -825,7 +855,8 @@ def encapsulate_nodes(
 
     inner_edges: list[dict[str, Any]] = []
     internal_edges = [
-        edge for edge in scene.edges.values()
+        edge
+        for edge in scene.edges.values()
         if edge.source in selected_set and edge.target in selected_set and edge.enabled
     ]
     for edge in internal_edges:
@@ -962,7 +993,11 @@ def encapsulate_nodes(
     scene.blocks.add(block)
 
     # 记录父场景需要删除的边界边与内部边。
-    remove_edge_ids = {edge.id for edge in scene.edges.values() if edge.source in selected_set or edge.target in selected_set}
+    remove_edge_ids = {
+        edge.id
+        for edge in scene.edges.values()
+        if edge.source in selected_set or edge.target in selected_set
+    }
     # 创建父场景端口节点与块节点。
     input_nodes: dict[str, str] = {}
     output_nodes: dict[str, str] = {}
@@ -1070,7 +1105,9 @@ def instantiate_block(
             scene, block, position=position, name_prefix=name_prefix
         )
     center = position or {"x": 0.0, "y": 0.0}
-    prefix = check_name(name_prefix or block.name, "实例名称") if name_prefix else block.name
+    prefix = (
+        check_name(name_prefix or block.name, "实例名称") if name_prefix else block.name
+    )
     block_node = scene.add_node(
         name=scene.next_node_name(f"{prefix}_block"[:32]),
         kind="block",

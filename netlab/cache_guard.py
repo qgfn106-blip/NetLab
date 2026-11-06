@@ -104,13 +104,20 @@ def compare_roots(home: Path | None = None, temp: Path | None = None) -> dict:
     return {"home": home, "temp": temp}
 
 
-def scan(home: Path | None = None, temp: Path | None = None, include_pycache: bool = True) -> dict:
+def scan(
+    home: Path | None = None, temp: Path | None = None, include_pycache: bool = True
+) -> dict:
     """体检，返回分档条目与合计。不修改磁盘。"""
     roots = compare_roots(home, temp)
     entries: list[Entry] = []
 
     labels = {
-        ".plotkit": ("plotkit-cache", "PlotKit 临时/渲染缓存", "safe", "可再生成，删除无副作用"),
+        ".plotkit": (
+            "plotkit-cache",
+            "PlotKit 临时/渲染缓存",
+            "safe",
+            "可再生成，删除无副作用",
+        ),
         ".plotkit-desktop": (
             "plotkit-desktop",
             "PlotKit 桌面端 WebView2 用户数据",
@@ -123,7 +130,9 @@ def scan(home: Path | None = None, temp: Path | None = None, include_pycache: bo
         key, label, tier, note = labels[name]
         if path.exists():
             files, size, mtime = _stats(path)
-            entries.append(Entry(key, label, tier, str(path), True, files, size, mtime, note))
+            entries.append(
+                Entry(key, label, tier, str(path), True, files, size, mtime, note)
+            )
         else:
             entries.append(Entry(key, label, tier, str(path), False, 0, 0, 0.0, note))
 
@@ -133,8 +142,17 @@ def scan(home: Path | None = None, temp: Path | None = None, include_pycache: bo
                 continue
             files, size, mtime = _stats(path)
             entries.append(
-                Entry(f"temp:{path.name}", f"临时目录 {path.name}", "safe", str(path), True,
-                      files, size, mtime, "进程临时目录，可再生成")
+                Entry(
+                    f"temp:{path.name}",
+                    f"临时目录 {path.name}",
+                    "safe",
+                    str(path),
+                    True,
+                    files,
+                    size,
+                    mtime,
+                    "进程临时目录，可再生成",
+                )
             )
 
     if include_pycache:
@@ -148,15 +166,34 @@ def scan(home: Path | None = None, temp: Path | None = None, include_pycache: bo
                 size += s
                 newest = max(newest, m)
             entries.append(
-                Entry("pycache", "Python 字节码缓存（整个仓库 __pycache__）", "safe",
-                      str(_repo_root()), True, files, size, newest,
-                      f"{len(dirs)} 个 __pycache__ 目录，删后自动重建")
+                Entry(
+                    "pycache",
+                    "Python 字节码缓存（整个仓库 __pycache__）",
+                    "safe",
+                    str(_repo_root()),
+                    True,
+                    files,
+                    size,
+                    newest,
+                    f"{len(dirs)} 个 __pycache__ 目录，删后自动重建",
+                )
             )
         pytest_cache = _repo_root() / ".pytest_cache"
         if pytest_cache.exists():
             files, size, mtime = _stats(pytest_cache)
-            entries.append(Entry("pytest_cache", "pytest 缓存", "safe", str(pytest_cache), True,
-                                 files, size, mtime, "测试元数据，可再生成"))
+            entries.append(
+                Entry(
+                    "pytest_cache",
+                    "pytest 缓存",
+                    "safe",
+                    str(pytest_cache),
+                    True,
+                    files,
+                    size,
+                    mtime,
+                    "测试元数据，可再生成",
+                )
+            )
 
     totals = {"safe": 0, "caution": 0}
     for e in entries:
@@ -204,8 +241,14 @@ def clean(
             continue
 
         if dry_run:
-            removed.append({"path": entry.path, "bytes": entry.bytes, "files": entry.files,
-                            "dry_run": True})
+            removed.append(
+                {
+                    "path": entry.path,
+                    "bytes": entry.bytes,
+                    "files": entry.files,
+                    "dry_run": True,
+                }
+            )
             freed += entry.bytes
             continue
 
@@ -219,12 +262,23 @@ def clean(
         except OSError as exc:  # 被占用等：逐条报告，不中断
             skipped.append({"path": entry.path, "reason": f"删除失败：{exc}"})
             continue
-        removed.append({"path": entry.path, "bytes": entry.bytes, "files": entry.files,
-                        "dry_run": False})
+        removed.append(
+            {
+                "path": entry.path,
+                "bytes": entry.bytes,
+                "files": entry.files,
+                "dry_run": False,
+            }
+        )
         freed += entry.bytes
 
-    return {"dry_run": dry_run, "tiers": list(tiers), "removed": removed,
-            "skipped": skipped, "freed_bytes": freed}
+    return {
+        "dry_run": dry_run,
+        "tiers": list(tiers),
+        "removed": removed,
+        "skipped": skipped,
+        "freed_bytes": freed,
+    }
 
 
 def human(n: int | float) -> str:
@@ -245,8 +299,10 @@ def format_report(report: dict) -> str:
         lines.append(f"  {mark} [{tier}] {item['label']}: {size}  ({item['path']})")
         if item["exists"] and item["note"]:
             lines.append(f"        {item['note']}")
-    lines.append(f"合计：安全 {human(report['totals']['safe'])}，"
-                 f"谨慎 {human(report['totals']['caution'])}")
+    lines.append(
+        f"合计：安全 {human(report['totals']['safe'])}，"
+        f"谨慎 {human(report['totals']['caution'])}"
+    )
     return "\n".join(lines)
 
 
@@ -260,7 +316,9 @@ def main(argv: list[str] | None = None) -> int:
     except Exception:
         pass
 
-    parser = argparse.ArgumentParser(prog="python -m netlab.cache_guard", description="缓存体检与安全清理")
+    parser = argparse.ArgumentParser(
+        prog="python -m netlab.cache_guard", description="缓存体检与安全清理"
+    )
     sub = parser.add_subparsers(dest="cmd")
 
     p_status = sub.add_parser("status", help="查看缓存占用（只读）")
@@ -269,7 +327,9 @@ def main(argv: list[str] | None = None) -> int:
 
     p_clean = sub.add_parser("clean", help="清理缓存（默认 dry-run）")
     p_clean.add_argument("--yes", action="store_true", help="真删（不加则只演练）")
-    p_clean.add_argument("--caution", action="store_true", help="连谨慎档一起清（会重置界面偏好）")
+    p_clean.add_argument(
+        "--caution", action="store_true", help="连谨慎档一起清（会重置界面偏好）"
+    )
     p_clean.add_argument("--json", action="store_true")
     p_clean.add_argument("--no-pycache", action="store_true")
     p_clean.add_argument("--min-age", type=int, default=0, help="只清 N 秒内没被写过的")
@@ -277,23 +337,34 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.cmd == "clean":
         tiers = ("safe", "caution") if args.caution else ("safe",)
-        result = clean(tiers=tiers, dry_run=not args.yes,
-                       include_pycache=not args.no_pycache, min_age_seconds=args.min_age)
+        result = clean(
+            tiers=tiers,
+            dry_run=not args.yes,
+            include_pycache=not args.no_pycache,
+            min_age_seconds=args.min_age,
+        )
         if args.json:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
             for item in result["removed"]:
-                print(f"{'将删除' if item['dry_run'] else '已删除'} {item['path']} "
-                      f"({human(item['bytes'])})")
+                print(
+                    f"{'将删除' if item['dry_run'] else '已删除'} {item['path']} "
+                    f"({human(item['bytes'])})"
+                )
             for item in result["skipped"]:
                 print(f"跳过 {item['path']}：{item['reason']}")
-            print(f"合计释放 {human(result['freed_bytes'])}"
-                  + ("（演练，未真删；加 --yes 执行）" if result["dry_run"] else ""))
+            print(
+                f"合计释放 {human(result['freed_bytes'])}"
+                + ("（演练，未真删；加 --yes 执行）" if result["dry_run"] else "")
+            )
         return 0
 
     report = scan(include_pycache=not getattr(args, "no_pycache", False))
-    print(json.dumps(report, ensure_ascii=False, indent=2) if getattr(args, "json", False)
-          else format_report(report))
+    print(
+        json.dumps(report, ensure_ascii=False, indent=2)
+        if getattr(args, "json", False)
+        else format_report(report)
+    )
     return 0
 
 

@@ -78,8 +78,20 @@ register(
         group="信号",
         description="读取起点的一个字段，乘增益加偏置后传给终点。",
         params=(
-            ParamSpec("input_key", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
-            ParamSpec("output_key", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
+            ParamSpec(
+                "input_key",
+                "输入字段",
+                "text",
+                "value",
+                help="留空或 auto 时自动匹配，优先 value",
+            ),
+            ParamSpec(
+                "output_key",
+                "输出字段",
+                "text",
+                "value",
+                help="留空或 auto 时写入 value",
+            ),
             float_param("gain", "增益", 1.0, step=0.1),
             float_param("offset", "偏置", 0.0, step=0.1),
         ),
@@ -121,8 +133,20 @@ register(
         group="信号",
         description="输出上一步的输入值（z⁻¹）。用来切断代数环或构造离散反馈。",
         params=(
-            ParamSpec("input_key", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
-            ParamSpec("output_key", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
+            ParamSpec(
+                "input_key",
+                "输入字段",
+                "text",
+                "value",
+                help="留空或 auto 时自动匹配，优先 value",
+            ),
+            ParamSpec(
+                "output_key",
+                "输出字段",
+                "text",
+                "value",
+                help="留空或 auto 时写入 value",
+            ),
             float_param("initial", "初值", 0.0, step=0.1),
         ),
         factory=_delay_factory,
@@ -223,8 +247,20 @@ register(
                 (("tustin", "双线性 Tustin"),),
                 help="连续域目前使用双线性变换",
             ),
-            ParamSpec("input_key", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
-            ParamSpec("output_key", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
+            ParamSpec(
+                "input_key",
+                "输入字段",
+                "text",
+                "value",
+                help="留空或 auto 时自动匹配，优先 value",
+            ),
+            ParamSpec(
+                "output_key",
+                "输出字段",
+                "text",
+                "value",
+                help="留空或 auto 时写入 value",
+            ),
         ),
         factory=_tf_factory,
         outputs=("output_key",),
@@ -261,8 +297,20 @@ register(
         group="动态",
         description="对起点字段积分后传给终点，可限幅；用于构造连续状态的离散近似。",
         params=(
-            ParamSpec("input_key", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
-            ParamSpec("output_key", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
+            ParamSpec(
+                "input_key",
+                "输入字段",
+                "text",
+                "value",
+                help="留空或 auto 时自动匹配，优先 value",
+            ),
+            ParamSpec(
+                "output_key",
+                "输出字段",
+                "text",
+                "value",
+                help="留空或 auto 时写入 value",
+            ),
             float_param("gain", "增益", 1.0, step=0.1),
             float_param("initial", "初值", 0.0, step=0.1),
             float_param("lower", "下限", -1.0e6),
@@ -297,8 +345,20 @@ register(
         group="信号",
         description="把起点字段截断到上下限后传给终点。",
         params=(
-            ParamSpec("input_key", "输入字段", "text", "value", help="留空或 auto 时自动匹配，优先 value"),
-            ParamSpec("output_key", "输出字段", "text", "value", help="留空或 auto 时写入 value"),
+            ParamSpec(
+                "input_key",
+                "输入字段",
+                "text",
+                "value",
+                help="留空或 auto 时自动匹配，优先 value",
+            ),
+            ParamSpec(
+                "output_key",
+                "输出字段",
+                "text",
+                "value",
+                help="留空或 auto 时写入 value",
+            ),
             float_param("minimum", "下限", -10.0, step=0.5),
             float_param("maximum", "上限", 10.0, step=0.5),
         ),
@@ -412,9 +472,7 @@ register(
         group="电路",
         description="i = C·(v - v_prev)/dt，历史电压保存在连接上。",
         params=(
-            float_param(
-                "C", "电容 C", 1.0e-6, unit="F", positive=True, step=1.0e-6
-            ),
+            float_param("C", "电容 C", 1.0e-6, unit="F", positive=True, step=1.0e-6),
             ParamSpec("input_key", "电压字段", "text", "voltage"),
         ),
         factory=_capacitor_factory,
@@ -449,9 +507,7 @@ register(
         group="电路",
         description="i += v·dt/L，历史电流保存在连接上。",
         params=(
-            float_param(
-                "L", "电感 L", 1.0e-3, unit="H", positive=True, step=1.0e-4
-            ),
+            float_param("L", "电感 L", 1.0e-3, unit="H", positive=True, step=1.0e-4),
             float_param("initial", "初始电流", 0.0, unit="A", step=0.1),
             ParamSpec("input_key", "电压字段", "text", "voltage"),
         ),

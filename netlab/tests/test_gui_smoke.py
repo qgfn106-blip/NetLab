@@ -5,6 +5,7 @@
 它会起 pywebview/WebView2 真窗口跑 `python -m netlab.desktop --probe`，断言桥接可用、
 JS→Python 往返成功（has_autosave_roundtrip=true）。
 """
+
 import os
 
 import pytest

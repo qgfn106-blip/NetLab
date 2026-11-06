@@ -3,6 +3,7 @@
 历史 bug：仿真跑起来后才出现的探针（例如 e:V1:power）从 0 长度开始追加，
 ``t`` 却在涨，下一次 render 直接抛「图层 x/y 长度不一致」，面板曲线卡死。
 """
+
 from __future__ import annotations
 
 import pytest

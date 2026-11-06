@@ -10,7 +10,11 @@ from netlab.core.model import blocklib
 from netlab.core.model.blocks import BlockDef, PortDef
 from netlab.core.common.limits import ConflictError
 from netlab.core.model.networks import NetworkContainer
-from netlab.core.model.project import build_project, project_scene_payload, validate_project
+from netlab.core.model.project import (
+    build_project,
+    project_scene_payload,
+    validate_project,
+)
 from netlab.core.model.scene import Scene
 from netlab.core.compute.simulation import Simulation
 
@@ -68,9 +72,7 @@ def test_degraded_validation_builds_placeholder_scene(tmp_path):
     assert degraded["degraded"]["read_only"] is True
     assert degraded["degraded"]["missing"][0]["id"] == block.id
 
-    payload = project_scene_payload(
-        degraded, library=str(library), allow_degraded=True
-    )
+    payload = project_scene_payload(degraded, library=str(library), allow_degraded=True)
     placeholder = next(item for item in payload["blocks"] if item["id"] == block.id)
     assert placeholder["metadata"]["placeholder"] is True
     assert {port["name"] for port in placeholder["ports"]} >= {"in", "out"}
@@ -90,7 +92,9 @@ def test_reference_scan_and_guarded_delete(tmp_path, client, monkeypatch):
     project_root = tmp_path / "projects"
     project_root.mkdir()
     (project_root / "a.netlab").write_text(
-        json.dumps({"name": "工程 A", "blocks": [{"id": "aaaaaaaaaaaa", "version": 1}]}),
+        json.dumps(
+            {"name": "工程 A", "blocks": [{"id": "aaaaaaaaaaaa", "version": 1}]}
+        ),
         encoding="utf-8",
     )
     (project_root / "b.netlab").write_text(
@@ -146,4 +150,3 @@ def test_degraded_container_blocks_load_scene_and_structure_edits():
             container.remove_network(container.current_id)
     finally:
         container.shutdown()
-

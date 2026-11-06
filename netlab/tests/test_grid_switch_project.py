@@ -9,7 +9,11 @@ from netlab.core.model.project import load_project, project_scene_payload
 
 
 def test_grid_switch_project_loads_and_runs() -> None:
-    path = Path(__file__).resolve().parents[2] / "MyProject" / "grid_inverter_switch.netlab"
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "MyProject"
+        / "grid_inverter_switch.netlab"
+    )
     project = load_project(path)
     assert project["metadata"]["r31"] == "P11-06"
     scene_payload = project_scene_payload(project)

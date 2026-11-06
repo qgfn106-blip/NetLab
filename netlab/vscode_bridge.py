@@ -58,7 +58,9 @@ def _candidates() -> list[Path]:
         out.append(Path(override))
     local = os.environ.get("LOCALAPPDATA")
     if local:
-        out.append(Path(local) / "netlab" / "vscode-server" / "vscode-server-win32-x64-web")
+        out.append(
+            Path(local) / "netlab" / "vscode-server" / "vscode-server-win32-x64-web"
+        )
     # here = NetlabHome/netlab/vscode_bridge.py -> parents[2] = ProjectPoint
     out.append(
         here.parents[2]

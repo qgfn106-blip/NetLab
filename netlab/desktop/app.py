@@ -16,10 +16,16 @@ if str(PACKAGE_PARENT) not in sys.path:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Netlab 桌面版")
     parser.add_argument("--selftest", action="store_true", help="运行无交互自检并退出")
-    parser.add_argument("--strict", action="store_true", help="自检中 QtWebEngine 不可用也视为失败")
-    parser.add_argument("--port", type=int, default=0, help="本地服务端口（0 = 自动选择）")
+    parser.add_argument(
+        "--strict", action="store_true", help="自检中 QtWebEngine 不可用也视为失败"
+    )
+    parser.add_argument(
+        "--port", type=int, default=0, help="本地服务端口（0 = 自动选择）"
+    )
     parser.add_argument("--debug", action="store_true", help="允许开发者工具")
-    parser.add_argument("--no-token", action="store_true", help="关闭桌面会话 token（仅调试）")
+    parser.add_argument(
+        "--no-token", action="store_true", help="关闭桌面会话 token（仅调试）"
+    )
     return parser.parse_args(argv)
 
 
@@ -43,7 +49,10 @@ def main(argv: list[str] | None = None) -> int:
         from PySide6.QtWidgets import QApplication
     except Exception as exc:
         print("桌面模式需要 PySide6。请先运行：", file=sys.stderr)
-        print("  python -m pip install -r netlab/requirements-desktop.txt", file=sys.stderr)
+        print(
+            "  python -m pip install -r netlab/requirements-desktop.txt",
+            file=sys.stderr,
+        )
         print(f"详细错误：{exc}", file=sys.stderr)
         return 2
 

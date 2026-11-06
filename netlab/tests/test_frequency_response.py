@@ -148,7 +148,9 @@ def test_frequency_response_rejects_nonpositive_frequency():
         with pytest.raises(analysis.AnalysisError):
             analysis.frequency_response(sim, "u", "lag", f_start=0.0, f_stop=1.0)
         with pytest.raises(analysis.AnalysisError):
-            analysis.frequency_response(sim, "u", "lag", f_start=1.0, f_stop=2.0, scale="bad")
+            analysis.frequency_response(
+                sim, "u", "lag", f_start=1.0, f_stop=2.0, scale="bad"
+            )
     finally:
         sim.shutdown()
 

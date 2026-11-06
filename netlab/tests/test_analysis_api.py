@@ -59,7 +59,9 @@ def test_analysis_tf_delay_pade_and_peak_time(client) -> None:
     source = scene.add_node(name="u", kind="manual", data={"value": 1.0})
     gain = scene.add_node(name="gain", kind="gain", params={"gain": 2.0})
     plant = scene.add_node(
-        name="plant", kind="transfer_function", params={"form": "expr", "expr": "1/(s+1)"}
+        name="plant",
+        kind="transfer_function",
+        params={"form": "expr", "expr": "1/(s+1)"},
     )
     scene.add_edge(source=source.id, target=gain.id, kind="pass")
     scene.add_edge(source=gain.id, target=plant.id, kind="scale", delay=True)

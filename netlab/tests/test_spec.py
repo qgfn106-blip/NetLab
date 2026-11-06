@@ -15,7 +15,12 @@ import pytest
 from netlab.core.model import extensions
 from netlab.core.compute.computes import compute_catalog
 from netlab.core.compute.methods import method_catalog
-from netlab.core.compute.nodal import ELEMENT_GROUP_ORDER, ELEMENT_GROUPS, element_catalog, node_catalog
+from netlab.core.compute.nodal import (
+    ELEMENT_GROUP_ORDER,
+    ELEMENT_GROUPS,
+    element_catalog,
+    node_catalog,
+)
 from netlab.core.model.ports import PINS
 from netlab.core.model.scene import Scene
 
@@ -36,7 +41,17 @@ SPEC_KEYS = {
     "params",
 }
 
-PARAM_KEYS = {"key", "label", "type", "default", "unit", "help", "group", "example", "required"}
+PARAM_KEYS = {
+    "key",
+    "label",
+    "type",
+    "default",
+    "unit",
+    "help",
+    "group",
+    "example",
+    "required",
+}
 
 
 def test_element_groups_cover_all_kinds():
@@ -50,7 +65,8 @@ def test_element_groups_cover_all_kinds():
     used = {entry["group"] for entry in catalog.values()}
     assert used == set(ELEMENT_GROUP_ORDER)
 
-RATE_LIMITER_CODE = '''
+
+RATE_LIMITER_CODE = """
 @node(
     kind="user.rate_limiter",
     label="速率限制",
@@ -72,7 +88,7 @@ def rate_limiter(ctx):
     elif delta < -rate:
         delta = -rate
     return {"y": previous + delta}
-'''
+"""
 
 
 @pytest.fixture(autouse=True)
@@ -98,7 +114,9 @@ def assert_entry_is_complete(where: str, spec: dict) -> None:
     assert isinstance(spec["params"], list)
     for param in spec["params"]:
         lack = PARAM_KEYS - set(param)
-        assert not lack, f"{where}/{spec['kind']}/{param.get('key')} 参数缺少 {sorted(lack)}"
+        assert (
+            not lack
+        ), f"{where}/{spec['kind']}/{param.get('key')} 参数缺少 {sorted(lack)}"
 
 
 def test_every_catalog_entry_is_complete():
@@ -114,9 +132,9 @@ def test_builtin_source_points_at_real_files():
             if not spec["builtin"]:
                 continue
             assert str(spec["source"]).strip(), f"{where}/{spec['kind']} 没有源码"
-            assert str(spec["source_path"]).endswith(".py"), (
-                f"{where}/{spec['kind']} 源码路径异常：{spec['source_path']!r}"
-            )
+            assert str(spec["source_path"]).endswith(
+                ".py"
+            ), f"{where}/{spec['kind']} 源码路径异常：{spec['source_path']!r}"
 
 
 def test_module_kinds_are_not_addable_from_menu():
@@ -154,9 +172,7 @@ def test_rate_limiter_node_follows_registered_formula():
 
     scene = Scene("signal")
     source = scene.add_node(name="src", kind="manual", data={"voltage": 10.0})
-    limiter = scene.add_node(
-        name="lim", kind="user.rate_limiter", params={"rate": 1.0}
-    )
+    limiter = scene.add_node(name="lim", kind="user.rate_limiter", params={"rate": 1.0})
     scene.add_edge(source=source.id, target=limiter.id, kind="pass")
 
     values = []
@@ -173,11 +189,15 @@ def test_rate_limiter_node_follows_registered_formula():
 
 
 def test_extension_api_validate_activate_deactivate(client):
-    validated = client.post("/api/extensions/validate", json={"code": RATE_LIMITER_CODE})
+    validated = client.post(
+        "/api/extensions/validate", json={"code": RATE_LIMITER_CODE}
+    )
     assert validated.status_code == 200, validated.text
     assert validated.json()["declared"][0]["kind"] == "user.rate_limiter"
 
-    activated = client.post("/api/extensions/activate", json={"code": RATE_LIMITER_CODE})
+    activated = client.post(
+        "/api/extensions/activate", json={"code": RATE_LIMITER_CODE}
+    )
     assert activated.status_code == 200, activated.text
     body = activated.json()
     assert body["kinds"] == ["user.rate_limiter"]
@@ -209,6 +229,8 @@ def test_extension_deactivate_in_use_is_rejected(client):
         },
     )
     assert created.status_code == 200, created.text
-    blocked = client.post("/api/extensions/deactivate", json={"kind": "user.rate_limiter"})
+    blocked = client.post(
+        "/api/extensions/deactivate", json={"kind": "user.rate_limiter"}
+    )
     assert blocked.status_code == 422
     assert "使用" in blocked.json()["detail"]

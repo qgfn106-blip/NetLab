@@ -851,7 +851,6 @@ def blank_vector() -> dict[str, Any]:
     return {"mode": "vector", "nodes": [], "edges": []}
 
 
-
 def trip_unit() -> dict[str, Any]:
     """脱扣器示意电路：整流 → RC 滤波 → 分压 → 比较器 → D 触发器 → LED。
 
@@ -873,41 +872,152 @@ def trip_unit() -> dict[str, Any]:
             _node("c80000000010", "gnd", "ground", 340, 260),
         ],
         "edges": [
-            _edge("d80000000001", "V1", "c80000000001", "c80000000010", "vsource",
-                  params={"wave": "sine", "amplitude": 12.0, "frequency": 50.0, "offset": 0.0}),
-            _edge("d80000000002", "D1", "c80000000001", "c80000000002", "diode",
-                  params={"Is": 1.0e-12, "n": 1.0, "temperature": 300.0, "rs": 0.0}),
-            _edge("d80000000003", "D2", "c80000000010", "c80000000002", "diode",
-                  params={"Is": 1.0e-12, "n": 1.0, "temperature": 300.0, "rs": 0.0}),
-            _edge("d80000000004", "R1", "c80000000002", "c80000000003", "resistor",
-                  params={"R": 1000.0}),
-            _edge("d80000000005", "C1", "c80000000003", "c80000000010", "capacitor",
-                  params={"C": 100e-6}),
-            _edge("d80000000006", "R2", "c80000000003", "c80000000004", "resistor",
-                  params={"R": 10000.0}),
-            _edge("d80000000007", "R3", "c80000000004", "c80000000010", "resistor",
-                  params={"R": 4700.0}),
-            _edge("d80000000008", "Z1", "c80000000010", "c80000000004", "zener",
-                  params={"Vz": 5.1, "ron": 0.5, "Is": 1.0e-12, "n": 1.5, "temperature": 300.0, "rs": 0.0}),
-            _edge("d80000000009", "VREF", "c80000000005", "c80000000010", "vsource",
-                  params={"wave": "dc", "offset": 1.0, "amplitude": 0.0}),
-            _edge("d80000000010", "CMP", "c80000000006", "c80000000010", "comparator",
-                  params={"vp": "c80000000004", "vn": "c80000000005", "gain": 1.0e6, "vmax": 5.0}),
-            _edge("d80000000011", "R5", "c80000000006", "c80000000007", "resistor",
-                  params={"R": 1000.0}),
-            _edge("d80000000012", "R6", "c80000000007", "c80000000010", "resistor",
-                  params={"R": 10000.0}),
-            _edge("d80000000013", "FF1", "c80000000008", "c80000000010", "dflipflop",
-                  params={"d_node": "c80000000003", "clk_node": "c80000000007",
-                          "vth": 2.5, "vhigh": 5.0, "vlow": 0.0, "q0": 0.0}),
-            _edge("d80000000014", "R7", "c80000000008", "c80000000009", "resistor",
-                  params={"R": 330.0}),
-            _edge("d80000000015", "LED1", "c80000000009", "c80000000010", "led",
-                  params={"Is": 1.0e-12, "n": 1.0, "temperature": 300.0, "rs": 0.0}),
+            _edge(
+                "d80000000001",
+                "V1",
+                "c80000000001",
+                "c80000000010",
+                "vsource",
+                params={
+                    "wave": "sine",
+                    "amplitude": 12.0,
+                    "frequency": 50.0,
+                    "offset": 0.0,
+                },
+            ),
+            _edge(
+                "d80000000002",
+                "D1",
+                "c80000000001",
+                "c80000000002",
+                "diode",
+                params={"Is": 1.0e-12, "n": 1.0, "temperature": 300.0, "rs": 0.0},
+            ),
+            _edge(
+                "d80000000003",
+                "D2",
+                "c80000000010",
+                "c80000000002",
+                "diode",
+                params={"Is": 1.0e-12, "n": 1.0, "temperature": 300.0, "rs": 0.0},
+            ),
+            _edge(
+                "d80000000004",
+                "R1",
+                "c80000000002",
+                "c80000000003",
+                "resistor",
+                params={"R": 1000.0},
+            ),
+            _edge(
+                "d80000000005",
+                "C1",
+                "c80000000003",
+                "c80000000010",
+                "capacitor",
+                params={"C": 100e-6},
+            ),
+            _edge(
+                "d80000000006",
+                "R2",
+                "c80000000003",
+                "c80000000004",
+                "resistor",
+                params={"R": 10000.0},
+            ),
+            _edge(
+                "d80000000007",
+                "R3",
+                "c80000000004",
+                "c80000000010",
+                "resistor",
+                params={"R": 4700.0},
+            ),
+            _edge(
+                "d80000000008",
+                "Z1",
+                "c80000000010",
+                "c80000000004",
+                "zener",
+                params={
+                    "Vz": 5.1,
+                    "ron": 0.5,
+                    "Is": 1.0e-12,
+                    "n": 1.5,
+                    "temperature": 300.0,
+                    "rs": 0.0,
+                },
+            ),
+            _edge(
+                "d80000000009",
+                "VREF",
+                "c80000000005",
+                "c80000000010",
+                "vsource",
+                params={"wave": "dc", "offset": 1.0, "amplitude": 0.0},
+            ),
+            _edge(
+                "d80000000010",
+                "CMP",
+                "c80000000006",
+                "c80000000010",
+                "comparator",
+                params={
+                    "vp": "c80000000004",
+                    "vn": "c80000000005",
+                    "gain": 1.0e6,
+                    "vmax": 5.0,
+                },
+            ),
+            _edge(
+                "d80000000011",
+                "R5",
+                "c80000000006",
+                "c80000000007",
+                "resistor",
+                params={"R": 1000.0},
+            ),
+            _edge(
+                "d80000000012",
+                "R6",
+                "c80000000007",
+                "c80000000010",
+                "resistor",
+                params={"R": 10000.0},
+            ),
+            _edge(
+                "d80000000013",
+                "FF1",
+                "c80000000008",
+                "c80000000010",
+                "dflipflop",
+                params={
+                    "d_node": "c80000000003",
+                    "clk_node": "c80000000007",
+                    "vth": 2.5,
+                    "vhigh": 5.0,
+                    "vlow": 0.0,
+                    "q0": 0.0,
+                },
+            ),
+            _edge(
+                "d80000000014",
+                "R7",
+                "c80000000008",
+                "c80000000009",
+                "resistor",
+                params={"R": 330.0},
+            ),
+            _edge(
+                "d80000000015",
+                "LED1",
+                "c80000000009",
+                "c80000000010",
+                "led",
+                params={"Is": 1.0e-12, "n": 1.0, "temperature": 300.0, "rs": 0.0},
+            ),
         ],
     }
-
-
 
 
 def opamp_internal() -> dict[str, Any]:
@@ -927,27 +1037,88 @@ def opamp_internal() -> dict[str, Any]:
             _node("c90000000007", "gnd", "ground", 0, 220),
         ],
         "edges": [
-            _edge("e90000000001", "VIN", "c90000000001", "c90000000007", "vsource",
-                  params={"wave": "dc", "offset": 0.001, "amplitude": 0.0}),
-            _edge("e90000000002", "VREF", "c90000000002", "c90000000007", "vsource",
-                  params={"wave": "dc", "offset": 0.0, "amplitude": 0.0}),
-            _edge("e90000000003", "RIN", "c90000000001", "c90000000002", "resistor",
-                  params={"R": 1.0e6}),
-            _edge("e90000000004", "E1", "c90000000003", "c90000000007", "vcvs",
-                  params={"gain": 10000.0, "control_source": "c90000000001", "control_target": "c90000000002"}),
-            _edge("e90000000005", "R1", "c90000000003", "c90000000004", "resistor",
-                  params={"R": 1000.0}),
-            _edge("e90000000006", "C1", "c90000000004", "c90000000007", "capacitor",
-                  params={"C": 1.0e-6}),
-            _edge("e90000000007", "E2", "c90000000005", "c90000000007", "vcvs",
-                  params={"gain": 1.0, "control_source": "c90000000004", "control_target": "c90000000007"}),
-            _edge("e90000000008", "ROUT", "c90000000005", "c90000000006", "resistor",
-                  params={"R": 75.0}),
-            _edge("e90000000009", "RL", "c90000000006", "c90000000007", "resistor",
-                  params={"R": 10000.0}),
+            _edge(
+                "e90000000001",
+                "VIN",
+                "c90000000001",
+                "c90000000007",
+                "vsource",
+                params={"wave": "dc", "offset": 0.001, "amplitude": 0.0},
+            ),
+            _edge(
+                "e90000000002",
+                "VREF",
+                "c90000000002",
+                "c90000000007",
+                "vsource",
+                params={"wave": "dc", "offset": 0.0, "amplitude": 0.0},
+            ),
+            _edge(
+                "e90000000003",
+                "RIN",
+                "c90000000001",
+                "c90000000002",
+                "resistor",
+                params={"R": 1.0e6},
+            ),
+            _edge(
+                "e90000000004",
+                "E1",
+                "c90000000003",
+                "c90000000007",
+                "vcvs",
+                params={
+                    "gain": 10000.0,
+                    "control_source": "c90000000001",
+                    "control_target": "c90000000002",
+                },
+            ),
+            _edge(
+                "e90000000005",
+                "R1",
+                "c90000000003",
+                "c90000000004",
+                "resistor",
+                params={"R": 1000.0},
+            ),
+            _edge(
+                "e90000000006",
+                "C1",
+                "c90000000004",
+                "c90000000007",
+                "capacitor",
+                params={"C": 1.0e-6},
+            ),
+            _edge(
+                "e90000000007",
+                "E2",
+                "c90000000005",
+                "c90000000007",
+                "vcvs",
+                params={
+                    "gain": 1.0,
+                    "control_source": "c90000000004",
+                    "control_target": "c90000000007",
+                },
+            ),
+            _edge(
+                "e90000000008",
+                "ROUT",
+                "c90000000005",
+                "c90000000006",
+                "resistor",
+                params={"R": 75.0},
+            ),
+            _edge(
+                "e90000000009",
+                "RL",
+                "c90000000006",
+                "c90000000007",
+                "resistor",
+                params={"R": 10000.0},
+            ),
         ],
     }
-
 
 
 def opamp_inverting() -> dict[str, Any]:
@@ -961,18 +1132,61 @@ def opamp_inverting() -> dict[str, Any]:
             _node("ca0000000004", "gnd", "ground", 0, 200),
         ],
         "edges": [
-            _edge("ea0000000001", "VIN", "ca0000000001", "ca0000000004", "vsource",
-                  params={"wave": "sine", "amplitude": 0.05, "frequency": 100.0, "offset": 0.0},
-                  layout={"x": -420, "y": 100, "rot": 90}),
-            _edge("ea0000000002", "RIN", "ca0000000001", "ca0000000002", "resistor",
-                  params={"R": 10000.0}, layout={"x": -270, "y": 0, "rot": 0}),
-            _edge("ea0000000003", "RF", "ca0000000002", "ca0000000003", "resistor",
-                  params={"R": 100000.0}, layout={"x": 90, "y": -120, "rot": 0}),
-            _edge("ea0000000004", "U1", "ca0000000003", "ca0000000004", "opamp",
-                  params={"vp": "ca0000000004", "vn": "ca0000000002", "gain": 1.0e5, "vmax": 15.0},
-                  layout={"x": 70, "y": 0, "rot": 0}),
-            _edge("ea0000000005", "RL", "ca0000000003", "ca0000000004", "resistor",
-                  params={"R": 10000.0}, layout={"x": 220, "y": 100, "rot": 90}),
+            _edge(
+                "ea0000000001",
+                "VIN",
+                "ca0000000001",
+                "ca0000000004",
+                "vsource",
+                params={
+                    "wave": "sine",
+                    "amplitude": 0.05,
+                    "frequency": 100.0,
+                    "offset": 0.0,
+                },
+                layout={"x": -420, "y": 100, "rot": 90},
+            ),
+            _edge(
+                "ea0000000002",
+                "RIN",
+                "ca0000000001",
+                "ca0000000002",
+                "resistor",
+                params={"R": 10000.0},
+                layout={"x": -270, "y": 0, "rot": 0},
+            ),
+            _edge(
+                "ea0000000003",
+                "RF",
+                "ca0000000002",
+                "ca0000000003",
+                "resistor",
+                params={"R": 100000.0},
+                layout={"x": 90, "y": -120, "rot": 0},
+            ),
+            _edge(
+                "ea0000000004",
+                "U1",
+                "ca0000000003",
+                "ca0000000004",
+                "opamp",
+                params={
+                    "vp": "ca0000000004",
+                    "vn": "ca0000000002",
+                    "gain": 1.0e5,
+                    "vmax": 15.0,
+                },
+                layout={"x": 70, "y": 0, "rot": 0},
+            ),
+            _edge(
+                "ea0000000005",
+                "RL",
+                "ca0000000003",
+                "ca0000000004",
+                "resistor",
+                params={"R": 10000.0},
+                layout={"x": 220, "y": 100, "rot": 90},
+            ),
         ],
     }
 
@@ -983,14 +1197,20 @@ def common_collector() -> dict[str, Any]:
     VCC=12 V；R1=47k/R2=22k 基极分压，VE≈3.1 V；RE=1k；1 kHz、0.2 V 正弦经
     CIN=10 µF 耦合到基极；输出在发射极，电压跟随输入（略小于 1）。
     """
+
     def net(nid, name, x, y, kind="node"):
-        return {"id": nid, "name": name, "kind": kind,
-                "position": {"x": x, "y": y}}
+        return {"id": nid, "name": name, "kind": kind, "position": {"x": x, "y": y}}
 
     def dev(nid, name, element, x, y, **params):
-        return {"id": nid, "name": name, "kind": "device",
-                "params": {"element": element, **params},
-                "data": {}, "position": {"x": x, "y": y}, "size": {}}
+        return {
+            "id": nid,
+            "name": name,
+            "kind": "device",
+            "params": {"element": element, **params},
+            "data": {},
+            "position": {"x": x, "y": y},
+            "size": {},
+        }
 
     nodes = [
         net("a00000000001", "VCC", 0, 0),
@@ -998,17 +1218,45 @@ def common_collector() -> dict[str, Any]:
         net("a00000000003", "EMIT", 0, 420),
         net("a00000000004", "GND", 0, 680, "ground"),
         net("a00000000005", "IN", -300, 220),
-        dev("b00000000001", "V1", "vsource", -360, 60,
-            wave="dc", offset=12.0, amplitude=0.0, frequency=50.0),
+        dev(
+            "b00000000001",
+            "V1",
+            "vsource",
+            -360,
+            60,
+            wave="dc",
+            offset=12.0,
+            amplitude=0.0,
+            frequency=50.0,
+        ),
         dev("b00000000002", "R1", "resistor", 210, 90, R=47000.0),
         dev("b00000000003", "R2", "resistor", 210, 520, R=22000.0),
-        dev("b00000000004", "Q1", "npn", 430, 320,
-            Is=1.0e-14, n=1.0, temperature=300.0, beta=100.0,
-            vbe_on=0.7, rin=1000.0),
+        dev(
+            "b00000000004",
+            "Q1",
+            "npn",
+            430,
+            320,
+            Is=1.0e-14,
+            n=1.0,
+            temperature=300.0,
+            beta=100.0,
+            vbe_on=0.7,
+            rin=1000.0,
+        ),
         dev("b00000000005", "RE", "resistor", 120, 590, R=1000.0),
         dev("b00000000006", "CIN", "capacitor", -160, 220, C=1.0e-5, v0=-3.826),
-        dev("b00000000007", "VIN", "vsource", -470, 440,
-            wave="sine", offset=0.0, amplitude=0.2, frequency=1000.0),
+        dev(
+            "b00000000007",
+            "VIN",
+            "vsource",
+            -470,
+            440,
+            wave="sine",
+            offset=0.0,
+            amplitude=0.2,
+            frequency=1000.0,
+        ),
     ]
     wires = [
         ("b00000000001", "a00000000001", "+", "V1.VCC"),
@@ -1029,25 +1277,32 @@ def common_collector() -> dict[str, Any]:
     ]
     edges = []
     for index, (device_id, net_id, pin, name) in enumerate(wires, start=1):
-        edges.append({
-            "id": f"c{index:011x}",
-            "name": name,
-            "source": device_id,
-            "target": net_id,
-            "kind": "wire",
-            "params": {},
-            "state": {},
-            "delay": False,
-            "enabled": True,
-            "route": "orthogonal",
-            "waypoints": [],
-            "anchors": {},
-            "layout": {},
-            "source_pin": pin,
-            "target_pin": "",
-        })
-    return {"mode": "circuit", "integration": "trapezoidal",
-            "nodes": nodes, "edges": edges}
+        edges.append(
+            {
+                "id": f"c{index:011x}",
+                "name": name,
+                "source": device_id,
+                "target": net_id,
+                "kind": "wire",
+                "params": {},
+                "state": {},
+                "delay": False,
+                "enabled": True,
+                "route": "orthogonal",
+                "waypoints": [],
+                "anchors": {},
+                "layout": {},
+                "source_pin": pin,
+                "target_pin": "",
+            }
+        )
+    return {
+        "mode": "circuit",
+        "integration": "trapezoidal",
+        "nodes": nodes,
+        "edges": edges,
+    }
+
 
 TEMPLATES: dict[str, dict[str, Any]] = {
     "signal_chain": {
@@ -1167,7 +1422,6 @@ SIM_PRESETS: dict[str, dict[str, Any]] = {
     "common_collector": {"fps": 60, "dt": 1.0e-5, "steps_per_frame": 10},
     "blank_circuit": {"fps": 60, "dt": 1.0e-4, "steps_per_frame": 2},
 }
-
 
 
 def template_catalog() -> list[dict[str, Any]]:

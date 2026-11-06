@@ -97,7 +97,9 @@ def test_api_updates_geometry(client):
     assert body["anchors"] == {"source": "bottom", "target": "top"}
 
     state = client.get("/api/state").json()
-    edge_state = next(item for item in state["scene"]["edges"] if item["id"] == edge["id"])
+    edge_state = next(
+        item for item in state["scene"]["edges"] if item["id"] == edge["id"]
+    )
     assert edge_state["route"] == "manual"
 
     bad = client.patch(f"/api/edges/{edge['id']}", json={"route": "zigzag"})

@@ -186,9 +186,7 @@ def test_project_import_restores_all_networks(client):
     second = next(item["id"] for item in project["networks"] if item["id"] != first)
     client.delete(f"/api/networks/{second}")
 
-    imported = client.post(
-        "/api/project/import", json={"project": project}
-    )
+    imported = client.post("/api/project/import", json={"project": project})
     assert imported.status_code == 200, imported.text
     body = imported.json()
     assert len(body["networks"]) == 2

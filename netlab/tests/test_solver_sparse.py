@@ -10,30 +10,49 @@ from netlab.core.compute.nodal import SolverOptions
 from netlab.core.model.scene import Scene
 
 
-def _ladder(count: int, *, source: float = 1.0, r_series: float = 1000.0,
-            r_shunt: float = 1000.0) -> Scene:
+def _ladder(
+    count: int,
+    *,
+    source: float = 1.0,
+    r_series: float = 1000.0,
+    r_shunt: float = 1000.0,
+) -> Scene:
     """count 节 RC 梯形网络：每节串联电阻 + 对地电阻。"""
     scene = Scene("circuit")
     gnd = scene.add_node(name="gnd", kind="ground")
     nodes = [scene.add_node(name=f"n{i}", kind="node") for i in range(count)]
-    scene.add_edge(name="V1", source=nodes[0].id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": source, "amplitude": 0.0})
+    scene.add_edge(
+        name="V1",
+        source=nodes[0].id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": source, "amplitude": 0.0},
+    )
     for index in range(count - 1):
         scene.add_edge(
-            name=f"Rs{index}", source=nodes[index].id, target=nodes[index + 1].id,
-            kind="resistor", params={"R": r_series},
+            name=f"Rs{index}",
+            source=nodes[index].id,
+            target=nodes[index + 1].id,
+            kind="resistor",
+            params={"R": r_series},
         )
     for index, node in enumerate(nodes):
         scene.add_edge(
-            name=f"Rp{index}", source=node.id, target=gnd.id, kind="resistor",
+            name=f"Rp{index}",
+            source=node.id,
+            target=gnd.id,
+            kind="resistor",
             params={"R": r_shunt},
         )
     return scene
 
 
 def _voltages(scene: Scene) -> list[float]:
-    return [float(record.data.get("voltage", 0.0)) for record in scene.nodes.values()
-            if record.name.startswith("n")]
+    return [
+        float(record.data.get("voltage", 0.0))
+        for record in scene.nodes.values()
+        if record.name.startswith("n")
+    ]
 
 
 def test_sparse_auto_threshold_switches():
@@ -81,10 +100,20 @@ def test_sparse_singular_matrix_diagnostic():
     scene = Scene("circuit")
     gnd = scene.add_node(name="gnd", kind="ground")
     n1 = scene.add_node(name="n1", kind="node")
-    scene.add_edge(name="V1", source=n1.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 5.0, "amplitude": 0.0})
-    scene.add_edge(name="V2", source=n1.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 3.0, "amplitude": 0.0})
+    scene.add_edge(
+        name="V1",
+        source=n1.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 5.0, "amplitude": 0.0},
+    )
+    scene.add_edge(
+        name="V2",
+        source=n1.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 3.0, "amplitude": 0.0},
+    )
     scene.set_solver_options(SolverOptions(sparse="on"))
     with pytest.raises(ComputeError, match="奇异"):
         scene.ensure_engine().step(1e-4)

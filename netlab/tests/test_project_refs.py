@@ -40,7 +40,11 @@ def build_block(version: int = 1) -> BlockDef:
                 "id": "bbbbbbbbbbb2",
                 "name": "__in",
                 "kind": "module_input",
-                "params": {"role": "interface", "port_name": "in", "fields": ["voltage"]},
+                "params": {
+                    "role": "interface",
+                    "port_name": "in",
+                    "fields": ["voltage"],
+                },
                 "data": {},
                 "position": {"x": -100.0, "y": 0.0},
             },
@@ -48,7 +52,11 @@ def build_block(version: int = 1) -> BlockDef:
                 "id": "bbbbbbbbbbb3",
                 "name": "__out",
                 "kind": "module_output",
-                "params": {"role": "interface", "port_name": "out", "fields": ["voltage"]},
+                "params": {
+                    "role": "interface",
+                    "port_name": "out",
+                    "fields": ["voltage"],
+                },
                 "data": {},
                 "position": {"x": 100.0, "y": 0.0},
             },
@@ -176,7 +184,9 @@ def test_export_api_uses_refs_and_import_resolves(client, tmp_path, monkeypatch)
     assert "降级" in blocked.json()["detail"]
 
     node_id = body["scene"]["nodes"][0]["id"]
-    readonly = client.patch(f"/api/nodes/{node_id}", json={"position": {"x": 1.0, "y": 2.0}})
+    readonly = client.patch(
+        f"/api/nodes/{node_id}", json={"position": {"x": 1.0, "y": 2.0}}
+    )
     assert readonly.status_code == 409
 
 

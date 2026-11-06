@@ -166,9 +166,9 @@ def test_reset_prunes_stale_channels_and_keeps_user_datasets():
     bridge._reset(figure, ["b"])
 
     names = set(figure.store.names())
-    assert "a" not in names          # 桥登记过、新场景已没有
-    assert "b" in names              # 新场景仍有
-    assert "user-note" in names      # 用户自己加的不动
+    assert "a" not in names  # 桥登记过、新场景已没有
+    assert "b" in names  # 新场景仍有
+    assert "user-note" in names  # 用户自己加的不动
 
 
 def test_reset_does_not_clobber_subplot_layout():

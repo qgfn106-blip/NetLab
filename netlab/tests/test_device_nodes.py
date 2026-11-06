@@ -14,13 +14,19 @@ def node(scene, name, kind="node"):
 
 
 def device(scene, name, element, **params):
-    return scene.add_node(name=name, kind="device", params={"element": element, **params})
+    return scene.add_node(
+        name=name, kind="device", params={"element": element, **params}
+    )
 
 
 def wire(scene, name, source, target, *, source_pin="", target_pin=""):
     return scene.add_edge(
-        name=name, source=source.id, target=target.id, kind="wire",
-        source_pin=source_pin, target_pin=target_pin,
+        name=name,
+        source=source.id,
+        target=target.id,
+        kind="wire",
+        source_pin=source_pin,
+        target_pin=target_pin,
     )
 
 
@@ -30,8 +36,13 @@ def voltage(scene, name):
 
 
 def dc(scene, name, a, b, value):
-    return scene.add_edge(name=name, source=a.id, target=b.id, kind="vsource",
-                          params={"wave": "dc", "offset": value, "amplitude": 0.0})
+    return scene.add_edge(
+        name=name,
+        source=a.id,
+        target=b.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": value, "amplitude": 0.0},
+    )
 
 
 def divider_scene():
@@ -67,8 +78,9 @@ def test_device_transformer_ratio():
     wire(scene, "W2", transformer, gnd, source_pin="P2")
     wire(scene, "W3", transformer, sec, source_pin="S1")
     wire(scene, "W4", transformer, gnd, source_pin="S2")
-    scene.add_edge(name="RL", source=sec.id, target=gnd.id, kind="resistor",
-                   params={"R": 1000.0})
+    scene.add_edge(
+        name="RL", source=sec.id, target=gnd.id, kind="resistor", params={"R": 1000.0}
+    )
     for _ in range(3):
         scene.step(1e-4)
     assert abs(voltage(scene, "sec") - 5.0) < 0.05
@@ -94,11 +106,18 @@ def test_wire_requires_device_pin():
     with pytest.raises(ValidationError):
         scene.add_edge(name="BAD1", source=r1.id, target=top.id, kind="wire")
     with pytest.raises(ValidationError):
-        scene.add_edge(name="BAD2", source=r1.id, target=top.id, kind="wire",
-                       source_pin="9")
+        scene.add_edge(
+            name="BAD2", source=r1.id, target=top.id, kind="wire", source_pin="9"
+        )
     with pytest.raises(ValidationError):
-        scene.add_edge(name="BAD3", source=r1.id, target=top.id, kind="wire",
-                       source_pin="1", params={"x": 1})
+        scene.add_edge(
+            name="BAD3",
+            source=r1.id,
+            target=top.id,
+            kind="wire",
+            source_pin="1",
+            params={"x": 1},
+        )
 
 
 def test_wire_only_pin_to_net():
@@ -107,8 +126,14 @@ def test_wire_only_pin_to_net():
     r2 = next(item for item in scene.nodes.values() if item.name == "R2")
     gnd = next(item for item in scene.nodes.values() if item.name == "gnd")
     with pytest.raises(ValidationError):
-        scene.add_edge(name="BAD4", source=r1.id, target=r2.id, kind="wire",
-                       source_pin="1", target_pin="1")
+        scene.add_edge(
+            name="BAD4",
+            source=r1.id,
+            target=r2.id,
+            kind="wire",
+            source_pin="1",
+            target_pin="1",
+        )
     with pytest.raises(ValidationError):
         scene.add_edge(name="BAD5", source=gnd.id, target=gnd.id, kind="wire")
 
@@ -158,8 +183,9 @@ def test_device_logic_gate():
     gate = device(scene, "U1", "and_gate", ron=50.0, vth=2.5, slope=10.0)
     for pin, net in (("A", a), ("B", b), ("VDD", vdd), ("GND", gnd), ("Y", out)):
         wire(scene, f"W{pin}", gate, net, source_pin=pin)
-    scene.add_edge(name="RL", source=out.id, target=gnd.id, kind="resistor",
-                   params={"R": 10000.0})
+    scene.add_edge(
+        name="RL", source=out.id, target=gnd.id, kind="resistor", params={"R": 10000.0}
+    )
     for _ in range(3):
         scene.step(1e-4)
     assert voltage(scene, "out") > 4.5
@@ -170,12 +196,23 @@ def test_device_counter4():
     gnd = node(scene, "gnd", "ground")
     clk = node(scene, "clk")
     q = [node(scene, f"q{i}") for i in range(4)]
-    scene.add_edge(name="CLK", source=clk.id, target=gnd.id, kind="vsource",
-                   params={"wave": "square", "amplitude": 2.5, "offset": 2.5,
-                           "frequency": 2000.0})
+    scene.add_edge(
+        name="CLK",
+        source=clk.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "square", "amplitude": 2.5, "offset": 2.5, "frequency": 2000.0},
+    )
     counter = device(scene, "U1", "counter4", vhigh=5.0, vlow=0.0, vth=2.5)
-    for pin, net in (("CLK", clk), ("RST", gnd), ("Q0", q[0]), ("Q1", q[1]),
-                     ("Q2", q[2]), ("Q3", q[3]), ("COM", gnd)):
+    for pin, net in (
+        ("CLK", clk),
+        ("RST", gnd),
+        ("Q0", q[0]),
+        ("Q1", q[1]),
+        ("Q2", q[2]),
+        ("Q3", q[3]),
+        ("COM", gnd),
+    ):
         wire(scene, f"W{pin}", counter, net, source_pin=pin)
     samples = []
     for _ in range(40):
@@ -200,31 +237,60 @@ def test_device_wire_api(client):
 
     top = add_node("TOPAPI", "node")
     r1 = add_node("R1API", "device", {"element": "resistor", "R": 1000.0})
-    assert client.post("/api/edges", json={
-        "name": "VAPI", "source": top["id"], "target": gnd["id"], "kind": "vsource",
-        "params": {"wave": "dc", "offset": 10.0, "amplitude": 0.0},
-    }).status_code == 200
-    first = client.post("/api/edges", json={
-        "name": "WAPI1", "source": r1["id"], "target": top["id"],
-        "kind": "wire", "source_pin": "1",
-    })
+    assert (
+        client.post(
+            "/api/edges",
+            json={
+                "name": "VAPI",
+                "source": top["id"],
+                "target": gnd["id"],
+                "kind": "vsource",
+                "params": {"wave": "dc", "offset": 10.0, "amplitude": 0.0},
+            },
+        ).status_code
+        == 200
+    )
+    first = client.post(
+        "/api/edges",
+        json={
+            "name": "WAPI1",
+            "source": r1["id"],
+            "target": top["id"],
+            "kind": "wire",
+            "source_pin": "1",
+        },
+    )
     assert first.status_code == 200, first.text
     assert first.json()["edge"]["source_pin"] == "1"
-    second = client.post("/api/edges", json={
-        "name": "WAPI2", "source": r1["id"], "target": gnd["id"],
-        "kind": "wire", "source_pin": "2",
-    })
+    second = client.post(
+        "/api/edges",
+        json={
+            "name": "WAPI2",
+            "source": r1["id"],
+            "target": gnd["id"],
+            "kind": "wire",
+            "source_pin": "2",
+        },
+    )
     assert second.status_code == 200, second.text
     state = client.post("/api/control", json={"action": "step"}).json()
     assert state["sim"]["steps"] >= 1
-    bad = client.post("/api/edges", json={
-        "name": "WAPIBAD", "source": r1["id"], "target": top["id"],
-        "kind": "wire", "source_pin": "9",
-    })
+    bad = client.post(
+        "/api/edges",
+        json={
+            "name": "WAPIBAD",
+            "source": r1["id"],
+            "target": top["id"],
+            "kind": "wire",
+            "source_pin": "9",
+        },
+    )
     assert bad.status_code == 422
 
 
-@pytest.mark.parametrize("element", sorted(__import__("netlab.core.model.ports", fromlist=["PINS"]).PINS))
+@pytest.mark.parametrize(
+    "element", sorted(__import__("netlab.core.model.ports", fromlist=["PINS"]).PINS)
+)
 def test_all_circuit_kinds_accept_device_nodes(element):
     from netlab.core.model.ports import pins_for_device
 
@@ -246,10 +312,12 @@ def test_device_opamp_inverting():
     inv = node(scene, "inv")
     out = node(scene, "out")
     dc(scene, "VIN", vin, gnd, 0.5)
-    scene.add_edge(name="R1", source=vin.id, target=inv.id, kind="resistor",
-                   params={"R": 1000.0})
-    scene.add_edge(name="R2", source=inv.id, target=out.id, kind="resistor",
-                   params={"R": 10000.0})
+    scene.add_edge(
+        name="R1", source=vin.id, target=inv.id, kind="resistor", params={"R": 1000.0}
+    )
+    scene.add_edge(
+        name="R2", source=inv.id, target=out.id, kind="resistor", params={"R": 10000.0}
+    )
     opamp = device(scene, "U1", "opamp", gain=1.0e5, vcc=15.0, vee=-15.0)
     # R21：单端输出；V+/V− 不接线时走参数默认（对地 ±15）。
     for pin, net in (("IN+", gnd), ("IN-", inv), ("OUT", out)):
@@ -269,8 +337,9 @@ def test_device_comparator_single_ended_default_rails():
     cmp_ = device(scene, "U1", "comparator", gain=1.0e6, vcc=15.0, vee=-15.0)
     for pin, net in (("IN+", gnd), ("IN-", vin), ("OUT", out)):
         wire(scene, f"W{pin}", cmp_, net, source_pin=pin)
-    scene.add_edge(name="RL", source=out.id, target=gnd.id, kind="resistor",
-                   params={"R": 1000.0})
+    scene.add_edge(
+        name="RL", source=out.id, target=gnd.id, kind="resistor", params={"R": 1000.0}
+    )
     for _ in range(3):
         scene.step(1e-4)
     # vp=0 < vin=1 → 低电平 ≈ VEE
@@ -286,8 +355,9 @@ def test_device_comparator_single_ended_default_rails():
     cmp2 = device(scene2, "U1", "comparator", gain=1.0e6, vcc=15.0, vee=-15.0)
     for pin, net in (("IN+", vp2), ("IN-", vin2), ("OUT", out2)):
         wire(scene2, f"W{pin}", cmp2, net, source_pin=pin)
-    scene2.add_edge(name="RL", source=out2.id, target=gnd2.id, kind="resistor",
-                    params={"R": 1000.0})
+    scene2.add_edge(
+        name="RL", source=out2.id, target=gnd2.id, kind="resistor", params={"R": 1000.0}
+    )
     for _ in range(3):
         scene2.step(1e-4)
     assert abs(voltage(scene2, "out") - 15.0) < 0.2
@@ -305,11 +375,17 @@ def test_device_comparator_wired_rails_follow_pins():
     dc(scene, "VEE", vee, gnd, -12.0)
     dc(scene, "VIN", vin, gnd, 1.0)
     cmp_ = device(scene, "U1", "comparator", gain=1.0e6)
-    for pin, net in (("IN+", gnd), ("IN-", vin), ("V+", vcc),
-                     ("V-", vee), ("OUT", out)):
+    for pin, net in (
+        ("IN+", gnd),
+        ("IN-", vin),
+        ("V+", vcc),
+        ("V-", vee),
+        ("OUT", out),
+    ):
         wire(scene, f"W{pin}", cmp_, net, source_pin=pin)
-    scene.add_edge(name="RL", source=out.id, target=vee.id, kind="resistor",
-                   params={"R": 1000.0})
+    scene.add_edge(
+        name="RL", source=out.id, target=vee.id, kind="resistor", params={"R": 1000.0}
+    )
     for _ in range(3):
         scene.step(1e-4)
     # IN+ < IN− → 输出低电平 = V−
@@ -325,8 +401,9 @@ def test_device_555_and_ldo():
     ldo = device(scene, "U1", "ldo", vout=5.0, dropout=0.5)
     for pin, net in (("IN", vcc), ("OUT", out), ("GND", gnd)):
         wire(scene, f"L{pin}", ldo, net, source_pin=pin)
-    scene.add_edge(name="RL", source=out.id, target=gnd.id, kind="resistor",
-                   params={"R": 1000.0})
+    scene.add_edge(
+        name="RL", source=out.id, target=gnd.id, kind="resistor", params={"R": 1000.0}
+    )
     for _ in range(3):
         scene.step(1e-4)
     assert abs(voltage(scene, "out") - 5.0) < 0.05
@@ -336,8 +413,7 @@ def test_device_555_and_ldo():
     tvcc = node(timer, "vcc")
     tout = node(timer, "out")
     dc(timer, "VCC", tvcc, tgnd, 5.0)
-    u555 = device(timer, "U1", "ne555", freq=1000.0, duty=0.5,
-                  vhigh=5.0, vlow=0.0)
+    u555 = device(timer, "U1", "ne555", freq=1000.0, duty=0.5, vhigh=5.0, vlow=0.0)
     for pin, net in (("OUT", tout), ("VCC", tvcc), ("GND", tgnd)):
         wire(timer, f"T{pin}", u555, net, source_pin=pin)
     samples = []
@@ -353,8 +429,9 @@ def test_pure_wire_merges_net_nodes():
     a = node(scene, "a")
     b = node(scene, "b")
     dc(scene, "V1", a, gnd, 10.0)
-    scene.add_edge(name="RL", source=b.id, target=gnd.id, kind="resistor",
-                   params={"R": 1000.0})
+    scene.add_edge(
+        name="RL", source=b.id, target=gnd.id, kind="resistor", params={"R": 1000.0}
+    )
     wire(scene, "WNET", a, b)
     for _ in range(2):
         scene.step(1e-4)
@@ -368,13 +445,20 @@ def test_pure_wire_rejects_pins_and_device_device():
     a = node(scene, "a")
     b = node(scene, "b")
     with pytest.raises(ValidationError):
-        scene.add_edge(name="BAD", source=a.id, target=b.id, kind="wire",
-                       source_pin="1")
+        scene.add_edge(
+            name="BAD", source=a.id, target=b.id, kind="wire", source_pin="1"
+        )
     d1 = device(scene, "D1", "resistor", R=1000.0)
     d2 = device(scene, "D2", "resistor", R=1000.0)
     with pytest.raises(ValidationError):
-        scene.add_edge(name="BAD2", source=d1.id, target=d2.id, kind="wire",
-                       source_pin="1", target_pin="1")
+        scene.add_edge(
+            name="BAD2",
+            source=d1.id,
+            target=d2.id,
+            kind="wire",
+            source_pin="1",
+            target_pin="1",
+        )
 
 
 def test_common_collector_template_follows_input():

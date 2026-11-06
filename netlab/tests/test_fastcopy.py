@@ -1,4 +1,5 @@
 """core.common.fastcopy: 与 deepcopy 语义等价（含可变对象隔离）。"""
+
 from __future__ import annotations
 
 import copy

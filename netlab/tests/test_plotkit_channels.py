@@ -1,4 +1,5 @@
 """PlotKit 面板的数据接入接口：通道列举 + 选择。"""
+
 from __future__ import annotations
 
 from fastapi.testclient import TestClient

@@ -61,8 +61,7 @@ def test_import_and_while_are_rejected():
         extensions.validate_code("import os\n" + NODE_CODE)
     with pytest.raises(ValidationError, match="While"):
         extensions.validate_code(
-            "while True:\n    pass\n"
-            + NODE_CODE.replace("def compute", "def compute2")
+            "while True:\n    pass\n" + NODE_CODE.replace("def compute", "def compute2")
         )
     with pytest.raises(ValidationError, match="双下划线"):
         extensions.validate_code(NODE_CODE + "\nx = obj.__class__\n")

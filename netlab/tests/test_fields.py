@@ -241,7 +241,9 @@ def test_reset_restores_computed_node_data():
         kind="signal",
         params={"wave": "step", "offset": 0.0, "amplitude": 1.0, "delay": 0.0},
     )
-    total = scene.add_node(name="sum", kind="sum", params={"weights": {"u": 1.0, "fb": 1.0}})
+    total = scene.add_node(
+        name="sum", kind="sum", params={"weights": {"u": 1.0, "fb": 1.0}}
+    )
     scene.add_edge(name="u", source=source.id, target=total.id, kind="pass")
     scene.add_edge(
         name="fb",

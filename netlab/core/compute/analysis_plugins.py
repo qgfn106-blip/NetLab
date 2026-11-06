@@ -52,7 +52,9 @@ def validate_analysis_result(result: AnalysisResult) -> AnalysisResult:
     for series in result.series:
         for key in ("x", "y"):
             values = series.get(key)
-            if not isinstance(values, list) or len(values) != len(series.get("x" if key == "y" else "y", [])):
+            if not isinstance(values, list) or len(values) != len(
+                series.get("x" if key == "y" else "y", [])
+            ):
                 raise ValueError("series 的 x/y 必须等长数组")
             if not all(_finite(item) for item in values):
                 raise ValueError("series 只允许有限数值")

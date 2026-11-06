@@ -61,3 +61,4 @@
 
 ## 9. 实施进度
 - 2026-11-06：**P17.1 完成**——新增 `plot2d.utils.ts` / `plot3d.utils.ts`（含 NumRange/Vec3/Mat4 等类型导出）+ `tsconfig.utils.json` + `tests/*.test.cjs`；`npm run test:utils` → **19 passed**；主 `tsconfig` 仍 0 错、`pytest` 全绿。
+- 2026-11-06：**P17.2 完成**——PlotKit `render2d/view3d/app/nsview` 转原生 ESM（render2d/view3d 从 `plot2d.utils`/`plot3d.utils` import 并删重复纯函数；app 作模块入口副作用 import；`interface Window` 移入 `declare global`）；`index.html`/`ns.html` 改单个 `<script type="module">`；netlab `plotkit_bridge._host_index_html` 锚点改 `html.find("<script")`；vendor 重装 57 文件（仅 .js）。验证：tsc 0、test:utils 19 passed、真浏览器 probe（index + NS 页 ESM 运行时正常）、`pytest netlab/tests` 589 passed 1 skipped、PlotKit 470 passed / 0 fail。

@@ -1,6 +1,6 @@
 # Netlab 文档索引（DOCS INDEX）
 
-> 最后核对：2026-11-06 15:45 · 当前基线：静态 3.20.1 / 589 passed / R01–R43 / D1–D118
+> 最后核对：2026-11-06 18:20 · 当前基线：静态 3.20.1 / 589 passed / R01–R43 / D1–D119；新增 **CODE_STANDARDS.md（代码规范，强制）**
 > 目的：先在这里找文档，不要凭文件名猜新旧。**历史文档保留原文，但不得作为当前实现口径。**
 
 ## 1. 建议阅读路线
@@ -15,6 +15,7 @@
 | 想改前端/UI | [UI_SPEC.md](UI_SPEC.md) | [FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md) |
 | 想知道项目做到哪 | [PROGRESS.md](PROGRESS.md) | [BACKLOG.md](BACKLOG.md) |
 | 想查需求/决策 | [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) | [adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md) |
+| 想改代码（贡献者 / agent） | **[CODE_STANDARDS.md](CODE_STANDARDS.md)** | [AGENT_GUIDE.md](AGENT_GUIDE.md) |
 
 ## 2. 当前有效文档（active）
 
@@ -73,6 +74,7 @@
 | [BACKLOG.md](BACKLOG.md) | 当前主线、剩余项、待拍板决定 | 当前 |
 | [LESSONS.md](LESSONS.md) | 踩坑与经验（按 §7.x 记录） | 当前 |
 | [AGENT_GUIDE.md](AGENT_GUIDE.md) | Agent 开工三问、文档路由、闸门 | 当前 |
+| [CODE_STANDARDS.md](CODE_STANDARDS.md) | **代码规范（强制）**：TS/JS + Python + 测试 + 提交 + 文档规范；改代码前必读 | 当前 |
 
 ### 2.6 功能规格（spec，按日期归档）
 
@@ -107,3 +109,4 @@
 5. 每轮全量验证后更新 `PROGRESS.md` 与备份 `MANIFEST.sha256`。
 6. 文档分层：项目入口（README/ARCHITECTURE/OPERATION/INSTALL）→ 开发规范（AGENT_GUIDE/CODE_GUIDE/MATH）→ 需求与计划（REQUIREMENTS/BACKLOG/PROGRESS）→ 研究记录（PERFORMANCE/UNIFIED/MATH_INTEGRATION_PLAN）→ 历史档（historical，标注状态）。研究记录不参与“当前实现口径”判断。
 7. 已完成的一次性计划/报告在结论并入 PROGRESS 或需求台账后删除；同类文档优先合并，不并行保留多份。删除前在本索引登记日期与清单。
+8. **单一事实来源（避免阅读/修改混乱）**：需求·决策·分期 = `REQUIREMENTS_AND_RULES.md`；进度与证据 = `PROGRESS.md`；主线待办 = `BACKLOG.md`；代码规范 = `CODE_STANDARDS.md`；开工路由 = `AGENT_GUIDE.md`；全量导航 = 本文件。同一事实只在一处维护，其余**链接引用、不复制**；改其一须同步引用它的状态（尤其 REQUIREMENTS ↔ PROGRESS / BACKLOG）。

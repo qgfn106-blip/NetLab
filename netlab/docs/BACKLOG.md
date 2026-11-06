@@ -44,7 +44,7 @@
 | **R37 线性网络总传函预计算与 Bode 幅相** | R36 的全局状态空间装配 | 纯线性网络装配 `A,B,C,D`，`G(s)=C(sI-A)^{-1}B+D`；支持串联 / 并联 / 反馈环；延迟边在 z 域按 `z⁻¹` 精确、s 域标近似；Bode 幅值 + 相位 | 中 |
 | **R38 相平面 + 独立播放 + 数据分析** | R36 的状态通道 | 直接收集 `transfer_function` / 状态空间的真实状态，不从总传函反推；暴露 `state:<node>:<index>`；独立时间轴播放 / 步进 / 循环；峰值、超调、稳态、调节时间、CSV | 中 |
 | **R39 复数分析层（Complex Bridge）** | R37/R38 分析出口 | `complex_support.py` 转换纯函数；`analysis.frequency_response()` 统一 signal/circuit 的 `H(jω)`；signal 精确 `e^{-jωT}`、circuit 复用复数 MNA；`nodal.ac_sweep` 增 `real/imag`；`POST /api/analysis/frequency`；时域/持久化保持实数 | 中 |
-| **M1 数学加速接入（P3+P1+P5，影子验证）** | R36/R37 分析层、mathspec 原型 | 详见 [MATH_INTEGRATION_PLAN.md](MATH_INTEGRATION_PLAN.md)：M0 mathspec 原型 → M1a P1 排序评测 → M1b P3 AC 扫频 Woodbury → M1c P5 遥测误差口径 → M1d 影子集成；`NETLAB_MATH_ACCEL=off` 默认，先影子对拍再启用（M0/M1a/M1b/M1c 已完成：P1 真实语料未过 DoD 保持 COLAMD，P3 1.50×/2.09×，P5 只读诊断就绪；见 PROGRESS §7.79） | 中大 |
+| **M1 数学加速接入（P3+P1+P5，影子验证）** | R36/R37 分析层、mathspec 原型 | 详见 [MATH_INTEGRATION_PLAN.md](MATH_INTEGRATION_PLAN.md)：M0 mathspec 原型 → M1a P1 排序评测 → M1b P3 AC 扫频 Woodbury → M1c P5 遥测误差口径 → M1d 影子集成；`NETLAB_MATH_ACCEL=off` 默认，先影子对拍再启用（M0–M1d 已完成：P1 真实语料未过 DoD 保持 COLAMD，P3 1.50×/2.09×，P5 只读诊断就绪，M1d 集成回归通过；见 PROGRESS §7.79） | 中大 |
 
 > 用户已拍板按文档开工。R36 **P1–P5 已完成**：节点语义标签、`Network.solver_plan()`、自动延迟记录；`Network(solve_algebraic=True)` 按 `(I-A)y=b` 解线性直接馈通环，`Scene.set_algebraic_solver(True)` 后不再自动 `z⁻¹`；非线性/时变直接馈通 SCC 走阻尼 Newton；线性网络 `analysis.transfer_function()` 支持串联/并联/反馈环，`tf_analysis()` 可直接算网络 Bode；`SignalEngine.probes()` 暴露 `state:<node>:<index>`，前端相图支持状态通道与独立播放/步进/循环；全量 525 passed。R37 对外总传函/Bode 已完成（z 域支持纯 gain/sum + 显式延迟）；R38 状态通道/播放/指标/CSV/dt 收敛/无状态提示已完成。
 

@@ -2227,7 +2227,8 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - **R11 多窗口周期**：`analysis.recommend_period` 从"FFT+单窗 MAE"升级为多窗口——`_period_windows(size)` 取全窗 + 前后 65%/35% 重叠子窗，逐窗 `_shift_score` 求最优相位与 MAE/score，候选周期取窗口均值并附 `windows`、`score_std`，整体返回 `period_std`；仍是 FFT 峰值驱动，未做自相关候选网格。
 - **R14 全局搜索**：`GET /api/help/search?q=&limit=` 搜索元件、电路节点、信号节点、计算方法、模板与 `docs/*.md`，返回 kind/title/subtitle/text/score/ref/line；`GET /api/help/doc?path=&line=` 只读渲染 Markdown 文档并高亮行，拒绝路径穿越。前端 `searchDocs` 改 async + 序号防竞态，文档命中后追加元件/节点/模板结果，模板可直接载入。
 - **R34 Bode 光标**：Bode 视图鼠标移动显示竖向十字线、幅频/相频两点与 `ω / |G| dB / ∠°` 读数，移出清除；`tfBodeCursorFromEvent` 按对数频率轴反查最近采样点，`attachTfCursor` 保证 canvas 只绑一次；仍不做零极点拖动。
-- **测试**：新增 `test_help_search.py` 4 条、`test_analysis.py` 周期多窗口断言；定向 14 passed；netlab 全量 **626 passed, 1 skipped in 111.77s**；前端 `node --test tests/*.test.mjs` 5 passed；`tsc --noEmit` 与 esbuild 构建通过。
+- **R17/R40 复核**：R17 的 L3 状态空间已随 `analysis.transfer_function` 返回 `state_space`（可控标准型，解析失败为 null）；R40 视图设计新增「显示节点类型/端口」「显示节点数值」两个开关（`ui.node.show_detail/show_value`），即时作用于画布并随工程持久化；自由拖拽编辑面板字段仍为已知限制。
+- **测试**：新增 `test_help_search.py` 4 条、`test_analysis.py` 周期多窗口断言；定向 14 passed；netlab 全量 **626 passed, 1 skipped in 111.77s**；前端 `node --test tests/*.test.mjs` 5 passed；`tsc --noEmit` 与 esbuild 构建通过；`test_project_v6_ui.py` 5 passed。
 - **文档**：REQUIREMENTS R11/R14/R34 现状、PROGRESS 本节、BACKLOG/DOCS_INDEX/FRAMEWORK_CHEATSHEET 基线改 626 passed。
 
 

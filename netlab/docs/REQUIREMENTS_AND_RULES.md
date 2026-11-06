@@ -292,7 +292,7 @@
 - **拟改架构**：结构图元素（方框/求和点/引出点）与信号流图元素（节点/支路增益）作为可选样式；`analysis/symbolic.py` 负责符号化与梅森增益；结果缓存进工程。
 - **验收**：任一线性网络能给出闭环传递函数或状态空间（含假设）；无法解析时给原因；求解器路径无改动（以测试与 diff 证明）。
 - **权重·期次**：⭐⭐ / P3
-- **现状**：**2026-10-26 P3 部分完成**：L2 传递函数呈现已可用（`analysis.transfer_function`，sympy 可选：线性节点逐级拼接、约分、分子/分母系数与阶数、附假设与来源；不可解析时给原因）；L1 的术语/图形样式未做（文档标注「不强制」）；L3 状态空间/梅森增益仍属 P6。
+- **现状**：**2026-10-26 P3 部分完成**：L2 传递函数呈现已可用（`analysis.transfer_function`，sympy 可选：线性节点逐级拼接、约分、分子/分母系数与阶数、附假设与来源；不可解析时给原因）；**L3 状态空间已具备**（同一返回附 `state_space` 可控标准型 A/B/C/D，`transfer_math` 解析失败时为 null 并保留原因）；L1 术语/图形样式按需求为「不强制」；Mason 增益未做（可选增强）。
 
 ---
 
@@ -594,7 +594,7 @@
   - 实现后：示例插件可注册 compute/method/element/analysis/panel/template；自定义 EngineSpec 可运行；缺插件工程可降级打开；v5→v6 迁移幂等；简洁/专业视图切换不改变 Node/Edge 计数/kind/params/连接关系。
   - 现有 581 项回归不下降；插件测试独立文件；UI profile 保存/载入/项目覆盖通过。
 - **权重·期次**：⭐⭐⭐⭐ / P15（2026-11-06 设计并完成首版实现）。
-- **现状**：**设计完成，代码实现完成（2026-11-06）**。设计见 [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md)、[adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md)、[GLOSSARY.md](GLOSSARY.md)。已实现 `netlab.plugin_api.v1`、`PluginManager`、`AnalysisSpec`、`EngineProtocol`、工程 v6、`netlab-ui/1`、插件管理页与视图设计 v1；589 passed。已知限制：视图设计 v1 只覆盖主题令牌/布局/模式切换，节点拖拽细节/面板字段编辑后续补充；插件为受信任进程内代码，不是沙箱。
+- **现状**：**设计完成，代码实现完成（2026-11-06）**。设计见 [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md)、[adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md)、[GLOSSARY.md](GLOSSARY.md)。已实现 `netlab.plugin_api.v1`、`PluginManager`、`AnalysisSpec`、`EngineProtocol`、工程 v6、`netlab-ui/1`、插件管理页与视图设计；**2026-11-07 补节点卡片字段开关**：视图设计新增「显示节点类型/端口」「显示节点数值」两项，写入 `ui.node.show_detail/show_value` 并即时作用于画布，随工程持久化。已知限制：自由拖拽编辑面板字段尚未做（当前为声明式开关）；插件为受信任进程内代码，不是沙箱。
 
 ### R41 前端 JavaScript → TypeScript 全局迁移（2026-11-06）
 

@@ -58,3 +58,6 @@
 
 ## 8. 验收总口径
 「P17 完成」= P17.1–P17.4 全部通过 + `tsc` 0 + 单测绿 + parity/pytest/GUI smoke 全绿 + 文档台账更新 + 分支可合并。
+
+## 9. 实施进度
+- 2026-11-06：**P17.1 完成**——新增 `plot2d.utils.ts` / `plot3d.utils.ts`（含 NumRange/Vec3/Mat4 等类型导出）+ `tsconfig.utils.json` + `tests/*.test.cjs`；`npm run test:utils` → **19 passed**；主 `tsconfig` 仍 0 错、`pytest` 全绿。

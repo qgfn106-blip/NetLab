@@ -1,6 +1,6 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-06 12:22
+> 最后修改：2026-11-06 12:40
 
 | 项 | 内容 |
 | --- | --- |
@@ -2068,7 +2068,7 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 
 ## §7.76 前端 JavaScript → TypeScript 全局迁移（规划，2026-11-06）
 
-**状态：一期 P16 已完成——7 个文件（vscode 扩展、PlotKit `render2d`/`view3d`/`app`/`nsview`、netlab `desktop-shim`/`app.js`）全部严格类型化并通过 DoD（tsc strict 0、AST/行为等价、Python 契约测试全绿）；二期 P17 模块化设计中（详细设计与验收口径见 [TS_P17_MODULE_DESIGN.md](TS_P17_MODULE_DESIGN.md)）。** 需求与验收口径见 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) R41 / §5 P16（一期类型化）/ P17（二期模块化，暂挂）；决策 D100–D109。
+**状态：一期 P16 已完成——7 个文件（vscode 扩展、PlotKit `render2d`/`view3d`/`app`/`nsview`、netlab `desktop-shim`/`app.js`）全部严格类型化并通过 DoD（tsc strict 0、AST/行为等价、Python 契约测试全绿）；二期 P17 模块化进行中（P17.1 纯函数抽离+单测已完成，详见 [TS_P17_MODULE_DESIGN.md](TS_P17_MODULE_DESIGN.md)）。** 需求与验收口径见 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) R41 / §5 P16（一期类型化）/ P17（二期模块化，暂挂）；决策 D100–D109。
 
 **为什么做**：`frontend/app.js` 13,806 行单一大 IIFE、无类型无模块，维护成本高；`/api` 契约仅靠 Python 字符串匹配测试、前端无类型约束易漂移；缺模块化基建。
 

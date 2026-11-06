@@ -54,6 +54,7 @@ def _load_scipy() -> None:
     except Exception:  # pragma: no cover - 依赖环境
         pass
 
+
 K_BOLTZMANN = 8.617333262e-5
 MAX_NEWTON_ITERATIONS = 60
 NEWTON_ABS_TOL = 1.0e-6
@@ -279,9 +280,7 @@ class Capacitor(CircuitElement):
                 )
         else:
             self.conductance = 2.0 * cache / dt
-            self.source_current = (
-                -self.conductance * previous_v - previous_i
-            )
+            self.source_current = -self.conductance * previous_v - previous_i
 
     def stamp(self, ctx: StampContext) -> None:
         if ctx.mode == "dc":
@@ -375,9 +374,7 @@ class Inductor(CircuitElement):
                 # BDF2：i_{n+1} = dt/(1.5L)·v + (2i_n − 0.5i_{n-1})/1.5
                 self._gear_ready = True
                 self.conductance = dt / (1.5 * self.inductance)
-                self.source_current = (
-                    2.0 * previous_i - 0.5 * float(older_i)
-                ) / 1.5
+                self.source_current = (2.0 * previous_i - 0.5 * float(older_i)) / 1.5
         else:
             self.conductance = dt / (2.0 * self.inductance)
             self.source_current = previous_i + self.conductance * previous_v
@@ -390,7 +387,9 @@ class Inductor(CircuitElement):
             if ctx.omega == 0.0:
                 _stamp_conductance(ctx, self.a, self.b, self.DC_CONDUCTANCE)
             else:
-                _stamp_conductance(ctx, self.a, self.b, 1.0 / (1j * ctx.omega * self.inductance))
+                _stamp_conductance(
+                    ctx, self.a, self.b, 1.0 / (1j * ctx.omega * self.inductance)
+                )
             return
         _stamp_conductance(ctx, self.a, self.b, self.conductance)
         _stamp_current(ctx, self.a, self.b, self.source_current)
@@ -505,7 +504,9 @@ class CurrentSource(CircuitElement):
         self.value = waveform_value(self.params, time)
 
     def stamp(self, ctx: StampContext) -> None:
-        _stamp_current(ctx, self.a, self.b, self.value * getattr(self, "source_scale", 1.0))
+        _stamp_current(
+            ctx, self.a, self.b, self.value * getattr(self, "source_scale", 1.0)
+        )
 
     def current(self, ctx: StampContext) -> float:
         del ctx
@@ -697,7 +698,6 @@ class Diode(CircuitElement):
         voltage = ctx.voltage(self.junction) - ctx.voltage(self.b)
         current, _ = self._conductance(min(voltage, 60.0 * self.thermal))
         return current
-
 
 
 # ---- 行为元件（P4 / R15） ---------------------------------------------------
@@ -915,7 +915,9 @@ class DFlipFlop(CircuitElement):
         self.vth = float(self.params.get("vth", 2.5))
         self.vhigh = float(self.params.get("vhigh", 5.0))
         self.vlow = float(self.params.get("vlow", 0.0))
-        self.state.setdefault("q", 1 if float(self.params.get("q0", 0.0)) >= self.vth else 0)
+        self.state.setdefault(
+            "q", 1 if float(self.params.get("q0", 0.0)) >= self.vth else 0
+        )
         self.state.setdefault("clk_prev", 0)
 
     def stamp(self, ctx: StampContext) -> None:
@@ -1110,12 +1112,8 @@ ELEMENT_SPECS: dict[str, ElementSpec] = {
         description="用导通/断开电阻近似理想开关，可在运行中切换。",
         params=(
             ParamSpec("closed", "闭合", "bool", True),
-            float_param(
-                "ron", "导通电阻", 1.0e-3, unit="Ω", positive=True, step=0.001
-            ),
-            float_param(
-                "roff", "断开电阻", 1.0e9, unit="Ω", positive=True, step=1.0e6
-            ),
+            float_param("ron", "导通电阻", 1.0e-3, unit="Ω", positive=True, step=0.001),
+            float_param("roff", "断开电阻", 1.0e9, unit="Ω", positive=True, step=1.0e6),
         ),
         cls=Switch,
     ),
@@ -1146,14 +1144,20 @@ ELEMENT_SPECS: dict[str, ElementSpec] = {
         label="运算放大器",
         description="单端推挽输出运放；双电源可设参数或接 V+/V− 引脚。",
         params=(
-            choice_param("model", "型号", "LM741",
-                         (("custom", "自定义"),) + tuple((k, k) for k in OPAMP_MODELS),
-                         help="LM741/LM358/TL072/NE5532/LM324：选型号填开环增益与电源轨"),
+            choice_param(
+                "model",
+                "型号",
+                "LM741",
+                (("custom", "自定义"),) + tuple((k, k) for k in OPAMP_MODELS),
+                help="LM741/LM358/TL072/NE5532/LM324：选型号填开环增益与电源轨",
+            ),
             ParamSpec("vp", "同相端（旧边兼容）", "node", ""),
             ParamSpec("vn", "反相端（旧边兼容）", "node", ""),
             float_param("gain", "开环增益", 2.0e5, step=1.0e4),
             float_param("vcc", "正电源 VCC", 15.0, unit="V", help="未接 V+ 引脚时使用"),
-            float_param("vee", "负电源 VEE", -15.0, unit="V", help="未接 V− 引脚时使用"),
+            float_param(
+                "vee", "负电源 VEE", -15.0, unit="V", help="未接 V− 引脚时使用"
+            ),
             float_param(
                 "vmax",
                 "饱和电压（旧边兼容）",
@@ -1189,14 +1193,20 @@ ELEMENT_SPECS: dict[str, ElementSpec] = {
         label="电压比较器",
         description="高增益单端比较器；双电源可设参数或接 V+/V− 引脚，可设迟滞。",
         params=(
-            choice_param("model", "型号", "LM393",
-                         (("custom", "自定义"),) + tuple((k, k) for k in COMPARATOR_MODELS),
-                         help="LM393/LM311/LM339/TLV3201：选型号填增益、电源轨与迟滞"),
+            choice_param(
+                "model",
+                "型号",
+                "LM393",
+                (("custom", "自定义"),) + tuple((k, k) for k in COMPARATOR_MODELS),
+                help="LM393/LM311/LM339/TLV3201：选型号填增益、电源轨与迟滞",
+            ),
             ParamSpec("vp", "同相端（旧边兼容）", "node", ""),
             ParamSpec("vn", "反相端（旧边兼容）", "node", ""),
             float_param("gain", "开环增益", 1.0e6, step=1.0e5),
             float_param("vcc", "正电源 VCC", 15.0, unit="V", help="未接 V+ 引脚时使用"),
-            float_param("vee", "负电源 VEE", -15.0, unit="V", help="未接 V− 引脚时使用"),
+            float_param(
+                "vee", "负电源 VEE", -15.0, unit="V", help="未接 V− 引脚时使用"
+            ),
             float_param("hysteresis", "迟滞", 0.0, unit="V", step=0.01),
             float_param(
                 "vmax",
@@ -1249,9 +1259,13 @@ ELEMENT_SPECS: dict[str, ElementSpec] = {
         label="D 触发器",
         description="上升沿锁存 D 到 Q 的行为模型；Q 输出为电压源（a-b）。",
         params=(
-            choice_param("model", "型号", "74HC74",
-                         (("custom", "自定义"),) + tuple((k, k) for k in DFF_MODELS),
-                         help="74HC74/74LS74/CD4013：选型号填逻辑阈值与高低电平"),
+            choice_param(
+                "model",
+                "型号",
+                "74HC74",
+                (("custom", "自定义"),) + tuple((k, k) for k in DFF_MODELS),
+                help="74HC74/74LS74/CD4013：选型号填逻辑阈值与高低电平",
+            ),
             ParamSpec("d_node", "D 节点", "node", ""),
             ParamSpec("clk_node", "CLK 节点", "node", ""),
             float_param("vth", "逻辑阈值", 2.5, unit="V"),
@@ -1261,7 +1275,8 @@ ELEMENT_SPECS: dict[str, ElementSpec] = {
         ),
         cls=DFlipFlop,
         formula="clk 上升沿：Q←D；否则保持",
-        notes="行为级、单步延迟（commit 更新，下一步输出）；不做建立/保持时间；常用型号 " + "/".join(DFF_MODELS),
+        notes="行为级、单步延迟（commit 更新，下一步输出）；不做建立/保持时间；常用型号 "
+        + "/".join(DFF_MODELS),
         presets=DFF_MODELS,
     ),
 }
@@ -1305,7 +1320,11 @@ PIN_BINDINGS: dict[str, tuple[str, str, dict[str, str]]] = {
     "vcvs": ("OUT+", "OUT-", {"IN+": "control_source", "IN-": "control_target"}),
     "vccs": ("OUT+", "OUT-", {"IN+": "control_source", "IN-": "control_target"}),
     "transformer": ("P1", "P2", {"S1": "secondary_source", "S2": "secondary_target"}),
-    "coupling_inductor": ("P1", "P2", {"S1": "secondary_source", "S2": "secondary_target"}),
+    "coupling_inductor": (
+        "P1",
+        "P2",
+        {"S1": "secondary_source", "S2": "secondary_target"},
+    ),
     "dflipflop": ("Q+", "Q-", {"D": "d_node", "CLK": "clk_node"}),
     "ne555": ("OUT", "GND", {"VCC": "vcc_node"}),
     "ldo": ("OUT", "GND", {"IN": "vin_node"}),
@@ -1314,22 +1333,44 @@ PIN_BINDINGS: dict[str, tuple[str, str, dict[str, str]]] = {
     "not_gate": ("Y", "GND", {"A": "in_a", "VDD": "vdd_node"}),
     "xor_gate": ("Y", "GND", {"A": "in_a", "B": "in_b", "VDD": "vdd_node"}),
     "counter4": (
-        "Q0", "COM",
-        {"CLK": "clk_node", "RST": "rst_node", "Q0": "q0_node", "Q1": "q1_node",
-         "Q2": "q2_node", "Q3": "q3_node"},
+        "Q0",
+        "COM",
+        {
+            "CLK": "clk_node",
+            "RST": "rst_node",
+            "Q0": "q0_node",
+            "Q1": "q1_node",
+            "Q2": "q2_node",
+            "Q3": "q3_node",
+        },
     ),
     "shift4": (
-        "Q0", "COM",
-        {"D": "d_node", "CLK": "clk_node", "RST": "rst_node",
-         "Q0": "q0_node", "Q1": "q1_node", "Q2": "q2_node", "Q3": "q3_node"},
+        "Q0",
+        "COM",
+        {
+            "D": "d_node",
+            "CLK": "clk_node",
+            "RST": "rst_node",
+            "Q0": "q0_node",
+            "Q1": "q1_node",
+            "Q2": "q2_node",
+            "Q3": "q3_node",
+        },
     ),
     "adc4": (
-        "Q0", "COM",
-        {"VIN": "vin_node", "CLK": "clk_node", "Q1": "q1_node",
-         "Q2": "q2_node", "Q3": "q3_node"},
+        "Q0",
+        "COM",
+        {
+            "VIN": "vin_node",
+            "CLK": "clk_node",
+            "Q1": "q1_node",
+            "Q2": "q2_node",
+            "Q3": "q3_node",
+        },
     ),
     "dac4": (
-        "OUT", "COM",
+        "OUT",
+        "COM",
         {"B0": "b0_node", "B1": "b1_node", "B2": "b2_node", "B3": "b3_node"},
     ),
     "npn": ("C", "E", {"B": "base_node"}),
@@ -1374,9 +1415,7 @@ def create_element_from_pins(
         raise ComputeError(f"元件 {name!r} 收到未声明的引脚：{', '.join(extra)}")
     missing = [pin.name for pin in table if pin.required and pin.name not in pins]
     if missing:
-        raise ComputeError(
-            f"元件 {name!r} 的必接引脚没有导线：{', '.join(missing)}"
-        )
+        raise ComputeError(f"元件 {name!r} 的必接引脚没有导线：{', '.join(missing)}")
     spec = element_spec(kind)
     params = dict(raw_params or {})
     params.pop("element", None)
@@ -1399,9 +1438,7 @@ def create_element_from_pins(
                 )
             b = ground
     params_clean = validate_params(list(spec.params), params)
-    return spec.cls(
-        name, a, b, params_clean, state, pins=pins, integration=integration
-    )
+    return spec.cls(name, a, b, params_clean, state, pins=pins, integration=integration)
 
 
 def element_catalog() -> list[dict[str, Any]]:
@@ -1597,7 +1634,9 @@ class CircuitSolver:
         self.index = {node_id: position for position, node_id in enumerate(unknown)}
 
         branch_elements = [element for element in self.elements if element.needs_branch]
-        branch_count = sum(int(getattr(element, "branch_width", 1)) for element in branch_elements)
+        branch_count = sum(
+            int(getattr(element, "branch_width", 1)) for element in branch_elements
+        )
         offset = 0
         for element in branch_elements:
             width = int(getattr(element, "branch_width", 1))
@@ -1607,9 +1646,7 @@ class CircuitSolver:
             )
             offset += width
             if element.a == self.ground and element.b == self.ground:
-                raise ComputeError(
-                    f"电压源 {element.name!r} 两端都接地，电路不合法"
-                )
+                raise ComputeError(f"电压源 {element.name!r} 两端都接地，电路不合法")
         self.branch_count = branch_count
         self.matrix_size = len(unknown) + branch_count
         if self.matrix_size == 0:
@@ -1728,9 +1765,11 @@ class CircuitSolver:
         for element in self.elements:
             element.prepare(dt, self.time)
 
-        guess = self.solution if self.solution is not None else np.zeros(self.matrix_size)
-        solution, iterations, converged, residual, attempted = self._newton_with_strategies(
-            dt, guess, mode="tran"
+        guess = (
+            self.solution if self.solution is not None else np.zeros(self.matrix_size)
+        )
+        solution, iterations, converged, residual, attempted = (
+            self._newton_with_strategies(dt, guess, mode="tran")
         )
         if not converged:
             trouble = self._trouble_name(solution, dt=dt, residual=residual)
@@ -1823,7 +1862,9 @@ class CircuitSolver:
             iterations += trial_iters
         return solution, iterations, converged, residual, attempted
 
-    def _tolerance(self, new_solution: np.ndarray, old_solution: np.ndarray) -> np.ndarray:
+    def _tolerance(
+        self, new_solution: np.ndarray, old_solution: np.ndarray
+    ) -> np.ndarray:
         options = self.options
         node_count = len(self.unknown_ids)
         tol = np.empty(self.matrix_size)
@@ -1866,7 +1907,7 @@ class CircuitSolver:
             label = self._index_name(worst)
             for prefix in ("节点 ", "支路 "):
                 if label.startswith(prefix):
-                    return label[len(prefix):].strip("'")
+                    return label[len(prefix) :].strip("'")
             return label
         index = int(np.argmax(np.abs(solution)))
         if index < len(self.unknown_ids):
@@ -2002,8 +2043,7 @@ class CircuitSolver:
         if self.sparse:
             return self._solve_sparse(matrix, rhs, dt)
         use_gpu = (
-            accel.available()
-            and self.matrix_size >= accel.status()["gpu_min_size"]
+            accel.available() and self.matrix_size >= accel.status()["gpu_min_size"]
         )
         if use_gpu:  # pragma: no cover - 依赖本机 GPU
             return solve_linear(matrix, rhs, what="电路")
@@ -2023,10 +2063,17 @@ class CircuitSolver:
             self.last_scaled = scaling
             self.last_row_scale = self._lu_row_scale
             self.last_col_scale = self._lu_col_scale
-            return _scipy_lu_solve(self._lu_cache, rhs / self._lu_row_scale) / self._lu_col_scale
-        row_scale, col_scale = self._equilibration(matrix) if scaling else (
-            np.ones(matrix.shape[0]),
-            np.ones(matrix.shape[1]),
+            return (
+                _scipy_lu_solve(self._lu_cache, rhs / self._lu_row_scale)
+                / self._lu_col_scale
+            )
+        row_scale, col_scale = (
+            self._equilibration(matrix)
+            if scaling
+            else (
+                np.ones(matrix.shape[0]),
+                np.ones(matrix.shape[1]),
+            )
         )
         self.last_scaled = scaling
         self.last_row_scale = row_scale
@@ -2064,9 +2111,7 @@ class CircuitSolver:
                 pass
         return solve_linear(matrix, rhs, what="电路")
 
-    def _sparse_equilibration(
-        self, csr: Any
-    ) -> tuple[np.ndarray, np.ndarray]:
+    def _sparse_equilibration(self, csr: Any) -> tuple[np.ndarray, np.ndarray]:
         """稀疏版本的行/列最大模均衡（不展开成稠密）。"""
         tiny = 1.0e-300
         abs_csr = abs(csr)
@@ -2153,9 +2198,7 @@ class CircuitSolver:
         for row in range(len(self.unknown_ids)):
             if not nonempty[row]:
                 names = [
-                    node.name
-                    for node in self.nodes
-                    if node.id == self.unknown_ids[row]
+                    node.name for node in self.nodes if node.id == self.unknown_ids[row]
                 ]
                 label = names[0] if names else self.unknown_ids[row]
                 raise ComputeError(
@@ -2165,7 +2208,16 @@ class CircuitSolver:
     # ---- 直流工作点与交流小信号（R26/D54–D56） -----------------------------
     #: 支持交流 stamp 的元件 kind；其余元件（二极管/晶体管/数字器件等）在 AC 中显式拒绝。
     AC_KINDS = frozenset(
-        {"resistor", "capacitor", "inductor", "vsource", "isource", "vcvs", "vccs", "switch"}
+        {
+            "resistor",
+            "capacitor",
+            "inductor",
+            "vsource",
+            "isource",
+            "vcvs",
+            "vccs",
+            "switch",
+        }
     )
 
     def operating_point(self) -> dict[str, Any]:
@@ -2260,7 +2312,8 @@ class CircuitSolver:
                 "小信号只对线性元件与受控源线性化；请改用瞬态分析或移除该元件"
             )
         sources = [
-            element for element in self.elements
+            element
+            for element in self.elements
             if element.kind in ("vsource", "isource")
         ]
         if not sources:
@@ -2285,11 +2338,12 @@ class CircuitSolver:
                     raise ComputeError(f"AC 探针不存在：{token!r}")
         else:
             wanted = [
-                node_id for node_id in self.unknown_ids
-                if node_id in node_names
+                node_id for node_id in self.unknown_ids if node_id in node_names
             ] + [
-                element.name for element in self.elements
-                if element.kind in ("resistor", "capacitor", "inductor", "vsource", "isource")
+                element.name
+                for element in self.elements
+                if element.kind
+                in ("resistor", "capacitor", "inductor", "vsource", "isource")
             ]
         checkpoint = self.capture_checkpoint()
         try:
@@ -2307,7 +2361,13 @@ class CircuitSolver:
                     f"{residual:.3g}）；请先让电路在 DC 下可解"
                 )
             results: dict[str, dict[str, list[float]]] = {
-                token: {"real": [], "imag": [], "magnitude": [], "phase_deg": [], "db": []}
+                token: {
+                    "real": [],
+                    "imag": [],
+                    "magnitude": [],
+                    "phase_deg": [],
+                    "db": [],
+                }
                 for token in wanted
             }
             size = self.matrix_size

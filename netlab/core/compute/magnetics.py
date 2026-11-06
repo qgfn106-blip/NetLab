@@ -177,11 +177,17 @@ class CoupledInductor(CircuitElement):
         g11, g12 = factor * inverse[0][0], factor * inverse[0][1]
         g21, g22 = factor * inverse[1][0], factor * inverse[1][1]
         self.g = ((g11, g12), (g21, g22))
-        previous_i = (float(self.state.get("i1", 0.0)), float(self.state.get("i2", 0.0)))
+        previous_i = (
+            float(self.state.get("i1", 0.0)),
+            float(self.state.get("i2", 0.0)),
+        )
         if self.integration == "backward_euler":
             self.rhs = (previous_i[0], previous_i[1])
         else:
-            previous_v = (float(self.state.get("v1", 0.0)), float(self.state.get("v2", 0.0)))
+            previous_v = (
+                float(self.state.get("v1", 0.0)),
+                float(self.state.get("v2", 0.0)),
+            )
             self.rhs = (
                 previous_i[0] + g11 * previous_v[0] + g12 * previous_v[1],
                 previous_i[1] + g21 * previous_v[0] + g22 * previous_v[1],
@@ -257,8 +263,20 @@ MAGNETIC_SPECS: dict[str, dict[str, Any]] = {
         pins=(
             {"name": "P1", "role": "input", "bind": "source", "dx": -18, "dy": 0},
             {"name": "P2", "role": "input", "bind": "target", "dx": 18, "dy": 0},
-            {"name": "S1", "role": "output", "bind": "secondary_source", "dx": 18, "dy": -8},
-            {"name": "S2", "role": "output", "bind": "secondary_target", "dx": 18, "dy": 8},
+            {
+                "name": "S1",
+                "role": "output",
+                "bind": "secondary_source",
+                "dx": 18,
+                "dy": -8,
+            },
+            {
+                "name": "S2",
+                "role": "output",
+                "bind": "secondary_target",
+                "dx": 18,
+                "dy": 8,
+            },
         ),
         formula="v2 = n·v1；i1 + n·i2 = 0（Lm>0 时 i1 = i_ideal + i_m，v1 = Lm·di_m/dt）",
         notes=(
@@ -284,8 +302,20 @@ MAGNETIC_SPECS: dict[str, dict[str, Any]] = {
         pins=(
             {"name": "P1", "role": "input", "bind": "source", "dx": -18, "dy": 0},
             {"name": "P2", "role": "input", "bind": "target", "dx": 18, "dy": 0},
-            {"name": "S1", "role": "output", "bind": "secondary_source", "dx": 18, "dy": -8},
-            {"name": "S2", "role": "output", "bind": "secondary_target", "dx": 18, "dy": 8},
+            {
+                "name": "S1",
+                "role": "output",
+                "bind": "secondary_source",
+                "dx": 18,
+                "dy": -8,
+            },
+            {
+                "name": "S2",
+                "role": "output",
+                "bind": "secondary_target",
+                "dx": 18,
+                "dy": 8,
+            },
         ),
         formula=(
             "v1 = L1·di1/dt + M·di2/dt；v2 = M·di1/dt + L2·di2/dt；"

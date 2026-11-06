@@ -45,7 +45,13 @@ def test_pass_method_copies_numeric_fields_only():
 
     class _Node:
         name = "src"
-        data = {"voltage": 1.5, "flag": True, "label": "x", "current": 2.0, "power": 3.0}
+        data = {
+            "voltage": 1.5,
+            "flag": True,
+            "label": "x",
+            "current": 2.0,
+            "power": 3.0,
+        }
 
     result = method(_Node(), None, {}, {}, 0.01)
     assert result == {"voltage": 1.5, "current": 2.0}
@@ -95,14 +101,18 @@ def build_two_instances(block: BlockDef) -> Scene:
     second = instantiate_block(scene, block.id, position={"x": 0.0, "y": 200.0})
     t1 = scene.add_node(name="t1", kind="sum")
     t2 = scene.add_node(name="t2", kind="sum")
-    scene.add_edge(source=src1.id, target=first["input_nodes"]["in_scale-1"], kind="pass")
+    scene.add_edge(
+        source=src1.id, target=first["input_nodes"]["in_scale-1"], kind="pass"
+    )
     scene.add_edge(
         source=first["output_nodes"]["out_scale-2"],
         target=t1.id,
         kind="scale",
         params={"gain": 1.0},
     )
-    scene.add_edge(source=src2.id, target=second["input_nodes"]["in_scale-1"], kind="pass")
+    scene.add_edge(
+        source=src2.id, target=second["input_nodes"]["in_scale-1"], kind="pass"
+    )
     scene.add_edge(
         source=second["output_nodes"]["out_scale-2"],
         target=t2.id,
@@ -310,6 +320,7 @@ def test_encapsulating_block_node_requires_port_nodes():
     block_node = next(item for item in scene.nodes.values() if item.kind == "block")
     with pytest.raises(ValidationError, match="端口节点"):
         encapsulate_nodes(scene, [block_node.id], name="outer")
+
 
 def test_unwired_block_instance_uses_port_defaults():
     """实例刚拖入画布、端口还没接线时，步进不能因为缺少输入字段而失败。"""

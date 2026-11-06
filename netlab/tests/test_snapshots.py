@@ -66,7 +66,9 @@ def test_snapshot_never_touches_project_file(tmp_path):
     original = workspace.project_file.read_bytes()
     digest = hashlib.sha256(original).hexdigest()
 
-    saved = write_snapshot(workspace, snapshot_payload("快照"), now=datetime(2026, 10, 26, 3, 0, 0))
+    saved = write_snapshot(
+        workspace, snapshot_payload("快照"), now=datetime(2026, 10, 26, 3, 0, 0)
+    )
     assert saved.is_file()
     assert saved.parent == workspace.subdir("backups")
     assert workspace.project_file.read_bytes() == original
@@ -82,7 +84,11 @@ def test_snapshots_are_unique_and_listed_newest_first(tmp_path):
     workspace = make_workspace(tmp_path)
     base = datetime(2026, 10, 26, 3, 0, 0)
     for minute in range(3):
-        write_snapshot(workspace, snapshot_payload(f"s{minute}"), now=base + timedelta(minutes=minute))
+        write_snapshot(
+            workspace,
+            snapshot_payload(f"s{minute}"),
+            now=base + timedelta(minutes=minute),
+        )
     items = list_snapshots(workspace)
     assert len(items) == 3
     assert all(item["name"].startswith("snapshot-") for item in items)
@@ -133,7 +139,9 @@ def test_snapshot_api_roundtrip(client, tmp_path):
     assert created.status_code == 200, created.text
     before = (target / "project.netlab").read_bytes()
 
-    written = client.post("/api/workspace/snapshot", json={"path": str(target), "name": "snap"})
+    written = client.post(
+        "/api/workspace/snapshot", json={"path": str(target), "name": "snap"}
+    )
     assert written.status_code == 200, written.text
     body = written.json()
     assert body["saved"].endswith(".netlab")

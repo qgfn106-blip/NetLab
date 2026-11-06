@@ -125,7 +125,9 @@ def _tokenize(text: str) -> list[_Token]:
             index = match.end()
             continue
         if char in "sS":
-            if index + 1 < size and (text[index + 1].isalpha() or text[index + 1] == "_"):
+            if index + 1 < size and (
+                text[index + 1].isalpha() or text[index + 1] == "_"
+            ):
                 raise ComputeError(
                     f"不支持的变量或函数 {text[index:index + 8]!r}；传递函数只允许变量 s"
                 )
@@ -180,7 +182,9 @@ class _Parser:
         token = self.peek()
         if token is None or token.kind != kind:
             found = "表达式结束" if token is None else repr(token.text)
-            raise ComputeError(f"表达式第 {self._pos(token)} 个字符处应为 {kind!r}，实际是 {found}")
+            raise ComputeError(
+                f"表达式第 {self._pos(token)} 个字符处应为 {kind!r}，实际是 {found}"
+            )
         return self.take()
 
     @staticmethod
@@ -378,7 +382,9 @@ class TransferFunction:
         return "stable"
 
     # ---- 状态空间与频响 ---------------------------------------------------
-    def to_state_space(self) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray] | None:
+    def to_state_space(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray] | None:
         """可控标准型；静态增益返回 ``None``。"""
         if self.is_static:
             return None
@@ -518,9 +524,7 @@ def from_zpk(
 
     num = _poly_scale(build(zeros), float(gain))
     den = build(poles)
-    return TransferFunction(
-        num=tuple(_asc_to_desc(num)), den=tuple(_asc_to_desc(den))
-    )
+    return TransferFunction(num=tuple(_asc_to_desc(num)), den=tuple(_asc_to_desc(den)))
 
 
 def parse_expression(text: str) -> TransferFunction:
@@ -538,9 +542,7 @@ def parse_expression(text: str) -> TransferFunction:
     num, den = _Parser(tokens).parse()
     if _is_zero(den):
         raise ComputeError("传递函数分母为零")
-    return TransferFunction(
-        num=tuple(_asc_to_desc(num)), den=tuple(_asc_to_desc(den))
-    )
+    return TransferFunction(num=tuple(_asc_to_desc(num)), den=tuple(_asc_to_desc(den)))
 
 
 def from_params(params: dict[str, Any]) -> TransferFunction:
@@ -657,7 +659,9 @@ def _step_metrics(
                 return float(time[index - 1])
             if before * after <= 0.0 and after != before:
                 fraction = -before / (after - before)
-                return float(time[index - 1] + fraction * (time[index] - time[index - 1]))
+                return float(
+                    time[index - 1] + fraction * (time[index] - time[index - 1])
+                )
         return None
 
     t10 = crossing(0.1)
@@ -773,7 +777,10 @@ def step_response(
         "method": method,
         "stable": stable,
         "diverged": diverged,
-        "metrics": {key: (None if value is None else float(value)) for key, value in metrics.items()},
+        "metrics": {
+            key: (None if value is None else float(value))
+            for key, value in metrics.items()
+        },
         "source": "transfer.step_response",
     }
 

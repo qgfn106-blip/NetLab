@@ -46,7 +46,9 @@ def spec_entry(
     source_target: Any | None = None,
     outputs: tuple[str, ...] | None = None,
 ) -> dict[str, Any]:
-    target = source_target if source_target is not None else getattr(spec, "factory", None)
+    target = (
+        source_target if source_target is not None else getattr(spec, "factory", None)
+    )
     source = getattr(spec, "source", "")
     if not source and target is not None:
         source = safe_source(target)
@@ -56,7 +58,9 @@ def spec_entry(
         "group": spec.group,
         "description": spec.description,
         "mode": mode,
-        "outputs": list(outputs if outputs is not None else getattr(spec, "outputs", ())),
+        "outputs": list(
+            outputs if outputs is not None else getattr(spec, "outputs", ())
+        ),
         "notes": getattr(spec, "notes", ""),
         "formula": formula,
         "source": source,

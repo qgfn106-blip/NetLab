@@ -19,7 +19,9 @@ def _series_scene() -> tuple[Scene, str]:
     u = scene.add_node(name="u", kind="manual", data={"value": 1.0})
     gain = scene.add_node(name="gain", kind="gain", params={"gain": 2.0})
     plant = scene.add_node(
-        name="plant", kind="transfer_function", params={"form": "expr", "expr": "1/(s+1)"}
+        name="plant",
+        kind="transfer_function",
+        params={"form": "expr", "expr": "1/(s+1)"},
     )
     scene.add_edge(source=u.id, target=gain.id, kind="pass")
     scene.add_edge(source=gain.id, target=plant.id, kind="pass")
@@ -64,7 +66,9 @@ def test_unity_feedback_network_tf_and_bode() -> None:
         name="error", kind="sum", params={"weights": {"ref": 1.0, "fb": -1.0}}
     )
     plant = scene.add_node(
-        name="plant", kind="transfer_function", params={"form": "expr", "expr": "1/(s+1)"}
+        name="plant",
+        kind="transfer_function",
+        params={"form": "expr", "expr": "1/(s+1)"},
     )
     scene.add_edge(name="ref", source=u.id, target=error.id, kind="pass")
     scene.add_edge(name="forward", source=error.id, target=plant.id, kind="pass")
@@ -96,9 +100,7 @@ def test_explicit_delay_network_tf_in_z_domain() -> None:
     scene.add_edge(source=u.id, target=gain.id, kind="pass")
     scene.add_edge(source=gain.id, target=out.id, kind="scale", delay=True)
 
-    result = analysis.transfer_function(
-        Simulation(scene), "u", "out", domain="z"
-    )
+    result = analysis.transfer_function(Simulation(scene), "u", "out", domain="z")
     assert result["ok"] is True, result
     assert result["domain"] == "z"
     assert sp.simplify(_tf(result["expression"]) - _tf("2/z")) == 0
@@ -122,9 +124,7 @@ def test_explicit_delay_network_tf_in_s_domain_uses_pade() -> None:
     expression = _tf(result["expression"])
     assert sp.limit(expression, sp.Symbol("s"), 0) == 2
 
-    first_order = analysis.transfer_function(
-        sim, "u", "out", delay_pade_order=1
-    )
+    first_order = analysis.transfer_function(sim, "u", "out", delay_pade_order=1)
     assert first_order["ok"] is True, first_order
     expected = _tf(f"2*(1-s*{dt}/2)/(1+s*{dt}/2)")
     assert sp.simplify(_tf(first_order["expression"]) - expected) == 0
@@ -140,7 +140,9 @@ def test_nonlinear_network_tf_reports_reason() -> None:
     scene = Scene("signal")
     u = scene.add_node(name="u", kind="manual", data={"value": 1.0})
     expr = scene.add_node(
-        name="expr", kind="expression", params={"expr": "tanh(u)", "variables": {"u": "u"}}
+        name="expr",
+        kind="expression",
+        params={"expr": "tanh(u)", "variables": {"u": "u"}},
     )
     scene.add_edge(source=u.id, target=expr.id, kind="pass")
     result = analysis.transfer_function(Simulation(scene), "u", "expr")

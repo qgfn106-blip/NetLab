@@ -209,4 +209,3 @@ def test_signal_step_rolls_back_block_state_on_failure():
     scene.step(0.1)
     # 块内积分器若被失败步推进过，这里会变成 0.6。
     assert voltage(scene, "t") == pytest.approx(0.5)
-

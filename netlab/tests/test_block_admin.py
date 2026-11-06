@@ -49,7 +49,11 @@ def test_rename_scans_references_and_force(client, tmp_path):
 
     blocked = client.post(
         "/api/blocks/aaaaaaaaaaaa/rename",
-        json={"name": "新名字", "library": str(library), "projects_root": str(projects)},
+        json={
+            "name": "新名字",
+            "library": str(library),
+            "projects_root": str(projects),
+        },
     )
     assert blocked.status_code == 409
     assert "仍被工程引用" in blocked.json()["detail"]
@@ -78,7 +82,11 @@ def test_overwrite_same_version_without_references(client, tmp_path):
     changed["description"] = "覆盖后的描述"
     overwritten = client.post(
         "/api/blocks/aaaaaaaaaaaa/overwrite",
-        json={"payload": changed, "library": str(library), "projects_root": str(projects)},
+        json={
+            "payload": changed,
+            "library": str(library),
+            "projects_root": str(projects),
+        },
     )
     assert overwritten.status_code == 200, overwritten.text
     assert overwritten.json()["block"]["version"] == 1
@@ -96,7 +104,11 @@ def test_overwrite_with_references_needs_force(client, tmp_path):
     changed["description"] = "改过"
     blocked = client.post(
         "/api/blocks/aaaaaaaaaaaa/overwrite",
-        json={"payload": changed, "library": str(library), "projects_root": str(projects)},
+        json={
+            "payload": changed,
+            "library": str(library),
+            "projects_root": str(projects),
+        },
     )
     assert blocked.status_code == 409
 
@@ -115,13 +127,27 @@ def test_overwrite_with_references_needs_force(client, tmp_path):
 
 def test_validate_report_saved_into_workspace_exports(client, tmp_path):
     project = tmp_path / "lab" / "proj"
-    created = client.post("/api/workspace/create", json={"path": str(project), "name": "报告工程"})
+    created = client.post(
+        "/api/workspace/create", json={"path": str(project), "name": "报告工程"}
+    )
     assert created.status_code == 200, created.text
 
     valid = build_block().to_payload()
     valid["ports"] = [
-        {"name": "in", "direction": "input", "fields": ["voltage"], "dtype": "signal", "default": 0.0},
-        {"name": "out", "direction": "output", "fields": ["voltage"], "dtype": "signal", "default": 0.0},
+        {
+            "name": "in",
+            "direction": "input",
+            "fields": ["voltage"],
+            "dtype": "signal",
+            "default": 0.0,
+        },
+        {
+            "name": "out",
+            "direction": "output",
+            "fields": ["voltage"],
+            "dtype": "signal",
+            "default": 0.0,
+        },
     ]
     valid["nodes"] = [
         {
@@ -150,8 +176,22 @@ def test_validate_report_saved_into_workspace_exports(client, tmp_path):
         },
     ]
     valid["edges"] = [
-        {"id": "ddddddddddd1", "name": "e1", "source": "ccccccccccc1", "target": "ccccccccccc2", "kind": "pass", "params": {}},
-        {"id": "ddddddddddd2", "name": "e2", "source": "ccccccccccc2", "target": "ccccccccccc3", "kind": "pass", "params": {}},
+        {
+            "id": "ddddddddddd1",
+            "name": "e1",
+            "source": "ccccccccccc1",
+            "target": "ccccccccccc2",
+            "kind": "pass",
+            "params": {},
+        },
+        {
+            "id": "ddddddddddd2",
+            "name": "e2",
+            "source": "ccccccccccc2",
+            "target": "ccccccccccc3",
+            "kind": "pass",
+            "params": {},
+        },
     ]
     response = client.post(
         "/api/blocks/validate",

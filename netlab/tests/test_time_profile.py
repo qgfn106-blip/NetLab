@@ -40,7 +40,9 @@ def test_zero_time_keeps_state_but_resets_clock():
     simulation = build_simulation()
     try:
         simulation.step_once(3)
-        node = next(item for item in simulation.scene.nodes.values() if item.name == "acc")
+        node = next(
+            item for item in simulation.scene.nodes.values() if item.name == "acc"
+        )
         before = dict(node.data)
         engine = simulation.scene.ensure_engine()
         assert engine.network.time == pytest.approx(0.03)
@@ -64,7 +66,9 @@ def test_reset_clears_state_and_time():
     simulation = build_simulation()
     try:
         simulation.step_once(2)
-        node = next(item for item in simulation.scene.nodes.values() if item.name == "acc")
+        node = next(
+            item for item in simulation.scene.nodes.values() if item.name == "acc"
+        )
         node.data["acc"] = 1.0
         simulation.reset()
         assert simulation.time == 0.0
@@ -120,7 +124,9 @@ def test_profiler_records_and_sorts_when_enabled():
         names = [item["name"] for item in snapshot["entries"]]
         assert snapshot["enabled"] is True
         assert set(names) == {"fast", "slow", "block"}, names
-        slow_entry = next(item for item in snapshot["entries"] if item["name"] == "slow")
+        slow_entry = next(
+            item for item in snapshot["entries"] if item["name"] == "slow"
+        )
         assert slow_entry["count"] == 5
         assert slow_entry["max_ms"] >= slow_entry["mean_ms"] > 0
 

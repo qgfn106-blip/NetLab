@@ -45,7 +45,9 @@ def test_precompute_can_be_cancelled() -> None:
     result: list[dict] = []
     try:
         sim.load_scene(project_scene_payload(project))
-        thread = threading.Thread(target=lambda: result.append(sim.precompute(0.02, dt=1.0e-6)))
+        thread = threading.Thread(
+            target=lambda: result.append(sim.precompute(0.02, dt=1.0e-6))
+        )
         thread.start()
         time.sleep(0.05)
         sim.cancel_precompute()
@@ -55,4 +57,3 @@ def test_precompute_can_be_cancelled() -> None:
         assert result[0]["steps"] < 20000
     finally:
         sim.shutdown()
-

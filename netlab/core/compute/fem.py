@@ -154,7 +154,9 @@ def build_mesh(nx: int, ny: int, revision: int = 1) -> FemMesh:
             index += 1
     left = np.arange(0, ny + 1) * width
     right = left + nx
-    return FemMesh(nx, ny, x, y, elements, left.astype(np.int32), right.astype(np.int32), revision)
+    return FemMesh(
+        nx, ny, x, y, elements, left.astype(np.int32), right.astype(np.int32), revision
+    )
 
 
 def _element_matrices(nx: int, ny: int, conductivity: float, capacity: float):
@@ -167,8 +169,8 @@ def _element_matrices(nx: int, ny: int, conductivity: float, capacity: float):
         n, dxi, deta = _shape(xi, eta)
         dndx = dxi * (2.0 / hx)
         dndy = deta * (2.0 / hy)
-        stiffness += conductivity * det_j * (
-            np.outer(dndx, dndx) + np.outer(dndy, dndy)
+        stiffness += (
+            conductivity * det_j * (np.outer(dndx, dndx) + np.outer(dndy, dndy))
         )
         mass += capacity * det_j * np.outer(n, n)
     return stiffness, mass
@@ -293,7 +295,9 @@ class FemModel:
         amplitude = float(cfg.source_amplitude)
         if amplitude <= 0.0:
             return np.zeros(self.node_count)
-        modulation = 0.55 + 0.45 * math.sin(2.0 * math.pi * cfg.source_frequency * time_value)
+        modulation = 0.55 + 0.45 * math.sin(
+            2.0 * math.pi * cfg.source_frequency * time_value
+        )
         center_x = float(cfg.source_x)
         center_y = 0.5 + 0.22 * math.sin(2.0 * math.pi * 0.055 * time_value + 0.6)
         sigma = max(1.0e-4, float(cfg.source_sigma))
@@ -477,7 +481,10 @@ class FemSimulation:
         try:
             self.model.step(dt)
             self.steps += 1
-            if self.config.sample_every <= 1 or self.steps % self.config.sample_every == 0:
+            if (
+                self.config.sample_every <= 1
+                or self.steps % self.config.sample_every == 0
+            ):
                 self.recorder.push(self.model.time, self.model.field())
             return True
         except Exception as exc:
@@ -548,16 +555,26 @@ class FemSimulation:
             if (config.nx + 1) * (config.ny + 1) > 6000:
                 raise ValidationError("有限元节点数不能超过 6000")
             if "dt" in payload:
-                config.dt = as_float(payload["dt"], "有限元 dt", positive=True, lo=1.0e-5, hi=0.1)
+                config.dt = as_float(
+                    payload["dt"], "有限元 dt", positive=True, lo=1.0e-5, hi=0.1
+                )
             if "fps" in payload:
                 config.fps = as_int(payload["fps"], "有限元帧率", lo=1, hi=120)
             if "steps_per_frame" in payload:
-                config.steps_per_frame = as_int(payload["steps_per_frame"], "每帧步数", lo=1, hi=50)
+                config.steps_per_frame = as_int(
+                    payload["steps_per_frame"], "每帧步数", lo=1, hi=50
+                )
             if "sample_every" in payload:
-                config.sample_every = as_int(payload["sample_every"], "采样间隔", lo=1, hi=20)
+                config.sample_every = as_int(
+                    payload["sample_every"], "采样间隔", lo=1, hi=20
+                )
             if "conductivity" in payload:
                 config.conductivity = as_float(
-                    payload["conductivity"], "导热系数", positive=True, lo=1.0e-4, hi=1000.0
+                    payload["conductivity"],
+                    "导热系数",
+                    positive=True,
+                    lo=1.0e-4,
+                    hi=1000.0,
                 )
             if "capacity" in payload:
                 config.capacity = as_float(

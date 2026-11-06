@@ -74,9 +74,7 @@ class NodeRecord:
     data: dict[str, Any] = field(default_factory=dict)
     state: dict[str, Any] = field(default_factory=dict)
     inputs: dict[str, dict[str, Any]] = field(default_factory=dict)
-    position: dict[str, float] = field(
-        default_factory=lambda: {"x": 0.0, "y": 0.0}
-    )
+    position: dict[str, float] = field(default_factory=lambda: {"x": 0.0, "y": 0.0})
     #: 节点尺寸（R09）：``{"w": 直径}``；空字典表示用默认半径。
     size: dict[str, float] = field(default_factory=dict)
 
@@ -241,9 +239,7 @@ class SignalEngine(_Engine):
         return f"__feed.{node_name}.{port_name}"
 
     @staticmethod
-    def _numeric_payload(
-        data: dict[str, Any], limit: int = 32
-    ) -> dict[str, Any]:
+    def _numeric_payload(data: dict[str, Any], limit: int = 32) -> dict[str, Any]:
         values: dict[str, Any] = {}
         for key, raw in data.items():
             if len(values) >= limit:
@@ -304,7 +300,9 @@ class SignalEngine(_Engine):
         block_node_ids = {
             record.id for record in self.scene.nodes.values() if record.kind == "block"
         }
-        for stale in [key for key in self.scene.block_instances if key not in block_node_ids]:
+        for stale in [
+            key for key in self.scene.block_instances if key not in block_node_ids
+        ]:
             del self.scene.block_instances[stale]
         for record in self.scene.nodes.values():
             if record.kind != "block":
@@ -321,9 +319,7 @@ class SignalEngine(_Engine):
             input_nodes = params.get("input_nodes") or {}
             output_nodes = params.get("output_nodes") or {}
             if not isinstance(input_nodes, dict) or not isinstance(output_nodes, dict):
-                raise ComputeError(
-                    f"功能块节点 {record.name!r} 的端口映射必须是对象"
-                )
+                raise ComputeError(f"功能块节点 {record.name!r} 的端口映射必须是对象")
             # 复用已存在的实例：结构变化导致引擎重建时，块内部 state 不应被清空。
             runtime = self.scene.block_instances.get(record.id)
             if (
@@ -554,7 +550,9 @@ class CircuitEngine(_Engine):
             if edge.source in net_records and edge.target in net_records:
                 union(edge.source, edge.target)
         ground_ids = [
-            node_id for node_id, record in net_records.items() if record.kind == "ground"
+            node_id
+            for node_id, record in net_records.items()
+            if record.kind == "ground"
         ]
         if not ground_ids:
             raise ComputeError("电路需要至少一个接地节点（把某个节点设为 ground）")
@@ -600,9 +598,7 @@ class CircuitEngine(_Engine):
                     integration=scene.integration,
                 )
             except Exception as exc:
-                raise ComputeError(
-                    f"元件 {record.name!r} 无法装配：{exc}"
-                ) from exc
+                raise ComputeError(f"元件 {record.name!r} 无法装配：{exc}") from exc
             elements.append(element)
             self.element_map[record.id] = element
             used_roots.update((element.a, element.b))
@@ -638,7 +634,12 @@ class CircuitEngine(_Engine):
                     for pin in pins_for_device(kind)
                     if pin.required and pin.name not in pins
                 ]
-                if missing and kind in ("vsource", "isource") and pins and len(missing) == 1:
+                if (
+                    missing
+                    and kind in ("vsource", "isource")
+                    and pins
+                    and len(missing) == 1
+                ):
                     # 单端电源：另一脚自动对地（图上画接地标记，不是隐藏规则）。
                     pins[missing[0]] = ground_root
                     self.implicit_grounds.append(
@@ -662,9 +663,7 @@ class CircuitEngine(_Engine):
             except ComputeError:
                 raise
             except Exception as exc:
-                raise ComputeError(
-                    f"器件 {record.name!r} 无法装配：{exc}"
-                ) from exc
+                raise ComputeError(f"器件 {record.name!r} 无法装配：{exc}") from exc
             elements.append(element)
             self.element_map[record.id] = element
             used_roots.update((element.a, element.b))
@@ -674,7 +673,9 @@ class CircuitEngine(_Engine):
         used_roots.add(ground_root)
         nodes = [node for node in nodes if node.id in used_roots]
         self.solver = CircuitSolver(
-            nodes, elements, integration=scene.integration,
+            nodes,
+            elements,
+            integration=scene.integration,
             options=getattr(scene, "solver_options", None),
         )
         # R31/P11-05：跨域桥元素。sensor 在 MNA 解后采样，actuator 在下一拍
@@ -768,9 +769,7 @@ class CircuitEngine(_Engine):
             if record.kind == "device":
                 continue
             root = self.net_root.get(record.id, record.id)
-            record.data["voltage"] = float(
-                self.solver.node_voltages.get(root, 0.0)
-            )
+            record.data["voltage"] = float(self.solver.node_voltages.get(root, 0.0))
         self._sample_bridge_sensors()
 
     def operating_point(self) -> dict[str, Any]:
@@ -898,7 +897,9 @@ class Scene:
                 self._engine = create_engine(self.mode, self)
             else:
                 self._engine = (
-                    CircuitEngine(self) if self.mode == "circuit" else SignalEngine(self)
+                    CircuitEngine(self)
+                    if self.mode == "circuit"
+                    else SignalEngine(self)
                 )
             self._dirty = False
         return self._engine
@@ -1098,9 +1099,7 @@ class Scene:
             index += 1
         return candidate
 
-    def _normalize_node_params(
-        self, kind: str, raw: Any
-    ) -> tuple[dict[str, Any], str]:
+    def _normalize_node_params(self, kind: str, raw: Any) -> tuple[dict[str, Any], str]:
         if self.mode in ("signal", "vector"):
             spec = get_compute_spec(kind)
             params = validate_params(list(spec.params), raw)
@@ -1121,7 +1120,9 @@ class Scene:
             raise ValidationError(
                 "电路模式的节点类型只能是 node、ground、device 或 module"
             )
-        return self._normalize_net_params(raw), "接地" if kind == "ground" else "电学节点"
+        return self._normalize_net_params(raw), (
+            "接地" if kind == "ground" else "电学节点"
+        )
 
     def _normalize_net_params(self, raw: Any) -> dict[str, Any]:
         """网络节点可带端口标记（R24/D49）：这个名字/方向的网络就是模块端口。"""
@@ -1252,7 +1253,9 @@ class Scene:
                     if len(only) == 1:
                         pin = resolved[index] = only[0]
                 if not pin:
-                    raise ValidationError(f"{side}是器件节点 {node.name!r}，必须指定引脚")
+                    raise ValidationError(
+                        f"{side}是器件节点 {node.name!r}，必须指定引脚"
+                    )
                 if node.kind == "module":
                     names = set(pin_names(node))
                     label = "模块"
@@ -1286,7 +1289,9 @@ class Scene:
         target_port = "" if target_port in (None, "") else str(target_port)
         if self.mode == "circuit":
             if source_port or target_port:
-                raise ValidationError("电路场景使用引脚的 source_pin/target_pin，不用端口")
+                raise ValidationError(
+                    "电路场景使用引脚的 source_pin/target_pin，不用端口"
+                )
             return "", ""
         if not source_port and not target_port:
             return "", ""
@@ -1339,14 +1344,14 @@ class Scene:
             raise ValidationError("节点尺寸必须是对象")
         unknown = set(raw) - {"w", "h"}
         if unknown:
-            raise ValidationError(
-                f"节点尺寸包含未知键：{', '.join(sorted(unknown))}"
-            )
+            raise ValidationError(f"节点尺寸包含未知键：{', '.join(sorted(unknown))}")
         result: dict[str, float] = {}
         for key in ("w", "h"):
             if key not in raw:
                 continue
-            value = as_float(raw[key], f"节点尺寸 {key}", lo=MIN_NODE_SIZE, hi=MAX_NODE_SIZE)
+            value = as_float(
+                raw[key], f"节点尺寸 {key}", lo=MIN_NODE_SIZE, hi=MAX_NODE_SIZE
+            )
             result[key] = round(value, 3)
         return result
 
@@ -1393,9 +1398,7 @@ class Scene:
                 raise ValidationError(f"第 {index + 1} 个拐点必须是对象")
             unknown = set(item) - {"x", "y"}
             if unknown:
-                raise ValidationError(
-                    f"拐点包含未知键：{', '.join(sorted(unknown))}"
-                )
+                raise ValidationError(f"拐点包含未知键：{', '.join(sorted(unknown))}")
             points.append(
                 {
                     "x": as_float(
@@ -1442,8 +1445,12 @@ class Scene:
         if unknown:
             raise ValidationError(f"坐标包含未知键：{', '.join(sorted(unknown))}")
         return {
-            "x": as_float(raw.get("x", 0.0), "x 坐标", lo=-MAX_POSITION, hi=MAX_POSITION),
-            "y": as_float(raw.get("y", 0.0), "y 坐标", lo=-MAX_POSITION, hi=MAX_POSITION),
+            "x": as_float(
+                raw.get("x", 0.0), "x 坐标", lo=-MAX_POSITION, hi=MAX_POSITION
+            ),
+            "y": as_float(
+                raw.get("y", 0.0), "y 坐标", lo=-MAX_POSITION, hi=MAX_POSITION
+            ),
         }
 
     # ---- 节点 -------------------------------------------------------------
@@ -1617,7 +1624,13 @@ class Scene:
             from .schematic import apply_pin_bindings
 
             bound = apply_pin_bindings(
-                {"kind": kind, "source": source, "target": target, "params": params or {}, "pins": pins}
+                {
+                    "kind": kind,
+                    "source": source,
+                    "target": target,
+                    "params": params or {},
+                    "pins": pins,
+                }
             )
             source, target, params = bound["source"], bound["target"], bound["params"]
         source_id = check_id(source, "起点 id")

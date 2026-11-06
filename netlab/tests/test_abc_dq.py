@@ -83,13 +83,17 @@ def test_abc_dq_inverse_restores_three_phase_values() -> None:
         scene.add_edge(name=edge_name, source=source.id, target=node.id, kind="pass")
     scene.step(1.0)
     data = scene.nodes[node.id].data
-    assert data["a"] == pytest.approx(0.8 * math.cos(theta) + 0.35 * math.sin(theta), abs=1e-12)
+    assert data["a"] == pytest.approx(
+        0.8 * math.cos(theta) + 0.35 * math.sin(theta), abs=1e-12
+    )
     assert data["b"] == pytest.approx(
-        0.8 * math.cos(theta - 2 * math.pi / 3) + 0.35 * math.sin(theta - 2 * math.pi / 3),
+        0.8 * math.cos(theta - 2 * math.pi / 3)
+        + 0.35 * math.sin(theta - 2 * math.pi / 3),
         abs=1e-12,
     )
     assert data["c"] == pytest.approx(
-        0.8 * math.cos(theta + 2 * math.pi / 3) + 0.35 * math.sin(theta + 2 * math.pi / 3),
+        0.8 * math.cos(theta + 2 * math.pi / 3)
+        + 0.35 * math.sin(theta + 2 * math.pi / 3),
         abs=1e-12,
     )
 
@@ -97,4 +101,7 @@ def test_abc_dq_inverse_restores_three_phase_values() -> None:
 def test_abc_dq_is_registered_with_both_directions() -> None:
     spec = COMPUTE_SPECS["abc_dq"]
     assert spec.label == "三相坐标变换"
-    assert {choice[0] for choice in spec.params[0].choices} == {"abc_to_dq", "dq_to_abc"}
+    assert {choice[0] for choice in spec.params[0].choices} == {
+        "abc_to_dq",
+        "dq_to_abc",
+    }

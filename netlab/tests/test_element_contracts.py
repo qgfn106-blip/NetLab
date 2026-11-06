@@ -91,8 +91,13 @@ def _comparator(hysteresis: float) -> Comparator:
         "CMP",
         "out",
         "gnd",
-        {"gain": 1.0e5, "vmax": 15.0, "vp": "in", "vn": "gnd",
-         "hysteresis": hysteresis},
+        {
+            "gain": 1.0e5,
+            "vmax": 15.0,
+            "vp": "in",
+            "vn": "gnd",
+            "hysteresis": hysteresis,
+        },
         {},
     )
 
@@ -143,12 +148,32 @@ def test_comparator_schmitt_thresholds_in_circuit():
     gnd = node(scene, "gnd", "ground")
     src = node(scene, "src")
     out = node(scene, "out")
-    scene.add_edge(name="V1", source=src.id, target=gnd.id, kind="vsource",
-                   params={"wave": "triangle", "offset": 0.0, "amplitude": 1.0,
-                           "frequency": 10.0, "phase": 0.0})
-    scene.add_edge(name="CMP", source=out.id, target=gnd.id, kind="comparator",
-                   params={"gain": 1.0e5, "vmax": 15.0, "hysteresis": 1.0,
-                           "vp": src.id, "vn": gnd.id})
+    scene.add_edge(
+        name="V1",
+        source=src.id,
+        target=gnd.id,
+        kind="vsource",
+        params={
+            "wave": "triangle",
+            "offset": 0.0,
+            "amplitude": 1.0,
+            "frequency": 10.0,
+            "phase": 0.0,
+        },
+    )
+    scene.add_edge(
+        name="CMP",
+        source=out.id,
+        target=gnd.id,
+        kind="comparator",
+        params={
+            "gain": 1.0e5,
+            "vmax": 15.0,
+            "hysteresis": 1.0,
+            "vp": src.id,
+            "vn": gnd.id,
+        },
+    )
     rising: list[float] = []
     falling: list[float] = []
     previous = None
@@ -175,17 +200,44 @@ def test_logic_gate_reports_branch_current():
     a = node(scene, "a")
     b = node(scene, "b")
     out = node(scene, "out")
-    scene.add_edge(name="VDD", source=vdd.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 5.0})
-    scene.add_edge(name="VA", source=a.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 5.0})
-    scene.add_edge(name="VB", source=b.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 5.0})
-    scene.add_edge(name="G1", source=out.id, target=gnd.id, kind="and_gate",
-                   params={"in_a": a.id, "in_b": b.id, "vdd_node": vdd.id,
-                           "vth": 2.5, "ron": 50.0, "slope": 10.0})
-    scene.add_edge(name="RD", source=out.id, target=gnd.id, kind="resistor",
-                   params={"R": 1000.0})
+    scene.add_edge(
+        name="VDD",
+        source=vdd.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 5.0},
+    )
+    scene.add_edge(
+        name="VA",
+        source=a.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 5.0},
+    )
+    scene.add_edge(
+        name="VB",
+        source=b.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 5.0},
+    )
+    scene.add_edge(
+        name="G1",
+        source=out.id,
+        target=gnd.id,
+        kind="and_gate",
+        params={
+            "in_a": a.id,
+            "in_b": b.id,
+            "vdd_node": vdd.id,
+            "vth": 2.5,
+            "ron": 50.0,
+            "slope": 10.0,
+        },
+    )
+    scene.add_edge(
+        name="RD", source=out.id, target=gnd.id, kind="resistor", params={"R": 1000.0}
+    )
     for _ in range(6):
         scene.step(1e-4)
     probes = scene.probes()

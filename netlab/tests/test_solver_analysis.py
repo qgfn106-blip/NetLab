@@ -18,12 +18,19 @@ def _divider() -> Scene:
     gnd = scene.add_node(name="gnd", kind="ground")
     n1 = scene.add_node(name="n1", kind="node")
     n2 = scene.add_node(name="n2", kind="node")
-    scene.add_edge(name="V1", source=n1.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 10.0, "amplitude": 0.0})
-    scene.add_edge(name="R1", source=n1.id, target=n2.id, kind="resistor",
-                   params={"R": 1000.0})
-    scene.add_edge(name="R2", source=n2.id, target=gnd.id, kind="resistor",
-                   params={"R": 1000.0})
+    scene.add_edge(
+        name="V1",
+        source=n1.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 10.0, "amplitude": 0.0},
+    )
+    scene.add_edge(
+        name="R1", source=n1.id, target=n2.id, kind="resistor", params={"R": 1000.0}
+    )
+    scene.add_edge(
+        name="R2", source=n2.id, target=gnd.id, kind="resistor", params={"R": 1000.0}
+    )
     return scene
 
 
@@ -32,12 +39,19 @@ def _rc_low_pass() -> Scene:
     gnd = scene.add_node(name="gnd", kind="ground")
     vin = scene.add_node(name="vin", kind="node")
     out = scene.add_node(name="out", kind="node")
-    scene.add_edge(name="V1", source=vin.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 0.0, "amplitude": 1.0})
-    scene.add_edge(name="R1", source=vin.id, target=out.id, kind="resistor",
-                   params={"R": 1000.0})
-    scene.add_edge(name="C1", source=out.id, target=gnd.id, kind="capacitor",
-                   params={"C": 1.0e-6})
+    scene.add_edge(
+        name="V1",
+        source=vin.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 0.0, "amplitude": 1.0},
+    )
+    scene.add_edge(
+        name="R1", source=vin.id, target=out.id, kind="resistor", params={"R": 1000.0}
+    )
+    scene.add_edge(
+        name="C1", source=out.id, target=gnd.id, kind="capacitor", params={"C": 1.0e-6}
+    )
     return scene
 
 
@@ -61,14 +75,22 @@ def test_operating_point_capacitor_open_inductor_short():
     gnd = scene.add_node(name="gnd", kind="ground")
     n1 = scene.add_node(name="n1", kind="node")
     n2 = scene.add_node(name="n2", kind="node")
-    scene.add_edge(name="V1", source=n1.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 5.0, "amplitude": 0.0})
-    scene.add_edge(name="R1", source=n1.id, target=n2.id, kind="resistor",
-                   params={"R": 1000.0})
-    scene.add_edge(name="C1", source=n2.id, target=gnd.id, kind="capacitor",
-                   params={"C": 1.0e-6})
-    scene.add_edge(name="L1", source=n2.id, target=gnd.id, kind="inductor",
-                   params={"L": 1.0e-3})
+    scene.add_edge(
+        name="V1",
+        source=n1.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 5.0, "amplitude": 0.0},
+    )
+    scene.add_edge(
+        name="R1", source=n1.id, target=n2.id, kind="resistor", params={"R": 1000.0}
+    )
+    scene.add_edge(
+        name="C1", source=n2.id, target=gnd.id, kind="capacitor", params={"C": 1.0e-6}
+    )
+    scene.add_edge(
+        name="L1", source=n2.id, target=gnd.id, kind="inductor", params={"L": 1.0e-3}
+    )
     result = Simulation(scene).operating_point()
     # 电容开路、电感短路（1e5 S ≈ 10 µΩ 近似）→ n2 被电感钳在近 0 V。
     assert result["node_voltages"]["n2"] == pytest.approx(0.0, abs=1e-6)
@@ -130,24 +152,45 @@ def test_ac_inverting_amplifier_gain():
     gnd = scene.add_node(name="gnd", kind="ground")
     vin = scene.add_node(name="vin", kind="node")
     out = scene.add_node(name="out", kind="node")
-    scene.add_edge(name="V1", source=vin.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 0.0, "amplitude": 1.0})
-    scene.add_edge(name="E1", source=out.id, target=gnd.id, kind="vcvs",
-                   params={"gain": -2.0, "control_source": vin.id,
-                           "control_target": gnd.id})
+    scene.add_edge(
+        name="V1",
+        source=vin.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 0.0, "amplitude": 1.0},
+    )
+    scene.add_edge(
+        name="E1",
+        source=out.id,
+        target=gnd.id,
+        kind="vcvs",
+        params={"gain": -2.0, "control_source": vin.id, "control_target": gnd.id},
+    )
     result = Simulation(scene).ac_sweep([100.0], input_source="V1", probes=["out"])
     assert result["probes"]["out"]["magnitude"][0] == pytest.approx(2.0, rel=1e-9)
-    assert abs(result["probes"]["out"]["phase_deg"][0]) == pytest.approx(180.0, abs=1e-6)
+    assert abs(result["probes"]["out"]["phase_deg"][0]) == pytest.approx(
+        180.0, abs=1e-6
+    )
 
 
 def test_ac_rejects_nonlinear_element():
     scene = Scene("circuit")
     gnd = scene.add_node(name="gnd", kind="ground")
     n1 = scene.add_node(name="n1", kind="node")
-    scene.add_edge(name="V1", source=n1.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 1.0, "amplitude": 1.0})
-    scene.add_edge(name="D1", source=n1.id, target=gnd.id, kind="diode",
-                   params={"Is": 1e-12, "n": 1.0, "temperature": 300.15})
+    scene.add_edge(
+        name="V1",
+        source=n1.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 1.0, "amplitude": 1.0},
+    )
+    scene.add_edge(
+        name="D1",
+        source=n1.id,
+        target=gnd.id,
+        kind="diode",
+        params={"Is": 1e-12, "n": 1.0, "temperature": 300.15},
+    )
     with pytest.raises(ComputeError, match="AC 分析暂不支持元件"):
         Simulation(scene).ac_sweep([10.0])
 

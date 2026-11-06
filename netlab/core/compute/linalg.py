@@ -51,7 +51,9 @@ def as_array(value, name: str, *, ndim: int = 2, max_size: int = 12) -> np.ndarr
     return array
 
 
-def solve_linear(matrix: np.ndarray, rhs: np.ndarray, *, what: str = "线性方程组") -> np.ndarray:
+def solve_linear(
+    matrix: np.ndarray, rhs: np.ndarray, *, what: str = "线性方程组"
+) -> np.ndarray:
     """求解 A x = b；奇异时给出可读错误，避免返回垃圾值。"""
     matrix = np.asarray(matrix, dtype=float)
     rhs = np.asarray(rhs, dtype=float)
@@ -108,7 +110,9 @@ def expm(matrix: np.ndarray) -> np.ndarray:
     return result
 
 
-def zoh_discretize(a: np.ndarray, b: np.ndarray, dt: float) -> tuple[np.ndarray, np.ndarray]:
+def zoh_discretize(
+    a: np.ndarray, b: np.ndarray, dt: float
+) -> tuple[np.ndarray, np.ndarray]:
     """零阶保持离散化：x[k+1] = Ad x[k] + Bd u[k]。"""
     a = as_array(a, "A 矩阵", max_size=12)
     b = as_array(b, "B 矩阵", max_size=12)

@@ -39,9 +39,7 @@ def test_cross_mode_block_is_rejected_in_scene(tmp_path):
     circuit = Scene("circuit")
     circuit.blocks.add(blocklib.load_block(library, signal_block.id))
     with pytest.raises(ValidationError, match="模式"):
-        circuit.add_node(
-            name="blk", kind="block", params={"block_id": signal_block.id}
-        )
+        circuit.add_node(name="blk", kind="block", params={"block_id": signal_block.id})
 
     signal = Scene("signal")
     signal.blocks.add(make_block("vector"))
@@ -59,7 +57,10 @@ def test_cross_mode_project_payload_is_rejected():
                 "id": "ddddddddddd1",
                 "name": "blk",
                 "kind": "block",
-                "params": {"block_id": circuit_block["id"], "block_name": "circuit-block"},
+                "params": {
+                    "block_id": circuit_block["id"],
+                    "block_name": "circuit-block",
+                },
                 "data": {},
                 "position": {"x": 0.0, "y": 0.0},
             }

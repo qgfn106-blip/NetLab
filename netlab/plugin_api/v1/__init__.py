@@ -82,7 +82,9 @@ class AnalysisContext:
     probes: list[str] = field(default_factory=list)
     input_node: str | None = None
     output_node: str | None = None
-    logger: logging.Logger = field(default_factory=lambda: logging.getLogger("netlab.plugin"))
+    logger: logging.Logger = field(
+        default_factory=lambda: logging.getLogger("netlab.plugin")
+    )
 
 
 @dataclass

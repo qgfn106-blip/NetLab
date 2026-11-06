@@ -1,11 +1,12 @@
 """桌面壳自绘拖窗的护栏：桥方法存在、垫片实现指针拖动、注入带版本号。"""
+
 from __future__ import annotations
 
 import inspect
 import re
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]          # NetlabHome/
+ROOT = Path(__file__).resolve().parents[2]  # NetlabHome/
 SHIM = ROOT / "frontend" / "desktop-shim.js"
 
 
@@ -49,6 +50,7 @@ def test_shim_script_tag_renders_numeric_version(monkeypatch):
     monkeypatch.setenv("NETLAB_DESKTOP_SHELL", "pywebview")
     html = TestClient(server_mod.app).get("/").text
     assert f"desktop-shim.js?v={server_mod.APP_BUILD}" in html
+
 
 def test_shim_has_resize_handles():
     js = SHIM.read_text(encoding="utf-8")

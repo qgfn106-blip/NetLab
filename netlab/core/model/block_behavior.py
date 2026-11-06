@@ -56,7 +56,9 @@ def _clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
 
 
-def _rising_edge(state: dict[str, Any], inputs: dict[str, dict[str, Any]], port: str = "clk") -> bool:
+def _rising_edge(
+    state: dict[str, Any], inputs: dict[str, dict[str, Any]], port: str = "clk"
+) -> bool:
     value = _input(inputs, port)
     previous = float(state.get("_last_clk", 0.0))
     state["_last_clk"] = value
@@ -76,10 +78,18 @@ def step(
     kind = str(spec.get("kind", ""))
     output = str(spec.get("output", "voltage"))
     if kind == "opamp":
-        value = float(spec.get("gain", 1.0e6)) * (_input(inputs, "inp") - _input(inputs, "inn"))
-        value = _clamp(value, float(spec.get("low", -15.0)), float(spec.get("high", 15.0)))
+        value = float(spec.get("gain", 1.0e6)) * (
+            _input(inputs, "inp") - _input(inputs, "inn")
+        )
+        value = _clamp(
+            value, float(spec.get("low", -15.0)), float(spec.get("high", 15.0))
+        )
     elif kind == "comparator":
-        value = float(spec.get("high", 1.0)) if _input(inputs, "inp") >= _input(inputs, "inn") else float(spec.get("low", -1.0))
+        value = (
+            float(spec.get("high", 1.0))
+            if _input(inputs, "inp") >= _input(inputs, "inn")
+            else float(spec.get("low", -1.0))
+        )
     elif kind == "dff":
         if _rising_edge(state, inputs):
             state["q"] = 1.0 if _input(inputs, "d") >= 0.5 else 0.0
@@ -129,4 +139,10 @@ def step(
         value = vref * code / float((1 << bits) - 1)
     else:
         raise ValueError(f"未知行为模型类型：{kind}")
-    return {str(spec.get("port", block.output_ports[0].name if block.output_ports else "out")): {output: value}}
+    return {
+        str(
+            spec.get(
+                "port", block.output_ports[0].name if block.output_ports else "out"
+            )
+        ): {output: value}
+    }

@@ -119,14 +119,26 @@ def _save_window_state(window, bridge=None) -> None:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Netlab 桌面版（pywebview + WebView2）")
+    parser = argparse.ArgumentParser(
+        description="Netlab 桌面版（pywebview + WebView2）"
+    )
     parser.add_argument("--qt", action="store_true", help="改用旧版 Qt WebEngine 壳")
-    parser.add_argument("--selftest", action="store_true", help="不开窗口，自检服务与垫片")
-    parser.add_argument("--port", type=int, default=0, help="本地服务端口（0 = 自动选择）")
+    parser.add_argument(
+        "--selftest", action="store_true", help="不开窗口，自检服务与垫片"
+    )
+    parser.add_argument(
+        "--port", type=int, default=0, help="本地服务端口（0 = 自动选择）"
+    )
     parser.add_argument("--debug", action="store_true", help="允许开发者工具")
-    parser.add_argument("--no-token", action="store_true", help="关闭桌面会话 token（仅调试）")
-    parser.add_argument("--seconds", type=float, default=0.0, help="N 秒后自动关窗（0 = 一直开着）")
-    parser.add_argument("--probe", action="store_true", help="开窗后检查桥接是否可用，打印结果并退出")
+    parser.add_argument(
+        "--no-token", action="store_true", help="关闭桌面会话 token（仅调试）"
+    )
+    parser.add_argument(
+        "--seconds", type=float, default=0.0, help="N 秒后自动关窗（0 = 一直开着）"
+    )
+    parser.add_argument(
+        "--probe", action="store_true", help="开窗后检查桥接是否可用，打印结果并退出"
+    )
     parser.add_argument("--width", type=int, default=1500)
     parser.add_argument("--height", type=int, default=940)
     return parser.parse_args(argv)
@@ -212,30 +224,45 @@ def _build_menu(window, bridge, *, show_devtools: bool = False):
     def cmd(name: str):
         def run() -> None:
             bridge.command(name)
+
         return run
 
     return [
-        Menu("文件", [
-            MenuAction("新建工程", cmd("new")),
-            MenuAction("打开工程…", cmd("open")),
-            MenuSeparator(),
-            MenuAction("保存", cmd("save")),
-            MenuAction("另存为…", cmd("saveAs")),
-            MenuSeparator(),
-            MenuAction("恢复自动保存", cmd("recover")),
-            MenuSeparator(),
-            MenuAction("退出", quit_app),
-        ]),
-        Menu("视图", [
-            MenuAction("重新加载页面", reload_page),
-            MenuSeparator(),
-            MenuAction("放大", lambda: zoom_by(0.1)),
-            MenuAction("缩小", lambda: zoom_by(-0.1)),
-            MenuAction("实际大小", reset_zoom),
-        ] + ([MenuSeparator(), MenuAction("开发者工具", reload_page)] if show_devtools else [])),
-        Menu("帮助", [
-            MenuAction("快捷键与说明", cmd("help")),
-        ]),
+        Menu(
+            "文件",
+            [
+                MenuAction("新建工程", cmd("new")),
+                MenuAction("打开工程…", cmd("open")),
+                MenuSeparator(),
+                MenuAction("保存", cmd("save")),
+                MenuAction("另存为…", cmd("saveAs")),
+                MenuSeparator(),
+                MenuAction("恢复自动保存", cmd("recover")),
+                MenuSeparator(),
+                MenuAction("退出", quit_app),
+            ],
+        ),
+        Menu(
+            "视图",
+            [
+                MenuAction("重新加载页面", reload_page),
+                MenuSeparator(),
+                MenuAction("放大", lambda: zoom_by(0.1)),
+                MenuAction("缩小", lambda: zoom_by(-0.1)),
+                MenuAction("实际大小", reset_zoom),
+            ]
+            + (
+                [MenuSeparator(), MenuAction("开发者工具", reload_page)]
+                if show_devtools
+                else []
+            ),
+        ),
+        Menu(
+            "帮助",
+            [
+                MenuAction("快捷键与说明", cmd("help")),
+            ],
+        ),
     ]
 
 
@@ -249,7 +276,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.qt:
         from .app import main as qt_main
 
-        legacy = [a for a in (argv if argv is not None else sys.argv[1:]) if a != "--qt"]
+        legacy = [
+            a for a in (argv if argv is not None else sys.argv[1:]) if a != "--qt"
+        ]
         return qt_main(legacy)
 
     try:
@@ -303,7 +332,7 @@ def main(argv: list[str] | None = None) -> int:
             min_size=(1100, 700),
             hidden=True,
             background_color="#0e1116",
-            frameless=True,   # 去掉系统标题栏/边框，只留网页自己的外观
+            frameless=True,  # 去掉系统标题栏/边框，只留网页自己的外观
             # 拖窗由页面自绘实现（desktop-shim.js 的 pointer 拖动 + window_move_to），
             # 因此关掉 pywebview 的 easy_drag，避免两套机制同时移动窗口互相打架。
             easy_drag=False,
@@ -323,7 +352,8 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 if getattr(bridge, "dirty", False):
                     ok = window.create_confirmation_dialog(
-                        "退出 Netlab", "工程有未保存的修改，确定要退出吗？")
+                        "退出 Netlab", "工程有未保存的修改，确定要退出吗？"
+                    )
                     if not ok:
                         return False
                 _save_window_state(window, bridge)
@@ -355,18 +385,25 @@ def main(argv: list[str] | None = None) -> int:
                 result["title"] = window.evaluate_js("document.title")
                 result["has_bridge"] = window.evaluate_js("!!window.netlabDesktop")
                 result["has_win_ctl"] = window.evaluate_js(
-                    "!!document.getElementById('nlWinCtl')")
+                    "!!document.getElementById('nlWinCtl')"
+                )
                 result["drag_region"] = window.evaluate_js(
-                    "document.querySelectorAll('.pywebview-drag-region').length")
+                    "document.querySelectorAll('.pywebview-drag-region').length"
+                )
                 result["has_command"] = window.evaluate_js(
-                    "typeof window.netlabDesktopCommand === 'function'")
+                    "typeof window.netlabDesktopCommand === 'function'"
+                )
                 window.evaluate_js(
                     "window.__probeAutosave = '__pending__';"
-                    "window.netlabDesktop.hasAutosave(function (v) { window.__probeAutosave = String(v); });")
+                    "window.netlabDesktop.hasAutosave(function (v) { window.__probeAutosave = String(v); });"
+                )
                 time.sleep(0.8)
-                result["has_autosave_roundtrip"] = window.evaluate_js("window.__probeAutosave")
+                result["has_autosave_roundtrip"] = window.evaluate_js(
+                    "window.__probeAutosave"
+                )
                 result["dirty_flag"] = window.evaluate_js(
-                    "(function(){try{return String(document.querySelector('#saveState')?.textContent||'');}catch(e){return '';}})()")
+                    "(function(){try{return String(document.querySelector('#saveState')?.textContent||'');}catch(e){return '';}})()"
+                )
                 result["rss_tree_mb"] = _rss_tree()
             except Exception as exc:
                 result["error"] = str(exc)[:200]

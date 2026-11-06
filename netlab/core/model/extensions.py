@@ -323,7 +323,11 @@ def validate_code(code: str) -> dict[str, Any]:
             raise ValidationError(f"扩展不允许访问 {item.id!r}")
         if isinstance(item, ast.Attribute) and item.attr.startswith("__"):
             raise ValidationError("扩展不允许访问双下划线属性")
-        if isinstance(item, ast.Constant) and isinstance(item.value, str) and "__" in item.value:
+        if (
+            isinstance(item, ast.Constant)
+            and isinstance(item.value, str)
+            and "__" in item.value
+        ):
             # 字符串本身不危险，但可以用来拼 dunder 名称；我们只做提示性拒绝。
             if item.value.startswith("__") and item.value.endswith("__"):
                 raise ValidationError("扩展不允许使用双下划线字符串")
@@ -337,7 +341,10 @@ def validate_code(code: str) -> dict[str, Any]:
             name = decorator.func.id if isinstance(decorator.func, ast.Name) else ""
             if name not in ("node", "method"):
                 continue
-            meta: dict[str, Any] = {"function": item.name, "type": "node" if name == "node" else "method"}
+            meta: dict[str, Any] = {
+                "function": item.name,
+                "type": "node" if name == "node" else "method",
+            }
             for keyword in decorator.keywords:
                 if keyword.arg in ("kind", "label", "group", "outputs") and isinstance(
                     keyword.value, ast.Constant
@@ -353,11 +360,15 @@ def _safe_filename(kind: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", kind) + ".py"
 
 
-def _snapshot_registry() -> tuple[dict[str, ComputeSpec], dict[str, MethodSpec], dict[str, Any]]:
+def _snapshot_registry() -> (
+    tuple[dict[str, ComputeSpec], dict[str, MethodSpec], dict[str, Any]]
+):
     return dict(COMPUTE_SPECS), dict(METHOD_SPECS), dict(_REGISTRY)
 
 
-def _restore_registry(snapshot: tuple[dict[str, ComputeSpec], dict[str, MethodSpec], dict[str, Any]]) -> None:
+def _restore_registry(
+    snapshot: tuple[dict[str, ComputeSpec], dict[str, MethodSpec], dict[str, Any]],
+) -> None:
     computes, methods, registry = snapshot
     COMPUTE_SPECS.clear()
     COMPUTE_SPECS.update(computes)
@@ -424,7 +435,9 @@ def _hash(code: str) -> str:
     return hashlib.sha256(code.encode("utf-8")).hexdigest()
 
 
-def _activate_code_locked(code: str, *, filename: str = "<netlab-extension>") -> dict[str, Any]:
+def _activate_code_locked(
+    code: str, *, filename: str = "<netlab-extension>"
+) -> dict[str, Any]:
     """在锁内执行；调用方负责重建引擎。"""
     return execute_code(code, filename=filename)
 
@@ -550,7 +563,9 @@ def activate_project_extensions(
         expected = item.get("sha256")
         if expected and expected != _hash(code):
             raise ValidationError(f"第 {index + 1} 个扩展的代码哈希不匹配")
-        validates.append((code, str(item.get("filename") or f"<project-{index + 1}>"), info))
+        validates.append(
+            (code, str(item.get("filename") or f"<project-{index + 1}>"), info)
+        )
     with _LOCK:
         snapshot = _snapshot_registry()
         loaded: list[str] = []
@@ -561,9 +576,9 @@ def activate_project_extensions(
                 if persist:
                     target = NODE_DIR
                     target.mkdir(parents=True, exist_ok=True)
-                    target.joinpath(_safe_filename(loaded[-1] if loaded else "user.extension")).write_text(
-                        code, encoding="utf-8"
-                    )
+                    target.joinpath(
+                        _safe_filename(loaded[-1] if loaded else "user.extension")
+                    ).write_text(code, encoding="utf-8")
         except Exception:
             _restore_registry(snapshot)
             raise

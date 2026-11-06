@@ -17,7 +17,9 @@ from ..common.limits import NetlabError, ValidationError
 MAX_REPORT_ITEMS = 40
 
 
-def _item(code: str, message: str, *, where: str = "", hint: str = "") -> dict[str, str]:
+def _item(
+    code: str, message: str, *, where: str = "", hint: str = ""
+) -> dict[str, str]:
     item = {"code": code, "message": message}
     if where:
         item["where"] = where
@@ -88,13 +90,21 @@ def validate_block_payload(
         }
 
     if len(block.nodes) == 0:
-        warnings.append(_item("empty_body", "模块内部没有任何节点", hint="空模块可以导入，但实例化后没有计算"))
+        warnings.append(
+            _item(
+                "empty_body",
+                "模块内部没有任何节点",
+                hint="空模块可以导入，但实例化后没有计算",
+            )
+        )
     if len(block.edges) == 0 and len(block.nodes) > 1:
         warnings.append(_item("no_internal_edges", "模块有多个内部节点但没有任何连接"))
     if not block.description.strip():
         warnings.append(_item("missing_description", "模块缺少描述"))
     if not block.output_ports:
-        warnings.append(_item("no_output", "模块没有输出端口，实例化后不会向上游产出数据"))
+        warnings.append(
+            _item("no_output", "模块没有输出端口，实例化后不会向上游产出数据")
+        )
     if not block.input_ports:
         warnings.append(_item("no_input", "模块没有输入端口"))
 
@@ -112,7 +122,11 @@ def validate_block_payload(
             )
         if not port.fields:
             warnings.append(
-                _item("port_without_fields", f"端口 {port.name!r} 没有字段声明", where=f"ports/{port.name}")
+                _item(
+                    "port_without_fields",
+                    f"端口 {port.name!r} 没有字段声明",
+                    where=f"ports/{port.name}",
+                )
             )
     for name in sorted(interface - declared):
         warnings.append(
@@ -130,9 +144,17 @@ def validate_block_payload(
         params = node.get("params") or {}
         child = str(params.get("block_id") or "")
         if child == block.id:
-            blocking.append(_item("self_reference", "模块直接包含自身", where=f"nodes[{index}]"))
+            blocking.append(
+                _item("self_reference", "模块直接包含自身", where=f"nodes[{index}]")
+            )
         if not child:
-            blocking.append(_item("missing_child_id", "嵌套块节点缺少 block_id", where=f"nodes[{index}]"))
+            blocking.append(
+                _item(
+                    "missing_child_id",
+                    "嵌套块节点缺少 block_id",
+                    where=f"nodes[{index}]",
+                )
+            )
 
     # 3) 干跑：把模块真实实例化并推进 1 步
     dry_status = "skipped"
@@ -163,7 +185,10 @@ def validate_block_payload(
                 )
             runtime = BlockRuntime(store.require(block.id), store, depth=0)
             inputs = {
-                port.name: {field: float(port.default or 0.0) for field in (port.fields or ["voltage"])}
+                port.name: {
+                    field: float(port.default or 0.0)
+                    for field in (port.fields or ["voltage"])
+                }
                 for port in block.input_ports
             }
             runtime.step(float(dt), inputs)
@@ -214,10 +239,14 @@ def report_as_text(report: dict[str, Any]) -> str:
     ]
     if report.get("blocking"):
         lines.append("阻断：")
-        lines.extend(f"  - [{item['code']}] {item['message']}" for item in report["blocking"])
+        lines.extend(
+            f"  - [{item['code']}] {item['message']}" for item in report["blocking"]
+        )
     if report.get("warnings"):
         lines.append("警告：")
-        lines.extend(f"  - [{item['code']}] {item['message']}" for item in report["warnings"])
+        lines.extend(
+            f"  - [{item['code']}] {item['message']}" for item in report["warnings"]
+        )
     return "\n".join(lines)
 
 

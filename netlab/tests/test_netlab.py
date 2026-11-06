@@ -57,10 +57,15 @@ def test_original_chain_api_and_numbers():
     network = Network()
 
     def sum_compute(inputs, _data):
-        return {"voltage": sum(float(payload["voltage"]) for payload in inputs.values())}
+        return {
+            "voltage": sum(float(payload["voltage"]) for payload in inputs.values())
+        }
 
     def gain_compute(inputs, _data):
-        return {"voltage": 3.0 * sum(float(payload["voltage"]) for payload in inputs.values())}
+        return {
+            "voltage": 3.0
+            * sum(float(payload["voltage"]) for payload in inputs.values())
+        }
 
     signal = Node("signal", {"voltage": 4.0})
     bias = Node("bias", {"voltage": 2.0})
@@ -183,8 +188,12 @@ def test_algebraic_cycle_is_detected():
 
 def test_scene_auto_delay_breaks_cycle():
     scene = Scene("signal")
-    a = scene.add_node(name="a", kind="sum", data={"voltage": 1.0}, position={"x": 0, "y": 0})
-    b = scene.add_node(name="b", kind="sum", data={"voltage": 0.0}, position={"x": 100, "y": 0})
+    a = scene.add_node(
+        name="a", kind="sum", data={"voltage": 1.0}, position={"x": 0, "y": 0}
+    )
+    b = scene.add_node(
+        name="b", kind="sum", data={"voltage": 0.0}, position={"x": 100, "y": 0}
+    )
     first = scene.add_edge(source=a.id, target=b.id, kind="scale")
     second = scene.add_edge(source=b.id, target=a.id, kind="scale")
     assert first.delay is False
@@ -304,7 +313,13 @@ def test_state_space_node_integrates():
             "x0": [0.0],
         },
     )
-    scene.add_edge(source=source.id, target=node.id, kind="scale", params={"gain": 1.0}, name="link")
+    scene.add_edge(
+        source=source.id,
+        target=node.id,
+        kind="scale",
+        params={"gain": 1.0},
+        name="link",
+    )
     for _ in range(20):
         scene.step(0.1)
     value = float(scene.nodes[node.id].data["y0"])
@@ -329,13 +344,15 @@ def test_rlc_series_stays_finite_and_resonates():
     scene = template_scene("rlc_series")
     for _ in range(1000):  # 20 ms, 一个 50 Hz 周期
         scene.step(2.0e-5)
-    values = [
-        node_voltage(scene, name) for name in ("src", "mid", "out")
-    ]
+    values = [node_voltage(scene, name) for name in ("src", "mid", "out")]
     assert all(math.isfinite(item) for item in values)
     # 50 Hz、1 V 源经 R=10 Ω，L/C 分压：输出应有可观测幅度但不发散。
     assert 0.01 < abs(values[2]) < 5.0
-    current = edge_state(scene, "L1")["current"] if "current" in edge_state(scene, "L1") else None
+    current = (
+        edge_state(scene, "L1")["current"]
+        if "current" in edge_state(scene, "L1")
+        else None
+    )
     if current is not None:
         assert math.isfinite(current)
 
@@ -365,7 +382,12 @@ def test_multiple_grounds_load_and_merge():
     """R21/D44：多接地合法，自动合并为同一 0V 参考。"""
     payload = build_template("rc_step")
     payload["nodes"].append(
-        {"id": "c99999999999", "name": "g2", "kind": "ground", "position": {"x": 0, "y": 0}}
+        {
+            "id": "c99999999999",
+            "name": "g2",
+            "kind": "ground",
+            "position": {"x": 0, "y": 0},
+        }
     )
     scene = Scene("circuit")
     scene.load_payload(payload)
@@ -382,10 +404,16 @@ def test_isolated_net_is_ignored():
     gnd = scene.add_node(name="gnd", kind="ground")
     src = scene.add_node(name="n1", kind="node")
     scene.add_node(name="float", kind="node")
-    scene.add_edge(name="VS", source=src.id, target=gnd.id, kind="vsource",
-                   params={"wave": "dc", "offset": 5.0, "amplitude": 0.0})
-    scene.add_edge(name="RL", source=src.id, target=gnd.id, kind="resistor",
-                   params={"R": 1000.0})
+    scene.add_edge(
+        name="VS",
+        source=src.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 5.0, "amplitude": 0.0},
+    )
+    scene.add_edge(
+        name="RL", source=src.id, target=gnd.id, kind="resistor", params={"R": 1000.0}
+    )
     scene.step(1e-4)
     float_node = next(item for item in scene.nodes.values() if item.name == "float")
     assert abs(float(float_node.data.get("voltage", 0.0))) < 1e-9
@@ -631,7 +659,15 @@ def test_node_crud_and_positions(client):
 
     patched = client.patch(
         f"/api/nodes/{node_id}",
-        json={"name": "extra2", "params": {"field": "voltage", "output": "voltage", "gain": 5.0, "offset": 1.0}},
+        json={
+            "name": "extra2",
+            "params": {
+                "field": "voltage",
+                "output": "voltage",
+                "gain": 5.0,
+                "offset": 1.0,
+            },
+        },
     )
     assert patched.status_code == 200
     assert patched.json()["node"]["name"] == "extra2"
@@ -682,16 +718,30 @@ def test_manual_module_node_is_rejected_with_fix_hint(client):
 def test_edge_crud_and_auto_delay(client):
     blank = build_template("blank_signal")
     client.post("/api/scene", json=blank)
-    first = client.post("/api/nodes", json={"name": "a", "kind": "sum"}).json()["node"]["id"]
-    second = client.post("/api/nodes", json={"name": "b", "kind": "sum"}).json()["node"]["id"]
+    first = client.post("/api/nodes", json={"name": "a", "kind": "sum"}).json()["node"][
+        "id"
+    ]
+    second = client.post("/api/nodes", json={"name": "b", "kind": "sum"}).json()[
+        "node"
+    ]["id"]
     forward = client.post(
         "/api/edges",
-        json={"source": first, "target": second, "kind": "scale", "params": {"gain": 1.0}},
+        json={
+            "source": first,
+            "target": second,
+            "kind": "scale",
+            "params": {"gain": 1.0},
+        },
     )
     assert forward.status_code == 200
     backward = client.post(
         "/api/edges",
-        json={"source": second, "target": first, "kind": "scale", "params": {"gain": 1.0}},
+        json={
+            "source": second,
+            "target": first,
+            "kind": "scale",
+            "params": {"gain": 1.0},
+        },
     )
     assert backward.status_code == 200
     edge = backward.json()["edge"]
@@ -733,7 +783,9 @@ def test_mode_switch_and_templates(client):
 
 
 def test_config_validation_and_live_cursor(client):
-    response = client.patch("/api/config", json={"fps": 60, "dt": 0.0001, "steps_per_frame": 4})
+    response = client.patch(
+        "/api/config", json={"fps": 60, "dt": 0.0001, "steps_per_frame": 4}
+    )
     assert response.status_code == 200
     assert response.json()["config"]["fps"] == 60
     bad = client.patch("/api/config", json={"fps": 999})
@@ -758,7 +810,12 @@ def test_import_two_grounds_is_allowed(client):
     """R21/D44：导入含两个接地的场景不再 422，引擎自动合并。"""
     payload = build_template("rc_step")
     payload["nodes"].append(
-        {"id": "c99999999999", "name": "g2", "kind": "ground", "position": {"x": 0, "y": 0}}
+        {
+            "id": "c99999999999",
+            "name": "g2",
+            "kind": "ground",
+            "position": {"x": 0, "y": 0},
+        }
     )
     response = client.post("/api/scene", json=payload)
     assert response.status_code == 200, response.text

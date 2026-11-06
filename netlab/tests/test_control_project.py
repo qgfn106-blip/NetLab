@@ -86,7 +86,7 @@ def test_underdamped_precompute_converges_with_dt():
 
     def metrics(frames):
         values = [frame["v"]["n:plant:value"] for frame in frames]
-        final = sum(values[-max(3, len(values) // 10):]) / max(3, len(values) // 10)
+        final = sum(values[-max(3, len(values) // 10) :]) / max(3, len(values) // 10)
         peak = max(values)
         return peak, final, (peak - final) / abs(final) * 100.0
 
@@ -112,5 +112,7 @@ def test_control_project_roundtrip_is_openable(tmp_path):
     assert project["checksum"]
     network = project["networks"][0]
     assert network["scene"]["mode"] == "signal"
-    assert any(node["kind"] == "transfer_function" for node in network["scene"]["nodes"])
+    assert any(
+        node["kind"] == "transfer_function" for node in network["scene"]["nodes"]
+    )
     assert any(edge["name"] == "feedback" for edge in network["scene"]["edges"])

@@ -12235,7 +12235,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       const assumptions = (quality.assumptions || []).filter((item) => item.trim().length > 0);
       const missing = [];
       if (quality.sample_dt === null || quality.sample_dt === void 0) missing.push("sample_dt");
-      if (quality.quant_bits === null || quality.quant_bits === void 0) missing.push("quant_bits");
       if (quality.interp_error_bound === null || quality.interp_error_bound === void 0) missing.push("interp_error_bound");
       if (quality.delay_bound === null || quality.delay_bound === void 0) missing.push("delay_bound");
       setQualityText("#diagSampleDt", formatQualityNumber(quality.sample_dt, " s"));

@@ -15130,3 +15130,5 @@ declare function setStatusHint(hint: string): void;
   boot();
   setTimeout(checkCacheQuietly, 6000);
 })();
+
+export {};

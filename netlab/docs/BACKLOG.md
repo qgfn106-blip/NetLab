@@ -10,7 +10,7 @@
 
 ## 0. 一句话现状
 
-- **能用的产品**：`start_desktop.bat` / `python -m netlab.desktop` 起 pywebview + WebView2 网页壳（**622 passed**，2026-11-07，静态 3.20.1；全量文档重构 §7.75 完成）。
+- **能用的产品**：`start_desktop.bat` / `python -m netlab.desktop` 起 pywebview + WebView2 网页壳（**626 passed**，2026-11-07，静态 3.20.1；全量文档重构 §7.75 完成）。
 - **界面口径**：前端在 `frontend/`（index.html / app.js / style.css）；Qt 原生界面已按 D78 备份到 Git 分支 `backup/qt-native-2026-11-02` 后删除，不再是产品形态。
 - **已完成（一期）**：R41 前端 JavaScript→TypeScript 全局迁移（一期 P16 类型化、二期 P17 模块化均已完成），tsc strict 0 / node --test 纯函数单测绿 / AST 行为等价 / pytest 589 passed，见 REQUIREMENTS R41 / PROGRESS §7.76。
 - **没做完的主线**：R25 三阶段已交付（P7-09/10/11：9 块/虚拟注册表/只读保护/另存副本/行为快速模型/`internal_sim` 开关/对比 API/UI），剩完整电路级内部结构；R19 参考级图纸暂停。**刚完成**：R31 并网逆变器 P11-01…P11-07（§7.72：L1 平均模型、`abc_dq`、SRF-PLL、dq 电流环、`sensor`/`actuator` 跨域桥、六开关三相桥示例、`cancel_precompute` 中断）；R39 复数分析层（§7.71）；R40 全栈扩展架构（§7.74，设计+代码首版完成，589 passed/3.20.1）；全量 589 passed/3.20.1。

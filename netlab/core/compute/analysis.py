@@ -241,16 +241,38 @@ def spectrum(
     }
 
 
+def _shift_score(
+    grid: np.ndarray, values: np.ndarray, period: float
+) -> tuple[float, float] | None:
+    """按 period 平移一个周期，返回 (score, mae)；样本不足返回 None。"""
+    shifted = np.interp(grid + period, grid, values, left=np.nan, right=np.nan)
+    mask = np.isfinite(shifted)
+    if mask.sum() < max(8, len(grid) // 3):
+        return None
+    std = float(np.std(values[mask])) or 1.0
+    mae = float(np.mean(np.abs(values[mask] - shifted[mask]))) / std
+    return max(0.0, 1.0 - mae), mae
+
+
+def _period_windows(size: int) -> list[tuple[int, int]]:
+    """返回全窗 + 前后两个重叠子窗，用于备选周期稳定性统计。"""
+    windows = [(0, size)]
+    if size >= 24:
+        windows.append((0, max(12, int(round(size * 0.65)))))
+        windows.append((min(size - 12, int(round(size * 0.35))), size))
+    return windows
+
+
 def recommend_period(
     sim: Any, key: str, t0: float | None = None, t1: float | None = None
 ) -> dict[str, Any]:
-    """周期推荐：FFT 候选频率 → 候选周期 → 多周期一致性校验 → 排序/诊断。"""
+    """周期推荐：FFT 候选频率 → 候选周期 → 多窗口一致性校验 → 排序/诊断。"""
     result = spectrum(sim, key, t0, t1)
     times, values = _series(sim, key, t0, t1)
     grid, uniform = _uniform(times, values)
     span = float(grid[-1] - grid[0])
-    std = float(np.std(uniform)) or 1.0
     candidates: list[dict[str, Any]] = []
+    windows = _period_windows(len(grid))
     for peak in result["peaks"]:
         freq = peak["freq"]
         if freq <= 0:
@@ -259,16 +281,35 @@ def recommend_period(
         cycles = span / period
         if cycles < 2:
             continue
-        shifted = np.interp(grid + period, grid, uniform, left=np.nan, right=np.nan)
-        mask = np.isfinite(shifted)
-        if mask.sum() < max(8, len(grid) // 3):
+        scores: list[float] = []
+        maes: list[float] = []
+        usable = True
+        for start, stop in windows:
+            grid_w = grid[start:stop]
+            value_w = uniform[start:stop]
+            if grid_w.size < 8:
+                usable = False
+                break
+            scored = _shift_score(grid_w, value_w, period)
+            if scored is None:
+                usable = False
+                break
+            scores.append(scored[0])
+            maes.append(scored[1])
+        if not usable:
             continue
-        mae = float(np.mean(np.abs(uniform[mask] - shifted[mask]))) / std
-        score = max(0.0, 1.0 - mae)
+        score = float(np.mean(scores))
         if score < 0.75:
             continue
         candidates.append(
-            {"period": period, "score": score, "cycles": cycles, "mae": mae}
+            {
+                "period": period,
+                "score": score,
+                "score_std": float(np.std(scores)),
+                "cycles": cycles,
+                "mae": float(np.mean(maes)),
+                "windows": len(scores),
+            }
         )
     candidates.sort(key=lambda item: (-item["score"], item["cycles"]))
     if not candidates:
@@ -277,9 +318,10 @@ def recommend_period(
             "key": key,
             "reason": "未找到可在 ≥2 个周期内重复的候选周期",
             "diagnosis": "录制太短、信号非周期或周期大于窗口；先多录制几个周期再试",
-            "source": "录制数据 FFT + 周期一致性（MAE）校验",
+            "source": "录制数据 FFT + 多窗口周期一致性（MAE）校验",
         }
     best = candidates[0]
+    periods = [float(item["period"]) for item in candidates[:3]]
     return {
         "ok": True,
         "key": key,
@@ -287,8 +329,9 @@ def recommend_period(
         "score": best["score"],
         "cycles": best["cycles"],
         "candidates": candidates[:3],
-        "diagnosis": "按 FFT 峰值 + 平移一致性排序；score=1-mae/σ，越接近 1 越可信",
-        "source": "录制数据 FFT + 周期一致性（MAE）校验",
+        "period_std": float(np.std(periods)) if len(periods) > 1 else 0.0,
+        "diagnosis": "按 FFT 峰值 + 全窗/前后子窗平移一致性排序；score=1-mae/σ，score_std 越小越稳",
+        "source": "录制数据 FFT + 多窗口周期一致性（MAE）校验",
     }
 
 

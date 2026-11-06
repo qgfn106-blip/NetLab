@@ -33,3 +33,4 @@ desktop.ini
 # 本地产物（2026-11-04）：备份/截图目录与运行期布局文件不入库
 NetlabExtras/
 layout.json
+vscode-extensions/netlab-sidebar/node_modules/

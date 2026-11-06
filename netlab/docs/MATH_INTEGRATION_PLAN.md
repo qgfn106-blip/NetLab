@@ -1,9 +1,9 @@
 # NetLab 数学成果接入规划与影子验证计划
 
-> 版本：v1.0（规划稿，未实施）
+> 版本：v1.1（M0 完成、M1b 影子实现落地）
 > 日期：2026-11-06
-> 状态：**规划与计划**——第一行代码尚未写；本文件只回答"改哪里、为什么值得、初步怎么改、如何验收"。
-> 上游依据：[UNIFIED_SIM_MATH_SPEC.md](UNIFIED_SIM_MATH_SPEC.md)（数学规范）、[PERFORMANCE_AND_CONCURRENCY.md](PERFORMANCE_AND_CONCURRENCY.md)（研究记录）、`NetlabHome/mathspec/`（零耦合参考实现，当前 98 passed）。
+> 状态：**规划与实施并行**——M0 mathspec 原型与 M1b P3 影子路径已实现并通过测试；P1 评测器已就绪（真实语料待跑）；P5/M1c 未开始。默认 `off`，不改变既有行为。
+> 上游依据：[UNIFIED_SIM_MATH_SPEC.md](UNIFIED_SIM_MATH_SPEC.md)（数学规范）、[PERFORMANCE_AND_CONCURRENCY.md](PERFORMANCE_AND_CONCURRENCY.md)（研究记录）、`NetlabHome/mathspec/`（零耦合参考实现，当前 107 passed）。
 > 主规划入口：[BACKLOG.md](BACKLOG.md) §1.1（本文件为独立副本，BACKLOG 只留一行指针与 DoD 摘要）。
 
 ---
@@ -259,6 +259,8 @@ on     : 新路径为主 → 守卫失败则回退旧路径 → 记录 fallback 
 | **M1d** | 影子集成回归 | `NETLAB_MATH_ACCEL` 开关、诊断记录、全量测试 | 默认 off 零影响；shadow 全绿；PR 可评审 | M1b/M1c | 1–2 天 |
 | **M2（可选）** | `on` 启用评审 | 指标汇总、PR 合并 | 达到 §5.3 全部门槛 + 人工评审 | M1d | 1 天 |
 
+**实施状态（2026-11-06）**：M0 完成（`mathspec` 新增 `ac_sweep_woodbury.py`、`ordering_eval.py`，9 条测试全过，全套 107 passed）；M1b 影子实现完成（`netlab/core/compute/math_accel/` 四模块 + `nodal.ac_sweep` 分支，5 条专项测试全过，netlab 全量 594 passed / 1 skipped）；M1a 评测器已就绪、真实工程语料待跑；M1c/M1d 未开始。
+
 ---
 
 ## 7. 分支与合并（Q9=A）
@@ -304,8 +306,8 @@ on     : 新路径为主 → 守卫失败则回退旧路径 → 记录 fallback 
 
 | 候选 | 条件边界 | 性质测试 | 影子评测 | 回退/门槛 | 状态 |
 |---|---|---|---|---|---|
-| P3 Woodbury | `r/n≤0.10`、A0 非病态、纯 LTI RLC、ω>0 | 与直接解对拍 `<1e-10`、病态回退 | `shadow` 模式 | `NETLAB_MATH_ACCEL=off`；平均 `≥2×` | 计划 M0/M1b |
-| P1 排序 | 真实+合成语料、缓存 key 不变 | fill-in/solve 误差 | 评测器对照 | 不达标保持 COLAMD | 计划 M0/M1a |
+| P3 Woodbury | `r/n≤0.10`、A0 非病态、纯 LTI RLC、ω>0 | 与直接解对拍 `<1e-10`、病态回退 | `shadow` 模式 | `NETLAB_MATH_ACCEL=off`；平均 `≥2×` | **已实现影子（M0+M1b）** |
+| P1 排序 | 真实+合成语料、缓存 key 不变 | fill-in/solve 误差 | 评测器对照 | 不达标保持 COLAMD | 评测器已实现（M0），真实语料待跑 |
 | P5 遥测口径 | `d>2ε`、线性插值、无量化（当前） | 界与拒绝测试 | 只读端点对拍 schema | 不改 `/api/live` | 计划 M1c |
 | observability 探针选择 | 有限时域 LTI、正定先验 | 次模/穷举/非法输入 | 后续评测 | 本波不接 | 储备 |
 | telemetry/dataflow 压缩链 | 量化区间不饱和、CRC 非攻击防护 | 端到端误差/压缩比 | 后续 P7 | 本波不接 | 储备 |
@@ -326,7 +328,17 @@ on     : 新路径为主 → 守卫失败则回退旧路径 → 记录 fallback 
 
 ---
 
-## 11. 决策记录（本次 grilling）
+## 11. 实施记录（2026-11-06，M0 + M1b）
+
+- **分支**：`feat/math-accel-shadow`（从 `main` 新开；未带入 `feat/ts-migration` 改动）。
+- **mathspec（M0）**：`experiments/ac_sweep_woodbury.py`（`ReactiveStamp`、`rank_ratio`、`conductance_matrix`、`WoodburyFamily`、`ac_sweep_woodbury`）与 `experiments/ordering_eval.py`（COLAMD/MMD_ATA/MMD_AT_PLUS_A/NATURAL + RCM/MIN_DEGREE/NESTED_DISSECTION，fill/时间/峰值内存）；测试 9 条，全套 `107 passed in 5.66s`。
+- **netlab（M1b）**：`netlab/core/compute/math_accel/` 新增 `config.py`（`NETLAB_MATH_ACCEL[_<component>]=off|shadow|on`，默认 off）、`diagnostics.py`（环形诊断）、`woodbury_ac.py`（`ACWoodburySolver`，`r/n` 门控 + 条件数/主元守卫 + 残差修正）、`__init__.py`；`nodal.ac_sweep` 增加 off/shadow/on 分支（off 路径行为不变，shadow 只对拍不生效，on 在 `r/n≤0.10` 时走 Woodbury）。
+- **验证**：`netlab/tests/test_math_accel.py` 5 条（开关默认/非法值、合成 Woodbury 对拍、r/n 门控、ac_sweep 三模式一致）→ `5 passed`；相关回归 `test_solver_analysis.py + test_complex_support.py` 22 passed；netlab 全量 `594 passed, 1 skipped in 103.50s`。
+- **已知边界**：P3 仅适用于纯 LTI RLC（AC 已拒绝二极管/晶体管等）；`on` 是否达 `≥2×` 需在 M1d/真实语料上测量，当前只验证正确性与默认 off 零影响。
+
+---
+
+## 12. 决策记录（本次 grilling）
 
 | 问题 | 选择 | 含义 |
 |---|---|---|
@@ -345,7 +357,7 @@ on     : 新路径为主 → 守卫失败则回退旧路径 → 记录 fallback 
 
 ---
 
-## 12. 参考文档
+## 13. 参考文档
 
 - [UNIFIED_SIM_MATH_SPEC.md](UNIFIED_SIM_MATH_SPEC.md)：数学规范（UMG/DAE/混合系统/数值/MOR/可观测性）
 - [PERFORMANCE_AND_CONCURRENCY.md](PERFORMANCE_AND_CONCURRENCY.md)：研究记录（§31 创造性拓展、§32 优化/数据结构、§33 遥测）

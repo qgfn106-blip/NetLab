@@ -36,6 +36,8 @@ python -m pytest mathspec/tests -q
 | `experiments/kalman.py` | §15.3–15.4 | Kalman 滤波 + LQR/DARE | 数字孪生/控制器（拟新增） |
 | `experiments/telemetry.py` | §33 | 量化→差分压缩→CRC 重传→事件时刻估计 | 探针遥测与阈值告警验证 |
 | `experiments/observability.py` | §17 | 有限时域 Gramian、log-det D-optimal 贪心探针选择 | 探针布局与状态可观测性分析 |
+| `experiments/ac_sweep_woodbury.py` | §25 / R43 M0 | 双参数仿射族 `A(ω)=A0+UΣ(ω)Vᵀ` + Woodbury 小解 | `nodal.ac_sweep` 的 P3 影子路径 |
+| `experiments/ordering_eval.py` | §25 / R43 M0 | 稀疏排序评测（COLAMD/MMD_ATA/MMD_AT_PLUS_A/NATURAL + RCM/最小度/ND） | `_solve_sparse` 的 P1 评测 |
 
 ## 验收测试（对应规范 §8）
 
@@ -57,20 +59,22 @@ python -m pytest mathspec/tests -q
 | `test_kalman.py` | §15.3–15.4 E10–E11 | 协方差对称 PSD、单种子归一化误差 <3σ（健全性检查，非统计覆盖）、LQR 闭环稳定、DARE 残差 <1e-8 |
 | `test_telemetry.py` | §33 | 36 passed：固定区间量化界、连续插值界、预算逆解、延迟分离、有限 FIFO 假设、非法输入拒绝 |
 | `test_observability.py` | §17 | 12 passed：Gramian PSD/秩、D-optimal 次模性、可用性加权代理、非法输入拒绝 |
+| `test_ac_sweep_woodbury.py` | §25 / R43 M0 | 6 passed：RC/RLC 梯形对拍、r/n 门控、ω0 零差、非法输入拒绝 |
+| `test_ordering_eval.py` | §25 / R43 M0 | 3 passed：三对角/12×12 网格确定性、排序对照可复现 |
 
 ## §14 实验报告摘要（2026-11-06）
 
 - **试验台**：DC 电机（电气+机械+传动+负载）→ 4 状态 LTI；扭转频率 **1.7783 Hz**；稳态 `x_ss(12,0.5)=[3.4643, 205.357, 20.536, 0.1411]`。
 - **关键验证**：能量守恒误差 `8.648e-8`；POD 前 3 奇异值 `[9549.44, 39.81, 2.2098, 0.2101]`；POD-量化总误差 `0.1730 ≤ 0.3068`；BT H∞ 实测 `8.437 ≤ 11.058`（稳定最小 LTI 单实例）；Anderson `4 vs 264` 次（66×）。
 - **端到端**：POD(r=3)+10bit 量化+差分+zlib+CRC 传输，`2412 B → 102 B`（23.65×），归一化重构误差 `9.584e-4 ≤ 1.4775e-3`，重构后频谱峰 `1.990 Hz` vs 真值 `1.778 Hz`（误差 0.212 < 半格 0.249）。
-- **复现**：`python -m pytest mathspec/tests -q` → 当前 **98 passed in 3.56 s**（2026-11-06 最近一次实测；耗时随机器负载变化；含 §14、§15、§31、§33 遥测验证与 §17 可观测性验证）。
+- **复现**：`python -m pytest mathspec/tests -q` → 当前 **107 passed in 5.66 s**（2026-11-06 最近一次实测；耗时随机器负载变化；含 §14、§15、§31、§33 遥测验证、§17 可观测性与 §25/R43 M0 数学加速原型）。
 
 ## §15 架构扩展验证摘要（2026-11-06）
 
 - **能力矩阵**：C1–C10（非因果连接器/状态估计/最优控制/参数辨识/UQ/协同仿真/事件溯源/稀疏排序/优化算法/数据结构）；C2/C3/C4/C8/C9/C10 已形式化+实测。
 - **实现**：`experiments/optim.py`、`datastruct.py`、`ordering.py`、`kalman.py`；测试 `test_optim.py`、`test_datastruct.py`、`test_ordering.py`、`test_kalman.py`。
 - **关键实测**：BFGS 35 次达到 $\|\nabla f\|_\infty\approx2.84\times10^{-11}$；GD 在 20000 次人为上限仍为 $1.11\times10^{-4}$（同实例、不同终止判据与预算，不构成收敛率结论）；LM 6 次恢复 `[2.5,1.3]`；CG 22 次残差 `9.78e-10`；并查集 200k 操作 `0.444s`；12×12 网格填充自然 1331 / RCM 946 / 最小度 618 / ND 992；Kalman 单种子归一化误差 `0.861<3`（健全性检查）；LQR 19 次、DARE 残差 `1.1e-13`。
-- **总测试数**：`python -m pytest mathspec/tests -q` → **98 passed in 3.56 s**（2026-11-06 最近一次实测；耗时随机器负载变化）。
+- **总测试数**：`python -m pytest mathspec/tests -q` → **107 passed in 5.66 s**（2026-11-06 最近一次实测；耗时随机器负载变化）。
 
 ## 附录 B：NetLab 现状对码（file:line）
 

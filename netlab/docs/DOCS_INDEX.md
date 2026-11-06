@@ -40,7 +40,7 @@
 | [SCHEMATIC_DRAWING_SPEC.md](SCHEMATIC_DRAWING_SPEC.md) | 电路图绘制规范 | 当前 |
 | [PERFORMANCE_AND_CONCURRENCY.md](PERFORMANCE_AND_CONCURRENCY.md) | 并发/性能评估研究：多线程·多进程·异步·数据压缩编解码·计算优化（评估记录，非实现口径） | 当前（研究） |
 | [MATH_INTEGRATION_PLAN.md](MATH_INTEGRATION_PLAN.md) | R43 数学成果接入计划：P1 稀疏排序 / P3 AC 扫频 Woodbury / P5 遥测误差预算，影子验证 M0–M1d | 当前 |
-| [UNIFIED_SIM_MATH_SPEC.md](UNIFIED_SIM_MATH_SPEC.md) | 统一仿真数学规范（当前仅 §17 可观测性；§0–§16 待按并行会话版本恢复） | 研究（部分） |
+| [UNIFIED_SIM_MATH_SPEC.md](UNIFIED_SIM_MATH_SPEC.md) | 统一仿真数学规范（§0–§17 完整；§0–§16 于 2026-11-06 从会话日志恢复） | 研究（完整） |
 | [WORKTREE_RULES.md](WORKTREE_RULES.md) | 多工作树/多会话规范 | 当前 |
 | [VSCODE_INTEGRATION.md](VSCODE_INTEGRATION.md) | VS Code 内嵌集成 | 当前 |
 

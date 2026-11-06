@@ -1,6 +1,6 @@
 # Netlab 需求 · 决策 · 执行计划（2026-10-25 修订版）
 
-> 最后修改：2026-11-06 18:40（新增「代码规范（强制）」开篇；文档整理：合并已完成文档、同步 R43 / D112–D118；R43 M1a/M1b/M1c 完成）
+> 最后修改：2026-11-06 19:45（R43 M1a/M1b/M1c 完成；P3 真实参数规模族验证；P5 误差合同接入前端设置页）
 > 本版**取代** 2026-10-24 版的需求口径。旧条文不删除，凡被推翻或细化的条目一律进 §7「已废弃口径」。
 > 每条需求统一六段式：**原话 / 解读 / 拟改架构 / 验收 / 权重·期次 / 现状**。
 > **现状**一栏只写本次会话内读代码或跑测试能证明的事实；没有证据的一律标「待核实」。
@@ -637,7 +637,7 @@
   - 分支：从 `main` 新开 `feat/math-accel-shadow`，不带入 `feat/ts-migration` 改动。
 - **验收**：四关——①条件边界（输入/精度/规模条件写清）②性质测试（mathspec 全绿）③影子评测（新旧相对误差 <1e-10、双路计时；P1 至少两类真实矩阵 factor ≥15% 或 fill-in ≥20% 才进实现清单）④回退与指标（`NETLAB_MATH_ACCEL=off` 可关闭、回退路径可用、指标可观测）。
 - **权重·期次**：⭐⭐⭐ / M1（2026-11-06 立项；M0 mathspec 原型 3–5 天，M1a=P1、M1b=P3、M1c=P5、M1d 收尾验收）。
-- **现状**：**M0–M1d 完成（2026-11-06）**——mathspec 新增 `ac_sweep_woodbury.py`/`ordering_eval.py`（全量 107 passed）；netlab 新增 `math_accel` 四模块与 `nodal.ac_sweep` 的 off/shadow/on 分支（全量 **602 passed / 1 skipped**，默认 off 行为不变）；P3 仅 `n≥160` 且 `r/n≤0.10` 启用 Woodbury（小矩阵直接稠密解；n=201 1.59×、n=301 4.85×，fast path 复用静态矩阵）；P1 真实语料 **1/2 达标、未过 DoD → 生产 `_solve_sparse` 保持 COLAMD**（报告 `mathspec/research/P1_ORDERING_REPORT.md`，合成 n=400 `MMD_AT_PLUS_A` 0.793×/0.625× 为后续信号）；P5 `Recorder.quality` + 只读 `/api/diagnostics/telemetry`/`math-accel` 已实现（`test_telemetry_quality.py` 4 条）；M1d 集成回归完成。
+- **现状**：**M0–M1d 完成（2026-11-06 19:45）**——mathspec 新增 `ac_sweep_woodbury.py`/`ordering_eval.py`（全量 107 passed）；netlab 新增 `math_accel` 四模块与 `nodal.ac_sweep` 的 off/shadow/on 分支（全量 **603 passed / 1 skipped**，默认 off 行为不变）；P3 仅 `n≥160` 且 `r/n≤0.10` 启用 Woodbury（小矩阵直接稠密解；真实参数规模族 n=201/301/399 实测 1.84×/2.29×/2.32×、误差 ≤1.7e-13；真实工程仅 2 个 circuit 且含 nmos/opamp，AC 直接样本为 0；报告 `mathspec/research/P3_AC_CORPUS_REPORT.md`）；P1 真实语料 **1/2 达标、未过 DoD → 生产 `_solve_sparse` 保持 COLAMD**（报告 `mathspec/research/P1_ORDERING_REPORT.md`，合成 n=400 `MMD_AT_PLUS_A` 0.793×/0.625× 为后续信号）；P5 `Recorder.quality` + 只读 `/api/diagnostics/telemetry`/`math-accel` 已实现（`test_telemetry_quality.py` 4 条），设置页「诊断」误差合同前端接入完成（`frontend/app.ts` `refreshTelemetryQuality`，`/api/live` 结构不变）；M1d 集成回归完成。
 
 ## 4. 权重与依赖
 

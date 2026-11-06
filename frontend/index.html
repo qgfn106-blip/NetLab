@@ -341,6 +341,7 @@
         <button type="button" data-pane="project" class="active"><b>工程设置</b><em>工作模式 / 模板 / 文件 / 画布网格</em></button>
         <button type="button" data-pane="view"><b>视图与外观</b><em>主题 / 强调色 / 动效 / 性能</em></button>
         <button type="button" data-pane="interact"><b>交互与文档</b><em>启动引导 / 自动保存 / 快捷键</em></button>
+        <button type="button" data-pane="diag"><b>诊断</b><em>遥测质量 / 误差合同</em></button>
       </nav>
       <div class="setwin-main">
         <div class="setwin-pane active" data-pane="project">
@@ -419,6 +420,34 @@
           </div>
         </div>
         <p class="help">启动后仿真始终是停止状态；运行播放需要手动点击「运行」（空格）。</p>
+      </div>
+      <div class="setwin-pane" data-pane="diag">
+        <div class="set-row">
+          <label>采样间隔<em>Recorder 最近一次 push 的 sample_dt（秒）</em></label>
+          <div class="set-control"><span id="diagSampleDt">—</span></div>
+        </div>
+        <div class="set-row">
+          <label>量化位数<em>当前遥测链路未启用量化时为空</em></label>
+          <div class="set-control"><span id="diagQuantBits">—</span></div>
+        </div>
+        <div class="set-row">
+          <label>插值误差界<em>线性插值相对真实轨迹的保守估计</em></label>
+          <div class="set-control"><span id="diagInterpBound">—</span></div>
+        </div>
+        <div class="set-row">
+          <label>FIFO 深度<em>环形缓冲可容纳的帧数</em></label>
+          <div class="set-control"><span id="diagFifoDepth">—</span></div>
+        </div>
+        <div class="set-row">
+          <label>延迟上界<em>FIFO 排队引入的最大时间延迟（秒）</em></label>
+          <div class="set-control"><span id="diagDelayBound">—</span></div>
+        </div>
+        <div class="set-row">
+          <label>合同状态<em>字段齐全才视为可用的误差合同</em></label>
+          <div class="set-control"><span id="diagStatus">—</span></div>
+        </div>
+        <p class="help" id="diagAssumptions">假设：—</p>
+        <button type="button" class="btn tiny" id="btnDiagRefresh">刷新诊断</button>
       </div>
       </div>
     </div>

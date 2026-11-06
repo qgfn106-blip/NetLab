@@ -160,3 +160,25 @@ def test_small_matrix_skips_woodbury(monkeypatch: pytest.MonkeyPatch) -> None:
     counters = snapshot()["counters"]
     assert counters.get("p3.used", 0) == 0
     assert len(result["probes"]["n50"]["magnitude"]) == 3
+
+
+def test_large_ladder_uses_woodbury_and_matches_dense(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """接近 MAX_NODES 的 n=399、r/n≈0.10：on 路径必须启用且结果与 off 一致。"""
+    frequencies = [10.0, 100.0, 1.0e3, 1.0e4]
+    monkeypatch.setenv("NETLAB_MATH_ACCEL", "on")
+    reset_diagnostics()
+    on = Simulation(_rc_ladder(parts=398, cap_every=10)).ac_sweep(
+        frequencies, probes=["n398"]
+    )
+    assert snapshot()["counters"].get("p3.used", 0) > 0
+    monkeypatch.setenv("NETLAB_MATH_ACCEL", "off")
+    off = Simulation(_rc_ladder(parts=398, cap_every=10)).ac_sweep(
+        frequencies, probes=["n398"]
+    )
+    a = np.asarray(off["probes"]["n398"]["magnitude"], dtype=float)
+    b = np.asarray(on["probes"]["n398"]["magnitude"], dtype=float)
+    assert (
+        float(np.max(np.abs(b - a)) / max(float(np.max(np.abs(a))), 1.0e-300)) < 1.0e-10
+    )

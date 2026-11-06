@@ -1,8 +1,8 @@
 # NetLab 数学成果接入规划与影子验证计划
 
-> 版本：v1.5（M0 完成、M1a P1 评测完成、M1b P3 影子实现 + fast path + n≥160 小矩阵守卫、M1c P5 遥测完成、M1d 集成回归完成）
+> 版本：v1.6（M0 完成、M1a P1 评测完成、M1b P3 影子实现 + fast path + n≥160 小矩阵守卫 + 真实参数规模族验证、M1c P5 遥测 + 前端误差合同、M1d 集成回归完成）
 > 日期：2026-11-06
-> 状态：**M0–M1d 已完成**——M0 mathspec 原型、M1a P1 排序评测、M1b P3 影子路径、M1c P5 遥测、M1d 集成回归均通过测试；P1 真实语料 1/2 未过 DoD，生产路径保持 COLAMD（评测器与合成证据保留）；P5 只读诊断口径已就绪。默认 `off`，不改变既有行为。
+> 状态：**M0–M1d 已完成**——M0 mathspec 原型、M1a P1 排序评测、M1b P3 影子路径、M1c P5 遥测、M1d 集成回归均通过测试；P1 真实语料 1/2 未过 DoD，生产路径保持 COLAMD（评测器与合成证据保留）。P3 真实工程无法直接覆盖（nmos/opamp 不支持 AC），真实参数派生族 n≥301 实测 2.29–2.32×、n=201 1.84×。P5 只读诊断与设置页「诊断」误差合同已就绪。默认 `off`，不改变既有行为。
 > 上游依据：[UNIFIED_SIM_MATH_SPEC.md](UNIFIED_SIM_MATH_SPEC.md)（数学规范）、[PERFORMANCE_AND_CONCURRENCY.md](PERFORMANCE_AND_CONCURRENCY.md)（研究记录）、`NetlabHome/mathspec/`（零耦合参考实现，当前 107 passed）。
 > 主规划入口：[BACKLOG.md](BACKLOG.md) §1.1（本文件为独立副本，BACKLOG 只留一行指针与 DoD 摘要）。
 
@@ -259,7 +259,7 @@ on     : 新路径为主 → 守卫失败则回退旧路径 → 记录 fallback 
 | **M1d** | 影子集成回归 | `NETLAB_MATH_ACCEL` 开关、诊断记录、全量测试 | 默认 off 零影响；shadow 全绿；PR 可评审 | M1b/M1c | 1–2 天 |
 | **M2（可选）** | `on` 启用评审 | 指标汇总、PR 合并 | 达到 §5.3 全部门槛 + 人工评审 | M1d | 1 天 |
 
-**实施状态（2026-11-06）**：M0 完成（`mathspec` 新增 `ac_sweep_woodbury.py`、`ordering_eval.py`，9 条测试全过，全套 107 passed）；M1a 完成（真实语料 1/2 达标、未过 DoD → 生产保持 COLAMD；合成 n=400 `MMD_AT_PLUS_A` factor 0.793×/fill 0.625× 为观察信号）；M1b 完成（`netlab/core/compute/math_accel/` 四模块 + `nodal.ac_sweep` 分支，6 条专项测试全过；`AC_WOODBURY_MIN_SIZE=160` 小矩阵回退，n=201 1.59×、n=301 4.85×；netlab 全量 602 passed / 1 skipped）；M1c 完成（`Recorder.quality` + `/api/diagnostics/telemetry`/`math-accel`，4 条测试）；M1d 完成（默认 `off` 零影响对拍、shadow/on 定向回归通过、mathspec 107 passed；无行为回退）。
+**实施状态（2026-11-06 19:45）**：M0 完成（`mathspec` 新增 `ac_sweep_woodbury.py`、`ordering_eval.py`，9 条测试全过，全套 107 passed）；M1a 完成（真实语料 1/2 达标、未过 DoD → 生产保持 COLAMD；合成 n=400 `MMD_AT_PLUS_A` factor 0.793×/fill 0.625× 为观察信号）；M1b 完成（`netlab/core/compute/math_accel/` 四模块 + `nodal.ac_sweep` 分支，7 条专项测试全过；`AC_WOODBURY_MIN_SIZE=160` 小矩阵回退，n=201 1.59×、n=301 4.85×；netlab 全量 603 passed / 1 skipped）；M1c 完成（`Recorder.quality` + `/api/diagnostics/telemetry`/`math-accel`，4 条测试；前端设置页「诊断」误差合同已接入）；P3 真实语料扩展完成（真实工程 0 个可直接覆盖，真实参数规模族 n=201/301/399 实测 1.84×/2.29×/2.32×，归一化误差 ≤1.7e-13）；M1d 完成（默认 `off` 零影响对拍、shadow/on 定向回归通过、mathspec 107 passed；无行为回退）。
 
 ---
 
@@ -306,9 +306,9 @@ on     : 新路径为主 → 守卫失败则回退旧路径 → 记录 fallback 
 
 | 候选 | 条件边界 | 性质测试 | 影子评测 | 回退/门槛 | 状态 |
 |---|---|---|---|---|---|
-| P3 Woodbury | `r/n≤0.10`、A0 非病态、纯 LTI RLC、ω>0 | 与直接解对拍 `<1e-10`、病态回退 | `shadow` 模式 | `NETLAB_MATH_ACCEL=off`；平均 `≥2×` | **已实现影子（M0+M1b）** |
-| P1 排序 | 真实+合成语料、缓存 key 不变 | fill-in/solve 误差 | 评测器对照 | 不达标保持 COLAMD | 评测器已实现（M0），真实语料待跑 |
-| P5 遥测口径 | `d>2ε`、线性插值、无量化（当前） | 界与拒绝测试 | 只读端点对拍 schema | 不改 `/api/live` | 计划 M1c |
+| P3 Woodbury | `r/n≤0.10`、A0 非病态、纯 LTI RLC、ω>0 | 与直接解对拍 `<1e-10`、病态回退 | `shadow` 模式 | `NETLAB_MATH_ACCEL=off`；平均 `≥2×` | **已实现影子（M0+M1b）**；真实参数规模族 n≥301 达 2.29–2.32×、n=201 1.84× |
+| P1 排序 | 真实+合成语料、缓存 key 不变 | fill-in/solve 误差 | 评测器对照 | 不达标保持 COLAMD | 评测器已实现（M0）；真实语料 1/2，未过 DoD |
+| P5 遥测口径 | `d>2ε`、线性插值、无量化（当前） | 界与拒绝测试 | 只读端点对拍 schema | 不改 `/api/live` | **已实现（M1c）+ 前端设置页「诊断」误差合同（P5.2）** |
 | observability 探针选择 | 有限时域 LTI、正定先验 | 次模/穷举/非法输入 | 后续评测 | 本波不接 | 储备 |
 | telemetry/dataflow 压缩链 | 量化区间不饱和、CRC 非攻击防护 | 端到端误差/压缩比 | 后续 P7 | 本波不接 | 储备 |
 
@@ -338,6 +338,8 @@ on     : 新路径为主 → 守卫失败则回退旧路径 → 记录 fallback 
 - **已知边界**：P3 仅适用于纯 LTI RLC（AC 已拒绝二极管/晶体管等）；`on` 仅在 `r/n≤0.10` 且条件数/主元守卫通过时启用，其余自动回退 direct；`shadow` 有约 15% 额外开销（仅对拍用，不建议长期开启）。
 - **M1a（P1 排序评测，2026-11-06）**：`netlab/core/compute/math_accel/ordering_eval.py`（只读：`matrix_from_scene`/`matrix_from_project`/`evaluate_matrix`/`evaluate_corpus`）与 `tools/eval_mna_ordering.py` 落地；`netlab/tests/test_ordering_eval.py` 3 条通过。真实语料仅 2 个 circuit 工程（23 阶、7 阶），每次计时抖动明显；按 DoD 判定 **1/2 达标 → 未通过，生产 `_solve_sparse` 保持 COLAMD 不替换**。合成电路状矩阵 n=400 上 `MMD_AT_PLUS_A` factor 0.793×、fill 0.625×，作为后续扩大语料的观察信号。报告：`mathspec/research/P1_ORDERING_REPORT.md` + `P1_ORDERING_RESULTS.csv`。
 - **M1c（P5 遥测口径，2026-11-06）**：`Recorder.quality` 固定 schema（`sample_dt`/`quant_bits=None`/`interp_error_bound=None`/`fifo_depth`/`delay_bound=None`/`assumptions`）、`Recorder.quality_snapshot()`、`Simulation.telemetry_quality()`；`server.py` 新增只读 `GET /api/diagnostics/telemetry` 与 `GET /api/diagnostics/math-accel`，`/api/live` 响应结构零变化。`netlab/tests/test_telemetry_quality.py` 4 条通过（含 live 顶层 keys 恒定断言）。
+- **P3 真实语料扩展（2026-11-06 19:35）**：审计 `NetlabHome/MyProject` 7 个 `.netlab` 工程，仅 2 个 circuit（`grid_inverter_switch.netlab` n=16，含 6 个 nmos；`未命名工程.netlab` n=4，含 opamp），两者 AC 均不支持 → **P3 直接真实工程样本为 0**。改用真实参数（Rg=10Ω、C=50µF、L1=2mH）构造 201/301/399 阶、r/n≈0.10 的 RC 传输线，501 频点：off 617.0/1328.5/2445.7 ms，on 335.3/580.0/1054.7 ms（**1.84× / 2.29× / 2.32×**），归一化误差 6.3e-14/1.7e-13/1.4e-13。新增 `tools/eval_p3_ac_corpus.py` 与 `test_large_ladder_uses_woodbury_and_matches_dense`（n=399），`test_math_accel.py` 增至 7 条；报告 `mathspec/research/P3_AC_CORPUS_REPORT.md` + `.csv`，明确标注"规模族非真实拓扑"。
+- **P5 前端误差合同（2026-11-06 19:40）**：`frontend/index.html` 设置窗新增第 4 个「诊断」pane（采样间隔 / 量化位数 / 插值误差界 / FIFO 深度 / 延迟上界 / 合同状态 / 假设 / 刷新按钮）；`frontend/app.ts` 新增 `TelemetryQuality` 类型与 `refreshTelemetryQuality()`，只读 `GET /api/diagnostics/telemetry`，不触碰 `/api/live` 响应结构。`npm.cmd run typecheck` 通过、esbuild 构建通过、`node --test tests/*.test.mjs` 5 passed。
 
 ---
 

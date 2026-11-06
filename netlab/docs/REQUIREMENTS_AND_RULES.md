@@ -1,6 +1,6 @@
 # Netlab 需求 · 决策 · 执行计划（2026-10-25 修订版）
 
-> 最后修改：2026-11-06 18:30（新增「代码规范（强制）」开篇；文档整理：合并已完成文档、同步 R43 / D112–D118；R43 M1b 影子与性能实测）
+> 最后修改：2026-11-06 18:40（新增「代码规范（强制）」开篇；文档整理：合并已完成文档、同步 R43 / D112–D118；R43 M1a/M1b/M1c 完成）
 > 本版**取代** 2026-10-24 版的需求口径。旧条文不删除，凡被推翻或细化的条目一律进 §7「已废弃口径」。
 > 每条需求统一六段式：**原话 / 解读 / 拟改架构 / 验收 / 权重·期次 / 现状**。
 > **现状**一栏只写本次会话内读代码或跑测试能证明的事实；没有证据的一律标「待核实」。
@@ -20,7 +20,7 @@
 
 | 你想干什么 | 看哪一节 |
 | --- | --- |
-| 知道"为什么这么定" | §2 决策台账（D1–D118） |
+| 知道"为什么这么定" | §2 决策台账（D1–D119） |
 | 知道"要做什么、做到什么程度算完" | §3 需求清单（R01–R43） |
 | 知道"先做哪个" | §4 权重与依赖、§5 分期 |
 | 知道"哪些明确不做" | §6 不做清单 |
@@ -35,7 +35,7 @@
 
 1. 你 2026-10-25 提出的七大块新要求（模块化文件化、前端信息架构、场景重组、快捷键、多网络、连线与符号、时间与循环）全部并入，旧七项需求被**细化或取代**，映射见 §7。
 2. 新增三条你点名的横切要求：**数据依赖与数据保护**、**性能与计时**、**现代控制理论导向（仅呈现层）**。
-3. 所有决策从问答沉淀成决策台账（本版当时为 **D1–D59**，现已到 **D1–D118**），每个决定都能追到当时的取舍。
+3. 所有决策从问答沉淀成决策台账（本版当时为 **D1–D59**，现已到 **D1–D119**），每个决定都能追到当时的取舍。
 4. 计划从旧的 V2-0…V2-7 改为 **P0–P6**，并明确：P0 是地基（数据模型 + 目录 + 菜单 + 交互基础）先做，且含一个**热修**（现网报错）。
 5. 新增 §6「不做清单」——把"以后再说"和"明确不做"分开写清，避免下个窗口又把它们当需求实现。
 6. **2026-11-06 文档整理**：P16/P17 前端迁移与 R40 已完成；新增 **R43（数学成果接入，M1 影子验证）** 与 **D112–D118**，并将 P17 设计文档的 D112–D117 并入附录 C（原 `TS_P17_MODULE_DESIGN.md` 删除）。
@@ -630,14 +630,14 @@
 - **原话**（2026-11-06）：「先把现在项目代码结构和数学成果分析一下，尝试把数学成果放入netlab代码优化，先只做规划与计划，不要直接改代码。过程中思考能否产生新的数学工具，并尝试迭代算法」；随后确认：目标 **A+B（运行更快 + 结果更可信）**；第一波 **B 三件套 = P3 + P1 + P5**；接入方式 **影子模式 `NETLAB_MATH_ACCEL=off|shadow|on`（默认 off）**；P3 用 **双参数仿射族 Woodbury**；P1 先做排序评测器；P5 只做只读诊断层。
 - **解读**：`mathspec/` 作为零耦合"数学试验室"，先在参考实现中证明算法与误差界，再以影子模式接入 netlab：**默认 off 不改行为**；shadow 时新旧路径对拍（相对误差 <1e-10）+ 双路计时；验证通过才允许 on/替换。第一波只做三件低风险、可度量的事：P1 稀疏排序评测、P3 AC 扫频广义 Woodbury、P5 遥测质量元数据 + 只读诊断 API。
 - **拟改架构 / 范围**：
-  - 计划文档：[MATH_INTEGRATION_PLAN.md](MATH_INTEGRATION_PLAN.md)（v1.2，M0–M1d，已记录 M0/M1b 实施证据）。
+  - 计划文档：[MATH_INTEGRATION_PLAN.md](MATH_INTEGRATION_PLAN.md)（v1.3，M0–M1d，已记录 M0/M1a/M1b/M1c 实施证据）。
   - P1：对真实 MNA 矩阵评测 COLAMD（现状）/ MMD_ATA / MMD_AT_PLUS_A / NATURAL + 自研 min-degree / nested dissection 预置换；指标 fill-in `nnz(L+U)`、factor/solve 时间、峰值内存。
   - P3：`A(ω)=A(ω0)+UΣ(ω)Vᵀ`，一次分解 A(ω0) 后逐频点 r×r 小解；门控 `r/n≤0.10` 启用、`0.10<r/n≤0.25` 仅 shadow、`>0.25` 回退直接解；加条件数/主元守卫。
   - P5：Recorder 侧 quality 元数据（`sample_dt`、`quant_bits`、`interp_error_bound`、`fifo_depth`/`delay_bound`）+ 只读 `/api/diagnostics/telemetry`；**不改 `/api/live` 响应结构**，前端暂不接。
   - 分支：从 `main` 新开 `feat/math-accel-shadow`，不带入 `feat/ts-migration` 改动。
 - **验收**：四关——①条件边界（输入/精度/规模条件写清）②性质测试（mathspec 全绿）③影子评测（新旧相对误差 <1e-10、双路计时；P1 至少两类真实矩阵 factor ≥15% 或 fill-in ≥20% 才进实现清单）④回退与指标（`NETLAB_MATH_ACCEL=off` 可关闭、回退路径可用、指标可观测）。
 - **权重·期次**：⭐⭐⭐ / M1（2026-11-06 立项；M0 mathspec 原型 3–5 天，M1a=P1、M1b=P3、M1c=P5、M1d 收尾验收）。
-- **现状**：**M0 完成、M1b 影子实现完成（2026-11-06）**——mathspec 新增 `ac_sweep_woodbury.py`/`ordering_eval.py`（全量 107 passed）；netlab 新增 `math_accel` 四模块与 `nodal.ac_sweep` 的 off/shadow/on 分支（全量 **594 passed / 1 skipped in 101.71s**，默认 off 行为不变）；P3 实测 101 节点/2001 频点 1.50×、201 节点/501 频点 2.09×（fast path 复用静态矩阵）；P1 真实工程语料与 P5 遥测尚未开始。
+- **现状**：**M0/M1a/M1b/M1c 完成（2026-11-06）**——mathspec 新增 `ac_sweep_woodbury.py`/`ordering_eval.py`（全量 107 passed）；netlab 新增 `math_accel` 四模块与 `nodal.ac_sweep` 的 off/shadow/on 分支（全量 **601 passed / 1 skipped in 99.80s**，默认 off 行为不变）；P3 实测 101 节点/2001 频点 1.50×、201 节点/501 频点 2.09×（fast path 复用静态矩阵）；P1 真实语料 **1/2 达标、未过 DoD → 生产 `_solve_sparse` 保持 COLAMD**（报告 `mathspec/research/P1_ORDERING_REPORT.md`，合成 n=400 `MMD_AT_PLUS_A` 0.793×/0.625× 为后续信号）；P5 `Recorder.quality` + 只读 `/api/diagnostics/telemetry`/`math-accel` 已实现（`test_telemetry_quality.py` 4 条）；M1d 收尾待做。
 
 ## 4. 权重与依赖
 
@@ -1377,7 +1377,7 @@ MOSFET。
 | D99 | 2026-11-06 | **全栈扩展采用“插件包 + `netlab.plugin_api.v1` 稳定门面 + 声明式 UI”，不改变 NodeRecord/EdgeRecord 核心结构**：插件 manifest 声明 id/version/API/能力/依赖；支持 compute/method/element/analysis/data-format/template/panel/engine（新 mode）；工程 v6 增 `plugins` 锁段，v5 自动迁移；缺插件降级打开、节点标未解析；UI 增加简洁画布与视图内设计，`netlab-ui/1` 只允许声明式布局/令牌/字段/枚举样式，不执行任意 HTML/CSS/JS；插件是受信任进程内代码，不做 OS 沙箱 | 用户要求所有架构（UI 接口、数据接口、底层算法）可扩展、方便自定义接入函数，并保持节点/连接结构；补充要求简洁节点/连接 UI 与可在视图内直接调节设计 | `netlab/plugin_api/v1`、`netlab/core/model/plugins.py`、`analysis_plugins.py`、`engine_registry.py`、`ui_profile.py`、`project.py`、`server.py`、`frontend/app.js`、`extensions/plugins/README.md`；文档 ADR/EXTENSIBILITY/GLOSSARY/EXTENDING/ARCHITECTURE/UI_SPEC | 不替换现有 SignalEngine/CircuitEngine；不开放任意前端代码；不自动下载插件/第三方包；不做在线市场 | 已完成：589 passed（83.05 s）、3.20.0；新增插件/工程/UI 目标测试 8 条 | 4 / P15 / 完成 |
 
 
-## 附录 C 决策补录：D100–D118（前端 TypeScript 迁移 / Python PEP 8 / 数学成果接入，2026-11-06）
+## 附录 C 决策补录：D100–D119（前端 TypeScript 迁移 / Python PEP 8 / 数学成果接入 / 开发期 esbuild，2026-11-06）
 
 > 本段与 §2 台账同源（D82–D99 见前文补录）；R41 / P16 / P17 / R42 / P18 / R43 / M1 的决策依据在此登记。D112–D117 原载于 `TS_P17_MODULE_DESIGN.md`（P17 已完成，原文档已删除，历史版本见 git）。
 

@@ -79,7 +79,7 @@ const LIGHT = readObject('LIGHT');
 const DARK = readObject('DARK');
 
 // 关键配对定义：min 下限；max 为可选上限（深色弱化文字防过亮）。
-const CHECKS = [
+const BASE_CHECKS = [
   // 浅色
   { theme: 'light', fg: 'ink', bg: 'paper', min: 7, max: null, label: '正文 ink/paper' },
   { theme: 'light', fg: 'muted', bg: 'paper', min: 4.5, max: null, label: '次文字 muted/paper' },
@@ -94,7 +94,50 @@ const CHECKS = [
   { theme: 'dark', fg: 'line-strong', bg: 'paper', min: 3, max: null, label: '线 line-strong/paper' },
 ];
 
+// P-A5：文本/前景令牌 ↔ 其容器背景令牌 成对断言。
+// 阈值：主文字/标题 ≥7；次级/说明/占位/链接/徽标/按钮字 ≥4.5；禁用态 ≥3。
+// [前景令牌, 背景令牌, min, label]
+const TEXT_BOX_PAIRS = [
+  ['text-primary', 'paper', 7, '正文 text-primary/paper'],
+  ['text-secondary', 'paper', 4.5, '次文字 text-secondary/paper'],
+  ['text-tertiary', 'paper', 4.5, '弱文字 text-tertiary/paper'],
+  ['text-disabled', 'paper', 3, '禁用 text-disabled/paper'],
+  ['text-heading', 'paper', 7, '标题 text-heading/paper'],
+  ['text-label', 'paper', 4.5, '字段标签 text-label/paper'],
+  ['text-menu-item', 'menu-panel-bg', 7, '菜单项 text-menu-item/menu-panel-bg'],
+  ['text-menu-desc', 'menu-panel-bg', 4.5, '菜单说明 text-menu-desc/menu-panel-bg'],
+  ['text-tab-active', 'tab-bg-active', 7, '选中页签 text-tab-active/tab-bg-active'],
+  ['text-tab-inactive', 'tab-bg-inactive', 4.5, '未选页签 text-tab-inactive/tab-bg-inactive'],
+  ['text-button-primary', 'button-bg-primary', 4.5, '主按钮 text-button-primary/button-bg-primary'],
+  ['text-button-secondary', 'button-bg-secondary', 4.5, '次按钮 text-button-secondary/button-bg-secondary'],
+  ['text-button-danger', 'button-bg-danger', 4.5, '危险按钮 text-button-danger/button-bg-danger'],
+  ['text-input', 'field-bg', 7, '输入文字 text-input/field-bg'],
+  ['text-placeholder', 'field-bg', 4.5, '占位符 text-placeholder/field-bg'],
+  ['text-link', 'paper', 4.5, '链接 text-link/paper'],
+  ['text-on-accent', 'accent', 4.5, '强调面文字 text-on-accent/accent'],
+  ['text-tooltip', 'tip-bg', 4.5, '提示条 text-tooltip/tip-bg'],
+  ['text-badge', 'badge-bg', 4.5, '徽标 text-badge/badge-bg'],
+];
+
+const CHECKS = BASE_CHECKS.slice();
+for (const theme of ['light', 'dark']) {
+  for (const [fg, bg, min, label] of TEXT_BOX_PAIRS) {
+    CHECKS.push({ theme, fg, bg, min, max: null, label });
+  }
+}
+
 const MAPS = { light: LIGHT, dark: DARK };
+
+// LIGHT / DARK 键集必须完全一致：任何新增令牌两组都要加，漏一个即判失败。
+const lightKeys = Object.keys(LIGHT);
+const darkKeys = Object.keys(DARK);
+const onlyLight = lightKeys.filter((k) => !(k in DARK));
+const onlyDark = darkKeys.filter((k) => !(k in LIGHT));
+const keysetOk = onlyLight.length === 0 && onlyDark.length === 0;
+if (!keysetOk) {
+  console.error(`键集不一致：仅 LIGHT 有 [${onlyLight.join(', ')}]；仅 DARK 有 [${onlyDark.join(', ')}]`);
+}
+
 
 function fmt(n) {
   return n.toFixed(2).padStart(6, ' ');
@@ -139,11 +182,14 @@ for (const r of rows) {
 }
 
 console.log('-'.repeat(head.length + 8));
+console.log(
+  `键集一致性：LIGHT ${lightKeys.length} 项 / DARK ${darkKeys.length} 项 → ${keysetOk ? 'PASS（完全一致）' : 'FAIL（见上）'}`
+);
 const total = rows.length;
-if (failed === 0) {
+if (failed === 0 && keysetOk) {
   console.log(`全部 PASS（${total}/${total}）`);
   process.exit(0);
 } else {
-  console.error(`FAILED：${failed}/${total} 项未通过`);
+  console.error(`FAILED：${failed}/${total} 项未通过${keysetOk ? '' : '，且键集不一致'}`);
   process.exit(1);
 }

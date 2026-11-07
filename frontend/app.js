@@ -3941,7 +3941,7 @@ import {
       const node = el("button", "popup-item");
       node.type = "button";
       const strong = el("strong", null, item.label);
-      if (item.danger) strong.style.color = "#fca5a5";
+      if (item.danger) strong.style.color = "var(--text-button-danger)";
       node.appendChild(strong);
       if (item.hint) node.appendChild(el("small", null, item.hint));
       node.addEventListener("click", () => {
@@ -8861,29 +8861,29 @@ import {
     overlay.id = "runWarnWin";
     overlay.style.cssText = "position:fixed;inset:0;background:rgba(16,20,18,.45);display:flex;align-items:center;justify-content:center;z-index:9999;";
     const card = document.createElement("div");
-    card.style.cssText = 'width:520px;max-width:92vw;background:var(--paper,#faf8f2);color:var(--ink,#080a08);border:1px solid var(--line,#cfc6b5);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.28);padding:22px 24px 18px;font:13px/1.7 "Microsoft YaHei UI",sans-serif;';
+    card.style.cssText = 'width:520px;max-width:92vw;background:var(--paper,#faf8f2);color:var(--text-primary,#080a08);border:1px solid var(--line,#cfc6b5);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.28);padding:22px 24px 18px;font:13px/1.7 "Microsoft YaHei UI",sans-serif;';
     card.innerHTML = `
       <div style="font-size:16px;font-weight:700;margin-bottom:6px;">\u8FD0\u884C\u524D\u5EFA\u8BAE\u5148\u9884\u8BA1\u7B97</div>
-      <div style="color:var(--muted,#7b7266);margin-bottom:14px;">
+      <div style="color:var(--text-secondary,#7b7266);margin-bottom:14px;">
         \u5B9E\u65F6\u8FD0\u884C\u53EA\u767B\u8BB0\u63A2\u9488\uFF0C\u7ED8\u56FE\u9762\u677F\u4E0D\u4F1A\u8FB9\u7B97\u8FB9\u753B\u3002\u5148\u7528\u4E0B\u9762\u7684\u65F6\u95F4\u7A97\u628A 0\u2192T \u6574\u6BB5\u7B97\u5B8C\uFF0C
         \u4E4B\u540E\u5728\u300C\u7ED8\u56FE\u300D\u9875\u53EF\u4EE5\u6BEB\u79D2\u7EA7\u56DE\u653E\u3001\u5E76\u76F4\u63A5\u63A5\u5165\u4E3A\u6570\u636E\u6E90\u3002
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
         <span>\u9884\u8BA1\u7B97\u65F6\u95F4\u7A97</span>
         <input id="runWarnSec" type="number" min="1" max="120" step="1" value="${Math.max(1, Math.min(120, Math.round(Number(state.chart && state.chart.window || 5))))}"
-          style="width:84px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:8px;background:#ffffff;color:#111814;-webkit-text-fill-color:#111814;font:600 14px/1.4 'Microsoft YaHei UI',sans-serif;" />
+          style="width:84px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:8px;background:var(--field-bg,#ffffff);color:var(--text-input,#111814);-webkit-text-fill-color:var(--text-input,#111814);font:600 14px/1.4 'Microsoft YaHei UI',sans-serif;" />
         <span>s</span>
         <span id="runWarnChips" style="display:flex;gap:6px;margin-left:6px;"></span>
       </div>
-      <div id="runWarnInfo" style="color:var(--muted,#7b7266);min-height:20px;margin-bottom:6px;"></div>
-      <label style="display:flex;align-items:center;gap:8px;margin:10px 0 16px;color:var(--muted,#7b7266);">
+      <div id="runWarnInfo" style="color:var(--text-secondary,#7b7266);min-height:20px;margin-bottom:6px;"></div>
+      <label style="display:flex;align-items:center;gap:8px;margin:10px 0 16px;color:var(--text-secondary,#7b7266);">
         <input id="runWarnNever" type="checkbox" /> \u4EE5\u540E\u4E0D\u518D\u63D0\u793A
       </label>
       <div style="display:flex;justify-content:flex-end;gap:10px;">
         <button id="runWarnCancel" class="ghost" style="padding:7px 14px;border:1px solid var(--line,#cfc6b5);border-radius:9px;background:transparent;color:inherit;cursor:pointer;">\u53D6\u6D88</button>
         <button id="runWarnRun" class="ghost" style="padding:7px 14px;border:1px solid var(--line,#cfc6b5);border-radius:9px;background:transparent;color:inherit;cursor:pointer;">\u76F4\u63A5\u8FD0\u884C</button>
-        <button id="runWarnStop" class="ghost" style="display:none;padding:7px 14px;border:1px solid #b75555;border-radius:9px;background:transparent;color:#b75555;cursor:pointer;">\u505C\u6B62\u8BA1\u7B97</button>
-        <button id="runWarnPre" class="primary" style="padding:7px 16px;border:1px solid var(--accent,#9b7247);border-radius:9px;background:var(--accent,#9b7247);color:#fff;cursor:pointer;">\u9884\u8BA1\u7B97\u5E76\u63A5\u5165</button>
+        <button id="runWarnStop" class="ghost" style="display:none;padding:7px 14px;border:1px solid var(--red,#b75555);border-radius:9px;background:transparent;color:var(--text-button-danger,#b75555);cursor:pointer;">\u505C\u6B62\u8BA1\u7B97</button>
+        <button id="runWarnPre" class="primary" style="padding:7px 16px;border:1px solid var(--accent,#9b7247);border-radius:9px;background:var(--accent,#9b7247);color:var(--text-on-accent,#f7f4ee);cursor:pointer;">\u9884\u8BA1\u7B97\u5E76\u63A5\u5165</button>
       </div>`;
     overlay.appendChild(card);
     document.body.appendChild(overlay);
@@ -10823,6 +10823,19 @@ import {
     if (state.analysisSpectrum) drawAnalysisSpectrum();
     if (state.analysisTF) drawAnalysisTF();
   }
+  const UI_TOKEN_LEGACY_DEFAULTS = {
+    background: "#0b1220",
+    surface: "#111a2c",
+    panel: "#162238",
+    text: "#e6edf7",
+    muted: "#8da2bf",
+    accent: "#4cc9f0",
+    grid: "#22314b",
+    edge: "#7c8db5",
+    node: "#1c2b45",
+    danger: "#ff6b6b",
+    success: "#5ee39b"
+  };
   function applyUiTokens(tokens2, mode) {
     const root = document.documentElement;
     const tokenVars = {
@@ -10841,9 +10854,13 @@ import {
     for (const [key, value] of Object.entries(tokens2 || {})) {
       root.style.setProperty(`--nl-${key}`, value);
       const target = tokenVars[key];
-      if (target) root.style.setProperty(target, value);
+      if (!target) continue;
+      const isCustom = String(value).toLowerCase() !== (UI_TOKEN_LEGACY_DEFAULTS[key] || "").toLowerCase();
+      if (isCustom) root.style.setProperty(target, value);
     }
-    if (tokens2?.accent) root.style.setProperty("--accent-strong", tokens2.accent);
+    if (tokens2?.accent && String(tokens2.accent).toLowerCase() !== UI_TOKEN_LEGACY_DEFAULTS.accent) {
+      root.style.setProperty("--accent-strong", tokens2.accent);
+    }
     if (mode) {
       document.body.dataset.canvasMode = mode;
       document.body.classList.toggle("simple-canvas", mode === "simple");
@@ -13615,8 +13632,8 @@ import {
     win.innerHTML = `
       <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(680px,92vw);
                   max-height:82vh;display:flex;flex-direction:column;border-radius:10px;overflow:hidden;
-                  background:var(--bg,#faf8f2);border:1px solid var(--line,#cfc6b5);
-                  box-shadow:0 18px 48px rgba(0,0,0,.28);color:var(--text,#080a08);font:13px/1.5 'Microsoft YaHei UI',sans-serif;">
+                  background:var(--paper-2,#faf8f2);border:1px solid var(--line,#cfc6b5);
+                  box-shadow:0 18px 48px rgba(0,0,0,.28);color:var(--text-primary,#080a08);font:13px/1.5 'Microsoft YaHei UI',sans-serif;">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;
                     border-bottom:1px solid var(--line,#cfc6b5);">
           <strong>\u7F13\u5B58\u4F53\u68C0\u4E0E\u6E05\u7406</strong>
@@ -13624,7 +13641,7 @@ import {
         </div>
         <div id="cacheBody" style="padding:12px 16px;overflow:auto;"></div>
         <div style="display:flex;gap:8px;align-items:center;padding:10px 16px;border-top:1px solid var(--line,#cfc6b5);">
-          <span id="cacheMsg" style="flex:1;color:var(--muted,#7b7266);font-size:12px;">\u53EA\u6E05\u7406\u53EF\u518D\u751F\u6210\u7684\u7F13\u5B58\uFF1B\u5DE5\u7A0B\u3001\u81EA\u52A8\u4FDD\u5B58\u3001\u5BFC\u51FA\u7684\u56FE\u90FD\u4E0D\u4F1A\u88AB\u5220\u3002</span>
+          <span id="cacheMsg" style="flex:1;color:var(--text-secondary,#7b7266);font-size:12px;">\u53EA\u6E05\u7406\u53EF\u518D\u751F\u6210\u7684\u7F13\u5B58\uFF1B\u5DE5\u7A0B\u3001\u81EA\u52A8\u4FDD\u5B58\u3001\u5BFC\u51FA\u7684\u56FE\u90FD\u4E0D\u4F1A\u88AB\u5220\u3002</span>
           <button type="button" data-act="scan" class="ghost">\u91CD\u65B0\u626B\u63CF</button>
           <button type="button" data-act="safe" class="primary">\u6E05\u7406\u5B89\u5168\u7F13\u5B58</button>
           <button type="button" data-act="caution" class="ghost">\u8FDE\u540C\u754C\u9762\u504F\u597D\u2026</button>
@@ -13660,19 +13677,19 @@ import {
         row.style.cssText = "display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--line,#cfc6b5);";
         const tag = document.createElement("span");
         tag.textContent = tierName[e.tier] || e.tier;
-        tag.style.cssText = "flex:none;font-size:11px;padding:1px 6px;border-radius:9px;border:1px solid var(--line,#cfc6b5);color:var(--muted,#7b7266);";
+        tag.style.cssText = "flex:none;font-size:11px;padding:1px 6px;border-radius:9px;border:1px solid var(--line,#cfc6b5);color:var(--text-secondary,#7b7266);";
         const mid = document.createElement("div");
         mid.style.cssText = "flex:1;min-width:0;";
         const t = document.createElement("div");
         t.textContent = e.label;
         const p = document.createElement("div");
         p.textContent = e.path;
-        p.style.cssText = "font-size:11px;color:var(--muted,#7b7266);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+        p.style.cssText = "font-size:11px;color:var(--text-secondary,#7b7266);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
         mid.append(t, p);
         if (e.note) {
           const n = document.createElement("div");
           n.textContent = e.note;
-          n.style.cssText = "font-size:11px;color:var(--muted,#7b7266);";
+          n.style.cssText = "font-size:11px;color:var(--text-secondary,#7b7266);";
           mid.appendChild(n);
         }
         const size = document.createElement("span");

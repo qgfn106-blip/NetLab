@@ -4,9 +4,9 @@
 > 每个公式后标注实现位置（`文件:行 函数名`）。若代码与本文冲突，以代码为准。
 > 面向读者：想搞清楚"这一步到底在解哪个方程"的工程师。
 >
-> 最后更新：2026-11-06
+> 最后更新：2026-11-07
 >
-> **行号时效说明（2026-11-07 校对）**：本文 `file:line` 锚点写于旧版 `nodal.py`；此后 `nodal.py` 经过重排（当前 HEAD 9b456e4），行号普遍漂移且**非线性**（如 `_build_index` 1492→1644、`_solve_matrix` 2034→2080、`operating_point` 2223→2269、`ac_sweep` 2289→2335）。符号级锚点已就地更正（§3、§5、§6–§10 的标题与文末索引）；**函数/类名始终可靠**，正文散落的分段行号若与代码不符，请以符号名重新定位为准（待批量重锚）。
+> **行号已于 2026-11-07 全量重锚至当前代码（HEAD 3ce610b）**；函数/类名始终可靠，正文与文末索引中的 `file:line` 锚点均已对齐当前源码；若代码与本文冲突，仍以代码为准。
 
 本文只描述 `netlab/core/` 下的计算核心：
 
@@ -42,20 +42,20 @@
 | $\eta$ | 后向误差度量 | 见 §4 |
 | $\omega$ | 角频率 $2\pi f$ | AC 扫描 |
 
-误差/规模常量：`K_BOLTZMANN=8.617333262e-5`（nodal.py:41、transistors.py:11），
+误差/规模常量：`K_BOLTZMANN=8.617333262e-5`（nodal.py:65、transistors.py:11），
 `MAX_NEWTON_ITERATIONS=60`、`NEWTON_ABS_TOL=1e-6`、`NEWTON_REL_TOL=1e-9`、
-`MAX_ABS_VOLTAGE=1e9`（nodal.py:41-45）。
+`MAX_ABS_VOLTAGE=1e9`（nodal.py:65-69）。
 
 ---
 
 ## 1. 信号流与矢量网络的求值
 
-实现：`core/model/graph.py`。`Network.step()`（graph.py:497）推进一个时间步。
+实现：`core/model/graph.py`。`Network.step()`（graph.py:699）推进一个时间步。
 
 ### 1.1 计算模型
 
 一个网络由节点集合 $\mathcal{V}$ 与带方向的连接集合 $\mathcal{E}$ 构成。每条连接 $e\in\mathcal{E}$
-带一个计算函数 $g_e$（`Connection.method`）与延迟标志 `delay`。`Connection.evaluate()`（graph.py:264）调用
+带一个计算函数 $g_e$（`Connection.method`）与延迟标志 `delay`。`Connection.evaluate()`（graph.py:330）调用
 
 $$
 \mathbf{r}_e^{(k)} = g_e\big(\text{view}(u),\ \text{view}(v),\ \text{params}_e,\ \text{state}_e,\ \Delta t\big),
@@ -71,7 +71,7 @@ $$
 
 ### 1.2 拓扑序传播
 
-`Network.topological_order()`（graph.py:456）对**非延迟边**做 Kahn 算法：
+`Network.topological_order()`（graph.py:659）对**非延迟边**做 Kahn 算法：
 
 1. 统计入度 `incoming_count`；
 2. 入度为 0 的节点入 `ready` 栈；
@@ -82,8 +82,8 @@ $$
 
 ### 1.3 代数环检测
 
-`Network.algebraic_cycles()`（graph.py:409）在**启用且非延迟**的边（`_enabled_edges(include_delayed=False)`，
-graph.py:402）上做 Tarjan 强连通分量（SCC）。一个 SCC 若含 $>1$ 个节点，或单节点带自环，即为代数环：
+`Network.algebraic_cycles()`（graph.py:484）在**启用且非延迟**的边（`_enabled_edges(include_delayed=False)`，
+graph.py:477）上做 Tarjan 强连通分量（SCC）。一个 SCC 若含 $>1$ 个节点，或单节点带自环，即为代数环：
 
 $$
 \text{cycle} \iff |\text{SCC}|>1 \ \ \text{或}\ \ \exists\,(u,u)\in\mathcal{E}.
@@ -93,7 +93,7 @@ $$
 
 ### 1.4 延迟边 = 单位延迟 $z^{-1}$
 
-`step()`（graph.py:514-521）在步开始时**先**求值所有延迟边。此时所有节点仍持有上一时刻的值，
+`step()`（graph.py:719-726）在步开始时**先**求值所有延迟边。此时所有节点仍持有上一时刻的值，
 因此延迟边的输出恰为
 
 $$
@@ -107,11 +107,11 @@ $$
 `step()` 的执行顺序：
 
 1. 校验 `dt`（有限、$>0$）；
-2. `snapshot = capture_step_state()`（graph.py:541）—— 冻结 `time`、每节点 `(data,state,inputs,ports)`、每连接 `(state,output)`；
+2. `snapshot = capture_step_state()`（graph.py:1058）—— 冻结 `time`、每节点 `(data,state,inputs,ports)`、每连接 `(state,output)`；
 3. 求值延迟边（§1.4）；
-4. 按拓扑序：清空节点输入/端口（graph.py:523-524）→ 求值该节点的非延迟入边（graph.py:531）→ `node.update(dt, time+dt)`（graph.py:535）；
-5. `self.time += dt`（graph.py:536）；
-6. 任何异常 → `restore_step_state(snapshot)`（graph.py:563）原地回滚并重新抛出（graph.py:537-539）。
+4. 按拓扑序：清空节点输入/端口（graph.py:730-731）→ 求值该节点的非延迟入边（graph.py:738）→ `node.update(dt, time+dt)`（graph.py:742）；
+5. `self.time += dt`（graph.py:743）；
+6. 任何异常 → `restore_step_state(snapshot)`（graph.py:1080）原地回滚并重新抛出（graph.py:744-746）。
 
 即：**一步是全有或全无的**——中途失败时网络恢复到步前状态，不会留下半更新的节点。
 
@@ -123,7 +123,7 @@ $$
 
 ### 2.1 未知量构成
 
-`CircuitSolver._build_index()`（nodal.py:1492）定义未知向量
+`CircuitSolver._build_index()`（nodal.py:1644）定义未知向量
 
 $$
 \mathbf{x} = \big[\,v_1,\dots,v_N,\ \ i_{b_1},\dots,i_{b_M}\,\big]^{\mathsf T},
@@ -131,30 +131,30 @@ $$
 
 - $v_1..v_N$：全部**非地**节点电压（地节点不进入未知量）；
 - $i_{b_1}..i_{b_M}$：**需要支路电流**的元件（`needs_branch`：独立电压源、VCVS、运放、变压器、
-  耦合电感、数字元件等）各贡献一个未知量，追加在节点电压之后（nodal.py:1530-1543）。
+  耦合电感、数字元件等）各贡献一个未知量，追加在节点电压之后（nodal.py:1682-1697）。
 
-约束：**有且仅有一个地节点**（nodal.py:1495-1500）。未知量按节点 id 排序（nodal.py:1526），
-`self.index` 给出 `节点名 → 行号`。矩阵尺寸 `matrix_size = len(unknown) + Σbranch_width`（nodal.py:1545）。
+约束：**有且仅有一个地节点**（nodal.py:1647-1652）。未知量按节点 id 排序（nodal.py:1678），
+`self.index` 给出 `节点名 → 行号`。矩阵尺寸 `matrix_size = len(unknown) + Σbranch_width`（nodal.py:1697）。
 
 ### 2.2 空矩阵
 
-`_blank_matrix()`（nodal.py:1574-1578）：
+`_blank_matrix()`（nodal.py:1728-1732）：
 
 - 稠密模式：`numpy.zeros((n,n))`；
 - 稀疏模式：`scipy.sparse.lil_matrix`（LIL 便于逐元素 `+=` 盖章）。
 
-稀疏与否由 `_decide_sparse()` 决定（nodal.py:1561-1572），`sparse="auto"` 时以
+稀疏与否由 `_decide_sparse()` 决定（nodal.py:1714-1726），`sparse="auto"` 时以
 `sparse_threshold=200` 为界。
 
 ### 2.3 基本盖章原语
 
-`_stamp_conductance(ctx, a, b, g)`（nodal.py:101-110）在节点 $a,b$ 之间加电导 $g$：
+`_stamp_conductance(ctx, a, b, g)`（nodal.py:125-134）在节点 $a,b$ 之间加电导 $g$：
 
 $$
 A_{aa}\!+\!\!=g,\quad A_{bb}\!+\!\!=g,\quad A_{ab}\!-\!\!=g,\quad A_{ba}\!-\!\!=g .
 $$
 
-`_stamp_current(ctx, a, b, I)`（nodal.py:113-120）加一支从 $a$ 流向 $b$ 的电流源 $I$：
+`_stamp_current(ctx, a, b, I)`（nodal.py:137-144）加一支从 $a$ 流向 $b$ 的电流源 $I$：
 
 $$
 z_a \!-\!\!= I,\qquad z_b \!+\!\!= I .
@@ -162,7 +162,7 @@ $$
 
 "缺失/接地索引"跳过：任一端为地（`ctx.index.get(node) is None`）就跳过该行/列——这就是 GND 处理。
 
-电阻：$g=1/R$，`_stamp_conductance`（nodal.py:194 `Resistor.stamp`）。
+电阻：$g=1/R$，`_stamp_conductance`（nodal.py:226 `Resistor.stamp`）。
 
 ### 2.4 支路电流未知量（MNA 分块）
 
@@ -174,27 +174,27 @@ $$
 =\begin{bmatrix}\mathbf{j}\\ \mathbf{e}\end{bmatrix}.
 $$
 
-**独立电压源**（nodal.py:410 `VoltageSource.stamp`，nodal.py:423-433）：设占第 `row` 行，
+**独立电压源**（nodal.py:445 `VoltageSource.stamp`，nodal.py:445-455）：设占第 `row` 行，
 方程 $v_a-v_b=\text{value}$，盖章
 
 $$
 A_{a,\text{row}}\!+\!\!=1,\ A_{\text{row},a}\!+\!\!=1,\quad A_{b,\text{row}}\!-\!\!=1,\ A_{\text{row},b}\!-\!\!=1,\quad z_{\text{row}}=\text{value}.
 $$
 
-**VCVS**（nodal.py:494 `VCVS.stamp`，nodal.py:505-521）：$v_a-v_b=\text{gain}\cdot(v_{c}-v_{d})$，
+**VCVS**（nodal.py:571 `VCVS.stamp`，nodal.py:571-587）：$v_a-v_b=\text{gain}\cdot(v_{c}-v_{d})$，
 在电压源盖章基础上追加 $A_{\text{row},c}\!-\!\!=\text{gain},\ A_{\text{row},d}\!+\!\!=\text{gain}$，右端 $z_{\text{row}}=0$。
 
-**VCCS**（nodal.py:536 `VCCS.stamp`，nodal.py:546-561）：受控电流 $i_{ab}=g_m(v_c-v_d)$：
+**VCCS**（nodal.py:612 `VCCS.stamp`，nodal.py:612-627）：受控电流 $i_{ab}=g_m(v_c-v_d)$：
 
 $$
 A_{a,c}\!+\!\!=g_m,\ A_{b,c}\!-\!\!=g_m,\ A_{a,d}\!-\!\!=g_m,\ A_{b,d}\!+\!\!=g_m .
 $$
 
-**运放**（nodal.py:657 `OpAmp.stamp`，nodal.py:748-763）：非线性支路，行方程
+**运放**（nodal.py:813 `OpAmp.stamp`，nodal.py:813-828）：非线性支路，行方程
 $\;v_a-v_b-\text{slope}\cdot(v_p-v_n)=\text{value}-\text{slope}\cdot u\;$，其中 $u=v_p-v_n$，
 盖章 $A_{\text{row},p}\!-\!\!=\text{slope},\ A_{\text{row},n}\!+\!\!=\text{slope},\ z_{\text{row}}=\text{value}-\text{slope}\cdot u$。
 
-其他：电流源（nodal.py:448 `CurrentSource`）用 `_stamp_current`；开关（nodal.py:468）
+其他：电流源（nodal.py:501 `CurrentSource`）用 `_stamp_current`；开关（nodal.py:534）
 用 $g=1/R_{\text{on}}$（闭合）或 $1/R_{\text{off}}$（断开）。
 
 ---
@@ -202,7 +202,7 @@ $\;v_a-v_b-\text{slope}\cdot(v_p-v_n)=\text{value}-\text{slope}\cdot u\;$，其�
 ## 3. 元件伴随模型与积分
 
 实现：nodal.py 各元件的 `prepare()`（按 `dt` 生成伴随电导 $g$ 与等效电流源 `isrc`）与 `stamp()`。
-支持的积分器：`trapezoidal`、`backward_euler`、`gear2`（BDF2），见 `CircuitSolver.__init__`（nodal.py:1469）。
+支持的积分器：`trapezoidal`、`backward_euler`、`gear2`（BDF2），见 `CircuitSolver.__init__`（nodal.py:1613）。
 
 统一伴随形式：元件被写成
 
@@ -223,11 +223,11 @@ $i=C\,\dfrac{dv}{dt}$。
 | trapezoidal | $2C/\Delta t$ | $-g\,v_{n-1}-i_{n-1}$ |
 | gear2 (BDF2) | $1.5C/\Delta t$ | $C\,(-2v_{n-1}+0.5v_{n-2})/\Delta t$ |
 
-对应代码：BE（nodal.py:248-250），gear2（nodal.py:251-263），trapezoidal（nodal.py:264-268）。
+对应代码：BE（nodal.py:272-274），gear2（nodal.py:275-287），trapezoidal（nodal.py:288-292）。
 
-- `stamp` 在 `dc` 模式：电容开路，不盖章（nodal.py:271-273）；
-- `ac` 模式：盖 $j\omega C$ 电导（nodal.py:274-277）；
-- `tran` 模式：盖 $g$ + `isrc`（nodal.py:278-279）。
+- `stamp` 在 `dc` 模式：电容开路，不盖章（nodal.py:293-295）；
+- `ac` 模式：盖 $j\omega C$ 电导（nodal.py:296-299）；
+- `tran` 模式：盖 $g$ + `isrc`（nodal.py:300-301）。
 
 ### 3.2 电感（`Inductor.prepare`，nodal.py:366；`stamp`，nodal.py:389）
 
@@ -239,14 +239,14 @@ $v=L\,\dfrac{di}{dt}$，`DC_CONDUCTANCE=1.0e5` 表示直流短路。
 | trapezoidal | $\Delta t/(2L)$ | $i_{n-1}+g\,v_{n-1}$ |
 | gear2 (BDF2) | $\Delta t/(1.5L)$ | $(2i_{n-1}-0.5i_{n-2})/1.5$ |
 
-对应代码：BE（nodal.py:349-351），gear2（nodal.py:352-364），trapezoidal（nodal.py:366-367）。
-`stamp`：`dc` 用 $g=10^5$（短路，nodal.py:370-372）；`ac` 若 $\omega=0$ 用 $10^5$，否则 $1/(j\omega L)$
-（nodal.py:373-378）；`tran` 盖 $g$+`isrc`（nodal.py:379-380）。
+对应代码：BE（nodal.py:371-373），gear2（nodal.py:374-386），trapezoidal（nodal.py:386-387）。
+`stamp`：`dc` 用 $g=10^5$（短路，nodal.py:390-392）；`ac` 若 $\omega=0$ 用 $10^5$，否则 $1/(j\omega L)$
+（nodal.py:393-400）；`tran` 盖 $g$+`isrc`（nodal.py:401-402）。
 
 ### 3.3 dt 变化与历史不足的回退
 
 gear2（BDF2）需要**两步历史且 $\Delta t$ 与历史步相同**才启用；缺 `older_*` 或 `dt` 改变时
-**回退到 backward_euler**（电容节点 nodal.py:251-263 的 `older_v` 判断；电感 nodal.py:352-364 同理）。
+**回退到 backward_euler**（电容节点 nodal.py:275-287 的 `older_v` 判断；电感 nodal.py:374-386 同理）。
 backward_euler 只需一步历史，永远可用，故作为兜底。trapezoidal 只需 $v_{n-1},i_{n-1}$。
 
 ---
@@ -257,7 +257,7 @@ backward_euler 只需一步历史，永远可用，故作为兜底。trapezoidal
 
 ### 4.1 残差定义（后向误差，尺度无关）
 
-`_residual_metric()`（nodal.py:1809-1823）对候选解 $\mathbf{x}$ 计算
+`_residual_metric()`（nodal.py:1968-1982）对候选解 $\mathbf{x}$ 计算
 
 $$
 \boldsymbol{\rho}=\mathbf{A}\mathbf{x}-\mathbf{z},\qquad
@@ -270,29 +270,29 @@ $$
 
 ### 4.2 收敛判据
 
-- **线性电路**（`self.nonlinear == False`）：Newton 只跑 1 轮（nodal.py:1825）。
+- **线性电路**（`self.nonlinear == False`）：Newton 只跑 1 轮（nodal.py:1984）。
   接受条件 $\eta \le \mathrm{residual\_safety\_tol}=10^{-8}$（或用户 `residual_tol`），
-  否则抛 `ComputeError`（"线性电路解质量不足"，nodal.py:1874-1885）。
+  否则抛 `ComputeError`（"线性电路解质量不足"，nodal.py:2036-2047）。
 - **非线性电路**：迭代至多 `max_iter=60` 轮。令 $\Delta=|\mathbf{x}^{\text{new}}-\mathbf{x}^{\text{old}}|$，
-  逐分量判据（`_tolerance()`，nodal.py:1754；判据在 nodal.py:1888-1889）：
+  逐分量判据（`_tolerance()`，nodal.py:1911；判据在 nodal.py:2050-2051）：
 
 $$
 \Delta_i \le \mathrm{reltol}\,|x_i| + \tau_i,\qquad
 \tau_i=\begin{cases}\mathrm{vntol}=10^{-6}, & x_i\ \text{为节点电压}\\ \mathrm{abstol}=10^{-6}, & x_i\ \text{为支路电流}\end{cases}
 $$
 
-其中 `reltol=1e-9`。非线性元件每轮末调用 `update_guess()`（nodal.py:1900-1911）。
+其中 `reltol=1e-9`。非线性元件每轮末调用 `update_guess()`（nodal.py:2062-2073）。
 
 ### 4.3 gmin stepping
 
-`_newton_with_strategies()`（nodal.py:1703）：先试普通 Newton。失败则给每个对角元加
-`gmin`（nodal.py:1864-1866）：
+`_newton_with_strategies()`（nodal.py:1860）：先试普通 Newton。失败则给每个对角元加
+`gmin`（nodal.py:2026-2028）：
 
 $$
 \mathbf{A}\ \leftarrow\ \mathbf{A} + \mathrm{gmin}\,\mathbf{I},\qquad \mathrm{gmin}=10^{-3}\ \text{起}.
 $$
 
-若仍不收敛，`gmin` 每轮乘以 $0.1$（最多 `gmin_steps=10` 次）逐步降到 0（nodal.py:1727-1731）。
+若仍不收敛，`gmin` 每轮乘以 $0.1$（最多 `gmin_steps=10` 次）逐步降到 0（nodal.py:1884-1888）。
 
 ### 4.4 source stepping
 
@@ -302,12 +302,12 @@ $$
 \mathrm{source\_scale}=\frac{k}{\mathrm{src\_steps}},\qquad k=0,1,\dots,\mathrm{src\_steps}=10,
 $$
 
-即从全零激励连续解到全激励（nodal.py:1732-1751）。所有策略都失败才抛错，并在消息里附残差、
+即从全零激励连续解到全激励（nodal.py:1889-1908）。所有策略都失败才抛错，并在消息里附残差、
 问题节点与尝试过的策略。
 
 ### 4.5 稀疏 LU 与行列均衡
 
-`_solve_matrix()`（nodal.py:1918-1941）：
+`_solve_matrix()`（nodal.py:2080-2103）：
 
 - 稀疏：`scipy.sparse.linalg.splu`（预分解，后续 `lu_solve`）；
 - 稠密且满足 GPU 条件：走加速后端；
@@ -355,15 +355,15 @@ $$
 \mathbf{y}=\mathbf{C}\mathbf{x}+\mathbf{D}\mathbf{u}.
 $$
 
-`StateSpaceModel`（statespace.py:64）持有 $\mathbf{A}(n\times n),\mathbf{B}(n\times m),\mathbf{C}(p\times n),\mathbf{D}(p\times m)$，
-`from_params`（statespace.py:79）校验维数、$m,p\le 6$、$|\text{矩阵元素}|\le 10^9$、方法合法。
+`StateSpaceModel`（statespace.py:59）持有 $\mathbf{A}(n\times n),\mathbf{B}(n\times m),\mathbf{C}(p\times n),\mathbf{D}(p\times m)$，
+`from_params`（statespace.py:75）校验维数、$m,p\le 6$、$|\text{矩阵元素}|\le 10^9$、方法合法。
 `input_map` 把信号流节点的字段接到 $\mathbf{u}$，`output_map` 把 $\mathbf{y}$ 的分量写回节点字段。
 
 ### 6.2 离散化（`cont2discrete`，linalg.py:129）
 
 支持 `zoh / forward / backward / tustin`：
 
-- **zoh**（linalg.py:144-146 → `zoh_discretize`，linalg.py:110-122）：对增广矩阵做矩阵指数
+- **zoh**（linalg.py:148-150 → `zoh_discretize`，linalg.py:110-122）：对增广矩阵做矩阵指数
 
 $$
 \exp\!\left(\begin{bmatrix}\mathbf{A}&\mathbf{B}\\ \mathbf{0}&\mathbf{0}\end{bmatrix}\Delta t\right)
@@ -372,7 +372,7 @@ $$
 
 - **forward**：$\mathbf{A}_d=\mathbf{I}+\Delta t\,\mathbf{A},\ \ \mathbf{B}_d=\Delta t\,\mathbf{B}$。
 - **backward**：$\mathbf{A}_d=(\mathbf{I}-\Delta t\,\mathbf{A})^{-1},\ \ \mathbf{B}_d=\mathbf{A}_d\mathbf{B}\,\Delta t$。
-- **tustin**（双线性，linalg.py:154-161）：令 $h=\Delta t/2$，
+- **tustin**（双线性，linalg.py:158-165）：令 $h=\Delta t/2$，
 
 $$
 \mathbf{A}_d=(\mathbf{I}-h\mathbf{A})^{-1}(\mathbf{I}+h\mathbf{A}),\quad
@@ -381,7 +381,7 @@ $$
 \mathbf{D}_d=\mathbf{D}+h\,\mathbf{C}(\mathbf{I}-h\mathbf{A})^{-1}\mathbf{B}.
 $$
 
-离散化结果按键 $(\Delta t,\text{method})$ 缓存（statespace.py:139-145）。
+离散化结果按键 $(\Delta t,\text{method})$ 缓存（statespace.py:137-141）。
 
 ### 6.3 s 域传递函数（`core/compute/transfer.py`）
 
@@ -428,13 +428,13 @@ $$
 $$
 
 `u_k` 由 `input_map` 从上游信号流节点读取，`y_k` 按 `output_map` 写回本节点输出字段；初始状态 `x0`（长度 $n$）。
-附录另提供 `tustin_tf`（linalg.py:165）做 $H(s)\to H(z)$ 与 `power_iteration_norm`（linalg.py:215）。
+附录另提供 `tustin_tf`（linalg.py:169）做 $H(s)\to H(z)$ 与 `power_iteration_norm`（linalg.py:219）。
 
 ---
 
 ## 8. 非线性器件模型
 
-实现：`core/compute/transistors.py`（BJT/MOS）；二极管在 nodal.py:568。
+实现：`core/compute/transistors.py`（BJT/MOS）；二极管在 nodal.py:634。
 
 ### 8.1 二极管（`Diode`，nodal.py:634）
 
@@ -443,10 +443,10 @@ I=I_s\!\left(e^{\,v/(nV_t)}-1\right),\qquad
 g=\frac{dI}{dv}=\frac{I_s}{nV_t}e^{\,v/(nV_t)},\quad g\ge 10^{-15}.
 $$
 
-指数项钳位：`exponent = min(60, v/(nV_t))`（`_conductance`，nodal.py:598-604）。限幅（`_limit`，nodal.py:620-635）：
+指数项钳位：`exponent = min(60, v/(nV_t))`（`_conductance`，nodal.py:664-670）。限幅（`_limit`，nodal.py:686-701）：
 先算临界电压 $v_{\text{crit}}=nV_t\ln\!\big(nV_t/(\sqrt2 I_s)\big)$，当 $v_{\text{new}}>v_{\text{crit}}$ 且
-$|v_{\text{new}}-v_{\text{old}}|>2nV_t$ 时用对数压缩把电压拉回，抑制指数发散。齐纳、LED 由 `Zener`（nodal.py:829）、
-`Diode` 公式变体给出（注册表 `ElementSpec`，nodal.py:906）。
+$|v_{\text{new}}-v_{\text{old}}|>2nV_t$ 时用对数压缩把电压拉回，抑制指数发散。齐纳、LED 由 `Zener`（nodal.py:894）、
+`Diode` 公式变体给出（注册表 `ElementSpec`，nodal.py:973）。
 
 ### 8.2 BJT（`BipolarJunction`，transistors.py:24；`stamp`，transistors.py:62）
 
@@ -500,10 +500,10 @@ $$
 g_{mbs}=-g_m\,\frac{dV_{th}}{dV_{bs}} .
 $$
 
-盖章（transistors.py:208-241）：$A_{d,g}\mathrel{+}=g_m$、$A_{d,d}\mathrel{+}=g_{ds}$、$A_{d,s}\mathrel{-}=g_m+g_{ds}+g_{mbs}$、
+盖章（transistors.py:209-242）：$A_{d,g}\mathrel{+}=g_m$、$A_{d,d}\mathrel{+}=g_{ds}$、$A_{d,s}\mathrel{-}=g_m+g_{ds}+g_{mbs}$、
 $A_{d,b}\mathrel{+}=g_{mbs}$，其余三行对称；再 `_stamp_current` 补等效电流。
-注意：即使源极接地（不在索引），$g_{ds}$ 也必须加到漏极对角线上（transistors.py:221-223），否则线性/饱和交界处 Newton 两点振荡。
-`PMOS`（transistors.py:262）以 `polarity=-1` 继承。
+注意：即使源极接地（不在索引），$g_{ds}$ 也必须加到漏极对角线上（transistors.py:222-224），否则线性/饱和交界处 Newton 两点振荡。
+`PMOS`（transistors.py:263）以 `polarity=-1` 继承。
 
 ### 8.4 运放（`OpAmp`，nodal.py:722）
 
@@ -511,7 +511,7 @@ $$
 v(\text{OUT})-v(\text{ref})=\text{lo}+\text{span}\cdot\frac{1+\tanh(A\,u/\text{span})}{2},\qquad u=v_{p}-v_{n}.
 $$
 
-其中 $\text{ref}=V_-$（接线时）或地；$\text{lo},\text{span}$ 取供电轨（nodal.py:657-665 docstring）。支路盖章见 §2.4。
+其中 $\text{ref}=V_-$（接线时）或地；$\text{lo},\text{span}$ 取供电轨（nodal.py:722-730 docstring）。支路盖章见 §2.4。
 
 ---
 
@@ -543,10 +543,10 @@ $Q_i=\mathrm{vhigh}$ 若第 $i$ 位为 1，否则 `vlow`。CLK **上升沿**（�
 
 ### 9.3 DAC / ADC / 移位寄存器（digital.py:78 / 190 / 127）
 
-- **DAC4**（digital.py:76）：由输入位读码，`value = vref * code / 15.0`，以电压源输出（digital.py:91-106）。
-- **ADC4**（digital.py:188）：逐次逼近（SAR）；状态 `sar_code/sar_trial/adc_code`，转换结束锁存，
-  $Q_3..Q_0$ 以电压源输出（MSB=$Q_3$）（digital.py:217-230）。
-- **ShiftRegister4**（digital.py:125）：上升沿 $D\to Q_0\to Q_1\to Q_2\to Q_3$（digital.py:126）。
+- **DAC4**（digital.py:78）：由输入位读码，`value = vref * code / 15.0`，以电压源输出（digital.py:93-108）。
+- **ADC4**（digital.py:190）：逐次逼近（SAR）；状态 `sar_code/sar_trial/adc_code`，转换结束锁存，
+  $Q_3..Q_0$ 以电压源输出（MSB=$Q_3$）（digital.py:219-232）。
+- **ShiftRegister4**（digital.py:127）：上升沿 $D\to Q_0\to Q_1\to Q_2\to Q_3$（digital.py:128）。
 
 ### 9.4 555 定时器（`Astable555`，timers.py:11）
 
@@ -605,7 +605,7 @@ $$
 \mathbf{i}_n=\mathbf{G}\,\mathbf{v}_n+\text{rhs}.
 $$
 
-盖章（magnetics.py:190 起）对两个支路各行写
+盖章（magnetics.py:196 起）对两个支路各行写
 $A_{r,r}\mathrel{+}=1,\ A_{r,a}\mathrel{-}=g_{r1},\ A_{r,b}\mathrel{+}=g_{r1},\ A_{r,c}\mathrel{-}=g_{r2},\ A_{r,d}\mathrel{+}=g_{r2}$，右端 `rhs`。
 
 ---
@@ -728,7 +728,7 @@ R39 的 `analysis.frequency_response()` 对 signal 走 13.1，对 circuit 转调
 
 ### 14.2 预计算 20 万步硬拒绝
 
-`Simulation.precompute()`（`core/compute/simulation.py:314`，步数校验在 `332-335`）在**任何** `scene.reset()` / `recorder.clear()`
+`Simulation.precompute()`（`core/compute/simulation.py:391`，步数校验在 `332-335`）在**任何** `scene.reset()` / `recorder.clear()`
 之前完成校验；若
 
 $$

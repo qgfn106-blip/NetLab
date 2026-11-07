@@ -250,6 +250,23 @@ class Simulation:
         self._thread: threading.Thread | None = None
         self._stop = False
         self._precompute_cancel = threading.Event()
+        # 预计算进度：独立的小粒度锁 + 状态字典。precompute 执行期间会全程持有
+        # self.lock，因此进度查询（GET /api/precompute/progress）必须只读这份
+        # 结构、绝不碰 self.lock，否则会被整个预计算阻塞。
+        self._progress_lock = threading.Lock()
+        self._precompute_progress: dict[str, Any] = {
+            "status": "idle",  # idle|starting|running|done|cancelled|error
+            "running": False,
+            "done": 0,
+            "total": 0,
+            "percent": 0.0,
+            "elapsed": 0.0,
+            "eta": None,
+            "seconds": 0.0,
+            "error": None,
+            "started_at": None,
+            "updated_at": 0.0,
+        }
 
     # ---- 线程 -------------------------------------------------------------
     def ensure_thread(self) -> None:
@@ -388,11 +405,59 @@ class Simulation:
         """请求中断当前预计算；不持有仿真锁，供 API 的并发取消请求使用。"""
         self._precompute_cancel.set()
 
+    # ---- 预计算进度 -------------------------------------------------------
+    def _progress_update(self, **fields: Any) -> None:
+        """写入进度字段；只取小粒度进度锁，快速返回。"""
+        fields["updated_at"] = time.time()
+        with self._progress_lock:
+            self._precompute_progress.update(fields)
+
+    def precompute_progress(self) -> dict[str, Any]:
+        """只读进度快照：仅取进度锁，绝不获取仿真自旋锁 self.lock。
+
+        precompute 在后台同步执行期间全程持有 self.lock，因此本方法能在预计算
+        阻塞期间被 HTTP 线程安全地并发调用，用于界面轮询进度条。
+        """
+        with self._progress_lock:
+            snap = dict(self._precompute_progress)
+        started_at = snap.pop("started_at", None)
+        total = int(snap.get("total") or 0)
+        done = int(snap.get("done") or 0)
+        if total > 0:
+            snap["percent"] = round(min(100.0, done * 100.0 / total), 1)
+        if snap.get("status") == "running" and started_at is not None:
+            elapsed = max(0.0, time.perf_counter() - float(started_at))
+            snap["elapsed"] = round(elapsed, 3)
+            if done > 0 and total > done:
+                snap["eta"] = round(elapsed * (total - done) / done, 2)
+            else:
+                snap["eta"] = None
+        return snap
+
     def precompute(
         self, duration: float, dt: float | None = None, sample_every: int | None = None
     ) -> dict[str, Any]:
         """P7-05/D48：从 0 开始预计算 0→T，填充录制帧；不改当前场景参数。"""
         with self.lock:
+            # 立即把进度切到 starting，避免前端在本次执行真正开始前读到上一轮
+            # 遗留的 done/cancelled 快照而误判完成。校验失败时保持 starting 也
+            # 无害：POST 会返回错误，前端按 Promise 结束收掉进度条。
+            try:
+                _duration_hint = float(duration)
+            except (TypeError, ValueError):
+                _duration_hint = 0.0
+            self._progress_update(
+                status="starting",
+                running=False,
+                done=0,
+                total=0,
+                percent=0.0,
+                elapsed=0.0,
+                eta=None,
+                seconds=_duration_hint,
+                error=None,
+                started_at=None,
+            )
             # 先完成全部校验，再动任何状态：被拒绝的预计算不能清空当前录制帧
             # 或重置场景，否则用户只是填错参数就会丢掉已经跑出的结果。
             duration = float(duration)
@@ -425,15 +490,64 @@ class Simulation:
             self._frame_times.clear()
             self._precompute_cancel.clear()
             cancelled = False
-            for _ in range(count):
+            started_at = time.perf_counter()
+            self._progress_update(
+                status="running",
+                running=True,
+                done=0,
+                total=count,
+                percent=0.0,
+                elapsed=0.0,
+                eta=None,
+                started_at=started_at,
+                seconds=duration,
+                error=None,
+            )
+            # 约 200 次进度刷新即可（写进度只取小锁，开销可忽略），避免每步都写。
+            update_every = max(1, count // 200)
+            processed = 0
+            for index in range(count):
                 if self._precompute_cancel.is_set():
                     cancelled = True
                     break
                 if not self._advance_locked(step_dt, sample):
                     break
+                processed = index + 1
+                if processed % update_every == 0 or processed == count:
+                    elapsed = time.perf_counter() - started_at
+                    pct = processed * 100.0 / count if count else 0.0
+                    eta = (
+                        elapsed * (count - processed) / processed
+                        if processed
+                        else None
+                    )
+                    self._progress_update(
+                        done=processed,
+                        percent=round(pct, 1),
+                        elapsed=round(elapsed, 3),
+                        eta=(round(eta, 2) if eta is not None else None),
+                    )
             frames = len(self.recorder)
             first_time = self.recorder.frames[0]["t"] if frames else 0.0
             last_time = self.recorder.frames[-1]["t"] if frames else 0.0
+            elapsed_total = time.perf_counter() - started_at
+            status = "cancelled" if cancelled else ("error" if self.error else "done")
+            final_done = processed if (cancelled or self.error) else count
+            self._progress_update(
+                status=status,
+                running=False,
+                done=final_done,
+                total=count,
+                percent=(
+                    round(min(100.0, final_done * 100.0 / count), 1)
+                    if count
+                    else 0.0
+                ),
+                elapsed=round(elapsed_total, 3),
+                eta=0.0 if status == "done" else None,
+                error=self.error,
+                started_at=None,
+            )
             return {
                 "steps": self.steps,
                 "time": self.time,

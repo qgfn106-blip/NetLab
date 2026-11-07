@@ -487,10 +487,10 @@ $$
 `clm` $`=1+\lambda V_{ds}`$：
 
 $$
-I_d=\begin{cases}
-0, & V_{ov}\le0\ \text{或}\ V_{ds}\le0\\
-k\big(V_{ov}V_{ds}-\tfrac12 V_{ds}^2\big)\,\text{clm}, & 0<V_{ds}<V_{ov}\ (\text{线性区})\\
-\tfrac12 k\,V_{ov}^2\,\text{clm}, & V_{ds}\ge V_{ov}\ (\text{饱和区})
+I_d = \begin{cases}
+0, & V_{ov} \le 0 \ \text{或}\ V_{ds} \le 0 \\
+k\big(V_{ov}V_{ds}-\tfrac{1}{2} V_{ds}^2\big), \text{clm}, & 0 < V_{ds} < V_{ov} \ (\text{线性区}) \\
+\tfrac{1}{2} k V_{ov}^2, \text{clm}, & V_{ds} \ge V_{ov} \ (\text{饱和区})
 \end{cases}
 $$
 

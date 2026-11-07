@@ -1,4 +1,5 @@
 import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
+import { CANVAS_LIGHT, CANVAS_DARK } from "./theme.tokens.js";
 (() => {
   "use strict";
   const UI_BUILD = "3.20.1";
@@ -11766,46 +11767,7 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     worldToScreen,
     screenToWorld
   };
-  const THEME_TOKENS = {
-    light: {
-      ink: "#080a08",
-      ink2: "#2b2a24",
-      muted: "#77756d",
-      dim: "#9a9487",
-      line: "#aaa59a",
-      paper: "#eae5e1",
-      panel: "#edebe4",
-      surface: "#e2dccf",
-      paper3: "#e2dccf",
-      accent: "#9b7247",
-      accent2: "#565c46",
-      accentSoft: "#e4d5c1",
-      red: "#8a4234",
-      amber: "#a67d48",
-      green: "#565c46",
-      gridDot: "rgba(104, 94, 78, 0.20)",
-      gridAxis: "#cfc6b5"
-    },
-    dark: {
-      ink: "#e0e3dc",
-      ink2: "#c6cbc3",
-      muted: "#a6b0b1",
-      dim: "#7f8c8e",
-      line: "#536166",
-      paper: "#11181b",
-      panel: "#202a2f",
-      surface: "#2a363b",
-      paper3: "#1b2429",
-      accent: "#c5a16b",
-      accent2: "#9aa88c",
-      accentSoft: "#2e3b40",
-      red: "#c08a7d",
-      amber: "#c5a16b",
-      green: "#9aa88c",
-      gridDot: "rgba(166, 176, 177, 0.16)",
-      gridAxis: "#3a4a50"
-    }
-  };
+  const THEME_TOKENS = { light: CANVAS_LIGHT, dark: CANVAS_DARK };
   const COLOR_ALIAS = {
     "#a8541f": "accent",
     "#1f5f5b": "accent2",

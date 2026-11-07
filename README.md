@@ -2,7 +2,7 @@
 
 > 最后更新：2026-11-06
 
-> **节点拓扑、非线性动态、二维矢量、二维有限元场与并网逆变器控制，放在同一个可操作的本地仿真台。**
+> **节点拓扑、非线性动态、二维矢量与并网逆变器控制，放在同一个可操作的本地仿真台。**
 > 纯本地运行：一个 Python 进程 + 一个浏览器页面，不依赖任何云服务或外网资源。
 
 ![信号流与实时曲线](docs/assets/signal-flow.png)
@@ -19,7 +19,6 @@ Netlab 是一个面向电子、动态系统与电力电子的交互式仿真工�
 | --- | --- | --- |
 | **信号流 / 矢量** | 有向图，节点持有数据字典，连接是纯函数 | 信号链、滤波器、状态空间、非线性振子、相图 |
 | **电路** | 节点电压法（MNA）+ Newton 迭代 | R/L/C、二极管、BJT/MOSFET、运放、比较器、逻辑门、555、变压器…… |
-| **FIELD · FEM** | 二维 Q4 有限元瞬态热传导 | 方板温度场、Dirichlet 边界、实时色图 |
 | **并网逆变器（R31）** | 平均模型 + `abc_dq` + SRF-PLL + dq 电流环 | 三相电网、LCL 滤波、PWM 平均、开关级六桥臂趋势验证 |
 | **复数分析层（R39）** | 复数图 `(I-W(jω))y=b` / 复数 MNA | 频响、Bode、精确 `e^{-jωT}` 延迟、RC/RLC 网络、MIMO 相位 |
 | **插件扩展（R40）** | 插件 API v1 + 独立引擎模式 | 自定义节点/连接/元件/分析算法/数据格式/面板/视觉/模板 |
@@ -86,7 +85,7 @@ python -m netlab.desktop
 │  ├─ plotkit_bridge.py   PlotKit 子应用挂载
 │  ├─ plugin_api/v1/      插件稳定门面（只依赖这里，不 import 内核私有模块）
 │  ├─ core/
-│  │  ├─ compute/         计算内核：simulation / nodal / analysis / complex_support / fem …
+│  │  ├─ compute/         计算内核：simulation / nodal / analysis / complex_support …
 │  │  ├─ model/           连接与模型：scene / networks / project / plugins / ui_profile …
 │  │  └─ common/          limits（输入边界与校验）
 │  ├─ tests/              pytest（HTTP + 纯函数 + 工程回归）
@@ -111,7 +110,7 @@ python -m netlab.desktop
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) —— 分层、场景数据模型、求解器、插件层与前端数据流（含[结构图](docs/assets/netlab-architecture.svg)）
 - [netlab/docs/CODE_GUIDE.md](netlab/docs/CODE_GUIDE.md) —— 目录地图、模块职责、关键符号与调用链
-- [netlab/docs/MATH.md](netlab/docs/MATH.md) —— 数学原理：MNA、伴随模型、Newton、状态空间、复数频响、Q4 FEM
+- [netlab/docs/MATH.md](netlab/docs/MATH.md) —— 数学原理：MNA、伴随模型、Newton、状态空间、复数频响
 - [netlab/docs/EXTENSIBILITY_ARCHITECTURE.md](netlab/docs/EXTENSIBILITY_ARCHITECTURE.md) —— 插件 API v1、工程 v6、UI profile、EngineProtocol
 - [netlab/docs/PLUGIN_GUIDE.md](netlab/docs/PLUGIN_GUIDE.md) —— 插件包开发与本地加载
 - [OPERATION.md](OPERATION.md) —— 界面速览、快捷键、建图/建电路、曲线与回放、工程文件

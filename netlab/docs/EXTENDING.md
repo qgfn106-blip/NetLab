@@ -599,7 +599,7 @@ class MyEngine(_Engine):
 | `switchMode` | 确认弹窗与 `/api/mode` 调用 |
 | `renderNodeInspector` / `renderEdgeInspector` | 新模式是否显示 data 编辑器/延迟开关 |
 | `drawNodes` / `drawEdges` | 新可视化（如场、端口） |
-| `state.workspace` / `index.html` | 若需要独立工作区，参考 `femStage` 的显隐 |
+| `state.workspace` / `index.html` | 若需要独立工作区，参考现有工作区的显隐逻辑 |
 
 ### 6.3 测试
 
@@ -725,50 +725,6 @@ function drawNodeBadge(node, sx, sy) {
 
 ---
 
-## 9. 改 FEM
-
-### 9.1 加一个配置项
-
-按这条链改，缺一处就会出现“界面有但后端不认”或反之：
-
-```text
-FemConfig（dataclass 字段）
-  → FemConfigUpdate（server.py 的 Pydantic 模型）
-  → FemSimulation.apply_config（读取 + as_float/as_int 校验 + 范围）
-  → FemModel 使用该字段
-  → 前端 renderFemPanel（控件）+ readFemConfig（收集）+ updateFemPanelValues（回填）
-  → 测试：PATCH /api/fem/config 后快照里出现新字段
-```
-
-注意 `FemConfigUpdate` 的字段默认是 `None`，`apply_config` 用 `if "xxx" in payload` 判断是否更新。
-
-### 9.2 改方程/材料
-
-- 各向异性导热：`_element_matrices` 里把标量 `conductivity` 换成 `kx/ky` 两个梯度项；
-- 新边界条件：目前 `dirichlet` 只标记左右列；对流/绝热需要在 `_build_factorization` 的约化与 RHS 里加项；
-- 新热源：改 `_source_vector`，注意仍在参考单元 2×2 Gauss 点上积分；
-- 新单元类型：`build_mesh` 的连接表与 `_shape` 要一起改，且 `FemModel._assemble` 假定 4 节点。
-
-### 9.3 改渲染
-
-`drawFem` 依赖：
-
-```text
-mesh.x / mesh.y / mesh.elements / mesh.left / mesh.right
-field（与 mesh.x 等长）
-stats.min / stats.max
-```
-
-改网格后这些仍然成立即可；若新增标量场，需要在 `FemModel` 里输出，并在 `drawFem` 里换色标。
-
-### 9.4 性能注意
-
-- `dt` 变化 → 重新分解（`_build_factorization`）；不要每步改 dt。
-- 网格/材料/边界变化 → 重建 `FemModel`；改这些参数会让时间归零。
-- 每帧录制的是整个温度场，`MAX_FEM_FRAMES = 900`；调大前先评估内存。
-
----
-
 ## 10. 新增数值算法 / 波形 / 离散化
 
 ### 10.1 新波形
@@ -889,10 +845,9 @@ python -m pytest tests -q -x
 | 二维矢量模板 | `templates.py` 的 `vector_network` |
 | 固定步长线程 | `simulation.py` 的 `Simulation._loop` |
 | 增量接口 | `simulation.py` 的 `Recorder.since`、`Simulation.live` |
-| FEM 装配/推进 | `fem.py` 的 `FemModel._assemble` / `_build_factorization` / `step` |
 | 动态表单 | `app.js` 的 `buildParamField` / `collectParamValues` |
 | 画布渲染 | `app.js` 的 `drawGraph` / `drawNodes` / `drawEdges` |
-| 轮询 | `app.js` 的 `pollLoop` / `pollLive` / `pollFem` |
+| 轮询 | `app.js` 的 `pollLoop` / `pollLive` |
 
 ---
 

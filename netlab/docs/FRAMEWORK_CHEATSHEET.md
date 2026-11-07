@@ -58,7 +58,6 @@
 | `core/compute/statespace.py` | 194 | 状态空间离散化 | `StateSpaceModel` |
 | `core/compute/waveform.py` | 114 | 波形源 | `waveform_value`、`waveform_specs` |
 | `core/compute/safeexpr.py` | 232 | 表达式节点的受限 AST 求值（无 eval） | `evaluate` |
-| `core/compute/fem.py` | 684 | 二维有限元热传导 | `FemSimulation`、`FemModel`、`build_mesh` |
 | `core/compute/schematic_export.py` | 189 | R18/R19 由电路场景导出 SchemDraw 原理图（可选依赖，缺失抛 `ComputeError`） | `scene_to_svg`、`_element_map`、`svg_filename` |
 | `core/compute/telemetry_quality.py` | 91 | 遥测质量评估：采样步长/插值误差界/FIFO 延迟界 | `sample_dt_from_frames`、`interpolation_error_bound`、`fifo_delay_bound` |
 | `core/model/schematic.py` | 480 | R19 图纸模型数据层：引脚表、确定性分层自动布局、校验 | `ELEMENT_PINS`、`pins_for`、`auto_layout`、`validate_schematic` |
@@ -138,7 +137,7 @@ Simulation._loop (线程) → Scene.step(dt) → 引擎.step(dt)
 | `vector` | 同上（共用） | 同上，数据含 `x/y/vx/vy` | 同上 + 扩散耦合 | 相图读 `x/y` 或 `vx/vy` |
 | `circuit` | `CircuitEngine`+`nodal` | 等电位点 | R/L/C/源/二极管/开关/受控源 | 必须恰好一个 `ground`；矩阵按 dt 缓存 |
 
-模式切换会重置引擎缓存与运行状态（前端 `switchTab('fem')` 还会切工作区）。
+模式切换会重置引擎缓存与运行状态。
 
 **跨域桥（R31 P11-05）**：`sensor`/`actuator` 是电路元件（`ELEMENT_SPECS`），不是 signal compute 节点。`sensor` 以 `1e-12` 高阻采样节点电压并写回 `signal` 字段；`actuator` 是受控电压源，从 signal 上一拍值取 `gain*signal+offset`。`CircuitEngine.step()` 固定顺序为「actuator → MNA → 写节点电压 → sensor」，显式一拍延迟，旧工程无桥元素时零影响。
 
@@ -218,7 +217,6 @@ Simulation._loop (线程) → Scene.step(dt) → 引擎.step(dt)
 | POST | `/api/extensions/deactivate` | `{kind, remove_file}` | — |
 | GET | `/api/extensions/{kind}` | 单个扩展详情（含源码） | — |
 | POST | `/api/extensions/scan` | 目录扫描 | — |
-| GET/POST/PATCH | `/api/fem/state|live|control|config` | FEM 子系统 | — |
 | GET/POST | `/api/ui` | 读取/保存 `netlab-ui/1` 视图配置（返回 `ui` + `catalog`） | UI profile |
 | GET | `/api/plugins`、POST `/api/plugins/{id}/{scan,enable,reload}` | 插件管理（D118） | — |
 | GET/POST | `/api/schematic/layout`、`/api/schematic/validate` | 图纸自动布局 / 校验 | 场景载荷 |
@@ -237,7 +235,7 @@ Simulation._loop (线程) → Scene.step(dt) → 引擎.step(dt)
 ## 8. 工程文件 `.netlab`
 
 顶层键（一份、扁平）：
-`format("netlab-project") / version(1) / app / name / created / modified / scene / sim / fem / ui / blocks / extensions / metadata / checksum`
+`format("netlab-project") / version(1) / app / name / created / modified / scene / sim / ui / blocks / extensions / metadata / checksum`
 
 - `scene` **不含** `blocks`（blocks 只在顶层存一份，导入时注入）。
 - `checksum` = `canonical_json` 后 sha256；`canonical_json` 会把「整数值浮点」归一成 int、`-0.0` 归零（否则浏览器 JSON 往返必然失配）；`verify_checksum` 兼容旧算法。

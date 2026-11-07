@@ -17,7 +17,6 @@
 | 3 | `netlab/core/compute/computes.py`、`netlab/core/compute/methods.py` | 节点公式 / 连接函数的注册表与 handler | 1550 / 719 |
 | 4 | `netlab/core/compute/nodal.py` | 电路 MNA 求解器 `CircuitSolver` 与元件 `stamp` | 2739 |
 | 5 | `netlab/core/compute/simulation.py` | 后台线程、`dt`、帧时间戳、录制器 | 745 |
-| 6 | `netlab/core/compute/fem.py` | 二维热场有限元（与信号/电路无关的另一条求解路径） | 684 |
 
 ### 0.1 全流程原理图（先看图，再读代码）
 
@@ -68,7 +67,7 @@ HTTP POST /api/control {"action":"step"}          server.py:955 control()
 | 6 | 时间 | 一拍多长？时间戳记在哪？ | `SimConfig`、`_advance_locked`、`Recorder` | §6 |
 | 7 | 回界面 | 结果怎么变成图上的曲线？ | `Scene.probes` → `Recorder` → `/api/live` | §6.4 |
 | 8 | 功能块 | 封装的子网络怎么参与求解？ | `_wire_blocks`、`BlockRuntime.step` | §5.1 |
-| 9 | 非线性/积分 | 微分方程在哪一步被离散？ | RK4（振子）、梯形法/后向欧拉（电容电感）、隐式欧拉（FEM） | §4.7、§5.2、§5.3 |
+| 9 | 非线性/积分 | 微分方程在哪一步被离散？ | RK4（振子）、梯形法/后向欧拉（电容电感） | §4.7、§5.2 |
 | 10 | 失败怎么处理 | 代数环/发散/未收敛如何终止？ | `topological_order`、`MAX_ABS_VOLTAGE`、`MAX_NEWTON_ITERATIONS` | §3.3、§5.2、§8 |
 
 **明确没写进求解器的部分**（避免误以为存在）：`T_step` 与「时间归零」的完整周期语义（R11 已由 `Simulation`/`Recorder`/前端多窗口周期实现，见 §6）；GPU 路径（`accel.py` 提供可选 NumPy/CuPy 后端，未实测加速比）。频域/传递函数分析**已实现**：`analysis.py`（s 域 TF、网络 Bode、复数频响）与 `transfer.py`（TF 解析、Bode、零极点），不再是「未实现」。
@@ -870,20 +869,6 @@ Scene.step(dt)
 - 事务/重试/隔离：`netlab/tests/test_solver_transactions.py`（6 项）与 `test_solver_p0.py`（13 项）。
 - 元件契约：`netlab/tests/test_element_contracts.py`（14 项，catalog 公式 ↔ 实现、比较器回差、逻辑门电流、MOS 三态/λ/体效应、运放 SR/GBW）。
 
-### 5.3 热场：有限元 `FemModel.step`（`fem.py:313`）
-
-```python
-        force = self._source_vector(self.time + dt_value)
-        rhs = (self.mass_matrix @ self.temperature) / dt_value + force
-        if self._bc_correction is not None:
-            rhs = rhs - self._bc_correction
-        rhs[self.dirichlet] = self.boundary_values[self.dirichlet]
-        assert self._lu is not None
-        solution = self._lu.solve(rhs)
-```
-
-隐式欧拉 + 固定 LU 分解（只有 `dt` 变了才重新分解），Dirichlet 边界直接压右端项。与信号/电路是**两条独立的求解路径**，通过 `server.py` 的 FEM 服务单独推进。
-
 ### 5.4 数学注解合集（把上面代码里的公式集中写一遍）
 
 > 这一节只做「把代码翻译成数学」，不引入代码里没有的东西；每条都标注了它在代码里的落点。
@@ -935,19 +920,14 @@ J(x_k)·Δx = −F(x_k),   x_{k+1} = x_k + Δx
 
 代码里没有显式写「雅可比矩阵」，而是让每个非线性元件在 `stamp(ctx)` 用**当前工作点**重新线性化（`ctx.solution` 就是 `x_k`），`update_guess` 负责把新解喂回元件。
 
-**⑤ 有限元（热场）**
-
-隐式欧拉：`(M/dt + K)·T[k] = (M/dt)·T[k-1] + f(t)`
-Dirichlet 边界：把对应行换成 `T_i = 边界值`（`rhs[self.dirichlet] = ...`），矩阵不变 → 只分解一次。
-
-**⑥ 四阶 Runge–Kutta**（见 §4.7(c)）：
+**⑤ 四阶 Runge–Kutta**（见 §4.7(c)）：
 
 ```
 k₁ = f(t, x),  k₂ = f(t+dt/2, x+dt·k₁/2),  k₃ = f(t+dt/2, x+dt·k₂/2),  k₄ = f(t+dt, x+dt·k₃)
 x[k+1] = x[k] + dt/6·(k₁ + 2k₂ + 2k₃ + k₄)
 ```
 
-**⑦ 稳定性与量纲直觉（代码里的硬上限）**
+**⑥ 稳定性与量纲直觉（代码里的硬上限）**
 
 | 量 | 代码常量 | 含义 |
 | --- | --- | --- |
@@ -1138,7 +1118,6 @@ class SimConfig:
 | `Simulation.steps` | `simulation.py` | 已推进的步数（`T_step` 语义的落点） |
 | `Network.time` | `graph.py` | 信号内核时间；每步 `+= dt` |
 | `CircuitSolver.time` | `nodal.py` | 电路内核时间 |
-| `FemModel.time` | `fem.py` | 热场内核时间 |
 | 节点 `ctx.time` | `graph.py` | **本步结束时刻** = `network.time + dt` |
 | 帧 `t` | `Recorder` | `Simulation.time` 的 9 位小数快照 |
 
@@ -1178,7 +1157,6 @@ class SimConfig:
 | 改时间推进/帧率/采样 | `simulation.py` `SimConfig` / `_loop` / `_advance_locked` | `dt`、`steps_per_frame`、`sample_every` |
 | 改录制/游标 | `simulation.py` `Recorder` | `seq` 单调递增，删帧不影响游标 |
 | 改功能块内部求解 | `scene.py` `_wire_blocks`、`blocks.py` `BlockRuntime.step` | 端口只传标量 |
-| 改热场 | `fem.py` `FemModel` | 与信号/电路解耦 |
 | 加分析（频域/传递函数） | 已实现：`analysis.py`（s 域 TF、网络 Bode、复数频响）+ `transfer.py`（TF、Bode、零极点）；新分析可加 `analysis_plugins.py` 的 `AnalysisSpec` | 旁路，只读 `Recorder`/`Scene`，不进求解器（D22/R40） |
 
 ---

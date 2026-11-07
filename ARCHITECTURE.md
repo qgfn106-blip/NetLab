@@ -28,7 +28,7 @@ NetlabHome/
     ├─ plugin_api/v1/         插件稳定门面（只导出稳定协议，不导出内核私有模块）
     ├─ desktop/               桌面壳（pywebview + WebView2；无边框窗口）
     ├─ core/                  ← 内核层（不含任何 HTTP / UI 代码）
-    │   ├─ compute/           计算：求解器、元件模型、复频域、有限元、数字逻辑
+    │   ├─ compute/           计算：求解器、元件模型、复频域、数字逻辑
     │   ├─ model/             连接与网络：场景、图、工程、块、插件、UI profile、工作区
     │   └─ common/            公共：错误与限额（limits）
     ├─ tests/                 pytest（HTTP + 纯函数 + 工程回归 + 像素）
@@ -59,12 +59,12 @@ NetlabHome/
 ┌───────────────┴──────────────────────────────────▼───────────────────┐
 │ 接口层 netlab/server.py（FastAPI）                                    │
 │  请求校验 · 场景增删改 · 工程/工作区文件 · 分析接口 · 控制接口          │
-└───────┬───────────────────────┬───────────────────────┬──────────────┘
-        │                       │                       │
-┌───────▼─────────┐    ┌────────▼─────────┐    ┌────────▼──────────┐
-│ NetworkContainer│    │ FemSimulation    │    │ BlockLibrary      │
-│ 多个 Simulation │    │ Q4 有限元 + 线程  │    │ 复用子图 / 块定义  │
-└───────┬─────────┘    └──────────────────┘    └───────────────────┘
+└───────┬───────────────────────┬──────────────────────────────────────────┘
+        │                       │
+┌───────▼─────────┐    ┌────────▼──────────┐
+│ NetworkContainer│    │ BlockLibrary      │
+│ 多个 Simulation │    │ 复用子图 / 块定义  │
+└───────┬─────────┘    └───────────────────┘
         │
 ┌───────▼──────────────────────────────────────────────────────────────┐
 │ Simulation（core/compute/simulation.py）                              │
@@ -93,7 +93,7 @@ NetlabHome/
                   "nodes": [ { "id", "name", "kind", "position", "params", "data" } ],
                   "edges": [ { "id", "name", "source", "target", "kind", "params" } ] } ],
   "current": "网络 1",
-  "fem": {}, "ui": { "profile": "netlab-ui/1" }, "plugins": [], "blocks": [], "extensions": {},
+  "ui": { "profile": "netlab-ui/1" }, "plugins": [], "blocks": [], "extensions": {},
   "metadata": { "name", "saved_at" },
   "checksum": "<sha256>"
 }
@@ -106,7 +106,7 @@ NetlabHome/
 
 运行时对象由 `Scene` 持有：`nodes: dict[str, NodeRecord]`、`edges: dict[str, EdgeRecord]`，带 `params`（校验后）与 `state`（跨步状态）。
 
-## 4. 三种计算内核
+## 4. 两种计算内核
 
 ### 4.1 信号流与矢量（`core/model/graph.py:Network`）
 
@@ -137,19 +137,16 @@ NetlabHome/
 
 **分析接口**：`operating_point()`（DC 工作点，电容开路、电感 `1e5 S`、源取 t=0，求完恢复检查点）；`ac_sweep(freqs, ...)`（工作点线性化后按 jω 构复数 MNA 逐频求解，含非线性器件会明确报错）。
 
-### 4.3 有限元（`core/compute/fem.py`）
 
-单位方板二维 Q4 瞬态热传导，独立线程、独立录制，与拓扑网络互不影响；`/api/fem/state`、`/api/fem/live` 提供色图与探针。
-
-### 4.4 并网逆变器控制链（`core/compute/computes.py`，R31）
+### 4.3 并网逆变器控制链（`core/compute/computes.py`，R31）
 
 `MyProject/` 提供 P11-01…P11-07 示例：平均模型 `grid_inverter_avg.netlab`（三相电网 + `abc_dq` + 6 状态 LCL `state_space`）、`pll_template.netlab`（SRF-PLL）、`grid_inverter_current.netlab`（dq RL + 双 PI + 前馈解耦）、`grid_inverter_switch.netlab`（六开关三相桥趋势验证）。`sensor`/`actuator` 是跨域桥：`CircuitEngine` 在 MNA 解后采样节点电压，下一拍把执行器值写回受控源，显式一拍延迟。
 
-### 4.5 复数分析层（`core/compute/complex_support.py` + `analysis.frequency_response`，R39）
+### 4.4 复数分析层（`core/compute/complex_support.py` + `analysis.frequency_response`，R39）
 
 时域、瞬态、recorder、PlotKit 始终是 `float64`。只在分析边界使用 `complex128`：`as_complex`/`as_complex_array` 转换，`as_real` 在返回前校验虚部。`frequency_response(scene, input, output)` 对 signal 场景建立 `(I-W(jω))y=b` 复数节点方程，延迟边乘精确 `e^{-jωT}`；对 circuit 场景复用 `nodal.ac_sweep` 的复数 MNA。结果包含 `real/imag/magnitude/phase_deg/db` 与 `backend=complex_graph|complex_mna`。
 
-### 4.6 插件引擎模式（`core/model/engine_registry.py`，R40）
+### 4.5 插件引擎模式（`core/model/engine_registry.py`，R40）
 
 现有 `signal`/`circuit`/`vector` 语义不可替换。插件通过 `EngineSpec(mode, factory, node_kinds, edge_kinds)` 注册**新 mode**；`Scene.ensure_engine()` 对非内置 mode 调 `create_engine(mode, scene)`。引擎必须实现 `EngineProtocol.build/step/reset/probes/stats`，节点/边仍是统一 `NodeRecord`/`EdgeRecord`，插件私有状态只放 `params`/`data`/`state` 或 `ext` 子树。
 
@@ -180,7 +177,7 @@ NetlabHome/
 10.6 ms → 1.6 ms、字节 132 KB → 120 KB；`Recorder.since` 尾部增量 52 µs →
 0.8 µs；204 节点 `to_payload` 1.74 ms → 1.07 ms）见
 [docs/ARCHITECTURE.md §13.5](netlab/docs/ARCHITECTURE.md)：`/api/live`、
-`/api/state`、`/api/fem/*`、`/api/scene/export` 走 `server.fast_json()` 跳过
+`/api/state`、`/api/scene/export` 走 `server.fast_json()` 跳过
 FastAPI 的逐字段编码；前端 `drawChart` 二分定位时间窗并按像素抽稀。
 
 ## 7. 前端（`frontend/`）

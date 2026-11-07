@@ -32,10 +32,9 @@
 | 2 | uvicorn 事件循环线程 | `server_host.py` 后台 `threading.Thread` | asyncio 事件循环，监听 127.0.0.1 |
 | 3 | anyio 工作线程池 (~40) | `server.py` 端点全是同步 `def` | 执行所有 HTTP 端点（FastAPI 自动 `run_in_threadpool`） |
 | 4 | `netlab-simulation` | `core/compute/simulation.py:185` `Thread(name="netlab-simulation")` | 固定步长推进**当前网络**（其余网络冻结） |
-| 5 | `netlab-fem` | `core/compute/fem.py:441` `Thread(name="netlab-fem")` | 有限元求解 |
-| 6 | PlotKit 同步线程 | `plotkit_bridge.py:188`，`SYNC_INTERVAL=0.5` | 2Hz 从仿真环形缓冲拉增量给绘图 |
-| 7 | PlotKit VTK 渲染线程 | `_vendor/plotkit/backends/pyvista_backend._WORKER` | 单线程三维渲染（OpenGL 上下文绑线程） |
-| 8 | **ProcessPoolExecutor 子进程** | `_vendor/plotkit/backends/pyvista_pool.py` `render_many`，`min(4,CPU-1)` | **唯一真·多进程**：三维批量出图 |
+| 5 | PlotKit 同步线程 | `plotkit_bridge.py:188`，`SYNC_INTERVAL=0.5` | 2Hz 从仿真环形缓冲拉增量给绘图 |
+| 6 | PlotKit VTK 渲染线程 | `_vendor/plotkit/backends/pyvista_backend._WORKER` | 单线程三维渲染（OpenGL 上下文绑线程） |
+| 7 | **ProcessPoolExecutor 子进程** | `_vendor/plotkit/backends/pyvista_pool.py` `render_many`，`min(4,CPU-1)` | **唯一真·多进程**：三维批量出图 |
 | — | WebView2 进程树 | — | 前端 JS/渲染，独立于 Python 进程 |
 
 **并发原语**：`core/compute/accel.py` 全局 `_LOCK=RLock`；`core/model/networks.py` `NetworkContainer.lock=RLock`；`simulation.py:166` `Simulation.lock=RLock`；PlotKit `_LOCK=Lock`。所有 Python 线程共享一把 GIL，纯 Python 段互相串行。
@@ -100,7 +99,7 @@
 | 多工程/后台任务 | — | 与 UI 进程隔离 |
 
 **明确不要多进程**：单条电路单个时间步（时间步串行，IPC/序列化开销 >> 收益）——这类提速走 BLAS 多线程（OpenBLAS/MKL）或 GPU（`accel.py`，规模门控 `DEFAULT_GPU_MIN_SIZE=192`，单步内同步）。
-**架构事实**：`SERVICE`/`FEM` 是 `server.py` 模块级内存单例，**不能靠 `uvicorn workers>1` 横向扩容**（每个 worker 各持一份状态会发散）；进程化只能做「任务级分片 + 单一状态所有者」。
+**架构事实**：`SERVICE` 是 `server.py` 模块级内存单例，**不能靠 `uvicorn workers>1` 横向扩容**（每个 worker 各持一份状态会发散）；进程化只能做「任务级分片 + 单一状态所有者」。
 
 ---
 
@@ -1422,7 +1421,7 @@ netlab 现状（2026-10-30 设计，已较合理）：**热窗 200 万点 / 60s�
 ### 27.4 对 NetLab 现状对码（有多少调度基建）
 
 - **没有任何 DAG 任务调度器 / 任务窃取 / 关键路径**：`grep` 全 `netlab/` 只有 `_vendor/plotkit/backends/pyvista_pool.py` 用 **`ProcessPoolExecutor`**(line 20/87) 做**批量三维出图**（`workers=min(4, CPU-1)`，每 worker 首载 vtk 1–2s）——这是唯一"多进程执行"的地方。
-- **计算是"单线程定步循环"**：`simulation.py` 一个 `netlab-simulation` 线程、`fem.py` 一个 `netlab-fem` 线程；HTTP 端点全是同步 `def`，被 FastAPI 丢进 **anyio 线程池（~40）**——但真正的重活（precompute）**在请求线程里同步跑完整个 0→T 且全程持 RLock**（`server.py:749–754` → `SERVICE.precompute` → `simulation.py:316/318`），**期间其它请求全排队**。
+- **计算是"单线程定步循环"**：`simulation.py` 一个 `netlab-simulation` 线程；HTTP 端点全是同步 `def`，被 FastAPI 丢进 **anyio 线程池（~40）**——但真正的重活（precompute）**在请求线程里同步跑完整个 0→T 且全程持 RLock**（`server.py:749–754` → `SERVICE.precompute` → `simulation.py:316/318`），**期间其它请求全排队**。
 - **AC 扫频串行**：`nodal.py` 逐频点 `np.linalg.solve`（§24），天生 **embarrassingly parallel** 却没并行。
 - **GPU 已有但极窄**：`accel.py` 仅单次线代调用可切 CuPy，规模门控 + 同步回拷，无"多任务 GPU 队列/流"。
 

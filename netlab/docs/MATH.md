@@ -15,7 +15,6 @@
 | 信号流 / 矢量网络 | `core/model/graph.py` | 拓扑求值、代数环检测、延迟边、事务步 |
 | 电路 MNA + 瞬态 | `core/compute/nodal.py` | 改进节点法、元件盖章、积分、Newton、DC/AC |
 | 状态空间 | `core/compute/statespace.py`、`linalg.py` | A/B/C/D、离散化、与信号流对接 |
-| 有限元热传导 | `core/compute/fem.py` | Q4 双线性单元瞬态热 |
 | 非线性器件 | `core/compute/transistors.py` | BJT / MOSFET |
 | 数字与定时器 | `core/compute/logic.py`、`digital.py`、`timers.py` | 逻辑门、计数器/移位/DAC/ADC、555/LDO |
 | 磁性 | `core/compute/magnetics.py` | 变压器、耦合电感 |
@@ -42,10 +41,6 @@
 | $I_s$ | 反向饱和电流 | |
 | $\eta$ | 后向误差度量 | 见 §4 |
 | $\omega$ | 角频率 $2\pi f$ | AC 扫描 |
-| $N_i$ | 有限元形函数 | Q4 |
-| $K,\ M$ | 全局刚度矩阵、质量矩阵 | FEM |
-| $\rho c$ | 体积热容 | FEM `capacity` |
-| $k$（FEM 上下文） | 导热系数 | 勿与 Boltzmann 混淆 |
 
 误差/规模常量：`K_BOLTZMANN=8.617333262e-5`（nodal.py:41、transistors.py:11），
 `MAX_NEWTON_ITERATIONS=60`、`NEWTON_ABS_TOL=1e-6`、`NEWTON_REL_TOL=1e-9`、
@@ -419,7 +414,7 @@ $$
 $$
 再取最近采样点
 $$
-i^\*=\arg\min_i\bigl|\log_{10}\omega_i-\log_{10}\omega_{\text{target}}\bigr|,
+i^{\ast}=\arg\min_i\bigl|\log_{10}\omega_i-\log_{10}\omega_{\text{target}}\bigr|,
 $$
 即“吸附最近采样点”；拖动时把 $x$ 夹到绘图区内，方向键按 $i\pm1$（Shift 为 $\pm10$）移动。读数直接取该点的 $(\omega_i,|G(j\omega_i)|,\angle G(j\omega_i))$。
 
@@ -434,76 +429,6 @@ $$
 
 `u_k` 由 `input_map` 从上游信号流节点读取，`y_k` 按 `output_map` 写回本节点输出字段；初始状态 `x0`（长度 $n$）。
 附录另提供 `tustin_tf`（linalg.py:165）做 $H(s)\to H(z)$ 与 `power_iteration_norm`（linalg.py:215）。
-
----
-
-## 7. Q4 二维有限元瞬态热传导
-
-实现：`core/compute/fem.py`。
-
-### 7.1 控制方程与弱形式
-
-$$
-\rho c\,\frac{\partial T}{\partial t}=\nabla\cdot(k\nabla T)+q(x,y,t)
-\quad\text{在单位正方形 }\Omega=[0,1]^2 .
-$$
-
-乘以试探函数 $\phi$、分部积分（$\partial\Omega$ 上法向热流为零，上下绝缘）得弱形式
-
-$$
-\int_\Omega \rho c\,\frac{\partial T}{\partial t}\,\phi\,d\Omega
-+\int_\Omega k\,\nabla T\cdot\nabla\phi\,d\Omega
-=\int_\Omega q\,\phi\,d\Omega .
-$$
-
-### 7.2 单元矩阵（`_shape`，fem.py:77；`_element_matrices`，fem.py:162）
-
-Q4 双线性形函数（参考单元 $\xi,\eta\in[-1,1]$，节点顺序：左下、右下、右上、左上）
-
-$$
-N_1=\tfrac14(1-\xi)(1-\eta),\ N_2=\tfrac14(1+\xi)(1-\eta),\ N_3=\tfrac14(1+\xi)(1+\eta),\ N_4=\tfrac14(1-\xi)(1+\eta).
-$$
-
-映射到物理单元（尺寸 $h_x,h_y$），雅可比行列式 $\det J=h_xh_y/4$，
-$\dfrac{\partial N_i}{\partial x}=\dfrac{2}{h_x}\dfrac{\partial N_i}{\partial \xi}$，
-$\dfrac{\partial N_i}{\partial y}=\dfrac{2}{h_y}\dfrac{\partial N_i}{\partial \eta}$。
-
-2×2 Gauss 积分（`_GAUSS_POINTS`，fem.py:50-55，取 $\pm1/\sqrt3$）：
-
-$$
-\mathbf{K}_e=k\sum_{g=1}^{4}\det J\,\big(\nabla N^{\mathsf T}\nabla N\big)_g,\qquad
-\mathbf{M}_e=\rho c\sum_{g=1}^{4}\det J\,\big(N^{\mathsf T}N\big)_g .
-$$
-
-对应代码 fem.py:170-171（`stiffness += conductivity*det_j*(outer(dndx,dndx)+outer(dndy,dndy))`、
-`mass += capacity*det_j*outer(n,n)`）。`capacity` 即 $\rho c$。
-
-### 7.3 装配（`_assemble`，fem.py:212）
-
-按单元 16 个局部项累加到全局稀疏矩阵 $\mathbf{K},\mathbf{M}$（`coo_matrix`→`csr`）。
-
-### 7.4 时间推进（后向欧拉，`step`，fem.py:313）
-
-$$
-\left(\frac{\mathbf{M}}{\Delta t}+\mathbf{K}\right)\mathbf{T}^{n+1}
-=\frac{\mathbf{M}}{\Delta t}\mathbf{T}^{n}+\mathbf{F}^{n}
--\mathbf{K}_{:,\text{bc}}\,\mathbf{T}_{\text{bc}} .
-$$
-
-- 刚度/质量算子 $\dfrac{\mathbf{M}}{\Delta t}+\mathbf{K}$ 在 `_build_factorization()`（fem.py:234-252）中组
-  装并按 $\Delta t$ 缓存；
-- **Dirichlet 左/右边界**（$T=$ `boundary_left/right`）：消去边界行列、边界行置单位对角，
-  右端扣除已知边界列贡献 $\mathbf{K}_{:,\text{bc}}\mathbf{T}_{\text{bc}}$，并把边界行的右端直接设为边界值
-  （fem.py:237-252、step 中 fem.py:321-323）；
-- 每步 `splu` 已预分解，仅回代（fem.py:245、325）。
-
-热源 $\mathbf{F}^n$：高斯分布、中心随时间摆动，`_source_vector`（fem.py:293-306）
-$$
-q(x,y,t)=\mathrm{amplitude}\,\big(0.55+0.45\sin(2\pi f t)\big)\exp\!\Big(-\frac{(x-x_c)^2+(y-y_c)^2}{2\sigma^2}\Big),
-$$
-其中 $x_c,y_c$ 随时间摆动；用预计算的 `_source_operator`（fem.py:256-306）把 16 个 Gauss 点上的 $q$ 映射到节点。
-
-`dt` 改变时重建分解（fem.py:315-317）。帧容量 `MAX_FEM_FRAMES=900`（fem.py:48）。
 
 ---
 
@@ -844,8 +769,6 @@ $$
 | 工作点 | `nodal.py:2269 operating_point` |
 | AC 扫描 | `nodal.py:2335 ac_sweep` |
 | 状态空间离散化 | `linalg.py:129 cont2discrete`、`statespace.py:132 discretized` |
-| FEM 形函数/单元阵 | `fem.py:77 _shape`、`fem.py:162 _element_matrices` |
-| FEM 装配/推进 | `fem.py:212 _assemble`、`fem.py:236 _build_factorization`、`fem.py:313 step` |
 | BJT | `transistors.py:24 BipolarJunction`、`transistors.py:55 _junction` |
 | MOSFET | `transistors.py:122 Mosfet`、`transistors.py:159 _operating_point` |
 | 逻辑门 | `logic.py:26 LogicGate`、`logic.py:61 stamp` |

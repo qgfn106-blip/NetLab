@@ -14,7 +14,6 @@
 | 想加一种节点/连接 | 8 → [EXTENDING.md](EXTENDING.md) 第 1、2 节 |
 | 想加电路元件 | 5.7 → 8 → [EXTENDING.md](EXTENDING.md) 第 3 节 |
 | 想改前端交互/画面 | 11 → [EXTENDING.md](EXTENDING.md) 第 8 节 |
-| 想改 FEM | 10 → [EXTENDING.md](EXTENDING.md) 第 9 节 |
 | 线上报错/结果不对 | 12、15、16 |
 | 要动代码 / 改文件 | 先读 [CODE_STANDARDS.md](CODE_STANDARDS.md)（Python black+flake8、前端 TypeScript+esbuild，D119 规范 SSOT） |
 
@@ -24,10 +23,9 @@
 
 ## 1. 系统是什么
 
-Netlab 是一个**单进程、双工作区**的交互式仿真台：
+Netlab 是一个**单进程、单工作区**的交互式仿真台：
 
 - **TOPOLOGY（拓扑网络）**：圆形节点 + 有向连接。节点持有数据字典，连接是纯函数。
-- **FIELD · FEM**：单位方板上的二维 Q4 有限元瞬态热传导，独立线程、独立录制。
 
 TOPOLOGY 内部有 3 种模式，共用同一套 HTTP 与场景模型：
 
@@ -43,7 +41,7 @@ TOPOLOGY 内部有 3 种模式，共用同一套 HTTP 与场景模型：
 | --- | --- | --- |
 | HTTP | FastAPI + Pydantic | 请求体 `extra="forbid"`，统一错误体 `{"detail": ...}` |
 | 服务 | Uvicorn | `run.py` 负责端口探测与自动开浏览器 |
-| 数值 | NumPy（必需）、SciPy（仅 FEM） | `linalg.py` 自带 Padé `expm`，不依赖 SciPy |
+| 数值 | NumPy（必需）、SciPy（可选） | `linalg.py` 自带 Padé `expm`，不依赖 SciPy |
 | 前端 | TypeScript（编译到 ES2020）+ Canvas | `frontend/app.ts` 等源码经 esbuild 构建为 `app.js`/`app.utils.js`/`desktop-shim.js`，无第三方运行时库 |
 | 测试 | pytest + httpx/TestClient | 628 项回归用例（2026-11-07：627 passed / 1 skipped），覆盖数值、场景与 API |
 
@@ -53,8 +51,7 @@ TOPOLOGY 内部有 3 种模式，共用同一套 HTTP 与场景模型：
 一个 Python 进程
 ├─ HTTP 线程（uvicorn）        ← 所有 REST 请求
 ├─ netlab-simulation 线程      ← 网络仿真，固定步长
-├─ netlab-fem 线程             ← 有限元仿真，固定步长
-└─ 共享内存：SERVICE / FEM 单例（各自一把 RLock）
+└─ 共享内存：SERVICE 单例（一把 RLock）
 ```
 
 **没有数据库、没有消息队列、没有用户系统。** 场景只在内存里，重启即回到默认信号链。
@@ -72,7 +69,7 @@ NetlabHome/
 ├─ frontend/                  ★ 前端（浏览器侧：TS 源 + esbuild 产物，另有 package.json/tsconfig.json）
 │  ├─ index.html              两工作区外壳
 │  ├─ style.css               纸白/黑墨/铜色主题
-│  ├─ app.ts / app.js         前端逻辑源码（app.ts，另有 app.utils.ts；esbuild 编译为 app.js/app.utils.js）：画布、交互、动态表单、信号图、相图、FEM 渲染
+│  ├─ app.ts / app.js         前端逻辑源码（app.ts，另有 app.utils.ts；esbuild 编译为 app.js/app.utils.js）：画布、交互、动态表单、信号图、相图、渲染
 │  └─ desktop-shim.ts/.js     桌面壳注入（desktop-shim.ts → desktop-shim.js）：无边框窗控、拖拽区
 │
 ├─ netlab/                    后端 Python 包
@@ -87,12 +84,11 @@ NetlabHome/
 │  │  │  ├─ limits.py         ★ 输入边界：异常类型、数值/名称/JSON 校验、硬上限常量
 │  │  │  └─ fastcopy.py       状态快拷贝工具（只读路径加速）
 │  │  │
-│  │  ├─ compute/             （27）底层计算内核——不含任何 I/O、HTTP、UI
+│  │  ├─ compute/             （26）底层计算内核——不含任何 I/O、HTTP、UI
 │  │  │  ├─ simulation.py     ★ 固定步长线程、SimConfig、Recorder、增量查询
 │  │  │  ├─ nodal.py          ★ 电路层：MNA 求解器 + 39 种元件 + ElementSpec
 │  │  │  ├─ linalg.py         线性求解、Padé expm、连续→离散（ZOH/Tustin/欧拉）
 │  │  │  ├─ statespace.py    x'=Ax+Bu, y=Cx+Du 与四种离散化
-│  │  │  ├─ fem.py            ★ 二维 Q4 有限元模型 + FemSimulation 线程
 │  │  │  ├─ computes.py       ★ 节点计算注册表（22 种 kind）
 │  │  │  ├─ methods.py        ★ 连接函数注册表（12 种 kind）
 │  │  │  ├─ circuit_modules.py 电路封装/展开、端口标记与合并
@@ -123,7 +119,7 @@ NetlabHome/
 server.py / desktop/*
   └─ core.model.networks ── core.model.project
        └─ core.model.workspace ── core.model.project
-            └─ core.compute.simulation / core.compute.fem
+            └─ core.compute.simulation
                  └─ core.model.scene
                       ├─ core.model.graph  ← core.compute.computes / core.compute.methods
                       ├─ core.compute.nodal
@@ -146,9 +142,9 @@ server.py / desktop/*
 flowchart TB
   UI["浏览器 SPA（frontend/app.js，经 /static 提供）"]
   API["HTTP 路由层（server.py）"]
-  SVC["应用服务层（Simulation / FemSimulation）"]
+  SVC["应用服务层（Simulation）"]
   SCENE["场景层（Scene + Engine）"]
-  MODEL["计算层（Network / CircuitSolver / FemModel）"]
+  MODEL["计算层（Network / CircuitSolver）"]
   NUM["数值与校验（linalg / params / limits / safeexpr / waveform / statespace）"]
   REG["注册表（computes / methods / nodal.ElementSpec / templates）"]
 
@@ -187,26 +183,20 @@ python run.py
        │    ├─ scene.load_payload(build_template("signal_chain"))
        │    ├─ Simulation(scene)
        │    └─ apply_config(fps=30, dt=0.01, steps_per_frame=1)
-       ├─ FEM = FemSimulation()
-       │    ├─ FemConfig()
-       │    ├─ FemModel(config)      ← 需要 SciPy，否则启动即报错
-       │    └─ recorder.push(初始温度场)
        ├─ FastAPI(title=..., lifespan=lifespan)
        ├─ 注册异常处理器与全部路由
        └─ uvicorn.run(app, ...)
             └─ lifespan 启动时：
                  SERVICE.ensure_thread()   线程存在但 running=False
-                 FEM.ensure_thread()       线程存在但 running=False
 ```
 
 要点：
 
 - **默认场景不是空场景**，打开页面就能看到 4 V / 2 V → 9 V → 27 V 的信号链。
-- **FEM 模型在 import 阶段就构建**（装配 + 稀疏 LU），所以缺 SciPy 是启动失败，不是点击后失败。
-- 两个后台线程在启动时就创建，但只有收到 `run` 后 `running` 才为 `True`，空闲时每 8–10 ms 轮询一次标志位。
+- 仿真线程在启动时就创建，但只有收到 `run` 后 `running` 才为 `True`，空闲时每 8–10 ms 轮询一次标志位。
 - 前端 `boot()` 并行拉 `/api/catalog` 与 `/api/state`，然后首次 `fitView()`、启动轮询。
 
-`lifespan` 的退出路径会 `SERVICE.shutdown()` 与 `FEM.shutdown()`，join 两个线程（各 2 s 超时）。
+`lifespan` 的退出路径会 `SERVICE.shutdown()`，join 仿真线程（2 s 超时）。
 
 ---
 
@@ -412,8 +402,6 @@ sequenceDiagram
 | `/api/state` | 完整场景 + sim 信息 + limits | 启动、变更后、运行中每 4 s |
 | `/api/live` | 增量帧 + cursor + sim 信息 | 运行中约 110 ms |
 | `/api/catalog` | 节点/连接/元件/积分/模式/模板/上限 | 页面加载一次 |
-| `/api/fem/state` | FEM 快照（可选含网格） | 切换工作区、改配置 |
-| `/api/fem/live` | FEM 增量帧（前端只取最新一帧） | 运行中约 110 ms |
 
 **写请求**（`POST/PATCH/DELETE`）统一走 `SERVICE.mutate` 模式：
 
@@ -534,7 +522,6 @@ Pydantic 模型全部 `extra="forbid"`，未知字段直接 422；`NodeUpdate` /
 | 连接本拍输出 | `Connection.output` | `evaluate` | 每步覆盖 |
 | 仿真时间/步数 | `Simulation.time/steps` | 仿真线程 | `reset` 归零 |
 | 录制帧 | `Simulation.recorder` | 仿真线程 | `reset` 清空 |
-| FEM 场 | `FemModel.temperature` | FEM 线程 | `reset` 恢复初值 |
 
 **不要在 `data` 里放跨步状态**：`data` 会被界面编辑、导出、深拷贝；跨步量必须放 `state`。
 
@@ -724,64 +711,6 @@ SERVICE.load_scene(build_template(name))
 
 ---
 
-## 10. FEM 子系统
-
-### 10.1 方程与离散
-
-求解单位正方形上的瞬态热传导：
-
-```text
-ρc ∂T/∂t = ∇·(k∇T) + q(x,y,t)
-```
-
-- 空间：结构化 Q4 双线性单元，2×2 Gauss 积分；
-- 时间：后向欧拉（无条件稳定）；
-- 边界：左右 Dirichlet（默认 20 °C），上下绝缘；
-- 热源：高斯分布，中心随 `sin` 摆动；
-- 线性系统：`(M/dt + K) Tⁿ⁺¹ = M/dt·Tⁿ + F`，SciPy 稀疏 LU 一次分解、每步回代。
-
-### 10.2 代码结构
-
-| 符号 | 职责 |
-| --- | --- |
-| `FemConfig` | 网格、dt、fps、步数、材料、热源、边界、初温 |
-| `build_mesh(nx, ny)` | 节点坐标、Q4 连接表、左右边界索引 |
-| `_shape` / `_element_matrices` | 形函数、单元刚度/质量矩阵 |
-| `FemModel` | 装配全局 M/K、Dirichlet 约化、LU、每步推进 |
-| `FemRecorder` | 900 帧环形录制（`array('f')` 压缩） |
-| `FemSimulation` | 线程、锁、配置、快照、增量查询 |
-| 前端 `drawFem` | 每单元 3×3 子块双线性插值上色 + 真实网格线 + 悬停探针 |
-
-### 10.3 推进细节
-
-```text
-prepare 阶段（构造/配置变更时）：
-  mesh = build_mesh(nx, ny)
-  K_e, M_e = 2×2 Gauss 积分
-  M, K = 全局装配（COO → CSR）
-  dirichlet[left/right] = True
-  operator = M/dt + K
-  约化：去掉 Dirichlet 行列，再在对角线补 1
-  LU = splu(operator_reduced)
-  bc_correction = operator @ known_boundary，边界行置 0
-每步：
-  F = 高斯热源积分（随 time 摆动）
-  rhs = M/dt @ T + F - bc_correction
-  rhs[dirichlet] = boundary_values
-  T = LU.solve(rhs)
-  检查有限性与 1e7 上限
-```
-
-`dt` 变化会触发重新分解（`_factor_dt` 比较）；改网格/材料/边界会重建整个 `FemModel`。
-
-### 10.4 线程与前端
-
-`FemSimulation._loop` 与网络线程同构：读配置 → 跑 `steps_per_frame` 步 → 按 `sample_every` 录制 → 实时节拍。
-
-前端只请求**最新一帧**（`/api/fem/live` 的 `frames` 取最后一条），因为每帧是一个上千长度的温度数组；完整场只在切换工作区或改配置时通过 `/api/fem/state` 拉取。
-
----
-
 ## 11. 前端架构
 
 `frontend/app.ts` 是前端逻辑源码（esbuild 编译为 `app.js`），按注释分成 10 个主段，另有 6.5 / 8.5 / 8.6 / 8.7 等小节（行号为 `app.ts` 分区起点）：
@@ -801,7 +730,7 @@ prepare 阶段（构造/配置变更时）：
 | 8.5 | 工程文件 `.netlab` | 保存/打开/自动保存/最近/信任确认 |
 | 8.6 | 外壳菜单栏 / 左侧网络栏 / 顶部信息条（R08） | 菜单栏、网络切换、状态信息条 |
 | 8.7 | 模块库面板（R02） | 模块/扩展库卡片与拖放 |
-| 9 | 信号图、相图、FEM、轮询 | `renderSignalList`、`drawChart`、`drawPhase`、`drawFem`、`pollLive`、`pollLoop` |
+| 9 | 信号图、相图、轮询 | `renderSignalList`、`drawChart`、`drawPhase`、`pollLive`、`pollLoop` |
 | 10 | 控制、快捷键、启动 | `control`、`shutdownApp`、`bindStaticEvents`、`boot` |
 
 ### 11.1 状态与数据流
@@ -821,7 +750,6 @@ state.selection / inspectorDirty / view / drag … ← 纯 UI 状态
 | --- | --- | --- |
 | `/api/live` | `pollLoop` | 运行中 110 ms，暂停 500 ms |
 | `/api/state` | 启动、写操作、运行中 | 4 s 一次（只在 running 时） |
-| `/api/fem/live` | `pollLoop`（FEM 工作区） | 运行中 110 ms |
 | 图表/相图重绘 | `scheduleChartDraw` / `schedulePhaseDraw` | 约 70–80 ms 节流 |
 | 画布重绘 | `requestDraw` → `requestAnimationFrame` | 每帧最多一次 |
 
@@ -880,9 +808,8 @@ boot()
 
 | 线程 | 入口 | 锁 |
 | --- | --- | --- |
-| HTTP（uvicorn 线程池） | FastAPI 路由 | `SERVICE.lock` / `FEM.lock`（`RLock`） |
+| HTTP（uvicorn 线程池） | FastAPI 路由 | `SERVICE.lock`（`RLock`） |
 | `netlab-simulation` | `Simulation._loop` | 每帧短暂持锁 |
-| `netlab-fem` | `FemSimulation._loop` | 每帧短暂持锁 |
 | `netlab-open-browser` | `run.py` | 无 |
 
 规则：
@@ -890,13 +817,12 @@ boot()
 - **场景的所有读写必须在 `SERVICE.lock` 内**；路由通过 `mutate` / 快照方法进入。
 - 仿真线程整步持锁，所以 HTTP 读到的永远是“步边界”的一致状态。
 - 不要在 handler / 连接函数里调用 HTTP 或起线程；它们已经在锁内。
-- `FEM` 与 `SERVICE` 是两把独立的锁；两个工作区互不阻塞。
 
 ### 12.2 错误策略
 
 - 计算错误 → 暂停并保留现场（`error`、`error_at`），前端横幅 + 状态栏。
 - 请求错误 → 4xx + `detail`。注意 `Scene` 的方法不是事务性的：参数校验发生在赋值前，但批量操作中途失败可能留下部分修改；新增批量接口时要么先整体校验，要么自己保证原子性。
-- 前端 `task()` 捕获错误、toast，特定关键词（电路/代数环/接地/引擎/求逆/奇异/发散/未收敛/有限元）同时显示横幅。
+- 前端 `task()` 捕获错误、toast，特定关键词（电路/代数环/接地/引擎/求逆/奇异/发散/未收敛）同时显示横幅。
 
 ### 12.3 一致性边界
 
@@ -909,7 +835,7 @@ boot()
 
 ## 13. 性能与硬上限
 
-`limits.py` 的常量定义系统输入边界（`RECORDER_CAPACITY` 在 `simulation.py`、`MAX_FEM_FRAMES` 在 `fem.py`）：
+`limits.py` 的常量定义系统输入边界（`RECORDER_CAPACITY` 在 `simulation.py`）：
 
 | 常量 | 值 | 作用 |
 | --- | --- | --- |
@@ -923,16 +849,13 @@ boot()
 | `MAX_NUMBER` | 1e15 | 数值上限 |
 | `MAX_NAME` | 32 | 名称长度 |
 | `RECORDER_CAPACITY` | 6000 | 网络录制帧（`simulation.py:36`） |
-| `MAX_FEM_FRAMES` | 900 | FEM 录制帧（`fem.py:48`） |
-| FEM 网格 | nx 6–80，ny 6–60，节点 ≤6000 | 由 `FemSimulation.apply_config` 校验 |
 
 已有优化：
 
-- `/api/live` 只传增量；FEM 前端只取最新一帧。
+- `/api/live` 只传增量。
 - 探针数量按节点/边上限截断，避免大场景每帧生成巨大字典。
 - 画布 DPR 上限、按需重绘、边包围盒剔除、光点数量阈值。
 - 图表 70–80 ms 节流；本地帧上限 5000。
-- FEM 稀疏 LU 一次分解，每步只回代；网格变化才重装配。
 
 如果要突破 400 节点：先把 `Node.update` 的深拷贝改成结构化只读视图或写时复制，再评估探针与序列化开销。
 
@@ -978,7 +901,7 @@ scheduleChartDraw 70–80ms ─► drawChart：二分定位时间窗 → 稠密�
 
 | 热点 | 改前 | 改后 | 手段 |
 | --- | --- | --- | --- |
-| 600 帧 × 7 探针序列化 | `jsonable_encoder` 10.6 ms | 1.6 ms | `/api/live`、`/api/state`、`/api/fem/state|live`、`/api/scene/export` 改走 `server.fast_json()`，跳过 FastAPI 逐字段编码 |
+| 600 帧 × 7 探针序列化 | `jsonable_encoder` 10.6 ms | 1.6 ms | `/api/live`、`/api/state`、`/api/scene/export` 改走 `server.fast_json()`，跳过 FastAPI 逐字段编码 |
 | 同一响应字节数 | 131,756 B | 120,247 B | `separators=(",",":")` + `ensure_ascii=False` |
 | 204 节点场景序列化 | 6.3 ms | 0.5 ms | 同上 |
 | `Recorder.since` 尾部增量（3 帧 / 容量 5000） | 52 µs | 0.8 µs | `reversed(deque)` 反向收集，遇 `seq<=cursor` 即停，并按连续 seq 提前结束 |
@@ -1024,8 +947,6 @@ scheduleChartDraw 70–80ms ─► drawChart：二分定位时间窗 → 稠密�
 | 新增 HTTP 接口 | `server.py` | Pydantic 模型 + 路由 + `SERVICE.mutate` |
 | 改节点/边外观 | `frontend/app.ts` | `drawNodes` / `drawEdges` / `nodeValueText` |
 | 改信号图/相图 | `frontend/app.ts` | `drawChart` / `drawPhase` |
-| 改 FEM 方程/边界 | `core/compute/fem.py` | `FemModel`、`_element_matrices`、`_source_vector` |
-| 改 FEM 外观 | `frontend/app.ts` | `drawFem`、`femLayout`、`femColor` |
 | 改数值算法 | `core/compute/linalg.py` / `statespace.py` / `waveform.py` | 对应函数 |
 | 改校验/上限 | `core/common/limits.py` | 常量与 `as_*` 函数 |
 | 改视图配置 | `core/model/ui_profile.py` | `UI_PROFILE`、`normalize_ui`、`ui_catalog` |
@@ -1081,9 +1002,6 @@ curl "http://127.0.0.1:8010/api/live?cursor=0&limit=5"
 | `未知参数：xxx` (422) | 参数名不在 spec | 对照 `/api/catalog` |
 | `该连接会形成代数环` (409) | `auto_delay=false` | 允许自动延迟或手设延迟 |
 | 页面空白、`无法连接后端` | 端口被占用/进程退出 | 看终端；换 `--port` |
-| `二维有限元需要 SciPy` | 未安装 SciPy | `pip install scipy` |
-| FEM 色图几乎不变 | 热源太小/导热太大/网格太粗 | 调 `source_amplitude`、`conductivity`、`nx/ny` |
-| 启动时 `ImportError` 指向 FEM | SciPy 缺失 | 安装依赖；FEM 模型在 import 阶段构建 |
 
 ### 16.5 可选浏览器冒烟（本机 Edge + 9333 调试端口）
 
@@ -1101,15 +1019,14 @@ node tools/cdp_eval.mjs "document.title"
 这些不是“待办清单”，而是读代码时容易误判的地方：
 
 1. **内存场景，无持久化**：没有数据库/文件存储；导出 JSON 是唯一保存方式。
-2. **单实例单用户**：`SERVICE` / `FEM` 是模块级单例，同一进程只有一个场景、一个 FEM 场。
+2. **单实例单用户**：`SERVICE` 是模块级单例，同一进程只有一个场景。
 3. **vector 导入不自动加延迟**：`Scene.load_payload` 只在 `mode == "signal"` 时自动把成环边设为延迟。手工构造 vector 模板时要显式写 `"delay": true`。
 4. **清空按钮对 vector 不准确**：`/api/scene/clear` 目前是 `signal ? blank_signal : blank_circuit`，vector 会变成电路空白场景。改模式逻辑时顺手修。
 5. **模式切换是“换空白场景”**，不是保留拓扑换引擎；会丢当前工作。
 6. **前端零框架、单一入口**：源码 `app.ts` 约 1.5 万行单文件（esbuild 编译为 `app.js`），好处是零第三方运行时依赖、打开即用，坏处是搜索与拆分成本高；改大功能建议按段落边界加注释或拆模块。
 7. **每步深拷贝**：数据隔离的代价；超大网络需重构。
 8. **没有认证/CORS**：设计为本地工具；不要直接暴露公网。
-9. **FEM 依赖 SciPy**：且模型在 import 时构建，缺依赖会启动失败。
-10. **模板 id 固定**：模板里写的是 12 位十六进制 id；重复载入同一模板会得到相同 id（因为每次是新 `Scene`，不会冲突），但同一场景内不能重复。
+9. **模板 id 固定**：模板里写的是 12 位十六进制 id；重复载入同一模板会得到相同 id（因为每次是新 `Scene`，不会冲突），但同一场景内不能重复。
 
 ---
 
@@ -1131,8 +1048,6 @@ node tools/cdp_eval.mjs "document.title"
 | 端口契约（PortSpec / PinSpec） | `netlab/core/model/ports.py` 里设备的输入/输出/电源等角色与引脚几何声明，供图纸与校验用 |
 | 视图配置（netlab-ui/1） | `netlab/core/model/ui_profile.py` 的声明式 UI profile：令牌/布局/节点卡片字段 → CSS 变量，不执行插件代码 |
 | 原理图导出 | `netlab/core/compute/schematic_export.py` 用 SchemDraw（可选依赖）把电路场景导出 SVG |
-| Q4 | 四节点双线性四边形单元 |
-| Dirichlet | 固定值边界条件 |
 
 ---
 

@@ -41,7 +41,7 @@ NetlabHome/
 │
 ├─ netlab/                   # Python 包（后端 + 测试 + 文档）
 │  ├─ core/                  # 内核层（本次结构整理的目标）
-│  │  ├─ compute/            # 计算：求解器、元件/节点边算法、分析、FEM、参数模式、功率电子(powerelectronics)、原理图导出(schematic_export)
+│  │  ├─ compute/            # 计算：求解器、元件/节点边算法、分析、参数模式、功率电子(powerelectronics)、原理图导出(schematic_export)
 │  │  ├─ model/              # 连接与网络：Scene、图、功能块、工程文件、模板、工作区、端口契约(ports)、图纸模型(schematic)、视图配置(ui_profile)
 │  │  └─ common/             # 公共：limits（上限、错误类型、类型转换）、fastcopy（状态快拷贝）
 │  ├─ desktop/               # 桌面壳：当前入口是 pywebview + WebView2（另有遗留 Qt 文件）
@@ -62,7 +62,7 @@ NetlabHome/
 | --- | --- |
 | `frontend/` | 浏览器端全部 UI 与绘图逻辑；TypeScript 源码经 esbuild 构建为静态 js，无第三方运行时框架/打包器。 |
 | `netlab/` | Python 包根：服务入口、启动器、集成桥（shim 已于 D85 清空）。 |
-| `netlab/core/compute/` | 不关心“场景怎么存”的计算内核：MNA 求解、节点/边算法、分析、FEM。 |
+| `netlab/core/compute/` | 不关心“场景怎么存”的计算内核：MNA 求解、节点/边算法、分析。 |
 | `netlab/core/model/` | 关心“场景长什么样”的模型层：记录、图、功能块、工程文件、模板、工作区。 |
 | `netlab/core/common/` | 全内核共享的上限常量、错误类型与安全类型转换。 |
 | `netlab/desktop/` | 桌面壳：在后台线程起 uvicorn，用 pywebview 承载同一个 Web 前端。 |
@@ -84,7 +84,6 @@ NetlabHome/
 | `computes.py` | 1550 | 信号层**节点**计算方式注册表（`COMPUTE_SPECS`）与 `solver_traits()` 求解语义标签。 |
 | `circuit_modules.py` | 788 | 电路模块封装/实例化（把子电路变成可复用块）。 |
 | `methods.py` | 719 | 信号层**连接（边）**计算方式注册表（`METHOD_SPECS`）。 |
-| `fem.py` | 684 | 二维有限元瞬态热传导（双线性单元）。 |
 | `simulation.py` | 745 | 固定步长仿真循环、配置、录制缓冲、后台线程。 |
 | `analysis.py` | 1089 | 分析旁路：指标、频谱、周期推荐、传递函数（支持线性网络节点方程 + 反馈环、s 域延迟 Padé、z 域显式延迟）、s 域 TF 分析、网络 Bode、相平面指标、A/B/C/D 导出、复数频响、CSV 导出。 |
 | `analysis_plugins.py` | 95 | R40 插件分析算法注册表：`AnalysisSpec`、`run_analysis()`、结果信封校验。 |
@@ -243,9 +242,8 @@ NetlabHome/
 | 符号 | 签名（摘） | 作用 | 位置 |
 | --- | --- | --- | --- |
 | `SERVICE` | `SERVICE: NetworkContainer = NetworkContainer(default_simulation(), name="网络 1")` | **进程内唯一仿真服务单例**，所有端点围绕它。 | `netlab/server.py:101` |
-| `FEM` | `FEM: FemSimulation = FemSimulation()` | 独立的有限元服务单例。 | `server.py:102` |
 | `app` | `FastAPI(title="Netlab 拓扑网络仿真", …)` | 应用对象；`/static` 挂载前端，lifespan 起停线程。 | `server.py:127` 起（`/static` 在 `:133`） |
-| `/api` 端点组织 | 见 §3.4.1 | 端点按“元数据 / 控制 / 节点 / 连接 / 模板与场景 / 工程 / 多网络 / 工作区 / 分析 / 模块 / 扩展 / FEM”分段。 | `server.py:241` 起的分段注释 |
+| `/api` 端点组织 | 见 §3.4.1 | 端点按“元数据 / 控制 / 节点 / 连接 / 模板与场景 / 工程 / 多网络 / 工作区 / 分析 / 模块 / 扩展”分段。 | `server.py:241` 起的分段注释 |
 | `plotkit_bridge.mount` | `mount(app, service=None) -> bool` | 挂载 `/plotkit` 子应用并起同步线程；缺依赖返回 `False`。 | `netlab/plotkit_bridge.py:669`（`MOUNT_PATH="/plotkit"` `:22`） |
 | `plotkit_bridge.build_figure` | `build_figure(service) -> Any` | 用服务探针构造 PlotKit figure。 | `plotkit_bridge.py:348` |
 | `run.main` | `main()` | uvicorn 启动 + 浏览器打开。 | `netlab/run.py`（`parse_args` / 入口） |
@@ -267,13 +265,13 @@ NetlabHome/
 | 图纸 / 性能 | `GET/POST /api/schematic/layout`、`GET /api/schematic/validate`、`GET /api/profile` | `1830/1835/1847/1852` |
 | 导出 / 帮助 | `GET /api/export/schematic`、`GET /api/help/search`、`GET /api/help/doc` | `1157/462/608` |
 | 功能块 | `GET /api/blocks`、`…/validate`、`…/{id}/open-internal`、`…/save-copy`、`…/references` | `1883/1901/1944/2007/2029` |
-| 扩展 / FEM / 文档 | 应用内 Python 扩展、二维有限元、应用内文档中心 | `2312` 起、`2383` 起、`2280` 起 |
+| 扩展 / 文档 | 应用内 Python 扩展、应用内文档中心 | `2312` 起、`2280` 起 |
 
 ---
 
 ## 4. 调用链：从“用户点运行”到“曲线出现在前端”
 
-以信号/电路网络为例（FEM 工作区走平行的 `pollFem`，此处不展开）。
+以信号/电路网络为例。
 
 | # | 发生处 | 代码 | 做了什么 |
 | ---: | --- | --- | --- |
@@ -390,7 +388,7 @@ NetlabHome/
 | 步骤 | 文件 | 要点 |
 | --- | --- | --- |
 | 1. 容器 | `frontend/index.html` | 加一个 `<div id="tab-xxx" class="tab-pane">`（现有 pane 见 `:124-298`）。 |
-| 2. 渲染 | `frontend/app.ts`（构建产物 `app.js`） | 写 `renderXxx()`，在 tab 切换/sync 流程里调用；参考 `renderAnalysisPanel()`（`:12541`）、`renderFemPanel()`（`:10325`）。 |
+| 2. 渲染 | `frontend/app.ts`（构建产物 `app.js`） | 写 `renderXxx()`，在 tab 切换/sync 流程里调用；参考 `renderAnalysisPanel()`（`:12541`）。 |
 | 3. 样式 | `frontend/style.css` | 加面板样式；优先复用现有 CSS 变量/类。 |
 | 4. 数据 | 已有 `/api/*` 或新增端点 | 前端只通过 `api()` / `jsonRequest()` 访问后端，不 import Python。 |
 

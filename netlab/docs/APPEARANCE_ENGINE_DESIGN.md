@@ -61,3 +61,9 @@
 
 ## 10. 采用的工作流（RhineLabUI-Workflow 五法）
 1. 写标准不写做法；2. 反馈说现象、归因错了当场纠正；3. 看不清就画出来/报可测量指标；4. 满意即冻结方向、先存基线、改动走分支；5. 看不出区别就做对比页，效果不好就回退。反馈沉淀为规则（AGENTS/本文档）。
+
+## 11. 附加参考仓库与取舍（2026-11-07 用户提供）
+- **solid-glass**（deeplethe/solid-glass）：介于扁平与 liquid glass 之间，「远处是实体、近看有材质」。四铁律：**饰在边缘（finish at the edge）、厚重不轻飘（heavy, not airy）、深度即厚度（depth is thickness）、单一主状态（one state）**；细边框 + 柔和阴影 + 边缘高光建立层次，中性表面降干扰，颜色/动效只用于有意义反馈；可调 dials：thickness/tint/chart colour/type/radius/rim/blur。→ **采用**：面板/卡片/输入框用「边缘高光 + 厚度阴影（外阴影+内上沿亮线）+ 单一激活态 + 克制用色」的 CSS 材质；不引入透明折射。在 P-A2/P-A3 增补 `rim`（边缘高光）、`shadow` 令牌。
+- **liquid-glass**（Glass-HQ/liquid-glass）：真 liquid glass 折射，需 React19 + WebGPU、HTTPS/localhost，Safari 兼容差。→ **不采用**（破坏离线零构建红线、降低文字可读性）；仅借鉴“镜面高光”观感，用 CSS 边缘高光近似，不引 WebGPU/运行时。
+- **departure-mono**（rektdeckard）：单宽像素等宽字体，lo-fi 技术感，**SIL OFL 可内置**；像素完美需字号取 **11 的整数倍**并微调 tracking。→ **采用**为 **mono 字体**（代码/数值/状态标签/图表刻度），字号 11/22px；正文仍 MiSans 保证清晰。
+- 统一约束：所有「材质/高光/阴影」必须服务可读性与层级，不得压过 §7 的 WCAG 对比度验收；玻璃一律纯 CSS、零第三方运行时。

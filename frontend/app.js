@@ -9009,10 +9009,14 @@ import {
         }
       };
       try {
-        const pre = await api("/api/plotkit/precompute", {
-          method: "POST",
-          body: JSON.stringify({ seconds })
-        });
+        const pre = await runPrecomputeWithProgress(
+          () => api("/api/plotkit/precompute", {
+            method: "POST",
+            body: JSON.stringify({ seconds }),
+            timeoutMs: 18e4
+          }),
+          `\u6B63\u5728\u8BA1\u7B97 0\u2192${seconds}s`
+        );
         if (!pre || pre.ok === false) {
           info.textContent = "\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A" + (pre && pre.error || "\u672A\u77E5\u9519\u8BEF") + "\uFF0C\u53EF\u76F4\u63A5\u8FD0\u884C\u6216\u7F29\u5C0F\u65F6\u95F4\u7A97\u91CD\u8BD5\u3002";
           return;
@@ -13393,6 +13397,81 @@ import {
     const frame = $("#plotkitFrame");
     if (frame) frame.src = plotkitFrameUrl({ embed: "1", r: String(Date.now()) });
   }
+  function mountPrecomputeBar() {
+    const prior = document.getElementById("pkPrecomputeBar");
+    if (prior) prior.remove();
+    const host = document.createElement("div");
+    host.id = "pkPrecomputeBar";
+    host.setAttribute("role", "status");
+    host.setAttribute("aria-live", "polite");
+    host.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:10000;width:min(460px,92vw);background:var(--paper-2,#f3efe6);color:var(--text-primary,#080a08);border:1px solid var(--line-strong,#b9ae98);border-radius:12px;box-shadow:0 18px 48px rgba(0,0,0,.28);padding:12px 16px 13px;font:13px/1.5 "Microsoft YaHei",system-ui,sans-serif;';
+    const head = document.createElement("div");
+    head.style.cssText = "display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px;";
+    const title = document.createElement("span");
+    title.style.cssText = "color:var(--text-primary,#080a08);font-weight:600;";
+    title.textContent = "\u9884\u8BA1\u7B97\u4E2D\u2026";
+    const pct = document.createElement("span");
+    pct.style.cssText = "color:var(--accent,#9b7247);font-weight:600;font-variant-numeric:tabular-nums;";
+    pct.textContent = "0%";
+    head.append(title, pct);
+    const track = document.createElement("div");
+    track.style.cssText = "height:8px;border-radius:999px;background:var(--paper-3,#e7e0d1);overflow:hidden;";
+    const fill = document.createElement("div");
+    fill.style.cssText = "height:100%;width:0%;border-radius:999px;background:var(--accent,#9b7247);transition:width .18s linear;";
+    track.appendChild(fill);
+    const sub = document.createElement("div");
+    sub.style.cssText = "margin-top:7px;color:var(--text-secondary,#7b7266);font-size:12px;";
+    sub.textContent = "\u6B63\u5728\u51C6\u5907\u2026";
+    host.append(head, track, sub);
+    document.body.appendChild(host);
+    return { host, title, pct, fill, sub };
+  }
+  function paintPrecomputeBar(parts, progress, label) {
+    if (!progress) return;
+    const total = Number(progress.total || 0);
+    const done = Number(progress.done || 0);
+    let pctValue = Number(progress.percent);
+    if (!Number.isFinite(pctValue)) pctValue = total > 0 ? done * 100 / total : 0;
+    pctValue = Math.max(0, Math.min(100, pctValue));
+    parts.fill.style.width = `${pctValue.toFixed(1)}%`;
+    parts.pct.textContent = `${Math.round(pctValue)}%`;
+    const status = progress.status || "";
+    parts.title.textContent = status === "done" ? "\u9884\u8BA1\u7B97\u5B8C\u6210" : status === "cancelled" ? "\u5DF2\u505C\u6B62\u9884\u8BA1\u7B97" : status === "error" ? "\u9884\u8BA1\u7B97\u5931\u8D25" : label;
+    const bits = [];
+    if (total > 0) bits.push(`${done} / ${total} \u6B65`);
+    const elapsed = Number(progress.elapsed);
+    if (Number.isFinite(elapsed) && elapsed > 0) bits.push(`\u5DF2\u7528 ${elapsed.toFixed(1)}s`);
+    const eta = progress.eta == null ? Number.NaN : Number(progress.eta);
+    if (progress.running && Number.isFinite(eta) && eta >= 0 && pctValue < 100) {
+      bits.push(`\u5269\u4F59\u7EA6 ${eta.toFixed(1)}s`);
+    }
+    parts.sub.textContent = bits.length ? bits.join(" \xB7 ") : "\u6B63\u5728\u51C6\u5907\u2026";
+  }
+  async function runPrecomputeWithProgress(launch, label = "\u9884\u8BA1\u7B97\u4E2D\u2026") {
+    const parts = mountPrecomputeBar();
+    let finished = false;
+    const tick = async () => {
+      if (finished) return;
+      try {
+        const progress = await api("/api/precompute/progress", {
+          timeoutMs: 4e3
+        });
+        if (!finished) paintPrecomputeBar(parts, progress, label);
+      } catch {
+      }
+    };
+    void tick();
+    const timer = window.setInterval(() => {
+      void tick();
+    }, 220);
+    try {
+      return await launch();
+    } finally {
+      finished = true;
+      window.clearInterval(timer);
+      parts.host.remove();
+    }
+  }
   async function syncAfterPrecompute(pre) {
     if (pre && pre.sim) state.sim = pre.sim;
     else await refreshState(true);
@@ -13418,10 +13497,14 @@ import {
         return;
       }
       if (hint) hint.textContent = `\u6B63\u5728\u9884\u8BA1\u7B97 0\u2192${seconds}s \u7684\u6570\u636E\u2026`;
-      const pre = await api("/api/plotkit/precompute", {
-        method: "POST",
-        body: JSON.stringify({ seconds })
-      });
+      const pre = await runPrecomputeWithProgress(
+        () => api("/api/plotkit/precompute", {
+          method: "POST",
+          body: JSON.stringify({ seconds }),
+          timeoutMs: 18e4
+        }),
+        `\u6B63\u5728\u8BA1\u7B97 0\u2192${seconds}s`
+      );
       if (pre && pre.ok === false) {
         toast("\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A" + (pre.error || "\u672A\u77E5\u9519\u8BEF"), "warn", 4e3);
         if (hint) hint.textContent = `\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A${pre.error || "\u672A\u77E5\u9519\u8BEF"}\uFF1B\u53EF\u91CD\u8BD5\u6216\u68C0\u67E5\u573A\u666F\u3002`;

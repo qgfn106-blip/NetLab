@@ -10200,10 +10200,14 @@ declare function setStatusHint(hint: string): void;
         }
       };
       try {
-        const pre = await api('/api/plotkit/precompute', {
-          method: 'POST',
-          body: JSON.stringify({ seconds }),
-        });
+        const pre = await runPrecomputeWithProgress(
+          () => api('/api/plotkit/precompute', {
+            method: 'POST',
+            body: JSON.stringify({ seconds }),
+            timeoutMs: 180000,
+          }),
+          `正在计算 0→${seconds}s`,
+        );
         if (!pre || pre.ok === false) {
           info!.textContent = '预计算失败：' + ((pre && pre.error) || '未知错误') + '，可直接运行或缩小时间窗重试。';
           return;
@@ -14884,6 +14888,113 @@ declare function setStatusHint(hint: string): void;
     if (frame) (frame as HTMLIFrameElement).src = plotkitFrameUrl({ embed: '1', r: String(Date.now()) });
   }
 
+  /** 预计算进度快照（GET /api/precompute/progress 的返回体）。 */
+  type PrecomputeProgress = {
+    ok?: boolean;
+    status?: string;
+    running?: boolean;
+    done?: number;
+    total?: number;
+    percent?: number;
+    elapsed?: number;
+    eta?: number | null;
+    error?: string | null;
+  };
+
+  function mountPrecomputeBar() {
+    const prior = document.getElementById('pkPrecomputeBar');
+    if (prior) prior.remove();
+    const host = document.createElement('div');
+    host.id = 'pkPrecomputeBar';
+    host.setAttribute('role', 'status');
+    host.setAttribute('aria-live', 'polite');
+    host.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:10000;width:min(460px,92vw);background:var(--paper-2,#f3efe6);color:var(--text-primary,#080a08);border:1px solid var(--line-strong,#b9ae98);border-radius:12px;box-shadow:0 18px 48px rgba(0,0,0,.28);padding:12px 16px 13px;font:13px/1.5 "Microsoft YaHei",system-ui,sans-serif;';
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px;';
+    const title = document.createElement('span');
+    title.style.cssText = 'color:var(--text-primary,#080a08);font-weight:600;';
+    title.textContent = '预计算中…';
+    const pct = document.createElement('span');
+    pct.style.cssText = 'color:var(--accent,#9b7247);font-weight:600;font-variant-numeric:tabular-nums;';
+    pct.textContent = '0%';
+    head.append(title, pct);
+    const track = document.createElement('div');
+    track.style.cssText = 'height:8px;border-radius:999px;background:var(--paper-3,#e7e0d1);overflow:hidden;';
+    const fill = document.createElement('div');
+    fill.style.cssText = 'height:100%;width:0%;border-radius:999px;background:var(--accent,#9b7247);transition:width .18s linear;';
+    track.appendChild(fill);
+    const sub = document.createElement('div');
+    sub.style.cssText = 'margin-top:7px;color:var(--text-secondary,#7b7266);font-size:12px;';
+    sub.textContent = '正在准备…';
+    host.append(head, track, sub);
+    document.body.appendChild(host);
+    return { host, title, pct, fill, sub };
+  }
+
+  function paintPrecomputeBar(
+    parts: ReturnType<typeof mountPrecomputeBar>,
+    progress: PrecomputeProgress | null,
+    label: string,
+  ) {
+    if (!progress) return;
+    const total = Number(progress.total || 0);
+    const done = Number(progress.done || 0);
+    let pctValue = Number(progress.percent);
+    if (!Number.isFinite(pctValue)) pctValue = total > 0 ? (done * 100) / total : 0;
+    pctValue = Math.max(0, Math.min(100, pctValue));
+    parts.fill.style.width = `${pctValue.toFixed(1)}%`;
+    parts.pct.textContent = `${Math.round(pctValue)}%`;
+    const status = progress.status || '';
+    parts.title.textContent =
+      status === 'done' ? '预计算完成'
+      : status === 'cancelled' ? '已停止预计算'
+      : status === 'error' ? '预计算失败'
+      : label;
+    const bits: string[] = [];
+    if (total > 0) bits.push(`${done} / ${total} 步`);
+    const elapsed = Number(progress.elapsed);
+    if (Number.isFinite(elapsed) && elapsed > 0) bits.push(`已用 ${elapsed.toFixed(1)}s`);
+    const eta = progress.eta == null ? Number.NaN : Number(progress.eta);
+    if (progress.running && Number.isFinite(eta) && eta >= 0 && pctValue < 100) {
+      bits.push(`剩余约 ${eta.toFixed(1)}s`);
+    }
+    parts.sub.textContent = bits.length ? bits.join(' · ') : '正在准备…';
+  }
+
+  /**
+   * 预计算期间挂一个浮动进度条 + 百分比 + ETA，完成/失败后自动消失。
+   * 进度条生命周期绑定 launch() 的 Promise（而非进度快照的 status），因此不会
+   * 因上一轮遗留的 done 快照而提前收掉；POST 仍保持同步返回完整结果，调用方拿到
+   * pre 后照常 await syncAfterPrecompute(pre)。进度查询失败不影响主流程。
+   */
+  async function runPrecomputeWithProgress<T>(
+    launch: () => Promise<T>,
+    label = '预计算中…',
+  ): Promise<T> {
+    const parts = mountPrecomputeBar();
+    let finished = false;
+    const tick = async () => {
+      if (finished) return;
+      try {
+        const progress = (await api('/api/precompute/progress', {
+          timeoutMs: 4000,
+        })) as PrecomputeProgress | null;
+        if (!finished) paintPrecomputeBar(parts, progress, label);
+      } catch {
+        // 进度查询失败不应影响主流程；继续等待 launch()
+      }
+    };
+    void tick();
+    const timer = window.setInterval(() => { void tick(); }, 220);
+    try {
+      return await launch();
+    } finally {
+      finished = true;
+      window.clearInterval(timer);
+      parts.host.remove();
+    }
+  }
+
   /**
    * 预计算（/api/plotkit/precompute）把 0→T 整段时序写进了 SERVICE.current.recorder，
    * 与 /api/solve-window 是同一条落地路径。但此前前端只提示帧数、从不刷新 state.sim，
@@ -14919,10 +15030,14 @@ declare function setStatusHint(hint: string): void;
       }
       // 接入前先强制预计算：把 0→T 的整段数据算完再登记，避免边跑边画导致的卡顿
       if (hint) hint.textContent = `正在预计算 0→${seconds}s 的数据…`;
-      const pre = await api('/api/plotkit/precompute', {
-        method: 'POST',
-        body: JSON.stringify({ seconds }),
-      });
+      const pre = await runPrecomputeWithProgress(
+        () => api('/api/plotkit/precompute', {
+          method: 'POST',
+          body: JSON.stringify({ seconds }),
+          timeoutMs: 180000,
+        }),
+        `正在计算 0→${seconds}s`,
+      );
       if (pre && pre.ok === false) {
         toast('预计算失败：' + (pre.error || '未知错误'), 'warn', 4000);
         if (hint) hint.textContent = `预计算失败：${pre.error || '未知错误'}；可重试或检查场景。`;

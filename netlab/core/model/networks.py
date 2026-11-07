@@ -23,7 +23,7 @@ from typing import Any
 from ..common.limits import ConflictError, NotFoundError, ValidationError
 from .project import build_project_from_networks, project_scene_payload
 from .schematic import fill_missing_layout
-from .scene import Scene
+from .scene import MODES, Scene
 from ..compute.simulation import Simulation
 from .templates import build_template
 
@@ -144,17 +144,20 @@ class NetworkContainer:
         return self.list_networks()
 
     # ---- 结构编辑 -----------------------------------------------------------
-    def add_network(self, name: str | None = None) -> dict[str, Any]:
+    def add_network(self, name: str | None = None, mode: str | None = None) -> dict[str, Any]:
         self._require_writable()
-        mode = self.current.scene.mode
+        # 每条网络独立保存自己的工作模式；未指定时沿用当前网络的模式（向后兼容）。
+        chosen = str(mode).strip() if mode is not None else self.current.scene.mode
+        if chosen not in MODES:
+            raise ValidationError(f"未知的工作模式：{chosen!r}")
         template = build_template(
             {
                 "signal": "blank_signal",
                 "circuit": "blank_circuit",
                 "vector": "blank_vector",
-            }[mode]
+            }[chosen]
         )
-        simulation = Simulation(Scene(mode))
+        simulation = Simulation(Scene(chosen))
         try:
             simulation.load_scene(template)
         except Exception:
@@ -163,7 +166,43 @@ class NetworkContainer:
         with self.lock:
             label = str(name or f"网络 {len(self._order) + 1}")[:60]
             network_id = self._append(simulation, label)
-        return {"id": network_id, "name": label, "networks": self.list_networks()}
+        return {"id": network_id, "name": label, "mode": chosen, "networks": self.list_networks()}
+
+    def set_network_mode(self, network_id: str, mode: str) -> dict[str, Any]:
+        """设置某条网络的工作模式（用该模式的空白模板重建其场景）。
+
+        只影响传入的那条网络：当前网络会顺带重建并保持线程可用，其它网络保持冻结。
+        """
+        self._require_writable()
+        clean = str(mode or "").strip()
+        if clean not in MODES:
+            raise ValidationError(f"未知的工作模式：{clean!r}")
+        target = self._entry(network_id)
+        if target.scene.mode == clean:
+            return {"id": network_id, "mode": clean, "networks": self.list_networks()}
+        template = build_template(
+            {
+                "signal": "blank_signal",
+                "circuit": "blank_circuit",
+                "vector": "blank_vector",
+            }[clean]
+        )
+        replacement = Simulation(Scene(clean))
+        try:
+            replacement.load_scene(template)
+        except Exception:
+            replacement.shutdown()
+            raise
+        with self.lock:
+            previous = self._entries.get(network_id)
+            self._entries[network_id] = replacement
+            was_current = network_id == self._current
+        if previous is not None and previous is not replacement:
+            previous.pause()
+            previous.shutdown()
+        if was_current:
+            replacement.ensure_thread()
+        return {"id": network_id, "mode": clean, "networks": self.list_networks()}
 
     def rename_network(self, network_id: str, name: str) -> dict[str, Any]:
         self._require_writable()

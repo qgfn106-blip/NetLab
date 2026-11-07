@@ -191,3 +191,58 @@ def test_project_import_restores_all_networks(client):
     assert len(body["networks"]) == 2
     assert len(body["scene"]["nodes"]) > 0
     assert body["current"] == project["current"]
+
+
+def test_container_per_network_mode_is_independent_and_roundtrips():
+    container = NetworkContainer(build_simulation("a"), name="信号层")
+    try:
+        first = container.current_id
+        created = container.add_network("电路层", "circuit")
+        second = created["id"]
+        assert created["mode"] == "circuit"
+        modes = {item["id"]: item["mode"] for item in container.list_networks()}
+        assert modes[first] == "signal"
+        assert modes[second] == "circuit"
+
+        # 只切换指定网络的模式，另一条网络不受影响
+        container.set_network_mode(first, "vector")
+        modes = {item["id"]: item["mode"] for item in container.list_networks()}
+        assert modes[first] == "vector"
+        assert modes[second] == "circuit"
+
+        with pytest.raises(ValidationError, match="工作模式"):
+            container.add_network("坏层", "no-such-mode")
+
+        project = container.build_project(name="per-mode")
+        saved = {item["id"]: item["scene"]["mode"] for item in project["networks"]}
+        assert saved == {first: "vector", second: "circuit"}
+
+        restored = NetworkContainer(build_simulation("tmp"))
+        try:
+            restored.load_project(validate_project(project))
+            reloaded = {item["id"]: item["mode"] for item in restored.list_networks()}
+            assert reloaded == {first: "vector", second: "circuit"}
+        finally:
+            restored.shutdown()
+    finally:
+        container.shutdown()
+
+
+def test_network_mode_api_create_and_update(client):
+    created = client.post("/api/networks", json={"name": "模式层", "mode": "circuit"})
+    assert created.status_code == 200, created.text
+    body = created.json()
+    assert body["mode"] == "circuit"
+    network_id = next(
+        item["id"] for item in body["networks"] if item["name"] == "模式层"
+    )
+    assert next(item for item in body["networks"] if item["id"] == network_id)["mode"] == "circuit"
+
+    patched = client.patch(f"/api/networks/{network_id}", json={"mode": "vector"})
+    assert patched.status_code == 200, patched.text
+    assert next(item for item in patched.json()["networks"] if item["id"] == network_id)["mode"] == "vector"
+
+    activated = client.post(f"/api/networks/{network_id}/activate")
+    assert activated.status_code == 200, activated.text
+    assert activated.json()["scene"]["mode"] == "vector"
+

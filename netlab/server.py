@@ -1404,12 +1404,14 @@ class NetworkCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str | None = None
+    mode: str | None = None
 
 
-class NetworkRenameRequest(BaseModel):
+class NetworkUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    name: str
+    name: str | None = None
+    mode: str | None = None
 
 
 @app.get("/api/networks")
@@ -1424,13 +1426,24 @@ def networks_list() -> dict[str, Any]:
 
 @app.post("/api/networks")
 def networks_create(request: NetworkCreateRequest) -> dict[str, Any]:
-    created = SERVICE.add_network(request.name)
-    return {"created": created["id"], "networks": SERVICE.list_networks()}
+    created = SERVICE.add_network(request.name, request.mode)
+    return {
+        "created": created["id"],
+        "mode": created.get("mode"),
+        "networks": SERVICE.list_networks(),
+    }
 
 
 @app.patch("/api/networks/{network_id}")
-def networks_rename(network_id: str, request: NetworkRenameRequest) -> dict[str, Any]:
-    return SERVICE.rename_network(network_id, request.name)
+def networks_update(network_id: str, request: NetworkUpdateRequest) -> dict[str, Any]:
+    result: dict[str, Any] | None = None
+    if request.name is not None:
+        result = SERVICE.rename_network(network_id, request.name)
+    if request.mode is not None:
+        result = SERVICE.set_network_mode(network_id, request.mode)
+    if result is None:
+        raise ValidationError("请至少提供 name 或 mode")
+    return result
 
 
 @app.delete("/api/networks/{network_id}")

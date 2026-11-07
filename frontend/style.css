@@ -1219,6 +1219,8 @@ pre.json {
 .network-item .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line-strong); flex: none; }
 .network-item.current .dot { background: var(--accent); }
 .network-item .meta { margin-left: auto; font: 10px/1 var(--mono); color: var(--dim); }
+html[data-theme="dark"] .network-item { color: var(--ink); }
+html[data-theme="dark"] .network-item .meta { color: var(--muted); }
 .networks-foot { display: flex; gap: 4px; padding: 8px; border-top: 1px solid var(--line); }
 .networks-foot .btn { flex: 1; }
 .net-resize { position: absolute; top: 0; right: -3px; width: 6px; height: 100%; cursor: col-resize; z-index: 5; }
@@ -1295,8 +1297,8 @@ html[data-theme="dark"] {
   --paper-3: #2a363b;
   --ink: #e0e3dc;
   --ink-2: #c6cbc3;
-  --muted: #a6b0b1;
-  --dim: #7f8c8e;
+  --muted: #b7c1c2;
+  --dim: #98a3a4;
   --line: #2e3b40;
   --line-strong: #536166;
   --accent: #c5a16b;

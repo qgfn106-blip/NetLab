@@ -77,34 +77,34 @@
 
 原始复数 MNA：
 
-\[
+$$
 A(\omega)x=b,\qquad A(\omega)=G+j\omega C+\frac{1}{j\omega}\Gamma
-\]
+$$
 
-其中 \(G\) 为电导/受控源贡献，\(C\) 为电容 stamp 矩阵，\(\Gamma\) 为电感逆 stamp 矩阵。在参考频点 \(\omega_0\) 分解一次：
+其中 $G$ 为电导/受控源贡献，$C$ 为电容 stamp 矩阵，$\Gamma$ 为电感逆 stamp 矩阵。在参考频点 $\omega_0$ 分解一次：
 
-\[
+$$
 A_0=A(\omega_0)=G+j\omega_0 C+\frac{1}{j\omega_0}\Gamma
-\]
+$$
 
 任意频点写成**双参数仿射族**（Q4=A）：
 
-\[
+$$
 A(\omega)=A_0+U\Sigma(\omega)V^{\mathsf T}
-\]
+$$
 
-- \(U\) 的每一列 = 一个电抗元件对 MNA 的 stamp 向量（接地元件 1 列；浮地电容/电感 2 列，按两端节点差）；
-- \(V\) 的对应列 = 同一 stamp 的转置方向（对称元件时 \(V=U\)）；
-- \(\Sigma(\omega)\) 为块对角：电容块 \(j(\omega-\omega_0)C_i\)，电感块 \(\left(\frac{1}{j\omega}-\frac{1}{j\omega_0}\right)\Gamma_i\)；
-- \(r=\mathrm{rank}(U)=\mathrm{rank}(V)\) 约为电抗 stamp 数（不是节点数）。
+- $U$ 的每一列 = 一个电抗元件对 MNA 的 stamp 向量（接地元件 1 列；浮地电容/电感 2 列，按两端节点差）；
+- $V$ 的对应列 = 同一 stamp 的转置方向（对称元件时 $V=U$）；
+- $\Sigma(\omega)$ 为块对角：电容块 $j(\omega-\omega_0)C_i$，电感块 $\left(\frac{1}{j\omega}-\frac{1}{j\omega_0}\right)\Gamma_i$；
+- $r=\mathrm{rank}(U)=\mathrm{rank}(V)$ 约为电抗 stamp 数（不是节点数）。
 
-用 Woodbury 恒等式，每频点只解 \(r\times r\) 小系统：
+用 Woodbury 恒等式，每频点只解 $r\times r$ 小系统：
 
-\[
+$$
 x=A_0^{-1}b-A_0^{-1}U\left(I+\Sigma V^{\mathsf T}A_0^{-1}U\right)^{-1}\Sigma V^{\mathsf T}A_0^{-1}b
-\]
+$$
 
-**复杂度**：一次 \(A_0\) 的 LU \(O(n^3/3)\)；每频点 \(O(nr+r^3)\)（两次 \(n\times r\) 回代 + 小解）。对比每频点直接 `np.linalg.solve` 的 \(O(n^3/3)\)，理想加速比约 \(n/(3r)\)（忽略常数与 BLAS 差异）。
+**复杂度**：一次 $A_0$ 的 LU $O(n^3/3)$；每频点 $O(nr+r^3)$（两次 $n\times r$ 回代 + 小解）。对比每频点直接 `np.linalg.solve` 的 $O(n^3/3)$，理想加速比约 $n/(3r)$（忽略常数与 BLAS 差异）。
 
 #### 3.1.2 门控与守卫（Q4=A）
 
@@ -165,7 +165,7 @@ x=A_0^{-1}b-A_0^{-1}U\left(I+\Sigma V^{\mathsf T}A_0^{-1}U\right)^{-1}\Sigma V^{
 
 #### 3.3.2 数学口径
 
-- 采样线性插值误差（连续信号）：\(e_{\text{interp}} \le \frac{M h^2}{8}\)，\(M=\max|f''|\)（需估计或保守上界；不能声称精确）；
+- 采样线性插值误差（连续信号）：$e_{\text{interp}} \le \frac{M h^2}{8}$，$M=\max|f''|$（需估计或保守上界；不能声称精确）；
 - 量化穿越时间误差：`dt*epsilon/(d-2*epsilon)`，条件 `dt>0`、`epsilon>=0`、`d=|y1-y0|>2*epsilon`、不饱和、原重构同一首次穿越区间；区间改变时**拒绝**并给出边界原因；
 - FIFO 窗口延迟界：`(Q+W)(A_s+(A-1)r+p)`（来自 mathspec telemetry，条件见 `telemetry.py` 文档字符串）。
 

@@ -297,7 +297,6 @@ declare function setStatusHint(hint: string): void;
     settingsWin: HTMLElement;
     settingsClose: HTMLElement;
     guide: HTMLElement;
-    guideNever: HTMLInputElement;
     guideEnter: HTMLElement;
     guideDocs: HTMLElement;
     guideDemo: HTMLElement;
@@ -588,7 +587,6 @@ declare function setStatusHint(hint: string): void;
     settingsWin: $('#settingsWin'),
     settingsClose: $('#setWinClose'),
     guide: $('#guide'),
-    guideNever: $<HTMLInputElement>('#guideNever'),
     guideEnter: $('#guideEnter'),
     guideDocs: $('#guideDocs'),
     guideDemo: $('#guideDemo'),
@@ -10134,6 +10132,8 @@ declare function setStatusHint(hint: string): void;
         }
         state.precomputedSeconds = seconds;
         state.precomputedRevision = state.scene?.revision ?? null;
+        // 同步预计算产出的录制数据，让「分析·信号」等面板能列出并加载变量
+        await syncAfterPrecompute(pre);
         // 2026-11-03：预计算现在按当前仿真 dt 采样，只有超过步数上限才会降级；
         // 降级必须说清楚，否则用户会以为「调高精度没生效」。
         const preNote = pre.degraded
@@ -13197,7 +13197,8 @@ declare function setStatusHint(hint: string): void;
       state.booted = true;
       await maybeOfferRecovery();
       await ensureStoppedOnBoot();
-      if (state.prefs.guide !== 'never') showGuide();
+      // 启动引导：每次启动都无条件显示开始页（不再受任何「不再显示」偏好影响）
+      showGuide();
       if (!state.sim?.running) {
         toast('画布已就绪：空格运行，双击节点编辑，从右侧端口拖出连线', 'info', 4200);
       }
@@ -13420,6 +13421,8 @@ declare function setStatusHint(hint: string): void;
   async function loadUiPrefs() {
     const cached = readPrefCache();
     if (cached && typeof cached === 'object') state.prefs = { ...state.prefs, ...cached };
+    // 启动引导改为「每次启动必显」：无论缓存里存过什么都没关系，强制 always
+    state.prefs.guide = 'always';
     applyAppearance();
     try {
       const response = await jsonRequest('/api/settings', 'GET');
@@ -13429,7 +13432,8 @@ declare function setStatusHint(hint: string): void;
       state.prefs.motion = ['off', 'low', 'med', 'high'].includes(stored.ui_motion) ? stored.ui_motion : 'low';
       state.prefs.perf = ['perf', 'balanced', 'quality'].includes(stored.ui_perf) ? stored.ui_perf : 'perf';
       state.prefs.accent = typeof stored.ui_accent === 'string' ? stored.ui_accent : '';
-      state.prefs.guide = stored.ui_guide === 'never' ? 'never' : 'always';
+      // 启动引导一律按 always 处理（不再允许通过 ui_guide='never' 关闭开始页）
+      state.prefs.guide = 'always';
       if (typeof stored.autosave_enabled === 'boolean') state.project.autosave = stored.autosave_enabled;
       const interval = Number(stored.autosave_interval_seconds);
       if (Number.isFinite(interval) && interval >= 5) state.project.autosaveInterval = interval * 1000;
@@ -13440,7 +13444,7 @@ declare function setStatusHint(hint: string): void;
     state.uiReady = true;
   }
 
-  const PREF_SETTING_KEYS = { theme: 'theme', motion: 'ui_motion', perf: 'ui_perf', accent: 'ui_accent', guide: 'ui_guide' };
+  const PREF_SETTING_KEYS = { theme: 'theme', motion: 'ui_motion', perf: 'ui_perf', accent: 'ui_accent' };
 
   async function setPref(key: string, value: unknown) {
     state.prefs[key] = value;
@@ -13472,7 +13476,6 @@ declare function setStatusHint(hint: string): void;
     paint($('#segSheet'), String(state.ui?.drawingSheet || 'A3'));
     paint($('#segDrawLabels'), state.ui?.drawingLabels ? 'on' : 'off');
     paint($('#segDrawPage'), String(state.ui?.drawingPage || 1));
-    paint($('#segGuide'), prefs.guide === 'never' ? 'never' : 'always');
     paint($('#segAutosave'), state.project.autosave ? 'on' : 'off');
     if ($('#selAutosaveInterval')) ($('#selAutosaveInterval') as HTMLInputElement).value = String(Math.round(state.project.autosaveInterval / 1000));
     // P-A4 新增 6 项外观控件回填
@@ -13500,7 +13503,6 @@ declare function setStatusHint(hint: string): void;
         if (val === '__custom__') node.style.background = (activeVal && !preset) ? activeVal : '';
       });
     }
-    if (ui.guideNever) ui.guideNever.checked = prefs.guide === 'never';
   }
 
   function initAppearanceControls() {
@@ -13535,10 +13537,6 @@ declare function setStatusHint(hint: string): void;
     bindDrawingSeg('#segSheet', (value) => { state.ui.drawingSheet = value; });
     bindDrawingSeg('#segDrawLabels', (value) => { state.ui.drawingLabels = value === 'on'; });
     bindDrawingSeg('#segDrawPage', (value) => { state.ui.drawingPage = Math.max(1, Math.min(9, Number(value) || 1)); });
-    $('#segGuide')?.addEventListener('click', (event: MouseEvent) => {
-      const target = (event.target! as Element).closest('button[data-value]') as HTMLElement | null;
-      if (target) void setPref('guide', target.dataset.value);
-    });
     $('#segAutosave')?.addEventListener('click', (event: MouseEvent) => {
       const target = (event.target! as Element).closest('button[data-value]') as HTMLElement | null;
       if (!target) return;
@@ -13767,9 +13765,11 @@ declare function setStatusHint(hint: string): void;
   }
 
   // ---- 启动引导 -------------------------------------------------------------
+  // 开始页每次启动必显：showGuide 不再受任何偏好控制（force 参数仅为兼容旧调用保留）。
   function showGuide(force = false) {
     if (!ui.guide) return;
-    if (!force && state.prefs.guide === 'never') return;
+    void force;
+    state.prefs.guide = 'always';
     state.guideShown = true;
     document.body.classList.add('guide-open');
     ui.guide.hidden = false;
@@ -13795,11 +13795,7 @@ declare function setStatusHint(hint: string): void;
 
   async function enterGuideScene() {
     const mode = state.guideMode || 'signal';
-    if (ui.guideNever?.checked) {
-      await setPref('guide', 'never');
-    } else if (state.prefs.guide === 'never') {
-      await setPref('guide', 'always');
-    }
+    // 进入场景只是隐藏本次开始页，不再写入任何「不再显示」偏好，下次启动仍会显示
     hideGuide();
     if (mode !== state.mode) {
       await switchMode(mode, { skipConfirm: true });
@@ -14797,6 +14793,19 @@ declare function setStatusHint(hint: string): void;
     if (frame) (frame as HTMLIFrameElement).src = plotkitFrameUrl({ embed: '1', r: String(Date.now()) });
   }
 
+  /**
+   * 预计算（/api/plotkit/precompute）把 0→T 整段时序写进了 SERVICE.current.recorder，
+   * 与 /api/solve-window 是同一条落地路径。但此前前端只提示帧数、从不刷新 state.sim，
+   * 于是「分析·信号」等 netlab 自身分析面板仍用旧的（空）probe_keys，表现为"没有
+   * 数据可加载"。这里把最新 sim 同步回本地 state，并重渲染分析面板（若正显示）。
+   */
+  async function syncAfterPrecompute(pre: { sim?: SimRec } | null) {
+    if (pre && pre.sim) state.sim = pre.sim;
+    else await refreshState(true);
+    updateSignalKeyCache();
+    if (activeTab() === 'analysis') renderAnalysisPanel();
+  }
+
   async function applyPkChannels() {
     const keys = pkCheckedKeys();
     const hint = $('#pkDataHint');
@@ -14838,6 +14847,8 @@ declare function setStatusHint(hint: string): void;
           toast(`预计算已降级步长 ${Number(pre.dt_used).toExponential(1)}s，缩小时间窗可提高精度`, 'warn', 5200);
         }
       }
+      // 同步预计算产出的录制数据，让「分析·信号」等面板能列出并加载变量
+      await syncAfterPrecompute(pre);
       toast(`已接入 ${(data.selected || []).length} 条通道`, 'ok', 2600);
       reloadPlotkitFrame();
       await refreshPkChannels();

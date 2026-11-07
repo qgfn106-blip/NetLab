@@ -925,6 +925,15 @@ def plotkit_precompute(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     # SERVICE.precompute 在求解中途失败时会返回带 error 的部分结果（前面几帧已
     # 登记）。以前这里无条件写 ok=True，界面据此认为预计算成功并压住后续报错。
     merged["ok"] = not result.get("error")
+    # 预计算产出的时序已写入 SERVICE.current.recorder（与 /api/solve-window 是同
+    # 一条落地路径）。把最新 sim（含 probe_keys / cursor / frames_recorded）一并返
+    # 回，前端据此同步 state.sim，netlab 自身「分析·信号」等分析面板才能列出并加
+    # 载这些变量——此前只回帧数，前端 state.sim 一直停在旧/空值，分析面板就"没有
+    # 数据可加载"（2026-11-08 修复）。
+    try:
+        merged["sim"] = SERVICE.info()
+    except Exception:  # pragma: no cover - info() 不应失败
+        pass
     return merged
 
 

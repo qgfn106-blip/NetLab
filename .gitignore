@@ -39,3 +39,7 @@ node_modules/
 # PyInstaller 打包产物（POC，2026-11-06）：构建目录与 dist 不入库；spec 入库以便复现
 build/
 dist/
+
+# 工程迁移备份文件不入库（W4，2026-11-08）：.netlab 压缩迁移前的原始纯文本备份
+*.netlab.bak-*
+*.netlab.bak

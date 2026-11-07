@@ -18,6 +18,7 @@ import shutil
 import tempfile
 import time
 import uuid
+import zlib
 from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -35,6 +36,10 @@ PROJECT_VERSION = 7
 APP_VERSION = "2.1.0"
 MAX_PROJECT_BYTES = 8_000_000
 PROJECT_SUFFIX = ".netlab"
+# 压缩容器魔数头：``1f 4e 4c 41 42 01``。写盘 = 魔数 + zlib.compress(json bytes)；
+# 读盘先探魔数 → 解压 → utf-8 → json.loads；无魔数按纯文本 JSON 解析（兼容全部存量）。
+# checksum 仍算在解压后的 canonical body 上；MAX_PROJECT_BYTES 判定用未压缩体。
+PROJECT_MAGIC = b"\x1fNLAB\x01"
 
 
 def _now() -> str:
@@ -948,22 +953,61 @@ def project_scene_payload(
 
 
 def project_to_text(project: dict[str, Any], *, indent: int = 2) -> str:
+    """把工程序列化成**纯文本 JSON**（供前端/内存交换，不是磁盘格式）。"""
     return json.dumps(project, ensure_ascii=False, indent=indent, allow_nan=False)
+
+
+def encode_project_bytes(project: dict[str, Any], *, indent: int = 2) -> bytes:
+    """工程 dict → 磁盘字节：魔数 + zlib 压缩后的 JSON body。"""
+    body = project_to_text(project, indent=indent).encode("utf-8")
+    return PROJECT_MAGIC + zlib.compress(body, 9)
+
+
+def decode_project_bytes(data: bytes) -> dict[str, Any]:
+    """磁盘字节 → 工程 dict：探魔数 → 解压 → utf-8 → json.loads；无魔数按纯文本解析。"""
+    raw = bytes(data)
+    if raw[: len(PROJECT_MAGIC)] == PROJECT_MAGIC:
+        try:
+            body = zlib.decompress(raw[len(PROJECT_MAGIC) :])
+        except zlib.error as exc:
+            raise ValidationError(f"工程文件解压失败：{exc}") from exc
+    else:
+        body = raw
+    # MAX 判定用**未压缩** body 大小（压缩前后都按解压后校验）。
+    if len(body) > MAX_PROJECT_BYTES:
+        raise LimitError(f"工程文件不能超过 {MAX_PROJECT_BYTES // 1_000_000} MB")
+    try:
+        return json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValidationError(f"工程文件 JSON 解析失败：{exc}") from exc
+
+
+def project_from_text(text: str | bytes) -> dict[str, Any]:
+    """从磁盘内容（str 或 bytes，压缩容器或旧纯文本）解析出工程 dict。"""
+    data = text.encode("utf-8") if isinstance(text, str) else bytes(text)
+    return decode_project_bytes(data)
 
 
 def atomic_write(
     path: str | os.PathLike[str], payload: dict[str, Any] | str | bytes
 ) -> Path:
-    """原子写入工程文件，并把旧文件备份为 ``<name>.bak``。"""
+    """原子写入文件，并把旧文件备份为 ``<name>.bak``。
+
+    * ``dict``（工程）→ 写**压缩容器**（魔数 + zlib），MAX 按未压缩 body 判定；
+    * ``str`` / ``bytes``（设置、模块库 .block、CSV 导出等通用文件）→ 原样写入。
+    """
     target = Path(path).expanduser().resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
     if isinstance(payload, dict):
-        data = project_to_text(payload).encode("utf-8")
+        body = project_to_text(payload).encode("utf-8")
+        if len(body) > MAX_PROJECT_BYTES:
+            raise LimitError(f"工程文件不能超过 {MAX_PROJECT_BYTES // 1_000_000} MB")
+        data = PROJECT_MAGIC + zlib.compress(body, 9)
     elif isinstance(payload, str):
         data = payload.encode("utf-8")
     else:
         data = bytes(payload)
-    if len(data) > MAX_PROJECT_BYTES:
+    if not isinstance(payload, dict) and len(data) > MAX_PROJECT_BYTES:
         raise LimitError(f"工程文件不能超过 {MAX_PROJECT_BYTES // 1_000_000} MB")
     fd, temp_name = tempfile.mkstemp(
         prefix=f".{target.name}.", suffix=".tmp", dir=str(target.parent)
@@ -993,13 +1037,7 @@ def load_project(
     target = Path(path).expanduser().resolve()
     if not target.is_file():
         raise ValidationError(f"工程文件不存在：{target}")
-    size = target.stat().st_size
-    if size > MAX_PROJECT_BYTES:
-        raise LimitError(f"工程文件不能超过 {MAX_PROJECT_BYTES // 1_000_000} MB")
-    try:
-        payload = json.loads(target.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise ValidationError(f"工程文件 JSON 解析失败：{exc}") from exc
+    payload = decode_project_bytes(target.read_bytes())
     return validate_project(payload, library=library)
 
 
@@ -1012,13 +1050,7 @@ def load_project_raw(path: str | os.PathLike[str]) -> dict[str, Any]:
     target = Path(path).expanduser().resolve()
     if not target.is_file():
         raise ValidationError(f"工程文件不存在：{target}")
-    size = target.stat().st_size
-    if size > MAX_PROJECT_BYTES:
-        raise LimitError(f"工程文件不能超过 {MAX_PROJECT_BYTES // 1_000_000} MB")
-    try:
-        payload = json.loads(target.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise ValidationError(f"工程文件 JSON 解析失败：{exc}") from exc
+    payload = decode_project_bytes(target.read_bytes())
     project = migrate_project(payload)
     if not verify_checksum(project):
         # 旧版本（v1 / 场景 JSON）的校验和是对迁移前内容算的：迁移后重算，
@@ -1075,6 +1107,7 @@ __all__ = [
     "APP_VERSION",
     "MAX_PROJECT_BYTES",
     "PROJECT_SUFFIX",
+    "PROJECT_MAGIC",
     "make_network",
     "build_project",
     "build_project_from_networks",
@@ -1087,6 +1120,9 @@ __all__ = [
     "project_current_network",
     "project_scene_payload",
     "project_to_text",
+    "project_from_text",
+    "encode_project_bytes",
+    "decode_project_bytes",
     "atomic_write",
     "load_project",
     "load_project_raw",

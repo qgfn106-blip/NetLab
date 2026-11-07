@@ -4,7 +4,7 @@
 
 ```
 <project>/
-  project.netlab     工程正本（内容仍是单文件 JSON，格式由 project.py 负责）
+  project.netlab     工程正本（单文件压缩容器：魔数 + zlib，格式由 project.py 负责）
   blocks/            本工程自带的模块副本（只读引用优先用 library/）
   extensions/        本工程扩展
   exports/           CSV / 报告等导出物（不覆盖，同名加序号）
@@ -33,6 +33,7 @@ from .project import (
     PROJECT_SUFFIX,
     atomic_write,
     build_project_for,
+    decode_project_bytes,
     load_project,
     save_project,
 )
@@ -343,8 +344,8 @@ def scan_block_references(
         if path.name.startswith("snapshot-"):
             continue
         try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+            payload = decode_project_bytes(path.read_bytes())
+        except (OSError, ValidationError, json.JSONDecodeError):
             continue
         blocks = payload.get("blocks") if isinstance(payload, dict) else None
         if not isinstance(blocks, list):
@@ -429,8 +430,7 @@ def write_snapshot(
     if not verify_checksum(snapshot):
         snapshot.pop("checksum", None)
         snapshot["checksum"] = compute_checksum(snapshot)
-    rendered = json.dumps(snapshot, ensure_ascii=False, indent=2, allow_nan=False)
-    atomic_write(target, rendered)
+    atomic_write(target, snapshot)
     return target
 
 

@@ -649,7 +649,7 @@ def catalog() -> dict[str, Any]:
         "templates": template_catalog(),
         "default_template": "signal_chain",
         "accel": accel.status(),
-        "project": {"format_version": 6, "suffix": ".netlab"},
+        "project": {"format_version": 7, "suffix": ".netlab"},
         "plugins": manager.summaries(),
         "plugin_catalog": manager.capability_catalog(),
         "analysis": analysis_catalog(),

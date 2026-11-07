@@ -3212,9 +3212,11 @@ declare function setStatusHint(hint: string): void;
         ctx.arc(cx, cy, radius, 0, Math.PI * 2);
         ctx.fillStyle = isSelected ? '#f7ecdf' : C('#faf8f2');
         ctx.fill();
+        if (isSelected) { ctx.shadowColor = 'rgba(197, 161, 107, 0.9)'; ctx.shadowBlur = Math.max(6, 9 * k); }
         ctx.strokeStyle = isSelected ? C('#a8541f') : C('#bcb3a1');
-        ctx.lineWidth = isSelected ? 1.5 : 1;
+        ctx.lineWidth = isSelected ? 2.2 : 1;
         ctx.stroke();
+        ctx.shadowBlur = 0;
 
         // 顶部彩色弧线，作为类型标识
         ctx.beginPath();
@@ -3253,11 +3255,11 @@ declare function setStatusHint(hint: string): void;
         const pad = radius * 0.3;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = accent;
+        ctx.fillStyle = isSelected ? '#7a5a2f' : accent;
         ctx.font = `600 ${metaSize}px "Cascadia Code", Consolas, monospace`;
         ctx.fillText(nodeKindLabel(node), cx, cy - radius * 0.56, radius * 1.42);
 
-        ctx.fillStyle = C('#11100e');
+        ctx.fillStyle = isSelected ? '#15130e' : C('#11100e');
         ctx.font = `700 ${nameSize}px "Segoe UI", "Microsoft YaHei", sans-serif`;
         const maxNameWidth = radius * 1.55;
         let name = node.name;
@@ -3268,7 +3270,7 @@ declare function setStatusHint(hint: string): void;
         ctx.fillText(name, cx, cy - radius * 0.06);
 
         if (showValue) {
-          ctx.fillStyle = node.kind === 'ground' ? C('#6f695f') : C('#6f695f');
+          ctx.fillStyle = isSelected ? '#584f43' : C('#6f695f');
           ctx.font = `${valueSize}px "Cascadia Code", Consolas, monospace`;
           const text = node.kind === 'ground' ? '0 V · REF' : nodeValueText(node);
           ctx.fillText(text, cx, cy + radius * 0.38, radius * 1.55);

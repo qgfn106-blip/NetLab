@@ -610,6 +610,20 @@
     <div class="floatwin-resize" id="plotkitResize" title="拖动调整大小"></div>
   </div>
 
+  <!-- 工作台分析 · 信号/状态选择浮窗（W2；可拖出，也可停靠回分析页原位） -->
+  <div id="wbSignalWin" class="floatwin wb-signal-win" hidden role="dialog" aria-label="对比信号选择">
+    <header class="floatwin-head">
+      <b>NETLAB · 对比信号</b>
+      <span class="floatwin-hint">选择状态与共享信号 · 拖动标题栏</span>
+      <button type="button" class="floatwin-dock" id="wbSignalDockBtn" title="停靠回分析页 / 浮出">⇥</button>
+      <button type="button" class="floatwin-min" id="wbSignalWinMin" title="最小化到右下角">—</button>
+      <button type="button" class="floatwin-max" id="wbSignalWinMax" title="最大化 / 还原">▢</button>
+      <button type="button" id="wbSignalWinClose" title="关闭（停靠回分析页）">✕</button>
+    </header>
+    <div class="floatwin-body wb-signal-body" id="wbSignalBody"></div>
+    <div class="floatwin-resize" id="wbSignalResize" title="拖动调整大小"></div>
+  </div>
+
   <!-- VS Code 代码工作区（非模态浮窗；iframe 直连本地 code server，页面与其 WebSocket 同源） -->
   <div id="vscodeWin" class="floatwin vscode-win" hidden role="dialog" aria-label="代码工作区（VS Code）">
     <header class="floatwin-head">

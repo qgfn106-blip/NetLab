@@ -46,9 +46,19 @@ class Cdp {
     });
   }
   static async connect() {
-    const list = await (await fetch(`${CDP}/json/list`)).json();
-    const page = list.find((t) => t.type === 'page' && t.url.startsWith(APP));
-    if (!page) throw new Error(`netlab page not found on ${APP} (targets: ${list.map(t => t.type + ':' + t.url).join(', ')})`);
+    // Prefer a FRESH blank tab so each capture run gets a clean renderer; reusing a
+    // previously-navigated tab can wedge (rAF busy) and hang Page.navigate/eval.
+    let page = null;
+    try {
+      const fresh = await (await fetch(`${CDP}/json/new?about:blank`, { method: 'PUT' })).json();
+      if (fresh && fresh.webSocketDebuggerUrl) page = fresh;
+    } catch { /* fall back to existing target */ }
+    if (!page) {
+      const list = await (await fetch(`${CDP}/json/list`)).json();
+      page = list.find((t) => t.type === 'page' && t.url.startsWith(APP))
+        || list.find((t) => t.type === 'page');
+      if (!page) throw new Error(`netlab page not found on ${APP} (targets: ${list.map(t => t.type + ':' + t.url).join(', ')})`);
+    }
     const ws = new WebSocket(page.webSocketDebuggerUrl);
     await new Promise((resolve, reject) => {
       ws.addEventListener('open', resolve, { once: true });
@@ -134,6 +144,48 @@ async function fitView(cdp) {
   await sleep(400);
 }
 
+// Dismiss the "发现自动保存的工程" recovery confirm so a freshly loaded scene is not
+// replaced by an unrelated autosaved project mid-shot. Only acts on that modal.
+async function dismissRecovery(cdp) {
+  for (let i = 0; i < 10; i++) {
+    const r = await cdp.eval(`(()=>{
+      const hasRecovery=[...document.querySelectorAll('*')].some(e=>e.children.length<10 && /发现自动保存的工程/.test(e.textContent||''));
+      if(!hasRecovery) return 'none';
+      const cancel=[...document.querySelectorAll('button')].find(b=>/^(取消|关闭|以后再说|暂不载入)$/.test((b.textContent||'').trim()) && b.offsetParent!==null);
+      if(cancel){cancel.click(); return 'dismissed';}
+      return 'recovery-no-cancel';
+    })()`);
+    if (r === 'dismissed') { await sleep(350); return 'dismissed'; }
+    if (r === 'none') return 'none';
+    await sleep(300);
+  }
+  return 'timeout';
+}
+
+// Run the R20 "迁移场景为器件模型" flow: menu item -> confirm modal -> 迁移.
+async function doMigrate(cdp) {
+  const a = await menuClick(cdp, '迁移场景为器件模型');
+  await sleep(300);
+  const r = await cdp.eval(`(()=>{
+    const modals=[...document.querySelectorAll('.modal, dialog')].filter(m=>!m.hidden);
+    const m=modals.find(m=>/迁移|器件/.test(m.textContent||'')) || modals[modals.length-1];
+    if(!m) return 'no-modal';
+    const btns=[...m.querySelectorAll('button')];
+    const go=btns.find(b=>/^(迁移|确定|确认|继续)$/.test((b.textContent||'').trim()));
+    if(go){go.click(); return 'confirmed';}
+    return 'no-confirm-btn';
+  })()`);
+  await sleep(1700);
+  return a + '/' + r;
+}
+
+// Ensure a status-bar toggle is in the wanted on/off state by clicking #stXx only when needed.
+async function ensureToggle(cdp, sel, key, want) {
+  const cur = await cdp.eval(`(()=>{try{return !!window.__netlabDebug.state.ui[${JSON.stringify(key)}];}catch(e){return null;}})()`);
+  if (cur !== want) await cdp.eval(clickSel(sel));
+  await sleep(180);
+}
+
 async function ensurePrefs(cdp) {
   // Boot once so the page is live and deterministic before the shot loop.
   // Theme is left as the app's own default (the real current UI) — do not override.
@@ -144,8 +196,8 @@ async function ensurePrefs(cdp) {
 
 // Per-navigation tweaks that must not persist: silence the run-warn advisory.
 async function preparePage(cdp) {
-  await cdp.eval(`(()=>{ window.__netlabDebug.state.prefs.runWarn=false; return document.documentElement.dataset.theme; })()`);
-  await sleep(120);
+  await cdp.eval(`(()=>{ const s=window.__netlabDebug.state; s.prefs.runWarn=false; try{ s.prefs.theme='dark'; }catch(e){} document.documentElement.dataset.theme='dark'; s.needsDraw=true; return document.documentElement.dataset.theme; })()`);
+  await sleep(150);
 }
 
 // Click a menubar dropdown item by its visible label prefix (menus are pre-built
@@ -187,6 +239,12 @@ async function selectEdge(cdp, id) {
   return p.id;
 }
 
+async function selectNodeByName(cdp, name) {
+  const id = await cdp.eval(`(()=>{const n=(window.__netlabDebug.state.scene.nodes||[]).find(n=>n.name===${JSON.stringify(name)});return n?n.id:'';})()`);
+  if (!id) throw new Error(`selectNodeByName: no node named ${name}`);
+  return selectNode(cdp, id);
+}
+
 async function resetSim(cdp) {
   await cdp.eval(`(()=>{document.querySelector('#btnReset')?.click(); return true;})()`);
   await sleep(250);
@@ -211,11 +269,27 @@ async function shoot(cdp, spec) {
   if (spec.template) {
     await postJson(`/api/templates/${encodeURIComponent(spec.template)}`);
   }
+  if (spec.scenefile) {
+    const body = fs.readFileSync(path.resolve(ROOT, spec.scenefile), 'utf8');
+    const res = await fetch(`${APP}/api/scene`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body,
+    });
+    if (!res.ok) throw new Error(`scene load failed ${res.status}: ${await res.text()}`);
+  }
   // fresh navigation so boot state reflects the loaded template + clean prefs
   await cdp.send('Page.navigate', { url: `${APP}/${spec.query || ''}` });
   await waitApp(cdp);
+  await sleep(700);
   await dismissGuide(cdp);
+  await dismissRecovery(cdp);
   await preparePage(cdp);
+
+  // status-bar toggles: [{sel:'#stGrid', key:'grid', on:true}, ...]
+  for (const t of spec.status || []) {
+    await ensureToggle(cdp, t.sel, t.key, t.on !== false);
+  }
 
   if (spec.panel) await openPanel(cdp, spec.panel.group, spec.panel.sub);
 
@@ -228,8 +302,12 @@ async function shoot(cdp, spec) {
     if (act.op === 'menu') await menuClick(cdp, act.label);
     else if (act.op === 'key') await keyPress(cdp, act.key);
     else if (act.op === 'selectNode') await selectNode(cdp, act.id);
+    else if (act.op === 'selectName') await selectNodeByName(cdp, act.name);
     else if (act.op === 'selectEdge') await selectEdge(cdp, act.id);
     else if (act.op === 'wait') await sleep(act.ms);
+    else if (act.op === 'fit') await fitView(cdp);
+    else if (act.op === 'status') { await cdp.eval(clickSel(act.sel)); await sleep(act.settle ?? 200); }
+    else if (act.op === 'migrate') await doMigrate(cdp);
     else if (act.op === 'js') { await cdp.eval(act.js); await sleep(act.settle ?? 350); }
   }
   if (spec.selectNode) await selectNode(cdp, spec.selectNode);
@@ -239,6 +317,9 @@ async function shoot(cdp, spec) {
   if (spec.runMs) await runFor(cdp, spec.runMs);
 
   if (spec.js) { await cdp.eval(spec.js); await sleep(400); }
+
+  // Final safety: if a late autosave-recovery confirm reappeared, take 取消 now.
+  await dismissRecovery(cdp);
 
   await sleep(spec.settleMs ?? 700);
 
@@ -290,17 +371,81 @@ const SHOTS = [
   // p3-analysis: 旁路分析 group
   { name: 'p3-analysis', file: 'p3-analysis.png', outDir: 'netlab/docs/assets', template: 'signal_chain',
     fit: true, panel: { group: 'analysis', sub: 'analysis' } },
-  // NOTE: p4-gb-grid / p4-gb-symbols are intentionally NOT reproduced. The old shots
-  // demonstrate a signal-node symbol-style variant exposed in this build only through the
-  // status-bar node-style cycler (#stNodeStyle), which is unstable under headless capture
-  // (wedges the renderer). Kept as historical evidence rather than faked. See report.
   // r22-categories: node/device category menu (circuit mode 添加节点)
   { name: 'r22-categories', file: 'r22-categories.png', outDir: 'netlab/docs/assets', template: 'trip_unit',
     fit: true, actions: [{ op: 'js', js: `(()=>{const b=[...document.querySelectorAll('.panel-group[data-group=inspect] button')].find(x=>x.textContent.trim().endsWith('添加节点')); if(b){b.click();return 'ok';} return 'miss';})()`, settle: 500 }], settleMs: 700 },
-  // NOTE: p703-context-menu NOT reproduced — dispatching a synthetic contextmenu
-  // event wedges the headless renderer in this build. Kept as original old-UI evidence.
-  // NOTE: cad-schematic NOT reproduced — #stDrawing toggles a blank A3 drafting sheet
-  // (title block only), not a populated schematic in current build. Kept as original.
+
+  // ---- R-series second pass (2026-11-07): re-shot from current templates ----
+  // cad-grid-snap: 网格+吸附 开启、选中节点、运行（对应旧「拖动捕捉」）
+  { name: 'cad-grid-snap', file: 'cad-grid-snap.png', outDir: 'netlab/docs/assets', template: 'rlc_series',
+    status: [{ sel: '#stGrid', key: 'showGrid', on: true }, { sel: '#stSnap', key: 'snap', on: true }],
+    fit: true, selectNode: 'c10000000002', runMs: 1200, settleMs: 700 },
+  // cad-node-dot: 节点·点（实心点）样式 + 选中节点
+  { name: 'cad-node-dot', file: 'cad-node-dot.png', outDir: 'netlab/docs/assets', template: 'rlc_series',
+    fit: true, actions: [{ op: 'status', sel: '#stNodeStyle', settle: 300 }], selectNode: 'c10000000002', runMs: 900, settleMs: 600 },
+  // p2-anchor-drag: 选中信号边 -> 起点/终点锚点 + 路由（曲线）锚点拖拽 UI
+  { name: 'p2-anchor-drag', file: 'p2-anchor-drag.png', outDir: 'netlab/docs/assets', template: 'signal_chain',
+    fit: true, actions: [{ op: 'selectEdge', id: 'b00000000003' }], settleMs: 800 },
+  // p705-replay: 信号面板回放控件
+  { name: 'p705-replay', file: 'p705-replay.png', outDir: 'netlab/docs/assets', template: 'common_collector',
+    panel: { group: 'analysis', sub: 'chart' }, fit: true, runMs: 2500,
+    js: `(()=>{document.querySelector('#btnReplay')?.click(); return 'ok';})()`, settleMs: 900 },
+  // r09-gb: GB 矩形符号风格（信号 M/Σ/K）
+  { name: 'r09-gb', file: 'r09-gb.png', outDir: 'netlab/docs/assets', template: 'signal_chain',
+    fit: true, actions: [{ op: 'menu', label: '切换符号风格' }, { op: 'fit' }], runMs: 1200, keepToasts: true, settleMs: 700 },
+  // r09-orthogonal: 选中信号边并把路由改为「正交折线」(下进上出) 成直角
+  { name: 'r09-orthogonal', file: 'r09-orthogonal.png', outDir: 'netlab/docs/assets', template: 'signal_chain',
+    fit: true, actions: [
+      { op: 'selectEdge', id: 'b00000000003' },
+      { op: 'js', js: `(()=>{const sels=[...document.querySelectorAll('select')];const setSel=(s,t)=>{if(!s)return;const o=[...s.options].find(o=>o.textContent===t);if(o){s.value=o.value;s.dispatchEvent(new Event('change',{bubbles:true}));}};setSel(sels.find(s=>[...s.options].some(o=>o.textContent.includes('正交折线'))),'正交折线');const anch=sels.filter(s=>[...s.options].map(o=>o.textContent).join(',')==='自动,左,右,上,下');if(anch[0])setSel(anch[0],'下');if(anch[1])setSel(anch[1],'上');[...document.querySelectorAll('button')].find(b=>/应用修改/.test(b.textContent))?.click();return 'ok';})()`, settle: 500 },
+    ], settleMs: 700 },
+  // r15-coupling: 变压器耦合电路（自建场景，GB 符号）
+  { name: 'r15-coupling', file: 'r15-coupling.png', outDir: 'netlab/docs/assets', scenefile: '../NetlabExtras/scratch/r15_coupling.json',
+    actions: [{ op: 'menu', label: '切换符号风格' }, { op: 'fit' }], settleMs: 700 },
+  // r15-transformer: 变压器绕组特写（自建紧凑场景，GB 符号）
+  { name: 'r15-transformer', file: 'r15-transformer.png', outDir: 'netlab/docs/assets', scenefile: '../NetlabExtras/scratch/r15_transformer.json',
+    actions: [{ op: 'menu', label: '切换符号风格' }, { op: 'fit' }], settleMs: 700 },
+  // r19-layout: 自动布局重排
+  { name: 'r19-layout', file: 'r19-layout.png', outDir: 'netlab/docs/assets', template: 'rlc_series',
+    actions: [{ op: 'menu', label: '自动布局' }, { op: 'fit' }], runMs: 1000, settleMs: 700 },
+  // r19-pins: 脱扣器 GB 原理图，引脚可见
+  { name: 'r19-pins', file: 'r19-pins.png', outDir: 'netlab/docs/assets', template: 'trip_unit',
+    fit: true, actions: [{ op: 'menu', label: '切换符号风格' }, { op: 'fit' }], runMs: 1000, settleMs: 700 },
+  // r19-schematic-final: 脱扣器 GB 完整原理图
+  { name: 'r19-schematic-final', file: 'r19-schematic-final.png', outDir: 'netlab/docs/assets', template: 'trip_unit',
+    fit: true, actions: [{ op: 'menu', label: '切换符号风格' }, { op: 'fit' }], runMs: 1200, settleMs: 700 },
+  // r20-device-nodes: 迁移为器件模型
+  { name: 'r20-device-nodes', file: 'r20-device-nodes.png', outDir: 'netlab/docs/assets', template: 'rlc_series',
+    actions: [{ op: 'migrate' }, { op: 'menu', label: '切换符号风格' }, { op: 'fit' }], runMs: 1200, keepToasts: true, settleMs: 700 },
+  // r20-device-inspector: 迁移后选中 V1 器件检查器
+  { name: 'r20-device-inspector', file: 'r20-device-inspector.png', outDir: 'netlab/docs/assets', template: 'rlc_series',
+    actions: [{ op: 'migrate' }, { op: 'fit' }, { op: 'selectName', name: 'V1' }], settleMs: 800 },
+  // replay_speed_20261028: 回放速度滑杆
+  { name: 'replay_speed_20261028', file: 'replay_speed_20261028.png', outDir: 'netlab/docs/assets', template: 'signal_chain',
+    panel: { group: 'analysis', sub: 'chart' }, fit: true, runMs: 3000,
+    js: `(()=>{const s=document.querySelector('#replaySpeed');if(s){s.value='120';s.dispatchEvent(new Event('input',{bubbles:true}));s.dispatchEvent(new Event('change',{bubbles:true}));}return 'ok';})()`, settleMs: 800 },
+  // shell-r08: 完整应用外壳
+  { name: 'shell-r08', file: 'shell-r08.png', outDir: 'netlab/docs/assets', template: 'signal_chain', fit: true, runMs: 1500, settleMs: 700 },
+  // source-dc-fields: V1 直流波形参数
+  { name: 'source-dc-fields', file: 'source-dc-fields.png', outDir: 'netlab/docs/assets', template: 'common_collector',
+    fit: true, actions: [{ op: 'selectName', name: 'V1' }], settleMs: 800 },
+  // top_timeline_20261028: 顶部时间轴回放条
+  { name: 'top_timeline_20261028', file: 'top_timeline_20261028.png', outDir: 'netlab/docs/assets', template: 'signal_chain',
+    fit: true, runMs: 6000, settleMs: 700 },
+  // waypoint-drag: 导线选中并加折点
+  { name: 'waypoint-drag', file: 'waypoint-drag.png', outDir: 'netlab/docs/assets', template: 'common_collector',
+    fit: true, actions: [{ op: 'selectEdge', id: 'c00000000001' }, { op: 'js', js: `(()=>{const addB=[...document.querySelectorAll('button')].find(b=>/添加折点/.test(b.textContent));if(addB)addB.click();const nums=[...document.querySelectorAll('input[type=number]')];const set=(el,v)=>{el.value=String(v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));};if(nums[0])set(nums[0],-180);if(nums[1])set(nums[1],30);[...document.querySelectorAll('button')].find(b=>/应用修改/.test(b.textContent))?.click();return 'ok';})()`, settle: 500 }], settleMs: 700 },
+  // cad-schematic: 正交布线 + GB 符号（rlc_series，运行）
+  { name: 'cad-schematic', file: 'cad-schematic.png', outDir: 'netlab/docs/assets', template: 'rlc_series',
+    status: [{ sel: '#stGrid', key: 'showGrid', on: true }, { sel: '#stSnap', key: 'snap', on: true }, { sel: '#stOrtho', key: 'circuitOrthogonal', on: true }],
+    fit: true, actions: [{ op: 'menu', label: '切换符号风格' }, { op: 'fit' }], runMs: 1200, keepToasts: true, settleMs: 700 },
+  // p4-gb-grid: GB 符号 + 网格（rlc_series，不运行）
+  { name: 'p4-gb-grid', file: 'p4-gb-grid.png', outDir: 'netlab/docs/assets', template: 'rlc_series',
+    status: [{ sel: '#stGrid', key: 'showGrid', on: true }, { sel: '#stOrtho', key: 'circuitOrthogonal', on: true }],
+    fit: true, actions: [{ op: 'menu', label: '切换符号风格' }, { op: 'fit' }], keepToasts: true, settleMs: 700 },
+  // p4-gb-symbols: GB 符号按 kind 绘制 + 选中电阻 R1 查看
+  { name: 'p4-gb-symbols', file: 'p4-gb-symbols.png', outDir: 'netlab/docs/assets', template: 'rlc_series',
+    fit: true, actions: [{ op: 'menu', label: '切换符号风格' }, { op: 'fit' }, { op: 'selectEdge', id: 'd10000000002' }], keepToasts: true, settleMs: 800 },
 ];
 
 // ---------------------------------------------------------------- lifecycle
@@ -339,7 +484,8 @@ async function main() {
   if (args.includes('--list')) { for (const s of SHOTS) console.log(s.name, '->', s.outDir + '/' + s.file); return; }
 
   const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
-  const shots = only ? SHOTS.filter((s) => s.name === only) : SHOTS;
+  const onlySet = only ? only.split(',').map((s) => s.trim()).filter(Boolean) : null;
+  const shots = onlySet ? SHOTS.filter((s) => onlySet.includes(s.name)) : SHOTS;
   if (!shots.length) throw new Error(`no shot named ${only}`);
 
   const { procs } = await ensureServerAndEdge();
@@ -348,7 +494,7 @@ async function main() {
     width: VIEW.width, height: VIEW.height, deviceScaleFactor: 1, mobile: false,
   });
   await cdp.send('Emulation.setEmulatedMedia', {
-    media: 'screen', features: [{ name: 'prefers-color-scheme', value: 'light' }],
+    media: 'screen', features: [{ name: 'prefers-color-scheme', value: 'dark' }],
   });
   await ensurePrefs(cdp);
 

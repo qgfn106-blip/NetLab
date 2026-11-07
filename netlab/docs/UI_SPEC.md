@@ -43,9 +43,9 @@
 
 | 令牌 | 浅色 | 深色 | 用途 |
 | --- | --- | --- | --- |
-| `--paper` | `#eae5e1` | `#0f1417` | 页面底色 |
-| `--paper-2` | `#f2efe9` | `#161d21` | 面板/卡片 |
-| `--paper-3` | `#e2dccf` | `#1e282d` | hover/次级底 |
+| `--paper` | `#e8e0d2` | `#0f1417` | 页面底色 |
+| `--paper-2` | `#f3ecdf` | `#161d21` | 面板/卡片 |
+| `--paper-3` | `#e0d9ca` | `#1e282d` | hover/次级底 |
 | `--ink` | `#0a0c0a` | `#e6e9e2` | 主文字 |
 | `--ink-2` | `#2b2a24` | `#c3c9c1` | 次级文字 |
 | `--muted` | `#524f46` | `#8b9799` | 弱化文字 |
@@ -423,7 +423,7 @@ applyAppearance(): 写 html[data-theme|data-motion|data-perf|data-density]
 | 菜单 9 项（D61） | `menuDefinition()` | 自动导出菜单树 9 组 |
 | 帮助体系：`?` 四段 + 搜索 + 术语统一 | `attachParamHelp` + `searchDocs` | 搜索「回放」4 条命中 |
 | 任一模式启动停止 | `ensureStoppedOnBoot()` + 移除自动 run | 进入后 `running=false` |
-| 主题/强调色/动效/性能可调 | `applyAppearance()` + 4 组控件 | 浅色切换后 `--paper=#eae5e1` |
+| 主题/强调色/动效/性能可调 | `applyAppearance()` + 4 组控件 | 浅色切换后 `--paper=#e8e0d2` |
 | GPU 友好 | 只动 transform/opacity；性能档关模糊/阴影 | 无 `filter` 长动画；`data-perf` 生效 |
 | 帮助全局搜索 + 分组（R14） | `searchDocs()` 合并 `/api/help/search`，`doc-sec`/`doc-kind` 分组徽标 | pytest `test_help_search.py`（元件/计算/模板/doc 四类与排序）；搜索「Bode」出分组 |
 | Bode 光标 + 拖动读数（R34） | `attachTfCursor()` + `tfBodeCursorFromEvent()`，`state.tfCursor/tfDragging` | 画布提示条「拖动读数 · ← → 吸附采样点（Shift ×10）」；Math 反查见 MATH.md |

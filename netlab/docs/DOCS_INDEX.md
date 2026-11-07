@@ -1,6 +1,6 @@
 # Netlab 文档索引（DOCS INDEX）
 
-> 最后核对：2026-11-07（本轮以 3.20.1 代码复核 UI_SPEC/EXTENDING/EXTENSIBILITY/PLUGIN_GUIDE/VSCODE/AGENT_GUIDE/OPERATION/ARCHITECTURE）· 当前基线：静态 3.20.1 / 627 passed / R01–R43 / D1–D119；新增 **CODE_STANDARDS.md（代码规范，强制）**
+> 最后核对：2026-11-07（本轮以 3.20.1 代码复核 UI_SPEC/EXTENDING/EXTENSIBILITY/PLUGIN_GUIDE/VSCODE/AGENT_GUIDE/OPERATION/ARCHITECTURE，并新增 APPEARANCE_ENGINE_DESIGN + adr/0003 索引）· 当前基线：静态 3.20.1 / 627 passed / R01–R43 / D1–D119；新增 **CODE_STANDARDS.md（代码规范，强制）**
 > 目的：先在这里找文档，不要凭文件名猜新旧。**历史文档保留原文，但不得作为当前实现口径。**
 
 ## 1. 建议阅读路线
@@ -12,10 +12,10 @@
 | 想理解整体架构 | [ARCHITECTURE.md](../../ARCHITECTURE.md) | [ARCHITECTURE.md](ARCHITECTURE.md)（详细版） |
 | 想查数学公式 | [MATH.md](MATH.md) | [CODE_GUIDE.md](CODE_GUIDE.md) |
 | 想写插件/扩展 | [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md) | [PLUGIN_GUIDE.md](PLUGIN_GUIDE.md) + [CODE_STANDARDS.md](CODE_STANDARDS.md)（Python 规范） |
-| 想改前端/UI | [UI_SPEC.md](UI_SPEC.md) | [CODE_STANDARDS.md](CODE_STANDARDS.md)（TS/JS 规范）+ [FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md) |
+| 想改前端/UI | [UI_SPEC.md](UI_SPEC.md) | [APPEARANCE_ENGINE_DESIGN.md](APPEARANCE_ENGINE_DESIGN.md)（外观引擎/令牌/色板/§12 实施进度，改色改 UI 必读）+ [CODE_STANDARDS.md](CODE_STANDARDS.md)（TS/JS 规范）+ [FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md) |
 | 想知道项目做到哪 | [PROGRESS.md](PROGRESS.md) | [BACKLOG.md](BACKLOG.md) |
 | 想查需求/决策 | [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) | [adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md) |
-| 想改代码（贡献者 / agent） | **[CODE_STANDARDS.md](CODE_STANDARDS.md)** | [AGENT_GUIDE.md](AGENT_GUIDE.md) |
+| 想改代码（贡献者 / agent） | **[CODE_STANDARDS.md](CODE_STANDARDS.md)** | [AGENT_GUIDE.md](AGENT_GUIDE.md) + [APPEARANCE_ENGINE_DESIGN.md](APPEARANCE_ENGINE_DESIGN.md)（改外观/画布色时） |
 
 ## 2. 当前有效文档（active）
 
@@ -52,6 +52,7 @@
 | [PLUGIN_GUIDE.md](PLUGIN_GUIDE.md) | 插件包目录、manifest 与 `PluginContext` 快速示例 | 当前 |
 | [EXTENDING.md](EXTENDING.md) | 快速扩展指南；顶部链接插件包规范 | 当前（legacy 段落保留） |
 | [adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md) | 24 条扩展架构决策 | 当前 |
+| [adr/0003-appearance-engine.md](adr/0003-appearance-engine.md) | 外观引擎 ADR：令牌单一来源（D75）+ LIGHT/DARK 双色板 + 画布令牌化 + 外观面板决策 | 当前 |
 | [GLOSSARY.md](GLOSSARY.md) | 全项目术语表 | 当前 |
 
 ### 2.4 UI / 用户文档
@@ -59,6 +60,7 @@
 | 文档 | 用途 | 状态 |
 | --- | --- | --- |
 | [UI_SPEC.md](UI_SPEC.md) | 界面规范、设计令牌、视图设计器（简单画布为设计目标，见 §20 实现现状） | 当前 |
+| [APPEARANCE_ENGINE_DESIGN.md](APPEARANCE_ENGINE_DESIGN.md) | 全局外观引擎设计（令牌单一来源/双色板/画布令牌化/外观面板分期），§12 为 P-A1–P-A4 实施进度与已知限制；改色/改 UI 必读 | 当前（P-A 已实施，P-B 待办） |
 | [user/quickstart.md](user/quickstart.md) | 5 分钟上手 | 当前 |
 | [user/interface.md](user/interface.md) | 界面区域说明 | 当前 |
 | [user/shortcuts.md](user/shortcuts.md) | 快捷键 | 当前 |

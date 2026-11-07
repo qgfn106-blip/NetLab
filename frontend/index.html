@@ -15,13 +15,12 @@
       </div>
       <div class="brand-text">
         <h1>NETLAB <em>工作台</em></h1>
-        <p>SIGNAL FLOW · CIRCUIT · VECTOR · FEM</p>
+        <p>SIGNAL FLOW · CIRCUIT · VECTOR</p>
       </div>
     </div>
 
     <div id="workspaceSwitch" class="workspace-switch" role="tablist" aria-label="工作区">
       <button type="button" data-workspace="network" class="active">TOPOLOGY</button>
-      <button type="button" data-workspace="fem">FIELD · FEM</button>
     </div>
 
     <div id="modePill" class="mode-pill">信号流</div>
@@ -92,14 +91,6 @@
 
     <section id="stage" aria-label="网络画布">
       <canvas id="graph"></canvas>
-
-      <div id="femStage" class="hidden" aria-label="二维有限元场">
-        <canvas id="femCanvas"></canvas>
-        <div id="femHud" class="fem-hud">
-          <span>FIELD / Q4 FEM</span>
-          <b id="femHudProbe">悬停读取节点温度</b>
-        </div>
-      </div>
 
       <div id="stageHint" class="stage-hint">
         拖拽圆形节点 · 从右侧端口拖出连接 · 双击编辑 · 滚轮缩放
@@ -296,13 +287,6 @@
             <div id="plotkitInlineHost" class="plotkit-inline-host" hidden></div>
           </div>
           <div id="tab-analysis" class="tab-pane stack-pane"></div>
-        </section>
-
-        <section class="panel-group" data-group="fem">
-          <div class="group-subnav"><span class="subnav-note">FIELD · Q4 FEM</span></div>
-          <div id="tab-fem" class="tab-pane stack-pane">
-            <div id="femPanel"></div>
-          </div>
         </section>
       </div>
     </aside>

@@ -36,8 +36,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
   const ctx = canvas.getContext("2d");
   const chartCanvas = $("#chart");
   const chartCtx = chartCanvas.getContext("2d");
-  const femCanvas = $("#femCanvas");
-  const femCtx = femCanvas.getContext("2d");
   const phaseCanvas = $("#phase");
   const phaseCtx = phaseCanvas.getContext("2d");
   const scopeCanvas = $("#scope");
@@ -137,10 +135,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     signalSearch: $("#signalSearch"),
     btnClearChart: $("#btnClearChart"),
     vectorPane: $("#tab-vector"),
-    femPane: $("#tab-fem"),
-    femPanel: $("#femPanel"),
-    femStage: $("#femStage"),
-    femHudProbe: $("#femHudProbe"),
     phaseCanvas,
     phaseReadout: $("#phaseReadout"),
     vectorNode: $("#vectorNode"),
@@ -284,16 +278,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     ext: { list: null, scan: [], notice: "", code: "", result: null },
     lastLiveError: 0,
     workspace: "network",
-    fem: null,
-    femMesh: null,
-    femMeshRevision: 0,
-    femCursor: 0,
-    femFrames: [],
-    femBusy: false,
-    femSize: { w: 1, h: 1, dpr: 1 },
-    femHover: null,
-    femStarted: false,
-    femPanelReady: false,
     phaseSize: { w: 1, h: 1, dpr: 1 },
     phaseNode: "",
     phaseTrail: 900,
@@ -346,7 +330,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       const sub = $(".panel-group.active .group-subnav [data-sub].active");
       return sub ? sub.dataset.sub : group === "modules" ? "blocks" : "chart";
     }
-    if (group === "fem") return "fem";
     return "inspect";
   }
   function modeLabel(mode) {
@@ -618,10 +601,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     return null;
   }
   function syncUI() {
-    if (state.workspace === "fem") {
-      syncFemChrome();
-      return;
-    }
     const sim = state.sim;
     if (!sim) return;
     updateRunButton(sim.running);
@@ -3791,8 +3770,7 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     inst: { group: "analysis", sub: "inst" },
     vector: { group: "analysis", sub: "vector" },
     analysis: { group: "analysis", sub: "analysis" },
-    plotkit: { group: "analysis", sub: "plotkit" },
-    fem: { group: "fem" }
+    plotkit: { group: "analysis", sub: "plotkit" }
   };
   function defaultTabForGroup(group) {
     if (group === "fn") return state.fnRole === "edge" ? "edge-fn" : "node-fn";
@@ -3804,7 +3782,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       const sub = $('.panel-group[data-group="analysis"] .group-subnav [data-sub].active');
       return sub ? sub.dataset.sub : "chart";
     }
-    if (group === "fem") return "fem";
     return "inspect";
   }
   function setPanelGroup(group) {
@@ -3827,14 +3804,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
   function switchTab(name) {
     if (name === "scene") {
       openSettings("project");
-      return;
-    }
-    if (name === "fem" && state.workspace !== "fem") {
-      void switchWorkspace("fem");
-      return;
-    }
-    if (name !== "fem" && state.workspace === "fem") {
-      void switchWorkspace("network").then(() => switchTab(name));
       return;
     }
     const conf = PANEL_GROUPS[name] || PANEL_GROUPS.inspect;
@@ -3872,12 +3841,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     }
     if (conf.sub === "ext") {
       renderExtensionPanel();
-    }
-    if (conf.group === "fem") {
-      renderFemPanel();
-      resizeFem();
-      updateFemPanelValues();
-      drawFem();
     }
   }
   function plotkitFrames() {
@@ -7317,7 +7280,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     state.edgeValues.clear();
     applySnapshot({ scene: response.scene, sim: response.sim, limits: state.limits });
     state.cursor = Number(response.sim?.cursor || 0);
-    if (response.fem && state.fem) state.fem = Object.assign({}, state.fem, response.fem);
     applyProjectUi(response.ui);
     state.project.name = String(project.name || state.project.name || "\u672A\u547D\u540D\u5DE5\u7A0B").slice(0, 120);
     state.project.path = path || "";
@@ -8719,529 +8681,15 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       item.classList.toggle("active", item.dataset.workspace === state.workspace);
     });
   }
-  function syncFemChrome() {
-    const fem = state.fem;
-    if (!fem) return;
-    updateRunButton(Boolean(fem.running));
-    ui.simTime.textContent = fmt(fem.time ?? 0, 3);
-    ui.simFps.textContent = String(Math.round(fem.actual_fps ?? 0));
-    ui.simSteps.textContent = intText(fem.steps ?? 0);
-    ui.simFps.title = `\u76EE\u6807 ${fem.config?.fps ?? "\u2014"} fps \xB7 \u5B9E\u9645 ${(fem.actual_fps ?? 0).toFixed(1)}`;
-    const stats = fem.stats || {};
-    ui.statusMode.textContent = "\u6709\u9650\u5143\u573A";
-    ui.statusEngine.textContent = `Q4 \xB7 ${stats.dof || 0} DOF`;
-    let hint = fem.running ? "\u8FD0\u884C\u4E2D" : "\u5DF2\u6682\u505C";
-    if (fem.config) {
-      hint += ` \xB7 ${fem.config.fps} fps \xD7 ${fem.config.steps_per_frame} \u6B65 \xB7 dt ${fmt(fem.config.dt, 4)}`;
-    }
-    ui.statusHint.textContent = hint;
-    ui.statusLimits.textContent = `\u8282\u70B9 ${stats.nodes || 0} \xB7 \u5355\u5143 ${stats.elements || 0}`;
-    if (fem.error) {
-      if (state.dismissedError !== fem.error) showBanner(fem.error);
-    } else {
-      state.dismissedError = null;
-      hideBanner();
-    }
-    updateFemPanelValues();
-  }
-  function applyFemSnapshot(snapshot) {
-    if (!snapshot) return;
-    state.fem = snapshot;
-    state.femMesh = snapshot.mesh || state.femMesh;
-    state.femMeshRevision = snapshot.mesh_revision || state.femMeshRevision;
-    state.femCursor = Number(snapshot.cursor) || 0;
-    if (Array.isArray(snapshot.field)) {
-      state.femFrames = [{ t: snapshot.time || 0, field: snapshot.field, min: snapshot.stats?.min, max: snapshot.stats?.max }];
-      while (state.femFrames.length > 600) state.femFrames.shift();
-    }
-    updateFemPanelValues();
-    syncFemChrome();
-    resizeFem();
-    drawFem();
-  }
-  async function ensureFemState(force = false) {
-    if (state.fem && !force) return state.fem;
-    try {
-      const snapshot = await api("/api/fem/state");
-      applyFemSnapshot(snapshot);
-      return snapshot;
-    } catch (error) {
-      toast(`\u6709\u9650\u5143\u573A\u52A0\u8F7D\u5931\u8D25\uFF1A${error.message}`, "error", 7e3);
-      return null;
-    }
-  }
   async function switchWorkspace(name) {
     if (name === state.workspace) return;
-    if (name === "fem") {
-      if (state.sim?.running) await networkControl("pause");
-      state.workspace = "fem";
-      document.body.classList.add("workspace-fem");
-      ui.main.classList.add("fem-mode");
-      ui.femStage.classList.remove("hidden");
-      ui.panel.classList.remove("collapsed");
-      ui.main.classList.remove("panel-hidden");
-      ui.panel.classList.add("field-mode");
-      setWorkspaceButtons();
-      switchTab("fem");
-      await ensureFemState();
-      renderFemPanel();
-      resizeFem();
-      updateFemPanelValues();
-      drawFem();
-      syncFemChrome();
-    } else {
-      if (state.fem?.running) await femControl("pause");
-      state.workspace = "network";
-      document.body.classList.remove("workspace-fem");
-      ui.main.classList.remove("fem-mode");
-      ui.femStage.classList.add("hidden");
-      ui.panel.classList.remove("field-mode");
-      setWorkspaceButtons();
-      switchTab("inspect");
-      resizeGraph();
-      resizeChart();
-      syncUI();
-      requestDraw();
-    }
-  }
-  async function femControl(action, steps) {
-    const body = { action };
-    if (steps !== void 0) body.steps = steps;
-    const response = await task(() => jsonRequest("/api/fem/control", "POST", body), { dirty: false });
-    if (!response) return;
-    if (action === "reset") {
-      await ensureFemState(true);
-      state.femStarted = false;
-    } else if (response.fem && state.fem) {
-      state.fem = Object.assign({}, state.fem, response.fem);
-    }
-    syncFemChrome();
-    drawFem();
-    if (action === "step" || action === "reset") await pollFem();
-  }
-  function resizeFem() {
-    if (!ui.femStage) return;
-    const rect = ui.femStage.getBoundingClientRect();
-    const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5);
-    const width = Math.max(1, Math.floor(rect.width));
-    const height = Math.max(1, Math.floor(rect.height));
-    state.femSize = { w: width, h: height, dpr };
-    femCanvas.width = Math.max(1, Math.round(width * dpr));
-    femCanvas.height = Math.max(1, Math.round(height * dpr));
-    if (state.workspace === "fem") drawFem();
-  }
-  function femLayout(w, h) {
-    const padLeft = 52;
-    const padRight = 118;
-    const padTop = 42;
-    const padBottom = 46;
-    const size = Math.max(40, Math.min(w - padLeft - padRight, h - padTop - padBottom));
-    return {
-      size,
-      x0: padLeft + Math.max(0, (w - padLeft - padRight - size) / 2),
-      y0: padTop + Math.max(0, (h - padTop - padBottom - size) / 2)
-    };
-  }
-  function femColor(value, minimum, maximum) {
-    const span = Math.max(1e-9, maximum - minimum);
-    const t = clamp((value - minimum) / span, 0, 1);
-    const stops = [
-      [0, [247, 244, 236]],
-      [0.22, [236, 223, 204]],
-      [0.45, [214, 169, 132]],
-      [0.68, [184, 111, 70]],
-      [0.86, [139, 57, 32]],
-      [1, [59, 18, 10]]
-    ];
-    for (let index = 1; index < stops.length; index += 1) {
-      if (t <= stops[index][0]) {
-        const [t0, c0] = stops[index - 1];
-        const [t1, c1] = stops[index];
-        const ratio = (t - t0) / Math.max(1e-9, t1 - t0);
-        return `rgb(${Math.round(c0[0] + (c1[0] - c0[0]) * ratio)},${Math.round(c0[1] + (c1[1] - c0[1]) * ratio)},${Math.round(c0[2] + (c1[2] - c0[2]) * ratio)})`;
-      }
-    }
-    return "rgb(59, 18, 10)";
-  }
-  function femHoverFromPoint(x, y) {
-    if (!state.femMesh || !state.fem) return null;
-    const { w, h } = state.femSize;
-    const { size, x0, y0 } = femLayout(w, h);
-    if (x < x0 || x > x0 + size || y < y0 || y > y0 + size) return null;
-    const mesh = state.femMesh;
-    const nx = mesh.nx;
-    const ny = mesh.ny;
-    const i = clamp(Math.round((x - x0) / size * nx), 0, nx);
-    const j = clamp(Math.round((1 - (y - y0) / size) * ny), 0, ny);
-    const index = j * (nx + 1) + i;
-    const value = state.fem.field?.[index];
-    if (typeof value !== "number") return null;
-    return {
-      x,
-      y,
-      i,
-      j,
-      index,
-      value,
-      sx: x0 + i / nx * size,
-      sy: y0 + (1 - j / ny) * size
-    };
-  }
-  function drawFem() {
-    if (!ui.femStage || state.workspace !== "fem") return;
-    const { w, h, dpr } = state.femSize;
-    if (w < 20 || h < 20) return;
-    femCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    femCtx.clearRect(0, 0, w, h);
-    femCtx.fillStyle = C("#f2efe7");
-    femCtx.fillRect(0, 0, w, h);
-    if (!state.fem || !state.femMesh) {
-      femCtx.fillStyle = C("#969083");
-      femCtx.font = '12px "Segoe UI", "Microsoft YaHei", sans-serif';
-      femCtx.textAlign = "center";
-      femCtx.textBaseline = "middle";
-      femCtx.fillText("\u6709\u9650\u5143\u573A\u5C1A\u672A\u521D\u59CB\u5316", w / 2, h / 2);
-      return;
-    }
-    const mesh = state.femMesh;
-    const field = state.fem.field || [];
-    const stats = state.fem.stats || {};
-    const config = state.fem.config || {};
-    const minimum = Number.isFinite(stats.min) ? stats.min : Math.min(...field);
-    const maximum = Number.isFinite(stats.max) ? stats.max : Math.max(...field);
-    const { size, x0, y0 } = femLayout(w, h);
-    const nx = Math.max(1, mesh.nx);
-    const ny = Math.max(1, mesh.ny);
-    const cellW = size / nx;
-    const cellH = size / ny;
-    const sub = 3;
-    const elements = mesh.elements || [];
-    for (const element of elements) {
-      const [n0, n1, n2, n3] = element;
-      const t0 = field[n0];
-      const t1 = field[n1];
-      const t2 = field[n2];
-      const t3 = field[n3];
-      if (![t0, t1, t2, t3].every((value) => typeof value === "number")) continue;
-      const ex = x0 + mesh.x[n0] * size;
-      const eyTop = y0 + (1 - mesh.y[n2]) * size;
-      for (let sy = 0; sy < sub; sy += 1) {
-        const v = 1 - (sy + 0.5) / sub;
-        for (let sx = 0; sx < sub; sx += 1) {
-          const u = (sx + 0.5) / sub;
-          const temp = (1 - u) * (1 - v) * t0 + u * (1 - v) * t1 + u * v * t2 + (1 - u) * v * t3;
-          femCtx.fillStyle = femColor(temp, minimum, maximum);
-          femCtx.fillRect(
-            ex + sx * cellW / sub,
-            eyTop + sy * cellH / sub,
-            cellW / sub + 0.6,
-            cellH / sub + 0.6
-          );
-        }
-      }
-    }
-    femCtx.strokeStyle = "rgba(17, 16, 14, 0.12)";
-    femCtx.lineWidth = 0.55;
-    femCtx.beginPath();
-    for (const element of elements) {
-      const n0 = element[0];
-      const n2 = element[2];
-      const ex = x0 + mesh.x[n0] * size;
-      const eyTop = y0 + (1 - mesh.y[n2]) * size;
-      femCtx.rect(ex, eyTop, cellW, cellH);
-    }
-    femCtx.stroke();
-    femCtx.strokeStyle = C("#11100e");
-    femCtx.lineWidth = 1.2;
-    femCtx.strokeRect(x0, y0, size, size);
-    femCtx.strokeStyle = C("#a8541f");
-    femCtx.lineWidth = 2.2;
-    femCtx.beginPath();
-    femCtx.moveTo(x0 + 0.5, y0);
-    femCtx.lineTo(x0 + 0.5, y0 + size);
-    femCtx.moveTo(x0 + size - 0.5, y0);
-    femCtx.lineTo(x0 + size - 0.5, y0 + size);
-    femCtx.stroke();
-    femCtx.fillStyle = C("#6f695f");
-    femCtx.font = '8px "Cascadia Code", Consolas, monospace';
-    femCtx.textAlign = "left";
-    femCtx.textBaseline = "top";
-    femCtx.fillText(`DIRICHLET ${fmt(config.boundary_left, 0)} \xB0C`, x0, y0 + size + 12);
-    femCtx.textAlign = "right";
-    femCtx.fillText(`DIRICHLET ${fmt(config.boundary_right, 0)} \xB0C`, x0 + size, y0 + size + 12);
-    const sourceY = 0.5 + 0.22 * Math.sin(2 * Math.PI * 0.055 * (state.fem.time || 0) + 0.6);
-    const sourceX = Number(config.source_x ?? 0.35);
-    const sourceScreenX = x0 + sourceX * size;
-    const sourceScreenY = y0 + (1 - sourceY) * size;
-    const sourceRadius = Math.max(8, Number(config.source_sigma || 0.09) * size * 2.2);
-    femCtx.strokeStyle = C("rgba(168, 84, 31, 0.85)");
-    femCtx.lineWidth = 1;
-    femCtx.setLineDash([3, 3]);
-    femCtx.beginPath();
-    femCtx.arc(sourceScreenX, sourceScreenY, sourceRadius, 0, Math.PI * 2);
-    femCtx.stroke();
-    femCtx.setLineDash([]);
-    femCtx.beginPath();
-    femCtx.moveTo(sourceScreenX - 5, sourceScreenY);
-    femCtx.lineTo(sourceScreenX + 5, sourceScreenY);
-    femCtx.moveTo(sourceScreenX, sourceScreenY - 5);
-    femCtx.lineTo(sourceScreenX, sourceScreenY + 5);
-    femCtx.stroke();
-    femCtx.fillStyle = C("#a8541f");
-    femCtx.font = '8px "Cascadia Code", Consolas, monospace';
-    femCtx.textAlign = "left";
-    femCtx.textBaseline = "top";
-    femCtx.fillText("HEAT", sourceScreenX + sourceRadius + 3, sourceScreenY - 4);
-    const barX = x0 + size + 22;
-    const barY = y0 + 6;
-    const barW = 9;
-    const barH = size - 12;
-    const gradient = femCtx.createLinearGradient(0, barY, 0, barY + barH);
-    for (let index = 0; index <= 10; index += 1) {
-      gradient.addColorStop(1 - index / 10, femColor(minimum + (maximum - minimum) * index / 10, minimum, maximum));
-    }
-    femCtx.fillStyle = gradient;
-    femCtx.fillRect(barX, barY, barW, barH);
-    femCtx.strokeStyle = C("#bcb3a1");
-    femCtx.lineWidth = 1;
-    femCtx.strokeRect(barX, barY, barW, barH);
-    femCtx.fillStyle = C("#6f695f");
-    femCtx.font = '8px "Cascadia Code", Consolas, monospace';
-    femCtx.textAlign = "center";
-    femCtx.textBaseline = "bottom";
-    femCtx.fillText("T / \xB0C", barX + barW / 2, barY - 4);
-    femCtx.textAlign = "left";
-    femCtx.textBaseline = "middle";
-    for (let index = 0; index <= 4; index += 1) {
-      const ratio = index / 4;
-      const ty = barY + ratio * barH;
-      const value = maximum - (maximum - minimum) * ratio;
-      femCtx.beginPath();
-      femCtx.moveTo(barX + barW, ty);
-      femCtx.lineTo(barX + barW + 4, ty);
-      femCtx.stroke();
-      femCtx.fillText(fmt(value, 1), barX + barW + 7, ty);
-    }
-    femCtx.fillStyle = C("#6f695f");
-    femCtx.font = '8px "Cascadia Code", Consolas, monospace';
-    femCtx.textAlign = "right";
-    femCtx.textBaseline = "top";
-    femCtx.fillText(`t=${fmt(state.fem.time, 4)} s \xB7 solve ${fmt(stats.solve_ms, 2)} ms`, x0 + size, y0 - 24);
-    const hover = state.femHover;
-    if (hover) {
-      femCtx.strokeStyle = C("#11100e");
-      femCtx.lineWidth = 1;
-      femCtx.beginPath();
-      femCtx.moveTo(hover.sx - 7, hover.sy);
-      femCtx.lineTo(hover.sx + 7, hover.sy);
-      femCtx.moveTo(hover.sx, hover.sy - 7);
-      femCtx.lineTo(hover.sx, hover.sy + 7);
-      femCtx.stroke();
-      femCtx.beginPath();
-      femCtx.arc(hover.sx, hover.sy, 8, 0, Math.PI * 2);
-      femCtx.stroke();
-      const label = `T ${fmt(hover.value, 2)} \xB0C \xB7 (${hover.i},${hover.j})`;
-      femCtx.font = '9px "Cascadia Code", Consolas, monospace';
-      const textWidth = femCtx.measureText(label).width;
-      const labelX = clamp(hover.sx + 12, x0, x0 + size - textWidth - 10);
-      const labelY = clamp(hover.sy - 20, y0, y0 + size - 18);
-      femCtx.fillStyle = "rgba(250, 248, 242, .95)";
-      femCtx.fillRect(labelX - 4, labelY - 2, textWidth + 8, 15);
-      femCtx.fillStyle = C("#11100e");
-      femCtx.textAlign = "left";
-      femCtx.textBaseline = "top";
-      femCtx.fillText(label, labelX, labelY);
-      ui.femHudProbe.textContent = `T=${fmt(hover.value, 3)} \xB0C \xB7 node (${hover.i}, ${hover.j})`;
-    } else {
-      ui.femHudProbe.textContent = `Tmax=${fmt(maximum, 2)} \xB0C \xB7 Tmin=${fmt(minimum, 2)} \xB0C \xB7 mean=${fmt(stats.mean, 2)} \xB0C`;
-    }
-  }
-  function readFemConfig() {
-    const read = (key) => {
-      const input = $(`[data-fem="${key}"]`, ui.femPanel);
-      return input ? Number(input.value) : NaN;
-    };
-    const config = {
-      nx: read("nx"),
-      ny: read("ny"),
-      dt: read("dt"),
-      fps: read("fps"),
-      steps_per_frame: read("steps"),
-      sample_every: read("sample"),
-      conductivity: read("conductivity"),
-      capacity: read("capacity"),
-      source_amplitude: read("source_amplitude"),
-      source_frequency: read("source_frequency"),
-      source_sigma: read("source_sigma"),
-      source_x: read("source_x"),
-      boundary_left: read("boundary_left"),
-      boundary_right: read("boundary_right"),
-      initial_temperature: read("initial_temperature")
-    };
-    for (const [key, value] of Object.entries(config)) {
-      if (!Number.isFinite(value)) throw new Error(`\u6709\u9650\u5143\u53C2\u6570 ${key} \u4E0D\u662F\u6709\u6548\u6570\u5B57`);
-    }
-    if (!Number.isInteger(config.nx) || config.nx < 6 || config.nx > 80) throw new Error("\u7F51\u683C nx \u5FC5\u987B\u662F 6\u201380 \u7684\u6574\u6570");
-    if (!Number.isInteger(config.ny) || config.ny < 6 || config.ny > 60) throw new Error("\u7F51\u683C ny \u5FC5\u987B\u662F 6\u201360 \u7684\u6574\u6570");
-    if ((config.nx + 1) * (config.ny + 1) > 6e3) throw new Error("\u8282\u70B9\u6570\u4E0D\u80FD\u8D85\u8FC7 6000");
-    if (!(config.dt > 0)) throw new Error("dt \u5FC5\u987B\u5927\u4E8E 0");
-    if (config.dt * config.steps_per_frame > 2) throw new Error("\u6BCF\u5E27\u63A8\u8FDB\u65F6\u95F4\u8FC7\u5927\uFF0C\u8BF7\u51CF\u5C0F dt \u6216\u6B65\u6570");
-    return config;
-  }
-  async function applyFemConfig() {
-    let payload;
-    try {
-      payload = readFemConfig();
-    } catch (error) {
-      toast(error.message, "error", 6e3);
-      return;
-    }
-    const response = await task(() => jsonRequest("/api/fem/config", "PATCH", payload));
-    if (!response) return;
-    applyFemSnapshot(response.fem);
-    renderFemPanel();
-    toast("\u6709\u9650\u5143\u53C2\u6570\u5DF2\u91CD\u5EFA", "ok", 2e3);
-  }
-  function renderFemPanel() {
-    if (!ui.femPanel || ui.femPanel.dataset.ready === "1") return;
-    ui.femPanel.replaceChildren();
-    ui.femPanel.dataset.ready = "1";
-    const head = div("fem-head");
-    head.appendChild(el("h2", null, "FIELD \xB7 Q4 FEM"));
-    head.appendChild(el("p", null, "\u4E8C\u7EF4\u77AC\u6001\u70ED\u4F20\u5BFC\uFF1A\u5355\u4F4D\u65B9\u677F\u3001Q4 \u53CC\u7EBF\u6027\u5355\u5143\u3001\u540E\u5411\u6B27\u62C9\uFF1B\u5DE6\u53F3 Dirichlet\uFF0C\u4E0A\u4E0B\u7EDD\u7F18\uFF0C\u9AD8\u65AF\u70ED\u6E90\u968F\u65F6\u95F4\u6446\u52A8\u3002"));
-    ui.femPanel.appendChild(head);
-    const intro = div("fem-note");
-    intro.textContent = "\u5F31\u5F62\u5F0F\u88C5\u914D\u540E\u4F7F\u7528\u7A00\u758F LU \u4E00\u6B21\u5206\u89E3\u3001\u6BCF\u6B65\u56DE\u4EE3\u3002\u8272\u6807\u4ECE\u51B7\u7EB8\u8272\u8FC7\u6E21\u5230\u94DC\u8272\uFF0C\u9ED1\u8272\u7F51\u683C\u4E3A\u5B9E\u9645\u6709\u9650\u5143\u5355\u5143\u3002";
-    ui.femPanel.appendChild(intro);
-    const configSection = section("\u573A\u53C2\u6570", "\u91CD\u5EFA\u7F51\u683C\u4F1A\u91CD\u7F6E\u65F6\u95F4");
-    const grid = div("fem-grid");
-    const fields = [
-      ["nx", "\u7F51\u683C nx", 36, 6, 80, 1],
-      ["ny", "\u7F51\u683C ny", 24, 6, 60, 1],
-      ["dt", "\u65F6\u95F4\u6B65 dt", 2e-3, 1e-5, 0.1, 1e-4],
-      ["fps", "\u5E27\u7387 fps", 30, 1, 120, 1],
-      ["steps", "\u6BCF\u5E27\u6B65\u6570", 8, 1, 50, 1],
-      ["sample", "\u91C7\u6837\u95F4\u9694", 1, 1, 20, 1],
-      ["conductivity", "\u5BFC\u70ED k", 1, 1e-4, 1e3, 0.1],
-      ["capacity", "\u70ED\u5BB9 \u03C1c", 1, 1e-4, 1e3, 0.1],
-      ["source_amplitude", "\u70ED\u6E90\u5E45\u503C", 5e3, 0, 1e6, 100],
-      ["source_frequency", "\u70ED\u6E90\u9891\u7387", 0.08, 0, 20, 0.01],
-      ["source_sigma", "\u70ED\u6E90\u534A\u5F84", 0.09, 0.02, 0.5, 0.01],
-      ["source_x", "\u70ED\u6E90 x", 0.35, 0.05, 0.95, 0.01],
-      ["boundary_left", "\u5DE6\u8FB9\u754C \xB0C", 20, -500, 1e3, 1],
-      ["boundary_right", "\u53F3\u8FB9\u754C \xB0C", 20, -500, 1e3, 1],
-      ["initial_temperature", "\u521D\u59CB\u6E29\u5EA6", 20, -500, 1e3, 1]
-    ];
-    for (const [key, labelText, value, minimum, maximum, step] of fields) {
-      const input = numberInput(value, { min: minimum, max: maximum, step });
-      input.dataset.fem = key;
-      grid.appendChild(fieldFor(labelText, "", input));
-    }
-    configSection.appendChild(grid);
-    const actions = div("fem-actions");
-    actions.appendChild(button("\u5E94\u7528\u573A\u53C2\u6570", "btn primary", () => void applyFemConfig()));
-    actions.appendChild(button("\u91CD\u7F6E\u573A", "btn", () => void femControl("reset")));
-    configSection.appendChild(actions);
-    ui.femPanel.appendChild(configSection);
-    const statsSection = section("\u6C42\u89E3\u7EDF\u8BA1", "\u6BCF\u5E27\u66F4\u65B0");
-    const statsGrid = div("fem-stats");
-    for (const [key, labelText] of [
-      ["dof", "\u81EA\u7531\u5EA6"],
-      ["elements", "\u5355\u5143"],
-      ["solve", "\u6C42\u89E3 ms"],
-      ["min", "T min"],
-      ["max", "T max"],
-      ["mean", "T mean"]
-    ]) {
-      const stat = div("stat");
-      stat.appendChild(el("span", null, labelText));
-      const value = el("b", null, "\u2014");
-      value.dataset.femstat = key;
-      stat.appendChild(value);
-      statsGrid.appendChild(stat);
-    }
-    statsSection.appendChild(statsGrid);
-    const probe = div("fem-probe");
-    probe.dataset.role = "fem-probe";
-    probe.textContent = "\u628A\u9F20\u6807\u79FB\u52A8\u5230\u8272\u573A\u4E0A\u8BFB\u53D6\u8282\u70B9\u6E29\u5EA6\u3002";
-    statsSection.appendChild(probe);
-    ui.femPanel.appendChild(statsSection);
-    const note = div("fem-note");
-    note.textContent = "\u63D0\u793A\uFF1A\u63D0\u9AD8 nx / ny \u53EF\u4EE5\u770B\u5230\u66F4\u7EC6\u7684\u7F51\u683C\uFF1B\u589E\u5927\u70ED\u6E90\u5E45\u503C\u6216\u964D\u4F4E\u5BFC\u70ED\u7CFB\u6570\u4F1A\u8BA9\u6E29\u5DEE\u66F4\u660E\u663E\u3002";
-    ui.femPanel.appendChild(note);
-    updateFemPanelValues();
-  }
-  function updateFemPanelValues() {
-    if (!ui.femPanel || ui.femPanel.dataset.ready !== "1" || !state.fem) return;
-    const config = state.fem.config || {};
-    const setValue = (key, value) => {
-      const input = $(`[data-fem="${key}"]`, ui.femPanel);
-      if (!input || document.activeElement === input) return;
-      input.value = String(value);
-    };
-    setValue("nx", config.nx);
-    setValue("ny", config.ny);
-    setValue("dt", config.dt);
-    setValue("fps", config.fps);
-    setValue("steps", config.steps_per_frame);
-    setValue("sample", config.sample_every);
-    setValue("conductivity", config.conductivity);
-    setValue("capacity", config.capacity);
-    setValue("source_amplitude", config.source_amplitude);
-    setValue("source_frequency", config.source_frequency);
-    setValue("source_sigma", config.source_sigma);
-    setValue("source_x", config.source_x);
-    setValue("boundary_left", config.boundary_left);
-    setValue("boundary_right", config.boundary_right);
-    setValue("initial_temperature", config.initial_temperature);
-    const stats = state.fem.stats || {};
-    const setStat2 = (key, value) => {
-      const node = $(`[data-femstat="${key}"]`, ui.femPanel);
-      if (node) node.textContent = value;
-    };
-    setStat2("dof", String(stats.dof ?? "\u2014"));
-    setStat2("elements", String(stats.elements ?? "\u2014"));
-    setStat2("solve", fmt(stats.solve_ms, 2));
-    setStat2("min", fmt(stats.min, 2));
-    setStat2("max", fmt(stats.max, 2));
-    setStat2("mean", fmt(stats.mean, 2));
-    const probe = $('[data-role="fem-probe"]', ui.femPanel);
-    if (probe && !state.femHover) {
-      probe.textContent = `\u4E2D\u5FC3\u6E29\u5EA6 ${fmt(stats.mean, 3)} \xB0C \xB7 \u7F51\u683C ${config.nx}\xD7${config.ny} \xB7 ${stats.elements || 0} \u4E2A Q4 \u5355\u5143`;
-    }
-  }
-  async function pollFem() {
-    if (state.femBusy || !state.fem) return;
-    if (!state.fem.running && state.femCursor >= Number(state.fem.cursor || 0)) return;
-    state.femBusy = true;
-    try {
-      const data = await api(`/api/fem/live?cursor=${state.femCursor}&limit=1`);
-      if (Array.isArray(data.frames) && data.frames.length) {
-        const frame = data.frames[data.frames.length - 1];
-        state.fem.field = frame.field;
-        state.fem.time = frame.t;
-        state.femFrames.push(frame);
-        while (state.femFrames.length > 600) state.femFrames.shift();
-        state.femCursor = data.cursor;
-      }
-      state.fem.running = data.running;
-      state.fem.steps = data.steps;
-      state.fem.time = data.time;
-      state.fem.config = data.config;
-      state.fem.actual_fps = data.actual_fps;
-      state.fem.error = data.error;
-      state.fem.stats = data.stats;
-      syncFemChrome();
-      drawFem();
-    } catch (error) {
-      const now = performance.now();
-      if (now - (state.lastLiveError || 0) > 8e3) {
-        state.lastLiveError = now;
-        toast(`\u6709\u9650\u5143\u5B9E\u65F6\u6570\u636E\u5931\u8D25\uFF1A${error.message}`, "error", 5e3);
-      }
-    } finally {
-      state.femBusy = false;
-    }
+    state.workspace = "network";
+    setWorkspaceButtons();
+    switchTab("inspect");
+    resizeGraph();
+    resizeChart();
+    syncUI();
+    requestDraw();
   }
   async function pollLive() {
     if (state.liveBusy) return;
@@ -9317,19 +8765,13 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
   async function pollLoop() {
     clearTimeout(state.pollTimer);
     try {
-      if (state.workspace === "fem") {
-        if (state.fem && (state.fem.running || state.femCursor < Number(state.fem.cursor || 0))) {
-          await pollFem();
-        }
-      } else {
-        const sim = state.sim;
-        if (sim && (sim.running || state.cursor < Number(sim.cursor || 0))) {
-          await pollLive();
-        }
+      const sim = state.sim;
+      if (sim && (sim.running || state.cursor < Number(sim.cursor || 0))) {
+        await pollLive();
       }
     } finally {
       if (!state.shuttingDown) {
-        const activeRunning = state.workspace === "fem" ? state.fem?.running : state.sim?.running;
+        const activeRunning = state.sim?.running;
         const delay = document.hidden ? 1e3 : activeRunning ? 110 : 500;
         state.pollTimer = setTimeout(pollLoop, delay);
       }
@@ -9371,10 +8813,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     const running = !!(state.sim && state.sim.running);
     if ((action === "toggle" || action === "run") && !running && !(opts && opts.skipWarn) && state.prefs.runWarn !== false && !hasPrecomputed()) {
       openRunWarn();
-      return;
-    }
-    if (state.workspace === "fem") {
-      await femControl(action, steps);
       return;
     }
     await networkControl(action, steps);
@@ -9503,8 +8941,8 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
   function showShutdownScreen() {
     ui.modalCard.replaceChildren();
     ui.modalCard.appendChild(el("h3", null, "\u670D\u52A1\u5DF2\u5173\u95ED"));
-    const body = el("p", null, "\u540E\u53F0\u7F51\u7EDC\u4E0E\u6709\u9650\u5143\u7EBF\u7A0B\u5DF2\u505C\u6B62\uFF0C\u76D1\u542C\u7AEF\u53E3\u5DF2\u91CA\u653E\u3002\u73B0\u5728\u53EF\u4EE5\u5173\u95ED\u6B64\u6807\u7B7E\u9875\u3002");
-    const note = div("fem-note");
+    const body = el("p", null, "\u540E\u53F0\u4EFF\u771F\u7EBF\u7A0B\u5DF2\u505C\u6B62\uFF0C\u76D1\u542C\u7AEF\u53E3\u5DF2\u91CA\u653E\u3002\u73B0\u5728\u53EF\u4EE5\u5173\u95ED\u6B64\u6807\u7B7E\u9875\u3002");
+    const note = div("shutdown-note");
     note.textContent = "\u5982\u9700\u518D\u6B21\u4F7F\u7528\uFF0C\u8BF7\u91CD\u65B0\u8FD0\u884C run.py \u6216\u53CC\u51FB start.bat\uFF1B\u7AEF\u53E3\u901A\u5E38\u4F1A\u5728 1 \u79D2\u5185\u91CD\u65B0\u53EF\u7528\u3002";
     ui.modalCard.append(body, note);
     ui.modal.classList.remove("hidden");
@@ -9514,7 +8952,7 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     if (state.shuttingDown) return;
     const confirmed = await confirmModal(
       "\u9000\u51FA Netlab\uFF1F",
-      "\u5C06\u505C\u6B62\u7F51\u7EDC\u4E0E\u6709\u9650\u5143\u4EFF\u771F\u7EBF\u7A0B\uFF0C\u7EC8\u6B62\u540E\u7AEF\u8FDB\u7A0B\u5E76\u91CA\u653E\u76D1\u542C\u7AEF\u53E3\u3002\u6240\u6709\u672A\u5BFC\u51FA\u7684\u5185\u5B58\u573A\u666F\u90FD\u4F1A\u4E22\u5931\u3002",
+      "\u5C06\u505C\u6B62\u4EFF\u771F\u7EBF\u7A0B\uFF0C\u7EC8\u6B62\u540E\u7AEF\u8FDB\u7A0B\u5E76\u91CA\u653E\u76D1\u542C\u7AEF\u53E3\u3002\u6240\u6709\u672A\u5BFC\u51FA\u7684\u5185\u5B58\u573A\u666F\u90FD\u4F1A\u4E22\u5931\u3002",
       "\u9000\u51FA\u5E76\u5173\u95ED",
       true
     );
@@ -9545,8 +8983,7 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     netWidth: "netlab.networks.width",
     netCollapsed: "netlab.networks.collapsed",
     panelCollapsed: "netlab.panel.collapsed",
-    panelWidth: "netlab.panel.width",
-    femPanelWidth: "netlab.panel.width.fem"
+    panelWidth: "netlab.panel.width"
   };
   function menuDefinition() {
     return [
@@ -9595,8 +9032,7 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
           } },
           { sep: true },
           { label: "\u6536\u8D77 / \u5C55\u5F00\u5DE6\u4FA7\u7F51\u7EDC\u680F", action: () => toggleNetworks() },
-          { label: "\u6536\u8D77 / \u5C55\u5F00\u53F3\u4FA7\u9762\u677F", action: () => togglePanel() },
-          { label: "\u5207\u6362\u5230\u6709\u9650\u5143\u573A", action: () => void switchWorkspace("fem") }
+          { label: "\u6536\u8D77 / \u5C55\u5F00\u53F3\u4FA7\u9762\u677F", action: () => togglePanel() }
         ]
       },
       {
@@ -11868,7 +11304,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       syncChromeEdges();
       resizeGraph();
       resizeChart();
-      resizeFem();
       resizePhase();
     }, 60);
   }
@@ -11892,7 +11327,7 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     let dragging = false;
     let startX = 0;
     let startWidth = 0;
-    const panelVar = () => ui.main.classList.contains("fem-mode") ? "--panel-w-fem" : "--panel-w";
+    const panelVar = () => "--panel-w";
     const currentWidth = () => {
       const rect = ui.panel?.getBoundingClientRect();
       if (rect && rect.width > 0) return rect.width;
@@ -11925,7 +11360,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       syncChromeEdges();
       resizeGraph();
       resizeChart();
-      resizeFem();
       resizePhase();
       if (handle.hasPointerCapture?.(event.pointerId)) handle.releasePointerCapture(event.pointerId);
     };
@@ -12032,21 +11466,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
         setPhaseIndex(Number(ui.phaseFrame.value));
       });
     }
-    femCanvas.addEventListener("pointermove", (event) => {
-      if (state.workspace !== "fem") return;
-      const rect = femCanvas.getBoundingClientRect();
-      state.femHover = femHoverFromPoint(event.clientX - rect.left, event.clientY - rect.top);
-      const probe = $('[data-role="fem-probe"]', ui.femPanel);
-      if (probe) {
-        probe.textContent = state.femHover ? `\u8282\u70B9 (${state.femHover.i}, ${state.femHover.j}) \xB7 T=${fmt(state.femHover.value, 3)} \xB0C \xB7 t=${fmt(state.fem?.time, 4)} s` : "\u628A\u9F20\u6807\u79FB\u52A8\u5230\u8272\u573A\u4E0A\u8BFB\u53D6\u8282\u70B9\u6E29\u5EA6\u3002";
-      }
-      drawFem();
-    });
-    femCanvas.addEventListener("pointerleave", () => {
-      state.femHover = null;
-      updateFemPanelValues();
-      drawFem();
-    });
     ui.chartWindow.addEventListener("change", () => {
       const value = Number(ui.chartWindow.value);
       if (!Number.isFinite(value) || value < 0.1 || value > 120) {
@@ -12278,7 +11697,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
     const observer = new ResizeObserver(() => {
       if (state.workspace === "network") resizeGraph();
       resizeChart();
-      if (state.workspace === "fem") resizeFem();
       resizePhase();
       resizeInstrument();
     });
@@ -12292,7 +11710,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       syncChromeEdges();
       resizeGraph();
       resizeChart();
-      resizeFem();
       resizePhase();
       resizeInstrument();
     });
@@ -12474,9 +11891,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
       requestDraw();
       scheduleChartDraw();
       drawPhase();
-      if (state.workspace === "fem") {
-        drawFem();
-      }
       if (ui.moduleWin && !ui.moduleWin.hidden) drawModulePreview();
     }
   }
@@ -13889,7 +13303,6 @@ import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
   async function ensureStoppedOnBoot() {
     try {
       if (state.sim?.running) await networkControl("pause");
-      if (state.fem?.running) await femControl("pause");
     } catch (error) {
     }
   }

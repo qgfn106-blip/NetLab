@@ -20,7 +20,6 @@ declare function setStatusHint(hint: string): void;
   interface SelectionRec { type: string | null; id: string | null }
   interface HoverRec { id?: string; [k: string]: unknown }
   interface HoverWaypointRec { edgeId: string; index: number }
-  interface FemHoverRec { i: number; j: number; value: number; sx: number; sy: number }
   interface WireToolRec { first?: { kind?: string; nodeId: string; pin?: string } | null; [k: string]: unknown }
   interface TemplateRec { name: string; label: string; mode?: string; description?: string; sim?: { fps?: number; dt?: number; steps_per_frame?: number; [k: string]: unknown }; [k: string]: unknown }
   interface OpElementRec { current?: number; voltage_difference?: number; power?: number; [k: string]: unknown }
@@ -181,18 +180,6 @@ declare function setStatusHint(hint: string): void;
     limits?: LimitsRec;
     [k: string]: unknown;
   }
-  interface FemRec {
-    actual_fps: number;
-    config: { fps?: number; [k: string]: unknown };
-    cursor: number;
-    error: string | null;
-    field: unknown;
-    running: boolean;
-    stats: { kind?: string; matrix_size?: number; [k: string]: unknown };
-    steps: number;
-    time: number;
-    [k: string]: unknown;
-  }
   interface FrameItem { t: number; v: Record<string, number>; field?: unknown; min?: number; max?: number }
   interface NetworkItem { id: string; name: string; current?: boolean; [k: string]: unknown }
   interface BlockItem { id: string; name: string; nodes?: NodeItem[]; edges?: EdgeItem[]; ports?: PortSpec[]; version?: number; model?: string; kind?: string; label?: string; mode?: string; node_count?: number; builtin?: boolean; inputs?: PortSpec[]; outputs?: PortSpec[]; params?: unknown[]; expression?: string; description?: string; source?: string; [k: string]: unknown }
@@ -219,7 +206,7 @@ declare function setStatusHint(hint: string): void;
     moved?: boolean;
     [k: string]: unknown;
   }
-  interface SnapshotRec { scene?: SceneRec; sim?: SimRec; limits?: LimitsRec; fem?: FemRec; [k: string]: unknown }
+  interface SnapshotRec { scene?: SceneRec; sim?: SimRec; limits?: LimitsRec; [k: string]: unknown }
   interface DegradedItemRec { id: string; version: number; [k: string]: unknown }
   interface DataHolder { name?: string; data?: Record<string, unknown>; output?: unknown; state?: unknown; [k: string]: unknown }
   interface BoxRec { x: number; y: number; w: number; h: number; [k: string]: unknown }
@@ -241,7 +228,6 @@ declare function setStatusHint(hint: string): void;
   interface SimStats { kind?: string; matrix_size?: number; step_ms?: number; iterations?: number; [k: string]: unknown }
   interface DegradedRec { read_only?: boolean; missing?: DegradedItemRec[]; message?: string; [k: string]: unknown }
   interface ClipboardRec { nodes: NodeItem[]; edges: EdgeItem[]; networkId?: string; [k: string]: unknown }
-  interface FemMeshRec { nx: number; ny: number; elements: number[][]; x: number[]; y: number[]; [k: string]: unknown }
   interface ExtItemRec { label?: string; kind?: string; type?: string; filename?: string; sha256?: string; error?: string; params?: unknown[]; source?: unknown; [k: string]: unknown }
   interface ExtResultRec { kind?: string; message?: string; detail?: unknown; [k: string]: unknown }
   interface SpectrumRec { magnitude?: number[]; freqs?: number[]; [k: string]: unknown }
@@ -341,10 +327,6 @@ declare function setStatusHint(hint: string): void;
     signalSearch: HTMLInputElement;
     btnClearChart: HTMLElement;
     vectorPane: HTMLElement;
-    femPane: HTMLElement;
-    femPanel: HTMLElement;
-    femStage: HTMLElement;
-    femHudProbe: HTMLElement;
     phaseReadout: HTMLElement;
     vectorNode: HTMLInputElement;
     vectorTrail: HTMLInputElement;
@@ -450,16 +432,6 @@ declare function setStatusHint(hint: string): void;
     ext: ExtRec;
     lastLiveError: number;
     workspace: string;
-    fem: FemRec | null;
-    femMesh: unknown;
-    femMeshRevision: number;
-    femCursor: number;
-    femFrames: FrameItem[];
-    femBusy: boolean;
-    femSize: SizeRec;
-    femHover: FemHoverRec | null;
-    femStarted: boolean;
-    femPanelReady: boolean;
     phaseSize: SizeRec;
     phaseNode: string;
     phaseTrail: number;
@@ -518,8 +490,6 @@ declare function setStatusHint(hint: string): void;
   const ctx = canvas.getContext('2d')!;
   const chartCanvas = $<HTMLCanvasElement>('#chart')!;
   const chartCtx = chartCanvas.getContext('2d')!;
-  const femCanvas = $<HTMLCanvasElement>('#femCanvas')!;
-  const femCtx = femCanvas.getContext('2d')!;
   const phaseCanvas = $<HTMLCanvasElement>('#phase')!;
   const phaseCtx = phaseCanvas.getContext('2d')!;
   const scopeCanvas = $<HTMLCanvasElement>('#scope')!;
@@ -647,10 +617,6 @@ declare function setStatusHint(hint: string): void;
     signalSearch: $<HTMLInputElement>('#signalSearch'),
     btnClearChart: $('#btnClearChart'),
     vectorPane: $('#tab-vector'),
-    femPane: $('#tab-fem'),
-    femPanel: $('#femPanel'),
-    femStage: $('#femStage'),
-    femHudProbe: $('#femHudProbe'),
     phaseCanvas,
     phaseReadout: $('#phaseReadout'),
     vectorNode: $<HTMLInputElement>('#vectorNode'),
@@ -795,16 +761,6 @@ declare function setStatusHint(hint: string): void;
     ext: { list: null, scan: [], notice: '', code: '', result: null },
     lastLiveError: 0,
     workspace: 'network',
-    fem: null,
-    femMesh: null,
-    femMeshRevision: 0,
-    femCursor: 0,
-    femFrames: [],
-    femBusy: false,
-    femSize: { w: 1, h: 1, dpr: 1 },
-    femHover: null,
-    femStarted: false,
-    femPanelReady: false,
     phaseSize: { w: 1, h: 1, dpr: 1 },
     phaseNode: '',
     phaseTrail: 900,
@@ -890,7 +846,6 @@ declare function setStatusHint(hint: string): void;
       const sub = $('.panel-group.active .group-subnav [data-sub].active');
       return sub ? (sub.dataset.sub as string) : (group === 'modules' ? 'blocks' : 'chart');
     }
-    if (group === 'fem') return 'fem';
     return 'inspect';
   }
 
@@ -1213,10 +1168,6 @@ declare function setStatusHint(hint: string): void;
   }
 
   function syncUI() {
-    if (state.workspace === 'fem') {
-      syncFemChrome();
-      return;
-    }
     const sim = state.sim;
     if (!sim) return;
 
@@ -4571,7 +4522,6 @@ declare function setStatusHint(hint: string): void;
     vector: { group: 'analysis', sub: 'vector' },
     analysis: { group: 'analysis', sub: 'analysis' },
     plotkit: { group: 'analysis', sub: 'plotkit' },
-    fem: { group: 'fem' },
   };
 
   function defaultTabForGroup(group: string) {
@@ -4584,7 +4534,6 @@ declare function setStatusHint(hint: string): void;
       const sub = $('.panel-group[data-group="analysis"] .group-subnav [data-sub].active');
       return sub ? sub.dataset.sub : 'chart';
     }
-    if (group === 'fem') return 'fem';
     return 'inspect';
   }
 
@@ -4610,14 +4559,6 @@ declare function setStatusHint(hint: string): void;
   function switchTab(name: string) {
     if (name === 'scene') {
       openSettings('project');
-      return;
-    }
-    if (name === 'fem' && state.workspace !== 'fem') {
-      void switchWorkspace('fem');
-      return;
-    }
-    if (name !== 'fem' && state.workspace === 'fem') {
-      void switchWorkspace('network').then(() => switchTab(name));
       return;
     }
     const conf = PANEL_GROUPS[name] || PANEL_GROUPS.inspect;
@@ -4658,12 +4599,6 @@ declare function setStatusHint(hint: string): void;
     }
     if (conf.sub === 'ext') {
       renderExtensionPanel();
-    }
-    if (conf.group === 'fem') {
-      renderFemPanel();
-      resizeFem();
-      updateFemPanelValues();
-      drawFem();
     }
   }
 
@@ -8378,7 +8313,6 @@ declare function setStatusHint(hint: string): void;
     state.edgeValues.clear();
     applySnapshot({ scene: response.scene, sim: response.sim, limits: (state.limits as LimitsRec | undefined) });
     state.cursor = Number(response.sim?.cursor || 0);
-    if (response.fem && state.fem) state.fem = Object.assign({}, state.fem, response.fem);
     applyProjectUi(response.ui);
     state.project.name = String(project.name || state.project.name || '未命名工程').slice(0, 120);
     state.project.path = path || '';
@@ -9918,7 +9852,7 @@ declare function setStatusHint(hint: string): void;
   }
 
   /* ======================================================================
-   * 二维有限元场
+   * 工作区切换
    * ==================================================================== */
   function setWorkspaceButtons() {
     if (!ui.workspaceSwitch) return;
@@ -9927,547 +9861,15 @@ declare function setStatusHint(hint: string): void;
     });
   }
 
-  function syncFemChrome() {
-    const fem = state.fem;
-    if (!fem) return;
-    updateRunButton(Boolean(fem.running));
-    ui.simTime.textContent = fmt(fem.time ?? 0, 3);
-    ui.simFps.textContent = String(Math.round(fem.actual_fps ?? 0));
-    ui.simSteps.textContent = intText(fem.steps ?? 0);
-    ui.simFps.title = `目标 ${fem.config?.fps ?? '—'} fps · 实际 ${(fem.actual_fps ?? 0).toFixed(1)}`;
-    const stats = fem.stats || {};
-    ui.statusMode.textContent = '有限元场';
-    ui.statusEngine.textContent = `Q4 · ${stats.dof || 0} DOF`;
-    let hint = fem.running ? '运行中' : '已暂停';
-    if (fem.config) {
-      hint += ` · ${fem.config.fps} fps × ${fem.config.steps_per_frame} 步 · dt ${fmt(fem.config.dt, 4)}`;
-    }
-    ui.statusHint.textContent = hint;
-    ui.statusLimits.textContent = `节点 ${stats.nodes || 0} · 单元 ${stats.elements || 0}`;
-    if (fem.error) {
-      if (state.dismissedError !== fem.error) showBanner(fem.error);
-    } else {
-      state.dismissedError = null;
-      hideBanner();
-    }
-    updateFemPanelValues();
-  }
-
-  function applyFemSnapshot(snapshot: FemRec) {
-    if (!snapshot) return;
-    state.fem = snapshot;
-    state.femMesh = snapshot.mesh || state.femMesh;
-    state.femMeshRevision = (snapshot.mesh_revision as number) || state.femMeshRevision;
-    state.femCursor = Number(snapshot.cursor) || 0;
-    if (Array.isArray(snapshot.field)) {
-      state.femFrames = [{ t: snapshot.time || 0, field: snapshot.field, min: (snapshot.stats?.min as number | undefined), max: (snapshot.stats?.max as number | undefined) }] as FrameItem[];
-      while (state.femFrames.length > 600) state.femFrames.shift();
-    }
-    updateFemPanelValues();
-    syncFemChrome();
-    resizeFem();
-    drawFem();
-  }
-
-  async function ensureFemState(force = false) {
-    if (state.fem && !force) return state.fem;
-    try {
-      const snapshot = await api('/api/fem/state');
-      applyFemSnapshot(snapshot);
-      return snapshot;
-    } catch (error) {
-      toast(`有限元场加载失败：${(error as Error).message}`, 'error', 7000);
-      return null;
-    }
-  }
-
   async function switchWorkspace(name: string) {
     if (name === state.workspace) return;
-    if (name === 'fem') {
-      if (state.sim?.running) await networkControl('pause');
-      state.workspace = 'fem';
-      document.body.classList.add('workspace-fem');
-      ui.main.classList.add('fem-mode');
-      ui.femStage.classList.remove('hidden');
-      ui.panel.classList.remove('collapsed');
-      ui.main.classList.remove('panel-hidden');
-      ui.panel.classList.add('field-mode');
-      setWorkspaceButtons();
-      switchTab('fem');
-      await ensureFemState();
-      renderFemPanel();
-      resizeFem();
-      updateFemPanelValues();
-      drawFem();
-      syncFemChrome();
-    } else {
-      if (state.fem?.running) await femControl('pause');
-      state.workspace = 'network';
-      document.body.classList.remove('workspace-fem');
-      ui.main.classList.remove('fem-mode');
-      ui.femStage.classList.add('hidden');
-      ui.panel.classList.remove('field-mode');
-      setWorkspaceButtons();
-      switchTab('inspect');
-      resizeGraph();
-      resizeChart();
-      syncUI();
-      requestDraw();
-    }
-  }
-
-  async function femControl(action: string, steps?: number) {
-    const body: { action: string; steps?: number } = { action };
-    if (steps !== undefined) body.steps = steps;
-    const response = await task(() => jsonRequest('/api/fem/control', 'POST', body), { dirty: false });
-    if (!response) return;
-    if (action === 'reset') {
-      await ensureFemState(true);
-      state.femStarted = false;
-    } else if (response.fem && state.fem) {
-      state.fem = Object.assign({}, state.fem, response.fem);
-    }
-    syncFemChrome();
-    drawFem();
-    if (action === 'step' || action === 'reset') await pollFem();
-  }
-
-  function resizeFem() {
-    if (!ui.femStage) return;
-    const rect = ui.femStage.getBoundingClientRect();
-    const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5);
-    const width = Math.max(1, Math.floor(rect.width));
-    const height = Math.max(1, Math.floor(rect.height));
-    state.femSize = { w: width, h: height, dpr };
-    femCanvas.width = Math.max(1, Math.round(width * dpr));
-    femCanvas.height = Math.max(1, Math.round(height * dpr));
-    if (state.workspace === 'fem') drawFem();
-  }
-
-  function femLayout(w: number, h: number) {
-    const padLeft = 52;
-    const padRight = 118;
-    const padTop = 42;
-    const padBottom = 46;
-    const size = Math.max(40, Math.min(w - padLeft - padRight, h - padTop - padBottom));
-    return {
-      size,
-      x0: padLeft + Math.max(0, (w - padLeft - padRight - size) / 2),
-      y0: padTop + Math.max(0, (h - padTop - padBottom - size) / 2),
-    };
-  }
-
-  function femColor(value: number, minimum: number, maximum: number) {
-    const span = Math.max(1.0e-9, maximum - minimum);
-    const t = clamp((value - minimum) / span, 0, 1);
-    const stops: Array<[number, number[]]> = [
-      [0.00, [247, 244, 236]],
-      [0.22, [236, 223, 204]],
-      [0.45, [214, 169, 132]],
-      [0.68, [184, 111, 70]],
-      [0.86, [139, 57, 32]],
-      [1.00, [59, 18, 10]],
-    ];
-    for (let index = 1; index < stops.length; index += 1) {
-      if (t <= stops[index][0]) {
-        const [t0, c0] = stops[index - 1];
-        const [t1, c1] = stops[index];
-        const ratio = (t - t0) / Math.max(1.0e-9, t1 - t0);
-        return `rgb(${Math.round(c0[0] + (c1[0] - c0[0]) * ratio)},`
-          + `${Math.round(c0[1] + (c1[1] - c0[1]) * ratio)},`
-          + `${Math.round(c0[2] + (c1[2] - c0[2]) * ratio)})`;
-      }
-    }
-    return 'rgb(59, 18, 10)';
-  }
-
-  function femHoverFromPoint(x: number, y: number) {
-    if (!state.femMesh || !state.fem) return null;
-    const { w, h } = state.femSize;
-    const { size, x0, y0 } = femLayout(w, h);
-    if (x < x0 || x > x0 + size || y < y0 || y > y0 + size) return null;
-    const mesh = state.femMesh as FemMeshRec;
-    const nx = mesh.nx;
-    const ny = mesh.ny;
-    const i = clamp(Math.round(((x - x0) / size) * nx), 0, nx);
-    const j = clamp(Math.round((1 - (y - y0) / size) * ny), 0, ny);
-    const index = j * (nx + 1) + i;
-    const value = (state.fem.field as number[] | undefined)?.[index];
-    if (typeof value !== 'number') return null;
-    return {
-      x, y, i, j, index, value,
-      sx: x0 + (i / nx) * size,
-      sy: y0 + (1 - j / ny) * size,
-    };
-  }
-
-  function drawFem() {
-    if (!ui.femStage || state.workspace !== 'fem') return;
-    const { w, h, dpr } = state.femSize;
-    if (w < 20 || h < 20) return;
-    femCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    femCtx.clearRect(0, 0, w, h);
-    femCtx.fillStyle = C('#f2efe7');
-    femCtx.fillRect(0, 0, w, h);
-
-    if (!state.fem || !state.femMesh) {
-      femCtx.fillStyle = C('#969083');
-      femCtx.font = '12px "Segoe UI", "Microsoft YaHei", sans-serif';
-      femCtx.textAlign = 'center';
-      femCtx.textBaseline = 'middle';
-      femCtx.fillText('有限元场尚未初始化', w / 2, h / 2);
-      return;
-    }
-
-    const mesh = state.femMesh as FemMeshRec;
-    const field = (state.fem.field || []) as number[];
-    const stats = state.fem.stats || {};
-    const config = state.fem.config || {};
-    const minimum = Number.isFinite(stats.min as number) ? (stats.min as number) : Math.min(...(field as number[]));
-    const maximum = Number.isFinite(stats.max as number) ? (stats.max as number) : Math.max(...(field as number[]));
-    const { size, x0, y0 } = femLayout(w, h);
-    const nx = Math.max(1, mesh.nx);
-    const ny = Math.max(1, mesh.ny);
-    const cellW = size / nx;
-    const cellH = size / ny;
-    const sub = 3;
-
-    const elements = mesh.elements || [];
-    for (const element of elements) {
-      const [n0, n1, n2, n3] = element;
-      const t0 = field[n0];
-      const t1 = field[n1];
-      const t2 = field[n2];
-      const t3 = field[n3];
-      if (![t0, t1, t2, t3].every((value) => typeof value === 'number')) continue;
-      const ex = x0 + mesh.x[n0] * size;
-      const eyTop = y0 + (1 - mesh.y[n2]) * size;
-      for (let sy = 0; sy < sub; sy += 1) {
-        const v = 1 - (sy + 0.5) / sub;
-        for (let sx = 0; sx < sub; sx += 1) {
-          const u = (sx + 0.5) / sub;
-          const temp = (1 - u) * (1 - v) * t0 + u * (1 - v) * t1 + u * v * t2 + (1 - u) * v * t3;
-          femCtx.fillStyle = femColor(temp, (minimum as number), maximum);
-          femCtx.fillRect(
-            ex + (sx * cellW) / sub,
-            eyTop + (sy * cellH) / sub,
-            cellW / sub + 0.6,
-            cellH / sub + 0.6,
-          );
-        }
-      }
-    }
-
-    femCtx.strokeStyle = 'rgba(17, 16, 14, 0.12)';
-    femCtx.lineWidth = 0.55;
-    femCtx.beginPath();
-    for (const element of elements) {
-      const n0 = element[0];
-      const n2 = element[2];
-      const ex = x0 + mesh.x[n0] * size;
-      const eyTop = y0 + (1 - mesh.y[n2]) * size;
-      femCtx.rect(ex, eyTop, cellW, cellH);
-    }
-    femCtx.stroke();
-
-    femCtx.strokeStyle = C('#11100e');
-    femCtx.lineWidth = 1.2;
-    femCtx.strokeRect(x0, y0, size, size);
-    femCtx.strokeStyle = C('#a8541f');
-    femCtx.lineWidth = 2.2;
-    femCtx.beginPath();
-    femCtx.moveTo(x0 + 0.5, y0);
-    femCtx.lineTo(x0 + 0.5, y0 + size);
-    femCtx.moveTo(x0 + size - 0.5, y0);
-    femCtx.lineTo(x0 + size - 0.5, y0 + size);
-    femCtx.stroke();
-
-    femCtx.fillStyle = C('#6f695f');
-    femCtx.font = '8px "Cascadia Code", Consolas, monospace';
-    femCtx.textAlign = 'left';
-    femCtx.textBaseline = 'top';
-    femCtx.fillText(`DIRICHLET ${fmt(config.boundary_left, 0)} °C`, x0, y0 + size + 12);
-    femCtx.textAlign = 'right';
-    femCtx.fillText(`DIRICHLET ${fmt(config.boundary_right, 0)} °C`, x0 + size, y0 + size + 12);
-
-    const sourceY = 0.5 + 0.22 * Math.sin(2 * Math.PI * 0.055 * (state.fem.time || 0) + 0.6);
-    const sourceX = Number(config.source_x ?? 0.35);
-    const sourceScreenX = x0 + sourceX * size;
-    const sourceScreenY = y0 + (1 - sourceY) * size;
-    const sourceRadius = Math.max(8, Number(config.source_sigma || 0.09) * size * 2.2);
-    femCtx.strokeStyle = C('rgba(168, 84, 31, 0.85)');
-    femCtx.lineWidth = 1;
-    femCtx.setLineDash([3, 3]);
-    femCtx.beginPath();
-    femCtx.arc(sourceScreenX, sourceScreenY, sourceRadius, 0, Math.PI * 2);
-    femCtx.stroke();
-    femCtx.setLineDash([]);
-    femCtx.beginPath();
-    femCtx.moveTo(sourceScreenX - 5, sourceScreenY);
-    femCtx.lineTo(sourceScreenX + 5, sourceScreenY);
-    femCtx.moveTo(sourceScreenX, sourceScreenY - 5);
-    femCtx.lineTo(sourceScreenX, sourceScreenY + 5);
-    femCtx.stroke();
-    femCtx.fillStyle = C('#a8541f');
-    femCtx.font = '8px "Cascadia Code", Consolas, monospace';
-    femCtx.textAlign = 'left';
-    femCtx.textBaseline = 'top';
-    femCtx.fillText('HEAT', sourceScreenX + sourceRadius + 3, sourceScreenY - 4);
-
-    const barX = x0 + size + 22;
-    const barY = y0 + 6;
-    const barW = 9;
-    const barH = size - 12;
-    const gradient = femCtx.createLinearGradient(0, barY, 0, barY + barH);
-    for (let index = 0; index <= 10; index += 1) {
-      gradient.addColorStop(1 - index / 10, femColor(minimum + ((maximum - minimum) * index) / 10, (minimum as number), maximum));
-    }
-    femCtx.fillStyle = gradient;
-    femCtx.fillRect(barX, barY, barW, barH);
-    femCtx.strokeStyle = C('#bcb3a1');
-    femCtx.lineWidth = 1;
-    femCtx.strokeRect(barX, barY, barW, barH);
-    femCtx.fillStyle = C('#6f695f');
-    femCtx.font = '8px "Cascadia Code", Consolas, monospace';
-    femCtx.textAlign = 'center';
-    femCtx.textBaseline = 'bottom';
-    femCtx.fillText('T / °C', barX + barW / 2, barY - 4);
-    femCtx.textAlign = 'left';
-    femCtx.textBaseline = 'middle';
-    for (let index = 0; index <= 4; index += 1) {
-      const ratio = index / 4;
-      const ty = barY + ratio * barH;
-      const value = maximum - (maximum - minimum) * ratio;
-      femCtx.beginPath();
-      femCtx.moveTo(barX + barW, ty);
-      femCtx.lineTo(barX + barW + 4, ty);
-      femCtx.stroke();
-      femCtx.fillText(fmt(value, 1), barX + barW + 7, ty);
-    }
-
-
-    femCtx.fillStyle = C('#6f695f');
-    femCtx.font = '8px "Cascadia Code", Consolas, monospace';
-    femCtx.textAlign = 'right';
-    femCtx.textBaseline = 'top';
-    femCtx.fillText(`t=${fmt(state.fem.time, 4)} s · solve ${fmt(stats.solve_ms, 2)} ms`, x0 + size, y0 - 24);
-
-    const hover = state.femHover;
-    if (hover) {
-      femCtx.strokeStyle = C('#11100e');
-      femCtx.lineWidth = 1;
-      femCtx.beginPath();
-      femCtx.moveTo(hover.sx - 7, hover.sy);
-      femCtx.lineTo(hover.sx + 7, hover.sy);
-      femCtx.moveTo(hover.sx, hover.sy - 7);
-      femCtx.lineTo(hover.sx, hover.sy + 7);
-      femCtx.stroke();
-      femCtx.beginPath();
-      femCtx.arc(hover.sx, hover.sy, 8, 0, Math.PI * 2);
-      femCtx.stroke();
-      const label = `T ${fmt(hover.value, 2)} °C · (${hover.i},${hover.j})`;
-      femCtx.font = '9px "Cascadia Code", Consolas, monospace';
-      const textWidth = femCtx.measureText(label).width;
-      const labelX = clamp(hover.sx + 12, x0, x0 + size - textWidth - 10);
-      const labelY = clamp(hover.sy - 20, y0, y0 + size - 18);
-      femCtx.fillStyle = 'rgba(250, 248, 242, .95)';
-      femCtx.fillRect(labelX - 4, labelY - 2, textWidth + 8, 15);
-      femCtx.fillStyle = C('#11100e');
-      femCtx.textAlign = 'left';
-      femCtx.textBaseline = 'top';
-      femCtx.fillText(label, labelX, labelY);
-      ui.femHudProbe.textContent = `T=${fmt(hover.value, 3)} °C · node (${hover.i}, ${hover.j})`;
-    } else {
-      ui.femHudProbe.textContent = `Tmax=${fmt(maximum, 2)} °C · Tmin=${fmt(minimum, 2)} °C · mean=${fmt(stats.mean, 2)} °C`;
-    }
-  }
-
-  function readFemConfig() {
-    const read = (key: string) => {
-      const input = $(`[data-fem="${key}"]`, ui.femPanel);
-      return input ? Number((input as HTMLInputElement).value) : NaN;
-    };
-    const config = {
-      nx: read('nx'), ny: read('ny'), dt: read('dt'), fps: read('fps'),
-      steps_per_frame: read('steps'), sample_every: read('sample'),
-      conductivity: read('conductivity'), capacity: read('capacity'),
-      source_amplitude: read('source_amplitude'), source_frequency: read('source_frequency'),
-      source_sigma: read('source_sigma'), source_x: read('source_x'),
-      boundary_left: read('boundary_left'), boundary_right: read('boundary_right'),
-      initial_temperature: read('initial_temperature'),
-    };
-    for (const [key, value] of Object.entries(config)) {
-      if (!Number.isFinite(value)) throw new Error(`有限元参数 ${key} 不是有效数字`);
-    }
-    if (!Number.isInteger(config.nx) || config.nx < 6 || config.nx > 80) throw new Error('网格 nx 必须是 6–80 的整数');
-    if (!Number.isInteger(config.ny) || config.ny < 6 || config.ny > 60) throw new Error('网格 ny 必须是 6–60 的整数');
-    if ((config.nx + 1) * (config.ny + 1) > 6000) throw new Error('节点数不能超过 6000');
-    if (!(config.dt > 0)) throw new Error('dt 必须大于 0');
-    if (config.dt * config.steps_per_frame > 2) throw new Error('每帧推进时间过大，请减小 dt 或步数');
-    return config;
-  }
-
-  async function applyFemConfig() {
-    let payload;
-    try {
-      payload = readFemConfig();
-    } catch (error) {
-      toast((error as Error).message, 'error', 6000);
-      return;
-    }
-    const response = await task(() => jsonRequest('/api/fem/config', 'PATCH', payload));
-    if (!response) return;
-    applyFemSnapshot(response.fem);
-    renderFemPanel();
-    toast('有限元参数已重建', 'ok', 2000);
-  }
-
-  function renderFemPanel() {
-    if (!ui.femPanel || ui.femPanel.dataset.ready === '1') return;
-    ui.femPanel.replaceChildren();
-    ui.femPanel.dataset.ready = '1';
-
-    const head = div('fem-head');
-    head.appendChild(el('h2', null, 'FIELD · Q4 FEM'));
-    head.appendChild(el('p', null, '二维瞬态热传导：单位方板、Q4 双线性单元、后向欧拉；左右 Dirichlet，上下绝缘，高斯热源随时间摆动。'));
-    ui.femPanel.appendChild(head);
-
-    const intro = div('fem-note');
-    intro.textContent = '弱形式装配后使用稀疏 LU 一次分解、每步回代。色标从冷纸色过渡到铜色，黑色网格为实际有限元单元。';
-    ui.femPanel.appendChild(intro);
-
-    const configSection = section('场参数', '重建网格会重置时间');
-    const grid = div('fem-grid');
-    const fields = [
-      ['nx', '网格 nx', 36, 6, 80, 1],
-      ['ny', '网格 ny', 24, 6, 60, 1],
-      ['dt', '时间步 dt', 0.002, 0.00001, 0.1, 0.0001],
-      ['fps', '帧率 fps', 30, 1, 120, 1],
-      ['steps', '每帧步数', 8, 1, 50, 1],
-      ['sample', '采样间隔', 1, 1, 20, 1],
-      ['conductivity', '导热 k', 1.0, 0.0001, 1000, 0.1],
-      ['capacity', '热容 ρc', 1.0, 0.0001, 1000, 0.1],
-      ['source_amplitude', '热源幅值', 5000, 0, 1000000, 100],
-      ['source_frequency', '热源频率', 0.08, 0, 20, 0.01],
-      ['source_sigma', '热源半径', 0.09, 0.02, 0.5, 0.01],
-      ['source_x', '热源 x', 0.35, 0.05, 0.95, 0.01],
-      ['boundary_left', '左边界 °C', 20, -500, 1000, 1],
-      ['boundary_right', '右边界 °C', 20, -500, 1000, 1],
-      ['initial_temperature', '初始温度', 20, -500, 1000, 1],
-    ];
-    for (const [key, labelText, value, minimum, maximum, step] of fields) {
-      const input = numberInput((value as number), { min: (minimum as number | undefined), max: (maximum as number | undefined), step });
-      input.dataset.fem = key as string;
-      grid.appendChild(fieldFor((labelText as string), '', input));
-    }
-    configSection.appendChild(grid);
-    const actions = div('fem-actions');
-    actions.appendChild(button('应用场参数', 'btn primary', () => void applyFemConfig()));
-    actions.appendChild(button('重置场', 'btn', () => void femControl('reset')));
-    configSection.appendChild(actions);
-    ui.femPanel.appendChild(configSection);
-
-    const statsSection = section('求解统计', '每帧更新');
-    const statsGrid = div('fem-stats');
-    for (const [key, labelText] of [
-      ['dof', '自由度'], ['elements', '单元'],
-      ['solve', '求解 ms'], ['min', 'T min'],
-      ['max', 'T max'], ['mean', 'T mean'],
-    ]) {
-      const stat = div('stat');
-      stat.appendChild(el('span', null, labelText));
-      const value = el('b', null, '—');
-      value.dataset.femstat = key;
-      stat.appendChild(value);
-      statsGrid.appendChild(stat);
-    }
-    statsSection.appendChild(statsGrid);
-    const probe = div('fem-probe');
-    probe.dataset.role = 'fem-probe';
-    probe.textContent = '把鼠标移动到色场上读取节点温度。';
-    statsSection.appendChild(probe);
-    ui.femPanel.appendChild(statsSection);
-
-    const note = div('fem-note');
-    note.textContent = '提示：提高 nx / ny 可以看到更细的网格；增大热源幅值或降低导热系数会让温差更明显。';
-    ui.femPanel.appendChild(note);
-
-    updateFemPanelValues();
-  }
-
-  function updateFemPanelValues() {
-    if (!ui.femPanel || ui.femPanel.dataset.ready !== '1' || !state.fem) return;
-    const config = state.fem.config || {};
-    const setValue = (key: string, value: unknown) => {
-      const input = $(`[data-fem="${key}"]`, ui.femPanel);
-      if (!input || document.activeElement === input) return;
-      (input as HTMLInputElement).value = String(value);
-    };
-    setValue('nx', config.nx);
-    setValue('ny', config.ny);
-    setValue('dt', config.dt);
-    setValue('fps', config.fps);
-    setValue('steps', config.steps_per_frame);
-    setValue('sample', config.sample_every);
-    setValue('conductivity', config.conductivity);
-    setValue('capacity', config.capacity);
-    setValue('source_amplitude', config.source_amplitude);
-    setValue('source_frequency', config.source_frequency);
-    setValue('source_sigma', config.source_sigma);
-    setValue('source_x', config.source_x);
-    setValue('boundary_left', config.boundary_left);
-    setValue('boundary_right', config.boundary_right);
-    setValue('initial_temperature', config.initial_temperature);
-
-    const stats = state.fem.stats || {};
-    const setStat = (key: string, value: unknown) => {
-      const node = $(`[data-femstat="${key}"]`, ui.femPanel);
-      if (node) node.textContent = value as string;
-    };
-    setStat('dof', String(stats.dof ?? '—'));
-    setStat('elements', String(stats.elements ?? '—'));
-    setStat('solve', fmt(stats.solve_ms, 2));
-    setStat('min', fmt(stats.min, 2));
-    setStat('max', fmt(stats.max, 2));
-    setStat('mean', fmt(stats.mean, 2));
-    const probe = $('[data-role="fem-probe"]', ui.femPanel);
-    if (probe && !state.femHover) {
-      probe.textContent = `中心温度 ${fmt(stats.mean, 3)} °C · 网格 ${config.nx}×${config.ny} · ${stats.elements || 0} 个 Q4 单元`;
-    }
-  }
-
-  async function pollFem() {
-    if (state.femBusy || !state.fem) return;
-    if (!state.fem.running && state.femCursor >= Number(state.fem.cursor || 0)) return;
-    state.femBusy = true;
-    try {
-      const data = await api(`/api/fem/live?cursor=${state.femCursor}&limit=1`);
-      if (Array.isArray(data.frames) && data.frames.length) {
-        const frame = data.frames[data.frames.length - 1];
-        state.fem.field = frame.field;
-        state.fem.time = frame.t;
-        state.femFrames.push(frame);
-        while (state.femFrames.length > 600) state.femFrames.shift();
-        state.femCursor = data.cursor;
-      }
-      state.fem.running = data.running;
-      state.fem.steps = data.steps;
-      state.fem.time = data.time;
-      state.fem.config = data.config;
-      state.fem.actual_fps = data.actual_fps;
-      state.fem.error = data.error;
-      state.fem.stats = data.stats;
-      syncFemChrome();
-      drawFem();
-    } catch (error) {
-      const now = performance.now();
-      if (now - (state.lastLiveError || 0) > 8000) {
-        state.lastLiveError = now;
-        toast(`有限元实时数据失败：${(error as Error).message}`, 'error', 5000);
-      }
-    } finally {
-      state.femBusy = false;
-    }
+    state.workspace = 'network';
+    setWorkspaceButtons();
+    switchTab('inspect');
+    resizeGraph();
+    resizeChart();
+    syncUI();
+    requestDraw();
   }
 
   async function pollLive() {
@@ -10551,19 +9953,13 @@ declare function setStatusHint(hint: string): void;
   async function pollLoop() {
     clearTimeout(state.pollTimer);
     try {
-      if (state.workspace === 'fem') {
-        if (state.fem && (state.fem.running || state.femCursor < Number(state.fem.cursor || 0))) {
-          await pollFem();
-        }
-      } else {
-        const sim = state.sim;
-        if (sim && (sim.running || state.cursor < Number(sim.cursor || 0))) {
-          await pollLive();
-        }
+      const sim = state.sim;
+      if (sim && (sim.running || state.cursor < Number(sim.cursor || 0))) {
+        await pollLive();
       }
     } finally {
       if (!state.shuttingDown) {
-        const activeRunning = state.workspace === 'fem' ? state.fem?.running : state.sim?.running;
+        const activeRunning = state.sim?.running;
         // 窗口最小化/切到后台时不追帧：回来时用一次大 limit 追平即可。
         const delay = document.hidden ? 1000 : (activeRunning ? 110 : 500);
         state.pollTimer = setTimeout(pollLoop, delay);
@@ -10615,10 +10011,6 @@ declare function setStatusHint(hint: string): void;
     if ((action === 'toggle' || action === 'run') && !running && !(opts && opts.skipWarn)
         && state.prefs.runWarn !== false && !hasPrecomputed()) {
       openRunWarn();
-      return;
-    }
-    if (state.workspace === 'fem') {
-      await femControl(action, steps);
       return;
     }
     await networkControl(action, steps);
@@ -10750,8 +10142,8 @@ declare function setStatusHint(hint: string): void;
   function showShutdownScreen() {
     ui.modalCard.replaceChildren();
     ui.modalCard.appendChild(el('h3', null, '服务已关闭'));
-    const body = el('p', null, '后台网络与有限元线程已停止，监听端口已释放。现在可以关闭此标签页。');
-    const note = div('fem-note');
+    const body = el('p', null, '后台仿真线程已停止，监听端口已释放。现在可以关闭此标签页。');
+    const note = div('shutdown-note');
     note.textContent = '如需再次使用，请重新运行 run.py 或双击 start.bat；端口通常会在 1 秒内重新可用。';
     ui.modalCard.append(body, note);
     ui.modal.classList.remove('hidden');
@@ -10762,7 +10154,7 @@ declare function setStatusHint(hint: string): void;
     if (state.shuttingDown) return;
     const confirmed = await confirmModal(
       '退出 Netlab？',
-      '将停止网络与有限元仿真线程，终止后端进程并释放监听端口。所有未导出的内存场景都会丢失。',
+      '将停止仿真线程，终止后端进程并释放监听端口。所有未导出的内存场景都会丢失。',
       '退出并关闭',
       true,
     );
@@ -10800,7 +10192,6 @@ declare function setStatusHint(hint: string): void;
     netCollapsed: 'netlab.networks.collapsed',
     panelCollapsed: 'netlab.panel.collapsed',
     panelWidth: 'netlab.panel.width',
-    femPanelWidth: 'netlab.panel.width.fem',
   };
 
   function menuDefinition() {
@@ -10851,7 +10242,6 @@ declare function setStatusHint(hint: string): void;
           { sep: true },
           { label: '收起 / 展开左侧网络栏', action: () => toggleNetworks() },
           { label: '收起 / 展开右侧面板', action: () => togglePanel() },
-          { label: '切换到有限元场', action: () => void switchWorkspace('fem') },
         ],
       },
       {
@@ -13231,7 +12621,6 @@ declare function setStatusHint(hint: string): void;
       syncChromeEdges();
       resizeGraph();
       resizeChart();
-      resizeFem();
       resizePhase();
     }, 60);
   }
@@ -13258,8 +12647,7 @@ declare function setStatusHint(hint: string): void;
     let dragging = false;
     let startX = 0;
     let startWidth = 0;
-    // FEM 模式下右栏有独立的宽度变量，拖拽要写对口，否则面板看起来“拖不动”
-    const panelVar = () => (ui.main.classList.contains('fem-mode') ? '--panel-w-fem' : '--panel-w');
+    const panelVar = () => '--panel-w';
     const currentWidth = () => {
       const rect = ui.panel?.getBoundingClientRect();
       if (rect && rect.width > 0) return rect.width;
@@ -13293,7 +12681,6 @@ declare function setStatusHint(hint: string): void;
       syncChromeEdges();
       resizeGraph();
       resizeChart();
-      resizeFem();
       resizePhase();
       if (handle.hasPointerCapture?.(event.pointerId)) handle.releasePointerCapture(event.pointerId);
     };
@@ -13410,23 +12797,6 @@ declare function setStatusHint(hint: string): void;
         setPhaseIndex(Number(ui.phaseFrame.value));
       });
     }
-    femCanvas.addEventListener('pointermove', (event: PointerEvent) => {
-      if (state.workspace !== 'fem') return;
-      const rect = femCanvas.getBoundingClientRect();
-      state.femHover = femHoverFromPoint(event.clientX - rect.left, event.clientY - rect.top);
-      const probe = $('[data-role="fem-probe"]', ui.femPanel);
-      if (probe) {
-        probe.textContent = state.femHover
-          ? `节点 (${state.femHover.i}, ${state.femHover.j}) · T=${fmt(state.femHover.value, 3)} °C · t=${fmt(state.fem?.time, 4)} s`
-          : '把鼠标移动到色场上读取节点温度。';
-      }
-      drawFem();
-    });
-    femCanvas.addEventListener('pointerleave', () => {
-      state.femHover = null;
-      updateFemPanelValues();
-      drawFem();
-    });
 
     ui.chartWindow.addEventListener('change', () => {
       const value = Number(ui.chartWindow.value);
@@ -13667,7 +13037,6 @@ declare function setStatusHint(hint: string): void;
     const observer = new ResizeObserver(() => {
       if (state.workspace === 'network') resizeGraph();
       resizeChart();
-      if (state.workspace === 'fem') resizeFem();
       resizePhase();
       resizeInstrument();
     });
@@ -13681,7 +13050,6 @@ declare function setStatusHint(hint: string): void;
       syncChromeEdges();
       resizeGraph();
       resizeChart();
-      resizeFem();
       resizePhase();
       resizeInstrument();
     });
@@ -13841,9 +13209,6 @@ declare function setStatusHint(hint: string): void;
       requestDraw();
       scheduleChartDraw();
       drawPhase();
-      if (state.workspace === 'fem') {
-        drawFem();
-      }
       if (ui.moduleWin && !ui.moduleWin.hidden) drawModulePreview();
     }
   }
@@ -15381,7 +14746,6 @@ declare function setStatusHint(hint: string): void;
   async function ensureStoppedOnBoot() {
     try {
       if (state.sim?.running) await networkControl('pause');
-      if (state.fem?.running) await femControl('pause');
     } catch (error) {
       // 保持静默；状态刷新会纠正按钮
     }

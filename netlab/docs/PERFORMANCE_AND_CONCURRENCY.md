@@ -4,6 +4,7 @@
 > 适用基线：APP_BUILD 3.20.1（`netlab/server.py`），本次为**代码勘察 + 实测基准**，未改动任何运行代码。
 > 文档性质：**技术评估与研究记录（非当前实现口径）**。结论分「已核实事实」与「建议/待验证」两类标注，供后续决策参考。
 > 证据写法：`文件:行号` 指向当前代码；测得的数字来自 `NetlabExtras/scratch/bench_solve.py`（本机 Anaconda 3.13.9）。
+> **行号时效（2026-11-07 校对）**：下文 `file:line` 取自 2026-11-06 基线；`simulation.py`/`nodal.py` 此后有改动，部分行号已漂移（例：`precompute` 现 `simulation.py:391`、`self.lock` 现 `simulation.py:241`、`_solve_matrix` 现 `nodal.py:2080`、`_solve_sparse` 现 `nodal.py:2170`、`splu` 现 `nodal.py:2207`、`Switch` 现 `nodal.py:534`、`Diode` 现 `nodal.py:634`）。**符号名可靠，行号请以当前文件为准**（待批量重锚）。
 > **规范化收敛**：本文件是**研究台账**（探索性）。可验收的数学规范见 [UNIFIED_SIM_MATH_SPEC.md](UNIFIED_SIM_MATH_SPEC.md)，零耦合参考实现与 pytest 见 [NetlabHome/mathspec/](../../mathspec/README.md)。
 
 ---
@@ -1894,8 +1895,8 @@ VisTrails 的设计要点（对 NetLab 直接可借）：
 
 $$
  y_k \to Q(y_k)=c_k \to c_k-c_{k-1}=d_k
- \to \operatorname{pack}_{i32}(d_k) \to \operatorname{zlib}
- \to \operatorname{CRC32+retry} \to \hat y_k \to \hat t_e.
+ \to \mathrm{pack}_{i32}(d_k) \to \mathrm{zlib}
+ \to \mathrm{CRC32+retry} \to \hat y_k \to \hat t_e.
 $$
 
 `int32` 有符号差分和累加解码在每个差分可表示且完整解码时是可逆的；zlib 和 CRC 重传在模型假设下不引入数值误差。CRC32 是非密码学校验，不能排除任意碰撞；这里的“无损”仅指注入的单比特损坏被检测并在有限重传最终成功的实验模型。若链路最终成功且分析保留源时间戳，码流满足 $\hat c_k=c_k$，因此源时间轴上的总误差分解为：

@@ -5,6 +5,8 @@
 > 面向读者：想搞清楚"这一步到底在解哪个方程"的工程师。
 >
 > 最后更新：2026-11-06
+>
+> **行号时效说明（2026-11-07 校对）**：本文 `file:line` 锚点写于旧版 `nodal.py`；此后 `nodal.py` 经过重排（当前 HEAD 9b456e4），行号普遍漂移且**非线性**（如 `_build_index` 1492→1644、`_solve_matrix` 2034→2080、`operating_point` 2223→2269、`ac_sweep` 2289→2335）。符号级锚点已就地更正（§3、§5、§6–§10 的标题与文末索引）；**函数/类名始终可靠**，正文散落的分段行号若与代码不符，请以符号名重新定位为准（待批量重锚）。
 
 本文只描述 `netlab/core/` 下的计算核心：
 
@@ -216,7 +218,7 @@ $$
 
 其中下标 $n$ 表示第 $n$ 步，`isrc` 汇总历史项。
 
-### 3.1 电容（`Capacitor.prepare`，nodal.py:242；`stamp`，nodal.py:270）
+### 3.1 电容（`Capacitor.prepare`，nodal.py:266；`stamp`，nodal.py:292）
 
 $i=C\,\dfrac{dv}{dt}$。
 
@@ -232,7 +234,7 @@ $i=C\,\dfrac{dv}{dt}$。
 - `ac` 模式：盖 $j\omega C$ 电导（nodal.py:274-277）；
 - `tran` 模式：盖 $g$ + `isrc`（nodal.py:278-279）。
 
-### 3.2 电感（`Inductor.prepare`，nodal.py:344；`stamp`，nodal.py:369）
+### 3.2 电感（`Inductor.prepare`，nodal.py:366；`stamp`，nodal.py:389）
 
 $v=L\,\dfrac{di}{dt}$，`DC_CONDUCTANCE=1.0e5` 表示直流短路。
 
@@ -274,14 +276,14 @@ $$
 ### 4.2 收敛判据
 
 - **线性电路**（`self.nonlinear == False`）：Newton 只跑 1 轮（nodal.py:1825）。
-  接受条件 $\eta \le \texttt{residual\_safety\_tol}=10^{-8}$（或用户 `residual_tol`），
+  接受条件 $\eta \le \mathrm{residual\_safety\_tol}=10^{-8}$（或用户 `residual_tol`），
   否则抛 `ComputeError`（"线性电路解质量不足"，nodal.py:1874-1885）。
 - **非线性电路**：迭代至多 `max_iter=60` 轮。令 $\Delta=|\mathbf{x}^{\text{new}}-\mathbf{x}^{\text{old}}|$，
   逐分量判据（`_tolerance()`，nodal.py:1754；判据在 nodal.py:1888-1889）：
 
 $$
-\Delta_i \le \texttt{reltol}\,|x_i| + \tau_i,\qquad
-\tau_i=\begin{cases}\texttt{vntol}=10^{-6}, & x_i\ \text{为节点电压}\\ \texttt{abstol}=10^{-6}, & x_i\ \text{为支路电流}\end{cases}
+\Delta_i \le \mathrm{reltol}\,|x_i| + \tau_i,\qquad
+\tau_i=\begin{cases}\mathrm{vntol}=10^{-6}, & x_i\ \text{为节点电压}\\ \mathrm{abstol}=10^{-6}, & x_i\ \text{为支路电流}\end{cases}
 $$
 
 其中 `reltol=1e-9`。非线性元件每轮末调用 `update_guess()`（nodal.py:1900-1911）。
@@ -292,7 +294,7 @@ $$
 `gmin`（nodal.py:1864-1866）：
 
 $$
-\mathbf{A}\ \leftarrow\ \mathbf{A} + \texttt{gmin}\,\mathbf{I},\qquad \texttt{gmin}=10^{-3}\ \text{起}.
+\mathbf{A}\ \leftarrow\ \mathbf{A} + \mathrm{gmin}\,\mathbf{I},\qquad \mathrm{gmin}=10^{-3}\ \text{起}.
 $$
 
 若仍不收敛，`gmin` 每轮乘以 $0.1$（最多 `gmin_steps=10` 次）逐步降到 0（nodal.py:1727-1731）。
@@ -302,7 +304,7 @@ $$
 gmin 失败后，把独立源按比例缩放做同伦：
 
 $$
-\texttt{source\_scale}=\frac{k}{\texttt{src\_steps}},\qquad k=0,1,\dots,\texttt{src\_steps}=10,
+\mathrm{source\_scale}=\frac{k}{\mathrm{src\_steps}},\qquad k=0,1,\dots,\mathrm{src\_steps}=10,
 $$
 
 即从全零激励连续解到全激励（nodal.py:1732-1751）。所有策略都失败才抛错，并在消息里附残差、
@@ -323,19 +325,19 @@ $$
 
 ## 5. 直流工作点与 AC 小信号
 
-### 5.1 operating_point（nodal.py:2223）
+### 5.1 operating_point（nodal.py:2269）
 
 `operating_point()` 求 $\mathbf{x}$ 使 $\mathbf{A}_{\text{dc}}\mathbf{x}=\mathbf{z}_{\text{dc}}$：
 
 1. 事务性 checkpoint；
 2. `time=0`，独立源取波形在 $t=0$ 的值（`waveform_value(params, 0)`）；
 3. 初值取**零向量**（不是上一步解）；
-4. `_newton_with_strategies(1e-9, guess, mode="dc")`（nodal.py:2237）；
+4. `_newton_with_strategies(1e-9, guess, mode="dc")`（nodal.py:2282-2284）；
 5. 失败抛 `ComputeError`；成功则以 `dc` 模式 commit 各元件、导出节点电压。
 
 DC 下：电容**开路**（不盖章），电感**短路**（$g=10^5$），非线性器件按工作点线性化。
 
-### 5.2 ac_sweep（nodal.py:2289）
+### 5.2 ac_sweep（nodal.py:2335）
 
 在 DC 工作点处线性化，对每个频率 $\omega$ 组**复数** MNA（`mode="ac"`）：
 
@@ -343,7 +345,7 @@ $$
 \text{电容}\to j\omega C,\qquad \text{电感}\to \frac{1}{j\omega L}\qquad(\omega=2\pi f>0).
 $$
 
-独立源取单位激励，解复数线性系统得小信号响应。**AC 只支持线性元件与受控源（`AC_KINDS`：电阻/电容/电感/独立源/VCVS/VCCS/开关，`nodal.py:2210-2221`）；含二极管、晶体管、数字器件等非线性元件时，`ac_sweep` 直接抛 `ComputeError`（"AC 分析暂不支持元件…"，`nodal.py:2307-2313`），不做工作点线性化。** AC 频率必须为正的有限数（`nodal.py:2305-2306`）。
+独立源取单位激励，解复数线性系统得小信号响应。**AC 只支持线性元件与受控源（`AC_KINDS`：电阻/电容/电感/独立源/VCVS/VCCS/开关，`nodal.py:2256-2267`）；含二极管、晶体管、数字器件等非线性元件时，`ac_sweep` 直接抛 `ComputeError`（"AC 分析暂不支持元件…"，`nodal.py:2353-2359`），不做工作点线性化。** AC 频率必须为正的有限数（`nodal.py:2351-2352`；`freqs` 为空亦报错，`nodal.py:2349-2350`）。
 
 ---
 
@@ -362,7 +364,7 @@ $$
 `from_params`（statespace.py:79）校验维数、$m,p\le 6$、$|\text{矩阵元素}|\le 10^9$、方法合法。
 `input_map` 把信号流节点的字段接到 $\mathbf{u}$，`output_map` 把 $\mathbf{y}$ 的分量写回节点字段。
 
-### 6.2 离散化（`cont2discrete`，linalg.py:125）
+### 6.2 离散化（`cont2discrete`，linalg.py:129）
 
 支持 `zoh / forward / backward / tustin`：
 
@@ -454,7 +456,7 @@ $$
 =\int_\Omega q\,\phi\,d\Omega .
 $$
 
-### 7.2 单元矩阵（`_shape`，fem.py:77；`_element_matrices`，fem.py:160）
+### 7.2 单元矩阵（`_shape`，fem.py:77；`_element_matrices`，fem.py:162）
 
 Q4 双线性形函数（参考单元 $\xi,\eta\in[-1,1]$，节点顺序：左下、右下、右上、左上）
 
@@ -476,11 +478,11 @@ $$
 对应代码 fem.py:170-171（`stiffness += conductivity*det_j*(outer(dndx,dndx)+outer(dndy,dndy))`、
 `mass += capacity*det_j*outer(n,n)`）。`capacity` 即 $\rho c$。
 
-### 7.3 装配（`_assemble`，fem.py:210）
+### 7.3 装配（`_assemble`，fem.py:212）
 
 按单元 16 个局部项累加到全局稀疏矩阵 $\mathbf{K},\mathbf{M}$（`coo_matrix`→`csr`）。
 
-### 7.4 时间推进（后向欧拉，`step`，fem.py:309）
+### 7.4 时间推进（后向欧拉，`step`，fem.py:313）
 
 $$
 \left(\frac{\mathbf{M}}{\Delta t}+\mathbf{K}\right)\mathbf{T}^{n+1}
@@ -497,7 +499,7 @@ $$
 
 热源 $\mathbf{F}^n$：高斯分布、中心随时间摆动，`_source_vector`（fem.py:293-306）
 $$
-q(x,y,t)=\texttt{amplitude}\,\big(0.55+0.45\sin(2\pi f t)\big)\exp\!\Big(-\frac{(x-x_c)^2+(y-y_c)^2}{2\sigma^2}\Big),
+q(x,y,t)=\mathrm{amplitude}\,\big(0.55+0.45\sin(2\pi f t)\big)\exp\!\Big(-\frac{(x-x_c)^2+(y-y_c)^2}{2\sigma^2}\Big),
 $$
 其中 $x_c,y_c$ 随时间摆动；用预计算的 `_source_operator`（fem.py:256-306）把 16 个 Gauss 点上的 $q$ 映射到节点。
 
@@ -509,7 +511,7 @@ $$
 
 实现：`core/compute/transistors.py`（BJT/MOS）；二极管在 nodal.py:568。
 
-### 8.1 二极管（`Diode`，nodal.py:568）
+### 8.1 二极管（`Diode`，nodal.py:634）
 
 $$
 I=I_s\!\left(e^{\,v/(nV_t)}-1\right),\qquad
@@ -528,7 +530,7 @@ B-E 结电压（NPN 取正、PNP 乘 `polarity`）：
 
 $$
 I_b(v_{be})=\begin{cases}
-v_{be}\cdot\text{leak}, & v_{be}\le v_{\text{be,on}}\\[2pt]
+v_{be}\cdot\text{leak}, & v_{be}\le v_{\text{be,on}}\\
 \dfrac{v_{be}-v_{\text{be,on}}}{R_{\text{in}}}+v_{be}\cdot\text{leak}, & v_{be}>v_{\text{be,on}}
 \end{cases}
 \qquad g_{be}=\frac{dI_b}{dv_{be}} .
@@ -544,7 +546,7 @@ $$
 $A_{c,b}\mathrel{+}=g_m$、$A_{e,b}\mathrel{-}=g_m$、$A_{c,e}\mathrel{-}=g_m$、$A_{e,e}\mathrel{+}=g_m$（transistors.py:62-88）。
 `polarity`：NPN $=+1$，PNP $=-1$（`PNP`，transistors.py:116 继承并翻转）。
 
-### 8.3 MOSFET（`Mosfet`，transistors.py:122；`_operating_point`，transistors.py:159；`stamp`，transistors.py:208）
+### 8.3 MOSFET（`Mosfet`，transistors.py:122；`_operating_point`，transistors.py:159；`stamp`，transistors.py:209）
 
 平方律 + 沟道长度调制 + 体效应。体效应阈值
 
@@ -557,8 +559,8 @@ $$
 
 $$
 I_d=\begin{cases}
-0, & V_{ov}\le0\ \text{或}\ V_{ds}\le0\\[2pt]
-k\big(V_{ov}V_{ds}-\tfrac12 V_{ds}^2\big)\,\text{clm}, & 0<V_{ds}<V_{ov}\ (\text{线性区})\\[2pt]
+0, & V_{ov}\le0\ \text{或}\ V_{ds}\le0\\
+k\big(V_{ov}V_{ds}-\tfrac12 V_{ds}^2\big)\,\text{clm}, & 0<V_{ds}<V_{ov}\ (\text{线性区})\\
 \tfrac12 k\,V_{ov}^2\,\text{clm}, & V_{ds}\ge V_{ov}\ (\text{饱和区})
 \end{cases}
 $$
@@ -578,7 +580,7 @@ $A_{d,b}\mathrel{+}=g_{mbs}$，其余三行对称；再 `_stamp_current` 补等�
 注意：即使源极接地（不在索引），$g_{ds}$ 也必须加到漏极对角线上（transistors.py:221-223），否则线性/饱和交界处 Newton 两点振荡。
 `PMOS`（transistors.py:262）以 `polarity=-1` 继承。
 
-### 8.4 运放（`OpAmp`，nodal.py:657）
+### 8.4 运放（`OpAmp`，nodal.py:722）
 
 $$
 v(\text{OUT})-v(\text{ref})=\text{lo}+\text{span}\cdot\frac{1+\tanh(A\,u/\text{span})}{2},\qquad u=v_{p}-v_{n}.
@@ -611,10 +613,10 @@ $$
 ### 9.2 计数器（`Counter4`，digital.py:11）
 
 `branch_width=4`，每路输出是一个独立电压源行（`stamp`，digital.py:35-49）：
-$Q_i=\texttt{vhigh}$ 若第 $i$ 位为 1，否则 `vlow`。CLK **上升沿**（旧值 <`vth` 且新值 ≥`vth`）时
+$Q_i=\mathrm{vhigh}$ 若第 $i$ 位为 1，否则 `vlow`。CLK **上升沿**（旧值 <`vth` 且新值 ≥`vth`）时
 `counter_value ← (counter_value+1) & 0xF`，RST 高有效清零（`update_guess`，digital.py:51）。
 
-### 9.3 DAC / ADC / 移位寄存器（digital.py:76 / 188 / 125）
+### 9.3 DAC / ADC / 移位寄存器（digital.py:78 / 190 / 127）
 
 - **DAC4**（digital.py:76）：由输入位读码，`value = vref * code / 15.0`，以电压源输出（digital.py:91-106）。
 - **ADC4**（digital.py:188）：逐次逼近（SAR）；状态 `sar_code/sar_trial/adc_code`，转换结束锁存，
@@ -660,7 +662,7 @@ trapezoidal 时 $g=2L_m/\Delta t,\ \text{rhs}=-g\,i_{m,n-1}-v_{\text{pri},n-1}$�
 $A_{\text{sec},\text{mag}}\mathrel{-}=1,\ A_{\text{mag},a}\mathrel{+}=1,A_{\text{mag},b}\mathrel{-}=1,A_{\text{mag},\text{mag}}\mathrel{-}=g$，
 右端 `mag_rhs`。文档提醒：副边必须有直流路径，否则 MNA 奇异。
 
-### 10.2 耦合电感（`CoupledInductor`，magnetics.py:138；`prepare` 169；`stamp` 190）
+### 10.2 耦合电感（`CoupledInductor`，magnetics.py:138；`prepare` 169；`stamp` 196）
 
 互感 $M=k\sqrt{L_1L_2}$，$k$ 被钳制在 $[0.001,0.999]$（magnetics.py:152，避免 $L_1L_2-M^2=0$ 使逆电感阵奇异）。电感阵与逆：
 
@@ -708,7 +710,7 @@ e=\frac{-q}{\max(|d|,10^{-6})},\quad
 f=f_0+k_p e+k_i\int e\,dt
 $$
 
-频率限幅 $[f_{\min},f_{\max}]$，相位 $\theta_{k+1}=\operatorname{wrap}(\theta_k+2\pi f\,dt)$；每拍**先推进相位、再计算 Park**，保证输出 $\theta$ 与同一拍输入对齐。锁定条件为 $|e|<\text{lock\_threshold}$。
+频率限幅 $[f_{\min},f_{\max}]$，相位 $\theta_{k+1}=\mathrm{wrap}(\theta_k+2\pi f\,dt)$；每拍**先推进相位、再计算 Park**，保证输出 $\theta$ 与同一拍输入对齐。锁定条件为 $|e|<\mathrm{lock\_threshold}$。
 
 ### 12.3 dq 下 LCL 平均模型
 
@@ -729,11 +731,11 @@ $$
 
 ### 12.4 dq 电流环 PI + 前馈解耦
 
-误差 $e_d=i_d^*-i_d$、$e_q=i_q^*-i_q$，PI 输出 $u_d=k_pe_d+k_i\int e_d$、$u_q=k_pe_q+k_i\int e_q$；电压指令为
+误差 $e_d=i_d^{\ast}-i_d$、$e_q=i_q^{\ast}-i_q$，PI 输出 $u_d=k_pe_d+k_i\int e_d$、$u_q=k_pe_q+k_i\int e_q$；电压指令为
 
 $$
-v_d^*=u_d+v_{cd}-\omega L i_q,\qquad
-v_q^*=u_q+v_{cq}+\omega L i_d.
+v_d^{\ast}=u_d+v_{cd}-\omega L i_q,\qquad
+v_q^{\ast}=u_q+v_{cq}+\omega L i_d.
 $$
 
 `pi` 节点在输出限幅时回退积分（抗饱和），`test_current_loop.py` 验证 10%→90% 上升时间 <5 ms、终值误差 <1e-3。
@@ -766,7 +768,7 @@ $$
 
 $$
 |H|=\sqrt{\Re(H)^2+\Im(H)^2},\qquad
-\angle H=\operatorname{atan2}(\Im H,\Re H),\qquad
+\angle H=\mathrm{atan2}(\Im H,\Re H),\qquad
 H_{dB}=20\log_{10}|H|.
 $$
 
@@ -805,7 +807,7 @@ R39 的 `analysis.frequency_response()` 对 signal 走 13.1，对 circuit 转调
 之前完成校验；若
 
 $$
-\text{needed steps}>\texttt{MAX\_PRECOMPUTE\_STEPS}=200000
+\text{needed steps}>\mathrm{MAX\_PRECOMPUTE\_STEPS}=200000
 $$
 
 直接抛 `ValidationError`（"预计算步数超过 200000；请增大 dt、缩短 duration，或分段预计算"），
@@ -825,31 +827,31 @@ $$
 
 | 功能 | 位置 |
 | --- | --- |
-| 连接求值 | `graph.py:264 Connection.evaluate` |
-| 代数环 SCC | `graph.py:409 Network.algebraic_cycles` |
-| 拓扑排序 (Kahn) | `graph.py:456 Network.topological_order` |
-| 事务步 | `graph.py:497 Network.step`；快照 `graph.py:541/563` |
-| 电导/电流盖章 | `nodal.py:101 _stamp_conductance`、`nodal.py:113 _stamp_current` |
-| 电容伴随 | `nodal.py:242 Capacitor.prepare`、`nodal.py:270 stamp` |
-| 电感伴随 | `nodal.py:344 Inductor.prepare`、`nodal.py:369 stamp` |
-| 电压源/VCVS/VCCS | `nodal.py:423`、`nodal.py:505`、`nodal.py:546` |
-| 运放 | `nodal.py:657 OpAmp`、`nodal.py:748 stamp` |
-| 索引/未知量 | `nodal.py:1492 _build_index` |
-| 空矩阵 | `nodal.py:1574 _blank_matrix` |
-| Newton | `nodal.py:1703 _newton_with_strategies`、`nodal.py:1825 _newton_solve` |
-| 后向误差 | `nodal.py:1809 _residual_metric`、`nodal.py:1754 _tolerance` |
-| 稀疏/均衡求解 | `nodal.py:1918 _solve_matrix` |
-| 工作点 | `nodal.py:2223 operating_point` |
-| AC 扫描 | `nodal.py:2289 ac_sweep` |
-| 状态空间离散化 | `linalg.py:125 cont2discrete`、`statespace.py:134 discretized` |
-| FEM 形函数/单元阵 | `fem.py:77 _shape`、`fem.py:160 _element_matrices` |
-| FEM 装配/推进 | `fem.py:210 _assemble`、`fem.py:234 _build_factorization`、`fem.py:309 step` |
+| 连接求值 | `graph.py:330 Connection.evaluate` |
+| 代数环 SCC | `graph.py:484 Network.algebraic_cycles` |
+| 拓扑排序 (Kahn) | `graph.py:659 Network.topological_order` |
+| 事务步 | `graph.py:699 Network.step`；快照 `graph.py:1058/1080` |
+| 电导/电流盖章 | `nodal.py:125 _stamp_conductance`、`nodal.py:137 _stamp_current` |
+| 电容伴随 | `nodal.py:266 Capacitor.prepare`、`nodal.py:292 stamp` |
+| 电感伴随 | `nodal.py:366 Inductor.prepare`、`nodal.py:389 stamp` |
+| 电压源/VCVS/VCCS | `nodal.py:432`、`nodal.py:560`、`nodal.py:602` |
+| 运放 | `nodal.py:722 OpAmp`、`nodal.py:813 stamp` |
+| 索引/未知量 | `nodal.py:1644 _build_index` |
+| 空矩阵 | `nodal.py:1728 _blank_matrix` |
+| Newton | `nodal.py:1860 _newton_with_strategies`、`nodal.py:1984 _newton_solve` |
+| 后向误差 | `nodal.py:1968 _residual_metric`、`nodal.py:1911 _tolerance` |
+| 稀疏/均衡求解 | `nodal.py:2080 _solve_matrix` |
+| 工作点 | `nodal.py:2269 operating_point` |
+| AC 扫描 | `nodal.py:2335 ac_sweep` |
+| 状态空间离散化 | `linalg.py:129 cont2discrete`、`statespace.py:132 discretized` |
+| FEM 形函数/单元阵 | `fem.py:77 _shape`、`fem.py:162 _element_matrices` |
+| FEM 装配/推进 | `fem.py:212 _assemble`、`fem.py:236 _build_factorization`、`fem.py:313 step` |
 | BJT | `transistors.py:24 BipolarJunction`、`transistors.py:55 _junction` |
 | MOSFET | `transistors.py:122 Mosfet`、`transistors.py:159 _operating_point` |
 | 逻辑门 | `logic.py:26 LogicGate`、`logic.py:61 stamp` |
-| 计数器/DAC/ADC/移位 | `digital.py:11/76/188/125` |
+| 计数器/DAC/ADC/移位 | `digital.py:11/78/190/127` |
 | 555/LDO | `timers.py:11 Astable555`、`timers.py:62 LDO` |
 | 变压器/耦合电感 | `magnetics.py:39/138` |
 | 规模上限 | `limits.py`（常量见 §14.1） |
-| 预计算硬拒绝 | `simulation.py:314` |
+| 预计算硬拒绝 | `simulation.py:396-411` |
 | 参数校验 | `params.py:31 ParamSpec`、`params.py:49 coerce` |

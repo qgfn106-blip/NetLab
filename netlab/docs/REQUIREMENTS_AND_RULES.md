@@ -1,6 +1,6 @@
 # Netlab 需求 · 决策 · 执行计划（2026-10-25 修订版）
 
-> 最后修改：2026-11-07 00:25（R15 第四批功率电子 + R06 电路侧接口/新建模式选择；R18 图纸增强；R19 SchemDraw 静态导出）
+> 最后修改：2026-11-07 02:30（SchemDraw 版式 + 帮助搜索分组 + Bode 拖动读数 627 passed；R11 多窗口周期 + R14 全局搜索 + R34 Bode 光标 626 passed；R15 功率电子 + R06 接口 + R18 图纸增强 + R19 SchemDraw 导出 622 passed）
 > 本版**取代** 2026-10-24 版的需求口径。旧条文不删除，凡被推翻或细化的条目一律进 §7「已废弃口径」。
 > 每条需求统一六段式：**原话 / 解读 / 拟改架构 / 验收 / 权重·期次 / 现状**。
 > **现状**一栏只写本次会话内读代码或跑测试能证明的事实；没有证据的一律标「待核实」。
@@ -40,12 +40,16 @@
 5. 新增 §6「不做清单」——把"以后再说"和"明确不做"分开写清，避免下个窗口又把它们当需求实现。
 6. **2026-11-06 文档整理**：P16/P17 前端迁移与 R40 已完成；新增 **R43（数学成果接入，M1 影子验证）** 与 **D112–D118**，并将 P17 设计文档的 D112–D117 并入附录 C（原 `TS_P17_MODULE_DESIGN.md` 删除）。
 7. **2026-11-06 P18 收尾**：R42 Python PEP 8 完成——netlab 与 PlotKit 均 `flake8` 0（两仓库新增 `.flake8`）、`black` 88 列校验通过、无 API/数值变化；测试 netlab **606 passed / 1 skipped**、PlotKit **470 passed**；提交 netlab `34bd1c5`、PlotKit `7f7f4c4`。
+8. **2026-11-07 R15/R06/R18/R19**：R15 功率电子与电机接入（`netlab/core/compute/powerelectronics.py` 384 行，thyristor/igbt/jfet/relay/motor 归入「功率电子与电机」分类），R06 电路侧接口与新建模式选择，R18 图纸增强，R19 SchemDraw 静态导出（`netlab/core/compute/schematic_export.py`，可选依赖）；netlab **622 passed / 1 skipped**。
+9. **2026-11-07 R11/R14/R34**：R11 多窗口周期播放（`analysis._period_windows`/`score_std`/`period_std`），R14 帮助面板全局搜索，R34 Bode 光标；netlab **626 passed / 1 skipped**。
+10. **2026-11-07 SchemDraw 版式 + 帮助搜索分组 + Bode 拖动读数**：SchemDraw 打印图框/标题栏/位号参数值与重叠网格回退；`/api/help/search` 按类别分组并返回 `kind_label/groups`；Bode 光标拖动连续读数与 `←/→`（Shift ×10）吸附采样点；netlab **627 passed / 1 skipped**。
 
 ---
 
 ## 2. 决策台账
 
 > 格式：编号 / 主题 / 结论。括号里是当时的提问序号，便于回溯。
+> 台账主表收 **D1–D81**；**D82–D99** 见附录 B 补录表（2026-11-02 原文），**D100–D119** 见附录 C。
 
 | # | 主题 | 结论 |
 | --- | --- | --- |
@@ -613,7 +617,7 @@
   - 一期收尾门禁：临时豁免清单清零、`tsc --strict` 全绿、全部 e2e 基线通过。
   - 不在本期：加打包器 / 引入第三方运行时依赖 / 改插件代码 / 把任一项目降级成残缺版。
 - **权重·期次**：⭐⭐⭐⭐ / P16（2026-11-06 立项，规划完成、代码未开始）。
-- **现状**：**一期 P16 已完成（2026-11-06）**：7 个文件全部严格类型化（vscode 扩展、PlotKit `render2d`/`view3d`/`app`/`nsview`、netlab `desktop-shim`/`app.js`），tsc strict 0 / AST 行为等价 / pytest 全量 589 passed；二期 P17 模块化已完成（P17.1 纯函数拆分+单测、P17.2 PlotKit ESM 化、P17.3 netlab 前端 ESM 化、P17.4 收尾全量验证全绿）。规划与门禁见本文件 R41 与 §5 P16/P17，执行台账与证据见 [PROGRESS.md](PROGRESS.md) §7.76；当前迁移状态=一期 P16 + 二期 P17 均已完成，待推送合并。
+- **现状**：**一期 P16 已完成（2026-11-06）**：7 个文件全部严格类型化（vscode 扩展、PlotKit `render2d`/`view3d`/`app`/`nsview`、netlab `desktop-shim`/`app.js`），tsc strict 0 / AST 行为等价 / pytest 全量 627 passed 1 skipped；二期 P17 模块化已完成（P17.1 纯函数拆分+单测、P17.2 PlotKit ESM 化、P17.3 netlab 前端 ESM 化、P17.4 收尾全量验证全绿）。规划与门禁见本文件 R41 与 §5 P16/P17，执行台账与证据见 [PROGRESS.md](PROGRESS.md) §7.76；当前迁移状态=一期 P16 + 二期 P17 均已完成，待推送合并。
 
 ### R42 Python 代码 PEP 8 规范化与优化（2026-11-06 立项，排在 TS 重构之后）
 
@@ -626,8 +630,8 @@
   - 规范：PEP 8（`snake_case` 命名 / `CONSTANT_CASE` 常量、4 空格缩进、行宽默认 79、import 分组、空行、docstring 等）；用 `flake8` / `pycodestyle` 检查、`black` / `autopep8` 辅助格式化，均仅开发期工具（devDependency）。
   - 纪律：**不改功能 / 不改公共接口 / 不改数据与数值**；分模块小步提交，每步跑测试；纯格式改动独立成 style commit，不与功能改动混提。
 - **验收**：①netlab 全量（以 589 passed 为基线）与 PlotKit 全量测试全绿 ②`flake8`（PEP 8）0 error（历史遗留例外逐条登记豁免并挂 TODO，最终清零）③关键路径 e2e 基线（沿用 R41/D104 的 `netlab/tools/cdp_*.mjs` 方法）一致 ④不改任何对外 API 签名 / JSON 契约 / 数值输出。
-- **权重·期次**：⭐⭐⭐ / P18（2026-11-06 立项；启动条件=TS 重构 P16/P17 全部完成后；当前未开始）。
-- **现状**：**规划中（2026-11-06），未开始**；启动前置=P16/P17 完成。
+- **权重·期次**：⭐⭐⭐ / P18（2026-11-06 立项；启动条件=TS 重构 P16/P17 全部完成后）。
+- **现状**：**已完成（2026-11-06，P18）**：netlab 与 PlotKit 全部 Python 按 PEP 8 规范化，两仓库 `flake8` 0、`black` 88 列通过、AST 等价、无 API/数值变化；立项时 netlab **589 passed**（P18 后 **606 passed / 1 skipped**，当前全量已到 **627 passed**），PlotKit 470；提交 netlab `34bd1c5`、PlotKit `7f7f4c4`。
 
 ### R43 数学成果接入 NetLab（P1 稀疏排序 / P3 AC 扫频 Woodbury / P5 遥测误差预算，影子验证）
 
@@ -659,9 +663,9 @@
 | ⭐⭐⭐ | R37 线性网络总传函预计算与 Bode 相位 | 闭环设计验收；对外 s/z 域能力已完成；内部 A/B/C/D 导出为优化项 |
 | ⭐⭐⭐ | R38 相平面 + 独立播放 + 数据分析 | 呈现层增强；状态通道/播放/指标/CSV/dt 收敛已完成 |
 | ⭐⭐⭐ | R39 复数分析层与统一频域响应 | 信号流/电路共用 `H(jω)` 复数出口；精确延迟、相位展开、后续 Nyquist/阻抗/FFT 的基础；P14 已完成 |
-| ⭐⭐⭐⭐ | R40 全栈可扩展架构（插件包 / 数据接口 / UI 视图设计） | 决定外部函数、分析算法、数据格式和新求解引擎能否安全接入；Node/Edge 结构保持不变；设计完成、代码首版完成（589 passed） |
+| ⭐⭐⭐⭐ | R40 全栈可扩展架构（插件包 / 数据接口 / UI 视图设计） | 决定外部函数、分析算法、数据格式和新求解引擎能否安全接入；Node/Edge 结构保持不变；设计完成、代码首版完成（589 passed），2026-11-07 再补视图设计节点字段开关（627 passed） |
 | ⭐⭐⭐⭐ | R41 前端 JavaScript → TypeScript 全局迁移 | 13,806 行 app.js 可维护性 + /api 契约类型化 + 模块化基建；一期类型化（P16）、二期模块化（P17）；P16/P17 均已实现，待推送合并 |
-| ⭐⭐⭐ | R42 Python 代码 PEP 8 规范化与优化 | TS 重构完成后对 netlab+PlotKit 全部 Python 代码按 PEP 8 规范化；不影响任何功能；P18（待 TS 完成后启动） |
+| ⭐⭐⭐ | R42 Python 代码 PEP 8 规范化与优化 | TS 重构完成后对 netlab+PlotKit 全部 Python 代码按 PEP 8 规范化；不影响任何功能；P18 已完成（2026-11-06） |
 | ⭐⭐⭐ | R43 数学成果接入（P1 稀疏排序 / P3 AC 扫频 Woodbury / P5 遥测误差预算，影子验证） | mathspec 零耦合原型 → 影子模式对拍 → 渐进替换；M1a–M1d；不改默认行为 |
 
 
@@ -893,6 +897,11 @@ L3 状态空间一等公民、自定义快捷键、分屏、自定义符号、�
 
 | 日期 | 变更 |
 | --- | --- |
+| 2026-11-07 | **SchemDraw 版式 + 帮助搜索分组 + Bode 拖动读数（§7.87）**：`schematic_export.py` 加 `_edge_label`/`_grid_positions`/`_decorate_svg`（打印图框、标题栏、重叠网格回退）；`server.help_search` 按类别分组 + kind 计分并返回 `kind_label/groups`；`tfBodeCursorFromEvent` 拖动夹取 + `←/→`（Shift ×10）吸附；MATH.md §6.3 补反查公式；定向 8 passed，全量 **627 passed / 1 skipped**（80.12 s），静态 3.20.1 |
+| 2026-11-07 | **R11 多窗口周期 + R14 全局搜索 + R34 Bode 光标（§7.86）**：`analysis._period_windows`/`score_std`/`period_std`（`test_analysis.py:51-52` 断言）；帮助面板全局搜索；R34 Bode 光标；全量 **626 passed / 1 skipped** |
+| 2026-11-07 | **R15 功率电子 + R06 电路侧接口 + R18 图纸增强 + R19 SchemDraw 导出（§7.85）**：新增 `netlab/core/compute/powerelectronics.py`（384 行）与 `schematic_export.py`（122 行，SchemDraw 可选依赖），`nodal.py` 加 thyristor/igbt/jfet/relay PIN_BINDINGS（`:1371-1374`）与「功率电子与电机」分类（`:2727-2731`）；全量 **622 passed / 1 skipped** |
+| 2026-11-06 | **P18 PEP 8 收尾 + UNIFIED 数学规范恢复（§7.83/§7.84）**：两仓库 `.flake8`、`flake8` 0、`black` 88 列；`UNIFIED_SIM_MATH_SPEC` §0–§16 自会话日志恢复；全量 **606 passed / 1 skipped**，PlotKit 470 |
+| 2026-11-06 | **文档体系整理 + R43 + §7.73–§7.82**：新增 R43 六段式、附录 C 补 D112–D118；R40 全栈架构（§7.73/§7.74）、前端 TS 迁移（§7.76）、R43 M1/M2 影子验证（§7.78–§7.82）；DOCS_INDEX 基线 3.20.1/589 passed |
 | 2026-11-05 | **全局传函延迟 / 时域峰值 / PlotKit / R25（§7.69）**：s 域延迟边 1–8 阶 Padé（默认 3），`peak_time`/`peak_value` 与前端峰值标注，TF/相图分析曲线 `analysis:` 数据集接入 PlotKit，TF 面板导出 A/B/C/D，R13 性能面板接通；R25 9 个只读内置 structural 宏块 + 虚拟注册表/另存副本/只读保护；静态 **3.17.0**，全量 **531 passed** |
 | 2026-11-05 | **最终集成检查（§7.68）**：R37 `domain='z'` 纯 gain/sum 显式延迟（`2/z`）、`/api/analysis/tf` 网络参数与 `/api/analysis/phase` 契约测试；R38 dt 收敛（39.15%→37.53%）、无状态通道提示；静态 **3.16.17**，全量 **525 passed**；R36 P1–P5、R37 对外、R38 完成，内部 A/B/C/D 导出为优化项 |
 | 2026-11-05 | **R38 相图指标/CSV 补全（§7.67）**：`drawPhase` 读数增加峰值/超调/稳态/调节时间，工具栏 `phaseExport` 复用 `/api/analysis/export`；静态 **3.16.16**，521 passed |
@@ -1359,6 +1368,13 @@ MOSFET。
 重要架构决策应简洁地记录方案、原因、备选方案及影响。尽量增量更新现有文档，不要每次重新生成整份 ARCHITECTURE.md 或 EXTENDING.md。
 
 文档只能记录已实现、已确认或明确标记为计划中的内容，不能把计划中的能力写成已经完成的功能。
+
+---
+
+## 附录 B 决策补录（D82–D99，2026-11-02 原始记录，格式不一）
+
+> 本附录为 §2 台账 **D82–D99** 的原文补录：D82–D85 为「日期｜结论」简记，D86 起为完整列（编号/日期/主题/原话/实现/不做/验收/权重·期次·状态）。
+
 | 2026-11-02 | **D82 无边框窗口拖动改为页面自绘**（用户报「没法拖动窗口」）：放弃 pywebview `easy_drag` + `DRAG_REGION_DIRECT_TARGET_ONLY`（只认命中元素本身，顶栏空白处拖不动），改 `desktop-shim.js` 指针拖动 + `WebviewBridge.window_rect/window_move_to`，`easy_drag=False`；实测窗口按指针位移精确移动；护栏 `test_desktop_drag.py` 4 条；静态版本 3.15.6 |
 | 2026-11-02 | **D83 内嵌 PlotKit 接入探针数据 + 无边框窗口四边缩放**：新增 `/api/plotkit/channels` GET/POST（`plotkit_bridge.selected_channels/set_channels`）、绘图页签「数据接入」通道复选条（含「按选中节点」+ 重载 iframe）；`window_resize` + shim 八向缩放手柄（最小 1100×700）；静态版本 3.15.7；测试 389→393 |
 | 2026-11-02 | **D84 PlotKit 内置进 netlab + 开始页拖动 + 控件悬停动效**：`netlab/plotkit_vendor.py`（status/install/uninstall/CLI）+ `netlab/_vendor/plotkit`（54 文件，v0.2.0）+ `ensure_plotkit_importable` 优先内置；`initGuide` 卡片 pointer 拖动；button/.btn/.ghost/.primary 统一 transition + hover 上浮 + `data-motion=off` 关闭；静态 3.15.8 |

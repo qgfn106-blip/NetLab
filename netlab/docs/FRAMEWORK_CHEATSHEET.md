@@ -1,7 +1,7 @@
 # Netlab 框架速查表（读完这份就不用再通读代码）
 
 
-> 最后修改：2026-11-07（§0 一分钟事实已校准：netlab 3.20.1、TypeScript+esbuild 前端、pywebview 桌面壳、627 passed、R01–R43/D1–D119；§1 之后的模块行数/符号为 2026-10-25 快照，以代码为准）
+> 最后修改：2026-11-07（§0 一分钟事实与 §1 模块清单均已按代码实测校准：netlab 3.20.1、TypeScript+esbuild 前端、pywebview 桌面壳、627 passed + 1 skipped、R01–R43/D1–D119）
 > 用途：每次新开窗口/新任务时先读这份，**不要**重新扫一遍全部源码。
 > 需要细节时再按文末「文档导航」跳转对应文档。
 > 与代码冲突时以代码为准，并回来更新本文件。
@@ -16,7 +16,7 @@
 | 语言/栈 | Python 3.13 + FastAPI/uvicorn + NumPy/SciPy + TypeScript 前端（esbuild 构建为 JS）+ pywebview/WebView2 桌面外壳 |
 | 启动 | `python netlab/run.py --port 8010 --no-browser`；桌面 `python -m netlab.desktop` |
 | 前端 | `frontend/`：`app.ts`/`app.utils.ts`/`desktop-shim.ts` 源 + `index.html`/`style.css`；`npm run build`（esbuild）生成 `app.js` 等产物，改完构建并刷新，注意 bump `?v=` |
-| 测试 | `python -m pytest netlab/tests -q` → **589 passed, 1 skipped**（2026-11-06） |
+| 测试 | `python -m pytest netlab/tests -q` → **627 passed, 1 skipped**（2026-11-07 实测，共收集 628 项） |
 | 版本控制 | 本目录是 git 仓库（`NetlabHome/` 为根）；测试与文档**随仓库跟踪**（可复现性），`.gitignore` 仅排除运行期/个人产物（MyProject、netlab/tools、NetlabExtras、node_modules、build、dist 等）；证据以 PROGRESS 为准 |
 | 当前阶段 | 以 PROGRESS 头部为准：R01–R43 持续推进；2026-11-06 完成前端 JS→TS 迁移 + 构建期打包（esbuild）+ 桌面 PyInstaller 分发 POC |
 
@@ -24,44 +24,50 @@
 
 ## 1. 目录与模块职责
 
-`netlab/` 下（行数为实测，用于判断改动规模）：
+`netlab/` 下（行数为 2026-11-07 实测；Python 已按 D119 迁入 `netlab/core/{compute,model,common}/`，下表按逻辑模块列出，路径见各行）：
 
 | 模块 | 行数 | 职责 | 关键符号 |
 | --- | --- | --- | --- |
-| `run.py` | 116 | 启动入口：参数、起 uvicorn、开浏览器 | `main` |
-| `server.py` | 1678 | 全部 HTTP 路由 + Pydantic 请求模型 + 全局 `SERVICE` | `app`、`SERVICE`、`ProjectImportRequest` |
-| `scene.py` | 1956 | 场景对象、节点/边记录、三种引擎、快照、catalog | `Scene`、`NodeRecord`、`EdgeRecord`、`SignalEngine`、`CircuitEngine` |
-| `graph.py` | 594 | 信号/矢量网络的执行图（节点、连接、拓扑序、代数环检测） | `Network`、`NodeView`、`ComputeContext` |
-| `computes.py` | 1424 | 节点计算方式注册表（signal/vector） | `ComputeSpec`、`register`、`compute_catalog`、`prepare_compute` |
-| `methods.py` | 670 | 连接传递函数注册表 | `MethodSpec`、`register`、`method_catalog`、`prepare_method` |
-| `nodal.py` | 2519 | 电路元件（MNA）与电路节点、内置元件注册表 | `CircuitElement`、`Resistor`、`element_catalog` |
-| `transistors.py` | 453 | 三极管/MOSFET 行为模型 | `BipolarJunction`、`Mosfet`、`BJT_SPECS` |
-| `logic.py` | 190 | 与/或/非/异或门行为模型 | `LogicGate`、`LOGIC_GATE_SPECS` |
-| `timers.py` | 174 | 555 方波与 LDO | `Astable555`、`LDO`、`TIMER_SPECS` |
-| `digital.py` | 368 | 计数器/移位寄存器/ADC/DAC | `Counter4`、`ShiftRegister4`、`ADC4`、`DAC4`、`DIGITAL_SPECS` |
-| `magnetics.py` | 299 | 变压器与互感线圈（双端口磁耦合） | `Transformer`、`CoupledInductor`、`MAGNETIC_SPECS` |
-| `ports.py` | 194 | R20 引脚契约：30 种元件的 PinSpec | `PinSpec`、`PINS`、`pins_for_device` |
-| `params.py` | 215 | 参数规格 `ParamSpec` 与类型校验控件映射 | `ParamSpec.to_dict`、`validate_params` |
-| `limits.py` | 267 | 上限常量与类型转换/错误类型 | `MAX_NODES`、`MAX_PRECOMPUTE_STEPS`、`ValidationError`、`as_float` |
-| `simulation.py` | 607 | 线程循环、录制、控制、事务式预计算 | `Simulation`、`Recorder`、`SimConfig` |
-| `networks.py` | 324 | 多网络容器：当前网络、增删改、降级只读、工程打包 | `NetworkContainer` |
-| `workspace.py` | 533 | 工作区目录、共享库、快照、用户设置 | `Workspace`、`create_project`、`load_workspace`、`save_workspace` |
-| `blocks.py` | 957 | 功能块：封装/实例化/内部运行时 | `BlockDef`、`BlockStore`、`BlockRuntime`、`encapsulate_nodes` |
-| `circuit_modules.py` | 798 | 电路封装/展开、端口标记与合并 | `encapsulate_circuit`、`flatten_circuit`、`module_net_map` |
-| `project.py` | 958 | `.netlab` 工程文件：构建/校验/迁移/原子写/校验和 | `build_project`、`build_project_for`、`validate_project`、`compute_checksum` |
-| `extensions.py` | 602 | Python 扩展：AST 校验、执行、持久化 | `Param`、`node`、`method`、`validate_code`、`activate_code` |
-| `introspection.py` | 68 | 把 spec 转成前端可展示的公式/源码/参数 | `spec_entry`、`safe_source` |
-| `accel.py` | 230 | 计算加速策略（CPU/GPU 自动回退） | `configure`、`solve_dense`、`status` |
-| `linalg.py` | 228 | 线性代数与离散化 | `solve_linear`、`expm`、`zoh_discretize` |
-| `statespace.py` | 205 | 状态空间离散化 | `StateSpaceModel` |
-| `waveform.py` | 91 | 波形源 | `waveform_value`、`waveform_specs` |
-| `safeexpr.py` | 232 | 表达式节点的受限 AST 求值（无 eval） | `evaluate` |
-| `fem.py` | 667 | 二维有限元热传导 | `FemSimulation`、`FemModel`、`build_mesh` |
-| `templates.py` | 1193 | 场景模板与仿真预设 | `TEMPLATES`、`build_template` |
-| `frontend/app.js` | 12550 | 全部前端逻辑（单文件，按分区组织，见 §6；R20 器件框/引脚/导线渲染） | 见 §6 |
-| `desktop/` | — | PyQt6 外壳：窗口/桥/服务宿主/自检 | `main_window.py`、`bridge.py`、`server_host.py` |
+| `run.py` | 121 | 启动入口：参数、起 uvicorn、开浏览器 | `main` |
+| `server.py` | 2438 | 全部 HTTP 路由 + Pydantic 请求模型 + 全局 `SERVICE` | `app`、`SERVICE`、`ProjectImportRequest` |
+| `core/model/scene.py` | 2036 | 场景对象、节点/边记录、三种引擎、快照、catalog | `Scene`、`NodeRecord`、`EdgeRecord`、`SignalEngine`、`CircuitEngine` |
+| `core/model/graph.py` | 1076 | 信号/矢量网络的执行图（节点、连接、拓扑序、代数环检测） | `Network`、`NodeView`、`ComputeContext` |
+| `core/compute/computes.py` | 1550 | 节点计算方式注册表（signal/vector） | `ComputeSpec`、`register`、`compute_catalog`、`prepare_compute` |
+| `core/compute/methods.py` | 719 | 连接传递函数注册表 | `MethodSpec`、`register`、`method_catalog`、`prepare_method` |
+| `core/compute/nodal.py` | 2739 | 电路元件（MNA）与电路节点、内置元件注册表 | `CircuitElement`、`Resistor`、`element_catalog` |
+| `core/compute/transistors.py` | 620 | 三极管/MOSFET 行为模型 | `BipolarJunction`、`Mosfet`、`BJT_SPECS` |
+| `core/compute/logic.py` | 196 | 与/或/非/异或门行为模型 | `LogicGate`、`LOGIC_GATE_SPECS` |
+| `core/compute/timers.py` | 182 | 555 方波与 LDO | `Astable555`、`LDO`、`TIMER_SPECS` |
+| `core/compute/digital.py` | 396 | 计数器/移位寄存器/ADC/DAC | `Counter4`、`ShiftRegister4`、`ADC4`、`DAC4`、`DIGITAL_SPECS` |
+| `core/compute/magnetics.py` | 329 | 变压器与互感线圈（双端口磁耦合） | `Transformer`、`CoupledInductor`、`MAGNETIC_SPECS` |
+| `core/compute/powerelectronics.py` | 379 | R15 功率电子/电机：晶闸管/IGBT/JFET/继电器/直流电机（Ron/Roff 分段线性 + 反电动势一阶） | `Thyristor`、`Igbt`、`Jfet`、`Relay`、`DcMotor`、`POWER_ELECTRONIC_SPECS` |
+| `core/model/ports.py` | 220 | R20 端口/引脚契约：39 种元件的 PortSpec/PinSpec | `PortSpec`、`PinSpec`、`PINS`、`pins_for` |
+| `core/compute/params.py` | 211 | 参数规格 `ParamSpec` 与类型校验控件映射 | `ParamSpec.to_dict`、`validate_params` |
+| `core/common/limits.py` | 267 | 上限常量与类型转换/错误类型 | `MAX_NODES`、`MAX_PRECOMPUTE_STEPS`、`ValidationError`、`as_float` |
+| `core/common/fastcopy.py` | 31 | 状态快拷贝工具（只读路径加速） | `copy_state` |
+| `core/compute/simulation.py` | 745 | 线程循环、录制、控制、事务式预计算 | `Simulation`、`Recorder`、`SimConfig` |
+| `core/model/networks.py` | 328 | 多网络容器：当前网络、增删改、降级只读、工程打包 | `NetworkContainer` |
+| `core/model/workspace.py` | 515 | 工作区目录、共享库、快照、用户设置 | `Workspace`、`create_project`、`load_workspace`、`save_workspace` |
+| `core/model/blocks.py` | 1142 | 功能块：封装/实例化/内部运行时 | `BlockDef`、`BlockStore`、`BlockRuntime`、`encapsulate_nodes` |
+| `core/compute/circuit_modules.py` | 788 | 电路封装/展开、端口标记与合并 | `encapsulate_circuit`、`flatten_circuit`、`module_net_map` |
+| `core/model/project.py` | 981 | `.netlab` 工程文件：构建/校验/迁移/原子写/校验和 | `build_project`、`build_project_for`、`validate_project`、`compute_checksum` |
+| `core/model/extensions.py` | 603 | Python 扩展：AST 校验、执行、持久化 | `Param`、`node`、`method`、`validate_code`、`activate_code` |
+| `core/compute/introspection.py` | 72 | 把 spec 转成前端可展示的公式/源码/参数 | `spec_entry`、`safe_source` |
+| `core/compute/accel.py` | 218 | 计算加速策略（CPU/GPU 自动回退） | `configure`、`solve_dense`、`status` |
+| `core/compute/linalg.py` | 232 | 线性代数与离散化 | `solve_linear`、`expm`、`zoh_discretize` |
+| `core/compute/statespace.py` | 194 | 状态空间离散化 | `StateSpaceModel` |
+| `core/compute/waveform.py` | 114 | 波形源 | `waveform_value`、`waveform_specs` |
+| `core/compute/safeexpr.py` | 232 | 表达式节点的受限 AST 求值（无 eval） | `evaluate` |
+| `core/compute/fem.py` | 684 | 二维有限元热传导 | `FemSimulation`、`FemModel`、`build_mesh` |
+| `core/compute/schematic_export.py` | 189 | R18/R19 由电路场景导出 SchemDraw 原理图（可选依赖，缺失抛 `ComputeError`） | `scene_to_svg`、`_element_map`、`svg_filename` |
+| `core/compute/telemetry_quality.py` | 91 | 遥测质量评估：采样步长/插值误差界/FIFO 延迟界 | `sample_dt_from_frames`、`interpolation_error_bound`、`fifo_delay_bound` |
+| `core/model/schematic.py` | 480 | R19 图纸模型数据层：引脚表、确定性分层自动布局、校验 | `ELEMENT_PINS`、`pins_for`、`auto_layout`、`validate_schematic` |
+| `core/model/ui_profile.py` | 109 | R40 `netlab-ui/1` 视图配置：令牌/布局/节点卡片字段 → CSS 变量 | `UI_PROFILE`、`default_ui`、`normalize_ui`、`ui_catalog` |
+| `core/model/templates.py` | 1447 | 场景模板与仿真预设 | `TEMPLATES`、`build_template` |
+| `frontend/app.ts` | 15634 | 全部前端逻辑（TS 源码，按分区组织，见 §6；esbuild 打包为 `app.js` 14,119 行） | 见 §6 |
+| `desktop/` | — | pywebview 外壳（WebView2）：窗口/桥/服务宿主/自检（Qt 文件为 D78 遗留） | `webview_app.py`、`webview_bridge.py`、`server_host.py` |
 | `tools/` | — | 基准与浏览器验证脚本 | `bench.py`、`cdp_eval.mjs`、`cdp_shot.mjs` |
-| `tests/` | — | pytest 用例 | `conftest.py` 提供 `client`、`simulation` fixture |
+| `tests/` | — | pytest 用例（91 个 test_*.py，共 628 项） | `conftest.py` 提供 `client`、`simulation` fixture |
 
 ---
 
@@ -144,40 +150,44 @@ Simulation._loop (线程) → Scene.step(dt) → 引擎.step(dt)
 
 ---
 
-## 6. 前端架构（`frontend/app.js` 单文件）
+## 6. 前端架构（`frontend/app.ts` 单文件，esbuild 打包为 `app.js`）
 
-分区（行号为分区起点，改代码时直接定位）：
+分区（行号为 `app.ts` 分区起点，按文件先后排列，改代码时直接定位；`app.js` 产物约 14,119 行，行号约为源码的 0.9 倍且已去类型）：
 
-| 分区 | 位置 | 内容 |
+| 分区 | 位置(app.ts) | 内容 |
 | --- | --- | --- |
-| 0 常量与小工具 | ~14 | `el/div/button/clamp/colorForKey`、`state`、`ui` |
-| 0 桌面会话 | ~309 | `DESKTOP_TOKEN`、`desktopBridge()`、`callBridge()` |
-| 1 请求与提示 | ~359 | `api`、`jsonRequest`、`toast`、`showBanner`、`task` |
-| 2 快照与全局 UI | ~464 | `applySnapshot`、模式 UI、状态栏 |
-| 3 画布渲染 | ~677 | `draw*`、视图变换、尺寸 |
-| 4 画布交互 | ~1335 | 选择、拖拽、连线、缩放 |
-| 5 弹层/模态 | ~1650 | `confirmModal`、菜单、`showHelp` |
-| 6 检查器 | ~1825 | `renderInspector`、`buildParamFields`、`section` |
-| 6.5 节点函数/连接函数 + 扩展 | ~2580 | `renderSpecPane`、`renderExtensionPanel`（页签名待改为「节点函数」「连接函数」，见 R08） |
-| 7 场景变更 | ~3037 | `addNodeAt`、改参数、删节点/边 |
-| 8 场景面板 | ~3236 | 模式、节奏、模板、导入导出 |
-| 8.5 工程文件 | ~3762 | 保存/打开/自动保存/最近/信任确认 |
-| 9 信号图与轮询 | ~4169 | `drawChart`、`drawPhase`、`pollLoop` |
-| 10 控制与启动 | ~5366 | 快捷键、`boot()` |
+| 0 常量与小工具 | L486 | `el/div/button/clamp/colorForKey`、`state`、`ui` |
+| 0 桌面会话 | L970 | `DESKTOP_TOKEN`、`desktopBridge()`、`callBridge()` |
+| 1 请求与提示 | L1015 | `api`、`jsonRequest`、`toast`、`showBanner`、`task` |
+| 2 快照与全局 UI | L1131 | `applySnapshot`、模式 UI、状态栏 |
+| 3 画布尺寸/视图变换/渲染 | L1400 | `draw*`、视图变换、尺寸 |
+| 4 画布交互 | L3735 | 选择、拖拽、连线、缩放 |
+| 5 弹层/菜单/模态 | L4669 | `confirmModal`、菜单、`showHelp` |
+| 6 检查器动态表单 | L5009 | `renderInspector`、`buildParamField`、`section` |
+| 6.5 规格查看与 Python 扩展面板 | L6398 | `renderSpecPane`、扩展面板 |
+| 7 节点/连接/场景变更 | L6852 | `addNodeAt`、改参数、删节点/边 |
+| 8 场景面板 | L7382 | 模式、节奏、模板、导入导出 |
+| 8.5 工程文件 `.netlab` | L8121 | 保存/打开/自动保存/最近/信任确认 |
+| 9 信号图与实时轮询 | L8594 | `drawChart`、`drawPhase`、`pollLoop` |
+| 10 仿真控制/静态事件/启动 | L10573 | 快捷键、`bindStaticEvents`、`boot()` |
+| 8.6 外壳菜单栏/左侧网络栏/顶部信息条（R08） | L10793 | 菜单栏、网络切换、状态信息条 |
+| 8.7 模块库面板（R02） | L11380 | 模块/扩展库卡片与拖放 |
+
+> 注：`boot()` 实际在 `app.ts:13645`，`bindStaticEvents()` 在 `app.ts:13310`。
 
 要点：
 
 - `state` 是唯一前端状态；`ui` 是 DOM 引用表。新增 tab 要同时改 `index.html`（tab 按钮 + `section#tab-x`）、`switchTab()`、`ui` 表。
 - 参数表单由 `buildParamFields(spec, values)` 依 `ParamSpec` 自动生成，不要手写表单。
 - 检查器/规格面板靠 `renderInspector()`→`scheduleSpecRender()` 联动，选中变化会自动刷新。
-- 静态资源用 `?v=x.y.z` 缓存，**改 js/css 必须 bump** `index.html` 里的版本号（当前 3.7.3）。
+- 静态资源用 `?v=x.y.z` 缓存，**改 js/css 必须 bump** `index.html` 里的版本号（当前 3.20.1）。
 - **右键（R22）**：画布 `contextmenu` → `onContextMenu`（hitTest 分 node/edge/空白），菜单统一走
   `openGenericMenu(popup,x,y,title,items)`；item 形状 `{label,hint,action,danger,sep,children}`，有 `children` 时点击
   **下钻 + 「‹ 返回」**（不是 hover 级联）。五类上下文：空白/器件/网络节点/导线/多选（多选目前复用节点菜单：
   `state.multi.nodes.size > 1` 时追加「对齐 / 分布」）。
 - **回放（R23/D48）**：录制帧在 `state.frames`；`state.replay{active,playing,index}` 只读回放；图表绘制用 `slice(0,index+1)`；过期标记比较 `scene.revision` 与 `replay.recordingRevision`；`updateSignalKeyCache` 在 probe 列表为空时保留 `chart.selected`（重置保留探针）。
-- **元件分类（R22/D46）**：唯一来源是后端 `nodal.ELEMENT_GROUP_ORDER`（10 组顺序）与 `ELEMENT_GROUPS`
-  （30 种 kind→组，启动时写回 `ElementSpec.group`，catalog 带 `group`）；前端 `ELEMENT_GROUP_ORDER` 只排显示顺序。
+- **元件分类（R22/D46）**：唯一来源是后端 `nodal.ELEMENT_GROUP_ORDER`（11 组顺序）与 `ELEMENT_GROUPS`
+  （39 种 kind→组，启动时写回 `ElementSpec.group`，catalog 带 `group`）；前端 `ELEMENT_GROUP_ORDER` 只排显示顺序。
   新增元件必须登记 `ELEMENT_GROUPS`，否则 `test_spec` 报"未分类"。
 
 ---
@@ -209,6 +219,14 @@ Simulation._loop (线程) → Scene.step(dt) → 引擎.step(dt)
 | GET | `/api/extensions/{kind}` | 单个扩展详情（含源码） | — |
 | POST | `/api/extensions/scan` | 目录扫描 | — |
 | GET/POST/PATCH | `/api/fem/state|live|control|config` | FEM 子系统 | — |
+| GET/POST | `/api/ui` | 读取/保存 `netlab-ui/1` 视图配置（返回 `ui` + `catalog`） | UI profile |
+| GET | `/api/plugins`、POST `/api/plugins/{id}/{scan,enable,reload}` | 插件管理（D118） | — |
+| GET/POST | `/api/schematic/layout`、`/api/schematic/validate` | 图纸自动布局 / 校验 | 场景载荷 |
+| GET | `/api/export/schematic`、`/api/scene/export` | 导出 SchemDraw SVG / 场景 JSON | — |
+| GET | `/api/help/search`、`/api/help/doc` | 帮助全文搜索 / 文档读取 | `?q=` / `?path=` |
+| GET/POST | `/api/plotkit/diag|channels|active|analysis|precompute` | PlotKit 绘图桥 | 见 left |
+| GET/POST | `/api/networks[...]`、`/api/workspace/...` | 多网络与工作区 | — |
+| POST | `/api/analysis/{metrics,spectrum,period,math,transfer,export}` | 分析工具集 | — |
 | POST | `/api/shutdown` | 退出（桌面模式禁用） | — |
 
 错误模型：`ValidationError→422`、`NotFoundError→404`、`ConflictError→409`、`LimitError→413/422`、`ComputeError→422`；响应体统一 `{"detail": "中文描述"}`。
@@ -230,11 +248,13 @@ Simulation._loop (线程) → Scene.step(dt) → 引擎.step(dt)
 
 ## 9. 桌面外壳（`netlab/desktop/`）
 
-- 进程内起 uvicorn，随机空闲端口，`NETLAB_DESKTOP_TOKEN` 通过 `?token=` 交给页面，前端取到后立刻从地址栏移除并加 `X-Netlab-Token` 头。
-- 桥方法（Qt `@Slot`，回调式）：`saveProject(payload, name, cb)`、`saveProjectTo(path, payload, cb)`、`openProject(cb)`、`openProjectPath(path, cb)`、`currentPath(cb)`、`setDirty`、`isDirty`、`hasAutosave(cb)`、`recoverAutosave(cb)`、`autosave(payload, cb)`、`clearAutosave`、`showMessage`、`showError`、`revealFile`、`appInfo`。
-- 原生菜单 → `window.netlabDesktopCommand('new|open|open-path|save|saveAs|recover|fit|help')`。
-- 自动保存落在 `QStandardPaths.AppDataLocation/autosave.netlab`。
-- 自检：`python -m netlab.desktop --selftest`（期望 `ok: true`，含后端 5 项 + QtWebEngine）。
+当前入口是 **pywebview + WebView2**（D78）：`python -m netlab.desktop` → `webview_app.main()`；Qt 文件（`main_window.py`/`bridge.py`）为历史遗留，不再作为运行路径。
+
+- 进程内起 uvicorn（`server_host.ServerHost`），随机空闲端口，`NETLAB_DESKTOP_TOKEN` 经 `?token=` 交给页面，前端取到后从地址栏移除并加 `X-Netlab-Token` 头（`webview_app.py:302/313`，`server_host.py:42-46`）。
+- 原生能力经 `WebviewBridge`（`js_api=bridge`，`webview_app.py:327`）暴露，方法为 snake_case、返回 JSON 字符串/基础类型：`save_project`、`save_project_to`、`open_project`、`open_project_path`、`current_path`、`autosave`、`has_autosave`、`recover_autosave`、`clear_autosave`、`set_dirty`、`window_minimize/toggle_maximize/close/rect/resize/move_to`、`command`（`webview_bridge.py:112-271`）；网页侧经 `static/desktop-shim.js` 映射到 `window.netlabDesktop`。
+- 原生菜单动作全部转发给页面已有的 `window.netlabDesktopCommand('new|open|open-path|save|saveAs|recover|fit|help|…')`（`webview_app.py:192`、`webview_bridge.py:264`）。
+- 自动保存落在 `%APPDATA%/Netlab/NetlabDesktop/autosave.netlab`（`webview_bridge.py:59-62/80-81`）。
+- 自检：`python -m netlab.desktop --selftest`（期望 `ok: true`；检查 `has_bridge`/`has_win_ctl`/`has_command`/`has_autosave_roundtrip` 等，`webview_app.py:385-404`）。
 
 ---
 
@@ -280,7 +300,7 @@ Simulation._loop (线程) → Scene.step(dt) → 引擎.step(dt)
 | 新增元件分类 | `nodal.py` | `ELEMENT_GROUP_ORDER`、`ELEMENT_GROUPS`（catalog `group` 唯一来源） |
 | 改检查器/规格页 | `app.js` | `renderNodeInspector`、`renderSpecPane` |
 | 改工程文件格式 | `project.py` | `build_project`/`validate_project`/`migrate_project` |
-| 改桌面菜单/桥 | `main_window.py`、`bridge.py` | `command()`、`@Slot` |
+| 改桌面菜单/桥 | `webview_app.py`、`webview_bridge.py` | `_build_menu()`、`WebviewBridge`（js_api） |
 | 改扩展限制 | `extensions.py` | `MAX_*`、`_FORBIDDEN_*` |
 
 ---
@@ -288,8 +308,8 @@ Simulation._loop (线程) → Scene.step(dt) → 引擎.step(dt)
 ## 13. 三件套验证（每阶段收尾必跑）
 
 ```bash
-cd /e/Python/MyPython/ProjectPoint
-python -m pytest netlab/tests -q            # 期望 263 passed
+cd /e/Python/MyPython/ProjectPoint/NetlabHome
+python -m pytest netlab/tests -q            # 期望 627 passed, 1 skipped
 python -m compileall -q netlab              # 无输出即通过
 python -m netlab.desktop --selftest         # 期望 "ok": true
 ```
@@ -314,3 +334,4 @@ node netlab/tools/cdp_eval.mjs "document.title"
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 需要深入原理（1000 行，按需查章节） |
 | `IMPLEMENTATION_PLAN.md`（已删除，见 git 历史） | 最初设计与需求映射 |
 | [EXTENDING.md](EXTENDING.md) | 要写扩展/新规格时的可复制代码 |
+| [CODE_STANDARDS.md](CODE_STANDARDS.md) | 改代码前必读：Python black+flake8、前端 TypeScript+esbuild 规范（D119，SSOT） |

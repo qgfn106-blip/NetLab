@@ -212,6 +212,8 @@ V2-0 已接通的部分（全部有测试覆盖，见 `netlab/tests/test_blocks.
 
 ### 1.6 当前测试状态
 
+> ⚠ 本节为 **V2-3 时期（2026-10-25）历史快照**，数字已过时；当前基线以文首表格与 §7.87（**627 passed / 1 skipped**，2026-11-07）为准。
+
 ```text
 python -m pytest netlab/tests -q
 71 passed
@@ -236,6 +238,8 @@ python -m pytest netlab/tests -q
 ---
 
 ## 2. 尚未开始/未完成的需求
+
+> ⚠ 本表为 **2026-10-25 快照**，多数条目已完成；最新状态见文首表格、§7.87 与 [BACKLOG.md](BACKLOG.md)（R01–R43 未完成项汇总）。
 
 | 需求 | 状态 | 说明 |
 | --- | --- | --- |

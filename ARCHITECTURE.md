@@ -223,12 +223,12 @@ graph LR
 | 新增分析接口 | `server.py` 端点 → `Simulation`/`Scene` 方法 → 引擎实现 |
 | 改参数校验 | `core/compute/params.py` + 对应 spec |
 | 改工程格式 | `core/model/project.py`（版本迁移 + checksum） |
-| 改画布交互 | `frontend/app.js` + `frontend/style.css` |
+| 改画布交互 | `frontend/app.ts`（产物 `app.js`）+ `frontend/style.css` |
 | 改窗口外观 | `netlab/desktop/webview_app.py` + `frontend/desktop-shim.js` |
-| 改绘图接入 | `netlab/plotkit_bridge.py` + `frontend/app.js` 的 placePlotkit |
+| 改绘图接入 | `netlab/plotkit_bridge.py` + `frontend/app.ts` 的 placePlotkit |
 | 新增插件能力 | `plugin_api/v1/__init__.py` + `core/model/plugins.py` + `PLUGIN_GUIDE.md` |
 | 新增自定义引擎 | `core/model/engine_registry.py` + 实现 `EngineProtocol` 的插件包 |
-| 改 UI 主题/布局 | `core/model/ui_profile.py` + `frontend/style.css` + `frontend/app.js` 的 applyUiTokens |
+| 改 UI 主题/布局 | `core/model/ui_profile.py` + `frontend/style.css` + `frontend/app.ts` 的 applyUiTokens |
 
 ## 10. 不变式（改动时别破坏）
 

@@ -1,6 +1,6 @@
 # Netlab UI 规范（设计语言 · 接口 · 框架）
 
-> 最后修改：2026-11-06
+> 最后修改：2026-11-07
 >
 > 本文是 UI 的唯一实现口径，覆盖 R30 / P10 的 6 张票（UI-01…UI-06）。
 > 需求口径仍以 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) R14、R30、D60、D61 为准；
@@ -10,14 +10,15 @@
 
 | 文件 | 作用 | 规模 |
 | --- | --- | --- |
-| `frontend/index.html` | 唯一页面外壳：顶栏、菜单栏 + 信息条、网络栏、工具栏、画布、右栏、状态栏、设置窗、引导页、文档窗、qcard、toast、modal | 约 600 行 |
+| `frontend/index.html` | 唯一页面外壳：顶栏、菜单栏 + 信息条、网络栏、工具栏、画布、右栏、状态栏、设置窗、引导页、文档窗、qcard、toast、modal | 约 650 行 |
 | `frontend/style.css` | 设计令牌 + 全部样式 + 主题/动效/性能档覆盖 + 新组件 | 约 2168 行 |
-| `frontend/app.js` | 单 IIFE 前端应用（由 `app.ts` 编译产物）；R30 新模块追加在文件末尾（`boot();` 之前） | 约 13592 行 |
+| `frontend/app.js` | 单 IIFE 前端应用（由 `app.ts` 编译产物）；R30 新模块追加在文件末尾（`boot();` 之前） | 约 14100 行 |
+| `frontend/desktop-shim.js` | 桌面壳桥接（`desktop-shim.ts` 的 esbuild IIFE 产物，注入 token / 原生调用） | 约 310 行 |
 | `netlab/docs/user/*.md` | 应用内文档中心的 5 篇用户向文档（离线、打包随源码） | 5 篇 |
-| `netlab/server.py` | `GET /api/docs`、`GET /api/docs/{slug}` | — |
+| `netlab/server.py` | `GET /api/docs`、`GET /api/docs/{slug}`、`GET /api/help/search`、`GET /api/help/doc`、`GET/POST /api/ui` | — |
 | `netlab/core/model/workspace.py` | 外观偏好设置键与校验 | — |
 
-前端源码为 TypeScript（`frontend/app.ts` / `app.utils.ts`），用本地 esbuild 编译为已提交的 `app.js` / `app.utils.js`（`npm run build`，见 `frontend/package.json`）；运行期服务端直接托管编译产物，无需在线构建。无第三方框架；改 `.js` 直接刷新即可，改 `.ts` 需先 build（见 §17 版本与缓存）。
+前端源码为 TypeScript（`frontend/app.ts` / `app.utils.ts` / `desktop-shim.ts`），用本地 esbuild 编译为已提交的 `app.js` / `app.utils.js` / `desktop-shim.js`（`npm run build`，见 `frontend/package.json`）；运行期服务端直接托管编译产物，无需在线构建。无第三方框架；改 `.js` 直接刷新即可，改 `.ts` 需先 build（见 §17 版本与缓存）。
 
 ## 2. 设计语言
 
@@ -287,8 +288,11 @@ z-index 132；**不挤占画布**（不再有 `body.settings-open` 让位规则�
 `.floatwin-min` 最小化到右下、`.floatwin-max` 最大化、`#docWinClose` 关闭；`Esc` 关闭（设置窗开着时先关设置窗）。
 
 - 左侧 `#docNav` 目录（5 篇），顶部 `#docSearch` 搜索；
-- 搜索：`searchDocs(query)` 按空行切段、大小写不敏感包含匹配，命中的段落显示前 150 字，
-  点击命中跳转到该文档并保留关键词；无命中给引导文案；
+- 搜索：`searchDocs(query)` 先在本机 5 篇用户文档按空行切段做大小写不敏感包含匹配（命中段显示前 150 字），
+  再并发请求 `GET /api/help/search?q=…&limit=12` 取跨元件/电路节点/计算/方法/模板的命中（过滤掉 `kind==='doc'`）；
+  结果按「文档段落 · N」与各 `kind_label` 分组（`doc-sec` 小标题 + `doc-kind` 徽标），
+  点击文档命中跳转到该文档并保留关键词，点击模板命中 `closeDoc()` 后 `loadTemplate()`，其余命中 `toast` 摘要；
+  两路都空时给引导文案。用 `docSearchSeq` 序号防止旧请求覆盖新结果；
 - 渲染：`renderMarkdown()` 支持 `#/##/###`、段落、无序/有序列表、代码块、行内 `**粗体**` / `` `代码` `` /
   `[文本](链接)`；链接统一 `target="_blank" rel="noreferrer"`；不执行任何脚本/HTML；
 - 入口：帮助菜单、`Ctrl+K`、引导页、设置窗「交互与文档」、参数 `?` 卡片底部「实现页」。
@@ -349,7 +353,9 @@ applyAppearance(): 写 html[data-theme|data-motion|data-perf]
 | `showGuide(force)` / `hideGuide()` / `initGuide()` | 引导页生命周期 |
 | `enterGuideScene()` | 按选中模式进入空白场景（`switchMode(...,{skipConfirm:true})`） |
 | `ensureDocs()` / `openDoc(slug)` / `closeDoc()` | 文档加载与窗口 |
-| `renderDocNav()` / `renderDocBody()` / `renderMarkdown()` / `searchDocs(q)` | 文档渲染与检索 |
+| `renderDocNav()` / `renderDocBody()` / `renderMarkdown()` / `searchDocs(q)` | 文档渲染与检索（`searchDocs` 合并 `/api/help/search` 全局命中并分组，见 §8） |
+| `openViewDesigner()` / `applyUiTokens(tokens,mode)` / `loadUiProfile()` | 视图内设计面板：读 `GET /api/ui` 编辑 token/布局/节点字段并回写 `POST /api/ui`（`netlab-ui/1`） |
+| `openPluginManager()` | 插件管理弹窗：列表 + 启用/禁用 + 重新加载 + 扫描（§12 插件接口） |
 | `initDocWin()` | 拖动/缩放/最小化/最大化/搜索键位 |
 | `attachParamHelp(btn, param, role)` / `typeLabelHelp(label, param)` | 参数 `?` 四段卡片 |
 | `syncFnRoleToSelection()` | 选中对象时切函数子导航角色 |
@@ -368,6 +374,11 @@ applyAppearance(): 写 html[data-theme|data-motion|data-perf]
 | --- | --- |
 | `GET /api/docs` | 返回 5 篇用户文档 `{docs:[{slug,title,text}]}` |
 | `GET /api/docs/{slug}` | 单篇；未知返回 404 |
+| `GET /api/help/search?q=&limit=` | R14 只读全局搜索：跨元件/电路节点/计算/方法/模板/文档；返回 `{q,items,count,groups}`，`items[]` 含 `kind/kind_label/title/subtitle/text/score`（doc 命中另含 `ref/line`），`groups[]` 为按 kind 桶（`key/label/count/items`）；`q` 空返回空集，`limit` 1–50 |
+| `GET /api/help/doc?path=&line=` | 只读渲染 `docs/*.md` 单页（纯文本 HTML，`path` 必须落在 `netlab/docs/` 内的 `.md`，否则 404），供搜索结果开新窗口 |
+| `GET /api/ui` | 返回 `{current, catalog…}`：当前 `netlab-ui/1` profile（`normalize_ui` 归一）+ 可选目录（tokens/layout/node/edge/modes 等，来自 `ui_catalog()`） |
+| `POST /api/ui` | 写入 `SERVICE.ui = normalize_ui(body)`；body 为 `{mode,tokens,layout,node,edge}`，不支持项抛 `ValidationError` |
+| `GET /api/plugins`、`GET /api/plugins/{id}`、`POST /api/plugins/scan`、`POST /api/plugins/{id}/enable`（体 `{enabled}`）、`POST /api/plugins/{id}/reload` | 插件管理弹窗所用；无 `/disable`、`/open-folder` 路由（详见 [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md) §8） |
 | `GET /api/settings` | 全部设置（含 `ui_accent/ui_motion/ui_perf/ui_guide`） |
 | `PATCH /api/settings` | 局部更新；`ui_motion∈{off,low,med,high}`、`ui_perf∈{perf,balanced,quality}`、`ui_guide∈{always,never}`、`ui_accent` 空串或 `#rrggbb` |
 
@@ -385,6 +396,7 @@ applyAppearance(): 写 html[data-theme|data-motion|data-perf]
 
 - `Esc` 关闭顺序：qcard → 设置窗 → 文档窗；`Ctrl+K` 打开文档并聚焦搜索；
 - 引导页 `Enter` = 进入场景；文档搜索 `Enter` = 跳到第一条命中；
+- Bode 图（`#analysisTFChart`，bode 视图）：鼠标移动/按住拖动连续读数，`←`/`→` 吸附相邻采样点、`Shift+←/→` 步进 ×10 采样点；
 - 所有可点控件用 `button`，状态用 `aria-pressed` / `aria-checked`；
 - 图标按钮必须有 `aria-label`；`?` 按钮带 `title`；
 - 对比度：主文字 ≥ 7:1，弱化文字 ≥ 4.5:1（暗色同标准）。
@@ -404,6 +416,10 @@ applyAppearance(): 写 html[data-theme|data-motion|data-perf]
 | 任一模式启动停止 | `ensureStoppedOnBoot()` + 移除自动 run | 进入后 `running=false` |
 | 主题/强调色/动效/性能可调 | `applyAppearance()` + 4 组控件 | 浅色切换后 `--paper=#eae5e1` |
 | GPU 友好 | 只动 transform/opacity；性能档关模糊/阴影 | 无 `filter` 长动画；`data-perf` 生效 |
+| 帮助全局搜索 + 分组（R14） | `searchDocs()` 合并 `/api/help/search`，`doc-sec`/`doc-kind` 分组徽标 | pytest `test_help_search.py`（元件/计算/模板/doc 四类与排序）；搜索「Bode」出分组 |
+| Bode 光标 + 拖动读数（R34） | `attachTfCursor()` + `tfBodeCursorFromEvent()`，`state.tfCursor/tfDragging` | 画布提示条「拖动读数 · ← → 吸附采样点（Shift ×10）」；Math 反查见 MATH.md |
+| 视图设计节点字段开关（R40） | `openViewDesigner()` 的 `addNodeToggle('show_detail'|'show_value')` | `GET/POST /api/ui` 往返；`normalize_ui` 校验 profile |
+| 插件管理弹窗 | `openPluginManager()` + `/api/plugins*` | enable/reload/scan 调用；无 `/disable` 路由 |
 
 ## 16. 扩展点与禁忌
 
@@ -437,7 +453,7 @@ applyAppearance(): 写 html[data-theme|data-motion|data-perf]
 
 ```bash
 cd NetlabHome
-python -m pytest netlab/tests -q              # 当前 589 passed
+python -m pytest netlab/tests -q              # 当前 627 passed / 1 skipped
 python -m compileall -q netlab
 python -m netlab.desktop --selftest           # backend + qt + ok:true
 node --check frontend/app.js
@@ -464,13 +480,22 @@ R30 的自动化 UI 验收脚本在 `NetlabExtras/scratch/verify_r30.mjs`（引�
 - 失效策略：`applySnapshot` 比较 `scene.revision`，变化即清空 `state.acResult` 并提示「电路已变化，请重新扫频」；
 - 护栏：`netlab/tests/test_ui_analysis_entry.py`（标记存在性、端点调用、探针过滤）。
 
-## 20. 简单画布与视图内设计（首版已实现，2026-11-06）
+## 20. 简单画布与视图内设计（视图设计器已实现；简单画布为设计目标，2026-11-07 校正）
 
 > 完整协议、插件 UI 与数据源见 [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md) §8。
 
-- **双模式**：`state.ui.displayMode = "professional" | "simple"`；两者共用同一 `NodeRecord`/`EdgeRecord`，切换只改渲染与交互，不改工程数据。
+**实现现状（3.20.1，以代码为准）**：已落地 —— 设计令牌实时映射（`applyUiTokens()` `frontend/app.ts:12718`，写 `--nl-*` 与主题变量）；`simple/professional` 选择（写入 `body.dataset.canvasMode` 并切 `.simple-canvas`，`app.ts:12737-12740`，但 `frontend/style.css` 暂无 `.simple-canvas` 规则，故**独立“简单画布”渲染尚未生效**）；节点字段开关 `show_detail`/`show_value`（驱动 `state.ui.cardDetail/cardValue`，绘制时按缩放显隐细节与数值，`app.ts:3166-3167`）；节点拖动、边折点与线型（`edge.waypoints` / `route=manual`，`app.ts:1725-1812`）、撤销/重做（`undoStack/redoStack`，`app.ts:791-792`）、面板分隔条拖拽（`#panelResize`，`app.ts:13254`）、iro 调色、`POST /api/ui` 保存均已实现。下文的“简单卡片/快速添加面板/面板排序与显隐/节点边角缩放与端口编辑”等仍为设计目标。
+
+- **双模式**：`netlab-ui/1.mode = "professional" | "simple"`（运行期 profile，视图设计器切换，见 [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md) §8.1）；两者共用同一 `NodeRecord`/`EdgeRecord`，切换只改渲染与交互，不改工程数据。
 - **简单画布**：节点为紧凑卡片（图标 + 标题 + 2–4 个关键值 + 状态色），端口用明确圆点；从输出端口拖到输入端口即建边；空白处点击打开按 mode/插件分组的快速添加面板；检查器默认只显示常用参数，高级项折叠。
-- **视图内设计**：工具栏“界面设计”开关；选中节点可拖动位置/边角缩放/调整端口；选中边可拖折点、选直线/正交/曲线、线宽/虚线/颜色令牌；面板可拖动分隔条、调整宽高/显隐/排序；右侧“外观”页签编辑形状、字形、强调色令牌、显示字段、端口样式、密度；支持撤销/重做。
+- **视图内设计**：工具栏“界面设计”开关（`openViewDesigner()`，`frontend/app.ts:12785`）。已实现：选中节点拖动位置、选中边拖折点与选路由（直线/正交/曲线）、颜色令牌、布局尺寸/字体缩放、撤销/重做、面板分隔条拖拽。设计目标（尚未实现）：节点边角缩放与端口位置调整、面板宽高/显隐/排序、形状/字形/密度。节点字段开关为 `addNodeToggle('show_detail', '显示节点类型/端口')` 与 `addNodeToggle('show_value', '显示节点数值')`，分别映射 `node.show_detail` / `node.show_value`，并同步 `state.ui.cardDetail` / `state.ui.cardValue`（`frontend/app.ts:12790-12865`）。
 - **颜色选择器**：首版已离线 vendored [jaames/iro.js](https://github.com/jaames/iro.js) 5.5.2（`frontend/vendor/iro.min.js`，不引 CDN）；保留原生 `<input type="color">` 作为回退，点击「调色」打开发光色轮并实时写回 token（`background/surface/panel/text/muted/accent/grid/edge/node/danger/success`）。所有选择结果仍落入 `netlab-ui/1` 声明式 token，禁止任意 CSS。
-- **配置**：保存为工程 `ui` 的 `netlab-ui/1` profile，或“设为全局默认”；只允许布局、设计令牌、字段列表和枚举样式，不执行任意 CSS/HTML/JS。
+- **配置**：视图设计「应用并保存」→ `POST /api/ui`，写入运行期 `SERVICE.ui`（`netlab-ui/1`：`mode/tokens/layout/node/edge`，经 `normalize_ui` 校验，不接受任意键）；工程 `.netlab` 的 `ui` 段仍是旧的视图偏好（`buildProjectPayload()` 组装的 `view/tab/workspace/grid/symbol/nodeStyle/drawing*/cardDetail/cardValue/symbolScale/glyphColor`，见 `frontend/app.ts:8240`、`netlab/core/model/project.py:200`），其中 `cardDetail/cardValue` 由上面两个显示开关驱动。只允许布局、设计令牌、字段列表和枚举样式，不执行任意 CSS/HTML/JS。
 - **面板**：`PanelSpec` 仅绑定 recorder 探针、`AnalysisSpec` 结果、插件 `snapshot()` 三类只读源，统一帧边界取数。
+
+## 21. 分析面板与传递函数（R12 / R11 / R34，2026-11-07）
+
+- **指标 / 频谱 / 周期 / 数学形式**：`GET /api/analysis/metrics?keys=&t0=&t1=`、`GET /api/analysis/spectrum?key=`、`GET /api/analysis/period?key=`、`GET /api/analysis/math`；其中 `period` 走 `analysis.recommend_period`，R11 已升级为**多窗口周期**（`_period_windows` 取全窗 + 65%/35% 重叠子窗，逐窗 `_shift_score`，返回 `period/score/cycles/windows/score_std/period_std`）。
+- **传递函数（R34）**：`#analysisInputNode` / `#analysisOutputNode` → `runAnalysisTransfer()` → `POST /api/analysis/tf`（体 `{input_node,output_node,points}`，另有 `node/field/expr/numerator/denominator/zeros/poles/gain/method/dt/duration/delay_pade_order`）；结果 `state.analysisTF` 含 `bode/state_space/step` 等，摘要写入 `#analysisTFOut`，`#analysisTFView` 切 bode/step 视图，`#analysisTFChart` 绘制。
+- **网络传函推导**：`GET /api/analysis/transfer?input=&output=&domain=s`；**相平面**：`POST /api/analysis/phase`；**插件分析**：`POST /api/analysis/plugin`（`kind/params/probes/input_node/output_node`）。
+- **Bode 读数**：鼠标移动/按住拖动连续读数、`←/→` 吸附采样点（`Shift` ×10），提示条与角标见 `drawAnalysisTF()` / `attachTfCursor()`；对数轴反查公式见 [MATH.md](MATH.md)。

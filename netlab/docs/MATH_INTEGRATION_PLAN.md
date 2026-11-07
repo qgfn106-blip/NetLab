@@ -54,6 +54,8 @@
 | `NetlabHome/netlab/core/compute/nodal.py:2392` | `solution = np.linalg.solve(ctx.A, ctx.rhs)`（complex 稠密） | P3 的参考实现 |
 | `NetlabHome/netlab/core/common/limits.py:15-17` | `MAX_NODES=400`、`MAX_EDGES=1200`、`MAX_FIELDS=64` | 语料上界与性能预期按此校准 |
 
+> **注（2026-11-07 追记）**：上表行号为 P3 落地前基线；P3 已按 §11 落地，当前 `ac_sweep` 入口为 `nodal.py:2335`，Woodbury 影子路径在 `nodal.py:2420-2539`（`_solve_matrix` 现 `nodal.py:2080`、`_solve_sparse` 现 `nodal.py:2170`、`_splu` 现 `nodal.py:2207`、稀疏分解缓存现 `nodal.py:2191-2200`）。
+
 ### 2.2 mathspec 可复用资产
 
 | 模块 | 可复用内容 | 本计划用途 |
@@ -108,17 +110,18 @@ x=A_0^{-1}b-A_0^{-1}U\left(I+\Sigma V^{\mathsf T}A_0^{-1}U\right)^{-1}\Sigma V^{
 
 | 条件 | 行为 |
 |---|---|
+| `矩阵规模 size < AC_WOODBURY_MIN_SIZE=160` | 不构造 Woodbury（`woodbury_ac.py:27`；门控 `nodal.py:2426`），小矩阵直接解更快 |
 | `r/n ≤ 0.10` | 允许 Woodbury（`on` 时走新路径；`shadow` 时对拍） |
 | `0.10 < r/n ≤ 0.25` | **仅影子**：计算并记录误差/耗时，返回直接解 |
-| `r/n > 0.25` | 直接回退 `np.linalg.solve`，记录 `fallback_reason=RATIO` |
-| `A0` 条件数/主元守卫触发 | 回退直接解，记录 `fallback_reason=COND` |
-| 频点含 `ω=0` | 单独走 DC 路径（\(1/j\omega\) 奇异），不进入 Woodbury |
+| `r/n > 0.25` | 直接回退 `np.linalg.solve`（`solver.usable=False`，`reason` 记「r/n=… >max_ratio」，经 `record_math_diag("p3.init", …)` 上报，`nodal.py:2456`） |
+| `A0` 条件数/主元守卫触发 | 回退直接解（`solver.usable=False`，`reason` 记「A0 条件数/主元过小/含非有限值」，同上上报） |
+| 频点含 `ω ≤ 0` | `ac_sweep` 入口即 `ValidationError`（`nodal.py:2351-2352`），不存在 ω=0 分支 |
 | 非电抗元件（开关/二极管/受控源变化） | 不进入仿射族，直接解 |
 
 #### 3.1.3 实现落点
 
 - 新增 `NetlabHome/netlab/core/compute/math_accel/woodbury_ac.py`（纯函数 + 数据类，不 import UI/全局状态）；
-- `nodal.py:2289` `ac_sweep` 内加分支：`off`（现状）/`shadow`（双算对拍）/`on`（新路径 + 守卫）；
+- `nodal.py:2335` `ac_sweep` 内加分支：`off`（现状）/`shadow`（双算对拍）/`on`（新路径 + 守卫）；
 - 保持 `ctx.A`/`ctx.rhs` 的装配逻辑不变，只在"求解"处替换；
 - 结果仍写回原 `solutions` 列表与返回结构，`/api/ac-sweep` 响应不变。
 
@@ -126,9 +129,9 @@ x=A_0^{-1}b-A_0^{-1}U\left(I+\Sigma V^{\mathsf T}A_0^{-1}U\right)^{-1}\Sigma V^{
 
 - `shadow` 对拍：全部语料相对误差 `< 1e-10`（2-范数/逐点最大相对误差双口径）；
 - `on` 在 `r/n ≤ 0.10` 语料上平均加速 `≥ 2×`，且 `p95` 单频误差 `< 1e-10`；
-- 守卫场景（病态 A0、r/n>0.25、ω=0）全部正确回退并记录原因；
+- 守卫场景（病态 A0、r/n>0.25；`ω ≤ 0` 在入口即 `ValidationError` 拒绝）全部按预期处理并记录原因；
 - `NETLAB_MATH_ACCEL=off` 时零行为变化、零额外分配；
-- pytest 新增测试 ≥ 8 条（含 1 条病态、1 条 r/n 边界、1 条 ω=0）。
+- pytest 新增测试 ≥ 8 条（含 1 条病态、1 条 r/n 边界、1 条 `ω ≤ 0` 拒绝）。
 
 ### 3.2 P1：稀疏排序评测器（低风险性能）
 

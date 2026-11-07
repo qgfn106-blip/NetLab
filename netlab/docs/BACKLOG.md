@@ -1,6 +1,6 @@
 # Netlab 主线待办（BACKLOG）
 
-> 最后修改：2026-11-06 18:30
+> 最后修改：2026-11-07 02:30
 > 用途：**一页回答「现在要做什么、还有什么没做」**。需求与决策的唯一口径仍是
 > [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)（R01–R43 / D1–D119），进度证据在
 > [PROGRESS.md](PROGRESS.md)。本文只做**汇总与排序**，不重复定义需求。
@@ -12,7 +12,7 @@
 
 - **能用的产品**：`start_desktop.bat` / `python -m netlab.desktop` 起 pywebview + WebView2 网页壳（**627 passed**，2026-11-07，静态 3.20.1；全量文档重构 §7.75 完成）。
 - **界面口径**：前端在 `frontend/`（index.html / app.js / style.css）；Qt 原生界面已按 D78 备份到 Git 分支 `backup/qt-native-2026-11-02` 后删除，不再是产品形态。
-- **已完成（一期）**：R41 前端 JavaScript→TypeScript 全局迁移（一期 P16 类型化、二期 P17 模块化均已完成），tsc strict 0 / node --test 纯函数单测绿 / AST 行为等价 / pytest 589 passed，见 REQUIREMENTS R41 / PROGRESS §7.76。
+- **已完成（一期）**：R41 前端 JavaScript→TypeScript 全局迁移（一期 P16 类型化、二期 P17 模块化均已完成），tsc strict 0 / node --test 纯函数单测绿 / AST 行为等价 / pytest 627 passed / 1 skipped，见 REQUIREMENTS R41 / PROGRESS §7.76。
 - **没做完的主线**：R25 三阶段已交付（P7-09/10/11：9 块/虚拟注册表/只读保护/另存副本/行为快速模型/`internal_sim` 开关/对比 API/UI），剩完整电路级内部结构；R19 参考级图纸暂停。**2026-11-07 刚完成**：R15 功率电子与电机、R06 电路侧接口、R18 图纸增强、R19 SchemDraw 静态导出（§7.85）；R11 多窗口周期、R14 全局搜索、R34 Bode 光标（§7.86）；SchemDraw 版式、搜索分组、Bode 拖动（§7.87）；全量 **627 passed / 1 skipped**、静态 3.20.1。
 - **实施中**：R36 非线性 / 非定常闭环求解 **P1–P5 已完成**（P1：节点求解语义标签、`Network.solver_plan()` 的 SCC/断点划分、自动 `z⁻¹` 可见记录；P2：`Network(solve_algebraic=True)` 线性 SCC 解 `(I-A)y=b`、`Scene.set_algebraic_solver()` 开关、`AlgebraicLoopError`；P3：阻尼 Newton + 有限差分雅可比 + 线搜索 + `NewtonConvergenceError`、表达式 `t`/`time` 时变变量；P4：线性网络节点方程总传函 + `tf_analysis` 网络 Bode；P5：`state:<node>:<index>` 状态通道、相图独立播放/步进/循环、`phase_metrics` L/A 指标；525 passed）。R37 线性网络总传函/Bode 对外能力已完成（s 域节点方程消元 + z 域纯 gain/sum 显式延迟），A/B/C/D 已导出（前端「导出 A/B/C/D」）；R38 状态通道/独立播放/指标/CSV 已完成（§7.66–§7.67），dt 收敛与无状态通道中文提示已补；见 [规划 spec](specs/2026-11-04-nonlinear-time-varying-solver-plan.md)。
 - **刚完成**：**控制链路补强与欠阻尼工程（§7.61：超调按最终值方向、离散 `1/z` 左补零、`reset_state` 初值快照、`output=auto`、非整数时间网格；交付 `MyProject/underdamped_control.netlab`）**、**PlotKit 导入优先级 + 多工作树规范（§7.60：内置副本优先、`NETLAB_PLOTKIT_SRC` 覆盖、gmpy2 坏包清理、`tools/new_worktree.sh` + `docs/WORKTREE_RULES.md`）**、**结构护栏补齐相对导入（§7.59：`test_structure_layout.py` 解析相对/`netlab.*` 越界导入，6→14 条）**、**预计算反馈环首拍修复（§7.58：延迟边空载荷按 0、pass 空 dict 不注入）**、**信号流右键「添加」菜单按节点组分类（§7.57：基础/动态/高级/矢量/模块/接口，矢量置顶）**、**R35 输入字段自动匹配（D91 / §7.56：value 优先、显式键兼容、块端口别名）**、**架构审计修复（§7.55：PlotKit 子应用鉴权 + 宿主 shim、记录器代次、通道上限、桥生命周期、precompute 契约、缓存 API 契约）**、**R34 s 域传递函数节点与分析（D90 / §7.54：表达式/系数/零极点三形态、Bode/阶跃/零极点三视图、`POST /api/analysis/tf`）**、R26 的 UI 入口（§7.37）、D80 数据通路优化（§7.36）、D81 PlotKit 面板卡顿修复（§7.38）。
@@ -23,6 +23,7 @@
 
 | 顺序 | 事项 | 为什么排这里 | 体量 |
 | --- | --- | --- | --- |
+| ▶ 当前 | **真实未完成主线**：① **R25 完整电路级内部结构**（P7-09/10/11 仅做到宏模型）待后续；② **R41 推送 origin 合并**（本地 main 领先 origin/main **17 提交**，P16/P17/R42/P18/R43 仅在本地）；③ **R43 M2 放量评审**（默认 `NETLAB_MATH_ACCEL=off`，需工程 opt-in）；④ **R40 节点卡片自由字段编辑**（已知限制）；⑤ R19 参考级图纸继续暂停 | 本轮核对后仍真正未完成的主线，其余 ①–⑩ 均已闭环 | 大/中 |
 | ① | ~~R33 收尾~~ → 已随 D78 关闭（原生壳下线，相关验收项作废） | — | — |
 | ② | ~~web 版去留~~ → 已定：保留 web（D78），Qt 只留备份分支 | — | — |
 | ③ | ~~R25 P7-09~~：opamp / comparator 内置只读内部结构 → **已完成（宏模型，§7.69）** | 只读内部/另存副本/空库回退已验证；电路级待后续 | — |
@@ -31,7 +32,7 @@
 | ⑥ | ~~R31 P11-01…P11-07~~ → **已完成（§7.72）**：L1 平均模型、`abc_dq`、SRF-PLL、dq 电流环、跨域桥、六开关示例、性能/中断 | 581 passed/3.19.0；P11-06 为趋势验证 | — |
 | ⑦ | ~~复数分析层（Complex Bridge）~~ → **已完成（§7.71）**：统一 `frequency_response()` + 精确 `e^{-jωT}` + 电路 AC 复数 MNA + API | 只做分析边界，避免全量 complex；561 passed/3.18.0 | — |
 | ⑧ | **R40 全栈扩展架构** → **首版完成（§7.74）+ 视图设计节点卡片字段开关（2026-11-07）**：插件包 + `netlab.plugin_api.v1` + 声明式 UI/简洁画布 | 自由拖拽编辑面板字段、插件生态示例仍可继续补 | 大 |
-| ⑨ | **R41 前端 JS→TS 迁移**（一期 P16 类型化，二期 P17 模块化）→ **一期 P16、二期 P17 均已完成（§7.76）**：7 文件全部严格类型化、1:1 编译、strict 棘轮、AST/行为等价、pytest 589 passed；详见 REQUIREMENTS R41 / PROGRESS §7.76 | 13,806 行 app.js 可维护性 + /api 契约类型化 + 模块化基建 | 已完成 |
+| ⑨ | **R41 前端 JS→TS 迁移**（一期 P16 类型化，二期 P17 模块化）→ **一期 P16、二期 P17 均已完成（§7.76）**：7 文件全部严格类型化、1:1 编译、strict 棘轮、AST/行为等价、pytest 627 passed / 1 skipped；详见 REQUIREMENTS R41 / PROGRESS §7.76 | 13,806 行 app.js 可维护性 + /api 契约类型化 + 模块化基建 | 已完成 |
 | ⑩ | **R42 Python 代码 PEP 8 规范化**（P18）→ **已完成（§7.83）**：netlab + PlotKit 全 Python 代码 `flake8` 0、`black` 88 列；测试 netlab **606 passed / 1 skipped**、PlotKit **470 passed**，零功能变化；详见 REQUIREMENTS R42 / P18 | 统一 Python 风格、提升可读性/可维护性 | 已完成 |
 
 > R31 已完成 P11-01…P11-07；P11-06 为理想 nmos + 50 Hz 方波栅极的趋势验证，10 kHz PWM/器件损耗留后续。
@@ -81,7 +82,7 @@
 | R26 | 求解器分析 | DC 工作点 / AC 扫频 UI 入口已在 `#analWin`；本次核对 | 与 R12 共用实现 | 已闭环 |
 | R31 | 并网逆变器 | **P11-01…P11-07 已完成**（§7.72）：平均模型、abc_dq、PLL、电流环、跨域桥、六开关示例、性能/中断 | P11-06 仅趋势验证；10 kHz PWM/损耗留后续 | 完成 |
 | R40 | 全栈可扩展架构 | **首版完成 + 2026-11-07 复核**：插件包、`netlab.plugin_api.v1`、compute/method/element/analysis/data-format/template/panel/engine 扩展点、工程 v6、简洁画布与视图设计 | 视图设计仍只覆盖令牌/布局/模式；节点卡片自由字段编辑为已知限制 | 大 |
-| R33 | 原生桌面外壳 | A5/A13/A14/A18/A21 未验；web 去留未定 | 见 §2 | 小 |
+| R33 | 原生桌面外壳 | **已随 D78 关闭**：Qt 原生界面备份到 Git 分支 `backup/qt-native-2026-11-02` 后删除，界面恢复 `frontend/`；原 A5/A13/A14/A18/A21 验收随原生壳一并作废 | — | 已关闭 |
 | R34 | s 域传递函数节点与分析 | **已闭环 + 2026-11-07 补 Bode 光标**（表达式/系数/零极点、Bode/阶跃/零极点、端点） | 可选增强：零极点拖动、MIMO（明确不做） | 已闭环 |
 | R35 | 输入字段自动匹配 | —（value 优先、显式键兼容、块端口别名、22 条定向） | 可选增强：向量/矩阵跨类型自动换算（当前明确不做） | 已闭环 |
 | R36 | 非线性 / 非定常闭环求解 | **P1–P5 完成**（节点语义标签、`solver_plan()` 状态断点/SCC、自动延迟记录；线性 SCC 解 `(I-A)y=b`；阻尼 Newton + 时变表达式；线性网络总传函/Bode；状态通道/相图播放） | 主线完成，后续只做回归与体验 | 已完成 |
@@ -94,7 +95,7 @@
 
 | # | 决定 | 选项 | 影响 |
 | --- | --- | --- | --- |
-| P1 | web 版最终形态 | (a) 删掉 `frontend/`，只留原生（b) 降级为只读看图 (c) 永久双维护 | 决定后才知道「改逻辑要不要同步两份」 |
+| P1 | web 版最终形态 | **已拍板（D78，2026-11-02）**：保留 web（`frontend/`），Qt 原生只留备份分支 | 改逻辑只需维护 web 一份 |
 | P2 | R19 参考级图纸是否恢复 | 恢复 / 继续暂停 | 恢复需要先有 R18 的图纸模式 |
 | P3 | R20 旧「边=元件」路径何时清零 | 现在清 / 等模板全迁完 | 早清能少一层兼容垫片 |
 | P4 | R31 是否现在启动 | 已拍板：已启动并完成 P11-01…P11-07（§7.72） | 后续只剩开关级精度增强 |
@@ -115,6 +116,11 @@
 
 | 日期 | 变更 |
 | --- | --- |
+| 2026-11-07 | **SchemDraw 版式 + 帮助搜索分组 + Bode 拖动读数（§7.87）**：SchemDraw 打印图框/标题栏/位号参数值/重叠网格回退；`/api/help/search` 按类别分组 + kind 计分（返回 `kind_label/groups`）；Bode 光标拖动夹取 + `←/→`（Shift ×10）吸附；MATH.md §6.3 反查公式；定向 8 passed，全量 **627 passed / 1 skipped**（80.12 s），静态 3.20.1；BACKLOG/DOCS_INDEX/FRAMEWORK_CHEATSHEET 基线改 627 |
+| 2026-11-07 | **R11 多窗口周期 + R14 全局搜索 + R34 Bode 光标（§7.86）**：`analysis._period_windows`/`score_std`/`period_std`；帮助面板全局搜索；全量 **626 passed / 1 skipped** |
+| 2026-11-07 | **R15 功率电子 + R06 电路侧接口 + R18 图纸增强 + R19 SchemDraw 导出（§7.85）**：`powerelectronics.py`（384 行）、`schematic_export.py`（122 行，SchemDraw 可选依赖）、`nodal.py` 功率器件 PIN_BINDINGS 与「功率电子与电机」分类；全量 **622 passed / 1 skipped** |
+| 2026-11-06 | **P18 PEP 8 收尾 + UNIFIED 数学规范恢复（§7.83/§7.84）**：两仓库 `.flake8`、`flake8` 0、`black` 88 列；`UNIFIED_SIM_MATH_SPEC` §0–§16 自会话日志恢复；全量 **606 passed / 1 skipped**，PlotKit 470 |
+| 2026-11-06 | **文档体系整理 + R40/TS 迁移/R43（§7.73–§7.82）**：R43 六段式 + 附录 C 补 D112–D118；R40 全栈架构、P16/P17 TS 迁移、R43 M1/M2 影子验证；DOCS_INDEX 基线 3.20.1/589 passed |
 | 2026-11-05 | **最终补强 / 集成检查**：`analysis.transfer_function(domain='z')` 支持纯 gain/sum + 显式 `z⁻¹`；`/api/analysis/tf` 暴露 `input_node`/`output_node`，新增 `/api/analysis/phase` 契约测试；`test_control_project` 加 dt 收敛（39.15%→37.53%）；相图无状态通道中文提示；静态 **3.16.17**，全量 **524 passed** |
 | 2026-11-05 | **R36 P5 完成**：`state:<node>:<index>` 状态通道、`phase_metrics` L/A 指标、相图独立播放/步进/循环/帧滑块、`/api/analysis/phase` 与 `/api/analysis/tf` 参数对齐；新增 `test_state_channels.py` 3 条，全量 **521 passed**，静态 **3.16.15** |
 | 2026-11-05 | **R38 相图指标/CSV 补全**：`drawPhase` 增加峰值/超调/稳态/调节时间，工具栏 `phaseExport` 复用 `/api/analysis/export`；静态 **3.16.16**，521 passed |

@@ -1,6 +1,6 @@
 # Netlab 文档索引（DOCS INDEX）
 
-> 最后核对：2026-11-07 02:25 · 当前基线：静态 3.20.1 / 627 passed / R01–R43 / D1–D119；新增 **CODE_STANDARDS.md（代码规范，强制）**
+> 最后核对：2026-11-07（本轮以 3.20.1 代码复核 UI_SPEC/EXTENDING/EXTENSIBILITY/PLUGIN_GUIDE/VSCODE/AGENT_GUIDE/OPERATION/ARCHITECTURE）· 当前基线：静态 3.20.1 / 627 passed / R01–R43 / D1–D119；新增 **CODE_STANDARDS.md（代码规范，强制）**
 > 目的：先在这里找文档，不要凭文件名猜新旧。**历史文档保留原文，但不得作为当前实现口径。**
 
 ## 1. 建议阅读路线
@@ -11,8 +11,8 @@
 | 想安装/离线部署 | [INSTALL.md](../../INSTALL.md) | [user/quickstart.md](user/quickstart.md) |
 | 想理解整体架构 | [ARCHITECTURE.md](../../ARCHITECTURE.md) | [ARCHITECTURE.md](ARCHITECTURE.md)（详细版） |
 | 想查数学公式 | [MATH.md](MATH.md) | [CODE_GUIDE.md](CODE_GUIDE.md) |
-| 想写插件/扩展 | [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md) | [EXTENDING.md](EXTENDING.md) |
-| 想改前端/UI | [UI_SPEC.md](UI_SPEC.md) | [FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md) |
+| 想写插件/扩展 | [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md) | [PLUGIN_GUIDE.md](PLUGIN_GUIDE.md) + [CODE_STANDARDS.md](CODE_STANDARDS.md)（Python 规范） |
+| 想改前端/UI | [UI_SPEC.md](UI_SPEC.md) | [CODE_STANDARDS.md](CODE_STANDARDS.md)（TS/JS 规范）+ [FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md) |
 | 想知道项目做到哪 | [PROGRESS.md](PROGRESS.md) | [BACKLOG.md](BACKLOG.md) |
 | 想查需求/决策 | [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) | [adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md) |
 | 想改代码（贡献者 / agent） | **[CODE_STANDARDS.md](CODE_STANDARDS.md)** | [AGENT_GUIDE.md](AGENT_GUIDE.md) |
@@ -58,7 +58,7 @@
 
 | 文档 | 用途 | 状态 |
 | --- | --- | --- |
-| [UI_SPEC.md](UI_SPEC.md) | 界面规范、设计令牌、简单画布/视图内设计 | 当前 |
+| [UI_SPEC.md](UI_SPEC.md) | 界面规范、设计令牌、视图设计器（简单画布为设计目标，见 §20 实现现状） | 当前 |
 | [user/quickstart.md](user/quickstart.md) | 5 分钟上手 | 当前 |
 | [user/interface.md](user/interface.md) | 界面区域说明 | 当前 |
 | [user/shortcuts.md](user/shortcuts.md) | 快捷键 | 当前 |
@@ -70,7 +70,7 @@
 | 文档 | 用途 | 状态 |
 | --- | --- | --- |
 | [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) | R01–R43 需求、D1–D119 决策、分期、不做清单 | 当前 |
-| [PROGRESS.md](PROGRESS.md) | 执行证据与验收记录（含 §7.70–§7.78） | 当前 |
+| [PROGRESS.md](PROGRESS.md) | 执行证据与验收记录（含 §7.70–§7.87） | 当前 |
 | [BACKLOG.md](BACKLOG.md) | 当前主线、剩余项、待拍板决定 | 当前 |
 | [LESSONS.md](LESSONS.md) | 踩坑与经验（按 §7.x 记录） | 当前 |
 | [AGENT_GUIDE.md](AGENT_GUIDE.md) | Agent 开工三问、文档路由、闸门 | 当前 |
@@ -88,6 +88,8 @@
 | [2026-11-05-r25-builtin-internal-structures.md](specs/2026-11-05-r25-builtin-internal-structures.md) | R25 内置结构/行为模型 | 已实现（宏模型阶段） |
 | [2026-11-05-signalflow-plotkit-analysis-curves.md](specs/2026-11-05-signalflow-plotkit-analysis-curves.md) | 信号流→PlotKit 分析曲线 | 已实现 |
 | [2026-11-05-complex-analysis-layer.md](specs/2026-11-05-complex-analysis-layer.md) | R39 复数分析层 | 已实现 |
+| [2026-11-03-plotkit-desktop-token.md](specs/2026-11-03-plotkit-desktop-token.md) | PlotKit 桌面 token 误报 | 已实现，历史证据 |
+| [2026-11-03-plotkit-precision.md](specs/2026-11-03-plotkit-precision.md) | PlotKit 精度 | 已实现，历史证据 |
 
 ## 3. 历史/参考文档（historical）
 

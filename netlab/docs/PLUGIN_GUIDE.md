@@ -1,6 +1,6 @@
 # Netlab 插件包指南（R40）
 
-> 最后更新：2026-11-06
+> 最后更新：2026-11-07（补「加载与启用」流程、capabilities 取值与端点清单，以 plugins.py/server.py 为准）
 
 每个插件一个子目录：`extensions/plugins/<反向域名 id>/`，目录名必须与
 `plugin.json` 的 `id` 完全一致。
@@ -41,6 +41,13 @@ def register(ctx: PluginContext) -> None:
 - 只能依赖 `netlab.plugin_api.v1`，不得导入 `netlab.core.*`；
 - 插件私有数据放 `params`/`data`/`state`，不要改 Node/Edge 核心字段；
 - 工程只锁 `id + version`；缺插件时工程降级打开，节点标为未解析。
+- `capabilities` 取值限定 `compute/method/element/analysis/data_io/panel/template/engine/visual`（`netlab/core/model/plugins.py:55-65`）。
+
+## 加载与启用（3.20.1）
+
+1. 把插件目录放到 `NetlabHome/extensions/plugins/<id>/`（目录名与 `plugin.json` 的 `id` 一致）。
+2. 打开 UI「插件管理」→「扫描插件目录」（`POST /api/plugins/scan`）→ 启用（`POST /api/plugins/{id}/enable`，体 `{enabled: true}`）；改动后「重新加载」（`POST /api/plugins/{id}/reload`）。
+3. 路由以实现为准：仅 `GET /api/plugins`、`GET /api/plugins/{id}`、`POST /api/plugins/scan`、`POST /api/plugins/{id}/enable`、`POST /api/plugins/{id}/reload`；**无** `/disable`、`/open-folder` 路由（`netlab/server.py:658-710`）。
 
 详细规范和验收矩阵见 [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md)，
 决策见 [adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md)。

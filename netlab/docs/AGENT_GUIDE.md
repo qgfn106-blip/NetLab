@@ -1,6 +1,6 @@
 # Netlab Agent 指南（开工第一步）
 
-> 最后修改：2026-11-06（新增 §0 代码规范（强制）；§5 测试数 589；§7.60 导入优先级与多工作树）
+> 最后修改：2026-11-07（§5 测试基线 627 passed / 1 skipped；§3 补 CODE_STANDARDS 权威行）
 > 这份文档只回答四件事：**开工先问什么、去哪找东西、哪些文档说了算、发现冲突怎么改**。
 > 需求正文、架构细节、踩坑记录都不在这里复制——只给指针（单一事实来源）。
 > 适用于任何 agent 会话，不论模型与窗口；读完 §1 就可以开始干活。
@@ -34,7 +34,7 @@
 
 ### 1.1 前端 ↔ 后端契约红线（2026-11-03，必读，踩过）
 
-动 `frontend/app.js` 里任何 `fetch` 之前，逐条确认：
+动前端里的任何 `fetch` 之前（源码 `frontend/app.ts`，编译产物 `frontend/app.js` 已提交，改 `.ts` 后须 `npm run build`），逐条确认：
 
 1. **所有 `/api/` 请求必须走 `api(path, options)`**（它会自动附桌面 token）。裸 `fetch('/api/...')` 在桌面模式一定 403——服务端 `desktop_token_guard`（见 `netlab/server.py` 的 `desktop_token_guard` / `is_guarded_api_path`，同时覆盖 `/plotkit/api…`）只认 `X-Netlab-Token`。自查：`grep -n "fetch('/api" frontend/app.js`。
 2. **失败 ≠ 空态**：403/断网/5xx 必须显示「加载失败：<原因>」并保留已有缓存；只有后端明确 `mounted:false` 才显示未挂载；只有 200 且列表为空才显示「还没有数据」。禁止 `catch` 静默。
@@ -55,7 +55,7 @@
 | 加/改节点计算方式、连接函数 | [FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md) §4 §12 | [EXTENDING.md](EXTENDING.md) 对应小节 |
 | 加/改电路元件（MNA） | CHEATSHEET §5 §12 | [ARCHITECTURE.md](ARCHITECTURE.md) §9.2、EXTENDING 电路小节 |
 | 封装/使用模块、端口方向、模块库 | [MODULES_HOWTO.md](MODULES_HOWTO.md) | UI_SPEC §5.7 §5.8；PROGRESS §7.21–§7.25 |
-| 改前端面板、画布、交互 | [UI_SPEC.md](UI_SPEC.md) | CHEATSHEET §6、ARCHITECTURE §11；电路图先读 [SCHEMATIC_DRAWING_SPEC.md](SCHEMATIC_DRAWING_SPEC.md) 与 [GLOSSARY.md](GLOSSARY.md) |
+| 改前端面板、画布、交互 | [UI_SPEC.md](UI_SPEC.md) | [CODE_STANDARDS.md](CODE_STANDARDS.md)（TS/JS 规范）、CHEATSHEET §6、ARCHITECTURE §11；电路图先读 [SCHEMATIC_DRAWING_SPEC.md](SCHEMATIC_DRAWING_SPEC.md) 与 [GLOSSARY.md](GLOSSARY.md) |
 | 改前端 **API 请求 / 数据面板 / 鉴权相关** | 本文 §1.1 契约红线 | [LESSONS.md](LESSONS.md) 末节「PlotKit 桌面 token 误报」、`netlab/tests/test_plotkit_frontend_auth.py` |
 | 改**原生界面**（Qt Widgets） | 已于 2026-11-02（D78）整体移除，仅作历史（`QT_NATIVE_SPEC.md` 已删除，原文见 git 历史） |
 | 想知道**现在要做什么、还差什么** | [BACKLOG.md](BACKLOG.md) | [PROGRESS.md](PROGRESS.md) §7、各核心模块 docstring（`netlab/ui/` 已随 D78 删除） |
@@ -86,6 +86,7 @@ grep -n "^   \* [0-9]" ../frontend/app.js         # 定位前端分区
 | 文档 | 权威范围 | 不作权威 |
 | --- | --- | --- |
 | **代码 + 测试** | 系统当前**实际行为** | 需求意图（代码可能本来就错） |
+| **CODE_STANDARDS** | 代码规范（TS/JS 构建、Python black 88 + flake8、测试、提交、文档）——**强制**，不描述行为也不描述需求 | 行为与需求口径 |
 | **REQUIREMENTS_AND_RULES** | 需求、决策、权重、分期、不做清单、已废弃口径 | 当前实现状态（「现状」栏只作线索，需复核） |
 | **PROGRESS** | 进度与**证据**（测试数、实测结论、备份位置） | 需求口径（只放指针与证据） |
 | **FRAMEWORK_CHEATSHEET** | 模块职责、数据流、API、上限、改哪里 | 设计理由（指向台账与 ARCHITECTURE） |
@@ -145,7 +146,7 @@ grep -n "^   \* [0-9]" ../frontend/app.js         # 定位前端分区
 
 ```bash
 cd NetlabHome                            # 仓库根是 ProjectPoint/，但运行根是 NetlabHome/
-python -m pytest netlab/tests -q          # 数量只增不减（当前 589，2026-11-06）
+python -m pytest netlab/tests -q          # 数量只增不减（当前 627 passed / 1 skipped，2026-11-07）
 python -m compileall -q netlab
 python -m netlab.desktop --selftest       # 期望 status 200 / shim_injected true
 ```
@@ -193,3 +194,4 @@ python -m netlab.desktop --selftest       # 期望 status 200 / shim_injected tr
 | 2026-10-25 | 新建：开工三问、文档路由、权威范围与裁定顺序、冲突检查与修正流程、收尾判据、术语表 |
 | 2026-10-26 | 路由表新增 SOLVER_CODE_MAP.md（底层求解代码地图），供"研究底层原理"类任务直接定位 |
 | 2026-10-26 | 闸门规则改为开工/完工简报（含耗时、不需逐期批准）；收尾要求文档顶部加最后修改时间；测试基线更新为 113 |
+| 2026-11-07 | §0 增补代码规范强制说明；§1.1 明确前端源码 `app.ts`（构建产物 `app.js`）；§2/§3 补 [CODE_STANDARDS.md](CODE_STANDARDS.md) 权威行；§5 测试基线 627 passed / 1 skipped |

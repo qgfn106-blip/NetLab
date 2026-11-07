@@ -16,6 +16,7 @@
 | 想改前端交互/画面 | 11 → [EXTENDING.md](EXTENDING.md) 第 8 节 |
 | 想改 FEM | 10 → [EXTENDING.md](EXTENDING.md) 第 9 节 |
 | 线上报错/结果不对 | 12、15、16 |
+| 要动代码 / 改文件 | 先读 [CODE_STANDARDS.md](CODE_STANDARDS.md)（Python black+flake8、前端 TypeScript+esbuild，D119 规范 SSOT） |
 
 文档里的“文件/符号”都指源码中的真实名字，不用记行号，改版后仍然可搜。
 
@@ -44,7 +45,7 @@ TOPOLOGY 内部有 3 种模式，共用同一套 HTTP 与场景模型：
 | 服务 | Uvicorn | `run.py` 负责端口探测与自动开浏览器 |
 | 数值 | NumPy（必需）、SciPy（仅 FEM） | `linalg.py` 自带 Padé `expm`，不依赖 SciPy |
 | 前端 | TypeScript（编译到 ES2020）+ Canvas | `frontend/app.ts` 等源码经 esbuild 构建为 `app.js`/`app.utils.js`/`desktop-shim.js`，无第三方运行时库 |
-| 测试 | pytest + httpx/TestClient | 589 个回归用例，覆盖数值、场景与 API |
+| 测试 | pytest + httpx/TestClient | 628 项回归用例（2026-11-07：627 passed / 1 skipped），覆盖数值、场景与 API |
 
 运行形态：
 
@@ -82,33 +83,35 @@ NetlabHome/
 │  ├─ desktop/                桌面壳：webview_app / webview_bridge / server_host
 │  │
 │  ├─ core/
-│  │  ├─ common/              （1）跨层公共
-│  │  │  └─ limits.py         ★ 输入边界：异常类型、数值/名称/JSON 校验、硬上限常量
+│  │  ├─ common/              （2）跨层公共
+│  │  │  ├─ limits.py         ★ 输入边界：异常类型、数值/名称/JSON 校验、硬上限常量
+│  │  │  └─ fastcopy.py       状态快拷贝工具（只读路径加速）
 │  │  │
-│  │  ├─ compute/             （20）底层计算内核——不含任何 I/O、HTTP、UI
+│  │  ├─ compute/             （27）底层计算内核——不含任何 I/O、HTTP、UI
 │  │  │  ├─ simulation.py     ★ 固定步长线程、SimConfig、Recorder、增量查询
-│  │  │  ├─ nodal.py          ★ 电路层：MNA 求解器 + 9 种元件 + ElementSpec
+│  │  │  ├─ nodal.py          ★ 电路层：MNA 求解器 + 39 种元件 + ElementSpec
 │  │  │  ├─ linalg.py         线性求解、Padé expm、连续→离散（ZOH/Tustin/欧拉）
 │  │  │  ├─ statespace.py    x'=Ax+Bu, y=Cx+Du 与四种离散化
 │  │  │  ├─ fem.py            ★ 二维 Q4 有限元模型 + FemSimulation 线程
-│  │  │  ├─ computes.py       ★ 节点计算注册表（13 种 kind）
-│  │  │  ├─ methods.py        ★ 连接函数注册表（11 种 kind）
+│  │  │  ├─ computes.py       ★ 节点计算注册表（22 种 kind）
+│  │  │  ├─ methods.py        ★ 连接函数注册表（12 种 kind）
 │  │  │  ├─ circuit_modules.py 电路封装/展开、端口标记与合并
-│  │  │  ├─ digital.py / logic.py / transistors.py / magnetics.py
-│  │  │  ├─ waveform.py / params.py / safeexpr.py
-│  │  │  └─ accel.py / analysis.py / introspection.py / profiling.py / timers.py
+│  │  │  ├─ digital.py / logic.py / transistors.py / magnetics.py / powerelectronics.py
+│  │  │  ├─ schematic_export.py 电路场景 → SchemDraw 原理图导出（可选依赖）
+│  │  │  ├─ waveform.py / params.py / safeexpr.py / telemetry_quality.py
+│  │  │  └─ accel.py / analysis.py / analysis_plugins.py / introspection.py / profiling.py / timers.py / complex_support.py / fields.py
 │  │  │
-│  │  └─ model/               （12）连接与场景模型——定义“网络长什么样”
+│  │  └─ model/               （17）连接与场景模型——定义“网络长什么样”
 │  │     ├─ graph.py          ★ 信号层运行时：Node / Connection / Network
 │  │     ├─ scene.py          ★ 场景层：NodeRecord/EdgeRecord、Scene、SignalEngine、CircuitEngine
 │  │     ├─ networks.py       ★ 多网络容器：当前网络、增删改、降级只读、工程打包
 │  │     ├─ project.py        ★ .netlab 工程文件：构建/校验/迁移/原子写/校验和
 │  │     ├─ workspace.py      ★ 工作区目录、共享库、快照、用户设置
-│  │     ├─ blocklib.py / blocks.py / block_validate.py / extensions.py
-│  │     ├─ ports.py / schematic.py / graph 辅助
-│  │     └─ templates.py      12 个可复现场景（builder + SIM_PRESETS）
+│  │     ├─ blocklib.py / blocks.py / block_behavior.py / block_validate.py / extensions.py / plugins.py / builtins.py / engine_registry.py
+│  │     ├─ ports.py / schematic.py / ui_profile.py（R40 netlab-ui/1 视图配置）
+│  │     └─ templates.py      16 个可复现场景（builder + SIM_PRESETS）
 │  │
-│  ├─ tests/                  conftest.py + test_*.py（2026-11-06 全量 589 passed）
+│  ├─ tests/                  conftest.py + test_*.py（2026-11-07 全量 627 passed / 1 skipped）
 │  ├─ docs/                   截图 + 文档（本文件、CODE_GUIDE、MATH…）
 │  └─ tools/                  可选 Edge CDP 冒烟脚本 / 结构整理脚本
 └─ （无兼容层）netlab/ 包根只剩 __init__ / server / run / plotkit_bridge / plotkit_vendor / vscode_bridge / cache_guard / desktop / core
@@ -178,7 +181,7 @@ python run.py
   ├─ socket.create_server(host,port)  端口占用时给出中文提示并退出 1
   ├─ 打印 URL，线程里轮询 /api/health 后再 webbrowser.open
   └─ import netlab.server
-       ├─ STATIC_DIR
+       ├─ STATIC_DIR = FRONTEND_DIR（NetlabHome/frontend/，保留旧名兼容）
        ├─ SERVICE = default_simulation()
        │    ├─ Scene("signal")
        │    ├─ scene.load_payload(build_template("signal_chain"))
@@ -561,10 +564,10 @@ Pydantic（类型/必填）
 
 | 注册表 | 位置 | 条目类型 | 数量 | 用途 |
 | --- | --- | --- | --- | --- |
-| `COMPUTE_SPECS` | `computes.py` | `ComputeSpec` | 13 | 节点计算方式 |
-| `METHOD_SPECS` | `methods.py` | `MethodSpec` | 11 | 连接函数 |
-| `ELEMENT_SPECS` | `nodal.py` | `ElementSpec` | 9 | 电路元件 |
-| `TEMPLATES` | `templates.py` | dict + builder | 12 | 场景模板 |
+| `COMPUTE_SPECS` | `computes.py` | `ComputeSpec` | 22 | 节点计算方式 |
+| `METHOD_SPECS` | `methods.py` | `MethodSpec` | 12 | 连接函数 |
+| `ELEMENT_SPECS` | `nodal.py` | `ElementSpec` | 39 | 电路元件 |
+| `TEMPLATES` | `templates.py` | dict + builder | 16 | 场景模板 |
 
 ### 8.2 规格对象长什么样
 
@@ -679,7 +682,7 @@ TEMPLATES["my_template"] = {...}           # templates：直接写 dict
 | 导入时自动加延迟 | **是** | **否** | 不适用 |
 | 探针 | 节点最多 6 字段 + 边最多 4 字段 | 同左 | 节点电压 + 元件 3 字段 |
 | 前端特色 | 信号图 | 相图、矢量箭头 | 元件参数、矩阵大小、Newton 次数 |
-| 推荐 kind | 基础/动态/高级 | `group == "矢量"` 排前 | 9 种元件 |
+| 推荐 kind | 基础/动态/高级 | `group == "矢量"` 排前 | 39 种元件 |
 
 ### 9.1 为什么 vector 和 signal 共用一个引擎
 
@@ -781,7 +784,7 @@ prepare 阶段（构造/配置变更时）：
 
 ## 11. 前端架构
 
-`frontend/app.ts` 是前端逻辑源码（esbuild 编译为 `app.js`），按注释分成 10 段：
+`frontend/app.ts` 是前端逻辑源码（esbuild 编译为 `app.js`），按注释分成 10 个主段，另有 6.5 / 8.5 / 8.6 / 8.7 等小节（行号为 `app.ts` 分区起点）：
 
 | 段 | 内容 | 关键函数 |
 | --- | --- | --- |
@@ -792,8 +795,12 @@ prepare 阶段（构造/配置变更时）：
 | 4 | 画布交互 | `bindCanvas`、`onPointerDown/Move/Up`、`onWheel`、`flushPositions` |
 | 5 | 弹层与模态 | `openAddMenu`、`openLinkMenu`、`confirmModal`、`showHelp` |
 | 6 | 检查器动态表单 | `buildParamField`、`renderNodeInspector`、`renderEdgeInspector`、`applyInspector` |
+| 6.5 | 规格查看与 Python 扩展面板 | `renderSpecPane`、扩展面板 |
 | 7 | 节点/连接/场景变更 | `addNodeAt`、`createEdge`、`deleteNode`、`autoLayout` |
 | 8 | 场景面板 | `renderScenePanel`、`applySimConfig`、`switchMode`、`loadTemplate`、`importSceneFile` |
+| 8.5 | 工程文件 `.netlab` | 保存/打开/自动保存/最近/信任确认 |
+| 8.6 | 外壳菜单栏 / 左侧网络栏 / 顶部信息条（R08） | 菜单栏、网络切换、状态信息条 |
+| 8.7 | 模块库面板（R02） | 模块/扩展库卡片与拖放 |
 | 9 | 信号图、相图、FEM、轮询 | `renderSignalList`、`drawChart`、`drawPhase`、`drawFem`、`pollLive`、`pollLoop` |
 | 10 | 控制、快捷键、启动 | `control`、`shutdownApp`、`bindStaticEvents`、`boot` |
 
@@ -858,6 +865,13 @@ boot()
   └─ maybeAutostart()：每个标签页会话只自动运行一次
 ```
 
+### 11.5 新增 UI 能力（2026-11）
+
+- **多窗口周期推荐（R11）**：后端 `analysis._period_windows()`（`netlab/core/compute/analysis.py:257`）与 `recommend_period()`（`:266`）用「全窗/前后子窗平移一致性」打分，返回 `score_std`（`:308`）/`period_std`（`:332`）；路由 `GET /api/analysis/period`（`netlab/server.py:1725`）；前端 `runAnalysisPeriod()`（`frontend/app.ts:11894`）、「周期」按钮（`app.ts:12568`）。
+- **帮助面板全局搜索（R14）**：前端 `showHelp()`（`app.ts:5006`）调用 `GET /api/help/search`（`netlab/server.py:462`），支持分组结果。
+- **Bode 光标/拖动读数（R34）**：`drawTFBode()`（`app.ts:12034`）、`tfBodeCursorFromEvent()`（`:12168`）、`attachTfCursor()`（`:12200`），在幅频/相频曲线上取点显示频率与幅相。
+- **视图设计节点字段开关（R40 `netlab-ui/1`）**：`core/model/ui_profile.py:41` 的 `DEFAULT_UI.node`（`show_ports`/`show_values`/`show_detail`/`show_value`、`radius`）声明式控制节点显示；前端对应 `state.ui.cardDetail`/`cardValue`（`app.ts:3166-3167`）等，令牌映射为 CSS 变量，不执行插件 HTML/CSS/JS。
+
 ---
 
 ## 12. 并发、错误与一致性
@@ -895,7 +909,7 @@ boot()
 
 ## 13. 性能与硬上限
 
-`limits.py` 的常量就是系统边界：
+`limits.py` 的常量定义系统输入边界（`RECORDER_CAPACITY` 在 `simulation.py`、`MAX_FEM_FRAMES` 在 `fem.py`）：
 
 | 常量 | 值 | 作用 |
 | --- | --- | --- |
@@ -908,8 +922,8 @@ boot()
 | `MAX_MATRIX` | 12 | 矩阵维度 |
 | `MAX_NUMBER` | 1e15 | 数值上限 |
 | `MAX_NAME` | 32 | 名称长度 |
-| `RECORDER_CAPACITY` | 1200 | 网络录制帧 |
-| `MAX_FEM_FRAMES` | 900 | FEM 录制帧 |
+| `RECORDER_CAPACITY` | 6000 | 网络录制帧（`simulation.py:36`） |
+| `MAX_FEM_FRAMES` | 900 | FEM 录制帧（`fem.py:48`） |
 | FEM 网格 | nx 6–80，ny 6–60，节点 ≤6000 | 由 `FemSimulation.apply_config` 校验 |
 
 已有优化：
@@ -1001,20 +1015,22 @@ scheduleChartDraw 70–80ms ─► drawChart：二分定位时间窗 → 稠密�
 
 | 需求 | 主要文件 | 入口符号 |
 | --- | --- | --- |
-| 新增节点计算方式 | `computes.py` | `ComputeSpec` + `register` |
-| 新增连接函数 | `methods.py` | `MethodSpec` + `register` |
-| 新增电路元件 | `nodal.py` | `CircuitElement` 子类 + `ELEMENT_SPECS` |
-| 新增场景模板 | `templates.py` | builder + `TEMPLATES` / `SIM_PRESETS` |
-| 新增参数类型 | `params.py` + `frontend/app.js` | `ParamSpec.coerce` / `to_dict`；`buildParamField` / `collectParamValues` |
-| 新增模式 | `scene.py` + `server.py` + `frontend/app.js` + `templates.py` | `MODES`、`ensure_engine`、`/api/mode`、`kindListFor`、空白模板 |
+| 新增节点计算方式 | `core/compute/computes.py` | `ComputeSpec` + `register` |
+| 新增连接函数 | `core/compute/methods.py` | `MethodSpec` + `register` |
+| 新增电路元件 | `core/compute/nodal.py` | `CircuitElement` 子类 + `ELEMENT_SPECS` |
+| 新增场景模板 | `core/model/templates.py` | builder + `TEMPLATES` / `SIM_PRESETS` |
+| 新增参数类型 | `core/compute/params.py` + `frontend/app.ts` | `ParamSpec.coerce` / `to_dict`；`buildParamField` / `collectParamValues` |
+| 新增模式 | `core/model/scene.py` + `server.py` + `frontend/app.ts` + `core/model/templates.py` | `MODES`、`ensure_engine`、`/api/mode`、`kindListFor`、空白模板 |
 | 新增 HTTP 接口 | `server.py` | Pydantic 模型 + 路由 + `SERVICE.mutate` |
-| 改节点/边外观 | `frontend/app.js` | `drawNodes` / `drawEdges` / `nodeValueText` |
-| 改信号图/相图 | `frontend/app.js` | `drawChart` / `drawPhase` |
-| 改 FEM 方程/边界 | `fem.py` | `FemModel`、`_element_matrices`、`_source_vector` |
-| 改 FEM 外观 | `frontend/app.js` | `drawFem`、`femLayout`、`femColor` |
-| 改数值算法 | `linalg.py` / `statespace.py` / `waveform.py` | 对应函数 |
-| 改校验/上限 | `limits.py` | 常量与 `as_*` 函数 |
-| 新增模板/接口测试 | `tests/test_netlab.py` | `client` fixture、`template_scene` |
+| 改节点/边外观 | `frontend/app.ts` | `drawNodes` / `drawEdges` / `nodeValueText` |
+| 改信号图/相图 | `frontend/app.ts` | `drawChart` / `drawPhase` |
+| 改 FEM 方程/边界 | `core/compute/fem.py` | `FemModel`、`_element_matrices`、`_source_vector` |
+| 改 FEM 外观 | `frontend/app.ts` | `drawFem`、`femLayout`、`femColor` |
+| 改数值算法 | `core/compute/linalg.py` / `statespace.py` / `waveform.py` | 对应函数 |
+| 改校验/上限 | `core/common/limits.py` | 常量与 `as_*` 函数 |
+| 改视图配置 | `core/model/ui_profile.py` | `UI_PROFILE`、`normalize_ui`、`ui_catalog` |
+| 图纸导出 | `core/compute/schematic_export.py` / `core/model/schematic.py` | `scene_to_svg`、`auto_layout`、`validate_schematic` |
+| 新增模板/接口测试 | `tests/`（`test_*.py`） | `client` fixture、`template_scene` |
 
 详细步骤与可复制代码见 [EXTENDING.md](EXTENDING.md)。
 
@@ -1025,10 +1041,10 @@ scheduleChartDraw 70–80ms ─► drawChart：二分定位时间窗 → 稠密�
 ### 16.1 跑测试
 
 ```bash
-cd netlab
-python -m pytest tests -q                 # 全部（43）
-python -m pytest tests -q -k "circuit"    # 按关键字
-python -m pytest tests -q -x              # 首个失败即停
+cd NetlabHome
+python -m pytest netlab/tests -q                 # 全量 627 passed, 1 skipped（628 collected）
+python -m pytest netlab/tests -q -k "circuit"    # 按关键字
+python -m pytest netlab/tests -q -x              # 首个失败即停
 ```
 
 ### 16.2 只起后端
@@ -1112,6 +1128,9 @@ node tools/cdp_eval.mjs "document.title"
 | 规格（Spec） | 注册表条目：kind、标签、参数、工厂 |
 | 工厂（Factory） | 参数 → 计算闭包；在装配时调用一次 |
 | MNA | Modified Nodal Analysis，节点电压法 |
+| 端口契约（PortSpec / PinSpec） | `netlab/core/model/ports.py` 里设备的输入/输出/电源等角色与引脚几何声明，供图纸与校验用 |
+| 视图配置（netlab-ui/1） | `netlab/core/model/ui_profile.py` 的声明式 UI profile：令牌/布局/节点卡片字段 → CSS 变量，不执行插件代码 |
+| 原理图导出 | `netlab/core/compute/schematic_export.py` 用 SchemDraw（可选依赖）把电路场景导出 SVG |
 | Q4 | 四节点双线性四边形单元 |
 | Dirichlet | 固定值边界条件 |
 

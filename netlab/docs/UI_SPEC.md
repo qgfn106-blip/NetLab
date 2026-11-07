@@ -11,7 +11,10 @@
 | 文件 | 作用 | 规模 |
 | --- | --- | --- |
 | `frontend/index.html` | 唯一页面外壳：顶栏、菜单栏 + 信息条、网络栏、工具栏、画布、右栏、状态栏、设置窗、引导页、文档窗、qcard、toast、modal | 约 650 行 |
-| `frontend/style.css` | 设计令牌 + 全部样式 + 主题/动效/性能档覆盖 + 新组件 | 约 2168 行 |
+| `frontend/theme.tokens.ts` | **外观令牌唯一来源**（LIGHT/DARK 双色板 + CANVAS_* 画布色），构建期被 `gen_theme_css.mjs` 读取；禁止别处手写第二份（P-A1/P-A2，D75） | 纯数据 |
+| `frontend/theme.generated.css` | 由 `theme.tokens.ts` 经 `scripts/gen_theme_css.mjs` 生成（`:root` 浅 47 变量 / `html[data-theme="dark"]` 深 32 变量），**产物入库、勿手改**；须在 `style.css` 之前加载 | 自动生成 |
+| `frontend/scripts/*.mjs` | 构建/校验脚本：`gen_theme_css.mjs`（令牌→CSS）、`contrast_check.mjs`（WCAG 10 项）、`audit_canvas_colors.mjs`（画布裸色归零） | — |
+| `frontend/style.css` | 全部样式 + 主题/动效/性能档覆盖 + 新组件（令牌块已移出到 `theme.generated.css`，本文件不再写 `:root` 令牌） | 约 2100 行 |
 | `frontend/app.js` | 单 IIFE 前端应用（由 `app.ts` 编译产物）；R30 新模块追加在文件末尾（`boot();` 之前） | 约 14100 行 |
 | `frontend/desktop-shim.js` | 桌面壳桥接（`desktop-shim.ts` 的 esbuild IIFE 产物，注入 token / 原生调用） | 约 310 行 |
 | `netlab/docs/user/*.md` | 应用内文档中心的 5 篇用户向文档（离线、打包随源码） | 5 篇 |
@@ -26,35 +29,38 @@
 
 - 暖灰纸面 + 近黑墨字，1px 细线分隔，**0 圆角**；
 - 大留白、极小字号眉标（8–10px、字距 +0.2em 左右）；
-- 琥珀色 `#9b7247` 作强调，绿色 `#565c46` 作成功，暗红 `#8a4234` 作危险；
+- 琥珀色作强调（浅色 `#7a5a33`、深色 `#d0a86e`），绿色 `#565c46` 作成功，暗红 `#8a4234` 作危险（深浅完整值见 §3.1）；
 - 动效「静默微动」：只动 `transform`/`opacity`，进快出慢；
 - 信息密度优先，不用彩色底块、不用渐变按钮、不用圆角卡片。
 
-暗色不是简单反色：另给一套 7 组令牌（§3），靠 `html[data-theme="dark"]` 覆盖。
+暗色不是简单反色：另给一套**完整独立色板**（§3），靠 `html[data-theme="dark"]` 覆盖。
 
 ## 3. 设计令牌
 
-写在 `style.css` 顶部 `:root`，运行时由 `applyAppearance()` 覆盖强调色与派生色。
+令牌唯一源是 `frontend/theme.tokens.ts`（`LIGHT`/`DARK` + `CANVAS_*`）；构建期由 `frontend/scripts/gen_theme_css.mjs` 生成 `frontend/theme.generated.css`（`:root`=浅色、`html[data-theme="dark"]`=深色），`style.css` 不再手写第二份令牌。运行时由 `applyAppearance()`/外观引擎的 `RT_OVERRIDE` 只把「与默认不同的覆盖」写回 `:root` 变量。
 
 ### 3.1 颜色（浅色 / 深色）
 
 | 令牌 | 浅色 | 深色 | 用途 |
 | --- | --- | --- | --- |
-| `--paper` | `#eae5e1` | `#11181b` | 页面底色 |
-| `--paper-2` | `#edebe4` | `#202a2f` | 面板/卡片 |
-| `--paper-3` | `#e2dccf` | `#1b2429` | hover/次级底 |
-| `--ink` | `#080a08` | `#e0e3dc` | 主文字 |
-| `--ink-2` | `#2b2a24` | `#c6cbc3` | 次级文字 |
-| `--muted` | `#77756d` | `#a6b0b1` | 弱化文字 |
-| `--dim` | `#9a9487` | `#7f8c8e` | 眉标/占位 |
-| `--line` | `#d6d0c4` | `#536166` | 细线 |
-| `--line-strong` | `#aaa59a` | `#6b7a7d` | 强分隔 |
-| `--accent` | `#9b7247` | `#c5a16b` | 强调/选中/聚焦 |
+| `--paper` | `#eae5e1` | `#0f1417` | 页面底色 |
+| `--paper-2` | `#f2efe9` | `#161d21` | 面板/卡片 |
+| `--paper-3` | `#e2dccf` | `#1e282d` | hover/次级底 |
+| `--ink` | `#0a0c0a` | `#e6e9e2` | 主文字 |
+| `--ink-2` | `#2b2a24` | `#c3c9c1` | 次级文字 |
+| `--muted` | `#524f46` | `#8b9799` | 弱化文字 |
+| `--dim` | `#635e52` | `#778486` | 眉标/占位 |
+| `--line` | `#cdc6b8` | `#2a3439` | 细线 |
+| `--line-strong` | `#857e70` | `#55666c` | 强分隔 |
+| `--accent` | `#7a5a33` | `#d0a86e` | 强调/选中/聚焦 |
 | `--accent-2` | `#565c46` | `#9aa88c` | 次强调（矢量/成功） |
-| `--accent-soft` | `#e4d5c1` | `#2e3b40` | 强调浅底 |
+| `--accent-soft` | `#e4d5c1` | `#2c3a33` | 强调浅底 |
 | `--green` | `#565c46` | `#9aa88c` | 成功 |
-| `--amber` | `#a67d48` | `#c5a16b` | 警告 |
+| `--amber` | `#a67d48` | `#d0a86e` | 警告 |
 | `--red` | `#8a4234` | `#c08a7d` | 错误 |
+
+> 上表为 `frontend/theme.generated.css` 的**实际生效值**（由 `frontend/theme.tokens.ts` 生成，P-A1/P-A2，2026-11-07）；改色只改 `theme.tokens.ts` 后重跑 `scripts/gen_theme_css.mjs`。
+> 对比度实测（`frontend/scripts/contrast_check.mjs`，WCAG 10/10 PASS）：**浅色** 正文 ink/paper 15.70、muted 6.55、dim 5.16、border/line-strong 3.22；**深色** 正文 15.11、muted 6.17、dim 4.79、border/line-strong 3.09。
 
 另派生 `--ink-rgb/--paper-rgb/--paper-2-rgb/--accent-rgb/--accent-2-rgb/--green-rgb/--red-rgb` 供 rgba 使用。
 `--radius: 0px` 是硬约定：新增组件不要写圆角。
@@ -322,18 +328,22 @@ z-index 132；**不挤占画布**（不再有 `body.settings-open` 让位规则�
 ## 10. 外观状态机
 
 ```
-state.prefs = {theme, motion, perf, accent, guide, infobar}
+state.prefs = {theme, motion, perf, accent, guide, infobar,
+               accentDark, fontScale, density, surfaceTone, radius, lineWidth, chartPalette}
 resolveTheme(): system → matchMedia('(prefers-color-scheme: dark)')
-applyAppearance(): 写 html[data-theme|data-motion|data-perf]
+applyAppearance(): 写 html[data-theme|data-motion|data-perf|data-density]
                    + 覆盖 --accent / --accent-rgb / --accent-soft
+                   + 应用 RT_OVERRIDE（只写与默认不同的覆盖）到 :root
                    + state.palette = THEME_TOKENS[theme]
                    + 同步控件 / 写 pref 缓存
 ```
 
+> P-A4 持久化：`theme`、`accent`(ui_accent)、`motion`(ui_motion)、`perf`(ui_perf) 走后端 `/api/settings`；`accentDark/fontScale/density/surfaceTone/radius/lineWidth/chartPalette` 仅存 localStorage `netlab.ui.prefs`（后端 `workspace.py::_SETTINGS_RULES` 白名单不接受未知键，见 [APPEARANCE_ENGINE_DESIGN.md](APPEARANCE_ENGINE_DESIGN.md) §12）。
+
 画布颜色统一走 `C(value)`：
 
 - 认识旧硬编码色（`#a8541f`、`#6f695f`、`rgba(168,84,31,…)` 等）→ 映射到当前主题令牌；
-- 深色主题下未知浅色自动向 `#e0e3dc` 混合 42%，避免白块；
+- 深色主题下未知浅色自动向 `#e6e9e2`（当前深色 ink）混合 42%，避免白块；
 - 新增画布颜色必须用 `C(...)` 或 `tokens()`，禁止直接写 hex。
 
 ## 11. UI JavaScript 接口
@@ -398,7 +408,7 @@ applyAppearance(): 写 html[data-theme|data-motion|data-perf]
 - Bode 图（`#analysisTFChart`，bode 视图）：鼠标移动/按住拖动连续读数，`←`/`→` 吸附相邻采样点、`Shift+←/→` 步进 ×10 采样点；
 - 所有可点控件用 `button`，状态用 `aria-pressed` / `aria-checked`；
 - 图标按钮必须有 `aria-label`；`?` 按钮带 `title`；
-- 对比度：主文字 ≥ 7:1，弱化文字 ≥ 4.5:1（暗色同标准）。
+- 对比度：主文字 ≥ 7:1，次/弱化文字 ≥ 4.5:1，边框/强线 ≥ 3:1（**深浅同标准**）；实测见 §3.1 下方注与 `frontend/scripts/contrast_check.mjs`（P-A2 10/10 PASS；深色弱化文字另设 ≤ 7:1 上限，防止再次调亮过头失去主次）。
 
 ## 15. 验收矩阵（R30 / R14）
 

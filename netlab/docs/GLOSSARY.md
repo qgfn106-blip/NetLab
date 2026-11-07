@@ -1,9 +1,10 @@
 # Netlab 术语表（GLOSSARY）
 
 > 只定义“词”，不写实现细节。电气图纸实现见 `SCHEMATIC_DRAWING_SPEC.md`；插件与扩展见
-> `EXTENSIBILITY_ARCHITECTURE.md`、`adr/0002-plugin-extension-architecture.md`。
+> `EXTENSIBILITY_ARCHITECTURE.md`、`adr/0002-plugin-extension-architecture.md`。编码/格式规范见
+> [CODE_STANDARDS.md](CODE_STANDARDS.md)（D119 SSOT）。
 >
-> 最后修改：2026-11-06 00:10
+> 最后修改：2026-11-07
 
 | 术语 | 定义 | 不要混淆 |
 | --- | --- | --- |
@@ -13,6 +14,7 @@
 | 符号（symbol） | 某一元件类型在图纸上的标准图形，属于符号库，版本化。 | 不是元件本身，不是任意图标。 |
 | 引脚（pin） | 符号上的电气接口：局部坐标、方向、名称、电气绑定。 | 不是“端口点”这种纯视觉圆点。 |
 | 电气绑定（pin binding） | 引脚到电气节点的映射：`source` / `target` / 命名节点（如 `vp`、`clk_node`）。 | 不是文本标签。 |
+| 端口契约（port contract） | `core/model/ports.py` 的 `PortSpec`/`PinSpec`：节点/元件对外暴露的端口与引脚的角色（input/output/bidirectional/power/passive）、顺序、必需性与偏移。 | 不是图纸坐标，也不是导线。 |
 | 导线（wire） | 图纸上连接两个引脚的线段；只表达连接，不承担电气语义。 | 不是元件，不参与求解。 |
 | 网络锚点（net anchor） | 电节点在图纸上的落点（小圆/接地符号），是导线汇聚的位置。 | 不是元件引脚。 |
 | 汇合点（junction） | 同一电气网络上 ≥3 条导线相接处画的实心点；表示“确实相连”。 | 不是普通交叉点。 |
@@ -41,3 +43,5 @@
 | 数据格式适配器（DataFormatSpec） | 插件实现的导入/导出适配器，读写统一 `Dataset` 信封。 | 不是直接操作工程文件。 |
 | 引擎协议（EngineProtocol） | 自定义求解引擎必须实现的 `build/step/reset/probes/stats` 五个方法。 | 不是可替换的 Scene 生命周期。 |
 | 自定义模式（plugin mode） | 插件注册的新求解 mode，使用统一 Node/Edge 记录，但不能替换 signal/circuit/vector。 | 不是内置模式的别名。 |
+| 功率电子器件（power electronics） | `core/compute/powerelectronics.py` 的开关型/机电器件：晶闸管/IGBT/JFET（Ron/Roff 分段线性）、继电器（线圈驱动触点）、直流电机（反电动势 + 机械一阶，后向欧拉）。 | 不是通用非线性元件。 |
+| 原理图导出（schematic export） | `core/compute/schematic_export.py` 用 SchemDraw（可选依赖）把电路场景直接导出为静态原理图；缺失依赖抛 `ComputeError`。 | 不是图纸交互编辑，也不是渲染前端画布。 |

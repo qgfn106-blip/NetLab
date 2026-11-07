@@ -1,6 +1,6 @@
 # VS Code 集成（内嵌完整 IDE）
 
-> 最后更新：2026-11-06（独立窗口 detach 已移除）。2026-11-02 实现：在 netlab HTML UI 内以浮窗承载完整 VS Code Web（终端 / 扩展 / 调试可用）。
+> 最后更新：2026-11-07（§1 前端符号改指 `frontend/app.ts` 源码与行号）。2026-11-06（独立窗口 detach 已移除）。2026-11-02 实现：在 netlab HTML UI 内以浮窗承载完整 VS Code Web（终端 / 扩展 / 调试可用）。
 > 采用 **官方 `code serve-web` 服务器 + 直接跨源 iframe**，不使用 code-server、不做反向代理。
 
 ## 1. 架构
@@ -13,7 +13,7 @@ netlab 页面 (http://127.0.0.1:<netlabPort>/)
 
 - **后端** `netlab/vscode_bridge.py`：按需拉起 / 复用 VS Code Server 子进程。
 - **路由** `netlab/server.py`：`GET /api/vscode/status?start=1` 返回 `{available, running, url, port, error}`。
-- **前端** `frontend/index.html`（`#vscodeWin` 浮窗 + `#vscodeFrame` iframe）、`style.css`（`.vscode-*`）、`app.js`（`openVscode/ensureVscodeFrame/closeVscode`，菜单「工具 → 代码工作区（VS Code）」）。
+- **前端** `frontend/index.html`（`#vscodeWin` 浮窗 + `#vscodeFrame` iframe，见 index.html:575-585）、`style.css`（`.vscode-*`）、`app.ts`（源码；`ensureVscodeFrame/openVscode/closeVscode`，见 app.ts:14339-14384；构建产物 `app.js`），菜单「工具 → 代码工作区（VS Code）」。
 
 **为什么直接 iframe 而不反代**：workbench 页面实测无 `X-Frame-Options`、无 CSP `frame-ancestors`；且页面资源与 WebSocket 都指向 VS Code Server 自身 origin，自洽同源。反代只会增加 HTTP 流式响应 + WS 双向转发的复杂度，没有收益。
 

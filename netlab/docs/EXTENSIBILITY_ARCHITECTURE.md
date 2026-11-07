@@ -1,6 +1,6 @@
 # Netlab 全栈扩展架构（Plugin API v1）
 
-> 最后更新：2026-11-06
+> 最后更新：2026-11-07（§6.8/§8.1/§8.2/§8.3/§9.1 以 3.20.1 代码校正：PanelSpec/VisualSpec 字段、netlab-ui/1 严格白名单、工程 ui 段旧键、实现现状标注）
 > 状态：设计规范，已接受（2026-11-06）
 > 决策记录：[adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md)
 > 迁移指南：[EXTENDING.md](EXTENDING.md)（现有内置扩展方式）
@@ -239,6 +239,9 @@ loaded → reloading → loaded | error
 ### 5.1 允许导入
 
 ```python
+# 声明式 dataclass 全部由 netlab.plugin_api.v1 导出；
+# 注册一律走 PluginContext 的 ctx.register_* 方法（见 §9.2），
+# 模块级不存在 register_compute/register_panel 之类的自由函数。
 from netlab.plugin_api.v1 import (
     ParamSpec,
     ComputeSpec,
@@ -246,24 +249,14 @@ from netlab.plugin_api.v1 import (
     ElementSpec,
     AnalysisSpec,
     AnalysisResult,
+    AnalysisContext,
     DataFormatSpec,
     EngineSpec,
     EngineProtocol,
     PanelSpec,
-    PanelDataSpec,
     VisualSpec,
     TemplateSpec,
     PluginContext,
-    ComputeContext,
-    AnalysisContext,
-    register_compute,
-    register_method,
-    register_element,
-    register_analysis,
-    register_data_format,
-    register_engine,
-    register_panel,
-    register_template,
 )
 ```
 
@@ -275,26 +268,21 @@ from netlab.plugin_api.v1 import (
 ### 5.2 `PluginContext`
 
 ```python
-@dataclass
 class PluginContext:
     plugin_id: str
-    version: str
+    plugin_dir: Path
     data_dir: Path
+    manifest: Any | None
     logger: logging.Logger
-    config: dict[str, Any]
-    register_compute: Callable[[ComputeSpec], None]
-    register_method: Callable[[MethodSpec], None]
-    register_element: Callable[[ElementSpec], None]
-    register_analysis: Callable[[AnalysisSpec], None]
-    register_data_format: Callable[[DataFormatSpec], None]
-    register_engine: Callable[[EngineSpec], None]
-    register_panel: Callable[[PanelSpec], None]
-    register_template: Callable[[TemplateSpec], None]
+    registrations: list[tuple[str, Any]]
+    # 方法：register_compute / register_method / register_element / register_analysis /
+    #       register_data_format / register_panel / register_visual / register_template
+    def register_compute(self, spec: ComputeSpec) -> ComputeSpec: ...
 ```
 
 - `data_dir` 由平台创建；插件不得自行创建全局目录。
-- `logger` 自动带插件 id 前缀。
-- `config` 是只读的插件配置快照。
+- `logger` 自动带插件 id 前缀（`netlab.plugin.<id>`）。
+- `manifest` 是已校验的 manifest 快照；`registrations` 记录声明，由 `PluginManager` 统一落注册表。
 
 ---
 
@@ -314,17 +302,11 @@ class ComputeSpec:
     outputs: tuple[str, ...] = ()
     notes: str = ""
     formula: str = ""
-    source: str = ""
-    editable: bool = False
-    builtin: bool = False
-    addable: bool = True
-    inputs: tuple[str, ...] = ()
-    plugin_id: str | None = None
 ```
 
-- `handler(ctx: ComputeContext) -> NodeData`，规则与 `EXTENDING.md` §1 完全一致。
+- `factory(params)` 返回 `handler(ctx)`；`handler` 规则与 `EXTENDING.md` §1 完全一致。
 - `ctx.state` 只存跨步状态；`ctx.data` 是本拍可编辑数据；返回值必须 JSON 原生。
-- 插件 kind 自动加前缀 `<plugin_id>.`；`ParamSpec` 的字段名不得以 `_` 开头。
+- 插件 kind 由 `PluginManager._qualify` 统一加 `<plugin_id>.` 前缀（`netlab/core/model/plugins.py:226-235`）；`ParamSpec` 的字段名不得以 `_` 开头。
 
 ### 6.2 连接函数（method）
 
@@ -338,7 +320,8 @@ class MethodSpec:
     params: tuple[ParamSpec, ...]
     factory: Callable[[dict[str, Any]], MethodHandler]
     outputs: tuple[str, ...] = ()
-    plugin_id: str | None = None
+    notes: str = ""
+    formula: str = ""
 ```
 
 签名：`method(source: NodeData, target: NodeData, params: dict, state: dict, dt: float) -> None`。
@@ -351,11 +334,13 @@ class MethodSpec:
 class ElementSpec:
     kind: str
     label: str
-    group: str
     description: str
     params: tuple[ParamSpec, ...]
-    cls: type
-    plugin_id: str | None = None
+    element_cls: type
+    notes: str = ""
+    group: str = "插件"
+    formula: str = ""
+    pins: tuple[dict[str, Any], ...] = ()
 ```
 
 元件类遵循 `EXTENDING.md` §3 的生命周期：`prepare/commit/stamp`。插件元件不得修改 `CircuitSolver` 内部矩阵布局，不得注册全局回调。
@@ -418,8 +403,8 @@ class DataFormatSpec:
     label: str
     extensions: tuple[str, ...]
     mime_types: tuple[str, ...]
-    read: Callable[[bytes, dict[str, Any]], Dataset]
-    write: Callable[[Dataset, dict[str, Any]], bytes]
+    read: Callable[[bytes, dict[str, Any]], dict[str, Any]]   # 返回下方 Dataset（dict）
+    write: Callable[[dict[str, Any], dict[str, Any]], bytes]
 ```
 
 `Dataset` 统一结构：
@@ -443,10 +428,9 @@ class EngineSpec:
     mode: str
     label: str
     description: str
-    params: tuple[ParamSpec, ...]
-    node_kinds: tuple[KindSpec, ...]
-    edge_kinds: tuple[KindSpec, ...]
-    factory: Callable[["Scene", "BlockStore"], EngineProtocol]
+    factory: Callable[[Any], Any]
+    node_kinds: tuple[str, ...] = ()
+    edge_kinds: tuple[str, ...] = ()
 ```
 
 `EngineProtocol`：
@@ -460,8 +444,8 @@ class EngineProtocol(Protocol):
     def stats(self) -> dict[str, Any]: ...
 ```
 
-- `mode` 自动加 `plugin.<plugin_id>.` 前缀，避免和内置 mode 冲突。
-- `KindSpec` 只声明 kind、label、params、ports；记录仍是统一 `NodeRecord`/`EdgeRecord`。
+- `mode` 由 `_qualify` 加 `<plugin_id>.` 前缀，避免和内置 mode 冲突。
+- `node_kinds` / `edge_kinds` 是 kind 字符串元组；记录仍是统一 `NodeRecord`/`EdgeRecord`。
 - 引擎不允许改 `Simulation` 主循环、Recorder 或 Scene 记录结构。
 
 ### 6.7 模板（template）
@@ -472,7 +456,6 @@ class TemplateSpec:
     kind: str
     label: str
     description: str
-    params: tuple[ParamSpec, ...]
     builder: Callable[[dict[str, Any]], dict[str, Any]]
 ```
 
@@ -482,34 +465,26 @@ class TemplateSpec:
 
 ```python
 @dataclass(frozen=True)
-class PanelSpec:
+class PanelSpec:                 # netlab/plugin_api/v1/__init__.py:109
     id: str
     title: str
-    slot: str                    # "right" | "bottom" | "inspector" | "sidebar"
-    order: int
-    data_sources: tuple[PanelDataSpec, ...]
-    layout: dict[str, Any]       # 见 §8.3
-    plugin_id: str | None = None
+    slot: str = "right"          # 当前仅作声明，前端按右栏/底栏插槽预留
+    layout: dict[str, Any] = {}  # 见 §8.4
+    data_sources: tuple[str, ...] = ("recorder",)  # 只读源名（探针/analysis kind/snapshot key）
 
 
 @dataclass(frozen=True)
-class PanelDataSpec:
-    kind: str                    # "recorder" | "analysis" | "snapshot"
-    source: str                  # 探针名 / analysis kind / snapshot key
+class VisualSpec:                # netlab/plugin_api/v1/__init__.py:118
+    kind: str
+    label: str
+    icon: str = ""
+    accent: str = ""             # 引用 §8.3 中的设计令牌名
     fields: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class VisualSpec:
-    shape: str = "card"          # card | circle | rect | diamond
-    glyph: str = ""
-    accent: str = "accent"
-    card_fields: tuple[str, ...] = ("name", "kind")
-    port_style: str = "dot"
 ```
 
 - `PanelSpec` 不允许 HTML/JS；`layout` 只支持 `sections`, `fields`, `table`, `chart`, `text`, `badge`, `progress` 等声明式节点。
 - `snapshot()` 是插件可选方法：`def snapshot(self) -> dict[str, Any]`，无副作用，返回 JSON。
+- **现状（3.20.1）**：注册表接受并保存 `PanelSpec`/`VisualSpec`，但前端 `frontend/app.ts` 目前没有渲染插件面板/自定义视觉的代码，仅 `VisualSpec` 的字段用于节点外观数据；本节其余为设计目标，实现后需同步。
 
 ---
 
@@ -544,10 +519,12 @@ class VisualSpec:
 
 ### 8.1 双模式画布
 
-`state.ui.displayMode`：
+`ui profile` 的 `mode`（`netlab-ui/1.mode`，视图设计器选择项 `frontend/app.ts:12823`）：
 
 - `professional`：现有画布、完整检查器、全部高级参数。
-- `simple`：同一 `NodeRecord`/`EdgeRecord`，节点渲染为紧凑卡片，只展示 `VisualSpec.card_fields` 和 2–4 个关键值；连接用明确的端口点，点击/拖拽即建边；检查器只显示常用参数，高级项折叠。
+- `simple`：同一 `NodeRecord`/`EdgeRecord`，节点渲染为紧凑卡片，只展示 `VisualSpec.fields` 和 2–4 个关键值；连接用明确的端口点，点击/拖拽即建边；检查器只显示常用参数，高级项折叠。
+
+**现状（3.20.1）**：切换只会写 `body.dataset.canvasMode` 并切 `.simple-canvas`（`frontend/app.ts:12737-12740`），`frontend/style.css` 尚无对应样式规则，独立的简单画布渲染**尚未实现**；已实现的是节点字段开关 `show_detail/show_value`（映射 `state.ui.cardDetail/cardValue`，`app.ts:3166-3167`）。
 
 简洁模式不是新场景、不是新数据格式、不是新求解模式；切换只改变视图，不改工程数据。
 
@@ -555,11 +532,11 @@ class VisualSpec:
 
 工具栏增加“界面设计”开关。开启后：
 
-- 节点：拖动位置、拖动边角调整 `size`，拖动端口点调整端口位置（存在 `layout` 时）。
-- 边：拖动折点，选择直线/正交/曲线，调整线宽/虚线/颜色令牌。
-- 面板：拖动分隔条、调整宽度/高度、切换显示/隐藏、排序。
-- 选择对象后，右侧“外观”页签显示：形状、字形/图标、强调色令牌、显示字段、端口样式、字号/密度。
-- 支持撤销/重做；保存为当前工程的 `ui` 覆盖，或“设为全局默认”。
+- 节点：拖动位置（已实现）；节点边角缩放/端口位置调整（设计目标）。
+- 边：拖动折点、选择直线/正交/曲线（`edge.route`、`edge.waypoints`，已实现），线宽/虚线/颜色令牌（设计目标）。
+- 面板：拖动分隔条调整宽度（`#panelResize`，已实现）；面板显隐/排序（设计目标）。
+- 选择对象后，右侧“外观”页签显示：显示字段（`show_detail`/`show_value`）、颜色令牌、布局尺寸与字体缩放。
+- 支持撤销/重做；「应用并保存」调用 `POST /api/ui` 写入运行期 UI 配置（`netlab-ui/1`），当前版本不提供“设为全局默认”或写入工程文件的入口。
 
 所有设计操作都是声明式的，写入 `ui` profile；不得注入任意 CSS/HTML。
 
@@ -567,36 +544,29 @@ class VisualSpec:
 
 ```json
 {
-  "schema": "netlab-ui/1",
-  "display_mode": "simple",
-  "density": "comfortable",
-  "theme": {
-    "preset": "light",
-    "accent": "accent",
-    "radius": "md"
+  "profile": "netlab-ui/1",
+  "mode": "professional",
+  "tokens": {
+    "background": "#0b1220", "surface": "#111a2c", "panel": "#162238",
+    "text": "#e6edf7", "muted": "#8da2bf", "accent": "#4cc9f0",
+    "grid": "#22314b", "edge": "#7c8db5", "node": "#1c2b45",
+    "danger": "#ff6b6b", "success": "#5ee39b"
   },
-  "canvas": {
-    "grid": true,
-    "edge_style": "orthogonal",
-    "port_style": "dot"
+  "layout": {
+    "panel_width": 320, "node_width": 150, "node_height": 54,
+    "grid_size": 24, "edge_width": 2, "font_scale": 1.0
   },
-  "node_card": {
-    "shape": "card",
-    "fields": ["name", "kind", "primary", "status"],
-    "width": 160,
-    "show_ports": true
-  },
-  "panels": [
-    {"id": "inspector", "slot": "right", "visible": true, "width": 320},
-    {"id": "status", "slot": "bottom", "visible": true, "height": 160}
-  ]
+  "node": {"radius": 10, "show_ports": true, "show_values": true,
+           "show_detail": true, "show_value": true},
+  "edge": {"route": "orthogonal", "arrow": true}
 }
 ```
 
-- `display_mode` 只能取 `simple|professional` 或插件声明的枚举。
-- `theme.accent` 引用设计令牌名，不接受任意 hex（高级用户可在令牌表中新增令牌）。
-- `node_card.fields` 只允许节点数据中的安全标量字段和 `VisualSpec` 声明的字段。
-- 项目 `ui` 覆盖优先于全局 `settings.ui` 默认；保存时保留未知字段以便向前兼容。
+- 严格白名单：`profile`/`mode`/`tokens`/`layout`/`node`/`edge` 之外的键一律 `ValidationError`（`netlab/core/model/ui_profile.py:61-105`）。
+- `profile` 必须是 `netlab-ui/1`；`mode` 只能是 `simple|professional`。
+- `tokens.*` 只接受 11 个已知令牌名且值必须是 `#RRGGBB`（`HEX_RE`），不接受别名或任意 hex 之外的写法；`layout.*` 必须是已知项且为数字（0.1–10000）。
+- `node.show_detail` / `node.show_value` 即前端「显示节点类型/端口」「显示节点数值」两个开关；`node.show_ports`、`node.radius`、`edge.route/arrow` 同样受白名单约束。
+- 通过 `POST /api/ui` 保存到运行期 `SERVICE.ui`（不写入工程文件）；工程 `.netlab` 的 `ui` 段是另一组旧键（见 §9.1）。
 
 ### 8.4 `PanelSpec.layout` 组件
 
@@ -612,13 +582,13 @@ class VisualSpec:
 ```
 
 - 组件只允许 `fields/table/chart/text/badge/progress`。
-- `chart` 的 `series` 必须来自 `PanelDataSpec` 声明的只读源。
+- `chart` 的 `series` 只能引用 `PanelSpec.data_sources`（元组，默认 `('recorder',)`）声明的只读源。
 - 面板在帧边界统一取数；不能直接读插件对象。
 
 ### 8.5 前端组件目录
 
 - 所有节点视觉从 `VisualSpec` + 设计令牌渲染；插件不提供 DOM。
-- 简单模式的卡片高度、图标、字段顺序由 `node_card` profile 决定。
+- 简单模式的卡片内容由 `netlab-ui/1.node.show_detail/show_value` 与 `layout` 参数控制（现为设计目标）。
 - 专业模式保留现有交互；两者共享选择模型、撤销栈、保存/载入和测试。
 
 ---
@@ -637,13 +607,14 @@ class VisualSpec:
   ],
   "networks": [],
   "current": null,
-  "ui": {"schema": "netlab-ui/1", "display_mode": "simple"},
+  "ui": {"view": "signal", "tab": "chart", "grid": {"snap": true, "size": 20},
+         "cardDetail": true, "cardValue": true},
   "metadata": {}
 }
 ```
 
 - `plugins` 是正式字段；`sha256` 可选，用于内容校验。
-- `ui` 是工程级视图覆盖；缺省时使用全局默认。
+- 工程 `ui` 段保存的是**旧版视图偏好**（`view/tab/workspace/grid/symbol/nodeStyle/drawing*/cardDetail/cardValue/symbolScale/glyphColor`，由 `frontend/app.ts` 的 `buildProjectPayload()` 组装、`netlab/core/model/project.py` 的 `json_safe(ui)` 落盘）；它与运行期 `netlab-ui/1`（`POST /api/ui`）是两套结构，不要混用。
 - `networks` 内 NodeRecord/EdgeRecord 结构不变。
 
 ### 9.2 v5 → v6 迁移

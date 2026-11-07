@@ -3,7 +3,7 @@
 > 最后更新：2026-11-06
 
 > 配套文档：[ARCHITECTURE.md](ARCHITECTURE.md)（分层、运行时序、数据模型）
-> 新能力优先使用插件包：[EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md)（插件 API、manifest、UI/数据/引擎扩展）
+> 新能力优先使用插件包：[EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md)（插件 API、manifest、UI/数据/引擎扩展）；插件包从零打包见 [PLUGIN_GUIDE.md](PLUGIN_GUIDE.md)。
 > 本文所有代码都按现有接口编写，可直接粘贴；示例的插入位置、测试写法、检查清单一并给出。
 >
 > 本文的 `extensions/nodes|methods` 单文件扩展仍兼容，但已标记为 legacy；新插件不得使用旧接口。

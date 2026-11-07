@@ -83,8 +83,8 @@
 
 1. 从源（vsource/isource/输入端口）做拓扑分层，负载在右；反馈支路排在外侧。
 2. 电源轨在上、地/参考在下；主信号从左到右。
-3. 网络锚点：同层按 lane 递增 y（步长 120，`LANE_STEP`），x = 层号 × 220（`RANK_STEP`），全部吸附 20（`GRID`）。（`core/model/schematic.py:325-326`；常量 `RANK_STEP=220`/`LANE_STEP=120`/`GRID=20` 见 `:10-12`）
-4. 元件实例：放在两锚点路径的中点（坐标按 20 网格取整），`rot` 取 0°（该段偏水平）或 90°（偏垂直），即对齐该段主方向（`core/model/schematic.py:337-341`）。注：仅旧工程迁移 `fill_missing_layout` 才把角度按 `ROT_STEP=30°` 量化到整数倍（`schematic.py:433-437`）。
+3. 网络锚点：同层按 lane 递增 y（`y=(lane-1)×120`，`LANE_STEP`），x = 层号 × 220（`RANK_STEP`），全部吸附 20（`GRID`）。（`core/model/schematic.py:354-358`；常量 `RANK_STEP=220`/`LANE_STEP=120`/`GRID=20` 见 `:10-12`）
+4. 元件实例：放在两锚点路径的中点（坐标按 20 网格取整），`rot` 取 0°（该段偏水平）或 90°（偏垂直），即对齐该段主方向（`core/model/schematic.py:365-373`）。注：仅旧工程迁移 `fill_missing_layout` 才把角度按 `ROT_STEP=30°` 量化到整数倍（`schematic.py:445,463-464`）。
 5. 同层重叠：按 lane 顺序错开；有手工布局的元件完全不参与自动布局。
 6. 同一输入必须生成**逐字节相同**的布局（可测试：两次生成 diff 为空）。
 

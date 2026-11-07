@@ -1,8 +1,9 @@
 # 底层求解代码地图（节点 / 连接 / 计算 / 求解器 / 时间）
 
 > 生成时间：2026-10-26。行号以当前工作区为准；代码改动后行号会漂，**以函数名 grep 定位为准**。
+> 编码/格式规范（Python black+flake8、前端 TypeScript+esbuild）见 [CODE_STANDARDS.md](CODE_STANDARDS.md)（D119 SSOT）。
 > 本文所有代码片段都是原文摘录（不是示意），可直接对照文件阅读。
-> 最后修改：2026-11-06（§0 行数表按当前代码校准；正文行号仍为 2026-10-26 快照，以函数名 grep 定位为准）。
+> 最后修改：2026-11-07（§0 行数表与 §1 调用链行号按当前代码校准；正文其余行号多为 2026-10-26 快照，以函数名 grep 定位为准）。
 > 2026-10-26 增补：全流程原理图（§0.1，Archify 交互版）、全流程覆盖清单（§1.1）、时间相关计算代表（§4.7）、数学注解合集（§5.4）、时间语义注解（§6.7）。
 
 ---
@@ -11,11 +12,11 @@
 
 | 顺序 | 文件 | 看什么 | 行数 |
 | --- | --- | --- | --- |
-| 1 | `netlab/core/model/graph.py` | `Node` / `Connection` / `Network.step` —— 信号流的求解内核 | 1116 |
-| 2 | `netlab/core/model/scene.py` | `NodeRecord` / `EdgeRecord` / `SignalEngine` —— 界面数据与内核的桥 | 2086 |
-| 3 | `netlab/core/compute/computes.py`、`netlab/core/compute/methods.py` | 节点公式 / 连接函数的注册表与 handler | 1550 / 726 |
-| 4 | `netlab/core/compute/nodal.py` | 电路 MNA 求解器 `CircuitSolver` 与元件 `stamp` | 2579 |
-| 5 | `netlab/core/compute/simulation.py` | 后台线程、`dt`、帧时间戳、录制器 | 659 |
+| 1 | `netlab/core/model/graph.py` | `Node` / `Connection` / `Network.step` —— 信号流的求解内核 | 1076 |
+| 2 | `netlab/core/model/scene.py` | `NodeRecord` / `EdgeRecord` / `SignalEngine` —— 界面数据与内核的桥 | 2036 |
+| 3 | `netlab/core/compute/computes.py`、`netlab/core/compute/methods.py` | 节点公式 / 连接函数的注册表与 handler | 1550 / 719 |
+| 4 | `netlab/core/compute/nodal.py` | 电路 MNA 求解器 `CircuitSolver` 与元件 `stamp` | 2739 |
+| 5 | `netlab/core/compute/simulation.py` | 后台线程、`dt`、帧时间戳、录制器 | 745 |
 | 6 | `netlab/core/compute/fem.py` | 二维热场有限元（与信号/电路无关的另一条求解路径） | 684 |
 
 ### 0.1 全流程原理图（先看图，再读代码）
@@ -24,7 +25,7 @@
 
 - 交互版（可悬停高亮、导出、深色模式）：[assets/solver-flow.html](assets/solver-flow.html)，源文件 `NetlabExtras/screenshots/archify/workflow-solver-flow-20261026-0110/candidate.json`。
 - **怎么看这张图**：四条泳道对应「一次 step 经过的四层」——入口与节拍 → 场景与引擎 → 信号/电路两条求解路径 → 探针与帧时间戳。实线是主路径，虚线是分支（`mode=circuit`）与数据回写。
-- 图解与代码的对应关系：`step 请求与调度` = `server.py` 控制端点 / `Simulation._loop`；`Scene.step(dt)` = `scene.py:473`；两条求解路径分别见 §5.1（`Network.step`）与 §5.2（`CircuitSolver.step`）；`push(t, v)` = `Recorder.push`。
+- 图解与代码的对应关系：`step 请求与调度` = `server.py` 控制端点 / `Simulation._loop`；`Scene.step(dt)` = `scene.py:987`；两条求解路径分别见 §5.1（`Network.step`）与 §5.2（`CircuitSolver.step`）；`push(t, v)` = `Recorder.push`。
 - 图上每个方框下方的小字是该模块的**关键约束**（例如「延迟边不参与拓扑排序」「LU 复用 · commit」），读代码时优先验证这些小字。
 
 ---
@@ -32,21 +33,21 @@
 ## 1. 一次「步进」的完整调用链
 
 ```
-HTTP POST /api/control {"action":"step"}          server.py:292 control()
-  └─ Simulation.step_once(steps)                  simulation.py:199
-       └─ Simulation._advance_locked(dt, sample_every)   simulation.py:150
-            ├─ Scene.step(dt)                     scene.py:473
-            │    ├─ Scene.ensure_engine()         scene.py:465   （脏了才重建引擎）
+HTTP POST /api/control {"action":"step"}          server.py:955 control()
+  └─ Simulation.step_once(steps)                  simulation.py:376
+       └─ Simulation._advance_locked(dt, sample_every)   simulation.py:302
+            ├─ Scene.step(dt)                     scene.py:987
+            │    ├─ Scene.ensure_engine()         scene.py:892   （脏了才重建引擎）
             │    └─ engine.step(dt)
-            │         ├─ SignalEngine.step  → Network.step           scene.py:309 / graph.py:443
-            │         │     ├─ Network.topological_order()           graph.py:402
-            │         │     ├─ 延迟边先在「步首」求值：Connection.evaluate   graph.py:214
-            │         │     ├─ 按拓扑序：入边求值 → Node.update()     graph.py:460-472
-            │         │     └─ network.time += dt                    graph.py:473
-            │         └─ CircuitEngine.step → CircuitSolver.step     scene.py:395 / nodal.py:888
+            │         ├─ SignalEngine.step  → Network.step           scene.py:418 / graph.py:699
+            │         │     ├─ Network.topological_order()           graph.py:659
+            │         │     ├─ 延迟边先在「步首」求值：Connection.evaluate   graph.py:330
+            │         │     ├─ 按拓扑序：入边求值 → Node.update()     graph.py:219
+            │         │     └─ network.time += dt                    （Network.step 内，graph.py:699）
+            │         └─ CircuitEngine.step → CircuitSolver.step     scene.py:765 / nodal.py:1798
             │               └─ prepare → stamp(MNA) → solve(LU) → commit → 写回 node_voltages
-            ├─ self.time += dt；self.steps += 1                       simulation.py:156-157
-            └─ Recorder.push(self.time, scene.probes())               simulation.py:48 / 160
+            ├─ self.time += dt；self.steps += 1                       （_advance_locked 内，simulation.py:302）
+            └─ Recorder.push(self.time, scene.probes())               simulation.py:110 / scene.py:1005
 ```
 
 **结论先记住三件事**：
@@ -70,13 +71,13 @@ HTTP POST /api/control {"action":"step"}          server.py:292 control()
 | 9 | 非线性/积分 | 微分方程在哪一步被离散？ | RK4（振子）、梯形法/后向欧拉（电容电感）、隐式欧拉（FEM） | §4.7、§5.2、§5.3 |
 | 10 | 失败怎么处理 | 代数环/发散/未收敛如何终止？ | `topological_order`、`MAX_ABS_VOLTAGE`、`MAX_NEWTON_ITERATIONS` | §3.3、§5.2、§8 |
 
-**明确没写进求解器的部分**（避免误以为存在）：频域/传递函数分析（R12、P3 未实现）、`T_step` 与「时间归零」（R11 未实现，当前只有 `reset`）、GPU 路径（未实测）。
+**明确没写进求解器的部分**（避免误以为存在）：`T_step` 与「时间归零」的完整周期语义（R11 已由 `Simulation`/`Recorder`/前端多窗口周期实现，见 §6）；GPU 路径（`accel.py` 提供可选 NumPy/CuPy 后端，未实测加速比）。频域/传递函数分析**已实现**：`analysis.py`（s 域 TF、网络 Bode、复数频响）与 `transfer.py`（TF 解析、Bode、零极点），不再是「未实现」。
 
 ---
 
 ## 2. 节点：从界面记录到运行时对象
 
-### 2.1 界面侧记录 `NodeRecord`（`scene.py:56-79`）
+### 2.1 界面侧记录 `NodeRecord`（`scene.py:69`）
 
 ```python
 @dataclass
@@ -95,7 +96,7 @@ class NodeRecord:
 
 要点：`params` 是配置（经校验的规范参数），`data` 是信号（界面能看到的值），`state` 是历史（积分器/延迟/模块内部状态），`inputs` 是上一步的入边快照（给界面看）。
 
-### 2.2 添加节点时的校验链（`scene.py:619-657`）
+### 2.2 添加节点时的校验链（`scene.py:1457`）
 
 ```python
     def add_node(
@@ -139,9 +140,9 @@ class NodeRecord:
         return record
 ```
 
-`_normalize_node_params`（`scene.py:581`）是所有节点参数的唯一入口：**add / update / 载入工程都走它**，因此参数校验、kind 合法性、模块节点 `block_id` 检查都集中在这里。
+`_normalize_node_params`（`scene.py:1102`）是所有节点参数的唯一入口：**add / update / 载入工程都走它**，因此参数校验、kind 合法性、模块节点 `block_id` 检查都集中在这里。
 
-### 2.3 运行时对象 `Node`（`graph.py:89-135`）
+### 2.3 运行时对象 `Node`（`graph.py:162`）
 
 ```python
 @dataclass(eq=False)
@@ -164,7 +165,7 @@ class Node:
 
 `Node.data` / `Node.state` 与 `NodeRecord.data` / `.state` **是同一份字典对象**（`SignalEngine.__init__` 直接传引用，`scene.py:139-148`），所以内核算完，界面快照立刻就是新值，不需要额外同步。
 
-### 2.4 节点计算的入口 `Node.update`（`graph.py:135-188`，节选）
+### 2.4 节点计算的入口 `Node.update`（`graph.py:219`，节选）
 
 ```python
     def update(self, dt: float = 1.0, time: float = 0.0) -> None:
@@ -227,7 +228,7 @@ class Node:
 
 ## 3. 连接：一条有向边如何产生数据
 
-### 3.1 界面侧记录 `EdgeRecord`（`scene.py:82-105`）
+### 3.1 界面侧记录 `EdgeRecord`（`scene.py:104`）
 
 ```python
 @dataclass
@@ -243,7 +244,7 @@ class EdgeRecord:
     enabled: bool = True
 ```
 
-### 3.2 运行时 `Connection.evaluate`（`graph.py:214-239`）
+### 3.2 运行时 `Connection.evaluate`（`graph.py:330`）
 
 ```python
     def evaluate(self, dt: float, time: float = 0.0) -> NodeData:
@@ -274,7 +275,7 @@ class EdgeRecord:
 
 连接函数签名固定为 `method(source_view, target_view, params_view, state, dt) -> dict`；`source_view.data` 是 `MappingProxyType` 只读视图（`graph.py:116`），想改只能改自己的 `state`。
 
-### 3.3 拓扑排序（`graph.py:402-441`，节选）
+### 3.3 拓扑排序（`graph.py:659`，节选）
 
 ```python
     def topological_order(self) -> list[Node]:
@@ -313,7 +314,7 @@ class EdgeRecord:
 
 **延迟边不参与排序**：它是 `z⁻¹`，所以环上只要有一条延迟边，图就还能拓扑排序。
 
-### 3.4 一拍的真实顺序（`graph.py:443-473`，全量）
+### 3.4 一拍的真实顺序（`graph.py:699`，全量）
 
 ```python
     def step(self, dt: float = 1.0) -> None:
@@ -358,7 +359,7 @@ class EdgeRecord:
 > 4. `connection.evaluate(dt, time=self.time + dt)` —— 边不知道时间也会得到「本步结束时刻」，波形类连接因此在同一拍内看到一致的时间。
 > 5. 循环结束后才 `self.time += dt` —— 本拍内所有计算共用同一个起点时间，避免顺序依赖。
 
-### 3.5 自动补延迟（`scene.py:1027-1050`，载入工程时）
+### 3.5 自动补延迟（`scene.py:1657-1663`，add_edge 时）
 
 载入场景时对每条无边延迟的连接做「删掉它是否还有环」的 DFS 检查，有环就自动把这条边标成 `delay=True`，避免用户手画反馈环直接报错。这是**导入期行为**，不在 `Network.step` 里。
 
@@ -366,7 +367,7 @@ class EdgeRecord:
 
 ## 4. 计算：注册表 + handler 工厂
 
-### 4.1 节点计算方式 `ComputeSpec`（`computes.py:32-55`）
+### 4.1 节点计算方式 `ComputeSpec`（`computes.py:43`）
 
 ```python
 @dataclass(frozen=True)
@@ -398,7 +399,7 @@ def register(spec: ComputeSpec) -> ComputeSpec:
     return spec
 ```
 
-### 4.2 一个最简单的节点：求和（`computes.py:96-126`）
+### 4.2 一个最简单的节点：求和（`computes.py:192`）
 
 ```python
 def _sum_factory(params: dict[str, Any]) -> Handler:
@@ -466,7 +467,7 @@ def validate_params(specs: list[ParamSpec], raw: Any | None) -> dict[str, Any]:
 
 所以**参数永远「先规范化再进内核」**：缺省补默认、未知键拒绝、类型/范围校验（`limits.py` 的 `as_float/as_int/...`）。
 
-### 4.4 连接函数 `MethodSpec` 与一个实例（`methods.py:24-91`）
+### 4.4 连接函数 `MethodSpec` 与一个实例（`methods.py:26`）
 
 ```python
 @dataclass(frozen=True)
@@ -501,7 +502,7 @@ def _scale_factory(params: dict[str, Any]) -> Method:
 
 `pass`（模块端口/功能块接线用）在 `methods.py:309-349`：只搬运**有限数值**字段，布尔和文本当作配置忽略——这条语义是模块边界「只传标量」的实现（见 `LESSONS.md §4.4`）。
 
-### 4.5 计算上下文 `ComputeContext`（`graph.py:76-86`）
+### 4.5 计算上下文 `ComputeContext`（`graph.py:147`）
 
 ```python
 @dataclass(slots=True)
@@ -519,7 +520,7 @@ class ComputeContext:
 
 `time` 由 `Network.step` 传成 `self.time + dt`，即**这一步的结束时刻**；`dt` 是本步步长。积分器/波形源都靠这两个值。
 
-### 4.6 用户扩展走同一条路（`extensions.py:246-259`）
+### 4.6 用户扩展走同一条路（`extensions.py:220`）
 
 `@node(...)` 装饰器构造的是 `ComputeSpec`（`editable=True`、`builtin=False`），被装饰函数**本身就是 handler**（直接收 `ctx`），不是返回 handler 的工厂——这是 V2-2 踩过的坑（`LESSONS.md §5`）。扩展节点的 `trusted=False`，所以每次计算走深拷贝 + `json_safe`。
 
@@ -617,7 +618,7 @@ def _rk4_3d(
 
 ### 5.1 信号/矢量：`SignalEngine`
 
-装配（`scene.py:124-171`，节选）：
+装配（`scene.py:172`，节选）：
 
 ```python
 class SignalEngine(_Engine):
@@ -668,13 +669,13 @@ class SignalEngine(_Engine):
 
 **矢量模式和信号模式共用同一个 `SignalEngine`**：区别只在节点 kind（`oscillator`/`nonlinear_plant` 等 handler 内部做 RK4），不在引擎。
 
-功能块节点（`kind="block"`）由 `_wire_blocks`（`scene.py:233-307`）接上隐藏的 `__feed.*` / `__emit.*` 连接：端口节点的数据搬进块运行时，块内部网络推进一步，输出再回写到端口节点。`BlockRuntime.step` 见 `blocks.py:397-437`（注入输入 → `inner.step(dt)` → 读输出，全部 deepcopy，实例之间不共享）。
+功能块节点（`kind="block"`）由 `_wire_blocks`（`scene.py:294`）接上隐藏的 `__feed.*` / `__emit.*` 连接：端口节点的数据搬进块运行时，块内部网络推进一步，输出再回写到端口节点。`BlockRuntime.step` 见 `blocks.py:422`（注入输入 → `inner.step(dt)` → 读输出，全部 deepcopy，实例之间不共享）。
 
 ### 5.2 电路：`CircuitEngine` + `CircuitSolver`
 
-引擎侧（`scene.py:361-400`）只做两件事：把 `NodeRecord`/`EdgeRecord` 转成 `CircuitNode`/`CircuitElement`，每步把解出的电压写回 `record.data["voltage"]`。
+引擎侧（`scene.py:507`）只做两件事：把 `NodeRecord`/`EdgeRecord` 转成 `CircuitNode`/`CircuitElement`，每步把解出的电压写回 `record.data["voltage"]`。
 
-求解器的未知量布局（`nodal.py:831-871`）：
+求解器的未知量布局（`nodal.py:1652`）：
 
 ```python
         self.ground = ground_nodes[0].id
@@ -869,7 +870,7 @@ Scene.step(dt)
 - 事务/重试/隔离：`netlab/tests/test_solver_transactions.py`（6 项）与 `test_solver_p0.py`（13 项）。
 - 元件契约：`netlab/tests/test_element_contracts.py`（14 项，catalog 公式 ↔ 实现、比较器回差、逻辑门电流、MOS 三态/λ/体效应、运放 SR/GBW）。
 
-### 5.3 热场：有限元 `FemModel.step`（`fem.py:309-335`）
+### 5.3 热场：有限元 `FemModel.step`（`fem.py:313`）
 
 ```python
         force = self._source_vector(self.time + dt_value)
@@ -1044,7 +1045,7 @@ def _solve_sparse(self, matrix, rhs, dt):
 
 ## 6. 时间与时间戳
 
-### 6.1 配置（`simulation.py:29-36`）
+### 6.1 配置（`simulation.py:40`）
 
 ```python
 @dataclass
@@ -1059,7 +1060,7 @@ class SimConfig:
 
 `lock_dt=True` 时 `dt = 1/(fps·steps_per_frame)`（`simulation.py:256-257`），即「锁帧 = 锁时间推进」。
 
-### 6.2 后台线程（`simulation.py:122-148`）
+### 6.2 后台线程（`simulation.py:274`）
 
 ```python
     def _loop(self) -> None:
@@ -1091,7 +1092,7 @@ class SimConfig:
                     time.sleep(min(remaining, 0.25))
 ```
 
-### 6.3 一拍与录帧（`simulation.py:150-164`）
+### 6.3 一拍与录帧（`simulation.py:302`）
 
 ```python
     def _advance_locked(self, dt: float, sample_every: int) -> bool:
@@ -1111,7 +1112,7 @@ class SimConfig:
         return True
 ```
 
-### 6.4 帧结构（`simulation.py:48-58`）
+### 6.4 帧结构（`simulation.py:73`）
 
 ```python
     def push(self, time_value: float, probes: dict[str, float]) -> None:
@@ -1178,7 +1179,7 @@ class SimConfig:
 | 改录制/游标 | `simulation.py` `Recorder` | `seq` 单调递增，删帧不影响游标 |
 | 改功能块内部求解 | `scene.py` `_wire_blocks`、`blocks.py` `BlockRuntime.step` | 端口只传标量 |
 | 改热场 | `fem.py` `FemModel` | 与信号/电路解耦 |
-| 加分析（频域/传递函数） | 新建 `analysis/`，只读 `Recorder`/`Scene` | 旁路，不进求解器（D22） |
+| 加分析（频域/传递函数） | 已实现：`analysis.py`（s 域 TF、网络 Bode、复数频响）+ `transfer.py`（TF、Bode、零极点）；新分析可加 `analysis_plugins.py` 的 `AnalysisSpec` | 旁路，只读 `Recorder`/`Scene`，不进求解器（D22/R40） |
 
 ---
 
@@ -1195,7 +1196,7 @@ class SimConfig:
 ## 9. 自测脚本（直接跑，观察一步到底发生了什么）
 
 ```python
-from netlab.scene import Scene
+from netlab.core.model.scene import Scene
 
 scene = Scene("signal")                      # 建一个信号场景
 src = scene.add_node(name="src", kind="manual", data={"voltage": 1.0})

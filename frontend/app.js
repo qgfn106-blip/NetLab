@@ -10795,6 +10795,8 @@ import {
   let wbCompareSignals = [];
   let wbCompareLayout = { cols: 0, height: 220 };
   let wbComparePayload = null;
+  let wbCompareRenderer = "simple-chart";
+  let wbActiveRenderers = [];
   function wbBadge(text, cls) {
     return el("span", cls, text);
   }
@@ -10849,11 +10851,30 @@ import {
       wbCompareLayout.height = Math.max(120, Math.min(600, Number(heightInput.value) || 220));
       if (wbComparePayload) renderCompareGrid();
     });
+    const rendererSelect = el("select", "input");
+    rendererSelect.title = "\u5BF9\u6BD4\u5B50\u56FE\u7ED8\u5236\u5668\uFF08\u7B80\u6613 canvas / PlotKit \u5185\u5D4C\uFF09";
+    const rendererChoices = [
+      ["simple-chart", "\u7B80\u6613 canvas"],
+      ["plotkit", "PlotKit \u5185\u5D4C"]
+    ];
+    for (const [value, label] of rendererChoices) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      rendererSelect.appendChild(option);
+    }
+    rendererSelect.value = wbCompareRenderer;
+    rendererSelect.addEventListener("change", () => {
+      wbCompareRenderer = rendererSelect.value === "plotkit" ? "plotkit" : "simple-chart";
+      if (wbComparePayload) renderCompareGrid();
+    });
     layoutRow.append(
       el("label", null, "\u5217\u6570"),
       colsInput,
       el("label", null, "\u5B50\u56FE\u9AD8\u5EA6(px)"),
-      heightInput
+      heightInput,
+      el("label", null, "\u7ED8\u5236\u5668"),
+      rendererSelect
     );
     host.appendChild(layoutRow);
     const inline = el("div", "wb-signal-inline");
@@ -11066,6 +11087,8 @@ import {
     const payload = wbComparePayload;
     const entries = (payload?.states || []).filter((entry) => entry.ok);
     const signals = payload?.signals && payload.signals.length ? payload.signals : wbCompareSignals.slice();
+    for (const renderer of wbActiveRenderers) renderer.destroy();
+    wbActiveRenderers = [];
     grid.replaceChildren();
     if (!entries.length) {
       grid.appendChild(div("help", "\u6CA1\u6709\u53EF\u7ED8\u5236\u7684\u7F13\u5B58\u3002\u8BF7\u5148\u5BF9\u9009\u4E2D\u72B6\u6001\u6267\u884C\u300C\u9884\u8BA1\u7B97\u9009\u4E2D\u72B6\u6001\u300D\u3002"));
@@ -11095,16 +11118,19 @@ import {
         el("span", "wb-subplot-meta", `${(entry.t || []).length} \u70B9`)
       );
       card.appendChild(titleBar);
-      const canvas2 = el("canvas", "wb-subplot-canvas");
-      card.appendChild(canvas2);
+      const canvasHost = div("wb-subplot-canvas-host");
+      card.appendChild(canvasHost);
       grid.appendChild(card);
-      drawWbSubplot(canvas2, entry, signals, xMin, xMax);
+      const renderer = createChartRenderer(wbCompareRenderer);
+      renderer.mount(canvasHost, { height: wbCompareLayout.height, title: entry.name });
+      renderer.setSeries({ entry, signals, xMin, xMax, height: wbCompareLayout.height });
+      wbActiveRenderers.push(renderer);
     }
   }
-  function drawWbSubplot(canvas2, entry, signals, xMin, xMax) {
+  function drawWbSubplot(canvas2, entry, signals, xMin, xMax, height) {
     const parentWidth = canvas2.parentElement?.getBoundingClientRect().width || 320;
     const cssW = Math.max(120, Math.round(parentWidth));
-    const cssH = wbCompareLayout.height;
+    const cssH = height == null ? wbCompareLayout.height : height;
     const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5);
     canvas2.width = Math.round(cssW * dpr);
     canvas2.height = Math.round(cssH * dpr);
@@ -11190,6 +11216,178 @@ import {
       }
       ctx2.stroke();
     }
+  }
+  const PLOTKIT_RENDER2D_URL = "/plotkit/static/render2d.js";
+  function readPlot2D() {
+    const holder = window;
+    return holder.Plot2D;
+  }
+  let plot2dLoading = null;
+  async function loadPlot2DApi() {
+    const existing = readPlot2D();
+    if (existing) return existing;
+    if (!plot2dLoading) {
+      const url = PLOTKIT_RENDER2D_URL;
+      plot2dLoading = (async () => {
+        await import(url);
+        const api2 = readPlot2D();
+        if (!api2) throw new Error("PlotKit render2d \u672A\u6CE8\u518C window.Plot2D");
+        return api2;
+      })();
+    }
+    return plot2dLoading;
+  }
+  class SimpleCanvasRenderer {
+    constructor() {
+      this.kind = "simple-chart";
+      this.host = null;
+      this.canvas = null;
+      this.series = null;
+      this.height = wbCompareLayout.height;
+    }
+    mount(host, opts) {
+      this.host = host;
+      this.height = opts?.height ?? wbCompareLayout.height;
+      host.replaceChildren();
+      const canvas2 = document.createElement("canvas");
+      canvas2.className = "wb-subplot-canvas";
+      host.appendChild(canvas2);
+      this.canvas = canvas2;
+    }
+    setSeries(series) {
+      this.series = series;
+      this.draw();
+    }
+    draw() {
+      if (!this.canvas || !this.series) return;
+      const { entry, signals, xMin, xMax, height } = this.series;
+      drawWbSubplot(this.canvas, entry, signals, xMin ?? 0, xMax ?? 1, height ?? this.height);
+    }
+    resize() {
+      this.draw();
+    }
+    destroy() {
+      this.canvas = null;
+      this.series = null;
+      this.host = null;
+    }
+  }
+  class PlotKitRenderer {
+    constructor() {
+      this.kind = "plotkit";
+      this.host = null;
+      this.canvas = null;
+      this.series = null;
+      this.height = wbCompareLayout.height;
+      this.renderToken = 0;
+    }
+    mount(host, opts) {
+      this.host = host;
+      this.height = opts?.height ?? wbCompareLayout.height;
+      host.replaceChildren();
+      const canvas2 = document.createElement("canvas");
+      canvas2.className = "wb-subplot-canvas";
+      host.appendChild(canvas2);
+      this.canvas = canvas2;
+    }
+    setSeries(series) {
+      this.series = series;
+      this.renderToken += 1;
+      void this.renderAsync(this.renderToken);
+    }
+    async renderAsync(token) {
+      const canvas2 = this.canvas;
+      const series = this.series;
+      if (!canvas2 || !series) return;
+      try {
+        const api2 = await loadPlot2DApi();
+        if (token !== this.renderToken || this.canvas !== canvas2 || !this.series) return;
+        this.drawWithPlotKit(api2, canvas2, series);
+        if (this.host) this.host.removeAttribute("data-renderer-fallback");
+      } catch (error) {
+        if (token !== this.renderToken || this.canvas !== canvas2 || !this.series) return;
+        const { entry, signals, xMin, xMax, height } = series;
+        drawWbSubplot(canvas2, entry, signals, xMin ?? 0, xMax ?? 1, height ?? this.height);
+        if (this.host) this.host.setAttribute("data-renderer-fallback", "1");
+        console.warn("[W3] PlotKit \u6E32\u67D3\u4E0D\u53EF\u7528\uFF0C\u5DF2\u56DE\u9000\u7B80\u6613\u6E32\u67D3\uFF1A", error?.message || error);
+      }
+    }
+    drawWithPlotKit(api2, canvas2, series) {
+      const { entry, signals, height } = series;
+      const times = entry.t || [];
+      if (!times.length) return;
+      const hostW = canvas2.parentElement?.getBoundingClientRect().width || 320;
+      const cssW = Math.max(120, Math.round(hostW));
+      const cssH = Math.max(80, Math.round(height ?? this.height));
+      canvas2.style.width = `${cssW}px`;
+      canvas2.style.height = `${cssH}px`;
+      const columns = {};
+      columns.__t = Float32Array.from(times);
+      for (const key of signals) {
+        const arr = entry.series?.[key] || [];
+        const n = Math.min(arr.length, times.length);
+        const values = new Float32Array(n);
+        for (let i = 0; i < n; i += 1) values[i] = arr[i];
+        columns[key] = values;
+      }
+      const store = {
+        get(name) {
+          const values = columns[name];
+          return values ? { values } : null;
+        }
+      };
+      const layers = [];
+      for (const key of signals) {
+        const values = columns[key];
+        if (!values || !values.length) continue;
+        layers.push({
+          kind: "line",
+          data: { x: "__t", y: key },
+          style: { color: colorForKey(key), width: 1.6 },
+          label: key,
+          legend: true
+        });
+      }
+      const toks = tokens();
+      const themeTokens = {
+        paper: C("#faf8f2"),
+        plot: C("#fbf9f4"),
+        text: C("#3a3a33"),
+        muted: C("#969083"),
+        grid: C("#e6e2d6"),
+        accent: String(toks.accent || C("#a8541f"))
+      };
+      const spec = {
+        figure: {
+          title: entry.name || String(entry.state_id || ""),
+          xlabel: "t",
+          ylabel: "",
+          subplots: 1,
+          ncols: 1
+        },
+        layers
+      };
+      api2.render(canvas2, spec, store, {
+        dpr: clamp(window.devicePixelRatio || 1, 1, 2.5),
+        width: cssW,
+        height: cssH,
+        tokens: themeTokens
+      });
+    }
+    resize() {
+      if (!this.canvas || !this.series) return;
+      this.renderToken += 1;
+      void this.renderAsync(this.renderToken);
+    }
+    destroy() {
+      this.renderToken += 1;
+      this.canvas = null;
+      this.series = null;
+      this.host = null;
+    }
+  }
+  function createChartRenderer(kind) {
+    return kind === "plotkit" ? new PlotKitRenderer() : new SimpleCanvasRenderer();
   }
   async function wbPrecomputeSelected() {
     if (!wbCompareStateIds.length) {

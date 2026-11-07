@@ -12171,6 +12171,9 @@ declare function setStatusHint(hint: string): void;
   let wbCompareSignals: string[] = [];
   let wbCompareLayout = { cols: 0, height: 220 };
   let wbComparePayload: WbComparePayload | null = null;
+  // W3：对比子图绘制器选择（默认简易 canvas，可选 PlotKit 内嵌渲染）。
+  let wbCompareRenderer: WbRendererKind = 'simple-chart';
+  let wbActiveRenderers: ChartRenderer[] = [];
 
   function wbBadge(text: string, cls: string): HTMLSpanElement {
     return el('span', cls, text);
@@ -12233,11 +12236,30 @@ declare function setStatusHint(hint: string): void;
       wbCompareLayout.height = Math.max(120, Math.min(600, Number(heightInput.value) || 220));
       if (wbComparePayload) renderCompareGrid();
     });
+    const rendererSelect = el('select', 'input') as HTMLSelectElement;
+    rendererSelect.title = '对比子图绘制器（简易 canvas / PlotKit 内嵌）';
+    const rendererChoices: [WbRendererKind, string][] = [
+      ['simple-chart', '简易 canvas'],
+      ['plotkit', 'PlotKit 内嵌'],
+    ];
+    for (const [value, label] of rendererChoices) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      rendererSelect.appendChild(option);
+    }
+    rendererSelect.value = wbCompareRenderer;
+    rendererSelect.addEventListener('change', () => {
+      wbCompareRenderer = rendererSelect.value === 'plotkit' ? 'plotkit' : 'simple-chart';
+      if (wbComparePayload) renderCompareGrid();
+    });
     layoutRow.append(
       el('label', null, '列数'),
       colsInput,
       el('label', null, '子图高度(px)'),
       heightInput,
+      el('label', null, '绘制器'),
+      rendererSelect,
     );
     host.appendChild(layoutRow);
 
@@ -12479,6 +12501,9 @@ declare function setStatusHint(hint: string): void;
     const entries = (payload?.states || []).filter((entry) => entry.ok);
     const signals =
       payload?.signals && payload.signals.length ? payload.signals : wbCompareSignals.slice();
+    // 重建前销毁旧渲染器，避免 PlotKit 异步渲染残留在被替换的 canvas 上。
+    for (const renderer of wbActiveRenderers) renderer.destroy();
+    wbActiveRenderers = [];
     grid.replaceChildren();
     if (!entries.length) {
       grid.appendChild(div('help', '没有可绘制的缓存。请先对选中状态执行「预计算选中状态」。'));
@@ -12508,10 +12533,13 @@ declare function setStatusHint(hint: string): void;
         el('span', 'wb-subplot-meta', `${(entry.t || []).length} 点`),
       );
       card.appendChild(titleBar);
-      const canvas = el('canvas', 'wb-subplot-canvas') as HTMLCanvasElement;
-      card.appendChild(canvas);
+      const canvasHost = div('wb-subplot-canvas-host');
+      card.appendChild(canvasHost);
       grid.appendChild(card);
-      drawWbSubplot(canvas, entry, signals, xMin, xMax);
+      const renderer = createChartRenderer(wbCompareRenderer);
+      renderer.mount(canvasHost, { height: wbCompareLayout.height, title: entry.name });
+      renderer.setSeries({ entry, signals, xMin, xMax, height: wbCompareLayout.height });
+      wbActiveRenderers.push(renderer);
     }
   }
 
@@ -12521,10 +12549,11 @@ declare function setStatusHint(hint: string): void;
     signals: string[],
     xMin: number,
     xMax: number,
+    height?: number,
   ): void {
     const parentWidth = canvas.parentElement?.getBoundingClientRect().width || 320;
     const cssW = Math.max(120, Math.round(parentWidth));
-    const cssH = wbCompareLayout.height;
+    const cssH = height == null ? wbCompareLayout.height : height;
     const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5);
     canvas.width = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
@@ -12614,6 +12643,252 @@ declare function setStatusHint(hint: string): void;
       }
       ctx.stroke();
     }
+  }
+
+  // ===== W3：绘图渲染器抽象（PlotKit 去 iframe 化的内嵌渲染） =====
+  // 规格（Q8=A）：PlotKit 保留渲染内核、去掉 iframe 独立外壳，作为 netlab 内嵌绘图模块；
+  // netlab 自带简易 chart 保留；建/对比子图时可选绘制器。kind 与规格一致：'simple-chart' / 'plotkit'。
+  type WbRendererKind = 'simple-chart' | 'plotkit';
+
+  interface WbChartSeries {
+    entry: WbCompareEntry;
+    signals: string[];
+    xMin?: number;
+    xMax?: number;
+    height?: number;
+  }
+
+  interface WbChartMountOptions {
+    height?: number;
+    title?: string;
+  }
+
+  interface ChartRenderer {
+    readonly kind: WbRendererKind;
+    mount(el: HTMLElement, opts?: WbChartMountOptions): void;
+    setSeries(series: WbChartSeries): void;
+    resize(): void;
+    destroy(): void;
+  }
+
+  // PlotKit render2d ESM 的同源静态路径：plotkit_bridge 把 PlotKit 子应用挂到 /plotkit，
+  // 其静态资源在此前缀下（见 netlab/_vendor/plotkit/server/app.py 的 /static 挂载）。
+  const PLOTKIT_RENDER2D_URL = '/plotkit/static/render2d.js';
+
+  // PlotKit 渲染内核最小类型面：运行时由 render2d.js 挂到 window.Plot2D，仅用 render 出图。
+  interface Plot2DLayer {
+    kind?: string;
+    subplot?: number;
+    data?: Record<string, string>;
+    style?: Record<string, string | number>;
+    label?: string;
+    legend?: boolean;
+  }
+  interface Plot2DSpec {
+    figure?: { title?: string; xlabel?: string; ylabel?: string; subplots?: number; ncols?: number };
+    layers?: Plot2DLayer[];
+  }
+  interface Plot2DSeriesData { values: Float32Array; }
+  interface Plot2DStore { get(name: string): Plot2DSeriesData | null; }
+  interface Plot2DRenderOptions {
+    dpr?: number;
+    width?: number;
+    height?: number;
+    tokens?: Record<string, string>;
+  }
+  interface Plot2DApi {
+    render(canvas: HTMLCanvasElement, spec: Plot2DSpec, store: Plot2DStore, opts?: Plot2DRenderOptions): unknown;
+  }
+  function readPlot2D(): Plot2DApi | undefined {
+    const holder = window as unknown as { Plot2D?: Plot2DApi };
+    return holder.Plot2D;
+  }
+
+  let plot2dLoading: Promise<Plot2DApi> | null = null;
+  async function loadPlot2DApi(): Promise<Plot2DApi> {
+    const existing = readPlot2D();
+    if (existing) return existing;
+    if (!plot2dLoading) {
+      const url = PLOTKIT_RENDER2D_URL;
+      plot2dLoading = (async () => {
+        // 动态加载 PlotKit 渲染 ESM（变量路径 → 不静态打包进 netlab bundle）。
+        await import(url);
+        const api = readPlot2D();
+        if (!api) throw new Error('PlotKit render2d 未注册 window.Plot2D');
+        return api;
+      })();
+    }
+    return plot2dLoading;
+  }
+
+  /** 简易 canvas 渲染器：封装现有 drawWbSubplot，行为与旧对比图完全一致。 */
+  class SimpleCanvasRenderer implements ChartRenderer {
+    readonly kind: WbRendererKind = 'simple-chart';
+    private host: HTMLElement | null = null;
+    private canvas: HTMLCanvasElement | null = null;
+    private series: WbChartSeries | null = null;
+    private height = wbCompareLayout.height;
+
+    mount(host: HTMLElement, opts?: WbChartMountOptions): void {
+      this.host = host;
+      this.height = opts?.height ?? wbCompareLayout.height;
+      host.replaceChildren();
+      const canvas = document.createElement('canvas');
+      canvas.className = 'wb-subplot-canvas';
+      host.appendChild(canvas);
+      this.canvas = canvas;
+    }
+
+    setSeries(series: WbChartSeries): void {
+      this.series = series;
+      this.draw();
+    }
+
+    private draw(): void {
+      if (!this.canvas || !this.series) return;
+      const { entry, signals, xMin, xMax, height } = this.series;
+      drawWbSubplot(this.canvas, entry, signals, xMin ?? 0, xMax ?? 1, height ?? this.height);
+    }
+
+    resize(): void {
+      this.draw();
+    }
+
+    destroy(): void {
+      this.canvas = null;
+      this.series = null;
+      this.host = null;
+    }
+  }
+
+  /** PlotKit 内嵌渲染器：动态 import PlotKit render2d ESM，直接把二维内核画到 netlab 的 canvas，无 iframe。 */
+  class PlotKitRenderer implements ChartRenderer {
+    readonly kind: WbRendererKind = 'plotkit';
+    private host: HTMLElement | null = null;
+    private canvas: HTMLCanvasElement | null = null;
+    private series: WbChartSeries | null = null;
+    private height = wbCompareLayout.height;
+    private renderToken = 0;
+
+    mount(host: HTMLElement, opts?: WbChartMountOptions): void {
+      this.host = host;
+      this.height = opts?.height ?? wbCompareLayout.height;
+      host.replaceChildren();
+      const canvas = document.createElement('canvas');
+      canvas.className = 'wb-subplot-canvas';
+      host.appendChild(canvas);
+      this.canvas = canvas;
+    }
+
+    setSeries(series: WbChartSeries): void {
+      this.series = series;
+      this.renderToken += 1;
+      void this.renderAsync(this.renderToken);
+    }
+
+    private async renderAsync(token: number): Promise<void> {
+      const canvas = this.canvas;
+      const series = this.series;
+      if (!canvas || !series) return;
+      try {
+        const api = await loadPlot2DApi();
+        if (token !== this.renderToken || this.canvas !== canvas || !this.series) return;
+        this.drawWithPlotKit(api, canvas, series);
+        if (this.host) this.host.removeAttribute('data-renderer-fallback');
+      } catch (error) {
+        // PlotKit 未挂载 / 加载失败：优雅回退到简易渲染，不打断界面、不抛错。
+        if (token !== this.renderToken || this.canvas !== canvas || !this.series) return;
+        const { entry, signals, xMin, xMax, height } = series;
+        drawWbSubplot(canvas, entry, signals, xMin ?? 0, xMax ?? 1, height ?? this.height);
+        if (this.host) this.host.setAttribute('data-renderer-fallback', '1');
+        console.warn('[W3] PlotKit 渲染不可用，已回退简易渲染：', (error as Error)?.message || error);
+      }
+    }
+
+    private drawWithPlotKit(api: Plot2DApi, canvas: HTMLCanvasElement, series: WbChartSeries): void {
+      const { entry, signals, height } = series;
+      const times = entry.t || [];
+      if (!times.length) return;
+      const hostW = canvas.parentElement?.getBoundingClientRect().width || 320;
+      const cssW = Math.max(120, Math.round(hostW));
+      const cssH = Math.max(80, Math.round(height ?? this.height));
+      canvas.style.width = `${cssW}px`;
+      canvas.style.height = `${cssH}px`;
+
+      // 组装 PlotKit Store：__t 共享时间轴 + 各信号序列转 Float32Array。
+      const columns: Record<string, Float32Array> = {};
+      columns.__t = Float32Array.from(times);
+      for (const key of signals) {
+        const arr = entry.series?.[key] || [];
+        const n = Math.min(arr.length, times.length);
+        const values = new Float32Array(n);
+        for (let i = 0; i < n; i += 1) values[i] = arr[i];
+        columns[key] = values;
+      }
+      const store: Plot2DStore = {
+        get(name: string): Plot2DSeriesData | null {
+          const values = columns[name];
+          return values ? { values } : null;
+        },
+      };
+
+      const layers: Plot2DLayer[] = [];
+      for (const key of signals) {
+        const values = columns[key];
+        if (!values || !values.length) continue;
+        layers.push({
+          kind: 'line',
+          data: { x: '__t', y: key },
+          style: { color: colorForKey(key), width: 1.6 },
+          label: key,
+          legend: true,
+        });
+      }
+
+      const toks = tokens();
+      const themeTokens: Record<string, string> = {
+        paper: C('#faf8f2'),
+        plot: C('#fbf9f4'),
+        text: C('#3a3a33'),
+        muted: C('#969083'),
+        grid: C('#e6e2d6'),
+        accent: String(toks.accent || C('#a8541f')),
+      };
+
+      const spec: Plot2DSpec = {
+        figure: {
+          title: entry.name || String(entry.state_id || ''),
+          xlabel: 't',
+          ylabel: '',
+          subplots: 1,
+          ncols: 1,
+        },
+        layers,
+      };
+      api.render(canvas, spec, store, {
+        dpr: clamp(window.devicePixelRatio || 1, 1, 2.5),
+        width: cssW,
+        height: cssH,
+        tokens: themeTokens,
+      });
+    }
+
+    resize(): void {
+      if (!this.canvas || !this.series) return;
+      this.renderToken += 1;
+      void this.renderAsync(this.renderToken);
+    }
+
+    destroy(): void {
+      this.renderToken += 1;
+      this.canvas = null;
+      this.series = null;
+      this.host = null;
+    }
+  }
+
+  function createChartRenderer(kind: WbRendererKind): ChartRenderer {
+    return kind === 'plotkit' ? new PlotKitRenderer() : new SimpleCanvasRenderer();
   }
 
   async function wbPrecomputeSelected(): Promise<void> {

@@ -2192,3 +2192,27 @@ html[data-density="loose"] .setwin-nav button { padding-top: calc(8px * var(--ui
 .wb-obj { color: var(--text-secondary); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wb-key { font-weight: 600; font-size: 12px; color: var(--text-primary); }
 .wb-param-row .field { margin: 0; }
+
+/* 工作台 · 分析（W2：多子图对比 + 可分离信号浮窗） */
+.wb-analysis { gap: 10px; }
+.wb-layout-row { align-items: center; gap: 8px; flex-wrap: wrap; }
+.wb-layout-row label { color: var(--text-secondary); font-size: 11px; }
+.wb-layout-row .input { width: 72px; }
+.wb-signal-inline[hidden] { display: none; }
+.wb-signal-inline { border: 1px solid var(--line); border-radius: 8px; background: var(--paper-2); padding: 8px; }
+.wb-signal-panel { display: flex; flex-direction: column; gap: 10px; min-width: 0; flex: 1; overflow: auto; }
+.wb-signal-section { display: flex; flex-direction: column; gap: 6px; }
+.wb-signal-title { font: calc(10px * var(--ui-font-scale, 1))/1 var(--mono); letter-spacing: .08em; color: var(--text-label); text-transform: uppercase; }
+.wb-signal-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow: auto; }
+.wb-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-primary); cursor: pointer; }
+.wb-check input { margin: 0; }
+.wb-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+.wb-warn { color: var(--warn, #b07a00); }
+.wb-compare-grid { display: grid; gap: 10px; }
+.wb-subplot { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--line); border-radius: 8px; padding: 6px; background: var(--paper); min-width: 0; }
+.wb-subplot-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-primary); }
+.wb-subplot-meta { color: var(--text-tertiary); font: calc(9px * var(--ui-font-scale, 1))/1 var(--mono); }
+.wb-subplot-canvas { display: block; width: 100%; border-radius: 4px; }
+.wb-signal-body { flex: 1; min-height: 0; overflow: auto; padding: 8px; }
+.wb-signal-win { width: 360px; height: 460px; max-width: 92vw; max-height: 84vh; }
+

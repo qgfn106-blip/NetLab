@@ -1,5 +1,12 @@
 import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
-import { CANVAS_LIGHT, CANVAS_DARK } from "./theme.tokens.js";
+import {
+  CANVAS_LIGHT,
+  CANVAS_DARK,
+  CHART_PALETTE_HC_LIGHT,
+  CHART_PALETTE_HC_DARK,
+  CHART_PALETTE_CB_LIGHT,
+  CHART_PALETTE_CB_DARK
+} from "./theme.tokens.js";
 (() => {
   "use strict";
   const UI_BUILD = "3.20.1";
@@ -255,7 +262,23 @@ import { CANVAS_LIGHT, CANVAS_DARK } from "./theme.tokens.js";
       drawingPage: 1
     },
     // R30：外观偏好、文档与引导状态
-    prefs: { theme: "light", motion: "low", perf: "perf", accent: "", guide: "always", infobar: true, runWarn: true },
+    prefs: {
+      theme: "light",
+      motion: "low",
+      perf: "perf",
+      accent: "",
+      guide: "always",
+      infobar: true,
+      runWarn: true,
+      // P-A4 外观面板新增（默认值=当前外观，不改则不产生任何视觉变化）
+      accentDark: "",
+      fontScale: 12,
+      density: "standard",
+      surfaceTone: 0,
+      radius: 0,
+      lineWidth: 1,
+      chartPalette: "theme"
+    },
     palette: null,
     settings: null,
     docs: [],
@@ -319,10 +342,10 @@ import { CANVAS_LIGHT, CANVAS_DARK } from "./theme.tokens.js";
     return value === void 0 ? void 0 : JSON.parse(JSON.stringify(value));
   }
   function colorForKey(key) {
-    if (!state.chart.colors.has(key)) {
-      state.chart.colors.set(key, CHART_PALETTE[hashString(key) % CHART_PALETTE.length]);
-    }
-    return C(state.chart.colors.get(key));
+    const palette = chartPalette();
+    const raw = palette[hashString(key) % palette.length];
+    const mode = String(state.prefs && state.prefs.chartPalette || "theme");
+    return mode === "theme" ? C(raw) : raw;
   }
   function activeTab() {
     const group = $(".panel-group.active")?.dataset.group || "inspect";
@@ -11794,13 +11817,65 @@ import { CANVAS_LIGHT, CANVAS_DARK } from "./theme.tokens.js";
     "#7a4a2a",
     "#4d463c"
   ];
-  const ACCENT_SWATCHES = ["", "#9b7247", "#565c46", "#3f5d6b", "#8a4234", "#6b6257"];
+  const ACCENT_SWATCHES = ["", "#9b7247", "#565c46", "#3f5d6b", "#8a4234", "#6b6257", "#7a5a33", "#5f7a52"];
   const PREF_CACHE_KEY = "netlab.ui.prefs";
+  const PREF_DEFAULTS = {
+    theme: "system",
+    motion: "low",
+    perf: "perf",
+    accent: "",
+    accentDark: "",
+    fontScale: 12,
+    density: "standard",
+    surfaceTone: 0,
+    radius: 0,
+    lineWidth: 1,
+    chartPalette: "theme"
+  };
+  const FONT_SCALES = [11, 12, 13, 14];
+  const RADIUS_STEPS = [0, 2, 4];
+  const LINE_STEPS = [1, 1.5];
+  const CHART_MODES = ["theme", "high-contrast", "colorblind"];
+  let RT_OVERRIDE = {};
+  function activeAccent(theme, pal) {
+    const pref = state.prefs || {};
+    const custom = theme === "dark" ? pref.accentDark : pref.accent;
+    return typeof custom === "string" && custom ? custom : pal.accent;
+  }
+  function computeRuntimeOverride(theme) {
+    const base = THEME_TOKENS[theme];
+    const pref = state.prefs || {};
+    const override = {};
+    const accent = activeAccent(theme, base);
+    if (accent && accent !== base.accent) {
+      override.accent = accent;
+      override.accentSoft = mixHex(base.paper, accent, 0.28);
+    }
+    const tone = clamp(Number(pref.surfaceTone) || 0, -1, 1);
+    if (tone !== 0) {
+      const anchor = tone > 0 ? base.toneWhite : base.toneBlack;
+      if (anchor) {
+        const amount = Math.abs(tone) * 0.16;
+        for (const key of ["paper", "panel", "surface", "paper3"]) {
+          if (base[key]) override[key] = mixHex(base[key], anchor, amount);
+        }
+      }
+    }
+    return override;
+  }
+  function chartPalette() {
+    const mode = String(state.prefs && state.prefs.chartPalette || "theme");
+    const dark = themeKey() === "dark";
+    if (mode === "high-contrast") return dark ? CHART_PALETTE_HC_DARK : CHART_PALETTE_HC_LIGHT;
+    if (mode === "colorblind") return dark ? CHART_PALETTE_CB_DARK : CHART_PALETTE_CB_LIGHT;
+    return CHART_PALETTE;
+  }
   function themeKey() {
     return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
   }
   function tokens() {
-    return THEME_TOKENS[themeKey()];
+    const base = THEME_TOKENS[themeKey()];
+    return RT_OVERRIDE && Object.keys(RT_OVERRIDE).length ? { ...base, ...RT_OVERRIDE } : base;
   }
   function mixHex(foreground, background, amount) {
     const a = hexToRgb(foreground);
@@ -11838,13 +11913,27 @@ import { CANVAS_LIGHT, CANVAS_DARK } from "./theme.tokens.js";
     root.dataset.theme = theme;
     root.dataset.motion = pref.motion || "low";
     root.dataset.perf = pref.perf || "perf";
+    const fontScale = FONT_SCALES.includes(Number(pref.fontScale)) ? Number(pref.fontScale) : PREF_DEFAULTS.fontScale;
+    root.dataset.font = String(fontScale);
+    const density = ["compact", "standard", "loose"].includes(String(pref.density)) ? String(pref.density) : PREF_DEFAULTS.density;
+    root.dataset.density = density;
+    const lineWidth = LINE_STEPS.includes(Number(pref.lineWidth)) ? Number(pref.lineWidth) : PREF_DEFAULTS.lineWidth;
+    root.dataset.line = String(lineWidth);
+    const chartMode = CHART_MODES.includes(String(pref.chartPalette)) ? String(pref.chartPalette) : PREF_DEFAULTS.chartPalette;
+    root.dataset.chart = chartMode;
+    const radius = RADIUS_STEPS.includes(Number(pref.radius)) ? Number(pref.radius) : PREF_DEFAULTS.radius;
+    root.style.setProperty("--radius", `${radius}px`);
     const pal = THEME_TOKENS[theme];
-    const accent = pref.accent || pal.accent;
+    RT_OVERRIDE = computeRuntimeOverride(theme);
+    const accent = RT_OVERRIDE.accent || pal.accent;
     root.style.setProperty("--accent", accent);
     root.style.setProperty("--accent-rgb", hexToRgbString(accent));
-    root.style.setProperty("--accent-soft", mixHex(pal.paper, accent, 0.28));
+    root.style.setProperty("--accent-soft", RT_OVERRIDE.accentSoft || mixHex(pal.paper, accent, 0.28));
     root.style.setProperty("--accent-2", pal.accent2);
     root.style.setProperty("--green", pal.green);
+    root.style.setProperty("--paper", RT_OVERRIDE.paper || pal.paper);
+    root.style.setProperty("--paper-2", RT_OVERRIDE.panel || pal.panel);
+    root.style.setProperty("--paper-3", RT_OVERRIDE.surface || pal.surface);
     state.palette = pal;
     if (ui.infoBar) ui.infoBar.style.display = pref.infobar === false ? "none" : "";
     syncPrefControls();
@@ -11927,10 +12016,28 @@ import { CANVAS_LIGHT, CANVAS_DARK } from "./theme.tokens.js";
     paint($("#segGuide"), prefs.guide === "never" ? "never" : "always");
     paint($("#segAutosave"), state.project.autosave ? "on" : "off");
     if ($("#selAutosaveInterval")) $("#selAutosaveInterval").value = String(Math.round(state.project.autosaveInterval / 1e3));
+    paint($("#segFont"), String(prefs.fontScale ?? PREF_DEFAULTS.fontScale));
+    paint($("#segDensity"), String(prefs.density ?? PREF_DEFAULTS.density));
+    paint($("#segRadius"), String(prefs.radius ?? PREF_DEFAULTS.radius));
+    paint($("#segLine"), String(prefs.lineWidth ?? PREF_DEFAULTS.lineWidth));
+    paint($("#segChart"), String(prefs.chartPalette ?? PREF_DEFAULTS.chartPalette));
+    const toneInput = $("#rngTone");
+    if (toneInput) {
+      const tone = Number(prefs.surfaceTone ?? 0);
+      if (document.activeElement !== toneInput) toneInput.value = String(tone);
+      const toneLabel = $("#rngToneVal");
+      if (toneLabel) toneLabel.textContent = tone === 0 ? "0" : tone > 0 ? `+${tone.toFixed(2)}` : tone.toFixed(2);
+    }
     const swatches = $("#accentSwatches");
     if (swatches) {
+      const activeVal = themeKey() === "dark" ? prefs.accentDark || "" : prefs.accent || "";
+      const preset = ACCENT_SWATCHES.includes(activeVal);
       $$("button", swatches).forEach((node) => {
-        node.classList.toggle("active", (node.dataset.value || "") === (prefs.accent || ""));
+        const val = node.dataset.value || "";
+        const on = val === "__custom__" ? !preset && !!activeVal : val === activeVal;
+        node.classList.toggle("active", on);
+        node.setAttribute("aria-pressed", on ? "true" : "false");
+        if (val === "__custom__") node.style.background = activeVal && !preset ? activeVal : "";
       });
     }
     if (ui.guideNever) ui.guideNever.checked = prefs.guide === "never";
@@ -11986,20 +12093,78 @@ import { CANVAS_LIGHT, CANVAS_DARK } from "./theme.tokens.js";
       const seconds = Number($("#selAutosaveInterval").value);
       if (Number.isFinite(seconds)) void saveAutosaveSetting({ autosave_interval_seconds: seconds });
     });
+    const bindAppearSeg = (id, key, numeric) => {
+      $(id)?.addEventListener("click", (event) => {
+        const target = event.target.closest("button[data-value]");
+        if (!target) return;
+        const raw = String(target.dataset.value || "");
+        void setPref(key, numeric ? Number(raw) : raw);
+      });
+    };
+    bindAppearSeg("#segFont", "fontScale", true);
+    bindAppearSeg("#segDensity", "density", false);
+    bindAppearSeg("#segRadius", "radius", true);
+    bindAppearSeg("#segLine", "lineWidth", true);
+    bindAppearSeg("#segChart", "chartPalette", false);
+    $("#rngTone")?.addEventListener("input", () => {
+      const input = $("#rngTone");
+      state.prefs.surfaceTone = Number(input.value) || 0;
+      applyAppearance();
+      const toneLabel = $("#rngToneVal");
+      const tone = Number(state.prefs.surfaceTone);
+      if (toneLabel) toneLabel.textContent = tone === 0 ? "0" : tone > 0 ? `+${tone.toFixed(2)}` : tone.toFixed(2);
+    });
+    $("#rngTone")?.addEventListener("change", () => {
+      writePrefCache();
+    });
     const swatches = $("#accentSwatches");
     if (swatches) {
       for (const value of ACCENT_SWATCHES) {
-        const node = button(value ? "" : "A", "swatch", () => void setPref("accent", value));
+        const node = button(value ? "" : "A", "swatch", () => {
+          if (themeKey() === "dark") void setPref("accentDark", value);
+          else void setPref("accent", value);
+        });
         node.dataset.value = value;
-        node.title = value ? `\u5F3A\u8C03\u8272 ${value}` : "\u9ED8\u8BA4\u5F3A\u8C03\u8272";
+        node.title = value ? `\u5F3A\u8C03\u8272 ${value}` : "\u9ED8\u8BA4\u5F3A\u8C03\u8272\uFF08\u8DDF\u968F\u4E3B\u9898\uFF09";
         if (!value) node.classList.add("default");
         node.style.background = value || "linear-gradient(135deg, #9b7247 50%, #eae5e1 50%)";
+        node.dataset.swatch = value || "default";
         swatches.appendChild(node);
       }
+      const custom = button("", "swatch swatch-custom");
+      custom.dataset.value = "__custom__";
+      custom.title = "\u81EA\u5B9A\u4E49\u5F3A\u8C03\u8272";
+      custom.addEventListener("click", () => {
+        const dark = themeKey() === "dark";
+        const current = (dark ? state.prefs.accentDark : state.prefs.accent) || "";
+        const seed = current || (dark ? CANVAS_DARK.accent : CANVAS_LIGHT.accent);
+        openIroColorPopover(custom, seed, (hex) => {
+          if (dark) void setPref("accentDark", hex);
+          else void setPref("accent", hex);
+        });
+      });
+      swatches.appendChild(custom);
     }
+    $("#btnResetAppearance")?.addEventListener("click", () => void resetAppearance());
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
       if ((state.prefs.theme || "system") === "system") applyAppearance();
     });
+  }
+  async function resetAppearance() {
+    state.prefs = { ...state.prefs, ...PREF_DEFAULTS };
+    applyAppearance();
+    try {
+      const response = await jsonRequest("/api/settings", "PATCH", {
+        theme: PREF_DEFAULTS.theme,
+        ui_motion: PREF_DEFAULTS.motion,
+        ui_perf: PREF_DEFAULTS.perf,
+        ui_accent: PREF_DEFAULTS.accent
+      });
+      state.settings = response.settings || state.settings;
+      toast("\u5916\u89C2\u5DF2\u6062\u590D\u9ED8\u8BA4", "ok", 2e3);
+    } catch (error) {
+      toast(`\u5916\u89C2\u5DF2\u6062\u590D\u9ED8\u8BA4\uFF08\u672C\u5730\uFF09\uFF1B\u540E\u7AEF\u672A\u540C\u6B65\uFF1A${error.message}`, "warn", 3200);
+    }
   }
   async function saveAutosaveSetting(patch) {
     state.project.autosave = patch.autosave_enabled !== void 0 ? patch.autosave_enabled : state.project.autosave;
@@ -12914,7 +13079,9 @@ import { CANVAS_LIGHT, CANVAS_DARK } from "./theme.tokens.js";
     }
     const swatches = [];
     probes.forEach(([name, info], index) => {
-      const color = PALETTE[index % PALETTE.length];
+      const chartMode = String(state.prefs && state.prefs.chartPalette || "theme");
+      const series = chartMode === "theme" ? PALETTE : chartPalette();
+      const color = series[index % series.length];
       swatches.push(`<span><i style="background:${color}"></i>${analEscape(name)}</span>`);
       const draw = (values, yFn) => {
         ctx2.beginPath();

@@ -82,6 +82,10 @@ const DARK = {
   "shadow-line": "0 12px 28px rgba(0, 0, 0, .34)"
 };
 const CANVAS_LIGHT = {
+  // P-A4：明暗强度微调（纸面/表面滑块）的纯白/纯黑混色锚点。
+  // 仅画布调色板使用（供 app.ts 运行期混色），不写入 CSS、不进入对比度校验。
+  "toneWhite": "#ffffff",
+  "toneBlack": "#000000",
   "ink": LIGHT["ink"],
   "ink2": LIGHT["ink-2"],
   "muted": LIGHT["muted"],
@@ -143,6 +147,9 @@ const CANVAS_LIGHT = {
   "nyqLabel": "#b09a78"
 };
 const CANVAS_DARK = {
+  // P-A4：明暗强度微调锚点（画布专用，见 CANVAS_LIGHT 说明）。
+  "toneWhite": "#ffffff",
+  "toneBlack": "#000000",
   "ink": DARK["ink"],
   "ink2": DARK["ink-2"],
   "muted": DARK["muted"],
@@ -202,9 +209,61 @@ const CANVAS_DARK = {
   "tfLeftTint": "rgba(120, 170, 200, 0.10)",
   "nyqLabel": "#c3c9c1"
 };
+const CHART_PALETTE_HC_LIGHT = [
+  "#0a0c0a",
+  "#8a1f12",
+  "#0b4d7a",
+  "#3a6b1f",
+  "#6b2a8a",
+  "#8a6a00",
+  "#0a6b5f",
+  "#8a2a5a",
+  "#2a3a8a",
+  "#5a3a1a"
+];
+const CHART_PALETTE_HC_DARK = [
+  "#ffffff",
+  "#ff9a7a",
+  "#7ec8ff",
+  "#9be26b",
+  "#d6a6ff",
+  "#ffd76b",
+  "#6bffe0",
+  "#ff8fcf",
+  "#9aa8ff",
+  "#ffb37a"
+];
+const CHART_PALETTE_CB_LIGHT = [
+  "#000000",
+  "#E69F00",
+  "#0072B2",
+  "#009E73",
+  "#D55E00",
+  "#CC79A7",
+  "#56B4E9",
+  "#8a6a00",
+  "#44AA99",
+  "#882255"
+];
+const CHART_PALETTE_CB_DARK = [
+  "#dddddd",
+  "#E69F00",
+  "#56B4E9",
+  "#009E73",
+  "#F0E442",
+  "#0072B2",
+  "#D55E00",
+  "#CC79A7",
+  "#44AA99",
+  "#882255"
+];
 export {
   CANVAS_DARK,
   CANVAS_LIGHT,
+  CHART_PALETTE_CB_DARK,
+  CHART_PALETTE_CB_LIGHT,
+  CHART_PALETTE_HC_DARK,
+  CHART_PALETTE_HC_LIGHT,
   DARK,
   LIGHT
 };

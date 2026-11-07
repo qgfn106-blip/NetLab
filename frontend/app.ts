@@ -1,5 +1,9 @@
 import { fmt, intText, clamp, hashString, baseName } from './app.utils.js';
-import { CANVAS_LIGHT, CANVAS_DARK } from './theme.tokens.js';
+import {
+  CANVAS_LIGHT, CANVAS_DARK,
+  CHART_PALETTE_HC_LIGHT, CHART_PALETTE_HC_DARK,
+  CHART_PALETTE_CB_LIGHT, CHART_PALETTE_CB_DARK,
+} from './theme.tokens.js';
 declare const desc: HTMLElement;
 declare function setStatusHint(hint: string): void;
 
@@ -86,6 +90,13 @@ declare function setStatusHint(hint: string): void;
     motion: string;
     perf: string;
     accent: string;
+    accentDark?: string;
+    fontScale?: number;
+    density?: string;
+    surfaceTone?: number;
+    radius?: number;
+    lineWidth?: number;
+    chartPalette?: string;
     guide: string;
     infobar: boolean;
     runWarn: boolean;
@@ -738,7 +749,11 @@ declare function setStatusHint(hint: string): void;
       drawingPage: 1,
     },
     // R30：外观偏好、文档与引导状态
-    prefs: { theme: 'light', motion: 'low', perf: 'perf', accent: '', guide: 'always', infobar: true, runWarn: true },
+    prefs: {
+      theme: 'light', motion: 'low', perf: 'perf', accent: '', guide: 'always', infobar: true, runWarn: true,
+      // P-A4 外观面板新增（默认值=当前外观，不改则不产生任何视觉变化）
+      accentDark: '', fontScale: 12, density: 'standard', surfaceTone: 0, radius: 0, lineWidth: 1, chartPalette: 'theme',
+    },
     palette: null,
     settings: null,
     docs: [],
@@ -815,10 +830,12 @@ declare function setStatusHint(hint: string): void;
 
 
   function colorForKey(key: string): string {
-    if (!state.chart.colors.has(key)) {
-      state.chart.colors.set(key, CHART_PALETTE[hashString(key) % CHART_PALETTE.length]);
-    }
-    return C((state.chart.colors.get(key) as string));
+    // P-A4：按当前「画布配色」档位取色。默认「跟随主题」仍用 CHART_PALETTE 并经 C() 映射令牌；
+    // 高对比/色盲友好用替代色板原样值（不经 C() 重映射，保持其精确色值）。
+    const palette = chartPalette();
+    const raw = palette[hashString(key) % palette.length];
+    const mode = String((state.prefs && state.prefs.chartPalette) || 'theme');
+    return mode === 'theme' ? C(raw) : raw;
   }
 
   interface ApiOptions {
@@ -13131,15 +13148,78 @@ declare function setStatusHint(hint: string): void;
     '#b08a3e', '#8e2f24', '#5f6b52', '#7a4a2a', '#4d463c',
   ];
 
-  const ACCENT_SWATCHES = ['', '#9b7247', '#565c46', '#3f5d6b', '#8a4234', '#6b6257'];
+  const ACCENT_SWATCHES = ['', '#9b7247', '#565c46', '#3f5d6b', '#8a4234', '#6b6257', '#7a5a33', '#5f7a52'];
   const PREF_CACHE_KEY = 'netlab.ui.prefs';
+
+  /* ---- P-A4 外观面板：默认值、档位枚举与运行期覆盖层 ----
+   * 单一来源原则：默认令牌仍只来自 theme.tokens.ts；本层仅保存「用户可调项」的偏好，
+   * 由 applyAppearance() 计算出一张精简的 RT_OVERRIDE（只含与默认不同的键），
+   * tokens() 返回 {...基础令牌, ...RT_OVERRIDE}，从而同一份覆盖同时驱动 DOM(--accent…) 与画布取色。 */
+  interface AppearanceDefaults {
+    theme: string; motion: string; perf: string; accent: string; accentDark: string;
+    fontScale: number; density: string; surfaceTone: number; radius: number;
+    lineWidth: number; chartPalette: string;
+  }
+  const PREF_DEFAULTS: AppearanceDefaults = {
+    theme: 'system', motion: 'low', perf: 'perf', accent: '', accentDark: '',
+    fontScale: 12, density: 'standard', surfaceTone: 0, radius: 0,
+    lineWidth: 1, chartPalette: 'theme',
+  };
+  const FONT_SCALES = [11, 12, 13, 14];
+  const RADIUS_STEPS = [0, 2, 4];
+  const LINE_STEPS = [1, 1.5];
+  const CHART_MODES = ['theme', 'high-contrast', 'colorblind'];
+
+  // 运行期令牌覆盖表：默认空（=与静态令牌完全一致）；applyAppearance 按需填充。
+  let RT_OVERRIDE: Record<string, string> = {};
+
+  // 当前主题实际生效的强调色（浅色读 accent，深色读 accentDark，各自记忆）。
+  function activeAccent(theme: string, pal: Record<string, string>): string {
+    const pref = state.prefs || {};
+    const custom = theme === 'dark' ? pref.accentDark : pref.accent;
+    return (typeof custom === 'string' && custom) ? custom : pal.accent;
+  }
+
+  // 计算 RT_OVERRIDE：只记录与默认不同的键（强调色 / 明暗强度微调）。
+  function computeRuntimeOverride(theme: 'light' | 'dark'): Record<string, string> {
+    const base = THEME_TOKENS[theme] as Record<string, string>;
+    const pref = state.prefs || {};
+    const override: Record<string, string> = {};
+    const accent = activeAccent(theme, base);
+    if (accent && accent !== base.accent) {
+      override.accent = accent;
+      override.accentSoft = mixHex(base.paper, accent, 0.28);
+    }
+    const tone = clamp(Number(pref.surfaceTone) || 0, -1, 1);
+    if (tone !== 0) {
+      const anchor = tone > 0 ? base.toneWhite : base.toneBlack;
+      if (anchor) {
+        const amount = Math.abs(tone) * 0.16;
+        for (const key of ['paper', 'panel', 'surface', 'paper3']) {
+          if (base[key]) override[key] = mixHex(base[key], anchor, amount);
+        }
+      }
+    }
+    return override;
+  }
+
+  // 画布/图表配色：默认「跟随主题」用 CHART_PALETTE（经 C() 映射到令牌）；其余用替代色板原样值。
+  function chartPalette(): string[] {
+    const mode = String((state.prefs && state.prefs.chartPalette) || 'theme');
+    const dark = themeKey() === 'dark';
+    if (mode === 'high-contrast') return dark ? CHART_PALETTE_HC_DARK : CHART_PALETTE_HC_LIGHT;
+    if (mode === 'colorblind') return dark ? CHART_PALETTE_CB_DARK : CHART_PALETTE_CB_LIGHT;
+    return CHART_PALETTE;
+  }
 
   function themeKey() {
     return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
   }
 
-  function tokens() {
-    return THEME_TOKENS[themeKey()];
+  function tokens(): Record<string, string> {
+    const base = THEME_TOKENS[themeKey()] as Record<string, string>;
+    // P-A4：叠加运行期覆盖（仅当存在覆盖时才展开，默认零开销、零差异）。
+    return RT_OVERRIDE && Object.keys(RT_OVERRIDE).length ? { ...base, ...RT_OVERRIDE } : base;
   }
 
   function mixHex(foreground: string, background: string, amount: number) {
@@ -13182,13 +13262,35 @@ declare function setStatusHint(hint: string): void;
     root.dataset.theme = theme;
     root.dataset.motion = pref.motion || 'low';
     root.dataset.perf = pref.perf || 'perf';
-    const pal = THEME_TOKENS[theme];
-    const accent = pref.accent || pal.accent;
+
+    // 3) 字号档 / 4) 密度 / 6b) 线条 / 9) 画布配色 → data-* 钩子（CSS 侧 var(--ui-font-scale) / var(--ui-line) / 密度规则）
+    const fontScale = FONT_SCALES.includes(Number(pref.fontScale)) ? Number(pref.fontScale) : PREF_DEFAULTS.fontScale;
+    root.dataset.font = String(fontScale);
+    const density = ['compact', 'standard', 'loose'].includes(String(pref.density)) ? String(pref.density) : PREF_DEFAULTS.density;
+    root.dataset.density = density;
+    const lineWidth = LINE_STEPS.includes(Number(pref.lineWidth)) ? Number(pref.lineWidth) : PREF_DEFAULTS.lineWidth;
+    root.dataset.line = String(lineWidth);
+    const chartMode = CHART_MODES.includes(String(pref.chartPalette)) ? String(pref.chartPalette) : PREF_DEFAULTS.chartPalette;
+    root.dataset.chart = chartMode;
+
+    // 6a) 圆角：直接覆盖 --radius（默认 0px 与生成 CSS 一致，不产生变化）
+    const radius = RADIUS_STEPS.includes(Number(pref.radius)) ? Number(pref.radius) : PREF_DEFAULTS.radius;
+    root.style.setProperty('--radius', `${radius}px`);
+
+    // 运行期覆盖层（强调色 / 明暗微调）：同步写入画布 token 与 DOM CSS 变量
+    const pal = THEME_TOKENS[theme] as Record<string, string>;
+    RT_OVERRIDE = computeRuntimeOverride(theme);
+    const accent = RT_OVERRIDE.accent || pal.accent;
     root.style.setProperty('--accent', accent);
     root.style.setProperty('--accent-rgb', hexToRgbString(accent));
-    root.style.setProperty('--accent-soft', mixHex(pal.paper, accent, 0.28));
+    root.style.setProperty('--accent-soft', RT_OVERRIDE.accentSoft || mixHex(pal.paper, accent, 0.28));
     root.style.setProperty('--accent-2', pal.accent2);
     root.style.setProperty('--green', pal.green);
+    // 5) 明暗强度微调：纸面(paper) / 表面(paper-2↔panel, paper-3↔surface)；默认值=基础令牌值，无变化
+    root.style.setProperty('--paper', RT_OVERRIDE.paper || pal.paper);
+    root.style.setProperty('--paper-2', RT_OVERRIDE.panel || pal.panel);
+    root.style.setProperty('--paper-3', RT_OVERRIDE.surface || pal.surface);
+
     state.palette = pal;
     if (ui.infoBar) ui.infoBar.style.display = pref.infobar === false ? 'none' : '';
     syncPrefControls();
@@ -13280,10 +13382,29 @@ declare function setStatusHint(hint: string): void;
     paint($('#segGuide'), prefs.guide === 'never' ? 'never' : 'always');
     paint($('#segAutosave'), state.project.autosave ? 'on' : 'off');
     if ($('#selAutosaveInterval')) ($('#selAutosaveInterval') as HTMLInputElement).value = String(Math.round(state.project.autosaveInterval / 1000));
+    // P-A4 新增 6 项外观控件回填
+    paint($('#segFont'), String(prefs.fontScale ?? PREF_DEFAULTS.fontScale));
+    paint($('#segDensity'), String(prefs.density ?? PREF_DEFAULTS.density));
+    paint($('#segRadius'), String(prefs.radius ?? PREF_DEFAULTS.radius));
+    paint($('#segLine'), String(prefs.lineWidth ?? PREF_DEFAULTS.lineWidth));
+    paint($('#segChart'), String(prefs.chartPalette ?? PREF_DEFAULTS.chartPalette));
+    const toneInput = $('#rngTone') as HTMLInputElement | null;
+    if (toneInput) {
+      const tone = Number(prefs.surfaceTone ?? 0);
+      if (document.activeElement !== toneInput) toneInput.value = String(tone);
+      const toneLabel = $('#rngToneVal');
+      if (toneLabel) toneLabel.textContent = tone === 0 ? '0' : (tone > 0 ? `+${tone.toFixed(2)}` : tone.toFixed(2));
+    }
     const swatches = $('#accentSwatches');
     if (swatches) {
+      const activeVal = themeKey() === 'dark' ? (prefs.accentDark || '') : (prefs.accent || '');
+      const preset = ACCENT_SWATCHES.includes(activeVal);
       $$('button', swatches).forEach((node) => {
-        node.classList.toggle('active', (node.dataset.value || '') === (prefs.accent || ''));
+        const val = node.dataset.value || '';
+        const on = val === '__custom__' ? (!preset && !!activeVal) : (val === activeVal);
+        node.classList.toggle('active', on);
+        node.setAttribute('aria-pressed', on ? 'true' : 'false');
+        if (val === '__custom__') node.style.background = (activeVal && !preset) ? activeVal : '';
       });
     }
     if (ui.guideNever) ui.guideNever.checked = prefs.guide === 'never';
@@ -13335,20 +13456,88 @@ declare function setStatusHint(hint: string): void;
       if (Number.isFinite(seconds)) void saveAutosaveSetting({ autosave_interval_seconds: seconds });
     });
 
+    // P-A4：字号 / 密度 / 圆角 / 线条 / 画布配色 —— 通用分段控件绑定
+    const bindAppearSeg = (id: string, key: string, numeric: boolean) => {
+      $(id)?.addEventListener('click', (event: MouseEvent) => {
+        const target = (event.target! as Element).closest('button[data-value]') as HTMLElement | null;
+        if (!target) return;
+        const raw = String(target.dataset.value || '');
+        void setPref(key, numeric ? Number(raw) : raw);
+      });
+    };
+    bindAppearSeg('#segFont', 'fontScale', true);
+    bindAppearSeg('#segDensity', 'density', false);
+    bindAppearSeg('#segRadius', 'radius', true);
+    bindAppearSeg('#segLine', 'lineWidth', true);
+    bindAppearSeg('#segChart', 'chartPalette', false);
+
+    // 5) 明暗强度微调（纸面/表面）：拖动实时应用，结束落盘
+    $('#rngTone')?.addEventListener('input', () => {
+      const input = $('#rngTone') as HTMLInputElement;
+      state.prefs.surfaceTone = Number(input.value) || 0;
+      applyAppearance();
+      const toneLabel = $('#rngToneVal');
+      const tone = Number(state.prefs.surfaceTone);
+      if (toneLabel) toneLabel.textContent = tone === 0 ? '0' : (tone > 0 ? `+${tone.toFixed(2)}` : tone.toFixed(2));
+    });
+    $('#rngTone')?.addEventListener('change', () => { writePrefCache(); });
+
     const swatches = $('#accentSwatches');
     if (swatches) {
       for (const value of ACCENT_SWATCHES) {
-        const node = button(value ? '' : 'A', 'swatch', () => void setPref('accent', value));
+        const node = button(value ? '' : 'A', 'swatch', () => {
+          // 浅色与深色各自记忆：浅色写 accent（后端），深色写 accentDark（本地）
+          if (themeKey() === 'dark') void setPref('accentDark', value);
+          else void setPref('accent', value);
+        });
         node.dataset.value = value;
-        node.title = value ? `强调色 ${value}` : '默认强调色';
+        node.title = value ? `强调色 ${value}` : '默认强调色（跟随主题）';
         if (!value) node.classList.add('default');
         node.style.background = value || 'linear-gradient(135deg, #9b7247 50%, #eae5e1 50%)';
+        node.dataset.swatch = value || 'default';
         swatches.appendChild(node);
       }
+      // 2) 自定义强调色（iro 取色器，浅深各记）
+      const custom = button('', 'swatch swatch-custom');
+      custom.dataset.value = '__custom__';
+      custom.title = '自定义强调色';
+      custom.addEventListener('click', () => {
+        const dark = themeKey() === 'dark';
+        const current = (dark ? state.prefs.accentDark : state.prefs.accent) || '';
+        const seed = current || (dark ? CANVAS_DARK.accent : CANVAS_LIGHT.accent);
+        openIroColorPopover(custom, seed, (hex: string) => {
+          if (dark) void setPref('accentDark', hex);
+          else void setPref('accent', hex);
+        });
+      });
+      swatches.appendChild(custom);
     }
+
+    // 恢复默认（外观 9 项回默认 = 当前外观）
+    $('#btnResetAppearance')?.addEventListener('click', () => void resetAppearance());
+
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
       if ((state.prefs.theme || 'system') === 'system') applyAppearance();
     });
+  }
+
+  // P-A4：恢复默认（把外观 9 项偏好回退到默认值；默认=当前外观，不改则无视觉变化）。
+  // 新增 6 项只存 localStorage（writePrefCache）；现有 5 项同步回后端 settings.json。
+  async function resetAppearance() {
+    state.prefs = { ...state.prefs, ...PREF_DEFAULTS };
+    applyAppearance();
+    try {
+      const response = await jsonRequest('/api/settings', 'PATCH', {
+        theme: PREF_DEFAULTS.theme,
+        ui_motion: PREF_DEFAULTS.motion,
+        ui_perf: PREF_DEFAULTS.perf,
+        ui_accent: PREF_DEFAULTS.accent,
+      });
+      state.settings = response.settings || state.settings;
+      toast('外观已恢复默认', 'ok', 2000);
+    } catch (error) {
+      toast(`外观已恢复默认（本地）；后端未同步：${(error as Error).message}`, 'warn', 3200);
+    }
   }
 
   async function saveAutosaveSetting(patch: Record<string, unknown>) {
@@ -14362,7 +14551,9 @@ declare function setStatusHint(hint: string): void;
     // 曲线
     const swatches: string[] = [];
     probes.forEach(([name, info], index: number) => {
-      const color = PALETTE[index % PALETTE.length];
+      const chartMode = String((state.prefs && state.prefs.chartPalette) || 'theme');
+      const series = chartMode === 'theme' ? PALETTE : chartPalette();
+      const color = series[index % series.length];
       swatches.push(`<span><i style="background:${color}"></i>${analEscape(name)}</span>`);
       const draw = (values: number[], yFn: (value: number) => number) => {
         ctx!.beginPath();

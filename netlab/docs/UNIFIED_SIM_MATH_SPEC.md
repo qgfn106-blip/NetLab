@@ -436,9 +436,10 @@ $$
 
 ## 13. 与既有文档的关系
 
-- `PERFORMANCE_AND_CONCURRENCY.md`：**研究台账**（§0–§30，探索性、含信息源），本文件是其**规范化收敛**。
+- `PERFORMANCE_AND_CONCURRENCY.md`：**研究台账**（§0–§33，探索性、含信息源），本文件是其**规范化收敛**。
 - 本文件：**规范**（可验收、可实现的数学口径）。
 - `mathspec/`：**参考实现**（零耦合、可跑测试）。
+- `MATH.md`：**逐行代码锚点**（MNA/元件伴随/Newton/DC·AC/FEM 等实现级公式与 `file:line`），本文件是这些实现细节的**统一抽象**；两者互为表里。
 
 > 一句话：**研究在 `PERFORMANCE_AND_CONCURRENCY.md`，口径在本文，证据在 `mathspec/`。**
 
@@ -754,10 +755,10 @@ $$
 
 $$
  y_k \xrightarrow{Q} c_k \xrightarrow{\Delta} d_k=c_k-c_{k-1}
- \xrightarrow{\operatorname{pack}_{i32}} b
- \xrightarrow{\operatorname{zlib}} p
- \xrightarrow{\operatorname{CRC32+retry}} p'
- \xrightarrow{\operatorname{decode}} \hat y_k.
+ \xrightarrow{\mathrm{pack}_{i32}} b
+ \xrightarrow{\mathrm{zlib}} p
+ \xrightarrow{\mathrm{CRC32+retry}} p'
+ \xrightarrow{\mathrm{decode}} \hat y_k.
 $$
 
 其中 $Q$ 是均匀量化器，$c_k$ 是整数码；差分和有符号 `int32` 打包是可逆的，只要差分未超出 `int32` 范围。CRC 重传改变的是发送尝试次数，不改变成功交付的字节串；因此在链路成功终止且 CRC 假阳性不计的模型中，$\hat c_k=c_k$，所有数值误差来自量化和采样插值，而不是压缩或重传。
@@ -905,7 +906,7 @@ $$
 \Delta_j(X)=\log\det(X+W_j)-\log\det X
 $$
 
-随 $X$ 增大而不增（可由 $\log\det(X+W_j)-\log\det X=\int_0^1\operatorname{tr}[(X+tW_j)^{-1}W_j]dt$ 及逆序反转得到）。因此在精确算术下，固定预算的贪心具有经典 $(1-1/e)$ 型保证；浮点实现仅近似该理论步骤。`logdet_probe_selection` 是该贪心算法，不是全局最优求解器。
+随 $X$ 增大而不增（可由 $\log\det(X+W_j)-\log\det X=\int_0^1\mathrm{tr}[(X+tW_j)^{-1}W_j]dt$ 及逆序反转得到）。因此在精确算术下，固定预算的贪心具有经典 $(1-1/e)$ 型保证；浮点实现仅近似该理论步骤。`logdet_probe_selection` 是该贪心算法，不是全局最优求解器。
 
 ### 17.3 验收结果和边界
 

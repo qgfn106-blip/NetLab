@@ -232,3 +232,24 @@ def test_precompute_step_dt_degrades_openly():
     dt, degraded = precompute_step_dt(0.2, 1e-5)
     assert degraded is False
     assert dt == 1e-5
+
+
+def test_precompute_exposes_sim_for_netlab_analysis():
+    """预计算产出的时序必须对 netlab 自身分析引擎可见（「分析·信号」可加载）。
+
+    回归（2026-11-08）：plotkit 预计算此前只把数据喂给 PlotKit，前端从不刷新
+    state.sim，netlab 的「分析·信号」面板拿不到变量（"没有数据可加载"）。现在
+    /api/plotkit/precompute 在响应里带上 SERVICE.current 的最新 sim，且
+    /api/analysis/metrics 能直接读到同一份 recorder 数据。
+    """
+    c = _client()
+    SERVICE.load_scene(build_template("rlc_series"))
+    SERVICE.pause()
+    data = c.post("/api/plotkit/precompute", json={"seconds": 1.0}).json()
+    assert data["ok"] is True, data
+    sim = data.get("sim")
+    assert sim and sim.get("probe_keys"), "预计算响应应带 sim.probe_keys 供分析面板使用"
+    key = sim["probe_keys"][0]
+    metrics = c.get("/api/analysis/metrics", params={"keys": key}).json()
+    assert metrics["ok"] is True, metrics
+    assert key in metrics["items"], metrics

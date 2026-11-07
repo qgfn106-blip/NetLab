@@ -1764,7 +1764,7 @@ html[data-motion="off"] .guide-mark > span { animation: none; }
 .guide-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; padding-top: 16px; border-top: var(--ui-line, 1px) solid var(--ink); }
 .guide-check { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: calc(11px * var(--ui-font-scale, 1)); }
 .guide-check input { accent-color: var(--accent); }
-.guide-actions { display: flex; gap: 8px; align-items: center; }
+.guide-actions { display: flex; gap: 8px; align-items: center; margin-left: auto; }
 .guide-go.mini { min-width: 0; height: 42px; padding: 0 14px; font-size: calc(10.5px * var(--ui-font-scale, 1)); letter-spacing: .08em; }
 .guide-go.mini + .guide-go.mini { margin-left: -2px; }
 .guide-go {

@@ -1245,19 +1245,19 @@
   "md_line": 759,
   "file": "nodal.py",
   "old": "125",
-  "new": "125",
-  "symbol": "_stamp_conductance",
+  "new": "137",
+  "symbol": "_stamp_current",
   "status": "ok",
-  "method": "keep(appendix)"
+  "method": "symbol:def"
  },
  {
   "md_line": 759,
   "file": "nodal.py",
   "old": "137",
-  "new": "534",
-  "symbol": "Switch",
+  "new": "137",
+  "symbol": "_stamp_current",
   "status": "ok",
-  "method": "symbol:class"
+  "method": "symbol:def"
  },
  {
   "md_line": 760,

@@ -103,6 +103,10 @@ export const DARK: ThemeTokenMap = {
 
 // ---- 画布调色板（P-A2：与 LIGHT 同值，语义映射 panel↔paper-2 / surface↔paper-3 / line↔line-strong）----
 export const CANVAS_LIGHT: ThemeTokenMap = {
+  // P-A4：明暗强度微调（纸面/表面滑块）的纯白/纯黑混色锚点。
+  // 仅画布调色板使用（供 app.ts 运行期混色），不写入 CSS、不进入对比度校验。
+  "toneWhite": "#ffffff",
+  "toneBlack": "#000000",
   "ink": LIGHT["ink"],
   "ink2": LIGHT["ink-2"],
   "muted": LIGHT["muted"],
@@ -166,6 +170,9 @@ export const CANVAS_LIGHT: ThemeTokenMap = {
 
 // ---- 画布调色板（P-A2：与 DARK 同值，独立冷调）----
 export const CANVAS_DARK: ThemeTokenMap = {
+  // P-A4：明暗强度微调锚点（画布专用，见 CANVAS_LIGHT 说明）。
+  "toneWhite": "#ffffff",
+  "toneBlack": "#000000",
   "ink": DARK["ink"],
   "ink2": DARK["ink-2"],
   "muted": DARK["muted"],
@@ -225,3 +232,25 @@ export const CANVAS_DARK: ThemeTokenMap = {
   "tfLeftTint": "rgba(120, 170, 200, 0.10)",
   "nyqLabel": "#c3c9c1",
 };
+
+// ---- P-A4 画布/图表配色替代方案（P-A4 新增）----
+// 默认「跟随主题」仍使用 app.ts 的 CHART_PALETTE（经 C() 映射到令牌）；
+// 「高对比」「色盲友好」在此显式给出 10 色序列，app.ts 按当前主题选择并原样使用（不经 C() 再映射）。
+// 放在唯一令牌源，使 app.ts 只按名引用、不含颜色字面量（过 audit_canvas_colors 裸色审计）。
+export const CHART_PALETTE_HC_LIGHT: string[] = [
+  "#0a0c0a", "#8a1f12", "#0b4d7a", "#3a6b1f", "#6b2a8a",
+  "#8a6a00", "#0a6b5f", "#8a2a5a", "#2a3a8a", "#5a3a1a",
+];
+export const CHART_PALETTE_HC_DARK: string[] = [
+  "#ffffff", "#ff9a7a", "#7ec8ff", "#9be26b", "#d6a6ff",
+  "#ffd76b", "#6bffe0", "#ff8fcf", "#9aa8ff", "#ffb37a",
+];
+// Okabe-Ito 色盲友好序列（浅色背景用深色版，深色背景把黑替换为浅灰）。
+export const CHART_PALETTE_CB_LIGHT: string[] = [
+  "#000000", "#E69F00", "#0072B2", "#009E73", "#D55E00",
+  "#CC79A7", "#56B4E9", "#8a6a00", "#44AA99", "#882255",
+];
+export const CHART_PALETTE_CB_DARK: string[] = [
+  "#dddddd", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+  "#0072B2", "#D55E00", "#CC79A7", "#44AA99", "#882255",
+];

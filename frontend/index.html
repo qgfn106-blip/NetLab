@@ -363,6 +363,57 @@
           </div></div>
         </div>
         <div class="set-row">
+          <label>全局字号<em>整体界面文字缩放：11 / 12 / 13 / 14 px</em></label>
+          <div class="set-control"><div class="seg" id="segFont">
+            <button type="button" data-value="11">11</button>
+            <button type="button" data-value="12">12</button>
+            <button type="button" data-value="13">13</button>
+            <button type="button" data-value="14">14</button>
+          </div></div>
+        </div>
+        <div class="set-row">
+          <label>界面密度<em>行高与控件间距：紧凑 / 标准 / 宽松</em></label>
+          <div class="set-control"><div class="seg" id="segDensity">
+            <button type="button" data-value="compact">紧凑</button>
+            <button type="button" data-value="standard">标准</button>
+            <button type="button" data-value="loose">宽松</button>
+          </div></div>
+        </div>
+        <div class="set-row">
+          <label>明暗强度<em>在当前色板基础上微调纸面/表面明暗（−1 更暗 · +1 更亮）</em></label>
+          <div class="set-control"><div class="tone-wrap">
+            <input type="range" id="rngTone" min="-1" max="1" step="0.05" value="0" />
+            <span class="tone-val" id="rngToneVal">0</span>
+          </div></div>
+        </div>
+        <div class="set-row">
+          <label>圆角<em>控件圆角半径</em></label>
+          <div class="set-control"><div class="seg" id="segRadius">
+            <button type="button" data-value="0">0</button>
+            <button type="button" data-value="2">2</button>
+            <button type="button" data-value="4">4</button>
+          </div></div>
+        </div>
+        <div class="set-row">
+          <label>线条粗细<em>边框/分隔线粗细</em></label>
+          <div class="set-control"><div class="seg" id="segLine">
+            <button type="button" data-value="1">1 px</button>
+            <button type="button" data-value="1.5">1.5 px</button>
+          </div></div>
+        </div>
+        <div class="set-row">
+          <label>画布配色<em>图表/画布取色方案</em></label>
+          <div class="set-control"><div class="seg" id="segChart">
+            <button type="button" data-value="theme">跟随主题</button>
+            <button type="button" data-value="high-contrast">高对比</button>
+            <button type="button" data-value="colorblind">色盲友好</button>
+          </div></div>
+        </div>
+        <div class="set-row">
+          <label>恢复默认<em>把上面 9 项外观偏好恢复为当前默认外观</em></label>
+          <div class="set-control"><button type="button" class="btn tiny" id="btnResetAppearance">恢复默认</button></div>
+        </div>
+        <div class="set-row">
           <label>顶部信息条<em>菜单栏右侧的工程/网络/运行摘要</em></label>
           <div class="set-control"><div class="seg" id="segInfoBar">
             <button type="button" data-value="on">显示</button>
@@ -394,7 +445,7 @@
             <button type="button" data-value="4">4</button>
           </div></div>
         </div>
-        <p class="help">主题、强调色、动效与性能是「跟人走」的全局偏好（存 settings.json）；图纸风格、GB 符号、网格与节点样式属于工程，随工程保存。</p>
+        <p class="help">主题、强调色、动效与性能是「跟人走」的全局偏好（存 settings.json）；字号、密度、明暗强度、圆角、线条与画布配色也「跟人走」，存本机 localStorage。图纸风格、GB 符号、网格与节点样式属于工程，随工程保存。</p>
       </div>
       <div class="setwin-pane" data-pane="interact">
         <div class="set-row">

@@ -2711,11 +2711,11 @@ declare function setStatusHint(hint: string): void;
         (state.selection.type === 'edge' && state.selection.id === edge.id) ||
         state.multi?.edges?.has(edge.id);
       const hovered = state.hover?.type === 'edge' && state.hover.id === edge.id;
-      let color = '#a49a89';
-      if (!edge.enabled) color = '#d3ccbc';
-      else if (edge.delay) color = '#b0762a';
+      let color: string = tokens().edgeDefault;
+      if (!edge.enabled) color = tokens().edgeDisabled;
+      else if (edge.delay) color = tokens().edgeDelay;
       if (selected) color = C('#a8541f');
-      else if (hovered) color = '#5f584e';
+      else if (hovered) color = tokens().edgeHover;
 
       ctx.save();
       ctx.lineCap = 'round';
@@ -2794,9 +2794,9 @@ declare function setStatusHint(hint: string): void;
         }
         labelY = labelRect.y + 6;
         const boxLeft = labelRect.x;
-        ctx.fillStyle = 'rgba(247, 244, 236, 0.92)';
+        ctx.fillStyle = tokens().labelBg;
         ctx.fillRect(boxLeft, labelY - 6, boxW, 12);
-        ctx.fillStyle = selected ? C('#a8541f') : '#7b7266';
+        ctx.fillStyle = selected ? C('#a8541f') : tokens().labelText;
         ctx.fillText(label, labelX, labelY);
         if (selected && !circuitGb) {
           const value = edgeValueText(edge);
@@ -2816,7 +2816,7 @@ declare function setStatusHint(hint: string): void;
         if (edge.kind === 'wire' && mid) {
           const text = edge.name || 'W';
           const w = ctx.measureText(text).width + 6;
-          ctx.fillStyle = 'rgba(255, 253, 248, 0.94)';
+          ctx.fillStyle = tokens().labelBg2;
           ctx.fillRect(mid.x - w / 2, mid.y - 12, w, 11);
           ctx.fillStyle = C('#5b554b');
           ctx.fillText(text, mid.x, mid.y - 6.5);
@@ -2892,7 +2892,7 @@ declare function setStatusHint(hint: string): void;
 
   function drawGbCircuitNode(ctx: CanvasRenderingContext2D, node: NodeItem, cx: number, cy: number, radius: number, accent: string, isSelected: boolean, isHovered: boolean, k: number) {
     const style = state.ui?.nodeStyle || 'circle';
-    const color = isSelected ? C('#a8541f') : isHovered ? '#5f584e' : '#7b7266';
+    const color = isSelected ? C('#a8541f') : isHovered ? tokens().edgeHover : tokens().labelText;
     ctx.save();
     ctx.strokeStyle = color;
     ctx.fillStyle = C('#faf8f2');
@@ -2946,7 +2946,7 @@ declare function setStatusHint(hint: string): void;
   }
 
   function drawGbFunctionGlyph(ctx: CanvasRenderingContext2D, node: NodeItem, cx: number, cy: number, radius: number, accent: string, isSelected: boolean, isHovered: boolean, k: number) {
-    const color = isSelected ? C('#a8541f') : isHovered ? '#5f584e' : accent;
+    const color = isSelected ? C('#a8541f') : isHovered ? tokens().edgeHover : accent;
     const R = radius * 0.92;
     const fontPx = Math.max(10, Math.round(R * 0.8));
     ctx.save();
@@ -3007,7 +3007,7 @@ declare function setStatusHint(hint: string): void;
   }
 
   function drawGbDeviceNode(ctx: CanvasRenderingContext2D, node: NodeItem, rect: BoxRec, accent: string, isSelected: boolean, isHovered: boolean, k: number) {
-    const color = isSelected ? C('#a8541f') : isHovered ? '#5f584e' : accent;
+    const color = isSelected ? C('#a8541f') : isHovered ? tokens().edgeHover : accent;
     const inactive = Boolean(state.sim?.running) && deviceInactive(node);
     ctx.save();
     ctx.strokeStyle = color;
@@ -3016,7 +3016,7 @@ declare function setStatusHint(hint: string): void;
     if (inactive) {
       // R21/D43：运行中未参与求解的器件红色辉光（停止后恢复）。
       ctx.save();
-      ctx.shadowColor = 'rgba(220, 38, 38, 0.95)';
+      ctx.shadowColor = tokens().dangerShadow;
       ctx.shadowBlur = 16 * k;
       ctx.strokeStyle = C('#dc2626');
       ctx.lineWidth = 2;
@@ -3052,7 +3052,7 @@ declare function setStatusHint(hint: string): void;
       }
       ctx.beginPath();
       ctx.arc(px, py, 2.8 * k, 0, Math.PI * 2);
-      ctx.fillStyle = pin.required ? color : '#9a9080';
+      ctx.fillStyle = pin.required ? color : tokens().pinFill;
       ctx.fill();
       if (showNames) {
         const label = deviceSupplyLabel(node, pin);
@@ -3154,7 +3154,7 @@ declare function setStatusHint(hint: string): void;
         // 外圈与纸面圆盘
         ctx.beginPath();
         ctx.arc(cx, cy, radius + 5, 0, Math.PI * 2);
-        ctx.strokeStyle = isSelected ? C('#a8541f') : isHovered ? '#8e8477' : C('#cfc6b5');
+        ctx.strokeStyle = isSelected ? C('#a8541f') : isHovered ? tokens().nodeRingHover : C('#cfc6b5');
         ctx.lineWidth = isSelected ? 1.6 : 1;
         if (!isSelected && !isHovered) ctx.setLineDash([2, 4]);
         ctx.stroke();
@@ -3162,9 +3162,9 @@ declare function setStatusHint(hint: string): void;
 
         ctx.beginPath();
         ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.fillStyle = isSelected ? '#f7ecdf' : C('#faf8f2');
+        ctx.fillStyle = isSelected ? tokens().nodeFillSelected : C('#faf8f2');
         ctx.fill();
-        if (isSelected) { ctx.shadowColor = 'rgba(197, 161, 107, 0.9)'; ctx.shadowBlur = Math.max(6, 9 * k); }
+        if (isSelected) { ctx.shadowColor = tokens().nodeShadow; ctx.shadowBlur = Math.max(6, 9 * k); }
         ctx.strokeStyle = isSelected ? C('#a8541f') : C('#bcb3a1');
         ctx.lineWidth = isSelected ? 2.2 : 1;
         ctx.stroke();
@@ -3207,11 +3207,11 @@ declare function setStatusHint(hint: string): void;
         const pad = radius * 0.3;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = isSelected ? '#7a5a2f' : accent;
+        ctx.fillStyle = isSelected ? tokens().nodeMetaSel : accent;
         ctx.font = `600 ${metaSize}px "Cascadia Code", Consolas, monospace`;
         ctx.fillText(nodeKindLabel(node), cx, cy - radius * 0.56, radius * 1.42);
 
-        ctx.fillStyle = isSelected ? '#15130e' : C('#11100e');
+        ctx.fillStyle = isSelected ? tokens().nodeNameSel : C('#11100e');
         ctx.font = `700 ${nameSize}px "Segoe UI", "Microsoft YaHei", sans-serif`;
         const maxNameWidth = radius * 1.55;
         let name = node.name;
@@ -3222,7 +3222,7 @@ declare function setStatusHint(hint: string): void;
         ctx.fillText(name, cx, cy - radius * 0.06);
 
         if (showValue) {
-          ctx.fillStyle = isSelected ? '#584f43' : C('#6f695f');
+          ctx.fillStyle = isSelected ? tokens().nodeValueSel : C('#6f695f');
           ctx.font = `${valueSize}px "Cascadia Code", Consolas, monospace`;
           const text = node.kind === 'ground' ? '0 V · REF' : nodeValueText(node);
           ctx.fillText(text, cx, cy + radius * 0.38, radius * 1.55);
@@ -3511,7 +3511,7 @@ declare function setStatusHint(hint: string): void;
     let by = target.y + 16;
     if (bx + boxW > w - 8) bx = target.x - 16 - boxW;
     if (by + boxH > h - 8) by = target.y - 16 - boxH;
-    ctx.fillStyle = 'rgba(250, 248, 242, .96)';
+    ctx.fillStyle = tokens().hudBg;
     ctx.strokeStyle = C('rgba(168, 84, 31, .75)');
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -9753,7 +9753,7 @@ declare function setStatusHint(hint: string): void;
     chartCtx.textBaseline = 'middle';
     for (let index = 0; index <= 4; index += 1) {
       const y = top + (plotH * index) / 4;
-      chartCtx.strokeStyle = index === 4 ? '#c0b6a5' : '#e7e1d5';
+      chartCtx.strokeStyle = index === 4 ? tokens().axisLine : tokens().gridLine;
       chartCtx.beginPath();
       chartCtx.moveTo(left, Math.round(y) + 0.5);
       chartCtx.lineTo(left + plotW, Math.round(y) + 0.5);
@@ -9764,7 +9764,7 @@ declare function setStatusHint(hint: string): void;
     }
     for (let index = 0; index <= 4; index += 1) {
       const x = left + (plotW * index) / 4;
-      chartCtx.strokeStyle = index === 0 ? '#c0b6a5' : '#e7e1d5';
+      chartCtx.strokeStyle = index === 0 ? tokens().axisLine : tokens().gridLine;
       chartCtx.beginPath();
       chartCtx.moveTo(Math.round(x) + 0.5, top);
       chartCtx.lineTo(Math.round(x) + 0.5, top + plotH);
@@ -9835,7 +9835,7 @@ declare function setStatusHint(hint: string): void;
         const boxH = lines.length * 15 + 10;
         const boxX = clamp(hx + 12, left + 4, left + plotW - boxW - 4);
         const boxY = clamp(top + 6, top + 4, top + plotH - boxH - 4);
-        chartCtx.fillStyle = 'rgba(250, 248, 242, .97)';
+        chartCtx.fillStyle = tokens().hudBg;
         chartCtx.strokeStyle = C('#bcb3a1');
         chartCtx.lineWidth = 1;
         roundRectPath(chartCtx, boxX, boxY, boxW, boxH, 6);
@@ -9844,7 +9844,7 @@ declare function setStatusHint(hint: string): void;
         chartCtx.textAlign = 'left';
         chartCtx.textBaseline = 'top';
         lines.forEach((line, index: number) => {
-          chartCtx.fillStyle = index === 0 ? C('#a8541f') : '#5f584e';
+          chartCtx.fillStyle = index === 0 ? C('#a8541f') : tokens().edgeHover;
           chartCtx.fillText(line, boxX + 8, boxY + 6 + index * 15);
         });
       }
@@ -11057,17 +11057,17 @@ declare function setStatusHint(hint: string): void;
       const w = Math.max(54, Math.round(ctx.measureText(text).width) + 18);
       const h = 22;
       // 端口 > 接地 > 器件 > 普通网络，四档配色让内部结构一眼分清
-      const fill = isPort ? '#fdf3e4' : isGround ? '#eaf3e8' : isDevice ? '#eef1f6' : '#ffffff';
-      const stroke = isPort ? '#c07a1c' : isGround ? '#4f8a4a' : isDevice ? '#7f8b9e' : '#cfc8b8';
-      const ink = isPort ? '#8a5310' : isGround ? '#2f5a2b' : isDevice ? '#38414f' : '#3b3830';
+      const fill = isPort ? tokens().modPortFill : isGround ? tokens().modGroundFill : isDevice ? tokens().modDeviceFill : tokens().modFill;
+      const stroke = isPort ? tokens().modPortStroke : isGround ? tokens().modGroundStroke : isDevice ? tokens().modDeviceStroke : tokens().modStroke;
+      const ink = isPort ? tokens().modPortInk : isGround ? tokens().modGroundInk : isDevice ? tokens().modDeviceInk : tokens().modInk;
       ctx.beginPath();
       ctx.rect(point.x - w / 2, point.y - h / 2, w, h);
-      ctx.fillStyle = C(fill);
+      ctx.fillStyle = fill;
       ctx.fill();
-      ctx.strokeStyle = C(stroke);
+      ctx.strokeStyle = stroke;
       ctx.lineWidth = isPort ? 1.6 : 1;
       ctx.stroke();
-      ctx.fillStyle = C(ink);
+      ctx.fillStyle = ink;
       ctx.fillText(text, point.x, point.y);
     }
 
@@ -11440,8 +11440,8 @@ declare function setStatusHint(hint: string): void;
     const logMax = Math.log10(Math.max(omega[omega.length - 1], 1e-8));
     const logSpan = Math.max(logMax - logMin, 1e-9);
     const xAt = (index: number) => left + plotWidth * ((Math.log10(Math.max(omega[index], 1e-9)) - logMin) / logSpan);
-    const grid = 'rgba(104, 94, 78, 0.18)';
-    const axis = 'rgba(104, 94, 78, 0.42)';
+    const grid = tokens().tfGrid;
+    const axis = tokens().tfAxis;
     ctx.font = '9px "Cascadia Code", Consolas, monospace';
 
     const panel = (base: number, values: number[], color: string, unit: string) => {
@@ -11516,7 +11516,7 @@ declare function setStatusHint(hint: string): void;
     if (cursor != null && cursor >= 0 && cursor < omega.length) {
       const x = xAt(cursor);
       ctx.save();
-      ctx.strokeStyle = 'rgba(168, 84, 31, 0.55)';
+      ctx.strokeStyle = C('rgba(168, 84, 31, 0.55)');
       ctx.setLineDash([4, 3]);
       ctx.beginPath();
       ctx.moveTo(x, top);
@@ -11528,7 +11528,7 @@ declare function setStatusHint(hint: string): void;
         const [low, high] = tfRange(base === top ? magnitude : phase);
         const y = base + plotHeight * (1 - (value - low) / Math.max(high - low, 1e-9));
         ctx.fillStyle = C('#a8541f');
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.strokeStyle = tokens().tfDotRing;
         ctx.lineWidth = 1.4;
         ctx.beginPath();
         ctx.arc(x, y, 3.4, 0, Math.PI * 2);
@@ -11540,8 +11540,8 @@ declare function setStatusHint(hint: string): void;
       const label = `ω=${fmt(omega[cursor], 3)}  |G|=${fmt(magnitude[cursor], 2)} dB  ∠=${fmt(phase[cursor], 1)}°`;
       ctx.font = '10px "Cascadia Code", Consolas, monospace';
       const labelWidth = ctx.measureText(label).width + 12;
-      ctx.fillStyle = 'rgba(251, 248, 242, 0.94)';
-      ctx.strokeStyle = 'rgba(168, 84, 31, 0.35)';
+      ctx.fillStyle = tokens().tfCalloutBg;
+      ctx.strokeStyle = C('rgba(168, 84, 31, 0.35)');
       ctx.beginPath();
       ctx.roundRect(left + 4, top + 3, Math.min(labelWidth, plotWidth - 8), 30, 4);
       ctx.fill();
@@ -11654,8 +11654,8 @@ declare function setStatusHint(hint: string): void;
     const [low, high] = tfRange(values);
     const xAt = (index: number) => left + plotWidth * ((time[index] - time[0]) / Math.max(time[time.length - 1] - time[0], 1e-9));
     const yAt = (value: number) => top + plotHeight * (1 - (value - low) / Math.max(high - low, 1e-9));
-    const grid = 'rgba(104, 94, 78, 0.18)';
-    const axis = 'rgba(104, 94, 78, 0.42)';
+    const grid = tokens().tfGrid;
+    const axis = tokens().tfAxis;
     ctx.font = '9px "Cascadia Code", Consolas, monospace';
     ctx.strokeStyle = grid;
     ctx.fillStyle = C('#7b7266');
@@ -11676,7 +11676,7 @@ declare function setStatusHint(hint: string): void;
     const metrics = (step.metrics || {}) as TfMetricsRec;
     if (Number.isFinite(metrics.final)) {
       ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = 'rgba(63, 111, 143, 0.55)';
+      ctx.strokeStyle = tokens().tfGhostLine;
       ctx.beginPath();
       ctx.moveTo(left, yAt((metrics.final as number)));
       ctx.lineTo(left + plotWidth, yAt((metrics.final as number)));
@@ -11751,10 +11751,10 @@ declare function setStatusHint(hint: string): void;
     const scale = Math.min(plotWidth / (2 * extent), plotHeight / (2 * extent));
     const xAt = (real: number) => cx + real * scale;
     const yAt = (imag: number) => cy - imag * scale;
-    ctx.fillStyle = 'rgba(63, 111, 143, 0.08)';
+    ctx.fillStyle = tokens().tfLeftTint;
     ctx.fillRect(left, top, plotWidth / 2, plotHeight);
-    const grid = 'rgba(104, 94, 78, 0.18)';
-    const axis = 'rgba(104, 94, 78, 0.5)';
+    const grid = tokens().tfGrid;
+    const axis = tokens().tfAxisStrong;
     ctx.strokeStyle = grid;
     ctx.beginPath();
     ctx.moveTo(cx, top);
@@ -11914,10 +11914,10 @@ declare function setStatusHint(hint: string): void;
     for (let index = 0; index < n; index += 1) {
       const value = mags[index] / peak;
       const barH = Math.max(0, Math.min(1, value)) * (height - 18);
-      ctx!.fillStyle = index === 0 ? '#b09a78' : C('rgba(168, 84, 31, 0.55)');
+      ctx!.fillStyle = index === 0 ? tokens().nyqLabel : C('rgba(168, 84, 31, 0.55)');
       ctx!.fillRect(index * bw, height - 14 - barH, Math.max(1, bw - 0.5), barH);
     }
-    ctx!.strokeStyle = 'rgba(104, 94, 78, 0.4)';
+    ctx!.strokeStyle = tokens().tfAxisSoft;
     ctx!.beginPath();
     ctx!.moveTo(0, height - 14.5);
     ctx!.lineTo(width, height - 14.5);

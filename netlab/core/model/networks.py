@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import copy
 import threading
+import time
 import uuid
 from dataclasses import asdict
 from typing import Any
@@ -37,6 +38,7 @@ class NetworkContainer:
         self._names: dict[str, str] = {}
         self._order: list[str] = []
         self._current = ""
+        self._states: dict[str, list[dict[str, Any]]] = {}
         self.degraded: dict[str, Any] | None = None
         self.ui: dict[str, Any] = {}
         self.plugins: list[dict[str, Any]] = []
@@ -48,6 +50,7 @@ class NetworkContainer:
         self._entries[network_id] = simulation
         self._names[network_id] = str(name or f"网络 {len(self._order) + 1}")[:60]
         self._order.append(network_id)
+        self._states.setdefault(network_id, [])
         if not self._current:
             self._current = network_id
         return network_id
@@ -115,6 +118,259 @@ class NetworkContainer:
             "count": len(self._order),
         }
         return payload
+
+    # ---- 工作台：网络状态（W1） --------------------------------------------
+    # 每个状态是某条网络参数的一次快照：params=节点/连线参数深拷贝 + integration，
+    # sim=该网络仿真设置快照（dt/fps/reltol…）。点击状态=把快照写回当前网络。
+    STATE_CACHE_DIRNAME = ".netlab-states"
+
+    @classmethod
+    def _state_cache_key(cls, network_id: str, state_id: str) -> str:
+        """W2 才真正读写缓存；W1 只定义键的形状（隐藏目录 + 网络/状态）。"""
+        return f"{cls.STATE_CACHE_DIRNAME}/{network_id}/{state_id}.npz"
+
+    def _states_for(self, network_id: str) -> list[dict[str, Any]]:
+        states = self._states.get(network_id)
+        if states is None:
+            states = []
+            self._states[network_id] = states
+        return states
+
+    def _snapshot_params(
+        self, simulation: Simulation
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """返回 (params, sim)：params 是节点/连线参数与 integration 的深拷贝。"""
+        with simulation.lock:
+            scene = simulation.scene
+            nodes = {
+                node_id: copy.deepcopy(record.params)
+                for node_id, record in scene.nodes.items()
+            }
+            edges = {
+                edge_id: copy.deepcopy(record.params)
+                for edge_id, record in scene.edges.items()
+            }
+            integration = getattr(scene, "integration", None)
+            sim_payload = asdict(simulation.config)
+        return (
+            {"nodes": nodes, "edges": edges, "integration": integration},
+            sim_payload,
+        )
+
+    @staticmethod
+    def _find_state(states: list[dict[str, Any]], state_id: str) -> dict[str, Any]:
+        for state in states:
+            if state.get("id") == state_id:
+                return state
+        raise NotFoundError(f"状态 {state_id!r} 不存在")
+
+    @staticmethod
+    def _unique_state_name(states: list[dict[str, Any]], base: str) -> str:
+        existing = {str(item.get("name")) for item in states}
+        name = (str(base or "").strip() or "状态")[:60]
+        if name not in existing:
+            return name
+        suffix = 2
+        while f"{name} {suffix}"[:60] in existing:
+            suffix += 1
+        return f"{name} {suffix}"[:60]
+
+    def _state_payload(
+        self, network_id: str, states: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        base = next((s["id"] for s in states if s.get("base")), None)
+        if base is None and states:
+            states[0]["base"] = True
+            base = states[0]["id"]
+        return {
+            "network": network_id,
+            "current": self._current,
+            "states": copy.deepcopy(states),
+            "base": base,
+        }
+
+    def _ensure_default_state(self, network_id: str) -> list[dict[str, Any]]:
+        """状态列表为空时，按当前网络参数自动建立一个基准状态（首个为默认）。"""
+        states = self._states_for(network_id)
+        if states:
+            return states
+        params, sim_payload = self._snapshot_params(self._entry(network_id))
+        states.append(
+            {
+                "id": uuid.uuid4().hex[:12],
+                "name": "默认",
+                "params": params,
+                "sim": sim_payload,
+                "base": True,
+                "created": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            }
+        )
+        return states
+
+    def list_states(self, network_id: str | None = None) -> dict[str, Any]:
+        target = network_id or self._current
+        self._entry(target)
+        with self.lock:
+            states = self._ensure_default_state(target)
+            return self._state_payload(target, states)
+
+    def create_state(
+        self,
+        name: str | None = None,
+        *,
+        base: bool = False,
+        network_id: str | None = None,
+    ) -> dict[str, Any]:
+        self._require_writable()
+        target = network_id or self._current
+        params, sim_payload = self._snapshot_params(self._entry(target))
+        with self.lock:
+            states = self._states_for(target)
+            make_base = bool(base) or not states
+            if make_base:
+                for item in states:
+                    item["base"] = False
+            states.append(
+                {
+                    "id": uuid.uuid4().hex[:12],
+                    "name": self._unique_state_name(states, name or "状态"),
+                    "params": params,
+                    "sim": sim_payload,
+                    "base": make_base,
+                    "created": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                }
+            )
+            return self._state_payload(target, states)
+
+    def duplicate_state(
+        self,
+        state_id: str,
+        name: str | None = None,
+        *,
+        network_id: str | None = None,
+    ) -> dict[str, Any]:
+        self._require_writable()
+        target = network_id or self._current
+        self._entry(target)
+        with self.lock:
+            states = self._states_for(target)
+            source = self._find_state(states, state_id)
+            clone = copy.deepcopy(source)
+            clone["id"] = uuid.uuid4().hex[:12]
+            clone["name"] = self._unique_state_name(states, name or f"{source['name']} 副本")
+            clone["base"] = False
+            clone["created"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+            states.append(clone)
+            return self._state_payload(target, states)
+
+    def rename_state(
+        self,
+        state_id: str,
+        name: str,
+        *,
+        network_id: str | None = None,
+    ) -> dict[str, Any]:
+        self._require_writable()
+        target = network_id or self._current
+        self._entry(target)
+        clean = str(name or "").strip()
+        if not clean:
+            raise ValidationError("状态名称不能为空")
+        clean = clean[:60]
+        with self.lock:
+            states = self._states_for(target)
+            state = self._find_state(states, state_id)
+            for item in states:
+                if item.get("id") != state_id and item.get("name") == clean:
+                    raise ValidationError(f"状态名称已存在：{clean!r}")
+            state["name"] = clean
+            return self._state_payload(target, states)
+
+    def delete_state(
+        self, state_id: str, *, network_id: str | None = None
+    ) -> dict[str, Any]:
+        self._require_writable()
+        target = network_id or self._current
+        self._entry(target)
+        with self.lock:
+            states = self._states_for(target)
+            state = self._find_state(states, state_id)
+            states.remove(state)
+            if state.get("base") and states:
+                states[0]["base"] = True
+            payload = self._state_payload(target, states)
+            payload["removed"] = state_id
+            payload["cache_key"] = self._state_cache_key(target, state_id)
+            return payload
+
+    def set_base_state(
+        self, state_id: str, *, network_id: str | None = None
+    ) -> dict[str, Any]:
+        self._require_writable()
+        target = network_id or self._current
+        self._entry(target)
+        with self.lock:
+            states = self._states_for(target)
+            self._find_state(states, state_id)
+            for item in states:
+                item["base"] = item.get("id") == state_id
+            return self._state_payload(target, states)
+
+    def update_state(
+        self, state_id: str, *, network_id: str | None = None
+    ) -> dict[str, Any]:
+        """把当前网络参数覆盖写回指定状态（「更新到此状态」）。"""
+        self._require_writable()
+        target = network_id or self._current
+        params, sim_payload = self._snapshot_params(self._entry(target))
+        with self.lock:
+            states = self._states_for(target)
+            state = self._find_state(states, state_id)
+            state["params"] = params
+            state["sim"] = sim_payload
+            return self._state_payload(target, states)
+
+    def apply_state(
+        self, state_id: str, *, network_id: str | None = None
+    ) -> dict[str, Any]:
+        """把某状态的参数写回当前网络（切换状态），返回新的 snapshot。"""
+        self._require_writable()
+        target = network_id or self._current
+        simulation = self._entry(target)
+        with self.lock:
+            states = self._states_for(target)
+            state = self._find_state(states, state_id)
+            params = copy.deepcopy(state.get("params") or {})
+            sim_payload = copy.deepcopy(state.get("sim") or {})
+        nodes = params.get("nodes") if isinstance(params.get("nodes"), dict) else {}
+        edges = params.get("edges") if isinstance(params.get("edges"), dict) else {}
+        integration = params.get("integration")
+
+        def _writeback(scene: Scene) -> None:
+            for node_id, values in nodes.items():
+                if node_id in scene.nodes and isinstance(values, dict):
+                    try:
+                        scene.update_node(node_id, {"params": values})
+                    except ValidationError:
+                        continue
+            for edge_id, values in edges.items():
+                if edge_id in scene.edges and isinstance(values, dict):
+                    try:
+                        scene.update_edge(edge_id, {"params": values})
+                    except ValidationError:
+                        continue
+            if isinstance(integration, str) and integration:
+                try:
+                    scene.set_integration(integration)
+                except ValidationError:
+                    pass
+
+        simulation.mutate(_writeback)
+        if sim_payload:
+            simulation.apply_config(sim_payload)
+        snapshot = simulation.snapshot()
+        snapshot["state"] = state_id
+        return snapshot
 
     # ---- 生命周期 -----------------------------------------------------------
     def ensure_thread(self) -> None:
@@ -225,6 +481,7 @@ class NetworkContainer:
             self._order.remove(network_id)
             self._entries.pop(network_id, None)
             self._names.pop(network_id, None)
+            self._states.pop(network_id, None)
             was_current = network_id == self._current
             if was_current:
                 self._current = self._order[0]
@@ -280,6 +537,7 @@ class NetworkContainer:
                         "name": self._names[network_id],
                         "scene": payload,
                         "sim": asdict(simulation.config),
+                        "states": copy.deepcopy(self._states.get(network_id, [])),
                     }
                 )
         return build_project_from_networks(
@@ -328,6 +586,7 @@ class NetworkContainer:
         if not isinstance(raw_networks, list) or not raw_networks:
             raise ValidationError("工程的 networks 必须是非空数组")
         created: list[tuple[str, str, Simulation]] = []
+        states_by_id: dict[str, list[dict[str, Any]]] = {}
         try:
             for item in raw_networks:
                 network_id = str(item.get("id") or uuid.uuid4().hex[:12])
@@ -343,6 +602,10 @@ class NetworkContainer:
                 )
                 fill_missing_layout(simulation.scene)
                 created.append((network_id, name, simulation))
+                raw_states = item.get("states")
+                states_by_id[network_id] = (
+                    copy.deepcopy(raw_states) if isinstance(raw_states, list) else []
+                )
         except Exception:
             for _id, _name, simulation in created:
                 simulation.shutdown()
@@ -354,10 +617,12 @@ class NetworkContainer:
             self._names = {}
             self._order = []
             self._current = ""
+            self._states = {}
             for network_id, name, simulation in created:
                 self._entries[network_id] = simulation
                 self._names[network_id] = name
                 self._order.append(network_id)
+                self._states[network_id] = states_by_id.get(network_id, [])
             self._current = str(project.get("current") or "")
             if self._current not in self._entries:
                 self._current = self._order[0]

@@ -2178,3 +2178,17 @@ html[data-density="loose"] .setwin-nav button { padding-top: calc(8px * var(--ui
 .set-row .tone-wrap { display: inline-flex; align-items: center; gap: 8px; min-width: 170px; }
 .set-row .tone-wrap input[type="range"] { flex: 1; }
 .set-row .tone-val { font: 9.5px/1 var(--mono); color: var(--text-tertiary); min-width: 26px; text-align: right; }
+
+/* 工作台 · 状态参数表（W1） */
+.wb-host { display: flex; flex-direction: column; gap: 12px; }
+.wb-state-list { display: flex; flex-direction: column; gap: 6px; }
+.wb-state-chip { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-2); flex-wrap: wrap; }
+.wb-state-chip.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.wb-state-name { border: none; background: none; font-weight: 600; cursor: pointer; color: var(--text-primary); padding: 2px 4px; }
+.wb-state-name:hover { text-decoration: underline; }
+.wb-param-table { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.wb-param-row { display: grid; grid-template-columns: 190px 150px 1fr; gap: 8px; align-items: center; padding: 4px 8px; border-top: 1px solid var(--line); }
+.wb-param-row:first-child { border-top: none; }
+.wb-obj { color: var(--text-secondary); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-key { font-weight: 600; font-size: 12px; color: var(--text-primary); }
+.wb-param-row .field { margin: 0; }

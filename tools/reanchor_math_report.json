@@ -1245,8 +1245,8 @@
   "md_line": 759,
   "file": "nodal.py",
   "old": "125",
-  "new": "137",
-  "symbol": "_stamp_current",
+  "new": "125",
+  "symbol": "_stamp_conductance",
   "status": "ok",
   "method": "symbol:def"
  },

@@ -33,7 +33,7 @@
 
 ## 5. 两套色板（最终值，已实现；与 `theme.tokens.ts` 一致，对比度实测 10/10 见 §12）
 - 规则：正文 `ink/paper` ≥ 7:1；次文字 `muted`/`dim` 与 paper ≥ 4.5:1；`fieldBorder`/`lineStrong` 与相邻底 ≥ 3:1；深色 muted/dim 不超过约 7:1（避免过亮压平层级）。
-- 浅色（纸墨）：paper `#eae5e1` / paper2 `#f2efe9` / paper3 `#e2dccf` / ink `#0a0c0a` / ink2 `#2b2a24` / muted `#524f46` / dim `#635e52` / line `#cdc6b8` / lineStrong `#857e70` / accent `#7a5a33`（正文用加深琥珀）/ accentSoft `#e4d5c1` / fieldBg `#ffffff` / fieldBorder `#857e70`。
+- 浅色（纸墨）：paper `#e8e0d2` / paper2 `#f3ecdf` / paper3 `#e0d9ca` / ink `#0a0c0a` / ink2 `#2b2a24` / muted `#524f46` / dim `#635e52` / line `#cdc6b8` / lineStrong `#857e70` / accent `#7a5a33`（正文用加深琥珀）/ accentSoft `#e4d5c1` / fieldBg `#f3ecdf` / fieldBorder `#857e70` / fieldBgFocus `#f7f1e6`。
 - 深色（独立冷调，非反色）：paper `#0f1417` / paper2 `#161d21` / paper3 `#1e282d` / ink `#e6e9e2` / ink2 `#c3c9c1` / muted `#8b9799` / dim `#778486` / line `#2a3439` / lineStrong `#55666c` / accent `#d0a86e` / accentSoft `#2c3a33` / fieldBg `#0b1114` / fieldBorder `#55666c`。
 - 圆角 `0px`；细线 `1px`（可调档见 §6）；字体 MiSans 栈 + Cascadia Code（mono）。
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import math
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -64,6 +65,42 @@ MAX_WAYPOINTS = 64
 MAX_NODE_SIZE = 200.0
 MIN_NODE_SIZE = 24.0
 
+#: 元素级外观覆盖（P-B）：可选、默认空；空表示完全沿用主题令牌与布局默认。
+APPEARANCE_KEYS = ("color", "opacity", "lineWidth", "fontSize")
+_HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def normalize_appearance(value: Any) -> dict[str, Any]:
+    """校验并规范化元素级外观覆盖（P-B）。
+
+    只接受 color/opacity/lineWidth/fontSize；``None`` 或空字典表示「无覆盖」。
+    返回值只包含显式设置过的键，未设置的不出现在结果里（支持部分覆盖）。
+    """
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValidationError("元素外观必须是对象")
+    unknown = set(value) - set(APPEARANCE_KEYS)
+    if unknown:
+        raise ValidationError(f"元素外观包含未知字段：{', '.join(sorted(unknown))}")
+    clean: dict[str, Any] = {}
+    if "color" in value:
+        color = value["color"]
+        if not isinstance(color, str) or not _HEX_COLOR_RE.match(color):
+            raise ValidationError("元素外观 color 必须是 #RRGGBB")
+        clean["color"] = color.lower()
+    if "opacity" in value:
+        clean["opacity"] = as_float(value["opacity"], "元素外观 opacity", lo=0.05, hi=1.0)
+    if "lineWidth" in value:
+        clean["lineWidth"] = as_float(
+            value["lineWidth"], "元素外观 lineWidth", lo=0.5, hi=12.0
+        )
+    if "fontSize" in value:
+        clean["fontSize"] = as_float(
+            value["fontSize"], "元素外观 fontSize", lo=6.0, hi=48.0
+        )
+    return clean
+
 
 @dataclass
 class NodeRecord:
@@ -77,6 +114,8 @@ class NodeRecord:
     position: dict[str, float] = field(default_factory=lambda: {"x": 0.0, "y": 0.0})
     #: 节点尺寸（R09）：``{"w": 直径}``；空字典表示用默认半径。
     size: dict[str, float] = field(default_factory=dict)
+    #: 元素级外观覆盖（P-B，可选）；空字典表示不覆盖、完全沿用默认。
+    appearance: dict[str, Any] = field(default_factory=dict)
 
     def snapshot(self, *, include_state: bool = True) -> dict[str, Any]:
         """返回可 JSON 化的节点快照。
@@ -94,6 +133,8 @@ class NodeRecord:
             "position": dict(self.position),
             "size": dict(self.size),
         }
+        if self.appearance:
+            item["appearance"] = copy.deepcopy(self.appearance)
         if include_state:
             item["state"] = copy.deepcopy(self.state)
             item["inputs"] = copy.deepcopy(self.inputs)
@@ -125,6 +166,8 @@ class EdgeRecord:
     #: 信号/矢量端口绑定（R20/Q8）：source 输出字段 → target 输入端口。
     source_port: str = ""
     target_port: str = ""
+    #: 元素级外观覆盖（P-B，可选）；空字典表示不覆盖、完全沿用默认。
+    appearance: dict[str, Any] = field(default_factory=dict)
 
     def snapshot(self, *, include_state: bool = True) -> dict[str, Any]:
         item = {
@@ -145,6 +188,8 @@ class EdgeRecord:
             "anchors": dict(self.anchors),
             "layout": dict(self.layout),
         }
+        if self.appearance:
+            item["appearance"] = copy.deepcopy(self.appearance)
         if include_state:
             item["state"] = copy.deepcopy(self.state)
         return item
@@ -1498,7 +1543,7 @@ class Scene:
         record = self.nodes.get(node_id)
         if record is None:
             raise NotFoundError(f"节点 {node_id!r} 不存在")
-        allowed = {"name", "kind", "params", "data", "position", "size"}
+        allowed = {"name", "kind", "params", "data", "position", "size", "appearance"}
         unknown = set(payload) - allowed
         if unknown:
             raise ValidationError(f"节点更新包含未知字段：{', '.join(sorted(unknown))}")
@@ -1537,6 +1582,8 @@ class Scene:
             record.position = position
         if "size" in payload:
             record.size = self._node_size(payload["size"])
+        if "appearance" in payload:
+            record.appearance = normalize_appearance(payload["appearance"])
         self._touch()
         return record
 
@@ -1717,6 +1764,7 @@ class Scene:
             "target_pin",
             "source_port",
             "target_port",
+            "appearance",
         }
         unknown = set(payload) - allowed
         if unknown:
@@ -1810,6 +1858,8 @@ class Scene:
             record.anchors = self._edge_anchors(payload["anchors"])
         if "layout" in payload:
             record.layout = self._edge_layout(payload["layout"])
+        if "appearance" in payload:
+            record.appearance = normalize_appearance(payload["appearance"])
         self._touch()
         return record
 
@@ -1924,6 +1974,7 @@ class Scene:
                 inputs={},
                 position=position,
                 size=self._node_size(raw.get("size")),
+                appearance=normalize_appearance(raw.get("appearance")),
             )
 
         for index, raw in enumerate(raw_edges):
@@ -2004,6 +2055,7 @@ class Scene:
                 target_pin=target_pin,
                 source_port=source_port,
                 target_port=target_port,
+                appearance=normalize_appearance(raw.get("appearance")),
             )
 
         if mode == "signal":

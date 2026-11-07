@@ -10,6 +10,7 @@ from netlab.core.model.blocks import encapsulate_nodes
 from netlab.core.common.limits import ValidationError
 from netlab.core.model.project import (
     project_current_network,
+    project_from_text,
     atomic_write,
     build_project,
     compute_checksum,
@@ -47,7 +48,7 @@ def test_build_and_validate_project_roundtrip(tmp_path):
         target = tmp_path / "demo.netlab"
         atomic_write(target, project)
         assert target.is_file()
-        payload = json.loads(target.read_text(encoding="utf-8"))
+        payload = project_from_text(target.read_bytes())
         assert validate_project(payload)["name"] == "demo"
     finally:
         simulation.shutdown()

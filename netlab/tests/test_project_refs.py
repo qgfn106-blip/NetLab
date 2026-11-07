@@ -11,6 +11,7 @@ from netlab.core.model.blocks import BlockDef, PortDef
 from netlab.core.common.limits import ValidationError
 from netlab.core.model.project import (
     build_project,
+    project_from_text,
     project_scene_payload,
     validate_project,
 )
@@ -135,7 +136,7 @@ def test_workspace_save_open_with_block_refs(tmp_path):
         workspace, saved = save_workspace(target, simulation, name="refs-ws")
     finally:
         simulation.shutdown()
-    document = json.loads(saved.read_text(encoding="utf-8"))
+    document = project_from_text(saved.read_bytes())
     assert document["blocks"] == [{"id": "aaaaaaaaaaaa", "version": 1}]
 
     reopened, project = load_workspace(target)

@@ -13,6 +13,7 @@ import pytest
 
 from netlab.core.model.project import (
     project_current_network,
+    project_from_text,
     save_project,
 )
 from netlab.core.model.scene import Scene
@@ -60,7 +61,7 @@ def test_create_project_keeps_all_networks(tmp_path):
     target = tmp_path / "created"
     try:
         create_project(target, simulation=container, name="multi")
-        payload = json.loads((target / PROJECT_FILENAME).read_text(encoding="utf-8"))
+        payload = project_from_text((target / PROJECT_FILENAME).read_bytes())
         assert [item["name"] for item in payload["networks"]] == ["第一层", "第二层"]
     finally:
         container.shutdown()
@@ -73,7 +74,7 @@ def test_save_project_keeps_all_networks(tmp_path):
     path = tmp_path / "multi" / "project.netlab"
     try:
         save_project(path, container, name="multi")
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = project_from_text(path.read_bytes())
     finally:
         container.shutdown()
     assert [item["name"] for item in payload["networks"]] == ["第一层", "第二层"]
@@ -164,7 +165,7 @@ def test_save_and_open_project_directory_roundtrip(tmp_path):
     assert reopened.root == target.resolve()
     assert project["name"] == "rt"
     assert len(project_current_network(project)["scene"]["nodes"]) == 2
-    assert json.loads(saved.read_text(encoding="utf-8"))["name"] == "rt"
+    assert project_from_text(saved.read_bytes())["name"] == "rt"
 
 
 def test_workspace_api_roundtrip(client, tmp_path):

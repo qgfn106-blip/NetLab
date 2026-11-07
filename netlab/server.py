@@ -1493,6 +1493,63 @@ def networks_pause_all() -> dict[str, Any]:
     return {"networks": SERVICE.pause_all(), "sim": SERVICE.info()}
 
 
+# ---- 工作台：网络状态（W1） -------------------------------------------------
+class NetworkStateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    action: str
+    network_id: str | None = None
+    state_id: str | None = None
+    name: str | None = None
+    base: bool = False
+
+
+@app.get("/api/network/states")
+def network_states_list(network_id: str | None = None) -> dict[str, Any]:
+    return SERVICE.list_states(network_id)
+
+
+@app.post("/api/network/state")
+def network_state_action(request: NetworkStateRequest) -> dict[str, Any]:
+    action = (request.action or "").strip()
+    network_id = request.network_id
+    if action == "create":
+        return SERVICE.create_state(
+            request.name, base=request.base, network_id=network_id
+        )
+    if action == "duplicate":
+        if not request.state_id:
+            raise ValidationError("复制状态需要 state_id")
+        return SERVICE.duplicate_state(
+            request.state_id, request.name, network_id=network_id
+        )
+    if action == "rename":
+        if not request.state_id:
+            raise ValidationError("重命名状态需要 state_id")
+        if request.name is None:
+            raise ValidationError("重命名状态需要 name")
+        return SERVICE.rename_state(
+            request.state_id, request.name, network_id=network_id
+        )
+    if action == "delete":
+        if not request.state_id:
+            raise ValidationError("删除状态需要 state_id")
+        return SERVICE.delete_state(request.state_id, network_id=network_id)
+    if action == "set_base":
+        if not request.state_id:
+            raise ValidationError("设基准需要 state_id")
+        return SERVICE.set_base_state(request.state_id, network_id=network_id)
+    if action == "update":
+        if not request.state_id:
+            raise ValidationError("更新状态需要 state_id")
+        return SERVICE.update_state(request.state_id, network_id=network_id)
+    if action == "apply":
+        if not request.state_id:
+            raise ValidationError("切换状态需要 state_id")
+        return SERVICE.apply_state(request.state_id, network_id=network_id)
+    raise ValidationError(f"未知的状态操作：{action!r}")
+
+
 # ---- 工作区（R01：工程目录 / 共享库 / 用户设置） ----------------------------
 class WorkspaceCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")

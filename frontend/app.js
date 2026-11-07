@@ -349,9 +349,10 @@ import {
   function activeTab() {
     const group = $(".panel-group.active")?.dataset.group || "inspect";
     if (group === "fn") return state.fnRole === "edge" ? "edge-fn" : "node-fn";
-    if (group === "analysis" || group === "modules") {
+    if (group === "analysis" || group === "modules" || group === "workbench") {
       const sub = $(".panel-group.active .group-subnav [data-sub].active");
-      return sub ? sub.dataset.sub : group === "modules" ? "blocks" : "chart";
+      if (sub) return sub.dataset.sub;
+      return group === "modules" ? "blocks" : group === "workbench" ? "wb-analysis" : "chart";
     }
     return "inspect";
   }
@@ -3813,7 +3814,9 @@ import {
     inst: { group: "analysis", sub: "inst" },
     vector: { group: "analysis", sub: "vector" },
     analysis: { group: "analysis", sub: "analysis" },
-    plotkit: { group: "analysis", sub: "plotkit" }
+    plotkit: { group: "analysis", sub: "plotkit" },
+    "wb-analysis": { group: "workbench", sub: "wb-analysis" },
+    "wb-state": { group: "workbench", sub: "wb-state" }
   };
   function defaultTabForGroup(group) {
     if (group === "fn") return state.fnRole === "edge" ? "edge-fn" : "node-fn";
@@ -3824,6 +3827,10 @@ import {
     if (group === "analysis") {
       const sub = $('.panel-group[data-group="analysis"] .group-subnav [data-sub].active');
       return sub ? sub.dataset.sub : "chart";
+    }
+    if (group === "workbench") {
+      const sub = $('.panel-group[data-group="workbench"] .group-subnav [data-sub].active');
+      return sub ? sub.dataset.sub : "wb-analysis";
     }
     return "inspect";
   }
@@ -3838,7 +3845,7 @@ import {
     $$(`[data-${attr}]`, host).forEach((node) => {
       node.classList.toggle("active", node.dataset[attr] === sub);
     });
-    if (group === "modules" || group === "analysis") {
+    if (group === "modules" || group === "analysis" || group === "workbench") {
       $$(".tab-pane", host).forEach((pane) => {
         pane.classList.toggle("hidden", pane.id !== `tab-${sub}`);
       });
@@ -3878,6 +3885,12 @@ import {
     notifyPlotkit(conf.sub === "plotkit");
     if (conf.sub === "analysis") {
       renderAnalysisPanel();
+    }
+    if (conf.sub === "wb-analysis") {
+      renderWorkbenchAnalysis();
+    }
+    if (conf.sub === "wb-state") {
+      void renderWorkbenchState();
     }
     if (conf.sub === "blocks") {
       renderBlocksPanel();
@@ -10750,6 +10763,337 @@ import {
     const maxFreq = freqs.length ? freqs[Math.min(freqs.length - 1, 399)] : 0;
     ctx2.fillText(`${fmt(maxFreq, 1)} Hz`, width - 44, height - 3);
   }
+  const WB_INTEGRATIONS = [
+    { value: "trapezoidal", label: "\u68AF\u5F62\u6CD5" },
+    { value: "backward_euler", label: "\u540E\u5411\u6B27\u62C9" },
+    { value: "gear2", label: "Gear2" }
+  ];
+  const WB_SIM_FIELDS = [
+    { key: "dt", label: "\u6B65\u957F dt", type: "float", unit: "s" },
+    { key: "fps", label: "\u76EE\u6807 FPS", type: "int" },
+    { key: "steps_per_frame", label: "\u6BCF\u5E27\u6B65\u6570", type: "int" },
+    { key: "sample_every", label: "\u91C7\u6837\u95F4\u9694", type: "int" },
+    { key: "reltol", label: "\u76F8\u5BF9\u5BB9\u5DEE reltol", type: "float" },
+    { key: "vntol", label: "\u7535\u538B\u5BB9\u5DEE vntol", type: "float", unit: "V" },
+    { key: "abstol", label: "\u7535\u6D41\u5BB9\u5DEE abstol", type: "float", unit: "A" },
+    { key: "max_iter", label: "\u6700\u5927\u8FED\u4EE3 max_iter", type: "int" },
+    { key: "gmin_steps", label: "gmin \u6B65\u6570", type: "int" },
+    { key: "src_steps", label: "\u6E90\u6B65\u6570", type: "int" },
+    { key: "residual_tol", label: "\u6B8B\u5DEE\u5BB9\u5DEE", type: "float" }
+  ];
+  let wbStatesPayload = null;
+  let wbSelectedId = "";
+  let wbDirty = false;
+  let wbFilterText = "";
+  function wbBadge(text, cls) {
+    return el("span", cls, text);
+  }
+  function wbMarkDirty() {
+    wbDirty = true;
+    const badge = $("#wbDirtyBadge");
+    if (badge) {
+      badge.textContent = "\u672A\u4FDD\u5B58\u5230\u72B6\u6001";
+      badge.className = "badge violet";
+    }
+    markProjectDirty();
+  }
+  function renderWorkbenchAnalysis() {
+    const pane = $("#tab-wb-analysis");
+    if (!pane) return;
+    const host = div("blocks-host");
+    const head = div("insp-head");
+    const title = div("insp-title");
+    title.append(
+      el("h2", null, "\u5DE5\u4F5C\u53F0 \xB7 \u5206\u6790"),
+      el("p", null, "\u591A\u72B6\u6001\u7ED3\u679C\u5BF9\u6BD4\uFF08\u6309\u72B6\u6001\u5206\u9762\u3001\u5171\u4EAB\u4FE1\u53F7\uFF09\u4E0E\u53EF\u5206\u79BB\u6D6E\u7A97\u5728 W2 \u5B9E\u73B0\u3002")
+    );
+    head.appendChild(title);
+    host.appendChild(head);
+    const count = wbStatesPayload?.states?.length ?? 0;
+    host.appendChild(
+      div("help", `\u5F53\u524D\u7F51\u7EDC\u5DF2\u6709 ${count} \u4E2A\u53C2\u6570\u72B6\u6001\u3002\u8BF7\u5230\u300C\u72B6\u6001\u300D\u9875\u7BA1\u7406\u53C2\u6570\u4E0E\u72B6\u6001\u3002`)
+    );
+    pane.replaceChildren(host);
+  }
+  async function renderWorkbenchState() {
+    const pane = $("#tab-wb-state");
+    if (!pane) return;
+    let payload = null;
+    try {
+      payload = await jsonRequest("/api/network/states", "GET");
+    } catch (error) {
+      toast(`\u8BFB\u53D6\u72B6\u6001\u5931\u8D25\uFF1A${error?.message || error}`, "error", 6e3);
+    }
+    if (payload) {
+      wbStatesPayload = payload;
+      const ids = (payload.states || []).map((item) => item.id);
+      if (!wbSelectedId || ids.indexOf(wbSelectedId) < 0) {
+        wbSelectedId = payload.base || ids[0] || "";
+      }
+    }
+    const host = div("wb-host");
+    const head = div("insp-head");
+    const title = div("insp-title");
+    title.append(
+      el("h2", null, "\u5DE5\u4F5C\u53F0 \xB7 \u72B6\u6001"),
+      el("p", null, "\u53C2\u6570\u8868\u683C + \u591A\u5957\u53C2\u6570\u72B6\u6001\uFF1B\u5207\u6362\u72B6\u6001\u5373\u628A\u8BE5\u72B6\u6001\u53C2\u6570\u5199\u56DE\u5F53\u524D\u7F51\u7EDC\u3002")
+    );
+    head.appendChild(title);
+    const dirtyBadge = wbBadge(
+      wbDirty ? "\u672A\u4FDD\u5B58\u5230\u72B6\u6001" : "\u5DF2\u540C\u6B65\u5230\u72B6\u6001",
+      wbDirty ? "badge violet" : "badge green"
+    );
+    dirtyBadge.id = "wbDirtyBadge";
+    head.appendChild(dirtyBadge);
+    host.appendChild(head);
+    const states = wbStatesPayload?.states || [];
+    const toolbar = div("blocks-toolbar");
+    toolbar.append(
+      button("\uFF0B \u65B0\u5EFA\u72B6\u6001", "btn tiny primary", () => void wbCreateNew()),
+      button("\u66F4\u65B0\u5230\u6B64\u72B6\u6001", "btn tiny", () => void wbUpdateCurrent()),
+      button("\u53E6\u5B58\u4E3A\u65B0\u72B6\u6001", "btn tiny", () => void wbCreateNew())
+    );
+    host.appendChild(toolbar);
+    const listRow = div("wb-state-list");
+    if (!states.length) {
+      listRow.appendChild(div("help", "\u6682\u65E0\u72B6\u6001\u3002\u70B9\u300C\u65B0\u5EFA\u72B6\u6001\u300D\u6309\u5F53\u524D\u7F51\u7EDC\u53C2\u6570\u5EFA\u7ACB\u7B2C\u4E00\u4E2A\u72B6\u6001\u3002"));
+    }
+    for (const item of states) {
+      const rowEl = div("wb-state-chip" + (item.id === wbSelectedId ? " active" : ""));
+      if (item.base) rowEl.appendChild(wbBadge("\u57FA\u51C6", "badge gray"));
+      const nameEl = el("button", "wb-state-name", item.name);
+      nameEl.type = "button";
+      nameEl.title = "\u5207\u6362\u5230\u8BE5\u72B6\u6001\uFF08\u628A\u53C2\u6570\u5199\u56DE\u5F53\u524D\u7F51\u7EDC\uFF09";
+      nameEl.addEventListener("click", () => void wbApplyState(item.id));
+      rowEl.appendChild(nameEl);
+      rowEl.appendChild(button("\u8BBE\u57FA\u51C6", "btn tiny", () => void wbAction("set_base", item.id)));
+      rowEl.appendChild(button("\u91CD\u547D\u540D", "btn tiny", () => void wbRename(item.id, item.name)));
+      rowEl.appendChild(button("\u590D\u5236", "btn tiny", () => void wbAction("duplicate", item.id)));
+      rowEl.appendChild(button("\u5220\u9664", "btn tiny", () => void wbDelete(item.id)));
+      listRow.appendChild(rowEl);
+    }
+    host.appendChild(listRow);
+    const filter = el("input", "input");
+    filter.type = "search";
+    filter.placeholder = "\u68C0\u7D22 \u8282\u70B9\u540D / kind / \u53C2\u6570\u540D\u2026";
+    filter.value = wbFilterText;
+    const filterRow = div("field-row");
+    filterRow.append(el("label", null, "\u68C0\u7D22"), filter);
+    host.appendChild(filterRow);
+    const table = div("wb-param-table");
+    const rows = [];
+    const addRow = (objLabel, paramLabel, control2) => {
+      const row = div("wb-param-row");
+      row.append(el("span", "wb-obj", objLabel), el("span", "wb-key", paramLabel));
+      const valCell = div("wb-val");
+      valCell.appendChild(control2);
+      row.appendChild(valCell);
+      table.appendChild(row);
+      rows.push({ el: row, text: `${objLabel} ${paramLabel}`.toLowerCase() });
+    };
+    const scene = state.scene;
+    for (const node of scene?.nodes || []) {
+      const spec = getNodeSpec(node.kind);
+      const list = spec && Array.isArray(spec.params) ? spec.params : [];
+      if (!list.length) continue;
+      const baseParams = Object.assign(specDefaults(spec), node.params || {});
+      for (const param of list) {
+        const value = param.key in baseParams ? baseParams[param.key] : clone(param.default);
+        const control2 = buildParamField(param, value);
+        control2.addEventListener("change", () => void wbCommitNodeParam(node.id, control2, baseParams));
+        addRow(`${node.name} \xB7 ${node.kind}`, String(param.label || param.key), control2);
+      }
+    }
+    for (const edge of scene?.edges || []) {
+      const spec = getEdgeSpec(edge.kind);
+      const list = spec && Array.isArray(spec.params) ? spec.params : [];
+      if (!list.length) continue;
+      const baseParams = Object.assign(specDefaults(spec), edge.params || {});
+      for (const param of list) {
+        const value = param.key in baseParams ? baseParams[param.key] : clone(param.default);
+        const control2 = buildParamField(param, value);
+        control2.addEventListener("change", () => void wbCommitEdgeParam(edge.id, control2, baseParams));
+        addRow(`${edge.name} \xB7 ${edge.kind}`, String(param.label || param.key), control2);
+      }
+    }
+    const config = state.sim?.config || {};
+    for (const field of WB_SIM_FIELDS) {
+      const paramSpec = {
+        key: field.key,
+        type: field.type,
+        label: field.label,
+        unit: field.unit,
+        step: field.step,
+        min: field.min
+      };
+      const value = field.key in config ? config[field.key] : void 0;
+      const control2 = buildParamField(paramSpec, value);
+      control2.addEventListener("change", () => void wbCommitSimParam(field.key, control2));
+      addRow("\u4EFF\u771F\u8BBE\u7F6E", field.label, control2);
+    }
+    const integValue = String(scene?.integration || "trapezoidal");
+    const integSpec = {
+      key: "integration",
+      type: "choice",
+      label: "\u79EF\u5206\u65B9\u6CD5 integration",
+      choices: WB_INTEGRATIONS
+    };
+    const integControl = buildParamField(integSpec, integValue);
+    integControl.addEventListener("change", () => void wbCommitIntegration(integControl));
+    addRow("\u573A\u666F", "\u79EF\u5206\u65B9\u6CD5 (integration)", integControl);
+    const applyFilter = () => {
+      for (const item of rows) {
+        item.el.classList.toggle("hidden", wbFilterText !== "" && item.text.indexOf(wbFilterText) < 0);
+      }
+    };
+    filter.addEventListener("input", () => {
+      wbFilterText = filter.value.trim().toLowerCase();
+      applyFilter();
+    });
+    applyFilter();
+    host.appendChild(table);
+    pane.replaceChildren(host);
+  }
+  async function wbCreateNew() {
+    const suggested = `\u72B6\u6001 ${(wbStatesPayload?.states?.length || 0) + 1}`;
+    const name = window.prompt("\u65B0\u72B6\u6001\u540D\u79F0\uFF08\u81EA\u52A8\u5FEB\u7167\u5F53\u524D\u7F51\u7EDC\u53C2\u6570\uFF09", suggested);
+    if (name === null) return;
+    await wbAction("create", void 0, { name });
+  }
+  async function wbRename(id, oldName) {
+    const name = window.prompt("\u91CD\u547D\u540D\u72B6\u6001", oldName);
+    if (name === null) return;
+    await wbAction("rename", id, { name });
+  }
+  async function wbDelete(id) {
+    if (!window.confirm("\u5220\u9664\u8BE5\u72B6\u6001\uFF1F\uFF08\u5176\u9884\u8BA1\u7B97\u7F13\u5B58\u5C06\u5728 W2 \u4E2D\u4E00\u5E76\u5220\u9664\uFF09")) return;
+    await wbAction("delete", id);
+  }
+  async function wbUpdateCurrent() {
+    if (!wbSelectedId) {
+      toast("\u8BF7\u5148\u9009\u62E9\u4E00\u4E2A\u72B6\u6001", "error");
+      return;
+    }
+    await wbAction("update", wbSelectedId);
+  }
+  async function wbAction(action, stateId, extra) {
+    const body = Object.assign({ action }, extra || {});
+    if (stateId) body.state_id = stateId;
+    try {
+      const resp = await jsonRequest("/api/network/state", "POST", body);
+      if (!resp) return;
+      markProjectDirty();
+      await renderWorkbenchState();
+    } catch (error) {
+      toast(error?.message || String(error), "error", 6e3);
+    }
+  }
+  async function wbApplyState(id) {
+    try {
+      const resp = await jsonRequest("/api/network/state", "POST", {
+        action: "apply",
+        state_id: id
+      });
+      if (!resp) return;
+      applySnapshot(resp);
+      wbSelectedId = id;
+      wbDirty = false;
+      markProjectDirty();
+      await renderWorkbenchState();
+    } catch (error) {
+      toast(error?.message || String(error), "error", 6e3);
+    }
+  }
+  async function wbCommitNodeParam(nodeId, control2, baseParams) {
+    let values;
+    try {
+      values = collectParamValues(control2.parentElement || control2);
+    } catch (error) {
+      toast(error.message, "error", 5e3);
+      return;
+    }
+    const merged = Object.assign({}, baseParams, values);
+    try {
+      const resp = await jsonRequest(`/api/nodes/${encodeURIComponent(nodeId)}`, "PATCH", {
+        params: merged
+      });
+      if (!resp) return;
+      Object.assign(baseParams, values);
+      if (resp.node) {
+        const list = state.scene?.nodes || [];
+        const index = list.findIndex((item) => item.id === nodeId);
+        if (index >= 0) list[index] = Object.assign({}, list[index], resp.node);
+      }
+      if (resp.sim) state.sim = resp.sim;
+      wbMarkDirty();
+    } catch (error) {
+      toast(error?.message || String(error), "error", 6e3);
+    }
+  }
+  async function wbCommitEdgeParam(edgeId, control2, baseParams) {
+    let values;
+    try {
+      values = collectParamValues(control2.parentElement || control2);
+    } catch (error) {
+      toast(error.message, "error", 5e3);
+      return;
+    }
+    const merged = Object.assign({}, baseParams, values);
+    try {
+      const resp = await jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, "PATCH", {
+        params: merged
+      });
+      if (!resp) return;
+      Object.assign(baseParams, values);
+      if (resp.edge) {
+        const list = state.scene?.edges || [];
+        const index = list.findIndex((item) => item.id === edgeId);
+        if (index >= 0) list[index] = Object.assign({}, list[index], resp.edge);
+      }
+      if (resp.sim) state.sim = resp.sim;
+      wbMarkDirty();
+    } catch (error) {
+      toast(error?.message || String(error), "error", 6e3);
+    }
+  }
+  async function wbCommitSimParam(key, control2) {
+    let values;
+    try {
+      values = collectParamValues(control2.parentElement || control2);
+    } catch (error) {
+      toast(error.message, "error", 5e3);
+      return;
+    }
+    try {
+      const resp = await jsonRequest("/api/config", "PATCH", {
+        [key]: values[key]
+      });
+      if (!resp) return;
+      if (resp.sim) state.sim = resp.sim;
+      wbMarkDirty();
+    } catch (error) {
+      toast(error?.message || String(error), "error", 6e3);
+    }
+  }
+  async function wbCommitIntegration(control2) {
+    let values;
+    try {
+      values = collectParamValues(control2.parentElement || control2);
+    } catch (error) {
+      toast(error.message, "error", 5e3);
+      return;
+    }
+    try {
+      const resp = await jsonRequest("/api/scene", "PATCH", {
+        integration: values["integration"]
+      });
+      if (!resp) return;
+      applySnapshot(resp);
+      wbMarkDirty();
+    } catch (error) {
+      toast(error?.message || String(error), "error", 6e3);
+    }
+  }
   function renderAnalysisPanel() {
     const pane = ui.analysisPane;
     if (!pane) return;
@@ -11627,6 +11971,7 @@ import {
     setPanelGroup("inspect");
     setGroupSub("modules", "blocks");
     setGroupSub("analysis", "chart");
+    setGroupSub("workbench", "wb-analysis");
     if (ui.vectorNode) {
       ui.vectorNode.addEventListener("change", () => {
         state.phaseNode = ui.vectorNode.value;

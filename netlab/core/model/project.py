@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from .networks import NetworkContainer
 
 PROJECT_FORMAT = "netlab-project"
-PROJECT_VERSION = 6
+PROJECT_VERSION = 7
 APP_VERSION = "2.1.0"
 MAX_PROJECT_BYTES = 8_000_000
 PROJECT_SUFFIX = ".netlab"
@@ -106,8 +106,16 @@ def _network_id() -> str:
     return uuid.uuid4().hex[:12]
 
 
-def make_network(name: str, scene_payload: Any, sim_payload: Any) -> dict[str, Any]:
-    """构造一条网络记录（R07/D18）；工程至少有一个网络。"""
+def make_network(
+    name: str,
+    scene_payload: Any,
+    sim_payload: Any,
+    states: Any | None = None,
+) -> dict[str, Any]:
+    """构造一条网络记录（R07/D18）；工程至少有一个网络。
+
+    ``states``（工作台多状态，v7）是可选的状态快照列表；旧调用方不传时为 []。
+    """
     return {
         "id": _network_id(),
         "name": str(name or "网络 1")[:60],
@@ -115,7 +123,63 @@ def make_network(name: str, scene_payload: Any, sim_payload: Any) -> dict[str, A
             scene_payload or {"mode": "signal", "nodes": [], "edges": []}
         ),
         "sim": copy.deepcopy(sim_payload or {}),
+        "states": copy.deepcopy(states if isinstance(states, list) else []),
     }
+
+
+def normalize_states(
+    states: Any, *, network_name: str = ""
+) -> list[dict[str, Any]]:
+    """校验并规范化一条网络的 ``states`` 列表（工作台多状态，PROJECT_VERSION 7）。
+
+    规则：id 合法且唯一（缺失/重复时重新生成）、name 非空且唯一（重复加序号）、
+    params/sim 必须是对象、至多一个 ``base``。返回新列表，不修改入参。
+    """
+    if states is None:
+        return []
+    if not isinstance(states, list):
+        raise ValidationError(f"网络 {network_name!r} 的 states 必须是数组")
+    result: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    seen_names: set[str] = set()
+    base_taken = False
+    for index, item in enumerate(states):
+        if not isinstance(item, dict):
+            raise ValidationError(
+                f"网络 {network_name!r} 第 {index + 1} 个状态必须是对象"
+            )
+        state = copy.deepcopy(item)
+        state_id = state.get("id")
+        if not isinstance(state_id, str) or not state_id or state_id in seen_ids:
+            state_id = uuid.uuid4().hex[:12]
+            state["id"] = state_id
+        seen_ids.add(state_id)
+        name = state.get("name")
+        if not isinstance(name, str) or not name.strip():
+            name = f"状态 {index + 1}"
+        name = name.strip()[:60]
+        base_name = name
+        suffix = 2
+        while name in seen_names:
+            name = f"{base_name} {suffix}"[:60]
+            suffix += 1
+        state["name"] = name
+        seen_names.add(name)
+        if not isinstance(state.get("params"), dict):
+            state["params"] = {}
+        if not isinstance(state.get("sim"), dict):
+            state["sim"] = {}
+        base = bool(state.get("base"))
+        if base and base_taken:
+            base = False
+        if base:
+            base_taken = True
+        state["base"] = base
+        created = state.get("created")
+        if not isinstance(created, str) or not created:
+            state["created"] = _now()
+        result.append(state)
+    return result
 
 
 def build_project(
@@ -178,6 +242,9 @@ def build_project_from_networks(
     cloned = copy.deepcopy(list(networks))
     if not cloned:
         raise ValidationError("工程至少需要一个网络")
+    for item in cloned:
+        if isinstance(item, dict):
+            item.setdefault("states", [])
     ids = [str(item.get("id") or "") for item in cloned]
     if not all(ids) or len(set(ids)) != len(ids):
         raise ValidationError("网络 id 必须非空且唯一")
@@ -591,6 +658,16 @@ def migrate_project(payload: dict[str, Any]) -> dict[str, Any]:
             metadata = {}
         metadata.setdefault("migrated_plugins", f"v{version}")
         migrated["metadata"] = metadata
+    if version < 7:
+        # v7：每条网络新增可选的「工作台状态」列表；旧工程按空列表补齐。
+        for network in migrated.get("networks") or []:
+            if isinstance(network, dict):
+                network.setdefault("states", [])
+        metadata = migrated.get("metadata")
+        if not isinstance(metadata, dict):
+            metadata = {}
+        metadata.setdefault("migrated_states", f"v{version}")
+        migrated["metadata"] = metadata
     migrated["version"] = PROJECT_VERSION
     migrated.setdefault("format", PROJECT_FORMAT)
     migrated.setdefault("app", f"netlab {APP_VERSION}")
@@ -768,6 +845,9 @@ def validate_project(
             trial_sim.apply_config(sim_payload)
         finally:
             trial_sim.shutdown()
+        network["states"] = normalize_states(
+            network.get("states", []), network_name=str(label)
+        )
 
     # 上面的 `trial.to_payload()` 会把场景规范化（补齐新增参数默认值、字段顺序等）。
     # 规范化是程序自己的行为，不是文件被篡改；这里同步重算校验和，保证

@@ -861,9 +861,10 @@ declare function setStatusHint(hint: string): void;
   function activeTab(): string {
     const group = $('.panel-group.active')?.dataset.group || 'inspect';
     if (group === 'fn') return state.fnRole === 'edge' ? 'edge-fn' : 'node-fn';
-    if (group === 'analysis' || group === 'modules') {
+    if (group === 'analysis' || group === 'modules' || group === 'workbench') {
       const sub = $('.panel-group.active .group-subnav [data-sub].active');
-      return sub ? (sub.dataset.sub as string) : (group === 'modules' ? 'blocks' : 'chart');
+      if (sub) return sub.dataset.sub as string;
+      return group === 'modules' ? 'blocks' : group === 'workbench' ? 'wb-analysis' : 'chart';
     }
     return 'inspect';
   }
@@ -4562,6 +4563,8 @@ declare function setStatusHint(hint: string): void;
     vector: { group: 'analysis', sub: 'vector' },
     analysis: { group: 'analysis', sub: 'analysis' },
     plotkit: { group: 'analysis', sub: 'plotkit' },
+    'wb-analysis': { group: 'workbench', sub: 'wb-analysis' },
+    'wb-state': { group: 'workbench', sub: 'wb-state' },
   };
 
   function defaultTabForGroup(group: string) {
@@ -4573,6 +4576,10 @@ declare function setStatusHint(hint: string): void;
     if (group === 'analysis') {
       const sub = $('.panel-group[data-group="analysis"] .group-subnav [data-sub].active');
       return sub ? sub.dataset.sub : 'chart';
+    }
+    if (group === 'workbench') {
+      const sub = $('.panel-group[data-group="workbench"] .group-subnav [data-sub].active');
+      return sub ? sub.dataset.sub : 'wb-analysis';
     }
     return 'inspect';
   }
@@ -4589,7 +4596,7 @@ declare function setStatusHint(hint: string): void;
     $$(`[data-${attr}]`, host).forEach((node) => {
       node.classList.toggle('active', node.dataset[attr] === sub);
     });
-    if (group === 'modules' || group === 'analysis') {
+    if (group === 'modules' || group === 'analysis' || group === 'workbench') {
       $$('.tab-pane', host).forEach((pane) => {
         pane.classList.toggle('hidden', pane.id !== `tab-${sub}`);
       });
@@ -4633,6 +4640,12 @@ declare function setStatusHint(hint: string): void;
     notifyPlotkit(conf.sub === 'plotkit');
     if (conf.sub === 'analysis') {
       renderAnalysisPanel();
+    }
+    if (conf.sub === 'wb-analysis') {
+      renderWorkbenchAnalysis();
+    }
+    if (conf.sub === 'wb-state') {
+      void renderWorkbenchState();
     }
     if (conf.sub === 'blocks') {
       renderBlocksPanel();
@@ -12050,6 +12063,407 @@ declare function setStatusHint(hint: string): void;
     ctx!.fillText(`${fmt(maxFreq, 1)} Hz`, width - 44, height - 3);
   }
 
+  /* ======================================================================
+   * 工作台：多状态参数表 + 状态列表（W1）
+   * ==================================================================== */
+  interface WbStateRec {
+    id: string;
+    name: string;
+    params?: {
+      nodes?: Record<string, Record<string, unknown>>;
+      edges?: Record<string, Record<string, unknown>>;
+      integration?: unknown;
+    };
+    sim?: Record<string, unknown>;
+    base?: boolean;
+    created?: string;
+    [k: string]: unknown;
+  }
+
+  interface WbStatesPayload {
+    network: string;
+    current: string;
+    states: WbStateRec[];
+    base?: string | null;
+    removed?: string;
+    cache_key?: string;
+  }
+
+  const WB_INTEGRATIONS = [
+    { value: 'trapezoidal', label: '梯形法' },
+    { value: 'backward_euler', label: '后向欧拉' },
+    { value: 'gear2', label: 'Gear2' },
+  ];
+
+  const WB_SIM_FIELDS: Array<{
+    key: string;
+    label: string;
+    type: string;
+    unit?: string;
+    step?: string;
+    min?: string;
+  }> = [
+    { key: 'dt', label: '步长 dt', type: 'float', unit: 's' },
+    { key: 'fps', label: '目标 FPS', type: 'int' },
+    { key: 'steps_per_frame', label: '每帧步数', type: 'int' },
+    { key: 'sample_every', label: '采样间隔', type: 'int' },
+    { key: 'reltol', label: '相对容差 reltol', type: 'float' },
+    { key: 'vntol', label: '电压容差 vntol', type: 'float', unit: 'V' },
+    { key: 'abstol', label: '电流容差 abstol', type: 'float', unit: 'A' },
+    { key: 'max_iter', label: '最大迭代 max_iter', type: 'int' },
+    { key: 'gmin_steps', label: 'gmin 步数', type: 'int' },
+    { key: 'src_steps', label: '源步数', type: 'int' },
+    { key: 'residual_tol', label: '残差容差', type: 'float' },
+  ];
+
+  let wbStatesPayload: WbStatesPayload | null = null;
+  let wbSelectedId = '';
+  let wbDirty = false;
+  let wbFilterText = '';
+
+  function wbBadge(text: string, cls: string): HTMLSpanElement {
+    return el('span', cls, text);
+  }
+
+  function wbMarkDirty(): void {
+    wbDirty = true;
+    const badge = $('#wbDirtyBadge');
+    if (badge) {
+      badge.textContent = '未保存到状态';
+      badge.className = 'badge violet';
+    }
+    markProjectDirty();
+  }
+
+  function renderWorkbenchAnalysis(): void {
+    const pane = $('#tab-wb-analysis');
+    if (!pane) return;
+    const host = div('blocks-host');
+    const head = div('insp-head');
+    const title = div('insp-title');
+    title.append(
+      el('h2', null, '工作台 · 分析'),
+      el('p', null, '多状态结果对比（按状态分面、共享信号）与可分离浮窗在 W2 实现。'),
+    );
+    head.appendChild(title);
+    host.appendChild(head);
+    const count = wbStatesPayload?.states?.length ?? 0;
+    host.appendChild(
+      div('help', `当前网络已有 ${count} 个参数状态。请到「状态」页管理参数与状态。`),
+    );
+    pane.replaceChildren(host);
+  }
+
+  async function renderWorkbenchState(): Promise<void> {
+    const pane = $('#tab-wb-state');
+    if (!pane) return;
+    let payload: WbStatesPayload | null = null;
+    try {
+      payload = (await jsonRequest('/api/network/states', 'GET')) as WbStatesPayload | null;
+    } catch (error) {
+      toast(`读取状态失败：${(error as Error)?.message || error}`, 'error', 6000);
+    }
+    if (payload) {
+      wbStatesPayload = payload;
+      const ids = (payload.states || []).map((item) => item.id);
+      if (!wbSelectedId || ids.indexOf(wbSelectedId) < 0) {
+        wbSelectedId = payload.base || ids[0] || '';
+      }
+    }
+
+    const host = div('wb-host');
+    const head = div('insp-head');
+    const title = div('insp-title');
+    title.append(
+      el('h2', null, '工作台 · 状态'),
+      el('p', null, '参数表格 + 多套参数状态；切换状态即把该状态参数写回当前网络。'),
+    );
+    head.appendChild(title);
+    const dirtyBadge = wbBadge(
+      wbDirty ? '未保存到状态' : '已同步到状态',
+      wbDirty ? 'badge violet' : 'badge green',
+    );
+    dirtyBadge.id = 'wbDirtyBadge';
+    head.appendChild(dirtyBadge);
+    host.appendChild(head);
+
+    const states = wbStatesPayload?.states || [];
+    const toolbar = div('blocks-toolbar');
+    toolbar.append(
+      button('＋ 新建状态', 'btn tiny primary', () => void wbCreateNew()),
+      button('更新到此状态', 'btn tiny', () => void wbUpdateCurrent()),
+      button('另存为新状态', 'btn tiny', () => void wbCreateNew()),
+    );
+    host.appendChild(toolbar);
+
+    const listRow = div('wb-state-list');
+    if (!states.length) {
+      listRow.appendChild(div('help', '暂无状态。点「新建状态」按当前网络参数建立第一个状态。'));
+    }
+    for (const item of states) {
+      const rowEl = div('wb-state-chip' + (item.id === wbSelectedId ? ' active' : ''));
+      if (item.base) rowEl.appendChild(wbBadge('基准', 'badge gray'));
+      const nameEl = el('button', 'wb-state-name', item.name);
+      nameEl.type = 'button';
+      nameEl.title = '切换到该状态（把参数写回当前网络）';
+      nameEl.addEventListener('click', () => void wbApplyState(item.id));
+      rowEl.appendChild(nameEl);
+      rowEl.appendChild(button('设基准', 'btn tiny', () => void wbAction('set_base', item.id)));
+      rowEl.appendChild(button('重命名', 'btn tiny', () => void wbRename(item.id, item.name)));
+      rowEl.appendChild(button('复制', 'btn tiny', () => void wbAction('duplicate', item.id)));
+      rowEl.appendChild(button('删除', 'btn tiny', () => void wbDelete(item.id)));
+      listRow.appendChild(rowEl);
+    }
+    host.appendChild(listRow);
+
+    const filter = el('input', 'input') as HTMLInputElement;
+    filter.type = 'search';
+    filter.placeholder = '检索 节点名 / kind / 参数名…';
+    filter.value = wbFilterText;
+    const filterRow = div('field-row');
+    filterRow.append(el('label', null, '检索'), filter);
+    host.appendChild(filterRow);
+
+    const table = div('wb-param-table');
+    const rows: Array<{ el: HTMLElement; text: string }> = [];
+    const addRow = (objLabel: string, paramLabel: string, control: HTMLElement): void => {
+      const row = div('wb-param-row');
+      row.append(el('span', 'wb-obj', objLabel), el('span', 'wb-key', paramLabel));
+      const valCell = div('wb-val');
+      valCell.appendChild(control);
+      row.appendChild(valCell);
+      table.appendChild(row);
+      rows.push({ el: row, text: `${objLabel} ${paramLabel}`.toLowerCase() });
+    };
+
+    const scene = state.scene;
+    for (const node of scene?.nodes || []) {
+      const spec = getNodeSpec(node.kind);
+      const list = spec && Array.isArray(spec.params) ? spec.params : [];
+      if (!list.length) continue;
+      const baseParams = Object.assign(specDefaults(spec), node.params || {});
+      for (const param of list) {
+        const value = param.key in baseParams ? baseParams[param.key] : clone(param.default);
+        const control = buildParamField(param, value);
+        control.addEventListener('change', () => void wbCommitNodeParam(node.id, control, baseParams));
+        addRow(`${node.name} · ${node.kind}`, String(param.label || param.key), control);
+      }
+    }
+    for (const edge of scene?.edges || []) {
+      const spec = getEdgeSpec(edge.kind);
+      const list = spec && Array.isArray(spec.params) ? spec.params : [];
+      if (!list.length) continue;
+      const baseParams = Object.assign(specDefaults(spec), edge.params || {});
+      for (const param of list) {
+        const value = param.key in baseParams ? baseParams[param.key] : clone(param.default);
+        const control = buildParamField(param, value);
+        control.addEventListener('change', () => void wbCommitEdgeParam(edge.id, control, baseParams));
+        addRow(`${edge.name} · ${edge.kind}`, String(param.label || param.key), control);
+      }
+    }
+    const config = state.sim?.config || {};
+    for (const field of WB_SIM_FIELDS) {
+      const paramSpec: ParamSpec = {
+        key: field.key,
+        type: field.type,
+        label: field.label,
+        unit: field.unit,
+        step: field.step,
+        min: field.min,
+      };
+      const value = field.key in config ? config[field.key] : undefined;
+      const control = buildParamField(paramSpec, value);
+      control.addEventListener('change', () => void wbCommitSimParam(field.key, control));
+      addRow('仿真设置', field.label, control);
+    }
+    const integValue = String(scene?.integration || 'trapezoidal');
+    const integSpec: ParamSpec = {
+      key: 'integration',
+      type: 'choice',
+      label: '积分方法 integration',
+      choices: WB_INTEGRATIONS,
+    };
+    const integControl = buildParamField(integSpec, integValue);
+    integControl.addEventListener('change', () => void wbCommitIntegration(integControl));
+    addRow('场景', '积分方法 (integration)', integControl);
+
+    const applyFilter = (): void => {
+      for (const item of rows) {
+        item.el.classList.toggle('hidden', wbFilterText !== '' && item.text.indexOf(wbFilterText) < 0);
+      }
+    };
+    filter.addEventListener('input', () => {
+      wbFilterText = filter.value.trim().toLowerCase();
+      applyFilter();
+    });
+    applyFilter();
+    host.appendChild(table);
+
+    pane.replaceChildren(host);
+  }
+
+  async function wbCreateNew(): Promise<void> {
+    const suggested = `状态 ${(wbStatesPayload?.states?.length || 0) + 1}`;
+    const name = window.prompt('新状态名称（自动快照当前网络参数）', suggested);
+    if (name === null) return;
+    await wbAction('create', undefined, { name });
+  }
+
+  async function wbRename(id: string, oldName: string): Promise<void> {
+    const name = window.prompt('重命名状态', oldName);
+    if (name === null) return;
+    await wbAction('rename', id, { name });
+  }
+
+  async function wbDelete(id: string): Promise<void> {
+    if (!window.confirm('删除该状态？（其预计算缓存将在 W2 中一并删除）')) return;
+    await wbAction('delete', id);
+  }
+
+  async function wbUpdateCurrent(): Promise<void> {
+    if (!wbSelectedId) {
+      toast('请先选择一个状态', 'error');
+      return;
+    }
+    await wbAction('update', wbSelectedId);
+  }
+
+  async function wbAction(
+    action: string,
+    stateId?: string,
+    extra?: Record<string, unknown>,
+  ): Promise<void> {
+    const body: Record<string, unknown> = Object.assign({ action }, extra || {});
+    if (stateId) body.state_id = stateId;
+    try {
+      const resp = await jsonRequest('/api/network/state', 'POST', body);
+      if (!resp) return;
+      markProjectDirty();
+      await renderWorkbenchState();
+    } catch (error) {
+      toast((error as Error)?.message || String(error), 'error', 6000);
+    }
+  }
+
+  async function wbApplyState(id: string): Promise<void> {
+    try {
+      const resp = (await jsonRequest('/api/network/state', 'POST', {
+        action: 'apply',
+        state_id: id,
+      })) as SnapshotRec | null;
+      if (!resp) return;
+      applySnapshot(resp);
+      wbSelectedId = id;
+      wbDirty = false;
+      markProjectDirty();
+      await renderWorkbenchState();
+    } catch (error) {
+      toast((error as Error)?.message || String(error), 'error', 6000);
+    }
+  }
+
+  async function wbCommitNodeParam(
+    nodeId: string,
+    control: HTMLElement,
+    baseParams: Record<string, unknown>,
+  ): Promise<void> {
+    let values: Record<string, unknown>;
+    try {
+      values = collectParamValues(control.parentElement || control);
+    } catch (error) {
+      toast((error as Error).message, 'error', 5000);
+      return;
+    }
+    const merged = Object.assign({}, baseParams, values);
+    try {
+      const resp = (await jsonRequest(`/api/nodes/${encodeURIComponent(nodeId)}`, 'PATCH', {
+        params: merged,
+      })) as { node?: NodeItem; sim?: SimRec } | null;
+      if (!resp) return;
+      Object.assign(baseParams, values);
+      if (resp.node) {
+        const list = state.scene?.nodes || [];
+        const index = list.findIndex((item) => item.id === nodeId);
+        if (index >= 0) list[index] = Object.assign({}, list[index], resp.node);
+      }
+      if (resp.sim) state.sim = resp.sim;
+      wbMarkDirty();
+    } catch (error) {
+      toast((error as Error)?.message || String(error), 'error', 6000);
+    }
+  }
+
+  async function wbCommitEdgeParam(
+    edgeId: string,
+    control: HTMLElement,
+    baseParams: Record<string, unknown>,
+  ): Promise<void> {
+    let values: Record<string, unknown>;
+    try {
+      values = collectParamValues(control.parentElement || control);
+    } catch (error) {
+      toast((error as Error).message, 'error', 5000);
+      return;
+    }
+    const merged = Object.assign({}, baseParams, values);
+    try {
+      const resp = (await jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, 'PATCH', {
+        params: merged,
+      })) as { edge?: EdgeItem; sim?: SimRec } | null;
+      if (!resp) return;
+      Object.assign(baseParams, values);
+      if (resp.edge) {
+        const list = state.scene?.edges || [];
+        const index = list.findIndex((item) => item.id === edgeId);
+        if (index >= 0) list[index] = Object.assign({}, list[index], resp.edge);
+      }
+      if (resp.sim) state.sim = resp.sim;
+      wbMarkDirty();
+    } catch (error) {
+      toast((error as Error)?.message || String(error), 'error', 6000);
+    }
+  }
+
+  async function wbCommitSimParam(key: string, control: HTMLElement): Promise<void> {
+    let values: Record<string, unknown>;
+    try {
+      values = collectParamValues(control.parentElement || control);
+    } catch (error) {
+      toast((error as Error).message, 'error', 5000);
+      return;
+    }
+    try {
+      const resp = (await jsonRequest('/api/config', 'PATCH', {
+        [key]: values[key],
+      })) as { config?: unknown; sim?: SimRec } | null;
+      if (!resp) return;
+      if (resp.sim) state.sim = resp.sim;
+      wbMarkDirty();
+    } catch (error) {
+      toast((error as Error)?.message || String(error), 'error', 6000);
+    }
+  }
+
+  async function wbCommitIntegration(control: HTMLElement): Promise<void> {
+    let values: Record<string, unknown>;
+    try {
+      values = collectParamValues(control.parentElement || control);
+    } catch (error) {
+      toast((error as Error).message, 'error', 5000);
+      return;
+    }
+    try {
+      const resp = (await jsonRequest('/api/scene', 'PATCH', {
+        integration: values['integration'],
+      })) as SnapshotRec | null;
+      if (!resp) return;
+      applySnapshot(resp);
+      wbMarkDirty();
+    } catch (error) {
+      toast((error as Error)?.message || String(error), 'error', 6000);
+    }
+  }
+
   function renderAnalysisPanel() {
     const pane = ui.analysisPane;
     if (!pane) return;
@@ -12949,6 +13363,7 @@ declare function setStatusHint(hint: string): void;
     setPanelGroup('inspect');
     setGroupSub('modules', 'blocks');
     setGroupSub('analysis', 'chart');
+    setGroupSub('workbench', 'wb-analysis');
 
     if (ui.vectorNode) {
       ui.vectorNode.addEventListener('change', () => {

@@ -109,6 +109,7 @@
         <button class="panel-tab" data-group="fn" role="tab" title="函数：节点函数与连接函数">函数</button>
         <button class="panel-tab" data-group="modules" role="tab" title="模块与扩展">模块与扩展</button>
         <button class="panel-tab" data-group="analysis" role="tab" title="分析：信号、相图与旁路分析">分析</button>
+        <button class="panel-tab" data-group="workbench" role="tab" title="工作台：多状态参数与分析">工作台</button>
       </nav>
       <div id="panelResize" class="panel-resize" title="拖动调整面板宽度"></div>
       <div class="panel-body">
@@ -288,6 +289,16 @@
             <div id="plotkitInlineHost" class="plotkit-inline-host" hidden></div>
           </div>
           <div id="tab-analysis" class="tab-pane stack-pane"></div>
+        </section>
+
+        <section class="panel-group" data-group="workbench">
+          <div class="group-subnav">
+            <button type="button" data-sub="wb-analysis" class="active">分析</button>
+            <button type="button" data-sub="wb-state">状态</button>
+            <span class="subnav-note">多状态参数与对比</span>
+          </div>
+          <div id="tab-wb-analysis" class="tab-pane stack-pane"></div>
+          <div id="tab-wb-state" class="tab-pane stack-pane"></div>
         </section>
       </div>
     </aside>

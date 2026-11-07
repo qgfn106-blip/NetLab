@@ -99,7 +99,6 @@ import {
     settingsWin: $("#settingsWin"),
     settingsClose: $("#setWinClose"),
     guide: $("#guide"),
-    guideNever: $("#guideNever"),
     guideEnter: $("#guideEnter"),
     guideDocs: $("#guideDocs"),
     guideDemo: $("#guideDemo"),
@@ -8944,6 +8943,7 @@ import {
         }
         state.precomputedSeconds = seconds;
         state.precomputedRevision = state.scene?.revision ?? null;
+        await syncAfterPrecompute(pre);
         const preNote = pre.degraded ? `\uFF08\u6B65\u957F\u53D7 20 \u4E07\u6B65\u4E0A\u9650\u9650\u5236\uFF1A\u8BF7\u6C42 ${Number(pre.requested_dt).toExponential(1)}s\uFF0C\u5B9E\u9645 ${Number(pre.dt_used).toExponential(1)}s\uFF09` : "";
         info.textContent = `\u5B8C\u6210\uFF1A${seconds}s / ${pre.frames ?? "?"} \u5E27 / ${Math.round(pre.elapsed_ms || 0)} ms${preNote}`;
         toast(
@@ -11863,7 +11863,7 @@ import {
       state.booted = true;
       await maybeOfferRecovery();
       await ensureStoppedOnBoot();
-      if (state.prefs.guide !== "never") showGuide();
+      showGuide();
       if (!state.sim?.running) {
         toast("\u753B\u5E03\u5DF2\u5C31\u7EEA\uFF1A\u7A7A\u683C\u8FD0\u884C\uFF0C\u53CC\u51FB\u8282\u70B9\u7F16\u8F91\uFF0C\u4ECE\u53F3\u4FA7\u7AEF\u53E3\u62D6\u51FA\u8FDE\u7EBF", "info", 4200);
       }
@@ -12060,6 +12060,7 @@ import {
   async function loadUiPrefs() {
     const cached = readPrefCache();
     if (cached && typeof cached === "object") state.prefs = { ...state.prefs, ...cached };
+    state.prefs.guide = "always";
     applyAppearance();
     try {
       const response = await jsonRequest("/api/settings", "GET");
@@ -12069,7 +12070,7 @@ import {
       state.prefs.motion = ["off", "low", "med", "high"].includes(stored.ui_motion) ? stored.ui_motion : "low";
       state.prefs.perf = ["perf", "balanced", "quality"].includes(stored.ui_perf) ? stored.ui_perf : "perf";
       state.prefs.accent = typeof stored.ui_accent === "string" ? stored.ui_accent : "";
-      state.prefs.guide = stored.ui_guide === "never" ? "never" : "always";
+      state.prefs.guide = "always";
       if (typeof stored.autosave_enabled === "boolean") state.project.autosave = stored.autosave_enabled;
       const interval = Number(stored.autosave_interval_seconds);
       if (Number.isFinite(interval) && interval >= 5) state.project.autosaveInterval = interval * 1e3;
@@ -12078,7 +12079,7 @@ import {
     }
     state.uiReady = true;
   }
-  const PREF_SETTING_KEYS = { theme: "theme", motion: "ui_motion", perf: "ui_perf", accent: "ui_accent", guide: "ui_guide" };
+  const PREF_SETTING_KEYS = { theme: "theme", motion: "ui_motion", perf: "ui_perf", accent: "ui_accent" };
   async function setPref(key, value) {
     state.prefs[key] = value;
     applyAppearance();
@@ -12108,7 +12109,6 @@ import {
     paint($("#segSheet"), String(state.ui?.drawingSheet || "A3"));
     paint($("#segDrawLabels"), state.ui?.drawingLabels ? "on" : "off");
     paint($("#segDrawPage"), String(state.ui?.drawingPage || 1));
-    paint($("#segGuide"), prefs.guide === "never" ? "never" : "always");
     paint($("#segAutosave"), state.project.autosave ? "on" : "off");
     if ($("#selAutosaveInterval")) $("#selAutosaveInterval").value = String(Math.round(state.project.autosaveInterval / 1e3));
     paint($("#segFont"), String(prefs.fontScale ?? PREF_DEFAULTS.fontScale));
@@ -12135,7 +12135,6 @@ import {
         if (val === "__custom__") node.style.background = activeVal && !preset ? activeVal : "";
       });
     }
-    if (ui.guideNever) ui.guideNever.checked = prefs.guide === "never";
   }
   function initAppearanceControls() {
     $("#segTheme")?.addEventListener("click", (event) => {
@@ -12174,10 +12173,6 @@ import {
     });
     bindDrawingSeg("#segDrawPage", (value) => {
       state.ui.drawingPage = Math.max(1, Math.min(9, Number(value) || 1));
-    });
-    $("#segGuide")?.addEventListener("click", (event) => {
-      const target = event.target.closest("button[data-value]");
-      if (target) void setPref("guide", target.dataset.value);
     });
     $("#segAutosave")?.addEventListener("click", (event) => {
       const target = event.target.closest("button[data-value]");
@@ -12368,7 +12363,8 @@ import {
   }
   function showGuide(force = false) {
     if (!ui.guide) return;
-    if (!force && state.prefs.guide === "never") return;
+    void force;
+    state.prefs.guide = "always";
     state.guideShown = true;
     document.body.classList.add("guide-open");
     ui.guide.hidden = false;
@@ -12391,11 +12387,6 @@ import {
   }
   async function enterGuideScene() {
     const mode = state.guideMode || "signal";
-    if (ui.guideNever?.checked) {
-      await setPref("guide", "never");
-    } else if (state.prefs.guide === "never") {
-      await setPref("guide", "always");
-    }
     hideGuide();
     if (mode !== state.mode) {
       await switchMode(mode, { skipConfirm: true });
@@ -13313,6 +13304,12 @@ import {
     const frame = $("#plotkitFrame");
     if (frame) frame.src = plotkitFrameUrl({ embed: "1", r: String(Date.now()) });
   }
+  async function syncAfterPrecompute(pre) {
+    if (pre && pre.sim) state.sim = pre.sim;
+    else await refreshState(true);
+    updateSignalKeyCache();
+    if (activeTab() === "analysis") renderAnalysisPanel();
+  }
   async function applyPkChannels() {
     const keys = pkCheckedKeys();
     const hint = $("#pkDataHint");
@@ -13348,6 +13345,7 @@ import {
           toast(`\u9884\u8BA1\u7B97\u5DF2\u964D\u7EA7\u6B65\u957F ${Number(pre.dt_used).toExponential(1)}s\uFF0C\u7F29\u5C0F\u65F6\u95F4\u7A97\u53EF\u63D0\u9AD8\u7CBE\u5EA6`, "warn", 5200);
         }
       }
+      await syncAfterPrecompute(pre);
       toast(`\u5DF2\u63A5\u5165 ${(data.selected || []).length} \u6761\u901A\u9053`, "ok", 2600);
       reloadPlotkitFrame();
       await refreshPkChannels();

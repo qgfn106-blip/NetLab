@@ -106,8 +106,7 @@ body: grid-template-rows: 66px 34px minmax(0,1fr) 32px
 main: grid-template-columns: var(--net-w,172px) 78px minmax(0,1fr) var(--panel-w,388px)
 ```
 
-- `main.fem-mode`：末列 `var(--panel-w-fem,404px)`，隐藏工具栏（FEM 独立工作区）；
-- 右栏宽度可拖拽：`#panelResize` 拖 `main` 的 `--panel-w`（FEM 模式写 `--panel-w-fem`），clamp 260–720，持久化到 `localStorage['netlab.panel.width']`（`initPanelChrome()` + `panelVar()`）；
+- 右栏宽度可拖拽：`#panelResize` 拖 `main` 的 `--panel-w`，clamp 260–720，持久化到 `localStorage['netlab.panel.width']`（`initPanelChrome()` + `panelVar()`）；
 - 断点 1440 / 1180 的第 4 列必须写成 `var(--panel-w, 360px)` / `var(--panel-w, 336px)`——写死数值会让拖拽在 ≤1440 屏上完全失效（3.14.1 修）；
 - `main.net-hidden`：左栏收起；`main.panel-hidden`：右栏收起；
 - 设置窗/文档窗是浮窗，浮在画布之上但不改变 `main` 的网格列宽（3.10.0 起取消 `body.settings-open` 让位）；
@@ -118,7 +117,7 @@ main: grid-template-columns: var(--net-w,172px) 78px minmax(0,1fr) var(--panel-w
 
 ### 5.1 顶栏 `#topbar`
 
-品牌（`NETLAB 工作台` + 副标题）→ 工作区切换 `TOPOLOGY / FIELD · FEM` → 模式胶囊
+品牌（`NETLAB 工作台` + 副标题）→ 工作区 `TOPOLOGY` → 模式胶囊
 （信号流/电路/矢量）→ 运行控制（运行/单步/重置）→ 读数（t / fps / step）→ 时间轴 →
 会话时钟 → 帮助（`?`）→ 退出。顶栏**不放**面板开关，收放走侧栏挂耳（见 5.5）。
 
@@ -152,7 +151,7 @@ main: grid-template-columns: var(--net-w,172px) 78px minmax(0,1fr) var(--panel-w
 | `modules` | 模块与扩展 | 子导航 `blocks` / `ext` |
 | `analysis` | 分析 | 子导航 `chart` / `vector` / `analysis` / `inst`（信号 / 相图 / 旁路分析 / 仪器） |
 
-`fem` 组（`#tab-fem`）只在场工作区出现，不属于网络右栏。检查器 `#tab-inspect` 内边距 16px 18px 22px，文字不贴边。
+检查器 `#tab-inspect` 内边距 16px 18px 22px，文字不贴边。
 
 ### 5.6 仪器面板 `#tab-inst`
 
@@ -408,7 +407,7 @@ applyAppearance(): 写 html[data-theme|data-motion|data-perf]
 | 启动先选场景、不再自动 demo | `default_simulation()` 空白 + `showGuide()` | pytest `test_default_simulation_is_blank`；截图 01 |
 | 引导可关闭、菜单可重开、可不再显示 | `#guideClose` / 帮助菜单 / `#guideNever` + `ui_guide` | 设置引导切换；`test_ui_settings_defaults_and_validation` |
 | 文档栏式简介与应用内指南 | `#guide` + `#docWin` 5 篇 | 截图 04/05；`test_docs_index_returns_five_user_docs` |
-| 右栏 4 组、工程进设置、场独立 | `#panel` 4 `.panel-tab` + `#settingsDrawer` + `fem` 组 | 截图 02；分组切换 4 组各 1 pane |
+| 右栏 4 组、工程进设置 | `#panel` 4 `.panel-tab` + `#settingsDrawer` | 截图 02；分组切换 4 组各 1 pane |
 | 节点/连接函数随选中切换 | `syncFnRoleToSelection()` + 子导航 | 选中节点后 `fnRole=node` |
 | 信息条 9 项 | `#infoBar` 9 个 `data-info` | 截图 02 |
 | 菜单 9 项（D61） | `menuDefinition()` | 自动导出菜单树 9 组 |

@@ -134,7 +134,7 @@ $$
 - **circuit（守恒）**：$F$ 为 MNA 方程（modified nodal analysis）：
   $$\underbrace{C(x)\dot x+G(x)x+Bu}_{}=0,\quad x=(V_{\text{node}},I_{\text{branch}}).$$
   元件残差按 stamp 累加（见 §3.2）。
-- **vector（场/FEM）**：$F$ 为空间离散后的半离散 ODE：$M\dot x+Kx=b(t)$（热传导、弹性），$M,K$ 由弱形式 + Gauss 积分装配。
+- **vector（场）**：$F$ 为空间离散后的半离散 ODE：$M\dot x+Kx=b(t)$（热传导、弹性），$M,K$ 由弱形式 + Gauss 积分装配。
 
 **三域统一**：都写成**同一 DAE**，于是后面的 index reduction / BLT / Newton / 时间积分**只写一次**，对三域通用——这正是"统一引擎"的数学基础。
 
@@ -145,7 +145,6 @@ $$
 - **线性电阻**：$I=(V_a-V_b)/R$，stamp 到 KCL 行。
 - **非线性器件（二极管）**：$I=I_s(\exp(V/(nV_T))-1)$，用**平滑化** $\exp$（netlab `nodal.py:615` 已是平滑指数电导），导数 $\partial I/\partial V$ 解析给出。
 - **动态件**：`integrate` → $C\dot V=I$；`transfer_function` → 状态空间实现后按 $A,B,C,D$ stamp。
-- **FEM**：$\int_\Omega \nabla w\cdot(k\nabla T)\,\mathrm d\Omega+\int_\Omega w\,\rho c\dot T\,\mathrm d\Omega=\int w\,q$，Q4 双线性 + $2\times2$ Gauss 得 $M,K$。
 
 > **可借鉴**：ngspice `pnjlim` 结电压限幅（防溢出）、gmin/source stepping（§24 已有）；KLU 稀疏 LU（§24）。
 
@@ -323,7 +322,7 @@ $$
 |---|---|---|---|
 | A1 | RC 充电 | $V(t)=V_s(1-e^{-t/RC})$ | 一阶瞬态、后向欧拉收敛 |
 | A2 | RLC 欠阻尼 | $V(t)=V_s e^{-\zeta\omega_n t}\cos(\omega_d t+\phi)$ | 二阶振荡、阻尼 |
-| A3 | 1D 热传导 | $T(x,t)=\sum b_n\sin(\tfrac{n\pi x}{L})e^{-\alpha(n\pi/L)^2 t}$ | 抛物型、FEM 装配 |
+| A3 | 1D 热传导 | $T(x,t)=\sum b_n\sin(\tfrac{n\pi x}{L})e^{-\alpha(n\pi/L)^2 t}$ | 抛物型、弱形式装配 |
 | A4 | 弹簧-质量（无阻尼） | $x(t)=x_0\cos(\omega t)+\tfrac{v_0}{\omega}\sin(\omega t)$ | 辛/能量守恒 |
 | A5 | DC 电机空载稳态 | $\omega_{ss}=\dfrac{V}{K_e}$（空载、无摩擦） | 机电耦合 |
 | A6 | DC 电机带载稳态 | $\omega_{ss}=\dfrac{K_t V-R\,\tau_L}{K_t K_e+R b}$ | 机电 + 负载 |
@@ -439,7 +438,7 @@ $$
 - `PERFORMANCE_AND_CONCURRENCY.md`：**研究台账**（§0–§33，探索性、含信息源），本文件是其**规范化收敛**。
 - 本文件：**规范**（可验收、可实现的数学口径）。
 - `mathspec/`：**参考实现**（零耦合、可跑测试）。
-- `MATH.md`：**逐行代码锚点**（MNA/元件伴随/Newton/DC·AC/FEM 等实现级公式与 `file:line`），本文件是这些实现细节的**统一抽象**；两者互为表里。
+- `MATH.md`：**逐行代码锚点**（MNA/元件伴随/Newton/DC·AC 等实现级公式与 `file:line`），本文件是这些实现细节的**统一抽象**；两者互为表里。
 
 > 一句话：**研究在 `PERFORMANCE_AND_CONCURRENCY.md`，口径在本文，证据在 `mathspec/`。**
 
@@ -651,9 +650,12 @@ $$
 且 $P^+=(I-KC)P^-(I-KC)^{\mathsf T}+KRK^{\mathsf T}=P^--P^-C^{\mathsf T}S^{-1}CP^-$。Joseph 形式在有限精度下保持对称半正定。
 
 *证明（要点）.* 由高斯条件期望公式，后验协方差为 $P^--P^-C^{\mathsf T}S^{-1}CP^-$。展开 Joseph 形式：
-$(I-KC)P^-(I-KC)^{\mathsf T}+KRK^{\mathsf T}
+$$
+(I-KC)P^-(I-KC)^{\mathsf T}+KRK^{\mathsf T}
 =P^--KC P^--P^-C^{\mathsf T}K^{\mathsf T}+K(CP^-C^{\mathsf T}+R)K^{\mathsf T}
-=P^--P^-C^{\mathsf T}S^{-1}CP^-$（代入 $K=P^-C^{\mathsf T}S^{-1}$ 并抵消）。两项均为半正定之和，故 $P^+\succeq0$。$\square$
+=P^--P^-C^{\mathsf T}S^{-1}CP^-
+$$
+（代入 $K=P^-C^{\mathsf T}S^{-1}$ 并抵消）。两项均为半正定之和，故 $P^+\succeq0$。$\square$
 
 **验证（E10）**：双积分器 + 300 步含噪轨迹，归一化误差均值 $0.861<3$，协方差最大不对称 $3.47\times10^{-18}$，最小特征值 $3.75\times10^{-4}>0$。
 
@@ -681,7 +683,7 @@ $$
 
 - **Monte Carlo**：若 $g$ 方差有限，则 $\mathrm{Var}(\hat g_N)=\sigma^2/N$，误差 $O(N^{-1/2})$（CLT）；对光滑低维问题，多项式混沌（PCE）可指数收敛。
 - **协同仿真小增益定理**：两个子系统 $G_1,G_2$ 以固定步长交换输出，若 $\|G_1\|_\infty\|G_2\|_\infty<1$，则耦合迭代是压缩映射，存在唯一不动点且几何收敛；步长需满足 $\Delta t<\frac{2}{\omega_c}\arctan(1/\kappa)$（$\kappa$ 为耦合增益）。
-- **工程含义**：FMI Co-Simulation 的"通信步长 / 事件模式"不是实现细节，而是**稳定性条件**；NetLab 若做 signal/circuit/fem 多解算器耦合，必须把该条件写进调度器。
+- **工程含义**：FMI Co-Simulation 的"通信步长 / 事件模式"不是实现细节，而是**稳定性条件**；NetLab 若做 signal/circuit 多解算器耦合，必须把该条件写进调度器。
 
 ### 15.7 事件溯源代数（C7）
 

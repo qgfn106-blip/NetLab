@@ -946,7 +946,8 @@ def precompute_progress() -> dict[str, Any]:
     供主界面轮询绘制进度条。
     """
     try:
-        snapshot = SERVICE.current.precompute_progress()
+        # W2：每状态预计算可能跑在非当前网络，优先读它注册的进度源。
+        snapshot = SERVICE.active_precompute_progress()
     except Exception:  # pragma: no cover - 无网络/场景异常时兜底
         snapshot = {
             "status": "idle",
@@ -1003,7 +1004,7 @@ def control(request: ControlRequest) -> dict[str, Any]:
     elif request.action == "reset":
         SERVICE.reset()
     elif request.action == "cancel_precompute":
-        SERVICE.current.cancel_precompute()
+        SERVICE.cancel_precompute()
     return {"sim": SERVICE.info()}
 
 
@@ -1502,6 +1503,9 @@ class NetworkStateRequest(BaseModel):
     state_id: str | None = None
     name: str | None = None
     base: bool = False
+    # W2：统一仿真设置时可显式给一套 sim，或指定来源状态。
+    source_state_id: str | None = None
+    sim: dict[str, Any] | None = None
 
 
 @app.get("/api/network/states")
@@ -1547,7 +1551,78 @@ def network_state_action(request: NetworkStateRequest) -> dict[str, Any]:
         if not request.state_id:
             raise ValidationError("切换状态需要 state_id")
         return SERVICE.apply_state(request.state_id, network_id=network_id)
+    if action == "unify_sim":
+        return SERVICE.unify_state_sim(
+            network_id=network_id,
+            source_state_id=request.source_state_id or request.state_id,
+            sim=request.sim,
+        )
     raise ValidationError(f"未知的状态操作：{action!r}")
+
+
+# ---- 工作台：每状态预计算缓存 + 多状态对比（W2） --------------------------
+class StatePrecomputeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    state_id: str
+    network_id: str | None = None
+    seconds: float = 5.0
+    dt: float | None = None
+    sample_every: int | None = None
+
+
+class StateCompareRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    state_ids: list[str]
+    signals: list[str] | None = None
+    network_id: str | None = None
+
+
+class ProjectContextRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: str = ""
+
+
+@app.post("/api/project/context")
+def project_context(request: ProjectContextRequest) -> dict[str, Any]:
+    """前端保存/打开工程后登记工程目录，决定 .netlab-states 的落点。"""
+    return SERVICE.set_project_dir(request.path)
+
+
+@app.post("/api/network/state/precompute")
+def network_state_precompute(request: StatePrecomputeRequest) -> dict[str, Any]:
+    """对某状态 apply_state 后整段预计算，结果写入工程同级 .netlab-states。"""
+    return SERVICE.precompute_state(
+        request.state_id,
+        network_id=request.network_id,
+        seconds=request.seconds,
+        dt=request.dt,
+        sample_every=request.sample_every,
+    )
+
+
+@app.get("/api/network/state/cache")
+def network_state_cache(network_id: str | None = None) -> dict[str, Any]:
+    """列出每个状态的缓存状态（是否已算 / 帧数 / 是否失效）。"""
+    return SERVICE.state_cache_status(network_id)
+
+
+@app.get("/api/network/state/cache/series")
+def network_state_cache_series(
+    state_id: str, network_id: str | None = None
+) -> dict[str, Any]:
+    """按需 lazy 读取单个状态的缓存：时间轴 + 各探针序列。"""
+    return SERVICE.load_state_cache(state_id, network_id=network_id)
+
+
+@app.post("/api/network/state/compare")
+def network_state_compare(request: StateCompareRequest) -> dict[str, Any]:
+    """读多状态缓存，返回共享信号组下的多子图数据（前端 canvas 渲染）。"""
+    return SERVICE.compare_states(
+        request.state_ids, request.signals, network_id=request.network_id
+    )
 
 
 # ---- 工作区（R01：工程目录 / 共享库 / 用户设置） ----------------------------

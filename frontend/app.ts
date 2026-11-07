@@ -433,6 +433,8 @@ declare function setStatusHint(hint: string): void;
     plotkitDock: boolean;
     settingsGeo: unknown;
     moduleGeo: unknown;
+    wbSignalGeo: unknown;
+    wbSignalDock: boolean;
     moduleBlock: unknown;
     moduleDock: boolean;
     guideMode: string;
@@ -765,6 +767,8 @@ declare function setStatusHint(hint: string): void;
     plotkitDock: false,
     settingsGeo: null,
     moduleGeo: null,
+    wbSignalGeo: null,
+    wbSignalDock: true,
     moduleBlock: null,
     moduleDock: false,
     guideMode: 'signal',
@@ -8360,6 +8364,7 @@ declare function setStatusHint(hint: string): void;
     }
     if (!path) return false;
     state.project.path = path;
+    void syncProjectContext();
     state.project.name = baseName(path).replace(/\.netlab$/i, '') || state.project.name;
     rememberRecent(path, state.project.name);
     projectSaved();
@@ -8436,6 +8441,7 @@ declare function setStatusHint(hint: string): void;
     applyProjectUi(response.ui);
     state.project.name = String(project.name || state.project.name || '未命名工程').slice(0, 120);
     state.project.path = path || '';
+    void syncProjectContext();
     if (path) rememberRecent(path, state.project.name);
     projectSaved();
     renderScenePanel();
@@ -8501,6 +8507,7 @@ declare function setStatusHint(hint: string): void;
     state.cursor = Number(response.sim?.cursor || 0);
     state.project.name = '未命名工程';
     state.project.path = '';
+    void syncProjectContext();
     projectSaved();
     renderScenePanel();
     renderInspector();
@@ -12121,6 +12128,50 @@ declare function setStatusHint(hint: string): void;
   let wbDirty = false;
   let wbFilterText = '';
 
+  /* ---- W2：每状态预计算缓存 + 多状态对比 + 可分离信号浮窗 ---- */
+  interface WbCacheRow {
+    state_id?: string;
+    name?: string;
+    cached?: boolean;
+    frames?: number;
+    created?: string;
+    duration?: number;
+    probes?: string[];
+    params_hash?: string;
+    invalid?: boolean;
+    reason?: string;
+  }
+  interface WbCacheStatusPayload {
+    network?: string;
+    cache_root?: string;
+    temporary?: boolean;
+    states: WbCacheRow[];
+  }
+  interface WbCompareEntry {
+    state_id?: string;
+    name?: string;
+    ok?: boolean;
+    missing?: boolean;
+    stale?: boolean;
+    reason?: string;
+    t?: number[];
+    series?: Record<string, number[]>;
+    meta?: Record<string, unknown>;
+  }
+  interface WbComparePayload {
+    ok?: boolean;
+    network?: string;
+    signals?: string[];
+    requested?: string[];
+    states?: WbCompareEntry[];
+  }
+
+  let wbCacheStatus: WbCacheStatusPayload | null = null;
+  let wbCompareStateIds: string[] = [];
+  let wbCompareSignals: string[] = [];
+  let wbCompareLayout = { cols: 0, height: 220 };
+  let wbComparePayload: WbComparePayload | null = null;
+
   function wbBadge(text: string, cls: string): HTMLSpanElement {
     return el('span', cls, text);
   }
@@ -12138,21 +12189,498 @@ declare function setStatusHint(hint: string): void;
   function renderWorkbenchAnalysis(): void {
     const pane = $('#tab-wb-analysis');
     if (!pane) return;
-    const host = div('blocks-host');
+    const host = div('blocks-host wb-analysis');
+
     const head = div('insp-head');
     const title = div('insp-title');
     title.append(
       el('h2', null, '工作台 · 分析'),
-      el('p', null, '多状态结果对比（按状态分面、共享信号）与可分离浮窗在 W2 实现。'),
+      el('p', null, '多状态结果对比：每个状态一子图，共享同一信号组，x 轴对齐。'),
     );
     head.appendChild(title);
     host.appendChild(head);
-    const count = wbStatesPayload?.states?.length ?? 0;
-    host.appendChild(
-      div('help', `当前网络已有 ${count} 个参数状态。请到「状态」页管理参数与状态。`),
+
+    // 工具条：预计算 / 统一仿真 / 生成对比 / 信号窗浮出-停靠
+    const toolbar = div('blocks-toolbar');
+    toolbar.append(
+      button('预计算选中状态', 'btn tiny', () => void wbPrecomputeSelected()),
+      button('统一仿真设置', 'btn tiny', () => void wbUnifySim()),
+      button('生成对比图', 'btn tiny primary', () => void wbGenerateCompare()),
+      button('信号窗 浮出/停靠', 'btn tiny', () => setWbSignalDock(!state.wbSignalDock)),
     );
+    host.appendChild(toolbar);
+
+    // 布局：列数（0=自动）、子图高度；改动即重排，坐标仍对齐
+    const layoutRow = div('field-row wb-layout-row');
+    const colsInput = el('input', 'input') as HTMLInputElement;
+    colsInput.type = 'number';
+    colsInput.min = '0';
+    colsInput.max = '6';
+    colsInput.value = String(wbCompareLayout.cols);
+    colsInput.title = '每行列数（0 = 自动）';
+    const heightInput = el('input', 'input') as HTMLInputElement;
+    heightInput.type = 'number';
+    heightInput.min = '120';
+    heightInput.max = '600';
+    heightInput.step = '20';
+    heightInput.value = String(wbCompareLayout.height);
+    heightInput.title = '单个子图高度（px）';
+    colsInput.addEventListener('change', () => {
+      wbCompareLayout.cols = Math.max(0, Math.min(6, Number(colsInput.value) || 0));
+      if (wbComparePayload) renderCompareGrid();
+    });
+    heightInput.addEventListener('change', () => {
+      wbCompareLayout.height = Math.max(120, Math.min(600, Number(heightInput.value) || 220));
+      if (wbComparePayload) renderCompareGrid();
+    });
+    layoutRow.append(
+      el('label', null, '列数'),
+      colsInput,
+      el('label', null, '子图高度(px)'),
+      heightInput,
+    );
+    host.appendChild(layoutRow);
+
+    // 信号浮窗的停靠位（浮出时面板移入 #wbSignalWin）
+    const inline = el('div', 'wb-signal-inline') as HTMLDivElement;
+    inline.id = 'wbSignalInline';
+    host.appendChild(inline);
+
+    const grid = el('div', 'wb-compare-grid') as HTMLDivElement;
+    grid.id = 'wbCompareGrid';
+    host.appendChild(grid);
+
+    const status = div('help wb-compare-status');
+    status.id = 'wbCompareStatus';
+    status.textContent = '读取缓存中…';
+    host.appendChild(status);
+
     pane.replaceChildren(host);
+    void refreshWbAnalysis();
   }
+
+  /** 把当前工程路径同步给后端（决定 .netlab-states 的落点；未保存→临时目录）。 */
+  async function syncProjectContext(): Promise<void> {
+    const path = String(state.project?.path || '');
+    try {
+      await api('/api/project/context', {
+        method: 'POST',
+        body: JSON.stringify({ path }),
+        timeoutMs: 8000,
+      });
+    } catch {
+      /* 后端不可用时静默：缓存只是优化项，不应阻塞前端 */
+    }
+  }
+
+  function wbToggleInArray(arr: string[], value: string, on: boolean): void {
+    const index = arr.indexOf(value);
+    if (on && index < 0) arr.push(value);
+    else if (!on && index >= 0) arr.splice(index, 1);
+  }
+
+  function wbAvailableProbes(): string[] {
+    const set = new Set<string>();
+    const rows = wbCacheStatus?.states || [];
+    const pick = rows.filter((row) => wbCompareStateIds.indexOf(String(row.state_id)) >= 0);
+    const source = pick.length ? pick : rows;
+    for (const row of source) for (const probe of row.probes || []) set.add(String(probe));
+    if (!set.size) {
+      const keys = (state.sim?.probe_keys || []) as string[];
+      for (const key of keys) set.add(String(key));
+    }
+    return Array.from(set);
+  }
+
+  function wbSimInconsistent(): boolean {
+    const states = wbStatesPayload?.states || [];
+    if (states.length < 2) return false;
+    const signatures = states.map((item) => JSON.stringify(item.sim || {}));
+    return signatures.some((sig) => sig !== signatures[0]);
+  }
+
+  /** 刷新缓存状态 → 校正选中集 → 重建信号面板 → 生成对比图。 */
+  async function refreshWbAnalysis(): Promise<void> {
+    await syncProjectContext();
+    try {
+      const sp = (await jsonRequest('/api/network/states', 'GET')) as WbStatesPayload | null;
+      if (sp) wbStatesPayload = sp;
+    } catch {
+      /* 状态列表拿不到不影响缓存读取 */
+    }
+    try {
+      const cache = (await jsonRequest('/api/network/state/cache', 'GET')) as WbCacheStatusPayload | null;
+      if (cache) wbCacheStatus = cache;
+    } catch (error) {
+      toast(`读取缓存状态失败：${(error as Error)?.message || error}`, 'error', 6000);
+    }
+    const rows = wbCacheStatus?.states || [];
+    const ids = rows.map((row) => String(row.state_id || '')).filter(Boolean);
+    wbCompareStateIds = wbCompareStateIds.filter((id) => ids.indexOf(id) >= 0);
+    if (wbCompareStateIds.length < 2) wbCompareStateIds = ids.slice(0, 2);
+    const probes = wbAvailableProbes();
+    wbCompareSignals = wbCompareSignals.filter((sig) => probes.indexOf(sig) >= 0);
+    if (!wbCompareSignals.length) wbCompareSignals = probes.slice(0, 2);
+    renderWbSignalPanel();
+    setWbSignalDock(state.wbSignalDock);
+    if (wbCompareStateIds.length >= 2 && wbCompareSignals.length) {
+      await wbGenerateCompare();
+    } else {
+      const status = $('#wbCompareStatus');
+      if (status) status.textContent = '请选择至少两个状态与一组共享信号，再点「生成对比图」。';
+    }
+  }
+
+  /** 信号/状态选择面板内容（可停靠在分析页，也可移入浮窗）。 */
+  function renderWbSignalPanel(): void {
+    let panel = $('#wbSignalPanel') as HTMLDivElement | null;
+    if (!panel) {
+      panel = div('wb-signal-panel');
+      panel.id = 'wbSignalPanel';
+    }
+    panel.replaceChildren();
+
+    const rows = wbCacheStatus?.states || [];
+    const stateSection = div('wb-signal-section');
+    stateSection.appendChild(div('wb-signal-title', '状态（勾选 ≥2 个参与对比）'));
+    const stateList = div('wb-signal-list');
+    if (!rows.length) stateList.appendChild(div('help', '尚无状态。请到「状态」页新建。'));
+    for (const row of rows) {
+      const id = String(row.state_id || '');
+      const label = el('label', 'wb-check') as HTMLLabelElement;
+      const box = el('input', '') as HTMLInputElement;
+      box.type = 'checkbox';
+      box.checked = wbCompareStateIds.indexOf(id) >= 0;
+      box.addEventListener('change', () => wbToggleInArray(wbCompareStateIds, id, box.checked));
+      const suffix = row.cached ? `（${row.frames || 0} 帧）` : '（未预计算）';
+      label.append(box, el('span', null, `${row.name || id}${suffix}`));
+      stateList.appendChild(label);
+    }
+    stateSection.appendChild(stateList);
+    if (wbSimInconsistent()) {
+      stateSection.appendChild(
+        div('help wb-warn', '各状态仿真设置不一致，对比前建议点「统一仿真设置」以保证可比。'),
+      );
+    }
+    panel.appendChild(stateSection);
+
+    const probes = wbAvailableProbes();
+    const signalSection = div('wb-signal-section');
+    signalSection.appendChild(div('wb-signal-title', '共享信号（所有子图共用同一组）'));
+    const signalList = div('wb-signal-list');
+    if (!probes.length) {
+      signalList.appendChild(div('help', '尚无可选信号：请先预计算至少一个状态。'));
+    }
+    for (const key of probes) {
+      const label = el('label', 'wb-check') as HTMLLabelElement;
+      const box = el('input', '') as HTMLInputElement;
+      box.type = 'checkbox';
+      box.checked = wbCompareSignals.indexOf(key) >= 0;
+      box.addEventListener('change', () => wbToggleInArray(wbCompareSignals, key, box.checked));
+      const swatch = el('span', 'wb-swatch') as HTMLElement;
+      swatch.style.background = colorForKey(key);
+      label.append(box, swatch, el('span', null, key));
+      signalList.appendChild(label);
+    }
+    signalSection.appendChild(signalList);
+    const applyRow = div('blocks-toolbar');
+    applyRow.append(button('应用并绘图', 'btn tiny primary', () => void wbGenerateCompare()));
+    signalSection.appendChild(applyRow);
+    panel.appendChild(signalSection);
+
+    if (state.wbSignalDock) {
+      const inline = $('#wbSignalInline');
+      if (inline) inline.appendChild(panel);
+    } else {
+      const body = $('#wbSignalBody');
+      if (body) body.appendChild(panel);
+    }
+  }
+
+  /** 停靠↔浮出切换：停靠=贴回分析页原位；浮出=移入 floatwin 可拖动。 */
+  function setWbSignalDock(docked: boolean): void {
+    state.wbSignalDock = docked;
+    const win = $('#wbSignalWin');
+    const panel = $('#wbSignalPanel');
+    const inline = $('#wbSignalInline');
+    const body = $('#wbSignalBody');
+    if (!win || !panel) return;
+    if (docked) {
+      win.hidden = true;
+      if (inline) {
+        inline.hidden = false;
+        inline.appendChild(panel);
+      }
+    } else {
+      if (inline) inline.hidden = true;
+      if (body) body.appendChild(panel);
+      if (!state.wbSignalGeo) {
+        state.wbSignalGeo = {
+          left: Math.max(40, window.innerWidth - 430),
+          top: 120,
+          width: 360,
+          height: 460,
+        };
+      }
+      win.hidden = false;
+      placeFloatWindow(win as HTMLElement, 'wbSignalGeo');
+      raiseFloatWindow(win as HTMLElement);
+    }
+  }
+
+  async function wbGenerateCompare(): Promise<void> {
+    const statusEl = $('#wbCompareStatus');
+    if (wbCompareStateIds.length < 2) {
+      if (statusEl) statusEl.textContent = '对比分析至少需要选择两个状态。';
+      return;
+    }
+    if (!wbCompareSignals.length) {
+      if (statusEl) statusEl.textContent = '请至少选择一个共享信号。';
+      return;
+    }
+    if (statusEl) statusEl.textContent = '读取缓存中…';
+    let payload: WbComparePayload | null = null;
+    try {
+      payload = (await api('/api/network/state/compare', {
+        method: 'POST',
+        body: JSON.stringify({ state_ids: wbCompareStateIds, signals: wbCompareSignals }),
+        timeoutMs: 120000,
+      })) as WbComparePayload | null;
+    } catch (error) {
+      if (statusEl) statusEl.textContent = `对比读取失败：${(error as Error)?.message || error}`;
+      return;
+    }
+    if (!payload) return;
+    wbComparePayload = payload;
+    renderCompareGrid();
+    if (statusEl) {
+      const entries = payload.states || [];
+      const ok = entries.filter((entry) => entry.ok).length;
+      const total = entries.length;
+      statusEl.textContent =
+        ok === total
+          ? `已生成 ${total} 个子图 · 共享信号：${(payload.signals || []).join('、')}`
+          : `部分状态无有效缓存（${ok}/${total} 可绘）· 请对缺失状态先「预计算选中状态」。`;
+    }
+  }
+
+  function wbFmtAxis(value: number): string {
+    if (!Number.isFinite(value)) return '—';
+    const abs = Math.abs(value);
+    if (abs !== 0 && (abs >= 1e4 || abs < 1e-3)) return value.toExponential(1);
+    return String(Math.round(value * 1000) / 1000);
+  }
+
+  /** 多子图网格：每状态一子图，共享 x 范围与信号组，按列数自由排布但坐标对齐。 */
+  function renderCompareGrid(): void {
+    const grid = $('#wbCompareGrid');
+    if (!grid) return;
+    const payload = wbComparePayload;
+    const entries = (payload?.states || []).filter((entry) => entry.ok);
+    const signals =
+      payload?.signals && payload.signals.length ? payload.signals : wbCompareSignals.slice();
+    grid.replaceChildren();
+    if (!entries.length) {
+      grid.appendChild(div('help', '没有可绘制的缓存。请先对选中状态执行「预计算选中状态」。'));
+      return;
+    }
+    const count = entries.length;
+    const cols = wbCompareLayout.cols > 0 ? wbCompareLayout.cols : Math.min(count, Math.ceil(Math.sqrt(count)));
+    grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+    let xMin = Infinity;
+    let xMax = -Infinity;
+    for (const entry of entries) {
+      const times = entry.t || [];
+      if (times.length) {
+        xMin = Math.min(xMin, times[0]);
+        xMax = Math.max(xMax, times[times.length - 1]);
+      }
+    }
+    if (!Number.isFinite(xMin) || !Number.isFinite(xMax) || xMax <= xMin) {
+      xMin = 0;
+      xMax = 1;
+    }
+    for (const entry of entries) {
+      const card = div('wb-subplot');
+      const titleBar = div('wb-subplot-title');
+      titleBar.append(
+        el('b', null, entry.name || String(entry.state_id || '')),
+        el('span', 'wb-subplot-meta', `${(entry.t || []).length} 点`),
+      );
+      card.appendChild(titleBar);
+      const canvas = el('canvas', 'wb-subplot-canvas') as HTMLCanvasElement;
+      card.appendChild(canvas);
+      grid.appendChild(card);
+      drawWbSubplot(canvas, entry, signals, xMin, xMax);
+    }
+  }
+
+  function drawWbSubplot(
+    canvas: HTMLCanvasElement,
+    entry: WbCompareEntry,
+    signals: string[],
+    xMin: number,
+    xMax: number,
+  ): void {
+    const parentWidth = canvas.parentElement?.getBoundingClientRect().width || 320;
+    const cssW = Math.max(120, Math.round(parentWidth));
+    const cssH = wbCompareLayout.height;
+    const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5);
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    canvas.style.width = `${cssW}px`;
+    canvas.style.height = `${cssH}px`;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, cssH);
+    ctx.fillStyle = C('#faf8f2');
+    ctx.fillRect(0, 0, cssW, cssH);
+
+    const left = 48;
+    const right = 12;
+    const top = 10;
+    const bottom = 22;
+    const plotW = Math.max(10, cssW - left - right);
+    const plotH = Math.max(10, cssH - top - bottom);
+
+    let yMin = Infinity;
+    let yMax = -Infinity;
+    for (const key of signals) {
+      const arr = entry.series?.[key] || [];
+      for (const value of arr) {
+        if (Number.isFinite(value)) {
+          yMin = Math.min(yMin, value);
+          yMax = Math.max(yMax, value);
+        }
+      }
+    }
+    if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
+      yMin = -1;
+      yMax = 1;
+    }
+    if (yMax - yMin < 1e-12) {
+      const mid = (yMax + yMin) / 2 || 0;
+      yMin = mid - 0.5;
+      yMax = mid + 0.5;
+    }
+    const spanY = Math.max(1e-12, yMax - yMin);
+    const spanX = Math.max(1e-12, xMax - xMin);
+    const toX = (t: number) => left + ((t - xMin) / spanX) * plotW;
+    const toY = (v: number) => top + (1 - (v - yMin) / spanY) * plotH;
+
+    ctx.strokeStyle = C('#e6e2d6');
+    ctx.lineWidth = 1;
+    ctx.fillStyle = C('#969083');
+    ctx.font = '10px "Segoe UI","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i <= 4; i += 1) {
+      const value = yMin + spanY * (i / 4);
+      const y = toY(value);
+      ctx.beginPath();
+      ctx.moveTo(left, y);
+      ctx.lineTo(left + plotW, y);
+      ctx.stroke();
+      ctx.fillText(wbFmtAxis(value), left - 6, y);
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (let i = 0; i <= 4; i += 1) {
+      const t = xMin + spanX * (i / 4);
+      const x = toX(t);
+      ctx.beginPath();
+      ctx.moveTo(x, top);
+      ctx.lineTo(x, top + plotH);
+      ctx.stroke();
+      ctx.fillText(wbFmtAxis(t), x, top + plotH + 4);
+    }
+    ctx.strokeStyle = C('#b8b3a4');
+    ctx.strokeRect(left, top, plotW, plotH);
+
+    for (const key of signals) {
+      const arr = entry.series?.[key] || [];
+      const times = entry.t || [];
+      const n = Math.min(arr.length, times.length);
+      if (!n) continue;
+      ctx.strokeStyle = colorForKey(key);
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      for (let i = 0; i < n; i += 1) {
+        const x = toX(times[i]);
+        const y = toY(arr[i]);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  async function wbPrecomputeSelected(): Promise<void> {
+    if (!wbCompareStateIds.length) {
+      toast('请先在信号窗勾选要预计算的状态', 'error');
+      return;
+    }
+    const input = window.prompt('预计算时长（秒，0 < 时长 ≤ 120）', '5');
+    if (input === null) return;
+    const seconds = Number(input);
+    if (!(seconds > 0)) {
+      toast('预计算时长需为正数', 'error');
+      return;
+    }
+    for (const id of wbCompareStateIds.slice()) {
+      const row = (wbCacheStatus?.states || []).find((item) => String(item.state_id) === id);
+      const label = `预计算 ${row?.name || id}…`;
+      try {
+        const result = (await runPrecomputeWithProgress(
+          () =>
+            api('/api/network/state/precompute', {
+              method: 'POST',
+              body: JSON.stringify({ state_id: id, seconds }),
+              timeoutMs: 600000,
+            }),
+          label,
+        )) as { ok?: boolean; error?: string; frames?: number } | null;
+        if (result && result.ok === false) {
+          toast(`${label}失败：${result.error || '未知错误'}`, 'error', 7000);
+        }
+      } catch (error) {
+        toast(`${label}失败：${(error as Error)?.message || error}`, 'error', 7000);
+      }
+    }
+    toast('预计算完成', 'ok', 2600);
+    await refreshWbAnalysis();
+  }
+
+  async function wbUnifySim(): Promise<void> {
+    const rows = wbCacheStatus?.states || [];
+    if (rows.length < 2) {
+      toast('至少需要两个状态才能统一仿真设置', 'error');
+      return;
+    }
+    const sourceId = wbCompareStateIds[0] || String(rows[0].state_id || '');
+    const sourceName = rows.find((row) => String(row.state_id) === String(sourceId))?.name || sourceId;
+    if (
+      !window.confirm(
+        `以「${sourceName}」的仿真设置统一全部状态？\n（各状态缓存将失效，需要重新预计算）`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await api('/api/network/state', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'unify_sim', state_id: String(sourceId) }),
+        timeoutMs: 30000,
+      });
+      markProjectDirty();
+      toast('已统一各状态仿真设置，缓存已失效', 'ok', 3600);
+      await refreshWbAnalysis();
+    } catch (error) {
+      toast((error as Error)?.message || String(error), 'error', 6000);
+    }
+  }
+
 
   async function renderWorkbenchState(): Promise<void> {
     const pane = $('#tab-wb-state');
@@ -15578,6 +16106,16 @@ declare function setStatusHint(hint: string): void;
       $('#vscodeWinClose')?.addEventListener('click', closeVscode);
       maybePrewarmVscode();
     }
+    const wbSignalWin = $('#wbSignalWin');
+    if (wbSignalWin) {
+      initFloatWindow(wbSignalWin, 'wbSignalGeo', { minWidth: 280, minHeight: 320 });
+      $('#wbSignalWinClose')?.addEventListener('click', () => setWbSignalDock(true));
+      $('#wbSignalDockBtn')?.addEventListener('click', () => setWbSignalDock(true));
+      window.addEventListener('resize', () => {
+        if (activeTab() === 'wb-analysis' && wbComparePayload) renderCompareGrid();
+      });
+    }
+    void syncProjectContext();
   }
 
   // ---- 参数 ? 卡片 -----------------------------------------------------------

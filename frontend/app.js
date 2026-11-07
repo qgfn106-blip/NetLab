@@ -288,6 +288,8 @@ import {
     plotkitDock: false,
     settingsGeo: null,
     moduleGeo: null,
+    wbSignalGeo: null,
+    wbSignalDock: true,
     moduleBlock: null,
     moduleDock: false,
     guideMode: "signal",
@@ -7330,6 +7332,7 @@ import {
     }
     if (!path) return false;
     state.project.path = path;
+    void syncProjectContext();
     state.project.name = baseName(path).replace(/\.netlab$/i, "") || state.project.name;
     rememberRecent(path, state.project.name);
     projectSaved();
@@ -7405,6 +7408,7 @@ import {
     applyProjectUi(response.ui);
     state.project.name = String(project.name || state.project.name || "\u672A\u547D\u540D\u5DE5\u7A0B").slice(0, 120);
     state.project.path = path || "";
+    void syncProjectContext();
     if (path) rememberRecent(path, state.project.name);
     projectSaved();
     renderScenePanel();
@@ -7466,6 +7470,7 @@ import {
     state.cursor = Number(response.sim?.cursor || 0);
     state.project.name = "\u672A\u547D\u540D\u5DE5\u7A0B";
     state.project.path = "";
+    void syncProjectContext();
     projectSaved();
     renderScenePanel();
     renderInspector();
@@ -10785,6 +10790,11 @@ import {
   let wbSelectedId = "";
   let wbDirty = false;
   let wbFilterText = "";
+  let wbCacheStatus = null;
+  let wbCompareStateIds = [];
+  let wbCompareSignals = [];
+  let wbCompareLayout = { cols: 0, height: 220 };
+  let wbComparePayload = null;
   function wbBadge(text, cls) {
     return el("span", cls, text);
   }
@@ -10800,20 +10810,447 @@ import {
   function renderWorkbenchAnalysis() {
     const pane = $("#tab-wb-analysis");
     if (!pane) return;
-    const host = div("blocks-host");
+    const host = div("blocks-host wb-analysis");
     const head = div("insp-head");
     const title = div("insp-title");
     title.append(
       el("h2", null, "\u5DE5\u4F5C\u53F0 \xB7 \u5206\u6790"),
-      el("p", null, "\u591A\u72B6\u6001\u7ED3\u679C\u5BF9\u6BD4\uFF08\u6309\u72B6\u6001\u5206\u9762\u3001\u5171\u4EAB\u4FE1\u53F7\uFF09\u4E0E\u53EF\u5206\u79BB\u6D6E\u7A97\u5728 W2 \u5B9E\u73B0\u3002")
+      el("p", null, "\u591A\u72B6\u6001\u7ED3\u679C\u5BF9\u6BD4\uFF1A\u6BCF\u4E2A\u72B6\u6001\u4E00\u5B50\u56FE\uFF0C\u5171\u4EAB\u540C\u4E00\u4FE1\u53F7\u7EC4\uFF0Cx \u8F74\u5BF9\u9F50\u3002")
     );
     head.appendChild(title);
     host.appendChild(head);
-    const count = wbStatesPayload?.states?.length ?? 0;
-    host.appendChild(
-      div("help", `\u5F53\u524D\u7F51\u7EDC\u5DF2\u6709 ${count} \u4E2A\u53C2\u6570\u72B6\u6001\u3002\u8BF7\u5230\u300C\u72B6\u6001\u300D\u9875\u7BA1\u7406\u53C2\u6570\u4E0E\u72B6\u6001\u3002`)
+    const toolbar = div("blocks-toolbar");
+    toolbar.append(
+      button("\u9884\u8BA1\u7B97\u9009\u4E2D\u72B6\u6001", "btn tiny", () => void wbPrecomputeSelected()),
+      button("\u7EDF\u4E00\u4EFF\u771F\u8BBE\u7F6E", "btn tiny", () => void wbUnifySim()),
+      button("\u751F\u6210\u5BF9\u6BD4\u56FE", "btn tiny primary", () => void wbGenerateCompare()),
+      button("\u4FE1\u53F7\u7A97 \u6D6E\u51FA/\u505C\u9760", "btn tiny", () => setWbSignalDock(!state.wbSignalDock))
     );
+    host.appendChild(toolbar);
+    const layoutRow = div("field-row wb-layout-row");
+    const colsInput = el("input", "input");
+    colsInput.type = "number";
+    colsInput.min = "0";
+    colsInput.max = "6";
+    colsInput.value = String(wbCompareLayout.cols);
+    colsInput.title = "\u6BCF\u884C\u5217\u6570\uFF080 = \u81EA\u52A8\uFF09";
+    const heightInput = el("input", "input");
+    heightInput.type = "number";
+    heightInput.min = "120";
+    heightInput.max = "600";
+    heightInput.step = "20";
+    heightInput.value = String(wbCompareLayout.height);
+    heightInput.title = "\u5355\u4E2A\u5B50\u56FE\u9AD8\u5EA6\uFF08px\uFF09";
+    colsInput.addEventListener("change", () => {
+      wbCompareLayout.cols = Math.max(0, Math.min(6, Number(colsInput.value) || 0));
+      if (wbComparePayload) renderCompareGrid();
+    });
+    heightInput.addEventListener("change", () => {
+      wbCompareLayout.height = Math.max(120, Math.min(600, Number(heightInput.value) || 220));
+      if (wbComparePayload) renderCompareGrid();
+    });
+    layoutRow.append(
+      el("label", null, "\u5217\u6570"),
+      colsInput,
+      el("label", null, "\u5B50\u56FE\u9AD8\u5EA6(px)"),
+      heightInput
+    );
+    host.appendChild(layoutRow);
+    const inline = el("div", "wb-signal-inline");
+    inline.id = "wbSignalInline";
+    host.appendChild(inline);
+    const grid = el("div", "wb-compare-grid");
+    grid.id = "wbCompareGrid";
+    host.appendChild(grid);
+    const status = div("help wb-compare-status");
+    status.id = "wbCompareStatus";
+    status.textContent = "\u8BFB\u53D6\u7F13\u5B58\u4E2D\u2026";
+    host.appendChild(status);
     pane.replaceChildren(host);
+    void refreshWbAnalysis();
+  }
+  async function syncProjectContext() {
+    const path = String(state.project?.path || "");
+    try {
+      await api("/api/project/context", {
+        method: "POST",
+        body: JSON.stringify({ path }),
+        timeoutMs: 8e3
+      });
+    } catch {
+    }
+  }
+  function wbToggleInArray(arr, value, on) {
+    const index = arr.indexOf(value);
+    if (on && index < 0) arr.push(value);
+    else if (!on && index >= 0) arr.splice(index, 1);
+  }
+  function wbAvailableProbes() {
+    const set = /* @__PURE__ */ new Set();
+    const rows = wbCacheStatus?.states || [];
+    const pick = rows.filter((row) => wbCompareStateIds.indexOf(String(row.state_id)) >= 0);
+    const source = pick.length ? pick : rows;
+    for (const row of source) for (const probe of row.probes || []) set.add(String(probe));
+    if (!set.size) {
+      const keys = state.sim?.probe_keys || [];
+      for (const key of keys) set.add(String(key));
+    }
+    return Array.from(set);
+  }
+  function wbSimInconsistent() {
+    const states = wbStatesPayload?.states || [];
+    if (states.length < 2) return false;
+    const signatures = states.map((item) => JSON.stringify(item.sim || {}));
+    return signatures.some((sig) => sig !== signatures[0]);
+  }
+  async function refreshWbAnalysis() {
+    await syncProjectContext();
+    try {
+      const sp = await jsonRequest("/api/network/states", "GET");
+      if (sp) wbStatesPayload = sp;
+    } catch {
+    }
+    try {
+      const cache = await jsonRequest("/api/network/state/cache", "GET");
+      if (cache) wbCacheStatus = cache;
+    } catch (error) {
+      toast(`\u8BFB\u53D6\u7F13\u5B58\u72B6\u6001\u5931\u8D25\uFF1A${error?.message || error}`, "error", 6e3);
+    }
+    const rows = wbCacheStatus?.states || [];
+    const ids = rows.map((row) => String(row.state_id || "")).filter(Boolean);
+    wbCompareStateIds = wbCompareStateIds.filter((id) => ids.indexOf(id) >= 0);
+    if (wbCompareStateIds.length < 2) wbCompareStateIds = ids.slice(0, 2);
+    const probes = wbAvailableProbes();
+    wbCompareSignals = wbCompareSignals.filter((sig) => probes.indexOf(sig) >= 0);
+    if (!wbCompareSignals.length) wbCompareSignals = probes.slice(0, 2);
+    renderWbSignalPanel();
+    setWbSignalDock(state.wbSignalDock);
+    if (wbCompareStateIds.length >= 2 && wbCompareSignals.length) {
+      await wbGenerateCompare();
+    } else {
+      const status = $("#wbCompareStatus");
+      if (status) status.textContent = "\u8BF7\u9009\u62E9\u81F3\u5C11\u4E24\u4E2A\u72B6\u6001\u4E0E\u4E00\u7EC4\u5171\u4EAB\u4FE1\u53F7\uFF0C\u518D\u70B9\u300C\u751F\u6210\u5BF9\u6BD4\u56FE\u300D\u3002";
+    }
+  }
+  function renderWbSignalPanel() {
+    let panel = $("#wbSignalPanel");
+    if (!panel) {
+      panel = div("wb-signal-panel");
+      panel.id = "wbSignalPanel";
+    }
+    panel.replaceChildren();
+    const rows = wbCacheStatus?.states || [];
+    const stateSection = div("wb-signal-section");
+    stateSection.appendChild(div("wb-signal-title", "\u72B6\u6001\uFF08\u52FE\u9009 \u22652 \u4E2A\u53C2\u4E0E\u5BF9\u6BD4\uFF09"));
+    const stateList = div("wb-signal-list");
+    if (!rows.length) stateList.appendChild(div("help", "\u5C1A\u65E0\u72B6\u6001\u3002\u8BF7\u5230\u300C\u72B6\u6001\u300D\u9875\u65B0\u5EFA\u3002"));
+    for (const row of rows) {
+      const id = String(row.state_id || "");
+      const label = el("label", "wb-check");
+      const box = el("input", "");
+      box.type = "checkbox";
+      box.checked = wbCompareStateIds.indexOf(id) >= 0;
+      box.addEventListener("change", () => wbToggleInArray(wbCompareStateIds, id, box.checked));
+      const suffix = row.cached ? `\uFF08${row.frames || 0} \u5E27\uFF09` : "\uFF08\u672A\u9884\u8BA1\u7B97\uFF09";
+      label.append(box, el("span", null, `${row.name || id}${suffix}`));
+      stateList.appendChild(label);
+    }
+    stateSection.appendChild(stateList);
+    if (wbSimInconsistent()) {
+      stateSection.appendChild(
+        div("help wb-warn", "\u5404\u72B6\u6001\u4EFF\u771F\u8BBE\u7F6E\u4E0D\u4E00\u81F4\uFF0C\u5BF9\u6BD4\u524D\u5EFA\u8BAE\u70B9\u300C\u7EDF\u4E00\u4EFF\u771F\u8BBE\u7F6E\u300D\u4EE5\u4FDD\u8BC1\u53EF\u6BD4\u3002")
+      );
+    }
+    panel.appendChild(stateSection);
+    const probes = wbAvailableProbes();
+    const signalSection = div("wb-signal-section");
+    signalSection.appendChild(div("wb-signal-title", "\u5171\u4EAB\u4FE1\u53F7\uFF08\u6240\u6709\u5B50\u56FE\u5171\u7528\u540C\u4E00\u7EC4\uFF09"));
+    const signalList = div("wb-signal-list");
+    if (!probes.length) {
+      signalList.appendChild(div("help", "\u5C1A\u65E0\u53EF\u9009\u4FE1\u53F7\uFF1A\u8BF7\u5148\u9884\u8BA1\u7B97\u81F3\u5C11\u4E00\u4E2A\u72B6\u6001\u3002"));
+    }
+    for (const key of probes) {
+      const label = el("label", "wb-check");
+      const box = el("input", "");
+      box.type = "checkbox";
+      box.checked = wbCompareSignals.indexOf(key) >= 0;
+      box.addEventListener("change", () => wbToggleInArray(wbCompareSignals, key, box.checked));
+      const swatch = el("span", "wb-swatch");
+      swatch.style.background = colorForKey(key);
+      label.append(box, swatch, el("span", null, key));
+      signalList.appendChild(label);
+    }
+    signalSection.appendChild(signalList);
+    const applyRow = div("blocks-toolbar");
+    applyRow.append(button("\u5E94\u7528\u5E76\u7ED8\u56FE", "btn tiny primary", () => void wbGenerateCompare()));
+    signalSection.appendChild(applyRow);
+    panel.appendChild(signalSection);
+    if (state.wbSignalDock) {
+      const inline = $("#wbSignalInline");
+      if (inline) inline.appendChild(panel);
+    } else {
+      const body = $("#wbSignalBody");
+      if (body) body.appendChild(panel);
+    }
+  }
+  function setWbSignalDock(docked) {
+    state.wbSignalDock = docked;
+    const win = $("#wbSignalWin");
+    const panel = $("#wbSignalPanel");
+    const inline = $("#wbSignalInline");
+    const body = $("#wbSignalBody");
+    if (!win || !panel) return;
+    if (docked) {
+      win.hidden = true;
+      if (inline) {
+        inline.hidden = false;
+        inline.appendChild(panel);
+      }
+    } else {
+      if (inline) inline.hidden = true;
+      if (body) body.appendChild(panel);
+      if (!state.wbSignalGeo) {
+        state.wbSignalGeo = {
+          left: Math.max(40, window.innerWidth - 430),
+          top: 120,
+          width: 360,
+          height: 460
+        };
+      }
+      win.hidden = false;
+      placeFloatWindow(win, "wbSignalGeo");
+      raiseFloatWindow(win);
+    }
+  }
+  async function wbGenerateCompare() {
+    const statusEl = $("#wbCompareStatus");
+    if (wbCompareStateIds.length < 2) {
+      if (statusEl) statusEl.textContent = "\u5BF9\u6BD4\u5206\u6790\u81F3\u5C11\u9700\u8981\u9009\u62E9\u4E24\u4E2A\u72B6\u6001\u3002";
+      return;
+    }
+    if (!wbCompareSignals.length) {
+      if (statusEl) statusEl.textContent = "\u8BF7\u81F3\u5C11\u9009\u62E9\u4E00\u4E2A\u5171\u4EAB\u4FE1\u53F7\u3002";
+      return;
+    }
+    if (statusEl) statusEl.textContent = "\u8BFB\u53D6\u7F13\u5B58\u4E2D\u2026";
+    let payload = null;
+    try {
+      payload = await api("/api/network/state/compare", {
+        method: "POST",
+        body: JSON.stringify({ state_ids: wbCompareStateIds, signals: wbCompareSignals }),
+        timeoutMs: 12e4
+      });
+    } catch (error) {
+      if (statusEl) statusEl.textContent = `\u5BF9\u6BD4\u8BFB\u53D6\u5931\u8D25\uFF1A${error?.message || error}`;
+      return;
+    }
+    if (!payload) return;
+    wbComparePayload = payload;
+    renderCompareGrid();
+    if (statusEl) {
+      const entries = payload.states || [];
+      const ok = entries.filter((entry) => entry.ok).length;
+      const total = entries.length;
+      statusEl.textContent = ok === total ? `\u5DF2\u751F\u6210 ${total} \u4E2A\u5B50\u56FE \xB7 \u5171\u4EAB\u4FE1\u53F7\uFF1A${(payload.signals || []).join("\u3001")}` : `\u90E8\u5206\u72B6\u6001\u65E0\u6709\u6548\u7F13\u5B58\uFF08${ok}/${total} \u53EF\u7ED8\uFF09\xB7 \u8BF7\u5BF9\u7F3A\u5931\u72B6\u6001\u5148\u300C\u9884\u8BA1\u7B97\u9009\u4E2D\u72B6\u6001\u300D\u3002`;
+    }
+  }
+  function wbFmtAxis(value) {
+    if (!Number.isFinite(value)) return "\u2014";
+    const abs = Math.abs(value);
+    if (abs !== 0 && (abs >= 1e4 || abs < 1e-3)) return value.toExponential(1);
+    return String(Math.round(value * 1e3) / 1e3);
+  }
+  function renderCompareGrid() {
+    const grid = $("#wbCompareGrid");
+    if (!grid) return;
+    const payload = wbComparePayload;
+    const entries = (payload?.states || []).filter((entry) => entry.ok);
+    const signals = payload?.signals && payload.signals.length ? payload.signals : wbCompareSignals.slice();
+    grid.replaceChildren();
+    if (!entries.length) {
+      grid.appendChild(div("help", "\u6CA1\u6709\u53EF\u7ED8\u5236\u7684\u7F13\u5B58\u3002\u8BF7\u5148\u5BF9\u9009\u4E2D\u72B6\u6001\u6267\u884C\u300C\u9884\u8BA1\u7B97\u9009\u4E2D\u72B6\u6001\u300D\u3002"));
+      return;
+    }
+    const count = entries.length;
+    const cols = wbCompareLayout.cols > 0 ? wbCompareLayout.cols : Math.min(count, Math.ceil(Math.sqrt(count)));
+    grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+    let xMin = Infinity;
+    let xMax = -Infinity;
+    for (const entry of entries) {
+      const times = entry.t || [];
+      if (times.length) {
+        xMin = Math.min(xMin, times[0]);
+        xMax = Math.max(xMax, times[times.length - 1]);
+      }
+    }
+    if (!Number.isFinite(xMin) || !Number.isFinite(xMax) || xMax <= xMin) {
+      xMin = 0;
+      xMax = 1;
+    }
+    for (const entry of entries) {
+      const card = div("wb-subplot");
+      const titleBar = div("wb-subplot-title");
+      titleBar.append(
+        el("b", null, entry.name || String(entry.state_id || "")),
+        el("span", "wb-subplot-meta", `${(entry.t || []).length} \u70B9`)
+      );
+      card.appendChild(titleBar);
+      const canvas2 = el("canvas", "wb-subplot-canvas");
+      card.appendChild(canvas2);
+      grid.appendChild(card);
+      drawWbSubplot(canvas2, entry, signals, xMin, xMax);
+    }
+  }
+  function drawWbSubplot(canvas2, entry, signals, xMin, xMax) {
+    const parentWidth = canvas2.parentElement?.getBoundingClientRect().width || 320;
+    const cssW = Math.max(120, Math.round(parentWidth));
+    const cssH = wbCompareLayout.height;
+    const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5);
+    canvas2.width = Math.round(cssW * dpr);
+    canvas2.height = Math.round(cssH * dpr);
+    canvas2.style.width = `${cssW}px`;
+    canvas2.style.height = `${cssH}px`;
+    const ctx2 = canvas2.getContext("2d");
+    if (!ctx2) return;
+    ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx2.clearRect(0, 0, cssW, cssH);
+    ctx2.fillStyle = C("#faf8f2");
+    ctx2.fillRect(0, 0, cssW, cssH);
+    const left = 48;
+    const right = 12;
+    const top = 10;
+    const bottom = 22;
+    const plotW = Math.max(10, cssW - left - right);
+    const plotH = Math.max(10, cssH - top - bottom);
+    let yMin = Infinity;
+    let yMax = -Infinity;
+    for (const key of signals) {
+      const arr = entry.series?.[key] || [];
+      for (const value of arr) {
+        if (Number.isFinite(value)) {
+          yMin = Math.min(yMin, value);
+          yMax = Math.max(yMax, value);
+        }
+      }
+    }
+    if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
+      yMin = -1;
+      yMax = 1;
+    }
+    if (yMax - yMin < 1e-12) {
+      const mid = (yMax + yMin) / 2 || 0;
+      yMin = mid - 0.5;
+      yMax = mid + 0.5;
+    }
+    const spanY = Math.max(1e-12, yMax - yMin);
+    const spanX = Math.max(1e-12, xMax - xMin);
+    const toX = (t) => left + (t - xMin) / spanX * plotW;
+    const toY = (v) => top + (1 - (v - yMin) / spanY) * plotH;
+    ctx2.strokeStyle = C("#e6e2d6");
+    ctx2.lineWidth = 1;
+    ctx2.fillStyle = C("#969083");
+    ctx2.font = '10px "Segoe UI","Microsoft YaHei",sans-serif';
+    ctx2.textAlign = "right";
+    ctx2.textBaseline = "middle";
+    for (let i = 0; i <= 4; i += 1) {
+      const value = yMin + spanY * (i / 4);
+      const y = toY(value);
+      ctx2.beginPath();
+      ctx2.moveTo(left, y);
+      ctx2.lineTo(left + plotW, y);
+      ctx2.stroke();
+      ctx2.fillText(wbFmtAxis(value), left - 6, y);
+    }
+    ctx2.textAlign = "center";
+    ctx2.textBaseline = "top";
+    for (let i = 0; i <= 4; i += 1) {
+      const t = xMin + spanX * (i / 4);
+      const x = toX(t);
+      ctx2.beginPath();
+      ctx2.moveTo(x, top);
+      ctx2.lineTo(x, top + plotH);
+      ctx2.stroke();
+      ctx2.fillText(wbFmtAxis(t), x, top + plotH + 4);
+    }
+    ctx2.strokeStyle = C("#b8b3a4");
+    ctx2.strokeRect(left, top, plotW, plotH);
+    for (const key of signals) {
+      const arr = entry.series?.[key] || [];
+      const times = entry.t || [];
+      const n = Math.min(arr.length, times.length);
+      if (!n) continue;
+      ctx2.strokeStyle = colorForKey(key);
+      ctx2.lineWidth = 1.6;
+      ctx2.beginPath();
+      for (let i = 0; i < n; i += 1) {
+        const x = toX(times[i]);
+        const y = toY(arr[i]);
+        if (i === 0) ctx2.moveTo(x, y);
+        else ctx2.lineTo(x, y);
+      }
+      ctx2.stroke();
+    }
+  }
+  async function wbPrecomputeSelected() {
+    if (!wbCompareStateIds.length) {
+      toast("\u8BF7\u5148\u5728\u4FE1\u53F7\u7A97\u52FE\u9009\u8981\u9884\u8BA1\u7B97\u7684\u72B6\u6001", "error");
+      return;
+    }
+    const input = window.prompt("\u9884\u8BA1\u7B97\u65F6\u957F\uFF08\u79D2\uFF0C0 < \u65F6\u957F \u2264 120\uFF09", "5");
+    if (input === null) return;
+    const seconds = Number(input);
+    if (!(seconds > 0)) {
+      toast("\u9884\u8BA1\u7B97\u65F6\u957F\u9700\u4E3A\u6B63\u6570", "error");
+      return;
+    }
+    for (const id of wbCompareStateIds.slice()) {
+      const row = (wbCacheStatus?.states || []).find((item) => String(item.state_id) === id);
+      const label = `\u9884\u8BA1\u7B97 ${row?.name || id}\u2026`;
+      try {
+        const result = await runPrecomputeWithProgress(
+          () => api("/api/network/state/precompute", {
+            method: "POST",
+            body: JSON.stringify({ state_id: id, seconds }),
+            timeoutMs: 6e5
+          }),
+          label
+        );
+        if (result && result.ok === false) {
+          toast(`${label}\u5931\u8D25\uFF1A${result.error || "\u672A\u77E5\u9519\u8BEF"}`, "error", 7e3);
+        }
+      } catch (error) {
+        toast(`${label}\u5931\u8D25\uFF1A${error?.message || error}`, "error", 7e3);
+      }
+    }
+    toast("\u9884\u8BA1\u7B97\u5B8C\u6210", "ok", 2600);
+    await refreshWbAnalysis();
+  }
+  async function wbUnifySim() {
+    const rows = wbCacheStatus?.states || [];
+    if (rows.length < 2) {
+      toast("\u81F3\u5C11\u9700\u8981\u4E24\u4E2A\u72B6\u6001\u624D\u80FD\u7EDF\u4E00\u4EFF\u771F\u8BBE\u7F6E", "error");
+      return;
+    }
+    const sourceId = wbCompareStateIds[0] || String(rows[0].state_id || "");
+    const sourceName = rows.find((row) => String(row.state_id) === String(sourceId))?.name || sourceId;
+    if (!window.confirm(
+      `\u4EE5\u300C${sourceName}\u300D\u7684\u4EFF\u771F\u8BBE\u7F6E\u7EDF\u4E00\u5168\u90E8\u72B6\u6001\uFF1F
+\uFF08\u5404\u72B6\u6001\u7F13\u5B58\u5C06\u5931\u6548\uFF0C\u9700\u8981\u91CD\u65B0\u9884\u8BA1\u7B97\uFF09`
+    )) {
+      return;
+    }
+    try {
+      await api("/api/network/state", {
+        method: "POST",
+        body: JSON.stringify({ action: "unify_sim", state_id: String(sourceId) }),
+        timeoutMs: 3e4
+      });
+      markProjectDirty();
+      toast("\u5DF2\u7EDF\u4E00\u5404\u72B6\u6001\u4EFF\u771F\u8BBE\u7F6E\uFF0C\u7F13\u5B58\u5DF2\u5931\u6548", "ok", 3600);
+      await refreshWbAnalysis();
+    } catch (error) {
+      toast(error?.message || String(error), "error", 6e3);
+    }
   }
   async function renderWorkbenchState() {
     const pane = $("#tab-wb-state");
@@ -13977,6 +14414,16 @@ import {
       $("#vscodeWinClose")?.addEventListener("click", closeVscode);
       maybePrewarmVscode();
     }
+    const wbSignalWin = $("#wbSignalWin");
+    if (wbSignalWin) {
+      initFloatWindow(wbSignalWin, "wbSignalGeo", { minWidth: 280, minHeight: 320 });
+      $("#wbSignalWinClose")?.addEventListener("click", () => setWbSignalDock(true));
+      $("#wbSignalDockBtn")?.addEventListener("click", () => setWbSignalDock(true));
+      window.addEventListener("resize", () => {
+        if (activeTab() === "wb-analysis" && wbComparePayload) renderCompareGrid();
+      });
+    }
+    void syncProjectContext();
   }
   function hideHelpCard() {
     if (ui.qcard) ui.qcard.hidden = true;

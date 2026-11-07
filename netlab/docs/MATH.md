@@ -208,7 +208,7 @@ $\;v_a-v_b-\text{slope}\cdot(v_p-v_n)=\text{value}-\text{slope}\cdot u\;$，其�
 
 $$
 i_n = g\,v_n + \text{isrc}\quad\text{（电容）},\qquad
-i_n = g\,v_n + \text{isrc}\quad\text{（电感，$v$ 为端电压）},
+i_n = g\,v_n + \text{isrc}\quad\text{（电感，}v\text{ 为端电压）},
 $$
 
 其中下标 $n$ 表示第 $n$ 步，`isrc` 汇总历史项。

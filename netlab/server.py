@@ -937,6 +937,27 @@ def plotkit_precompute(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     return merged
 
 
+@app.get("/api/precompute/progress")
+def precompute_progress() -> dict[str, Any]:
+    """只读预计算进度快照（线程安全，不获取仿真锁）。
+
+    /api/plotkit/precompute 在线程池里同步跑完整段时序期间会全程持有仿真自旋
+    锁；本端点只读取独立的进度结构，因此仍能立即返回完成步/总步、百分比与 ETA，
+    供主界面轮询绘制进度条。
+    """
+    try:
+        snapshot = SERVICE.current.precompute_progress()
+    except Exception:  # pragma: no cover - 无网络/场景异常时兜底
+        snapshot = {
+            "status": "idle",
+            "running": False,
+            "done": 0,
+            "total": 0,
+            "percent": 0.0,
+        }
+    return {"ok": True, **snapshot}
+
+
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     return {

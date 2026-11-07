@@ -1,0 +1,1559 @@
+[
+ {
+  "md_line": 45,
+  "file": "nodal.py",
+  "old": "41",
+  "new": "65",
+  "symbol": "K_BOLTZMANN",
+  "status": "ok",
+  "method": "symbol:const"
+ },
+ {
+  "md_line": 45,
+  "file": "transistors.py",
+  "old": "11",
+  "new": "11",
+  "symbol": "K_BOLTZMANN",
+  "status": "ok",
+  "method": "symbol:const"
+ },
+ {
+  "md_line": 47,
+  "file": "nodal.py",
+  "old": "41-45",
+  "new": "65-69",
+  "symbol": "MAX_ABS_VOLTAGE",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 53,
+  "file": "graph.py",
+  "old": "497",
+  "new": "699",
+  "symbol": "Network.step",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 58,
+  "file": "graph.py",
+  "old": "264",
+  "new": "330",
+  "symbol": "Connection.evaluate",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 74,
+  "file": "graph.py",
+  "old": "456",
+  "new": "659",
+  "symbol": "Network.topological_order",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 85,
+  "file": "graph.py",
+  "old": "409",
+  "new": "484",
+  "symbol": "Network.algebraic_cycles",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 86,
+  "file": "graph.py",
+  "old": "402",
+  "new": "477",
+  "symbol": "",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 96,
+  "file": "graph.py",
+  "old": "514-521",
+  "new": "719-726",
+  "symbol": "step",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 110,
+  "file": "graph.py",
+  "old": "541",
+  "new": "1058",
+  "symbol": "snapshot",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 112,
+  "file": "graph.py",
+  "old": "523-524",
+  "new": "730-731",
+  "symbol": "",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 112,
+  "file": "graph.py",
+  "old": "531",
+  "new": "738",
+  "symbol": "",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 112,
+  "file": "graph.py",
+  "old": "535",
+  "new": "742",
+  "symbol": "node.update",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 113,
+  "file": "graph.py",
+  "old": "536",
+  "new": "743",
+  "symbol": "dt",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 114,
+  "file": "graph.py",
+  "old": "563",
+  "new": "1080",
+  "symbol": "restore_step_state",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 114,
+  "file": "graph.py",
+  "old": "537-539",
+  "new": "744-746",
+  "symbol": "restore_step_state",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 126,
+  "file": "nodal.py",
+  "old": "1492",
+  "new": "1644",
+  "symbol": "CircuitSolver._build_index",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 134,
+  "file": "nodal.py",
+  "old": "1530-1543",
+  "new": "1682-1697",
+  "symbol": "",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 136,
+  "file": "nodal.py",
+  "old": "1495-1500",
+  "new": "1647-1652",
+  "symbol": "",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 136,
+  "file": "nodal.py",
+  "old": "1526",
+  "new": "1678",
+  "symbol": "",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 137,
+  "file": "nodal.py",
+  "old": "1545",
+  "new": "1697",
+  "symbol": "matrix_size",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 141,
+  "file": "nodal.py",
+  "old": "1574-1578",
+  "new": "1728-1732",
+  "symbol": "_blank_matrix",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 146,
+  "file": "nodal.py",
+  "old": "1561-1572",
+  "new": "1714-1726",
+  "symbol": "_decide_sparse",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 151,
+  "file": "nodal.py",
+  "old": "101-110",
+  "new": "125-134",
+  "symbol": "_stamp_conductance",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 157,
+  "file": "nodal.py",
+  "old": "113-120",
+  "new": "137-144",
+  "symbol": "_stamp_current",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 165,
+  "file": "nodal.py",
+  "old": "194",
+  "new": "226",
+  "symbol": "Resistor.stamp",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 177,
+  "file": "nodal.py",
+  "old": "410",
+  "new": "445",
+  "symbol": "VoltageSource.stamp",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 177,
+  "file": "nodal.py",
+  "old": "423-433",
+  "new": "445-455",
+  "symbol": "VoltageSource.stamp",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 184,
+  "file": "nodal.py",
+  "old": "494",
+  "new": "571",
+  "symbol": "VCVS.stamp",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 184,
+  "file": "nodal.py",
+  "old": "505-521",
+  "new": "571-587",
+  "symbol": "VCVS.stamp",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 187,
+  "file": "nodal.py",
+  "old": "536",
+  "new": "612",
+  "symbol": "VCCS.stamp",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 187,
+  "file": "nodal.py",
+  "old": "546-561",
+  "new": "612-627",
+  "symbol": "VCCS.stamp",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 193,
+  "file": "nodal.py",
+  "old": "657",
+  "new": "813",
+  "symbol": "OpAmp.stamp",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 193,
+  "file": "nodal.py",
+  "old": "748-763",
+  "new": "813-828",
+  "symbol": "OpAmp.stamp",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 197,
+  "file": "nodal.py",
+  "old": "448",
+  "new": "501",
+  "symbol": "CurrentSource",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 197,
+  "file": "nodal.py",
+  "old": "468",
+  "new": "534",
+  "symbol": "Switch",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 205,
+  "file": "nodal.py",
+  "old": "1469",
+  "new": "1613",
+  "symbol": "CircuitSolver.__init__",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 216,
+  "file": "nodal.py",
+  "old": "266",
+  "new": "266",
+  "symbol": "Capacitor.prepare",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 216,
+  "file": "nodal.py",
+  "old": "292",
+  "new": "292",
+  "symbol": "stamp",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 226,
+  "file": "nodal.py",
+  "old": "248-250",
+  "new": "272-274",
+  "symbol": "BE",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 226,
+  "file": "nodal.py",
+  "old": "251-263",
+  "new": "275-287",
+  "symbol": "gear2",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 226,
+  "file": "nodal.py",
+  "old": "264-268",
+  "new": "288-292",
+  "symbol": "trapezoidal",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 228,
+  "file": "nodal.py",
+  "old": "271-273",
+  "new": "293-295",
+  "symbol": "dc",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 229,
+  "file": "nodal.py",
+  "old": "274-277",
+  "new": "296-299",
+  "symbol": "ac",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 230,
+  "file": "nodal.py",
+  "old": "278-279",
+  "new": "300-301",
+  "symbol": "isrc",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 232,
+  "file": "nodal.py",
+  "old": "366",
+  "new": "366",
+  "symbol": "Inductor.prepare",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 232,
+  "file": "nodal.py",
+  "old": "389",
+  "new": "389",
+  "symbol": "stamp",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 242,
+  "file": "nodal.py",
+  "old": "349-351",
+  "new": "371-373",
+  "symbol": "BE",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 242,
+  "file": "nodal.py",
+  "old": "352-364",
+  "new": "374-386",
+  "symbol": "gear2",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 242,
+  "file": "nodal.py",
+  "old": "366-367",
+  "new": "386-387",
+  "symbol": "trapezoidal",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 243,
+  "file": "nodal.py",
+  "old": "370-372",
+  "new": "390-392",
+  "symbol": "dc",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 244,
+  "file": "nodal.py",
+  "old": "373-378",
+  "new": "393-400",
+  "symbol": "",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 244,
+  "file": "nodal.py",
+  "old": "379-380",
+  "new": "401-402",
+  "symbol": "isrc",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 249,
+  "file": "nodal.py",
+  "old": "251-263",
+  "new": "275-287",
+  "symbol": "",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 249,
+  "file": "nodal.py",
+  "old": "352-364",
+  "new": "374-386",
+  "symbol": "older_v",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 260,
+  "file": "nodal.py",
+  "old": "1809-1823",
+  "new": "1968-1982",
+  "symbol": "_residual_metric",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 273,
+  "file": "nodal.py",
+  "old": "1825",
+  "new": "1984",
+  "symbol": "self.nonlinear",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 275,
+  "file": "nodal.py",
+  "old": "1874-1885",
+  "new": "2036-2047",
+  "symbol": "ComputeError",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 277,
+  "file": "nodal.py",
+  "old": "1754",
+  "new": "1911",
+  "symbol": "_tolerance",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 277,
+  "file": "nodal.py",
+  "old": "1888-1889",
+  "new": "2050-2051",
+  "symbol": "_tolerance",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 284,
+  "file": "nodal.py",
+  "old": "1900-1911",
+  "new": "2062-2073",
+  "symbol": "update_guess",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 288,
+  "file": "nodal.py",
+  "old": "1703",
+  "new": "1860",
+  "symbol": "_newton_with_strategies",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 289,
+  "file": "nodal.py",
+  "old": "1864-1866",
+  "new": "2026-2028",
+  "symbol": "gmin",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 295,
+  "file": "nodal.py",
+  "old": "1727-1731",
+  "new": "1884-1888",
+  "symbol": "gmin_steps",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 305,
+  "file": "nodal.py",
+  "old": "1732-1751",
+  "new": "1889-1908",
+  "symbol": "",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 310,
+  "file": "nodal.py",
+  "old": "1918-1941",
+  "new": "2080-2103",
+  "symbol": "_solve_matrix",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 323,
+  "file": "nodal.py",
+  "old": "2269",
+  "new": "2269",
+  "symbol": "operating_point",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 330,
+  "file": "nodal.py",
+  "old": "2282-2284",
+  "new": "2282-2284",
+  "symbol": "",
+  "status": "ok",
+  "method": "keep(known-current)"
+ },
+ {
+  "md_line": 335,
+  "file": "nodal.py",
+  "old": "2335",
+  "new": "2335",
+  "symbol": "ac_sweep",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 343,
+  "file": "nodal.py",
+  "old": "2256-2267",
+  "new": "2256-2267",
+  "symbol": "AC_KINDS",
+  "status": "ok",
+  "method": "keep(known-current)"
+ },
+ {
+  "md_line": 343,
+  "file": "nodal.py",
+  "old": "2353-2359",
+  "new": "2353-2359",
+  "symbol": "ComputeError",
+  "status": "ok",
+  "method": "keep(known-current)"
+ },
+ {
+  "md_line": 343,
+  "file": "nodal.py",
+  "old": "2351-2352",
+  "new": "2351-2352",
+  "symbol": "",
+  "status": "ok",
+  "method": "keep(known-current)"
+ },
+ {
+  "md_line": 343,
+  "file": "nodal.py",
+  "old": "2349-2350",
+  "new": "2349-2350",
+  "symbol": "freqs",
+  "status": "ok",
+  "method": "keep(known-current)"
+ },
+ {
+  "md_line": 358,
+  "file": "statespace.py",
+  "old": "64",
+  "new": "59",
+  "symbol": "StateSpaceModel",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 359,
+  "file": "statespace.py",
+  "old": "79",
+  "new": "75",
+  "symbol": "from_params",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 362,
+  "file": "linalg.py",
+  "old": "129",
+  "new": "129",
+  "symbol": "cont2discrete",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 366,
+  "file": "linalg.py",
+  "old": "144-146",
+  "new": "148-150",
+  "symbol": "",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 366,
+  "file": "linalg.py",
+  "old": "110-122",
+  "new": "110-122",
+  "symbol": "zoh_discretize",
+  "status": "ok",
+  "method": "keep(current-era)"
+ },
+ {
+  "md_line": 375,
+  "file": "linalg.py",
+  "old": "154-161",
+  "new": "158-165",
+  "symbol": "",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 384,
+  "file": "statespace.py",
+  "old": "139-145",
+  "new": "137-141",
+  "symbol": "",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 431,
+  "file": "linalg.py",
+  "old": "165",
+  "new": "169",
+  "symbol": "tustin_tf",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 431,
+  "file": "linalg.py",
+  "old": "215",
+  "new": "219",
+  "symbol": "power_iteration_norm",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 437,
+  "file": "nodal.py",
+  "old": "568",
+  "new": "634",
+  "symbol": "",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 439,
+  "file": "nodal.py",
+  "old": "634",
+  "new": "634",
+  "symbol": "Diode",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 446,
+  "file": "nodal.py",
+  "old": "598-604",
+  "new": "664-670",
+  "symbol": "_conductance",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 446,
+  "file": "nodal.py",
+  "old": "620-635",
+  "new": "686-701",
+  "symbol": "_limit",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 448,
+  "file": "nodal.py",
+  "old": "829",
+  "new": "894",
+  "symbol": "Zener",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 449,
+  "file": "nodal.py",
+  "old": "906",
+  "new": "973",
+  "symbol": "ElementSpec",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 451,
+  "file": "transistors.py",
+  "old": "24",
+  "new": "24",
+  "symbol": "BipolarJunction",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 451,
+  "file": "transistors.py",
+  "old": "62",
+  "new": "62",
+  "symbol": "stamp",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 453,
+  "file": "transistors.py",
+  "old": "55-60",
+  "new": "55-60",
+  "symbol": "_junction",
+  "status": "ok",
+  "method": "keep(S==old)"
+ },
+ {
+  "md_line": 471,
+  "file": "transistors.py",
+  "old": "62-88",
+  "new": "62-88",
+  "symbol": "",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 472,
+  "file": "transistors.py",
+  "old": "116",
+  "new": "116",
+  "symbol": "PNP",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 474,
+  "file": "transistors.py",
+  "old": "122",
+  "new": "122",
+  "symbol": "Mosfet",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 474,
+  "file": "transistors.py",
+  "old": "159",
+  "new": "159",
+  "symbol": "_operating_point",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 474,
+  "file": "transistors.py",
+  "old": "209",
+  "new": "209",
+  "symbol": "stamp",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 482,
+  "file": "transistors.py",
+  "old": "146-157",
+  "new": "146-157",
+  "symbol": "_threshold",
+  "status": "ok",
+  "method": "keep(S==old)"
+ },
+ {
+  "md_line": 493,
+  "file": "transistors.py",
+  "old": "159-191",
+  "new": "159-191",
+  "symbol": "_operating_point",
+  "status": "ok",
+  "method": "keep(S==old)"
+ },
+ {
+  "md_line": 503,
+  "file": "transistors.py",
+  "old": "208-241",
+  "new": "209-242",
+  "symbol": "",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 505,
+  "file": "transistors.py",
+  "old": "221-223",
+  "new": "222-224",
+  "symbol": "",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 506,
+  "file": "transistors.py",
+  "old": "262",
+  "new": "263",
+  "symbol": "PMOS",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 508,
+  "file": "nodal.py",
+  "old": "722",
+  "new": "722",
+  "symbol": "OpAmp",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 514,
+  "file": "nodal.py",
+  "old": "657-665",
+  "new": "722-730",
+  "symbol": "",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 520,
+  "file": "logic.py",
+  "old": "26",
+  "new": "26",
+  "symbol": "LogicGate",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 522,
+  "file": "logic.py",
+  "old": "44",
+  "new": "44",
+  "symbol": "_level",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 523,
+  "file": "logic.py",
+  "old": "18",
+  "new": "18",
+  "symbol": "_sigmoid",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 523,
+  "file": "logic.py",
+  "old": "47-58",
+  "new": "47-58",
+  "symbol": "_drive",
+  "status": "ok",
+  "method": "keep(S==old)"
+ },
+ {
+  "md_line": 529,
+  "file": "logic.py",
+  "old": "61-65",
+  "new": "61-65",
+  "symbol": "stamp",
+  "status": "ok",
+  "method": "keep(S==old)"
+ },
+ {
+  "md_line": 538,
+  "file": "digital.py",
+  "old": "11",
+  "new": "11",
+  "symbol": "Counter4",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 540,
+  "file": "digital.py",
+  "old": "35-49",
+  "new": "35-49",
+  "symbol": "stamp",
+  "status": "ok",
+  "method": "keep(S==old)"
+ },
+ {
+  "md_line": 542,
+  "file": "digital.py",
+  "old": "51",
+  "new": "51",
+  "symbol": "update_guess",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 544,
+  "file": "digital.py",
+  "old": "78",
+  "new": "78",
+  "symbol": "",
+  "status": "ok",
+  "method": "keep(current-era)"
+ },
+ {
+  "md_line": 546,
+  "file": "digital.py",
+  "old": "76",
+  "new": "78",
+  "symbol": "",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 546,
+  "file": "digital.py",
+  "old": "91-106",
+  "new": "93-108",
+  "symbol": "value",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 547,
+  "file": "digital.py",
+  "old": "188",
+  "new": "190",
+  "symbol": "",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 548,
+  "file": "digital.py",
+  "old": "217-230",
+  "new": "219-232",
+  "symbol": "",
+  "status": "ok",
+  "method": "diffrange"
+ },
+ {
+  "md_line": 549,
+  "file": "digital.py",
+  "old": "125",
+  "new": "127",
+  "symbol": "",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 549,
+  "file": "digital.py",
+  "old": "126",
+  "new": "128",
+  "symbol": "",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 551,
+  "file": "timers.py",
+  "old": "11",
+  "new": "11",
+  "symbol": "Astable555",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 559,
+  "file": "timers.py",
+  "old": "31-34",
+  "new": "31-34",
+  "symbol": "prepare",
+  "status": "ok",
+  "method": "keep(S==old)"
+ },
+ {
+  "md_line": 559,
+  "file": "timers.py",
+  "old": "36-46",
+  "new": "36-46",
+  "symbol": "stamp",
+  "status": "ok",
+  "method": "keep(S==old)"
+ },
+ {
+  "md_line": 561,
+  "file": "timers.py",
+  "old": "62",
+  "new": "62",
+  "symbol": "LDO",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 567,
+  "file": "timers.py",
+  "old": "84-97",
+  "new": "84-97",
+  "symbol": "stamp",
+  "status": "ok",
+  "method": "keep(S==old)"
+ },
+ {
+  "md_line": 575,
+  "file": "magnetics.py",
+  "old": "39",
+  "new": "39",
+  "symbol": "Transformer",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 585,
+  "file": "magnetics.py",
+  "old": "81",
+  "new": "81",
+  "symbol": "",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 590,
+  "file": "magnetics.py",
+  "old": "138",
+  "new": "138",
+  "symbol": "CoupledInductor",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 592,
+  "file": "magnetics.py",
+  "old": "152",
+  "new": "152",
+  "symbol": "",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 600,
+  "file": "magnetics.py",
+  "old": "169-188",
+  "new": "169-188",
+  "symbol": "prepare",
+  "status": "ok",
+  "method": "keep(S==old)"
+ },
+ {
+  "md_line": 608,
+  "file": "magnetics.py",
+  "old": "190",
+  "new": "196",
+  "symbol": "",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 731,
+  "file": "simulation.py",
+  "old": "314",
+  "new": "391",
+  "symbol": "Simulation.precompute",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 744,
+  "file": "params.py",
+  "old": "31",
+  "new": "31",
+  "symbol": "ParamSpec",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 744,
+  "file": "params.py",
+  "old": "49",
+  "new": "49",
+  "symbol": "coerce",
+  "status": "ok",
+  "method": "symbol:def"
+ },
+ {
+  "md_line": 746,
+  "file": "params.py",
+  "old": "43",
+  "new": "43",
+  "symbol": "ParamSpec.max_size",
+  "status": "ok",
+  "method": "diff"
+ },
+ {
+  "md_line": 755,
+  "file": "graph.py",
+  "old": "330",
+  "new": "330",
+  "symbol": "Connection.evaluate",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 756,
+  "file": "graph.py",
+  "old": "484",
+  "new": "484",
+  "symbol": "Network.algebraic_cycles",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 757,
+  "file": "graph.py",
+  "old": "659",
+  "new": "659",
+  "symbol": "Network.topological_order",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 758,
+  "file": "graph.py",
+  "old": "699",
+  "new": "699",
+  "symbol": "Network.step",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 758,
+  "file": "graph.py",
+  "old": "1058",
+  "new": "1058",
+  "symbol": "",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 759,
+  "file": "nodal.py",
+  "old": "125",
+  "new": "125",
+  "symbol": "_stamp_conductance",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 759,
+  "file": "nodal.py",
+  "old": "137",
+  "new": "534",
+  "symbol": "Switch",
+  "status": "ok",
+  "method": "symbol:class"
+ },
+ {
+  "md_line": 760,
+  "file": "nodal.py",
+  "old": "266",
+  "new": "266",
+  "symbol": "Capacitor.prepare",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 760,
+  "file": "nodal.py",
+  "old": "292",
+  "new": "292",
+  "symbol": "stamp",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 761,
+  "file": "nodal.py",
+  "old": "366",
+  "new": "366",
+  "symbol": "Inductor.prepare",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 761,
+  "file": "nodal.py",
+  "old": "389",
+  "new": "389",
+  "symbol": "stamp",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 762,
+  "file": "nodal.py",
+  "old": "432",
+  "new": "432",
+  "symbol": "",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 762,
+  "file": "nodal.py",
+  "old": "560",
+  "new": "560",
+  "symbol": "",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 762,
+  "file": "nodal.py",
+  "old": "602",
+  "new": "602",
+  "symbol": "",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 763,
+  "file": "nodal.py",
+  "old": "722",
+  "new": "722",
+  "symbol": "OpAmp",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 763,
+  "file": "nodal.py",
+  "old": "813",
+  "new": "813",
+  "symbol": "stamp",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 764,
+  "file": "nodal.py",
+  "old": "1644",
+  "new": "1644",
+  "symbol": "_build_index",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 765,
+  "file": "nodal.py",
+  "old": "1728",
+  "new": "1728",
+  "symbol": "_blank_matrix",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 766,
+  "file": "nodal.py",
+  "old": "1860",
+  "new": "1860",
+  "symbol": "_newton_with_strategies",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 766,
+  "file": "nodal.py",
+  "old": "1984",
+  "new": "1984",
+  "symbol": "_newton_solve",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 767,
+  "file": "nodal.py",
+  "old": "1968",
+  "new": "1968",
+  "symbol": "_residual_metric",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 767,
+  "file": "nodal.py",
+  "old": "1911",
+  "new": "1911",
+  "symbol": "_tolerance",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 768,
+  "file": "nodal.py",
+  "old": "2080",
+  "new": "2080",
+  "symbol": "_solve_matrix",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 769,
+  "file": "nodal.py",
+  "old": "2269",
+  "new": "2269",
+  "symbol": "operating_point",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 770,
+  "file": "nodal.py",
+  "old": "2335",
+  "new": "2335",
+  "symbol": "ac_sweep",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 771,
+  "file": "linalg.py",
+  "old": "129",
+  "new": "129",
+  "symbol": "cont2discrete",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 771,
+  "file": "statespace.py",
+  "old": "132",
+  "new": "132",
+  "symbol": "discretized",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 772,
+  "file": "transistors.py",
+  "old": "24",
+  "new": "24",
+  "symbol": "BipolarJunction",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 772,
+  "file": "transistors.py",
+  "old": "55",
+  "new": "55",
+  "symbol": "_junction",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 773,
+  "file": "transistors.py",
+  "old": "122",
+  "new": "122",
+  "symbol": "Mosfet",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 773,
+  "file": "transistors.py",
+  "old": "159",
+  "new": "159",
+  "symbol": "_operating_point",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 774,
+  "file": "logic.py",
+  "old": "26",
+  "new": "26",
+  "symbol": "LogicGate",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 774,
+  "file": "logic.py",
+  "old": "61",
+  "new": "61",
+  "symbol": "stamp",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 775,
+  "file": "digital.py",
+  "old": "11",
+  "new": "11",
+  "symbol": "",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 776,
+  "file": "timers.py",
+  "old": "11",
+  "new": "11",
+  "symbol": "Astable555",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 776,
+  "file": "timers.py",
+  "old": "62",
+  "new": "62",
+  "symbol": "LDO",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 777,
+  "file": "magnetics.py",
+  "old": "39",
+  "new": "39",
+  "symbol": "",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 779,
+  "file": "simulation.py",
+  "old": "396-411",
+  "new": "396-411",
+  "symbol": "",
+  "status": "ok",
+  "method": "keep(known-current)"
+ },
+ {
+  "md_line": 780,
+  "file": "params.py",
+  "old": "31",
+  "new": "31",
+  "symbol": "ParamSpec",
+  "status": "ok",
+  "method": "keep(appendix)"
+ },
+ {
+  "md_line": 780,
+  "file": "params.py",
+  "old": "49",
+  "new": "49",
+  "symbol": "coerce",
+  "status": "ok",
+  "method": "keep(appendix)"
+ }
+]

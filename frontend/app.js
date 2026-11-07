@@ -3675,6 +3675,20 @@ import {
       hint: state.mode === "circuit" ? "\u8282\u70B9 / \u5668\u4EF6\uFF08\u6309\u5206\u7C7B\uFF09/ \u5BFC\u7EBF" : "\u8282\u70B9",
       children: buildAddMenuItems(point.x, point.y)
     });
+    const modeChoices = state.catalog?.modes || [
+      { value: "signal", label: "\u4FE1\u53F7\u6D41" },
+      { value: "circuit", label: "\u7535\u8DEF" },
+      { value: "vector", label: "\u77E2\u91CF\u573A" }
+    ];
+    items.push({
+      label: `\u5207\u6362\u672C\u7F51\u7EDC\u6A21\u5F0F\uFF08\u5F53\u524D\uFF1A${modeLabel(state.mode)}\uFF09`,
+      hint: "\u53EA\u5F71\u54CD\u5F53\u524D\u7F51\u7EDC",
+      children: modeChoices.map((entry) => ({
+        label: entry.value === state.mode ? `${entry.label}\uFF08\u5F53\u524D\uFF09` : entry.label,
+        hint: entry.value === state.mode ? "\u5DF2\u662F\u5F53\u524D\u6A21\u5F0F" : "\u4F1A\u91CD\u5EFA\u672C\u7F51\u7EDC\u7684\u7A7A\u767D\u573A\u666F",
+        action: entry.value === state.mode ? null : () => void switchMode(entry.value)
+      }))
+    });
     if (state.mode === "circuit") {
       items.push({
         label: "\u5BFC\u7EBF\u5DE5\u5177\uFF08\u70B9\u4E24\u7AEF\uFF09\u2026",
@@ -4184,6 +4198,71 @@ import {
   }
   function showHelp() {
     openDoc("shortcuts");
+  }
+  let networkModalResolver = null;
+  function newNetworkModal(defaultMode = state.mode) {
+    return new Promise((resolve) => {
+      if (networkModalResolver) networkModalResolver(null);
+      networkModalResolver = resolve;
+      ui.modalCard.replaceChildren();
+      let chosen = defaultMode;
+      const finish = (value) => {
+        ui.modal.classList.add("hidden");
+        ui.modalCard.replaceChildren();
+        const inner = networkModalResolver;
+        networkModalResolver = null;
+        if (inner) inner(value);
+      };
+      const heading = el("h3", null, "\u65B0\u5EFA\u7F51\u7EDC");
+      const body = el("p", null, "\u6BCF\u6761\u7F51\u7EDC\u72EC\u7ACB\u4FDD\u5B58\u81EA\u5DF1\u7684\u5DE5\u4F5C\u6A21\u5F0F\uFF0C\u5207\u6362\u6D3B\u52A8\u7F51\u7EDC\u65F6\u4F1A\u81EA\u52A8\u8F7D\u5165\u3002");
+      const nameField = div("field");
+      nameField.appendChild(el("span", null, "\u7F51\u7EDC\u540D\u79F0\uFF08\u53EF\u7559\u7A7A\u81EA\u52A8\u547D\u540D\uFF0C\u6700\u957F 60 \u5B57\uFF09"));
+      const nameInput = el("input", "input");
+      nameInput.type = "text";
+      nameInput.maxLength = 60;
+      nameInput.placeholder = `\u7F51\u7EDC ${(state.networks?.length || 0) + 1}`;
+      nameField.appendChild(nameInput);
+      const modeSection = section("\u5DE5\u4F5C\u6A21\u5F0F", "\u53EA\u5728\u65B0\u5EFA\u65F6\u5E94\u7528\uFF0C\u4E4B\u540E\u968F\u8BE5\u7F51\u7EDC\u72EC\u7ACB\u4FDD\u5B58");
+      const segmented = div("segmented");
+      const modes = state.catalog?.modes || [
+        { value: "signal", label: "\u4FE1\u53F7\u6D41" },
+        { value: "circuit", label: "\u7535\u8DEF" },
+        { value: "vector", label: "\u77E2\u91CF\u573A" }
+      ];
+      const modeButtons = [];
+      for (const item of modes) {
+        const btn = button(item.label, "", () => {
+          chosen = item.value;
+          for (const other of modeButtons) other.classList.toggle("active", other === btn);
+        });
+        btn.dataset.mode = item.value;
+        btn.classList.toggle("active", item.value === chosen);
+        btn.title = item.description || "";
+        modeButtons.push(btn);
+        segmented.appendChild(btn);
+      }
+      modeSection.appendChild(segmented);
+      const actions = div("modal-actions");
+      const cancel = button("\u53D6\u6D88", "btn", () => finish(null));
+      const okay = button(
+        "\u521B\u5EFA\u7F51\u7EDC",
+        "btn primary",
+        () => finish({ name: nameInput.value.trim(), mode: chosen })
+      );
+      actions.append(cancel, okay);
+      ui.modalCard.append(heading, body, nameField, modeSection, actions);
+      ui.modal.classList.remove("hidden");
+      setTimeout(() => nameInput.focus(), 30);
+      nameInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          okay.click();
+        }
+      });
+      ui.modal.onclick = (event) => {
+        if (event.target === ui.modal) finish(null);
+      };
+    });
   }
   function markDirty() {
     state.inspectorDirty = true;
@@ -6921,6 +7000,7 @@ import {
     renderInspector();
     renderScenePanel();
     renderSignalList();
+    await fetchNetworks();
     fitView();
     toast(`\u5DF2\u5207\u6362\u5230${modeLabel(mode)}\u6A21\u5F0F`, "ok", 2200);
   }
@@ -9355,15 +9435,24 @@ import {
     applySnapshot({ scene: response.scene, sim: response.sim, limits: state.limits });
     state.cursor = Number(response.sim?.cursor || 0);
     await fetchNetworks();
+    renderScenePanel();
     renderInspector();
     fitView();
     toast(`\u5DF2\u5207\u6362\u5230\u7F51\u7EDC\uFF1A${state.currentNetwork?.name || networkId}`, "ok", 2200);
   }
   async function addNetwork() {
-    const response = await task(() => jsonRequest("/api/networks", "POST", {}));
+    const choice = await newNetworkModal(state.mode);
+    if (!choice) return;
+    const payload = { mode: choice.mode };
+    if (choice.name) payload.name = choice.name;
+    const response = await task(() => jsonRequest("/api/networks", "POST", payload));
     if (!response) return;
     await fetchNetworks();
-    toast("\u5DF2\u65B0\u5EFA\u7F51\u7EDC\uFF08\u81EA\u52A8\u547D\u540D\uFF0C\u53EF\u53CC\u51FB\u6539\u540D\uFF09", "ok", 2600);
+    const created = String(response.created || "");
+    if (created) {
+      await switchNetwork(created);
+    }
+    toast(`\u5DF2\u65B0\u5EFA\u7F51\u7EDC\uFF08${modeLabel(choice.mode)}\u6A21\u5F0F\uFF09`, "ok", 2600);
   }
   async function renameNetwork(networkId = state.currentNetwork?.id) {
     if (!networkId) return;

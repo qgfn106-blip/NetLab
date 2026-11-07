@@ -4410,6 +4410,21 @@ declare function setStatusHint(hint: string): void;
       hint: state.mode === 'circuit' ? '节点 / 器件（按分类）/ 导线' : '节点',
       children: buildAddMenuItems(point.x, point.y),
     });
+    const modeChoices =
+      (state.catalog?.modes as Array<{ value: string; label: string }> | undefined) || [
+        { value: 'signal', label: '信号流' },
+        { value: 'circuit', label: '电路' },
+        { value: 'vector', label: '矢量场' },
+      ];
+    items.push({
+      label: `切换本网络模式（当前：${modeLabel(state.mode)}）`,
+      hint: '只影响当前网络',
+      children: modeChoices.map((entry) => ({
+        label: entry.value === state.mode ? `${entry.label}（当前）` : entry.label,
+        hint: entry.value === state.mode ? '已是当前模式' : '会重建本网络的空白场景',
+        action: entry.value === state.mode ? null : () => void switchMode(entry.value),
+      })),
+    });
     if (state.mode === 'circuit') {
       items.push({
         label: '导线工具（点两端）…',
@@ -4965,6 +4980,72 @@ declare function setStatusHint(hint: string): void;
 
   function showHelp() {
     openDoc('shortcuts');
+  }
+
+  let networkModalResolver: ((value: { name: string; mode: string } | null) => void) | null = null;
+
+  function newNetworkModal(defaultMode: string = state.mode) {
+    return new Promise<{ name: string; mode: string } | null>((resolve) => {
+      if (networkModalResolver) networkModalResolver(null);
+      networkModalResolver = resolve;
+      ui.modalCard.replaceChildren();
+      let chosen = defaultMode;
+      const finish = (value: { name: string; mode: string } | null) => {
+        ui.modal.classList.add('hidden');
+        ui.modalCard.replaceChildren();
+        const inner = networkModalResolver;
+        networkModalResolver = null;
+        if (inner) inner(value);
+      };
+      const heading = el('h3', null, '新建网络');
+      const body = el('p', null, '每条网络独立保存自己的工作模式，切换活动网络时会自动载入。');
+      const nameField = div('field');
+      nameField.appendChild(el('span', null, '网络名称（可留空自动命名，最长 60 字）'));
+      const nameInput = el<HTMLInputElement>('input', 'input');
+      nameInput.type = 'text';
+      nameInput.maxLength = 60;
+      nameInput.placeholder = `网络 ${(state.networks?.length || 0) + 1}`;
+      nameField.appendChild(nameInput);
+      const modeSection = section('工作模式', '只在新建时应用，之后随该网络独立保存');
+      const segmented = div('segmented');
+      const modes =
+        (state.catalog?.modes as Array<{ value: string; label: string; description?: string }> | undefined) || [
+          { value: 'signal', label: '信号流' },
+          { value: 'circuit', label: '电路' },
+          { value: 'vector', label: '矢量场' },
+        ];
+      const modeButtons: HTMLButtonElement[] = [];
+      for (const item of modes) {
+        const btn = button(item.label, '', () => {
+          chosen = item.value;
+          for (const other of modeButtons) other.classList.toggle('active', other === btn);
+        });
+        btn.dataset.mode = item.value;
+        btn.classList.toggle('active', item.value === chosen);
+        btn.title = item.description || '';
+        modeButtons.push(btn);
+        segmented.appendChild(btn);
+      }
+      modeSection.appendChild(segmented);
+      const actions = div('modal-actions');
+      const cancel = button('取消', 'btn', () => finish(null));
+      const okay = button('创建网络', 'btn primary', () =>
+        finish({ name: nameInput.value.trim(), mode: chosen }),
+      );
+      actions.append(cancel, okay);
+      ui.modalCard.append(heading, body, nameField, modeSection, actions);
+      ui.modal.classList.remove('hidden');
+      setTimeout(() => nameInput.focus(), 30);
+      nameInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          okay.click();
+        }
+      });
+      ui.modal.onclick = (event: MouseEvent) => {
+        if (event.target === ui.modal) finish(null);
+      };
+    });
   }
 
   /* ======================================================================
@@ -7922,6 +8003,7 @@ declare function setStatusHint(hint: string): void;
     renderInspector();
     renderScenePanel();
     renderSignalList();
+    await fetchNetworks();
     fitView();
     toast(`已切换到${modeLabel(mode)}模式`, 'ok', 2200);
   }
@@ -10579,16 +10661,25 @@ declare function setStatusHint(hint: string): void;
     applySnapshot({ scene: response.scene, sim: response.sim, limits: (state.limits as LimitsRec | undefined) });
     state.cursor = Number(response.sim?.cursor || 0);
     await fetchNetworks();
+    renderScenePanel();
     renderInspector();
     fitView();
     toast(`已切换到网络：${state.currentNetwork?.name || networkId}`, 'ok', 2200);
   }
 
   async function addNetwork() {
-    const response = await task(() => jsonRequest('/api/networks', 'POST', {}));
+    const choice = await newNetworkModal(state.mode);
+    if (!choice) return;
+    const payload: Record<string, unknown> = { mode: choice.mode };
+    if (choice.name) payload.name = choice.name;
+    const response = await task(() => jsonRequest('/api/networks', 'POST', payload));
     if (!response) return;
     await fetchNetworks();
-    toast('已新建网络（自动命名，可双击改名）', 'ok', 2600);
+    const created = String(response.created || '');
+    if (created) {
+      await switchNetwork(created);
+    }
+    toast(`已新建网络（${modeLabel(choice.mode)}模式）`, 'ok', 2600);
   }
 
   async function renameNetwork(networkId = state.currentNetwork?.id) {

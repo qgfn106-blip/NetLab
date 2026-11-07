@@ -23,6 +23,7 @@ declare function setStatusHint(hint: string): void;
   interface ViewRec { x: number; y: number; k: number }
   interface PointerRec { x: number; y: number; wx?: number; wy?: number }
   interface SelectionRec { type: string | null; id: string | null }
+  interface AppearanceRec { color?: string; opacity?: number; lineWidth?: number; fontSize?: number }
   interface HoverRec { id?: string; [k: string]: unknown }
   interface HoverWaypointRec { edgeId: string; index: number }
   interface WireToolRec { first?: { kind?: string; nodeId: string; pin?: string } | null; [k: string]: unknown }
@@ -136,6 +137,7 @@ declare function setStatusHint(hint: string): void;
     data?: Record<string, unknown>;
     position?: { x: number; y: number };
     size?: { w?: number; h?: number; [k: string]: unknown };
+    appearance?: AppearanceRec;
     [k: string]: unknown;
   }
   interface EdgeItem {
@@ -156,6 +158,7 @@ declare function setStatusHint(hint: string): void;
     target_port?: string;
     state?: unknown;
     waypoints?: { x: number; y: number }[];
+    appearance?: AppearanceRec;
     [k: string]: unknown;
   }
   interface SceneRec {
@@ -2733,12 +2736,15 @@ declare function setStatusHint(hint: string): void;
       else if (edge.delay) color = tokens().edgeDelay;
       if (selected) color = C('#a8541f');
       else if (hovered) color = tokens().edgeHover;
+      const ap = appearanceOf(edge);
+      if (ap.color) color = ap.color;
 
       ctx.save();
+      if (ap.opacity !== undefined) ctx.globalAlpha = clamp(ap.opacity, 0.05, 1);
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.strokeStyle = color;
-      ctx.lineWidth = selected ? 2.1 : hovered ? 1.7 : state.ui?.drawingMode ? (edge.kind === 'wire' ? 1.75 : 1.3) : 1.15;
+      ctx.lineWidth = ap.lineWidth !== undefined ? ap.lineWidth : selected ? 2.1 : hovered ? 1.7 : state.ui?.drawingMode ? (edge.kind === 'wire' ? 1.75 : 1.3) : 1.15;
       if (!edge.enabled) ctx.setLineDash([3, 5]);
       else if (edge.delay) ctx.setLineDash([7, 5]);
       const circuitGb = state.scene?.mode === 'circuit' && state.ui?.symbol === 'gb';
@@ -2792,7 +2798,7 @@ declare function setStatusHint(hint: string): void;
           labelY = middle.y - 2;
           ctx.textAlign = 'left';
         }
-        ctx.font = '9px "Cascadia Code", Consolas, monospace';
+        ctx.font = `${ap.fontSize !== undefined ? ap.fontSize : 9}px "Cascadia Code", Consolas, monospace`;
         ctx.textBaseline = 'middle';
         const textWidth = ctx.measureText(label).width;
         const boxW = textWidth + 8;
@@ -3146,12 +3152,15 @@ declare function setStatusHint(hint: string): void;
       const isPrimary = state.selection.type === 'node' && state.selection.id === node.id;
       const isSelected = isPrimary || state.multi?.nodes?.has(node.id);
       const isHovered = state.hover?.type === 'node' && state.hover.id === node.id;
-      const accent = nodeColor(node);
+      const ap = appearanceOf(node);
+      const fontOverride = ap.fontSize;
+      const accent = ap.color ? ap.color : nodeColor(node);
       const cx = rect.cx;
       const cy = rect.cy;
       const radius = rect.r;
 
       ctx.save();
+      if (ap.opacity !== undefined) ctx.globalAlpha = clamp(ap.opacity, 0.05, 1);
       const gbStyle = state.ui?.symbol === 'gb';
       const isDeviceNode = isPinNode(node);
       let customLabel = false;
@@ -3182,8 +3191,8 @@ declare function setStatusHint(hint: string): void;
         ctx.fillStyle = isSelected ? tokens().nodeFillSelected : C('#faf8f2');
         ctx.fill();
         if (isSelected) { ctx.shadowColor = tokens().nodeShadow; ctx.shadowBlur = Math.max(6, 9 * k); }
-        ctx.strokeStyle = isSelected ? C('#a8541f') : C('#bcb3a1');
-        ctx.lineWidth = isSelected ? 2.2 : 1;
+        ctx.strokeStyle = ap.color ? ap.color : isSelected ? C('#a8541f') : C('#bcb3a1');
+        ctx.lineWidth = ap.lineWidth !== undefined ? ap.lineWidth : isSelected ? 2.2 : 1;
         ctx.stroke();
         ctx.shadowBlur = 0;
 
@@ -3229,7 +3238,7 @@ declare function setStatusHint(hint: string): void;
         ctx.fillText(nodeKindLabel(node), cx, cy - radius * 0.56, radius * 1.42);
 
         ctx.fillStyle = isSelected ? tokens().nodeNameSel : C('#11100e');
-        ctx.font = `700 ${nameSize}px "Segoe UI", "Microsoft YaHei", sans-serif`;
+        ctx.font = `700 ${fontOverride ?? nameSize}px "Segoe UI", "Microsoft YaHei", sans-serif`;
         const maxNameWidth = radius * 1.55;
         let name = node.name;
         if (ctx.measureText(name).width > maxNameWidth) {
@@ -3240,7 +3249,7 @@ declare function setStatusHint(hint: string): void;
 
         if (showValue) {
           ctx.fillStyle = isSelected ? tokens().nodeValueSel : C('#6f695f');
-          ctx.font = `${valueSize}px "Cascadia Code", Consolas, monospace`;
+          ctx.font = `${fontOverride ?? valueSize}px "Cascadia Code", Consolas, monospace`;
           const text = node.kind === 'ground' ? '0 V · REF' : nodeValueText(node);
           ctx.fillText(text, cx, cy + radius * 0.38, radius * 1.55);
         }
@@ -3262,13 +3271,13 @@ declare function setStatusHint(hint: string): void;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = C('#11100e');
-        ctx.font = `600 ${nameSize2}px "Segoe UI", "Microsoft YaHei", sans-serif`;
+        ctx.font = `600 ${fontOverride ?? nameSize2}px "Segoe UI", "Microsoft YaHei", sans-serif`;
         ctx.fillText(node.name, cx, labelY, 96);
         if (showValue && state.scene?.mode !== 'circuit') {
           ctx.fillStyle = C('#6f695f');
-          ctx.font = `${valueSize2}px "Cascadia Code", Consolas, monospace`;
+          ctx.font = `${fontOverride ?? valueSize2}px "Cascadia Code", Consolas, monospace`;
           const text = node.kind === 'ground' ? '0 V · REF' : nodeValueText(node);
-          ctx.fillText(text, cx, labelY + nameSize2 + 3, 96);
+          ctx.fillText(text, cx, labelY + (fontOverride ?? nameSize2) + 3, 96);
         }
       } else {
         ctx.fillStyle = accent;
@@ -3276,7 +3285,7 @@ declare function setStatusHint(hint: string): void;
         ctx.beginPath();
         ctx.arc(cx, cy, radius * 0.55, 0, Math.PI * 2);
         ctx.fill();
-        ctx.globalAlpha = 1;
+        ctx.globalAlpha = ap.opacity !== undefined ? clamp(ap.opacity, 0.05, 1) : 1;
       }
 
       if (isSelected) {
@@ -12192,6 +12201,27 @@ declare function setStatusHint(hint: string): void;
     }, 0);
   }
 
+  // P-B 元素级外观（Appearance Engine 二期）：只覆盖用户显式设置过的项。
+  function appearanceOf(item: { appearance?: AppearanceRec }): AppearanceRec {
+    return item.appearance || {};
+  }
+
+  // 把覆盖写回内存对象并立即重绘（拖动滑块时实时预览，不发请求）。
+  function previewElementAppearance(item: NodeItem | EdgeItem, appearance: AppearanceRec): void {
+    item.appearance = { ...appearance };
+    requestDraw();
+  }
+
+  // 覆盖持久化：轻量 PATCH 到现有节点/连线端点，写回 scene 记录并随工程保存。
+  async function persistElementAppearance(kind: 'node' | 'edge', id: string, appearance: AppearanceRec | null): Promise<void> {
+    const path = kind === 'node'
+      ? `/api/nodes/${encodeURIComponent(id)}`
+      : `/api/edges/${encodeURIComponent(id)}`;
+    const response = await task(() => jsonRequest(path, 'PATCH', { appearance: appearance ?? {} }));
+    if (!response) return;
+    renderInspector();
+  }
+
   async function openViewDesigner() {
     try {
       const response = await jsonRequest('/api/ui', 'GET');
@@ -12273,6 +12303,54 @@ declare function setStatusHint(hint: string): void;
       };
       addNodeToggle('show_detail', '显示节点类型/端口');
       addNodeToggle('show_value', '显示节点数值');
+      // P-B 元素外观：针对画布当前选中的节点或连线设置覆盖（仅设置过的项才覆盖）。
+      const appearanceRows = div('ui-layout-rows');
+      const appearanceNode = selectedNode();
+      const appearanceEdge = appearanceNode ? null : selectedEdge();
+      const appearanceItem: NodeItem | EdgeItem | null = appearanceNode || appearanceEdge;
+      const appearanceKind: 'node' | 'edge' | null = appearanceNode ? 'node' : appearanceEdge ? 'edge' : null;
+      if (!appearanceItem || !appearanceKind) {
+        appearanceRows.appendChild(div('help', '先在画布上选中一个节点或连线，再回到这里设置元素外观。'));
+      } else {
+        const app: AppearanceRec = { ...(appearanceItem.appearance || {}) };
+        const commit = (): void => { previewElementAppearance(appearanceItem, app); };
+        const persist = (): void => { void persistElementAppearance(appearanceKind, appearanceItem.id, app); };
+        const colorField = div('ui-field wide');
+        colorField.appendChild(el('span', null, '颜色'));
+        const colorInput = el('input');
+        colorInput.type = 'color';
+        colorInput.value = app.color || tokens().edgeDefault;
+        colorInput.addEventListener('input', () => { app.color = colorInput.value; commit(); });
+        colorInput.addEventListener('change', persist);
+        colorField.appendChild(colorInput);
+        appearanceRows.appendChild(colorField);
+        const addRange = (key: 'opacity' | 'lineWidth' | 'fontSize', labelText: string, min: number, max: number, step: number, fallback: number): void => {
+          const field = div('ui-field wide');
+          field.appendChild(el('span', null, labelText));
+          const input = el('input');
+          input.type = 'range';
+          input.min = String(min);
+          input.max = String(max);
+          input.step = String(step);
+          const currentValue = app[key];
+          input.value = String(currentValue !== undefined ? currentValue : fallback);
+          input.addEventListener('input', () => { app[key] = Number(input.value); commit(); });
+          input.addEventListener('change', persist);
+          field.appendChild(input);
+          appearanceRows.appendChild(field);
+        };
+        addRange('opacity', '透明度', 0.05, 1, 0.05, 1);
+        addRange('lineWidth', '线宽', 0.5, 12, 0.1, appearanceKind === 'node' ? 1 : 1.15);
+        addRange('fontSize', '标签字号', 6, 48, 0.5, 12);
+        const clearRow = div('modal-actions');
+        clearRow.appendChild(button('清除该元素外观覆盖', 'btn tiny', () => {
+          appearanceItem.appearance = {};
+          requestDraw();
+          void persistElementAppearance(appearanceKind, appearanceItem.id, null);
+          toast('已清除该元素的外观覆盖', 'ok');
+        }));
+        appearanceRows.appendChild(clearRow);
+      }
       ui.modalCard.replaceChildren();
       ui.modalCard.append(
         el('h3', null, '视图设计'),
@@ -12283,6 +12361,8 @@ declare function setStatusHint(hint: string): void;
         layoutRows,
         el('h4', null, '节点卡片字段'),
         nodeRows,
+        el('h4', null, '元素外观（当前选中项）'),
+        appearanceRows,
       );
       const actions = div('modal-actions');
       actions.appendChild(button('应用并保存', 'btn primary', async () => {

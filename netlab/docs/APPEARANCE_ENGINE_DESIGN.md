@@ -98,3 +98,13 @@
 
 ### 下一步
 - **P-B 元素级视图外观**（二期，承 R40）尚未开始：视图面板对单元素外观详细可调。
+
+
+## 13. P-B 实施进度（元素级视图外观 v1，2026-11-07）
+
+- 状态：**v1 已实现**（最小可用）。
+- 范围：节点/连线 元素级外观覆盖 `color/opacity/lineWidth/fontSize`（可部分覆盖）；视图设计器「元素外观（当前选中项）」面板，拖动即时预览、change 持久化、可清除。
+- 数据：`netlab/core/model/scene.py` 的 `NodeRecord/EdgeRecord.appearance`（可选、非空才序列化，向后兼容）；`normalize_appearance()` 校验 color=#RRGGBB / opacity 0.05–1.0 / lineWidth 0.5–12 / fontSize 6–48；请求模型 `NodeUpdate/EdgeUpdate.appearance`。
+- 默认不写覆盖 → 视觉零变化；旧项目/旧 spec 照常加载。
+- 验收：tsc0 / build+nodecheck / contrast 10/10 / 画布裸色 0 / pytest 627 passed 1 skipped / GUI probe bridge+roundtrip / `tools/pb_appearance_demo.py` 全断言。
+- 已知限制（P-B 完整版待补）：仅节点/连线粒度；仅 4 属性；端口/选中 tick 等子元素未接入；无多选批量、无自定义色对比度护栏、无独立撤销。

@@ -2122,11 +2122,14 @@ import {
       else if (edge.delay) color = tokens().edgeDelay;
       if (selected) color = C("#a8541f");
       else if (hovered) color = tokens().edgeHover;
+      const ap = appearanceOf(edge);
+      if (ap.color) color = ap.color;
       ctx.save();
+      if (ap.opacity !== void 0) ctx.globalAlpha = clamp(ap.opacity, 0.05, 1);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.strokeStyle = color;
-      ctx.lineWidth = selected ? 2.1 : hovered ? 1.7 : state.ui?.drawingMode ? edge.kind === "wire" ? 1.75 : 1.3 : 1.15;
+      ctx.lineWidth = ap.lineWidth !== void 0 ? ap.lineWidth : selected ? 2.1 : hovered ? 1.7 : state.ui?.drawingMode ? edge.kind === "wire" ? 1.75 : 1.3 : 1.15;
       if (!edge.enabled) ctx.setLineDash([3, 5]);
       else if (edge.delay) ctx.setLineDash([7, 5]);
       const circuitGb = state.scene?.mode === "circuit" && state.ui?.symbol === "gb";
@@ -2174,7 +2177,7 @@ import {
           labelY = middle.y - 2;
           ctx.textAlign = "left";
         }
-        ctx.font = '9px "Cascadia Code", Consolas, monospace';
+        ctx.font = `${ap.fontSize !== void 0 ? ap.fontSize : 9}px "Cascadia Code", Consolas, monospace`;
         ctx.textBaseline = "middle";
         const textWidth = ctx.measureText(label).width;
         const boxW = textWidth + 8;
@@ -2527,11 +2530,14 @@ import {
       const isPrimary = state.selection.type === "node" && state.selection.id === node.id;
       const isSelected = isPrimary || state.multi?.nodes?.has(node.id);
       const isHovered = state.hover?.type === "node" && state.hover.id === node.id;
-      const accent = nodeColor(node);
+      const ap = appearanceOf(node);
+      const fontOverride = ap.fontSize;
+      const accent = ap.color ? ap.color : nodeColor(node);
       const cx = rect.cx;
       const cy = rect.cy;
       const radius = rect.r;
       ctx.save();
+      if (ap.opacity !== void 0) ctx.globalAlpha = clamp(ap.opacity, 0.05, 1);
       const gbStyle = state.ui?.symbol === "gb";
       const isDeviceNode = isPinNode(node);
       let customLabel = false;
@@ -2562,8 +2568,8 @@ import {
           ctx.shadowColor = tokens().nodeShadow;
           ctx.shadowBlur = Math.max(6, 9 * k);
         }
-        ctx.strokeStyle = isSelected ? C("#a8541f") : C("#bcb3a1");
-        ctx.lineWidth = isSelected ? 2.2 : 1;
+        ctx.strokeStyle = ap.color ? ap.color : isSelected ? C("#a8541f") : C("#bcb3a1");
+        ctx.lineWidth = ap.lineWidth !== void 0 ? ap.lineWidth : isSelected ? 2.2 : 1;
         ctx.stroke();
         ctx.shadowBlur = 0;
         ctx.beginPath();
@@ -2602,7 +2608,7 @@ import {
         ctx.font = `600 ${metaSize}px "Cascadia Code", Consolas, monospace`;
         ctx.fillText(nodeKindLabel(node), cx, cy - radius * 0.56, radius * 1.42);
         ctx.fillStyle = isSelected ? tokens().nodeNameSel : C("#11100e");
-        ctx.font = `700 ${nameSize}px "Segoe UI", "Microsoft YaHei", sans-serif`;
+        ctx.font = `700 ${fontOverride ?? nameSize}px "Segoe UI", "Microsoft YaHei", sans-serif`;
         const maxNameWidth = radius * 1.55;
         let name = node.name;
         if (ctx.measureText(name).width > maxNameWidth) {
@@ -2612,7 +2618,7 @@ import {
         ctx.fillText(name, cx, cy - radius * 0.06);
         if (showValue) {
           ctx.fillStyle = isSelected ? tokens().nodeValueSel : C("#6f695f");
-          ctx.font = `${valueSize}px "Cascadia Code", Consolas, monospace`;
+          ctx.font = `${fontOverride ?? valueSize}px "Cascadia Code", Consolas, monospace`;
           const text = node.kind === "ground" ? "0 V \xB7 REF" : nodeValueText(node);
           ctx.fillText(text, cx, cy + radius * 0.38, radius * 1.55);
         }
@@ -2631,13 +2637,13 @@ import {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = C("#11100e");
-        ctx.font = `600 ${nameSize2}px "Segoe UI", "Microsoft YaHei", sans-serif`;
+        ctx.font = `600 ${fontOverride ?? nameSize2}px "Segoe UI", "Microsoft YaHei", sans-serif`;
         ctx.fillText(node.name, cx, labelY, 96);
         if (showValue && state.scene?.mode !== "circuit") {
           ctx.fillStyle = C("#6f695f");
-          ctx.font = `${valueSize2}px "Cascadia Code", Consolas, monospace`;
+          ctx.font = `${fontOverride ?? valueSize2}px "Cascadia Code", Consolas, monospace`;
           const text = node.kind === "ground" ? "0 V \xB7 REF" : nodeValueText(node);
-          ctx.fillText(text, cx, labelY + nameSize2 + 3, 96);
+          ctx.fillText(text, cx, labelY + (fontOverride ?? nameSize2) + 3, 96);
         }
       } else {
         ctx.fillStyle = accent;
@@ -2645,7 +2651,7 @@ import {
         ctx.beginPath();
         ctx.arc(cx, cy, radius * 0.55, 0, Math.PI * 2);
         ctx.fill();
-        ctx.globalAlpha = 1;
+        ctx.globalAlpha = ap.opacity !== void 0 ? clamp(ap.opacity, 0.05, 1) : 1;
       }
       if (isSelected) {
         const tick = 6;
@@ -10882,6 +10888,19 @@ import {
       document.addEventListener("pointerdown", close);
     }, 0);
   }
+  function appearanceOf(item) {
+    return item.appearance || {};
+  }
+  function previewElementAppearance(item, appearance) {
+    item.appearance = { ...appearance };
+    requestDraw();
+  }
+  async function persistElementAppearance(kind, id, appearance) {
+    const path = kind === "node" ? `/api/nodes/${encodeURIComponent(id)}` : `/api/edges/${encodeURIComponent(id)}`;
+    const response = await task(() => jsonRequest(path, "PATCH", { appearance: appearance ?? {} }));
+    if (!response) return;
+    renderInspector();
+  }
   async function openViewDesigner() {
     try {
       const response = await jsonRequest("/api/ui", "GET");
@@ -10974,6 +10993,63 @@ import {
       };
       addNodeToggle("show_detail", "\u663E\u793A\u8282\u70B9\u7C7B\u578B/\u7AEF\u53E3");
       addNodeToggle("show_value", "\u663E\u793A\u8282\u70B9\u6570\u503C");
+      const appearanceRows = div("ui-layout-rows");
+      const appearanceNode = selectedNode();
+      const appearanceEdge = appearanceNode ? null : selectedEdge();
+      const appearanceItem = appearanceNode || appearanceEdge;
+      const appearanceKind = appearanceNode ? "node" : appearanceEdge ? "edge" : null;
+      if (!appearanceItem || !appearanceKind) {
+        appearanceRows.appendChild(div("help", "\u5148\u5728\u753B\u5E03\u4E0A\u9009\u4E2D\u4E00\u4E2A\u8282\u70B9\u6216\u8FDE\u7EBF\uFF0C\u518D\u56DE\u5230\u8FD9\u91CC\u8BBE\u7F6E\u5143\u7D20\u5916\u89C2\u3002"));
+      } else {
+        const app = { ...appearanceItem.appearance || {} };
+        const commit = () => {
+          previewElementAppearance(appearanceItem, app);
+        };
+        const persist = () => {
+          void persistElementAppearance(appearanceKind, appearanceItem.id, app);
+        };
+        const colorField = div("ui-field wide");
+        colorField.appendChild(el("span", null, "\u989C\u8272"));
+        const colorInput = el("input");
+        colorInput.type = "color";
+        colorInput.value = app.color || tokens().edgeDefault;
+        colorInput.addEventListener("input", () => {
+          app.color = colorInput.value;
+          commit();
+        });
+        colorInput.addEventListener("change", persist);
+        colorField.appendChild(colorInput);
+        appearanceRows.appendChild(colorField);
+        const addRange = (key, labelText, min, max, step, fallback) => {
+          const field = div("ui-field wide");
+          field.appendChild(el("span", null, labelText));
+          const input = el("input");
+          input.type = "range";
+          input.min = String(min);
+          input.max = String(max);
+          input.step = String(step);
+          const currentValue = app[key];
+          input.value = String(currentValue !== void 0 ? currentValue : fallback);
+          input.addEventListener("input", () => {
+            app[key] = Number(input.value);
+            commit();
+          });
+          input.addEventListener("change", persist);
+          field.appendChild(input);
+          appearanceRows.appendChild(field);
+        };
+        addRange("opacity", "\u900F\u660E\u5EA6", 0.05, 1, 0.05, 1);
+        addRange("lineWidth", "\u7EBF\u5BBD", 0.5, 12, 0.1, appearanceKind === "node" ? 1 : 1.15);
+        addRange("fontSize", "\u6807\u7B7E\u5B57\u53F7", 6, 48, 0.5, 12);
+        const clearRow = div("modal-actions");
+        clearRow.appendChild(button("\u6E05\u9664\u8BE5\u5143\u7D20\u5916\u89C2\u8986\u76D6", "btn tiny", () => {
+          appearanceItem.appearance = {};
+          requestDraw();
+          void persistElementAppearance(appearanceKind, appearanceItem.id, null);
+          toast("\u5DF2\u6E05\u9664\u8BE5\u5143\u7D20\u7684\u5916\u89C2\u8986\u76D6", "ok");
+        }));
+        appearanceRows.appendChild(clearRow);
+      }
       ui.modalCard.replaceChildren();
       ui.modalCard.append(
         el("h3", null, "\u89C6\u56FE\u8BBE\u8BA1"),
@@ -10983,7 +11059,9 @@ import {
         el("h4", null, "\u5E03\u5C40"),
         layoutRows,
         el("h4", null, "\u8282\u70B9\u5361\u7247\u5B57\u6BB5"),
-        nodeRows
+        nodeRows,
+        el("h4", null, "\u5143\u7D20\u5916\u89C2\uFF08\u5F53\u524D\u9009\u4E2D\u9879\uFF09"),
+        appearanceRows
       );
       const actions = div("modal-actions");
       actions.appendChild(button("\u5E94\u7528\u5E76\u4FDD\u5B58", "btn primary", async () => {

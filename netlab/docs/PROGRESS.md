@@ -2260,3 +2260,10 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - **下一步**：P-B 元素级视图外观（二期，承 R40）尚未开始。
 
 
+
+
+## §7.89 P-B 元素级视图外观 v1（2026-11-07）
+
+- 节点/连线元素级外观覆盖（color/opacity/lineWidth/fontSize），视图设计器「元素外观」面板 + 画布即时预览 + scene payload 持久化；默认零变化、向后兼容。
+- 验收：tsc0 / esbuild build / contrast 10/10 / 画布裸色 0 / netlab 627 passed 1 skipped / GUI probe OK / pb_appearance_demo 通过。
+- 待办：P-B 完整版（多粒度/多属性/端口接入/批量/撤销）。

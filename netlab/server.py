@@ -259,6 +259,7 @@ class NodeUpdate(BaseModel):
     data: dict[str, Any] | None = None
     position: dict[str, float] | None = None
     size: dict[str, float] | None = None
+    appearance: dict[str, Any] | None = None
 
 
 class EdgeCreate(BaseModel):
@@ -302,6 +303,7 @@ class EdgeUpdate(BaseModel):
     target_pin: str | None = None
     source_port: str | None = None
     target_port: str | None = None
+    appearance: dict[str, Any] | None = None
 
 
 class PositionItem(BaseModel):

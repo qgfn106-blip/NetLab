@@ -1,6 +1,7 @@
 // 统一前端构建入口：自动收集 app/*.ts，避免每轮改 package.json。
+// 纯类型模块（如 app/types.ts）编译结果为空，不生成 .js，也不进入漂移门。
 import { build } from 'esbuild';
-import { readdirSync } from 'node:fs';
+import { readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 const root = process.cwd();
@@ -12,13 +13,31 @@ const appEntries = readdirSync(appDir)
 
 const entries = ['app.ts', 'app.utils.ts', 'theme.tokens.ts', ...appEntries];
 
-await build({
-  entryPoints: entries,
-  outdir: root,
-  format: 'esm',
-  target: 'es2020',
-  logLevel: 'warning',
-});
+function runtimeText(text) {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+    .replace(/export\s*\{\s*\}\s*;?/g, '')
+    .trim();
+}
+
+for (const entry of entries) {
+  const result = await build({
+    entryPoints: [entry],
+    outdir: root,
+    outbase: root,
+    format: 'esm',
+    target: 'es2020',
+    logLevel: 'warning',
+    write: false,
+  });
+  const out = result.outputFiles[0];
+  if (!runtimeText(out.text)) {
+    rmSync(out.path, { force: true });
+    continue;
+  }
+  writeFileSync(out.path, out.text);
+}
 
 await build({
   entryPoints: ['desktop-shim.ts'],

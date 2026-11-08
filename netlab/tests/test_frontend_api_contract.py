@@ -6,6 +6,7 @@ from pathlib import Path
 
 APP_JS = Path(__file__).resolve().parents[2] / "frontend" / "app.ts"
 APP_NET = Path(__file__).resolve().parents[2] / "frontend" / "app" / "net.ts"
+APP_CACHE = Path(__file__).resolve().parents[2] / "frontend" / "app" / "cache.ts"
 
 
 def test_frontend_api_fetches_only_through_token_aware_helper():
@@ -19,10 +20,7 @@ def test_frontend_api_fetches_only_through_token_aware_helper():
 
 
 def test_cache_ui_uses_helper_and_does_not_misreport_failures_as_empty_or_success():
-    source = APP_JS.read_text(encoding="utf-8")
-    cache_start = source.index("  function renderCacheBody()")
-    cache_end = source.index("  function openDocSearch()", cache_start)
-    cache_ui = source[cache_start:cache_end]
+    cache_ui = APP_CACHE.read_text(encoding="utf-8")
 
     assert "api('/api/cache/status')" in cache_ui
     assert "api('/api/cache/clean'" in cache_ui

@@ -16,4 +16,5 @@ from __future__ import annotations
 from .circuit.stamps import *  # noqa: F401,F403
 from .circuit.stamps import _stamp_conductance, _stamp_current  # noqa: F401
 from .circuit.elements import *  # noqa: F401,F403
+from .circuit.catalog import *  # noqa: F401,F403
 from .circuit.solver import *  # noqa: F401,F403

@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from ..core.model.path_guard import ensure_allowed_path
 from ..core.model.project import (
     PROJECT_SUFFIX,
     atomic_write,
@@ -137,6 +138,7 @@ class WebviewBridge:
                 return ""
             if not target.lower().endswith(PROJECT_SUFFIX):
                 target += PROJECT_SUFFIX
+            ensure_allowed_path(target, purpose="保存路径")
             payload = _validate_for_file(json.loads(payload_json))
             atomic_write(target, payload)
             self._current_path = target
@@ -158,6 +160,7 @@ class WebviewBridge:
     def open_project_path(self, path: str) -> str:
         try:
             target = Path(str(path or "")).expanduser()
+            ensure_allowed_path(target, purpose="打开路径")
             if not target.is_file():
                 return ""
             project = load_project_raw(target)

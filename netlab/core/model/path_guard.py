@@ -43,9 +43,13 @@ def _is_under(path: Path, root: Path) -> bool:
         resolved = path.resolve(strict=False)
     except OSError:
         return False
-    return os.path.commonpath(
-        (os.path.normcase(str(resolved)), os.path.normcase(str(root)))
-    ) == os.path.normcase(str(root))
+    try:
+        return os.path.commonpath(
+            (os.path.normcase(str(resolved)), os.path.normcase(str(root)))
+        ) == os.path.normcase(str(root))
+    except ValueError:
+        # Windows 不同盘符没有公共路径：不在该根下。
+        return False
 
 
 def ensure_allowed_path(target: str | os.PathLike[str], *, purpose: str = "路径") -> Path:

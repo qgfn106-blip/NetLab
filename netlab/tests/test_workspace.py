@@ -271,3 +271,36 @@ def test_path_guard_rejects_escape_and_accepts_configured_root(tmp_path, monkeyp
     container = NetworkContainer(build_simulation(), name="路径守卫")
     with pytest.raises(ValidationError, match="不在允许的根目录内"):
         container.set_project_dir(str(outside))
+
+
+def test_path_guard_rejects_absolute_outside_and_symlink_escape(tmp_path, monkeypatch):
+    """C-5：绝对路径与符号链接逃逸都必须被拒。"""
+    from netlab.core.common.limits import ValidationError
+
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    monkeypatch.setenv("NETLAB_ALLOWED_ROOTS", str(allowed))
+
+    with pytest.raises(ValidationError, match="不在允许的根目录内"):
+        project_file_for(outside / "project")
+
+    link = allowed / "escape"
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        import os
+        import subprocess
+
+        if os.name != "nt":
+            pytest.skip("当前平台不允许创建符号链接")
+        made = subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(link), str(outside)],
+            capture_output=True,
+            text=True,
+        )
+        if made.returncode != 0:
+            pytest.skip("当前平台不允许创建符号链接或目录联接")
+    with pytest.raises(ValidationError, match="不在允许的根目录内"):
+        project_file_for(link / "project")

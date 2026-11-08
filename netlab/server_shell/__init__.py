@@ -11,7 +11,7 @@ import os
 from typing import Any, Callable
 
 from fastapi import APIRouter, Query, Response
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from ..core.compute import accel
@@ -58,18 +58,20 @@ def build_router(
     @router.get("/", include_in_schema=False)
     def index() -> Response:
         page = static_dir / "index.html"
+        # D-2 / N-21：版本号唯一来源是 netlab.__version__；页面里的
+        # __NETLAB_VERSION__ 在响应时注入，避免 index.html 再手写版本。
+        html = page.read_text(encoding="utf-8")
+        html = html.replace("__NETLAB_VERSION__", app_build)
         if os.environ.get("NETLAB_DESKTOP_SHELL") == "pywebview":
             # 桌面壳（pywebview）需要把 Promise 风格的原生桥映射成 QWebChannel 风格；
             # 只在桌面进程里注入，浏览器访问拿到的仍是原页面。
-            html = page.read_text(encoding="utf-8")
             if "desktop-shim.js" not in html:
                 html = html.replace(
                     "</head>",
                     f'  <script src="/static/desktop-shim.js?v={app_build}"></script>\n</head>',
                     1,
                 )
-            return HTMLResponse(html, headers={"Cache-Control": "no-store"})
-        return FileResponse(page, headers={"Cache-Control": "no-store"})
+        return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
     @router.get("/api/catalog")
     def catalog() -> dict[str, Any]:

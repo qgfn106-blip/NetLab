@@ -6,7 +6,9 @@
 
 // 界面版本号：必须与 index.html 的 ?v= 和 netlab/server.py 的 APP_BUILD 一致。
 // 用来识别「前端文件已更新、后端进程还是旧的」这种只关窗口不重启的情况。
-export const UI_BUILD = '3.20.1';
+// D-2 / N-21：版本由构建注入（netlab/__init__.py 是唯一来源）。
+declare const __NETLAB_BUILD__: string;
+export const UI_BUILD = __NETLAB_BUILD__;
 
 export const PALETTE = [
   '#a8541f', '#1f5f5b', '#2a2621', '#7b8c3a', '#8a4a7c',

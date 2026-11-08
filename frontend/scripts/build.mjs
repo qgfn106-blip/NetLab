@@ -1,10 +1,16 @@
 // 统一前端构建入口：自动收集 app/*.ts，避免每轮改 package.json。
 // 纯类型模块（如 app/types.ts）编译结果为空，不生成 .js，也不进入漂移门。
 import { build } from 'esbuild';
-import { readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 const root = process.cwd();
+// D-2 / N-21：版本唯一来源是 netlab/__init__.py；构建时注入 __NETLAB_BUILD__。
+const versionSource = readFileSync(path.join(root, '..', 'netlab', '__init__.py'), 'utf8');
+const versionMatch = versionSource.match(/^__version__\s*=\s*"([^"]+)"/m);
+if (!versionMatch) throw new Error('netlab/__init__.py 缺少 __version__');
+const version = versionMatch[1];
+const define = { __NETLAB_BUILD__: JSON.stringify(version) };
 const appDir = path.join(root, 'app');
 const appEntries = readdirSync(appDir)
   .filter((name) => name.endsWith('.ts') && !name.endsWith('.d.ts'))
@@ -30,6 +36,7 @@ for (const entry of entries) {
     target: 'es2020',
     logLevel: 'warning',
     write: false,
+    define,
   });
   const out = result.outputFiles[0];
   if (!runtimeText(out.text)) {
@@ -45,4 +52,5 @@ await build({
   format: 'iife',
   target: 'es2020',
   logLevel: 'warning',
+  define,
 });

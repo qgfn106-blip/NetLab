@@ -338,7 +338,7 @@ NetlabHome/
 
 ### 6.2 现在的规则
 
-- 包根只允许：`__init__.py`、`server.py`、`run.py`、`plotkit_bridge.py`、`plotkit_vendor.py`、`vscode_bridge.py`、`cache_guard.py`，以及 `core/`、`desktop/`、`tests/`、`docs/`、`tools/`、`_vendor/` 目录。
+- 包根只允许：`__init__.py`、`server.py`、`run.py`、`plotkit_bridge.py`、`vscode_bridge.py`、`cache_guard.py`，以及 `core/`、`desktop/`、`tests/`、`docs/`、`tools/` 目录。PlotKit 是外部依赖（`plotkit>=0.2,<0.3`），不再有 `_vendor/`。
 - 新增模块请放进 `core/compute`、`core/model` 或 `core/common`；不要再在包根加文件。
 - 回归护栏：`netlab/tests/test_structure_layout.py` 会断言「包根没有多余 .py」与「全仓库没有引用已删旧路径」。
 

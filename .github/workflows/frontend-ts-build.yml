@@ -33,6 +33,10 @@ jobs:
         working-directory: frontend
         run: npm run test
 
+      - name: Verify app.ts split parity
+        working-directory: frontend
+        run: npm run verify:parity
+
       - name: Artifact drift guard (committed JS must match a fresh build)
         working-directory: frontend
-        run: git diff --ignore-cr-at-eol --exit-code -- app.js app.utils.js desktop-shim.js
+        run: git diff --ignore-cr-at-eol --exit-code -- app.js app.utils.js desktop-shim.js app

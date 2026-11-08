@@ -1,0 +1,10 @@
+# C2 双版本兼容矩阵（唯一真源；netlab/contracts/generated.py 由此生成）
+api_version: "1"
+plotkit:
+  min: "0.2.0"
+  max_exclusive: "0.3.0"
+schemas:
+  channel_key: 1
+  frame: 1
+  project: 6
+  plot_spec: "0.1"

@@ -667,6 +667,14 @@ def mount(app: Any, service: Any | None = None) -> bool:
             sub_app = pk.PlotRenderPort(
                 figure, title="Netlab · PlotKit", layout_path=None
             ).app
+            fallback = _STATE.pop("fallback_app", None)
+            if fallback is not None:
+                # 启动时挂了降级子应用；真正挂载成功后必须摘掉，否则同前缀会先命中降级页。
+                app.router.routes = [
+                    route
+                    for route in app.router.routes
+                    if getattr(route, "app", None) is not fallback
+                ]
             app.mount(MOUNT_PATH, sub_app)
             stop_event = threading.Event()
             thread = threading.Thread(
@@ -690,6 +698,42 @@ def mount(app: Any, service: Any | None = None) -> bool:
         except Exception:
             LOGGER.warning("PlotKit 挂载失败，已跳过", exc_info=True)
             return False
+
+
+def mount_fallback(app: Any) -> None:
+    """PlotKit 不可用时在 ``/plotkit`` 下给出明确三态响应。
+
+    契约要求：不得 500、不得 traceback、不得静默返回空页。无论请求哪个子路径，
+    都回 503 + JSON ``{state, version, detail, path}``，前端据此展示"未安装 /
+    版本不符"的可读提示。
+    """
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
+
+    fallback = FastAPI(
+        title="Netlab · PlotKit（不可用）",
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
+
+    @fallback.api_route(
+        "/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"]
+    )
+    def plotkit_unavailable(path: str) -> JSONResponse:
+        state = probe()
+        return JSONResponse(
+            status_code=503,
+            content={
+                "state": state.get("state", "missing"),
+                "version": state.get("version"),
+                "detail": state.get("detail") or "PlotKit 不可用",
+                "path": f"{MOUNT_PATH}/{path}".rstrip("/") or MOUNT_PATH,
+            },
+        )
+
+    app.mount(MOUNT_PATH, fallback)
+    _STATE["fallback_app"] = fallback
 
 
 def figure() -> Any:

@@ -199,6 +199,9 @@ try:  # pragma: no cover - 取决于环境里是否装了 plotkit
     from . import plotkit_bridge
 
     PLOTKIT_MOUNTED = plotkit_bridge.mount(app, SERVICE)
+    if not PLOTKIT_MOUNTED:
+        # 明确降级：/plotkit 下返回三态 JSON，而不是 404 / 500 / 空白页。
+        plotkit_bridge.mount_fallback(app)
 except Exception:  # pragma: no cover
     PLOTKIT_MOUNTED = False
 

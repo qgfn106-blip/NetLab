@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "netlab/project/6",
+  "title": "ProjectV6",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["v", "name", "scene"],
+  "properties": {
+    "v": {"const": 6},
+    "name": {"type": "string", "minLength": 1},
+    "scene": {"type": "object"},
+    "blocks": {"type": "array"},
+    "library": {"type": "object"}
+  }
+}

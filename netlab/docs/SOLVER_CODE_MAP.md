@@ -1001,7 +1001,7 @@ def _solve_sparse(self, matrix, rhs, dt):
 
 | 项 | 代码 | 说明 |
 | --- | --- | --- |
-| 决策 | `_decide_sparse()` | `off`→否；无 SciPy→否；`on`→是；`auto`→`matrix_size > sparse_threshold`（默认 200） |
+| 决策 | `_decide_sparse()` | `off`→否；无 SciPy→否；`on`→是；`auto`→`matrix_size > sparse_threshold`（默认 512，D120） |
 | 装配 | `_blank_matrix()` | 稀疏 `lil_matrix`，稠密 `np.zeros`；`_newton_solve` 每轮新建 |
 | 分解 | `_solve_sparse()` | 稀疏均衡 → csr → `splu`；缓存键按 `indptr/indices/data` 字节与 dt |
 | 诊断 | `_solve_sparse()` 内部 | `factor.U.diagonal()` 零主元 → 「电路矩阵奇异（零主元）：节点」；`RuntimeError` → 「电路矩阵奇异（稀疏 LU）」 |
@@ -1114,14 +1114,16 @@ class SimConfig:
 
 | 时间字段 | 拥有者 | 含义 |
 | --- | --- | --- |
-| `Simulation.time` | `simulation.py` | 已推进的仿真时间（界面显示的总时间） |
+| `Scene.clock` | `core/compute/clock.py` | **唯一权威时钟**（`SimClock`），所有内核共享同一实例 |
+| `Simulation.time` | `simulation.py` | `scene.clock.time` 的只读/设置代理（界面显示的总时间） |
 | `Simulation.steps` | `simulation.py` | 已推进的步数（`T_step` 语义的落点） |
-| `Network.time` | `graph.py` | 信号内核时间；每步 `+= dt` |
-| `CircuitSolver.time` | `nodal.py` | 电路内核时间 |
+| `Network.time` | `graph.py` | `scene.clock.time` 的代理；不再单独维护 `+= dt` |
+| `CircuitSolver.time` | `nodal.py` | `scene.clock.time` 的代理 |
+| `FemModel.time` | `fem.py` | `scene.clock.time` 的代理 |
 | 节点 `ctx.time` | `graph.py` | **本步结束时刻** = `network.time + dt` |
-| 帧 `t` | `Recorder` | `Simulation.time` 的 9 位小数快照 |
+| 帧 `t` | `Recorder` | 真实采样时刻（`Simulation.time` 的 9 位小数快照） |
 
-`Simulation.reset()` 会同时重置 `scene`（内核状态）、`time`、`steps`、录制器（`simulation.py:210-219`）——**当前没有独立的「时间归零但保留状态」**，这正是 R11 里待补的 `T_step` / 时间归零 / 重置三者分离（见 PROGRESS §7 P0）。
+`Simulation.reset()` / `Simulation.zero_time()` 会同时重置 `scene`（内核状态）、共享 `SimClock`、`steps`、录制器（`simulation.py:621-651`）——时钟只有一个来源，**不再允许各内核自行 `+= dt`**。`Simulation._advance_locked()` 只在成功步后让内核推进一次共享时钟；失败步不推进。
 
 ### 6.6 计时（性能观察口）
 

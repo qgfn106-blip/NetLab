@@ -43,7 +43,7 @@ TOPOLOGY 内部有 3 种模式，共用同一套 HTTP 与场景模型：
 | 服务 | Uvicorn | `run.py` 负责端口探测与自动开浏览器 |
 | 数值 | NumPy（必需）、SciPy（可选） | `linalg.py` 自带 Padé `expm`，不依赖 SciPy |
 | 前端 | TypeScript（编译到 ES2020）+ Canvas | `frontend/app.ts` 等源码经 esbuild 构建为 `app.js`/`app.utils.js`/`desktop-shim.js`，无第三方运行时库 |
-| 测试 | pytest + httpx/TestClient | 628 项回归用例（2026-11-07：627 passed / 1 skipped），覆盖数值、场景与 API |
+| 测试 | pytest + httpx/TestClient | 679 项回归用例（2026-11-08：678 passed / 1 skipped），覆盖数值、场景与 API |
 
 运行形态：
 
@@ -107,7 +107,7 @@ NetlabHome/
 │  │     ├─ ports.py / schematic.py / ui_profile.py（R40 netlab-ui/1 视图配置）
 │  │     └─ templates.py      16 个可复现场景（builder + SIM_PRESETS）
 │  │
-│  ├─ tests/                  conftest.py + test_*.py（2026-11-07 全量 627 passed / 1 skipped）
+│  ├─ tests/                  conftest.py + test_*.py（2026-11-08 全量 678 passed / 1 skipped）
 │  ├─ docs/                   截图 + 文档（本文件、CODE_GUIDE、MATH…）
 │  └─ tools/                  可选 Edge CDP 冒烟脚本 / 结构整理脚本
 └─ （无兼容层）netlab/ 包根只剩 __init__ / server / run / plotkit_bridge / plotkit_vendor / vscode_bridge / cache_guard / desktop / core
@@ -963,7 +963,7 @@ scheduleChartDraw 70–80ms ─► drawChart：二分定位时间窗 → 稠密�
 
 ```bash
 cd NetlabHome
-python -m pytest netlab/tests -q                 # 全量 627 passed, 1 skipped（628 collected）
+python -m pytest netlab/tests -q                 # 全量 678 passed, 1 skipped（679 collected）
 python -m pytest netlab/tests -q -k "circuit"    # 按关键字
 python -m pytest netlab/tests -q -x              # 首个失败即停
 ```

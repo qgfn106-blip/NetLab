@@ -930,3 +930,43 @@ $$
 cd NetlabHome
 python -m pytest mathspec/tests/test_observability.py -q
 ```
+
+### 17.6 数据结构布局的形式化与等价条件
+
+> 本节是 §17 的附录性扩展，吸收 `HASH_TABLE_OPTIMIZATION_RESEARCH.md` §4 的布局分析；它不改变 §17.1–§17.5 的可观测性结论，也不授权修改 NetLab 运行算法。
+
+设仿真图 $G=(V,E)$，字段集合 $\mathcal F$。一个布局 $L$ 由三部分组成：字段到存储位置的映射 $\sigma_L:\mathcal F\to\text{Storage}$、节点/边到整数索引的映射 $\iota_L:V\cup E\to\mathbb N$、以及边邻接的压缩表示 $A_L$（如 CSR 的 `indptr`/`indices`）。布局选择是带约束的多目标问题：
+
+$$
+\min_{L\in\mathcal L}\quad
+\alpha T_{\mathrm{edit}}(L)+\beta T_{\mathrm{step}}(L)+\gamma M(L)+\delta T_{\mathrm{serialize}}(L)
+$$
+
+subject to
+
+$$
+\begin{aligned}
+&\text{(C1) 语义等价：}\quad \|F_L(x)-F_{L_0}(x)\|\le \tau\quad \forall x\in\mathcal X,\\
+&\text{(C2) 编辑完整：}\quad \mathrm{fields}(L)=\mathcal F,\ \text{增删改不丢字段},\\
+&\text{(C3) 打包约束：}\quad L\ \text{只使用 Python/NumPy/SciPy 现有依赖},\\
+&\text{(C4) 回滚正确：}\quad \mathrm{restore}(\mathrm{checkpoint}(s))=s\ \text{逐字段成立}.
+\end{aligned}
+$$
+
+其中 $L_0$ 是当前嵌套 dict 布局，$\tau$ 是任务约定的数值容差；$T_{\mathrm{edit}}$、$T_{\mathrm{step}}$、$M$、$T_{\mathrm{serialize}}$ 分别是编辑、单步、内存和序列化成本。候选布局与 §33.5.8 相同：$L_{\mathrm{nested}}$、$L_{\mathrm{slots}}$、$L_{\mathrm{soa}}$、$L_{\mathrm{compiled}}$、$L_{\mathrm{native}}$。
+
+**命题 17.3（布局等价的充分条件）**：若布局变换 $L_0\to L$ 满足：
+
+1. 对每个字段 $f\in\mathcal F$，$\sigma_L(f)$ 与原存储互为双射，读取返回同一值；
+2. 对每个数值计算量，变换后的表达式 DAG 与原 DAG 同构，且浮点加法/乘法的结合顺序不变；
+3. 所有边界条件、奇异处理、迭代终止判据和状态更新顺序保持不变；
+
+则对任意输入，$F_L(x)$ 与 $F_{L_0}(x)$ 逐位相同（在 IEEE-754 同一舍入模式下）。
+
+**证明要点**：对表达式 DAG 做结构归纳。叶节点由条件 1 保持值相同；每个内部节点由条件 2 保持操作数与运算顺序相同，因此每一步浮点运算的舍入结果相同；条件 3 保证分支与迭代轨迹一致。归纳到根即得逐位相同。$\square$
+
+**推论 17.4（重排的边界）**：若布局变换只改变浮点求和/归约的结合顺序（例如把逐元素 stamp 改为 `np.bincount`/`np.add.at` 聚合），命题 17.3 的条件 2 不成立，不能声称逐位等价；只能要求存在与问题条件数相关的误差界，并通过既有 `assert_allclose` 容差和回归测试验收。对线性系统 $Ax=b$，稠密与稀疏分解的差异属于这一类，不是“同一算法”的逐位保证。
+
+**推论 17.5（P0 的适用条件）**：仅改变 `sparse_threshold` 默认值，不改变 `sparse="on"/"off"` 的显式语义、不改变 MNA 装配表达式和 Newton 迭代顺序；因此它满足命题 17.3 的结构条件，唯一可能的差异来自线性求解后端的浮点舍入，必须用既有容差验证。该推论只覆盖 P0，不外推到 P1 的向量化装配或 P2 的 undo-log。
+
+**成本模型的边界**：§33.5 的 $T_{\mathrm{nested}}$、$C_{\mathrm{ckpt}}$、$T_{\mathrm{snap}}$ 等是分析模型；其中只有审计明确标注的 `C_ckpt≈2.7ms/步`、`runtime_state` 7.44ms、`json.dumps` 9.86ms 等是实测。任何布局决策必须同时报告模型预测与实测中位数/波动，不得用单一解析比值替代验收。

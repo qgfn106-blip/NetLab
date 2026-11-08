@@ -49,5 +49,16 @@ def register(ctx: PluginContext) -> None:
 2. 打开 UI「插件管理」→「扫描插件目录」（`POST /api/plugins/scan`）→ 启用（`POST /api/plugins/{id}/enable`，体 `{enabled: true}`）；改动后「重新加载」（`POST /api/plugins/{id}/reload`）。
 3. 路由以实现为准：仅 `GET /api/plugins`、`GET /api/plugins/{id}`、`POST /api/plugins/scan`、`POST /api/plugins/{id}/enable`、`POST /api/plugins/{id}/reload`；**无** `/disable`、`/open-folder` 路由（`netlab/server.py:658-710`）。
 
+## 官方 PlotKit 插件（D125）
+
+`extensions/plugins/netlab.plotkit/` 是随仓库分发的面板插件：`plugin.json`
+声明 `capabilities=["panel"]`，`plugin.py` 注册 `PanelSpec(id="plotkit")`，
+面板布局指向宿主挂载的 `/plotkit/` iframe。PlotKit 的 Python 包仍由
+`netlab/plotkit_bridge.py` 单向加载；插件包负责发现/启停与面板声明，
+`plotkit_bridge.mount()` 只在插件未被停用时挂载子应用。插件包存在时，若
+`extensions/plugins/netlab.plotkit/plotkit/` 下有副本则优先于
+`netlab/_vendor/plotkit`；没有插件包时保留旧的 vendor 回退路径，兼容旧安装。
+验证：`python -m pytest netlab/tests/test_plotkit_plugin.py -q`。
+
 详细规范和验收矩阵见 [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md)，
 决策见 [adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md)。

@@ -462,7 +462,7 @@ applyAppearance(): 写 html[data-theme|data-motion|data-perf|data-density]
 
 ```bash
 cd NetlabHome
-python -m pytest netlab/tests -q              # 当前 627 passed / 1 skipped
+python -m pytest netlab/tests -q              # 当前 678 passed / 1 skipped
 python -m compileall -q netlab
 python -m netlab.desktop --selftest           # backend + qt + ok:true
 node --check frontend/app.js

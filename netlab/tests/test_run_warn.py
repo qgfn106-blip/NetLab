@@ -22,9 +22,12 @@ def test_run_warn_dialog_hooks():
 
 
 def test_build_stamp_matches_index_version():
-    from netlab.server import APP_BUILD
+    from fastapi.testclient import TestClient
 
-    html = INDEX.read_text(encoding="utf-8")
+    from netlab.server import APP_BUILD, app
+
+    html = TestClient(app).get("/").text
     assert f"?v={APP_BUILD}" in html
     source = APP.read_text(encoding="utf-8") + CONSTANTS.read_text(encoding="utf-8")
-    assert f"UI_BUILD = '{APP_BUILD}'" in source
+    assert "UI_BUILD = __NETLAB_BUILD__" in source
+    assert f"UI_BUILD = '{APP_BUILD}'" not in source

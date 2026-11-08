@@ -17,6 +17,7 @@ from typing import Any
 import numpy as np
 
 from . import accel
+from .clock import SimClock
 from .profiling import timed
 from ..common.fastcopy import copy_state as _copy_state
 from ..common.limits import ComputeError, ConflictError, ValidationError
@@ -92,8 +93,9 @@ class SolverOptions:
     pivot_tol: float = 1.0e-14
     #: 稀疏矩阵策略：auto=超过阈值自动切换、on=强制稀疏、off=强制稠密（R26/D53）。
     sparse: str = "auto"
-    #: auto 模式下矩阵尺寸超过该值改用稀疏（默认 200）。
-    sparse_threshold: int = 200
+    #: auto 模式下矩阵尺寸超过该值改用稀疏。当前 LIL 装配在 ≤400 节点反而更慢，
+    #: 默认提高到 512，避免默认踩到负优化；显式 on/off 不受影响（P0）。
+    sparse_threshold: int = 512
 
 
 @dataclass(slots=True)
@@ -1617,6 +1619,7 @@ class CircuitSolver:
         *,
         integration: str = "trapezoidal",
         options: SolverOptions | None = None,
+        clock: SimClock | None = None,
     ) -> None:
         if integration not in ("trapezoidal", "backward_euler", "gear2"):
             raise ValidationError("积分方法必须是 trapezoidal、backward_euler 或 gear2")
@@ -1626,7 +1629,7 @@ class CircuitSolver:
         self.options = options or SolverOptions()
         for element in self.elements:
             element.integration = integration
-        self.time = 0.0
+        self._clock = clock if clock is not None else SimClock()
         self.solution: np.ndarray | None = None
         self.node_voltages: dict[str, float] = {node.id: 0.0 for node in nodes}
         self.last_iterations = 0
@@ -1640,6 +1643,14 @@ class CircuitSolver:
         self.matrix_size = 0
         self.nonlinear = any(element.nonlinear for element in elements)
         self._build_index()
+
+    @property
+    def time(self) -> float:
+        return self._clock.time
+
+    @time.setter
+    def time(self, value: float) -> None:
+        self._clock.time = value
 
     def _build_index(self) -> None:
         if not self.nodes:
@@ -1710,6 +1721,8 @@ class CircuitSolver:
         self._sparse_key: tuple[Any, ...] | None = None
         self._sparse_col_scale: np.ndarray | None = None
         self.linear_reuse = 0
+        #: N-36：最近一步的求解器快照，供 Scene/Simulation 超时回滚复用。
+        self._last_step_checkpoint: dict[str, Any] | None = None
 
     def _decide_sparse(self) -> bool:
         _load_scipy()
@@ -1723,7 +1736,7 @@ class CircuitSolver:
             return False
         if mode == "on":
             return True
-        return self.matrix_size > int(getattr(self.options, "sparse_threshold", 200))
+        return self.matrix_size > int(getattr(self.options, "sparse_threshold", 512))
 
     def _blank_matrix(self) -> Any:
         """新建全零系数矩阵（稀疏时为 LIL，便于逐元素盖章）。"""
@@ -1800,11 +1813,18 @@ class CircuitSolver:
             raise ValidationError("dt 必须为正的有限数")
         started = _time.perf_counter()
         checkpoint = self.capture_checkpoint()
+        self._last_step_checkpoint = checkpoint
         try:
             return self._step_locked(dt, started)
         except Exception:
             self.restore_checkpoint(checkpoint)
             raise
+
+    def restore_last_step_checkpoint(self) -> None:
+        """回滚到最近一次 ``step`` 开始前的求解器快照（N-36）。"""
+        checkpoint = self._last_step_checkpoint
+        if checkpoint is not None:
+            self.restore_checkpoint(checkpoint)
 
     def _step_locked(self, dt: float, started: float) -> dict[str, Any]:
         self.time += dt

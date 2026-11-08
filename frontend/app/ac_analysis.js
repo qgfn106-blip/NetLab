@@ -4,6 +4,7 @@ import { $, $$ } from "./dom.js";
 import { chartPalette } from "./theme.js";
 import { raiseFloatWindow } from "./float.js";
 import { state } from "./state.js";
+import { probeNamesForAc } from "./ac_probe.js";
 import { toast } from "./desktop.js";
 function analEscape(text) {
   return String(text ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
@@ -91,7 +92,7 @@ async function runAcSweep() {
   params.set("f_stop", $("#analAcF2")?.value || "1000000");
   params.set("points", $("#analAcPts")?.value || "121");
   params.set("scale", $("#analAcScale")?.value || "log");
-  const probeNames = (state.scene?.nodes || []).filter((node) => node.kind === "node").map((node) => node.name).filter(Boolean);
+  const probeNames = probeNamesForAc(state.scene?.nodes || []);
   if (probeNames.length) params.set("probes", probeNames.join(","));
   if (meta) meta.textContent = "\u626B\u9891\u4E2D\u2026";
   try {

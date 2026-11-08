@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import pytest
 
 from netlab.core.compute.simulation import Simulation
@@ -97,7 +99,12 @@ def test_underdamped_precompute_converges_with_dt():
     assert report_fast["error"] is None and report_fine["error"] is None
     assert final_fast == pytest.approx(final_fine, abs=0.005)
     assert abs(overshoot_fast - overshoot_fine) < 2.5
-    # 细步长收敛到连续理想 37.2% 附近；宽区间只用于粗步长的 z^-1 实现。
+    # 解析解：ζ=0.3 的二阶系统超调 = exp(-πζ/√(1-ζ²)) ≈ 37.23%。
+    zeta = 0.3
+    analytic = math.exp(-math.pi * zeta / math.sqrt(1.0 - zeta**2)) * 100.0
+    assert abs(overshoot_fine - analytic) <= 0.5
+    # 收敛阶证据：细步长的解析解误差应显著小于粗步长（z^-1 离散偏差）。
+    assert abs(overshoot_fast - analytic) > abs(overshoot_fine - analytic) * 3.0
     assert 36.5 <= overshoot_fine <= 38.5
 
 

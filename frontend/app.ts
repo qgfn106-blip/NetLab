@@ -20,6 +20,7 @@ import { formatAny, valueToText, parseSmartValue, kindListFor, buildKindSelect, 
 import { buildParamField, applyPresetOnModelChange, applyWaveFieldVisibility, buildWaveFieldVisibility, buildParamFields, collectParamValues, dataRow, collectData, markDirty, clearDirty, setTypeLabelHelp } from './app/param_fields.js';
 import { hideHelpCard, showHelpCard, typeLabelHelp, paramRangeText, setSwitchTab } from './app/help_card.js';
 import { activeTab, modeLabel, selectedNode, selectedEdge, nodeById, edgeById, nodeByName, edgeByName, getNodeSpec, getEdgeSpec, specDefaults, uniqueNodeName, hasGroundNode, displayDataFor, nodeDisplayData, edgeDisplayData } from './app/model.js';
+import { sectionLabel, section, buildHeader, renderEmptyInspector, setEmptyInspectorActions } from './app/inspector_shell.js';
 declare const desc: HTMLElement;
 declare function setStatusHint(hint: string): void;
 
@@ -4257,45 +4258,6 @@ declare function setStatusHint(hint: string): void;
 
 
 
-  function sectionLabel(text: string, note?: string) {
-    const label = div('section-label');
-    label.appendChild(el('span', null, text));
-    if (note) label.appendChild(el('em', null, note));
-    return label;
-  }
-
-  function section(title: string, note?: string, ...children: Node[]) {
-    const wrapper = div('section');
-    wrapper.appendChild(sectionLabel(title, note));
-    for (const child of children) wrapper.appendChild(child);
-    return wrapper;
-  }
-
-  function renderEmptyInspector() {
-    const host = div('empty-state');
-    host.appendChild(el('b', null, '未选择对象'));
-    host.appendChild(div('help', '在画布上单击节点或连接以检查参数；双击可直接编辑。也可以从下面的入口开始：'));
-    const actions = div('insp-actions');
-    actions.appendChild(button('添加节点', 'btn primary', () => {
-      const place = centerPlacement();
-      openAddMenu(state.canvasSize.w / 2, state.canvasSize.h / 2, place.x, place.y);
-    }));
-    actions.appendChild(button('适配视图', 'btn', () => fitView(true)));
-    host.appendChild(actions);
-    const hint = div('help');
-    hint.style.marginTop = '12px';
-    if (state.mode === 'vector') {
-      hint.textContent = '矢量：非线性动态源产生 x/y/vx/vy，连接可传递或扩散二维矢量；画布箭头表示状态方向，相图显示轨迹。';
-    } else if (state.mode === 'circuit') {
-      hint.textContent = '电路：节点是等电位点，连接是 R/L/C/电源/二极管/开关/受控源，使用节点电压法（MNA）逐步求解。';
-    } else {
-      hint.textContent = '信号流：节点对入边数据求和/变换，连接负责字段传递、延迟、传递函数与积分。代数环会自动插入延迟。';
-    }
-    host.appendChild(hint);
-    ui.inspector.replaceChildren(host);
-    state.inspectorId = null;
-  }
-
   function buildDevicePinList(node: NodeItem) {
     const container = div('kv');
     const wires = (state.scene?.edges || []).filter((edge) => edge.kind === 'wire');
@@ -4339,22 +4301,6 @@ declare function setStatusHint(hint: string): void;
       }
       renderEdgeInspector(edge);
     }
-  }
-
-  function buildHeader(titleText: string, subtitle: string, specLabel: string) {
-    const head = div('insp-head');
-    const title = div('insp-title');
-    const heading = el('h2', null, titleText);
-    const sub = el('p', null, subtitle);
-    title.append(heading, sub);
-    const badges = div('insp-badges');
-    const badge = el('span', 'badge', specLabel);
-    badges.appendChild(badge);
-    const dirty = el('span', 'badge gray hidden', '未应用');
-    dirty.dataset.role = 'dirty-badge';
-    badges.appendChild(dirty);
-    head.append(title, badges);
-    return { head, heading, badge };
   }
 
   function renderNodeInspector(node: NodeItem) {
@@ -14913,6 +14859,7 @@ declare function setStatusHint(hint: string): void;
 
   setTypeLabelHelp(typeLabelHelp);
   setSwitchTab(switchTab);
+  setEmptyInspectorActions({ centerPlacement, openAddMenu, fitView });
   loadUiProfile();
   boot();
   setTimeout(checkCacheQuietly, 6000);

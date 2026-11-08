@@ -23,6 +23,13 @@ def test_plotkit_frontend_uses_token_aware_api_helper():
     assert 'fetch("/api/plotkit/' not in source
 
 
+def test_plotkit_frame_url_does_not_carry_token_fragment():
+    """S3：iframe 地址不再携带 #netlabToken=...，鉴权走宿主同源 cookie。"""
+    source = APP_JS.read_text(encoding="utf-8")
+
+    assert "netlabToken" not in source
+
+
 def test_run_warning_precompute_uses_token_aware_helper():
     source = APP_JS.read_text(encoding="utf-8")
     start = source.index("(card!.querySelector('#runWarnPre') as HTMLElement).onclick")
@@ -104,16 +111,44 @@ def test_plotkit_child_api_requires_desktop_token(monkeypatch):
     )
 
 
-def test_plotkit_child_index_injects_host_shim_before_vendor_script(monkeypatch):
+def test_plotkit_child_index_is_served_unmodified(monkeypatch):
+    """S3：宿主不再向第三方首页注入任何脚本，子应用自带首页原样提供。
+
+    旧机制在 PlotKit 首页第一个 <script> 前插宿主 shim，由 shim 从 URL 片段读
+    token 再包 fetch/window.open；S3 改用宿主同源 cookie 后，这层注入必须消失。
+    """
     monkeypatch.setattr(server, "_DESKTOP_TOKEN", "audit-child-token")
     client = TestClient(app)
 
     html = client.get("/plotkit/").text
 
-    assert html.count("netlab 宿主 shim") == 1
-    assert html.index("netlab 宿主 shim") < html.index("static/app.js")
+    assert "netlab 宿主 shim" not in html
     assert "audit-child-token" not in html
+    assert 'src="static/app.js"' in html
     assert html == client.get("/plotkit").text
+
+
+def test_plotkit_child_api_accepts_same_origin_session_cookie(monkeypatch):
+    """S3：桌面 token 改用宿主同源 cookie，子应用前端不再依赖注入的 shim。
+
+    桌面外壳打开 ``/?token=...`` 时宿主种下 HttpOnly + SameSite=Strict 会话 cookie；
+    之后 iframe 内 PlotKit 自己发的同源 ``/plotkit/api/*`` 请求会自动带上 cookie。
+    """
+    monkeypatch.setattr(server, "_DESKTOP_TOKEN", "audit-child-token")
+    client = TestClient(app)
+
+    page = client.get("/?token=audit-child-token")
+    assert page.status_code == 200
+    set_cookie = page.headers.get("set-cookie", "")
+    assert "netlab_desktop_token=audit-child-token" in set_cookie
+    assert "HttpOnly" in set_cookie
+    assert "SameSite=strict" in set_cookie
+    # 有 cookie、无请求头：子应用 API 可用
+    assert client.get("/plotkit/api/spec").status_code == 200
+    # cookie 不能靠请求头以外的路径绕过：伪造 cookie 值仍然 403
+    forged = TestClient(app)
+    forged.cookies.set("netlab_desktop_token", "wrong")
+    assert forged.get("/plotkit/api/spec").status_code == 403
 
 
 def test_plotkit_child_api_stays_open_in_browser_mode(monkeypatch):

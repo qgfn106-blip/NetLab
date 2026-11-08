@@ -660,84 +660,6 @@ def diagnose() -> dict[str, Any]:
     return info
 
 
-_HOST_SHIM = """<script>
-/* netlab 宿主 shim：只给同源 /plotkit/api/ 请求补桌面 token。
-   token 由宿主放在 URL 片段里传入，读取后立即从地址栏抹掉；页面 HTML、查询串、
-   localStorage 与 cookie 都不出现 token。 */
-(function () {
-  "use strict";
-  var TOKEN = "";
-  try {
-    var hash = window.location.hash || "";
-    var match = /(?:^#|&)netlabToken=([^&]*)/.exec(hash);
-    if (match) TOKEN = decodeURIComponent(match[1]);
-    if (hash) {
-      window.history.replaceState(null, "", window.location.pathname + window.location.search);
-    }
-  } catch (error) { TOKEN = ""; }
-  if (!TOKEN) return;
-  var API = "/plotkit/api";
-  function isApi(url) {
-    try {
-      var parsed = new URL(url, window.location.href);
-      return parsed.origin === window.location.origin &&
-        (parsed.pathname === API || parsed.pathname.indexOf(API + "/") === 0);
-    } catch (error) { return false; }
-  }
-  var rawFetch = window.fetch.bind(window);
-  window.fetch = function (input, init) {
-    try {
-      var url = typeof input === "string" ? input : (input && input.url) || String(input);
-      if (isApi(url)) {
-        var headers = new Headers(
-          (init && init.headers) || (typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined)
-        );
-        headers.set("X-Netlab-Token", TOKEN);
-        init = Object.assign({}, init || {}, { headers: headers });
-      }
-    } catch (error) { /* 保底按原样请求，服务端会给出 403 */ }
-    return rawFetch(input, init);
-  };
-  var rawOpen = window.open.bind(window);
-  window.open = function (url, name, features) {
-    try {
-      var target = new URL(url, window.location.href);
-      if (target.origin === window.location.origin && target.pathname === API + "/png") {
-        var popup = rawOpen("about:blank", name, features);
-        rawFetch(target.href, { headers: { "X-Netlab-Token": TOKEN } })
-          .then(function (response) {
-            if (!response.ok) throw new Error("HTTP " + response.status);
-            return response.blob();
-          })
-          .then(function (blob) {
-            var objectUrl = URL.createObjectURL(blob);
-            if (popup) popup.location = objectUrl;
-            window.setTimeout(function () { URL.revokeObjectURL(objectUrl); }, 60000);
-          })
-          .catch(function (error) {
-            if (popup) popup.close();
-            window.alert("PNG 导出失败：" + (error && error.message ? error.message : error));
-          });
-        return popup;
-      }
-    } catch (error) { /* 非 API 链接照常打开 */ }
-    return rawOpen(url, name, features);
-  };
-})();
-</script>"""
-
-
-def _host_index_html() -> str:
-    """读取实际导入的 PlotKit 首页，并在第一个脚本前插入宿主鉴权 shim。"""
-    import plotkit as pk
-
-    html = pk.index_html()
-    position = html.find("<script")
-    if position < 0:
-        return html
-    return html[:position] + _HOST_SHIM + "\n  " + html[position:]
-
-
 def remount(app: Any | None = None, service: Any | None = None) -> bool:
     """运行时再试一次挂载（用户点了「重试」或首次挂载时依赖还没就绪）。"""
     if _STATE.get("figure") is not None:
@@ -776,39 +698,6 @@ def mount(app: Any, service: Any | None = None) -> bool:
             sub_app = pk.PlotRenderPort(
                 figure, title="Netlab · PlotKit", layout_path=None
             ).app
-            # 子应用首页由宿主先接管：在 PlotKit 自己的脚本之前注入 shim，让它把
-            # 同源 /plotkit/api/ 请求自动带上桌面 token。首页与静态资源本身仍公开。
-            try:
-                index_html = _host_index_html()
-            except Exception:
-                index_html = ""
-                LOGGER.debug(
-                    "PlotKit 首页注入 shim 失败，回退到子应用自带首页", exc_info=True
-                )
-            if index_html:
-                from fastapi.responses import HTMLResponse
-
-                def _plotkit_host_index() -> HTMLResponse:
-                    return HTMLResponse(
-                        index_html,
-                        headers={
-                            "Cache-Control": "no-store",
-                            "Referrer-Policy": "no-referrer",
-                        },
-                    )
-
-                for _path in (MOUNT_PATH, MOUNT_PATH + "/"):
-                    try:
-                        app.add_api_route(
-                            _path,
-                            _plotkit_host_index,
-                            methods=["GET"],
-                            include_in_schema=False,
-                        )
-                    except Exception:
-                        LOGGER.debug(
-                            "注册 PlotKit 宿主首页失败：%s", _path, exc_info=True
-                        )
             app.mount(MOUNT_PATH, sub_app)
             stop_event = threading.Event()
             thread = threading.Thread(

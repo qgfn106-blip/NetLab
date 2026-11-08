@@ -499,8 +499,7 @@ import {
   function plotkitFrameUrl(extra) {
     const params = new URLSearchParams(extra || {});
     const query = params.toString();
-    const hash = DESKTOP_TOKEN ? `#netlabToken=${encodeURIComponent(DESKTOP_TOKEN)}` : "";
-    return `/plotkit/${query ? `?${query}` : ""}${hash}`;
+    return `/plotkit/${query ? `?${query}` : ""}`;
   }
   function toast(message, type = "info", timeout = 4200) {
     const node = div(`toast ${type}`, message);

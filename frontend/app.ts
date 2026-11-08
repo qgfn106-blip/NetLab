@@ -1039,14 +1039,13 @@ declare function setStatusHint(hint: string): void;
     return api(path, { method, body: body === undefined ? undefined : JSON.stringify(body) });
   }
 
-  // PlotKit 子应用是独立页面，拿不到 api() 的请求头；桌面 token 只放在 URL 片段里，
-  // 由宿主注入子应用首页的 shim 读取后立即抹掉，再给同源 /plotkit/api/ 请求补头。
-  // 不要改成查询串：查询串会进日志/Referer，也会被服务端访问日志记下来。
+  // PlotKit 子应用是独立页面，拿不到 api() 的请求头；桌面鉴权走宿主同源 cookie
+  // （桌面外壳打开 /?token= 时种下，HttpOnly + SameSite=Strict），子应用自己的
+  // fetch/导航会自动携带。不要把 token 放进 URL 查询串或片段。
   function plotkitFrameUrl(extra: string | Record<string, string>) {
     const params = new URLSearchParams(extra || {});
     const query = params.toString();
-    const hash = DESKTOP_TOKEN ? `#netlabToken=${encodeURIComponent(DESKTOP_TOKEN)}` : '';
-    return `/plotkit/${query ? `?${query}` : ''}${hash}`;
+    return `/plotkit/${query ? `?${query}` : ''}`;
   }
 
   function toast(message: string, type: string = 'info', timeout: number = 4200) {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from netlab import cache_guard as cg
@@ -85,5 +86,6 @@ def test_protected_names_are_never_touched(tmp_path):
 
 
 def test_too_shallow_guards(tmp_path):
-    assert cg._too_shallow(Path("C:/"))
+    shallow = Path("C:/") if os.name == "nt" else Path("/")
+    assert cg._too_shallow(shallow)
     assert not cg._too_shallow(tmp_path / "a" / "b" / "c" / "d")

@@ -403,3 +403,84 @@ export function drawLissajous(frames: FrameItem[]) {
     lissCtx!.textBaseline = 'bottom';
     lissCtx!.fillText(`Y ${yKey.split(':').slice(1, -1).join(':')}`, pad, h - 1);
   }
+
+export function drawInstruments() {
+    if (activeTab() !== 'inst') return;
+    const { frames, window } = instrumentFrames();
+    renderInstrumentMeter(frames);
+    drawScope(frames, window);
+    drawLissajous(frames);
+    if (ui.instStatus) {
+      if (frames.length) {
+        ui.instStatus.textContent = `${frames.length} 帧 · 窗口 ${fmt(window, 2)} s${state.replay.active ? ' · 回放中' : ''}`;
+      } else {
+        ui.instStatus.textContent = state.sim?.running ? '等待采集中…' : '运行仿真后显示读数与波形';
+      }
+    }
+  }
+
+export function resizeInstrument() {
+    const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5);
+    for (const [target, key] of [[scopeCanvas, 'scopeSize'], [lissCanvas, 'lissSize']]) {
+      if (!target) continue;
+      const wrap = (target as HTMLCanvasElement).parentElement;
+      if (!wrap) continue;
+      const rect = wrap.getBoundingClientRect();
+      const w = Math.max(1, Math.floor(rect.width));
+      const h = Math.max(1, Math.floor(rect.height));
+      state.instrument[key as string] = { w, h, dpr };
+      (target as HTMLCanvasElement).width = Math.max(1, Math.round(w * dpr));
+      (target as HTMLCanvasElement).height = Math.max(1, Math.round(h * dpr));
+    }
+    instrumentScheduleChartDraw();
+  }
+
+export function bindInstrumentEvents() {
+    const bind = (element: HTMLElement, event: string, handler: (event: MouseEvent) => void) => {
+      if (element) element.addEventListener(event, handler as EventListener);
+    };
+    bind(ui.instMeterKey, (('change')), () => {
+      state.instrument.meterKey = ui.instMeterKey.value || '';
+      saveInstrumentPrefs();
+      instrumentScheduleChartDraw();
+    });
+    ui.instCh.forEach((select, index: number) => {
+      bind(select, (('change')), () => {
+        state.instrument.channels[index] = select.value || null;
+        const dot = select.closest('.inst-ch')?.querySelector('.dot');
+        if (dot) {
+          dot.classList.toggle('on', Boolean(select.value));
+          (dot as HTMLElement).style.color = select.value ? INST_COLORS[index] : '';
+        }
+        saveInstrumentPrefs();
+        instrumentScheduleChartDraw();
+      });
+    });
+    bind(ui.instLX, (('change')), () => {
+      state.instrument.lx = ui.instLX.value || '';
+      saveInstrumentPrefs();
+      instrumentScheduleChartDraw();
+    });
+    bind(ui.instLY, (('change')), () => {
+      state.instrument.ly = ui.instLY.value || '';
+      saveInstrumentPrefs();
+      instrumentScheduleChartDraw();
+    });
+    bind(ui.instWindow, (('input')), () => {
+      state.instrument.window = clamp(Number(ui.instWindow.value) || 5, 0.1, 120);
+      saveInstrumentPrefs();
+      instrumentScheduleChartDraw();
+    });
+    bind(ui.instTrail, (('input')), () => {
+      state.instrument.trail = clamp(Math.round(Number(ui.instTrail.value) || 600), 20, 4000);
+      saveInstrumentPrefs();
+      instrumentScheduleChartDraw();
+    });
+  }
+
+export function initInstruments() {
+    loadInstrumentPrefs();
+    resizeInstrument();
+    bindInstrumentEvents();
+    fillInstrumentSelects();
+  }

@@ -2,6 +2,7 @@ import { clamp, fmt } from "../app.utils.js";
 import { C } from "./colors.js";
 import { INST_COLORS } from "./constants.js";
 import { lissCanvas, lissCtx, scopeCanvas, scopeCtx } from "./dom.js";
+import { activeTab } from "./model.js";
 import { state, ui } from "./state.js";
 const instrumentActions = {};
 function setInstrumentActions(actions) {
@@ -128,13 +129,13 @@ function fillInstrumentSelects() {
 }
 function instrumentFrames() {
   const all = state.replay.active ? state.frames.slice(0, state.replay.index + 1) : state.frames;
-  const window = Math.max(0.1, Number(state.instrument.window) || 5);
-  if (!all.length) return { frames: [], window };
+  const window2 = Math.max(0.1, Number(state.instrument.window) || 5);
+  if (!all.length) return { frames: [], window: window2 };
   const last = all[all.length - 1].t;
-  const start = last - window;
+  const start = last - window2;
   let from = all.length - 1;
   while (from > 0 && all[from - 1].t >= start) from -= 1;
-  return { frames: all.slice(from), window };
+  return { frames: all.slice(from), window: window2 };
 }
 function instrumentStats(frames, key) {
   let count = 0;
@@ -214,7 +215,7 @@ function renderInstrumentLegend(frames) {
     ui.instLegend.appendChild(item);
   });
 }
-function drawScope(frames, window) {
+function drawScope(frames, window2) {
   const surface = instrumentSurface(scopeCtx, scopeCanvas, state.instrument.scopeSize, "#faf8f2");
   if (!surface) return;
   const { w, h } = surface;
@@ -250,7 +251,7 @@ function drawScope(frames, window) {
     return;
   }
   const last = frames[frames.length - 1].t;
-  const start = Math.max(frames[0].t, last - Math.max(0.1, window));
+  const start = Math.max(frames[0].t, last - Math.max(0.1, window2));
   const span = Math.max(1e-9, last - start);
   let amp = 0;
   for (const { key } of channels) {
@@ -368,15 +369,96 @@ function drawLissajous(frames) {
   lissCtx.textBaseline = "bottom";
   lissCtx.fillText(`Y ${yKey.split(":").slice(1, -1).join(":")}`, pad, h - 1);
 }
+function drawInstruments() {
+  if (activeTab() !== "inst") return;
+  const { frames, window: window2 } = instrumentFrames();
+  renderInstrumentMeter(frames);
+  drawScope(frames, window2);
+  drawLissajous(frames);
+  if (ui.instStatus) {
+    if (frames.length) {
+      ui.instStatus.textContent = `${frames.length} \u5E27 \xB7 \u7A97\u53E3 ${fmt(window2, 2)} s${state.replay.active ? " \xB7 \u56DE\u653E\u4E2D" : ""}`;
+    } else {
+      ui.instStatus.textContent = state.sim?.running ? "\u7B49\u5F85\u91C7\u96C6\u4E2D\u2026" : "\u8FD0\u884C\u4EFF\u771F\u540E\u663E\u793A\u8BFB\u6570\u4E0E\u6CE2\u5F62";
+    }
+  }
+}
+function resizeInstrument() {
+  const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5);
+  for (const [target, key] of [[scopeCanvas, "scopeSize"], [lissCanvas, "lissSize"]]) {
+    if (!target) continue;
+    const wrap = target.parentElement;
+    if (!wrap) continue;
+    const rect = wrap.getBoundingClientRect();
+    const w = Math.max(1, Math.floor(rect.width));
+    const h = Math.max(1, Math.floor(rect.height));
+    state.instrument[key] = { w, h, dpr };
+    target.width = Math.max(1, Math.round(w * dpr));
+    target.height = Math.max(1, Math.round(h * dpr));
+  }
+  instrumentScheduleChartDraw();
+}
+function bindInstrumentEvents() {
+  const bind = (element, event, handler) => {
+    if (element) element.addEventListener(event, handler);
+  };
+  bind(ui.instMeterKey, "change", () => {
+    state.instrument.meterKey = ui.instMeterKey.value || "";
+    saveInstrumentPrefs();
+    instrumentScheduleChartDraw();
+  });
+  ui.instCh.forEach((select, index) => {
+    bind(select, "change", () => {
+      state.instrument.channels[index] = select.value || null;
+      const dot = select.closest(".inst-ch")?.querySelector(".dot");
+      if (dot) {
+        dot.classList.toggle("on", Boolean(select.value));
+        dot.style.color = select.value ? INST_COLORS[index] : "";
+      }
+      saveInstrumentPrefs();
+      instrumentScheduleChartDraw();
+    });
+  });
+  bind(ui.instLX, "change", () => {
+    state.instrument.lx = ui.instLX.value || "";
+    saveInstrumentPrefs();
+    instrumentScheduleChartDraw();
+  });
+  bind(ui.instLY, "change", () => {
+    state.instrument.ly = ui.instLY.value || "";
+    saveInstrumentPrefs();
+    instrumentScheduleChartDraw();
+  });
+  bind(ui.instWindow, "input", () => {
+    state.instrument.window = clamp(Number(ui.instWindow.value) || 5, 0.1, 120);
+    saveInstrumentPrefs();
+    instrumentScheduleChartDraw();
+  });
+  bind(ui.instTrail, "input", () => {
+    state.instrument.trail = clamp(Math.round(Number(ui.instTrail.value) || 600), 20, 4e3);
+    saveInstrumentPrefs();
+    instrumentScheduleChartDraw();
+  });
+}
+function initInstruments() {
+  loadInstrumentPrefs();
+  resizeInstrument();
+  bindInstrumentEvents();
+  fillInstrumentSelects();
+}
 export {
+  bindInstrumentEvents,
+  drawInstruments,
   drawLissajous,
   drawScope,
   fillInstrumentSelects,
+  initInstruments,
   instrumentFrames,
   instrumentSelectGroups,
   instrumentSurface,
   loadInstrumentPrefs,
   renderInstrumentMeter,
+  resizeInstrument,
   saveInstrumentPrefs,
   setInstrumentActions
 };

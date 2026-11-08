@@ -1,11 +1,7 @@
 import { fmt, intText, clamp, hashString, baseName } from "./app.utils.js";
 import {
   CANVAS_LIGHT,
-  CANVAS_DARK,
-  CHART_PALETTE_HC_LIGHT,
-  CHART_PALETTE_HC_DARK,
-  CHART_PALETTE_CB_LIGHT,
-  CHART_PALETTE_CB_DARK
+  CANVAS_DARK
 } from "./theme.tokens.js";
 import { UI_BUILD, PALETTE, GROUP_COLORS, NODE_RADIUS, NODE_W, NODE_H, CHART_KEYS, MAX_IMPORT_BYTES, MAX_FRAMES, INST_COLORS } from "./app/constants.js";
 import { $, $$, stage, canvas, ctx, chartCanvas, chartCtx, phaseCanvas, phaseCtx, scopeCanvas, scopeCtx, lissCanvas, lissCtx } from "./app/dom.js";
@@ -15,6 +11,7 @@ import { desktopBridge, isDesktop, callBridge, toast, showBanner, hideBanner } f
 import { api, jsonRequest, plotkitFrameUrl } from "./app/net.js";
 import { openCacheDialog, checkCacheQuietly } from "./app/cache.js";
 import { placeFloatWindow, placeDocWindow, raiseFloatWindow, initFloatWindow } from "./app/float.js";
+import { chartPalette, themeKey } from "./app/theme.js";
 (() => {
   "use strict";
   let projectFileInput = null;
@@ -12555,18 +12552,6 @@ import { placeFloatWindow, placeDocWindow, raiseFloatWindow, initFloatWindow } f
     "#cfc6b5": "gridAxis",
     "#e7e1d5": "paper3"
   };
-  const CHART_PALETTE = [
-    "#a8541f",
-    "#1f5f5b",
-    "#7b8c3a",
-    "#8a4a7c",
-    "#4a6f8a",
-    "#b08a3e",
-    "#8e2f24",
-    "#5f6b52",
-    "#7a4a2a",
-    "#4d463c"
-  ];
   const ACCENT_SWATCHES = ["", "#9b7247", "#565c46", "#3f5d6b", "#8a4234", "#6b6257", "#7a5a33", "#5f7a52"];
   const PREF_CACHE_KEY = "netlab.ui.prefs";
   const PREF_DEFAULTS = {
@@ -12612,16 +12597,6 @@ import { placeFloatWindow, placeDocWindow, raiseFloatWindow, initFloatWindow } f
       }
     }
     return override;
-  }
-  function chartPalette() {
-    const mode = String(state.prefs && state.prefs.chartPalette || "theme");
-    const dark = themeKey() === "dark";
-    if (mode === "high-contrast") return dark ? CHART_PALETTE_HC_DARK : CHART_PALETTE_HC_LIGHT;
-    if (mode === "colorblind") return dark ? CHART_PALETTE_CB_DARK : CHART_PALETTE_CB_LIGHT;
-    return CHART_PALETTE;
-  }
-  function themeKey() {
-    return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
   }
   function tokens() {
     const base = THEME_TOKENS[themeKey()];

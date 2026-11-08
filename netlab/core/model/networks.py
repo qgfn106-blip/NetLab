@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from ..common.limits import ConflictError, NotFoundError, ValidationError
+from .path_guard import ensure_allowed_path
 from .project import build_project_from_networks, project_scene_payload
 from .schematic import fill_missing_layout
 from .scene import MODES, Scene
@@ -174,7 +175,7 @@ class NetworkContainer:
         target_dir: str | None = None
         raw = str(path or "").strip()
         if raw:
-            candidate = Path(raw)
+            candidate = ensure_allowed_path(raw, purpose="工程缓存路径")
             directory = candidate if candidate.is_dir() else candidate.parent
             try:
                 directory = directory.resolve()

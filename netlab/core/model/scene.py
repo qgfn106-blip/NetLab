@@ -12,10 +12,11 @@ import math
 import re
 import time
 import uuid
-from dataclasses import dataclass, field
 from typing import Any
 
 from .blocks import BlockRuntime, BlockStore
+from .records import EdgeRecord, NodeRecord
+from ..compute.clock import SimClock
 from ..compute.computes import (
     compute_catalog,
     get_compute_spec,
@@ -102,99 +103,6 @@ def normalize_appearance(value: Any) -> dict[str, Any]:
     return clean
 
 
-@dataclass
-class NodeRecord:
-    id: str
-    name: str
-    kind: str
-    params: dict[str, Any] = field(default_factory=dict)
-    data: dict[str, Any] = field(default_factory=dict)
-    state: dict[str, Any] = field(default_factory=dict)
-    inputs: dict[str, dict[str, Any]] = field(default_factory=dict)
-    position: dict[str, float] = field(default_factory=lambda: {"x": 0.0, "y": 0.0})
-    #: 节点尺寸（R09）：``{"w": 直径}``；空字典表示用默认半径。
-    size: dict[str, float] = field(default_factory=dict)
-    #: 元素级外观覆盖（P-B，可选）；空字典表示不覆盖、完全沿用默认。
-    appearance: dict[str, Any] = field(default_factory=dict)
-
-    def snapshot(self, *, include_state: bool = True) -> dict[str, Any]:
-        """返回可 JSON 化的节点快照。
-
-        ``include_state=False``（前端画布/场景树用的只读视图）时不深拷贝
-        ``state``/``inputs``：这两个字段每拍都变、体积最大，而调用方随后
-        就会丢弃它们，拷贝纯属浪费（204 节点场景实测占 to_payload 一半时间）。
-        """
-        item = {
-            "id": self.id,
-            "name": self.name,
-            "kind": self.kind,
-            "params": copy.deepcopy(self.params),
-            "data": copy.deepcopy(self.data),
-            "position": dict(self.position),
-            "size": dict(self.size),
-        }
-        if self.appearance:
-            item["appearance"] = copy.deepcopy(self.appearance)
-        if include_state:
-            item["state"] = copy.deepcopy(self.state)
-            item["inputs"] = copy.deepcopy(self.inputs)
-        return item
-
-
-@dataclass
-class EdgeRecord:
-    id: str
-    name: str
-    source: str
-    target: str
-    kind: str
-    params: dict[str, Any] = field(default_factory=dict)
-    state: dict[str, Any] = field(default_factory=dict)
-    delay: bool = False
-    #: 是否由 add_edge 的自动防代数环逻辑加上；只作运行期提示，不写入工程快照。
-    auto_delay: bool = False
-    enabled: bool = True
-    #: 连线几何（R09/D24）：路由方式、手动拐点（世界坐标）、两端锚点。
-    route: str = "auto"
-    waypoints: list[dict[str, float]] = field(default_factory=list)
-    anchors: dict[str, str] = field(default_factory=dict)
-    #: 图纸布局层（R19）：符号位置与旋转（30° 步长）；空=未布局，自动生成。
-    layout: dict[str, Any] = field(default_factory=dict)
-    #: 导线引脚绑定（R20）：只在 kind=="wire" 时使用；网络节点一侧为空。
-    source_pin: str = ""
-    target_pin: str = ""
-    #: 信号/矢量端口绑定（R20/Q8）：source 输出字段 → target 输入端口。
-    source_port: str = ""
-    target_port: str = ""
-    #: 元素级外观覆盖（P-B，可选）；空字典表示不覆盖、完全沿用默认。
-    appearance: dict[str, Any] = field(default_factory=dict)
-
-    def snapshot(self, *, include_state: bool = True) -> dict[str, Any]:
-        item = {
-            "id": self.id,
-            "name": self.name,
-            "source": self.source,
-            "target": self.target,
-            "kind": self.kind,
-            "source_pin": self.source_pin,
-            "target_pin": self.target_pin,
-            "source_port": self.source_port,
-            "target_port": self.target_port,
-            "params": copy.deepcopy(self.params),
-            "delay": self.delay,
-            "enabled": self.enabled,
-            "route": self.route,
-            "waypoints": [dict(item) for item in self.waypoints],
-            "anchors": dict(self.anchors),
-            "layout": dict(self.layout),
-        }
-        if self.appearance:
-            item["appearance"] = copy.deepcopy(self.appearance)
-        if include_state:
-            item["state"] = copy.deepcopy(self.state)
-        return item
-
-
 # ---- 引擎 ------------------------------------------------------------------
 class _Engine:
     def step(self, dt: float) -> None:  # pragma: no cover - 抽象
@@ -207,7 +115,7 @@ class _Engine:
         """只把内核时间轴归零，不清除状态（R11）。"""
         raise NotImplementedError
 
-    def probes(self) -> dict[str, float]:  # pragma: no cover - 抽象
+    def probes(self, *, by_id: bool = False) -> dict[str, float]:  # pragma: no cover - 抽象
         raise NotImplementedError
 
     def stats(self) -> dict[str, Any]:  # pragma: no cover - 抽象
@@ -217,7 +125,8 @@ class _Engine:
 class SignalEngine(_Engine):
     def __init__(self, scene: "Scene") -> None:
         self.network = Network(
-            solve_algebraic=bool(getattr(scene, "solve_algebraic", False))
+            solve_algebraic=bool(getattr(scene, "solve_algebraic", False)),
+            clock=scene.clock,
         )
         self.node_map: dict[str, Node] = {}
         self.edge_map: dict[str, Any] = {}
@@ -225,6 +134,8 @@ class SignalEngine(_Engine):
         # 功能块实例：每个实例拥有独立的内部场景与 state。
         self.block_runtimes: dict[str, BlockRuntime] = {}
         self.block_buffers: dict[str, dict[str, dict[str, Any]]] = {}
+        #: N-36：最近一步开始前的功能块快照，供超时回滚复用。
+        self._last_block_snapshots: dict[str, Any] = {}
         for record in scene.nodes.values():
             try:
                 _spec, params, handler = prepare_compute(record.kind, record.params)
@@ -460,20 +371,25 @@ class SignalEngine(_Engine):
         for block_id, runtime in self.block_runtimes.items():
             runtime.restore_checkpoint(blocks.get(block_id))
 
+    def rollback_last_step(self) -> None:
+        """N-36：回滚最近一步（网络快照 + 功能块快照），不重新全量深拷贝。"""
+        for block_id, snapshot in self._last_block_snapshots.items():
+            runtime = self.block_runtimes.get(block_id)
+            if runtime is not None:
+                runtime.restore_checkpoint(snapshot)
+        self.network.restore_last_step_state()
+
     def step(self, dt: float) -> None:
         # 整步事务：网络层已回滚节点/连接，功能块内部场景另行快照，
         # 保证块内 state（积分器、滤波器记忆等）在失败时一起回退。
-        snapshots = {
+        self._last_block_snapshots = {
             block_id: runtime.capture_checkpoint()
             for block_id, runtime in self.block_runtimes.items()
         }
         try:
             self.network.step(dt)
         except BaseException:
-            for block_id, snapshot in snapshots.items():
-                runtime = self.block_runtimes.get(block_id)
-                if runtime is not None:
-                    runtime.restore_checkpoint(snapshot)
+            self.rollback_last_step()
             raise
 
     def zero_time(self) -> None:
@@ -486,9 +402,10 @@ class SignalEngine(_Engine):
             buffer.clear()
         self.network.reset_state()
 
-    def probes(self) -> dict[str, float]:
+    def probes(self, *, by_id: bool = False) -> dict[str, float]:
         values: dict[str, float] = {}
         for record in self.scene.nodes.values():
+            ident = record.id if by_id else record.name
             count = 0
             for key, value in record.data.items():
                 if count >= 6:
@@ -498,12 +415,13 @@ class SignalEngine(_Engine):
                     and not isinstance(value, bool)
                     and math.isfinite(float(value))
                 ):
-                    values[f"n:{record.name}:{key}"] = float(value)
+                    values[f"n:{ident}:{key}"] = float(value)
                     count += 1
         for record in self.scene.edges.values():
             connection = self.edge_map.get(record.id)
             if connection is None:
                 continue
+            ident = record.id if by_id else record.name
             count = 0
             for key, value in connection.output.items():
                 if count >= 4:
@@ -513,7 +431,7 @@ class SignalEngine(_Engine):
                     and not isinstance(value, bool)
                     and math.isfinite(float(value))
                 ):
-                    values[f"e:{record.name}:{key}"] = float(value)
+                    values[f"e:{ident}:{key}"] = float(value)
                     count += 1
         # R36/P5：把节点内部状态暴露成相平面可选通道。状态空间用
         # state:<node>:<index>，积分器/延迟等标量状态用 state:<node>:<key>。
@@ -521,6 +439,7 @@ class SignalEngine(_Engine):
             node = self.node_map.get(record.id)
             if node is None:
                 continue
+            ident = record.id if by_id else record.name
             for key, value in node.state.items():
                 if isinstance(value, (list, tuple)):
                     for index, item in enumerate(value):
@@ -529,13 +448,13 @@ class SignalEngine(_Engine):
                             and not isinstance(item, bool)
                             and math.isfinite(float(item))
                         ):
-                            values[f"state:{record.name}:{index}"] = float(item)
+                            values[f"state:{ident}:{index}"] = float(item)
                 elif (
                     isinstance(value, (int, float))
                     and not isinstance(value, bool)
                     and math.isfinite(float(value))
                 ):
-                    values[f"state:{record.name}:{key}"] = float(value)
+                    values[f"state:{ident}:{key}"] = float(value)
         return values
 
     def stats(self) -> dict[str, Any]:
@@ -722,11 +641,14 @@ class CircuitEngine(_Engine):
             elements,
             integration=scene.integration,
             options=getattr(scene, "solver_options", None),
+            clock=scene.clock,
         )
         # R31/P11-05：跨域桥元素。sensor 在 MNA 解后采样，actuator 在下一拍
         # MNA 前读取 sensor/控制节点数据，显式一拍延迟，不形成代数环。
         self.bridge_sensors: list[tuple[NodeRecord, Any]] = []
         self.bridge_actuators: list[tuple[NodeRecord, Any]] = []
+        #: N-36：最近一步的节点 data 浅快照；电路 step 会写回电压/传感器值。
+        self._last_step_data_snapshot: dict[str, dict[str, Any]] = {}
         for record in all_nodes.values():
             if record.kind != "device":
                 continue
@@ -808,14 +730,33 @@ class CircuitEngine(_Engine):
             record.data["voltage"] = voltage
 
     def step(self, dt: float) -> None:
-        self._apply_bridge_actuators()
-        self.solver.step(dt)
+        # N-36：只保存会被 step 写回的 data，而不是整套 Scene 深拷贝。
+        self._last_step_data_snapshot = {
+            record.id: dict(record.data) for record in self.scene.nodes.values()
+        }
+        try:
+            self._apply_bridge_actuators()
+            self.solver.step(dt)
+            for record in self.scene.nodes.values():
+                if record.kind == "device":
+                    continue
+                root = self.net_root.get(record.id, record.id)
+                record.data["voltage"] = float(
+                    self.solver.node_voltages.get(root, 0.0)
+                )
+            self._sample_bridge_sensors()
+        except BaseException:
+            self.rollback_last_step()
+            raise
+
+    def rollback_last_step(self) -> None:
+        """N-36：回滚求解器与节点 data 到最近一步开始前。"""
+        self.solver.restore_last_step_checkpoint()
         for record in self.scene.nodes.values():
-            if record.kind == "device":
-                continue
-            root = self.net_root.get(record.id, record.id)
-            record.data["voltage"] = float(self.solver.node_voltages.get(root, 0.0))
-        self._sample_bridge_sensors()
+            row = self._last_step_data_snapshot.get(record.id)
+            if row is not None:
+                record.data.clear()
+                record.data.update(row)
 
     def operating_point(self) -> dict[str, Any]:
         """DC 工作点：不推进瞬态状态，节点电压按场景显示名返回。
@@ -866,20 +807,22 @@ class CircuitEngine(_Engine):
             if record.id not in self.element_map:
                 record.state.clear()
 
-    def probes(self) -> dict[str, float]:
+    def probes(self, *, by_id: bool = False) -> dict[str, float]:
         values: dict[str, float] = {}
         for record in self.scene.nodes.values():
             root = self.net_root.get(record.id, record.id)
             voltage = self.solver.node_voltages.get(root, 0.0)
-            values[f"n:{record.name}:voltage"] = float(voltage)
+            ident = record.id if by_id else record.name
+            values[f"n:{ident}:voltage"] = float(voltage)
         for record in self.scene.edges.values():
             element = self.element_map.get(record.id)
             if element is None:
                 continue
+            ident = record.id if by_id else record.name
             for key in ("current", "voltage_difference", "power"):
                 value = element.state.get(key)
                 if isinstance(value, (int, float)) and math.isfinite(float(value)):
-                    values[f"e:{record.name}:{key}"] = float(value)
+                    values[f"e:{ident}:{key}"] = float(value)
         return values
 
     def stats(self) -> dict[str, Any]:
@@ -914,7 +857,9 @@ class Scene:
         self.mode = mode
         self.integration = "trapezoidal"
         self.solver_options = None
-        #: R36/P2：信号流是否启用直接馈通 SCC 线性求解（默认关闭，保持旧行为）。
+        #: One shared clock for every engine in this scene (A-3/N-05).
+        self.clock = SimClock()
+        #: R36/P2：信号流是否启用直接馈通 SCC 线性求解（默认关闭，保持旧行为；开关随工程持久化）。
         self.solve_algebraic = False
         self.nodes: dict[str, NodeRecord] = {}
         self.edges: dict[str, EdgeRecord] = {}
@@ -963,6 +908,13 @@ class Scene:
     def capture_checkpoint(self) -> dict[str, Any]:
         engine = self.ensure_engine()
         return {"engine": engine, "state": engine.capture_checkpoint()}
+
+    def rollback_last_step(self) -> None:
+        """N-36：回滚最近一步的引擎事务，不再重建完整 Scene 深拷贝。"""
+        engine = self.ensure_engine()
+        rollback = getattr(engine, "rollback_last_step", None)
+        if callable(rollback):
+            rollback()
 
     def restore_checkpoint(self, checkpoint: dict[str, Any] | None) -> None:
         if not checkpoint:
@@ -1047,9 +999,29 @@ class Scene:
         engine.reset()
         self.last_step_ms = 0.0
 
-    def probes(self) -> dict[str, float]:
+    def channel_display_name(self, key: str) -> str:
+        """把内部稳定通道键 ``<kind>:<node-or-edge-id>:<field>`` 映射为显示名。
+
+        记录器内部保存 id 键，避免节点/连接改名后历史帧与新帧断档；对外
+        ``/api/live`` 仍按当前显示名返回，调用方看到的是同一逻辑通道。
+        未知键原样返回，便于兼容旧工程与第三方插件。
+        """
+        parts = key.split(":", 2)
+        if len(parts) != 3:
+            return key
+        kind, ident, field = parts
+        record = None
+        if kind in {"n", "state"}:
+            record = self.nodes.get(ident)
+        elif kind == "e":
+            record = self.edges.get(ident)
+        if record is None:
+            return key
+        return f"{kind}:{record.name}:{field}"
+
+    def probes(self, *, by_id: bool = False) -> dict[str, float]:
         engine = self.ensure_engine()
-        values = engine.probes()
+        values = engine.probes(by_id=by_id)
         if len(values) > 240:
             values = dict(list(values.items())[:240])
         return values
@@ -1096,6 +1068,7 @@ class Scene:
         state = {
             "mode": self.mode,
             "integration": self.integration,
+            "solve_algebraic": bool(self.solve_algebraic),
             "revision": self.revision,
             "nodes": [record.snapshot() for record in self.nodes.values()],
             "edges": edges,
@@ -1622,27 +1595,49 @@ class Scene:
         return removed_edges
 
     # ---- 连接 -------------------------------------------------------------
-    def _would_cycle(
-        self, source_id: str, target_id: str, *, skip_edge: str | None = None
-    ) -> bool:
-        adjacency: dict[str, list[str]] = {node_id: [] for node_id in self.nodes}
-        for edge in self.edges.values():
+    def _cycle_path(
+        self,
+        source_id: str,
+        target_id: str,
+        *,
+        skip_edge: str | None = None,
+        edges: dict[str, "EdgeRecord"] | None = None,
+        nodes: dict[str, "NodeRecord"] | None = None,
+    ) -> list[str]:
+        """返回新增 source→target 边会形成的环路径（节点 id 序列）。"""
+        if source_id == target_id:
+            return [source_id, source_id]
+        node_items = self.nodes if nodes is None else nodes
+        adjacency: dict[str, list[str]] = {node_id: [] for node_id in node_items}
+        edge_items = self.edges.values() if edges is None else edges.values()
+        for edge in edge_items:
             if not edge.enabled or edge.delay or edge.id == skip_edge:
                 continue
             adjacency[edge.source].append(edge.target)
-        if source_id == target_id:
-            return True
+        parent: dict[str, str | None] = {target_id: None}
         stack = [target_id]
-        seen = {target_id}
         while stack:
             current = stack.pop()
             for neighbour in adjacency.get(current, ()):
                 if neighbour == source_id:
-                    return True
-                if neighbour not in seen:
-                    seen.add(neighbour)
+                    path = [source_id]
+                    cursor: str | None = current
+                    while cursor is not None:
+                        path.append(cursor)
+                        if cursor == target_id:
+                            break
+                        cursor = parent.get(cursor)
+                    path.append(source_id)
+                    return path
+                if neighbour not in parent:
+                    parent[neighbour] = current
                     stack.append(neighbour)
-        return False
+        return []
+
+    def _would_cycle(
+        self, source_id: str, target_id: str, *, skip_edge: str | None = None
+    ) -> bool:
+        return bool(self._cycle_path(source_id, target_id, skip_edge=skip_edge))
 
     def add_edge(
         self,
@@ -1654,7 +1649,7 @@ class Scene:
         params: Any = None,
         delay: bool = False,
         enabled: bool = True,
-        auto_delay: bool = True,
+        auto_delay: bool = False,
         route: Any = "auto",
         waypoints: Any = None,
         anchors: Any = None,
@@ -1702,14 +1697,23 @@ class Scene:
                 raise ValidationError("元件两端不能是同一个节点")
             delay = False
         elif not delay and self._would_cycle(source_id, target_id):
-            if getattr(self, "solve_algebraic", False):
-                # R36/P2：代数环交给 solver_plan/SCC 求解，不再自动改写为 z⁻¹。
-                pass
-            elif auto_delay:
+            if auto_delay:
                 delay = True
                 auto_delay_applied = True
+            elif getattr(self, "solve_algebraic", False):
+                # R36/P2：代数环交给 solver_plan/SCC 求解，不再自动改写为 z⁻¹。
+                pass
             else:
-                raise ConflictError("这条连接会形成代数环，请改用单步延迟连接")
+                cycle_ids = self._cycle_path(source_id, target_id)
+                cycle_names = [
+                    self.nodes[node_id].name if node_id in self.nodes else node_id
+                    for node_id in cycle_ids
+                ]
+                path = " -> ".join(cycle_names)
+                raise ConflictError(
+                    f"这条连接会形成代数环：{path}。"
+                    "请显式设置 delay=True 或启用 solve_algebraic。"
+                )
 
         source_pin, target_pin = self._normalize_wire_pins(
             kind, source_id, target_id, source_pin, target_pin
@@ -1907,6 +1911,7 @@ class Scene:
         return {
             "mode": self.mode,
             "integration": self.integration,
+            "solve_algebraic": bool(self.solve_algebraic),
             "nodes": nodes,
             "edges": edges,
             "blocks": self.blocks.export_user(),
@@ -1922,6 +1927,9 @@ class Scene:
         allowed_integration = {item["value"] for item in integration_methods()}
         if integration not in allowed_integration:
             raise ValidationError(f"未知积分方法：{integration!r}")
+        solve_algebraic = payload.get("solve_algebraic", False)
+        if not isinstance(solve_algebraic, bool):
+            raise ValidationError("solve_algebraic 必须是布尔值")
 
         raw_nodes = payload.get("nodes")
         raw_edges = payload.get("edges")
@@ -2046,6 +2054,7 @@ class Scene:
                 params=params,
                 state=state,
                 delay=delay,
+                auto_delay=bool(raw.get("auto_delay", False)),
                 enabled=enabled,
                 route=self._edge_route(raw.get("route")),
                 waypoints=self._edge_waypoints(raw.get("waypoints")),
@@ -2058,31 +2067,6 @@ class Scene:
                 appearance=normalize_appearance(raw.get("appearance")),
             )
 
-        if mode == "signal":
-            # 导入时若存在代数环，自动把最后一条相关连接标记为延迟。
-            for edge in edges.values():
-                if edge.delay or not edge.enabled:
-                    continue
-                adjacency: dict[str, list[str]] = {key: [] for key in nodes}
-                for other in edges.values():
-                    if other.id == edge.id or other.delay or not other.enabled:
-                        continue
-                    adjacency[other.source].append(other.target)
-                stack = [edge.target]
-                seen = {edge.target}
-                cyclic = edge.source == edge.target
-                while stack and not cyclic:
-                    current = stack.pop()
-                    for neighbour in adjacency.get(current, ()):
-                        if neighbour == edge.source:
-                            cyclic = True
-                            break
-                        if neighbour not in seen:
-                            seen.add(neighbour)
-                            stack.append(neighbour)
-                if cyclic:
-                    edge.delay = True
-
         for record in nodes.values():
             if record.kind != "block":
                 continue
@@ -2094,8 +2078,29 @@ class Scene:
                 )
             self._check_block_mode("block", {"block_id": block_id}, node_id=record.id)
 
+        if mode == "signal" and not solve_algebraic:
+            for record in edges.values():
+                if record.delay or not record.enabled:
+                    continue
+                cycle = self._cycle_path(
+                    record.source,
+                    record.target,
+                    skip_edge=record.id,
+                    edges=edges,
+                    nodes=nodes,
+                )
+                if not cycle:
+                    continue
+                route = cycle
+                raise ConflictError(
+                    "导入信号流工程发现未显式处理的代数环："
+                    + " -> ".join(route)
+                    + "。请显式设置 delay=True 或启用 solve_algebraic。"
+                )
+
         self.nodes = nodes
         self.edges = edges
+        self.solve_algebraic = solve_algebraic
         self.block_instances = {}
         self._counter = len(edges)
         self._engine = None

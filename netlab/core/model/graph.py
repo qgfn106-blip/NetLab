@@ -21,6 +21,7 @@ from typing import Any, Callable, Mapping
 
 import numpy as np
 
+from ..compute.clock import SimClock
 from ..compute.fields import read_numeric, resolve_output
 from ..compute.profiling import timed
 from ..common.limits import (
@@ -361,11 +362,15 @@ class Network:
     """节点与有向连接组成的网络，按依赖顺序推进一步。"""
 
     def __init__(
-        self, *, auto_delay: bool = False, solve_algebraic: bool = False
+        self,
+        *,
+        auto_delay: bool = False,
+        solve_algebraic: bool = False,
+        clock: SimClock | None = None,
     ) -> None:
         self.nodes: list[Node] = []
         self.connections: list[Connection] = []
-        self.time = 0.0
+        self._clock = clock if clock is not None else SimClock()
         self.auto_delay = auto_delay
         #: R36/P2：显式开启后，直接馈通 SCC 在本拍内解方程；
         #: 默认 False 保持旧工程的拓扑序 + 自动 z⁻¹ 行为。
@@ -373,6 +378,17 @@ class Network:
         self._order: list[Node] | None = None
         self._incoming: dict[Node, list[Connection]] | None = None
         self._delayed: list[Connection] | None = None
+        #: N-36：最近一次成功/失败步开始前的状态快照，供上层超时回滚复用，
+        #: 避免 Simulation 每步再做一次 Scene 级全量 deepcopy。
+        self._last_step_snapshot: dict[str, Any] | None = None
+
+    @property
+    def time(self) -> float:
+        return self._clock.time
+
+    @time.setter
+    def time(self, value: float) -> None:
+        self._clock.time = value
 
     # ---- 结构维护 ---------------------------------------------------------
     def invalidate(self) -> None:
@@ -715,6 +731,7 @@ class Network:
         order = self.topological_order()
         assert self._incoming is not None
         snapshot = self.capture_step_state()
+        self._last_step_snapshot = snapshot
         try:
             delayed_edges = self._delayed or ()
             # 延迟边在步首统一求值：此时所有节点都还是上一拍的值，
@@ -755,6 +772,7 @@ class Network:
         plan = self.solver_plan()
         incoming = self._incoming_for_step()
         snapshot = self.capture_step_state()
+        self._last_step_snapshot = snapshot
         try:
             delayed_edges = [
                 connection
@@ -1093,6 +1111,12 @@ class Network:
             connection.state.clear()
             connection.state.update(state)
             connection.output = output
+
+    def restore_last_step_state(self) -> None:
+        """回滚到最近一次 ``step`` 开始前的步首快照（N-36）。"""
+        snapshot = self._last_step_snapshot
+        if snapshot is not None:
+            self.restore_step_state(snapshot)
 
     def reset_state(self) -> None:
         """清空所有历史状态与输入快照，但保留拓扑与参数。"""

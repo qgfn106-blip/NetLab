@@ -31,7 +31,17 @@ def _frames(
     sim: Any, t0: float | None = None, t1: float | None = None
 ) -> list[dict[str, Any]]:
     with sim.lock:
-        frames = list(sim.recorder.frames)
+        raw_frames = list(sim.recorder.frames)
+        # 录制层内部保存稳定 id 键；分析层对外统一使用当前显示名，
+        # 这样节点/连接改名不会把历史曲线断成两个通道（N-08/A-5）。
+        frames = []
+        for frame in raw_frames:
+            item = dict(frame)
+            item["v"] = {
+                sim.scene.channel_display_name(key): value
+                for key, value in frame.get("v", {}).items()
+            }
+            frames.append(item)
     if t0 is not None or t1 is not None:
         low = -math.inf if t0 is None else float(t0)
         high = math.inf if t1 is None else float(t1)
@@ -55,7 +65,10 @@ def _keys(sim: Any, keys: list[str] | None) -> list[str]:
     if keys:
         return list(keys)
     with sim.lock:
-        return list(sim.recorder.keys())
+        return [
+            sim.scene.channel_display_name(key)
+            for key in sim.recorder.keys()
+        ]
 
 
 def _uniform(times: np.ndarray, values: np.ndarray) -> tuple[np.ndarray, np.ndarray]:

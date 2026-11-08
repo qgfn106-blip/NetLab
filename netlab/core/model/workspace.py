@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from ..common.limits import LimitError, ValidationError
+from .path_guard import ensure_allowed_path
 from .project import (
     PROJECT_SUFFIX,
     atomic_write,
@@ -210,7 +211,7 @@ def project_file_for(target: str | os.PathLike[str]) -> Path:
     规则：以 ``.netlab`` 结尾视为文件；已存在的目录、或没有扩展名的新路径视为
     工程目录（新建时目录可以还不存在）；其余一律拒绝，避免把任意文件当工程。
     """
-    path = Path(target).expanduser()
+    path = ensure_allowed_path(target, purpose="工程路径")
     suffix = path.suffix.lower()
     if suffix == PROJECT_SUFFIX:
         return path
@@ -231,6 +232,7 @@ def workspace_for(
         library = Path(library_root).expanduser()
     else:
         library = root.parent / LIBRARY_DIRNAME
+    library = ensure_allowed_path(library, purpose="库路径")
     return Workspace(root=root.resolve(), library=library.resolve())
 
 

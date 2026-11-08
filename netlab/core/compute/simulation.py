@@ -12,7 +12,7 @@ import time
 import uuid
 from collections import deque
 from dataclasses import asdict, dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, ClassVar
 
 from ..common.limits import (
     MAX_PRECOMPUTE_STEPS,
@@ -23,6 +23,7 @@ from ..common.limits import (
     as_int,
 )
 from ..model.scene import Scene
+from .clock import SimClock
 from .telemetry_quality import (
     fifo_delay_bound,
     interpolation_error_bound,
@@ -65,8 +66,46 @@ class SimConfig:
     breakpoints: bool = True
     #: 稀疏矩阵策略：auto（按规模自动）/ on / off；无 SciPy 时自动退回稠密。
     sparse: str = "auto"
-    #: auto 模式下矩阵尺寸超过该值才启用稀疏装配。
-    sparse_threshold: int = 200
+    #: auto 模式下矩阵尺寸超过该值才启用稀疏装配。当前 LIL 装配在 ≤400 节点反而更慢，
+    #: 默认提高到 512；显式 on/off 不受影响（P0）。
+    sparse_threshold: int = 512
+
+    #: A-3 / N-06：把“数值参数”和“呈现参数”分开。字段仍保留在平铺 dataclass 中，
+    #: 以免破坏旧工程/HTTP 配置契约；调用方通过下面两个快照方法取得分组。
+    NUMERICAL_FIELDS: ClassVar[tuple[str, ...]] = (
+        "dt",
+        "lock_dt",
+        "step_timeout_ms",
+        "reltol",
+        "vntol",
+        "abstol",
+        "max_iter",
+        "gmin",
+        "gmin_steps",
+        "src_steps",
+        "residual_tol",
+        "residual_safety_tol",
+        "scaling",
+        "pivot_tol",
+        "breakpoints",
+        "sparse",
+        "sparse_threshold",
+    )
+    PRESENTATION_FIELDS: ClassVar[tuple[str, ...]] = (
+        "fps",
+        "steps_per_frame",
+        "t_step",
+        "sample_every",
+        "realtime",
+    )
+
+    def numerical_params(self) -> dict[str, Any]:
+        """只包含影响求解器数值行为的参数。"""
+        return {name: getattr(self, name) for name in self.NUMERICAL_FIELDS}
+
+    def presentation_params(self) -> dict[str, Any]:
+        """只包含帧率、采样、播放等呈现参数。"""
+        return {name: getattr(self, name) for name in self.PRESENTATION_FIELDS}
 
 
 @dataclass
@@ -241,8 +280,9 @@ class Simulation:
         self.lock = threading.RLock()
         self.config = SimConfig()
         self.recorder = Recorder()
+        self._last_sample_time: float | None = None
         self.running = False
-        self.time = 0.0
+        self._clock: SimClock = self.scene.clock
         self.steps = 0
         self.error: str | None = None
         self.error_at: float | None = None
@@ -324,18 +364,17 @@ class Simulation:
             point = self.scene.next_breakpoint(self.time, dt)
             if point is not None:
                 step_dt = max(1.0e-12, min(dt, point - self.time))
-        checkpoint = self.scene.capture_checkpoint()
         try:
             self.scene.step(step_dt)
         except Exception as exc:  # 计算错误：暂停并保留现场
-            self.scene.restore_checkpoint(checkpoint)
+            self.scene.rollback_last_step()
             self._record_error(exc)
             return False
         if timeout_ms > 0:
             elapsed_ms = (time.perf_counter() - started) * 1000.0
             if elapsed_ms > timeout_ms:
                 # 超时也属于失败步：场景时间/状态/解必须回到步前，不能继续漂移。
-                self.scene.restore_checkpoint(checkpoint)
+                self.scene.rollback_last_step()
                 self._record_error(
                     ComputeError(
                         f"单步计算超时：{elapsed_ms:.1f} ms > 上限 {timeout_ms:.1f} ms"
@@ -343,15 +382,26 @@ class Simulation:
                     )
                 )
                 return False
-        self.time += step_dt
+        # The engine advances the shared SimClock exactly once per successful
+        # step.  Do not advance it again here; doing so was the old source of
+        # Simulation.time vs Network/CircuitSolver.time drift.
         self.steps += 1
         if sample_every <= 1 or self.steps == 1 or self.steps % sample_every == 0:
+            # 断点截断会产生短于 dt 的真实步长；sample_dt 必须记录两次采样
+            # 之间的真实时间差，不能用名义步长冒充（N-06：观测层不得掩盖
+            # 求解器实际步长序列）。
+            # 第一次采样只跨过当前这一步；不能把 sample_every 乘进第一帧，
+            # 否则首帧的 sample_dt 会被伪造成未来窗口长度（N-06）。
+            sample_dt = step_dt
+            if self._last_sample_time is not None:
+                sample_dt = max(1.0e-12, self.time - self._last_sample_time)
             try:
                 self.recorder.push(
                     self.time,
-                    self.scene.probes(),
-                    sample_dt=step_dt * max(1, sample_every),
+                    self.scene.probes(by_id=True),
+                    sample_dt=sample_dt,
                 )
+                self._last_sample_time = self.time
             except Exception as exc:
                 self._record_error(exc)
                 return False
@@ -487,6 +537,7 @@ class Simulation:
             self.error = None
             self.error_at = None
             self.recorder.clear()
+            self._last_sample_time = None
             self._frame_times.clear()
             self._precompute_cancel.clear()
             cancelled = False
@@ -575,9 +626,18 @@ class Simulation:
             self.time = 0.0
             self.steps = 0
             self.recorder.clear()
+            self._last_sample_time = None
             self._frame_times.clear()
             self.error = None
             self.error_at = None
+
+    @property
+    def time(self) -> float:
+        return self._clock.time
+
+    @time.setter
+    def time(self, value: float) -> None:
+        self._clock.time = value
 
     def reset(self) -> None:
         with self.lock:
@@ -588,6 +648,7 @@ class Simulation:
             self.error = None
             self.error_at = None
             self.recorder.clear()
+            self._last_sample_time = None
             self._frame_times.clear()
 
     # ---- 配置 -------------------------------------------------------------
@@ -743,12 +804,14 @@ class Simulation:
             scene.load_payload(payload)
             scene.ensure_engine()
             self.scene = scene
+            self._clock = scene.clock
             self.time = 0.0
             self.steps = 0
             self.running = False
             self.error = None
             self.error_at = None
             self.recorder.clear()
+            self._last_sample_time = None
             self._frame_times.clear()
             sim_payload = payload.get("sim")
             if not isinstance(sim_payload, dict):
@@ -831,13 +894,23 @@ class Simulation:
             raise ValidationError("cursor 必须是非负整数")
         limit = max(1, min(RECORDER_CAPACITY, int(limit)))
         with self.lock:
-            frames = self.recorder.since(cursor, limit)
+            raw_frames = self.recorder.since(cursor, limit)
+            # 记录器内部保存稳定 id 键；对外统一映射到当前显示名，避免节点
+            # 改名后旧帧与新帧被拆成两个通道（N-08/A-5）。
+            frames = []
+            for frame in raw_frames:
+                item = dict(frame)
+                item["v"] = {
+                    self.scene.channel_display_name(key): value
+                    for key, value in frame.get("v", {}).items()
+                }
+                frames.append(item)
             oldest = frames[0]["seq"] if frames else cursor
             return {
                 "frames": frames,
                 "cursor": self.recorder.seq,
                 "oldest": oldest,
-                "keys": self.recorder.keys(),
+                "keys": [self.scene.channel_display_name(key) for key in self.recorder.keys()],
                 # 同一把锁里取代次：调用方据此判断「这段增量属于哪一段记录」。
                 "generation": self.recorder.generation,
                 "sim": self._info_locked(),

@@ -32,6 +32,7 @@ from ..common.limits import (
     as_float,
     as_int,
 )
+from .clock import SimClock
 
 try:  # 可选依赖：没有 SciPy 时给出明确的安装提示
     from scipy.sparse import coo_matrix, diags
@@ -179,10 +180,20 @@ def _element_matrices(nx: int, ny: int, conductivity: float, capacity: float):
 class FemModel:
     """一个可推进的 Q4 热传导模型；重建网格或 dt 时重新装配 / 分解。"""
 
-    def __init__(self, config: FemConfig) -> None:
+    @property
+    def time(self) -> float:
+        """共享 SimClock 的当前时间（N-05：不再维护独立时间轴）。"""
+        return self._clock.time
+
+    @time.setter
+    def time(self, value: float) -> None:
+        self._clock.time = float(value)
+
+    def __init__(self, config: FemConfig, *, clock: SimClock | None = None) -> None:
         if not _HAS_SCIPY:
             raise ComputeError("二维有限元需要 SciPy，请运行 pip install scipy")
         self.config = config
+        self._clock = clock or SimClock()
         self.mesh = build_mesh(config.nx, config.ny)
         self.stiffness, self.mass = _element_matrices(
             config.nx, config.ny, config.conductivity, config.capacity

@@ -37,6 +37,3 @@ version = { attr = "netlab.__version__" }
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["netlab*"]
-
-[tool.setuptools.package-data]
-netlab = ["_vendor/**/*"]

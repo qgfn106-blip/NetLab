@@ -148,6 +148,7 @@ class CircuitSolver:
         self._worst_residual_index: int | None = None
         self.matrix_size = 0
         self.nonlinear = any(element.nonlinear for element in elements)
+        self._startup_pending = True
         self._build_index()
 
     @property
@@ -332,8 +333,47 @@ class CircuitSolver:
         if checkpoint is not None:
             self.restore_checkpoint(checkpoint)
 
+    def _initialize_reactive_currents(self, dt: float) -> None:
+        """P3：首个梯形步前用一次后向欧拉预测步求一致的初始电容电流。
+
+        阶跃源在 t=0 跳变时，电容电流 i(0+) 并不为 0；若以 0 作梯形历史，
+        整条曲线会退化为 1 阶。这里用 BE 预测的 v(dt) 反算 i(0+)，不推进时间。
+        """
+        reactive = [e for e in self.elements if e.kind in ("capacitor", "inductor")]
+        if not reactive:
+            return
+        saved = {id(e): e.integration for e in reactive}
+        for element in reactive:
+            element.integration = "backward_euler"
+        try:
+            for element in self.elements:
+                element.prepare(dt, self.time)
+            guess = (
+                self.solution if self.solution is not None else np.zeros(self.matrix_size)
+            )
+            predicted, _, converged, _, _ = self._newton_with_strategies(
+                dt, guess, mode="tran"
+            )
+            if not converged:
+                return
+            for element in reactive:
+                if element.kind != "capacitor":
+                    continue
+                ai = 0.0 if element.a == self.ground else float(predicted[self.index[element.a]])
+                bi = 0.0 if element.b == self.ground else float(predicted[self.index[element.b]])
+                previous_v = float(element.state["v"])
+                element.state["i"] = float(
+                    element.capacitance * ((ai - bi) - previous_v) / dt
+                )
+        finally:
+            for element in reactive:
+                element.integration = saved[id(element)]
+
     def _step_locked(self, dt: float, started: float) -> dict[str, Any]:
         self.time += dt
+        if self._startup_pending:
+            self._startup_pending = False
+            self._initialize_reactive_currents(dt)
         for element in self.elements:
             element.prepare(dt, self.time)
 
@@ -490,6 +530,48 @@ class CircuitSolver:
             return node_id
         return self._index_name(index).replace("支路 ", "").strip("'")
 
+    def _true_residual(self, solution: np.ndarray, dt: float, mode: str) -> tuple[float, int | None]:
+        """在 ``solution`` 处重新盖章并计算真实 F(x*) = Ax* − b(x*) 的尺度无关残差。
+
+        审计 §3.3：不能用上一次线性化矩阵的 A·x_new − b 当非线性收敛证据。
+        """
+        matrix = self._blank_matrix()
+        rhs = np.zeros(self.matrix_size)
+        ctx = StampContext(
+            A=matrix,
+            rhs=rhs,
+            index=self.index,
+            solution=solution,
+            dt=dt,
+            time=self.time,
+            iteration=0,
+            mode=mode,
+        )
+        for element in self.elements:
+            element.stamp(ctx)
+        return self._residual_metric(matrix, solution, rhs, dt)
+
+    def _true_residual(self, solution: np.ndarray, dt: float, mode: str) -> tuple[float, int | None]:
+        """在 ``solution`` 处重新盖章并计算真实 F(x*) = Ax* − b(x*) 的尺度无关残差。
+
+        审计 §3.3：不能用上一次线性化矩阵的 A·x_new − b 当非线性收敛证据。
+        """
+        matrix = self._blank_matrix()
+        rhs = np.zeros(self.matrix_size)
+        ctx = StampContext(
+            A=matrix,
+            rhs=rhs,
+            index=self.index,
+            solution=solution,
+            dt=dt,
+            time=self.time,
+            iteration=0,
+            mode=mode,
+        )
+        for element in self.elements:
+            element.stamp(ctx)
+        return self._residual_metric(matrix, solution, rhs, dt)
+
     @staticmethod
     def _residual_metric(
         matrix: Any, solution: np.ndarray, rhs: np.ndarray, dt: float
@@ -576,6 +658,8 @@ class CircuitSolver:
                 delta = np.abs(new_solution - solution)
                 node_ok = bool(np.all(delta <= self._tolerance(new_solution, solution)))
                 solution = new_solution
+                residual, true_worst = self._true_residual(solution, dt, mode)
+                self._worst_residual_index = true_worst
                 if options.residual_tol > 0:
                     residual_ok = residual <= options.residual_tol
                 elif options.residual_safety_tol > 0:

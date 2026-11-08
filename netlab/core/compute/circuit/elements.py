@@ -298,6 +298,13 @@ class Inductor(CircuitElement):
         return float(self.state["i"])
 
 
+def _source_value(params: dict[str, Any], dt: float, time: float, integration: str) -> float:
+    """P3：源在步内的取值。梯形法取步首/步末平均，避免单点采样把整链降到 1 阶。"""
+    end = waveform_value(params, time)
+    if integration == "trapezoidal" and dt > 0.0:
+        return 0.5 * (waveform_value(params, time - dt) + end)
+    return end
+
 class VoltageSource(CircuitElement):
     kind = "vsource"
     label = "电压源"
@@ -309,7 +316,7 @@ class VoltageSource(CircuitElement):
 
     def prepare(self, dt: float, time: float) -> None:
         super().prepare(dt, time)
-        self.value = waveform_value(self.params, time)
+        self.value = _source_value(self.params, dt, time, self.integration)
 
     def stamp(self, ctx: StampContext) -> None:
         row = self.branch_index
@@ -377,7 +384,7 @@ class CurrentSource(CircuitElement):
 
     def prepare(self, dt: float, time: float) -> None:
         super().prepare(dt, time)
-        self.value = waveform_value(self.params, time)
+        self.value = _source_value(self.params, dt, time, self.integration)
 
     def stamp(self, ctx: StampContext) -> None:
         _stamp_current(

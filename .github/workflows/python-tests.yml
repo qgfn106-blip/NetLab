@@ -19,6 +19,11 @@ jobs:
           repository: qgfn106-blip/PlotKit
           path: .plotkit-src
 
+      - name: Setup Node (section budget gate)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -32,6 +37,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
           pip install ../.plotkit-src
+
+      - name: Section budget (strict audit P0)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run check:sections
 
       - name: Version single source (D-2)
         run: python tools/check_version.py

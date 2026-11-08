@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-09T03:20:35+08:00",
+  "version": "3.20.1",
+  "git": {
+    "branch": "main",
+    "head": "deafde8370f9bbf4599bc5943374837784c3b9e1",
+    "dirty": true,
+    "ahead_origin": 11,
+    "behind_origin": 0
+  },
+  "tests": {
+    "passed": null,
+    "skipped": null,
+    "failed": null,
+    "duration_s": null,
+    "coverage_core_line": null,
+    "command": "",
+    "source": "reports/test_status.json 缺失"
+  },
+  "coverage_gate": {
+    "core_line_min": 81,
+    "changed_line_min": 80
+  }
+}

@@ -1,8 +1,8 @@
 # Netlab 主线待办（BACKLOG）
 
-> 最后修改：2026-11-08 10:45
+> 最后修改：见 [status.json](status.json)（由 `tools/gen_status.py` 生成）
 > 用途：**一页回答「现在要做什么、还有什么没做」**。需求与决策的唯一口径仍是
-> [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)（R01–R43 / D1–D148），进度证据在
+> [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)（R01–R43 / D1–D154），进度证据在
 > [PROGRESS.md](PROGRESS.md)。本文只做**汇总与排序**，不重复定义需求。
 > 维护规则：做完一项就把「状态」改掉并写上证据（测试数 / 截图 / 实测数）；口径冲突以需求台账为准。
 
@@ -10,7 +10,7 @@
 
 ## 0. 一句话现状
 
-- **能用的产品**：`start_desktop.bat` / `python -m netlab.desktop` 起 pywebview + WebView2 网页壳（**678 passed / 1 skipped**，2026-11-08，静态 3.20.1；全量文档重构 §7.75 完成）。
+- **能用的产品**：`start_desktop.bat` / `python -m netlab.desktop` 起 pywebview + WebView2 网页壳（测试数/版本/领先提交数见 [status.json](status.json)；全量文档重构 §7.75 完成）。
 - **界面口径**：前端在 `frontend/`（index.html / app.js / style.css）；Qt 原生界面已按 D78 备份到 Git 分支 `backup/qt-native-2026-11-02` 后删除，不再是产品形态。
 - **已完成（一期）**：R41 前端 JavaScript→TypeScript 全局迁移（一期 P16 类型化、二期 P17 模块化均已完成），tsc strict 0 / node --test 纯函数单测绿 / AST 行为等价 / pytest 627 passed / 1 skipped，见 REQUIREMENTS R41 / PROGRESS §7.76。
 - **没做完的主线**：R25 三阶段已交付（P7-09/10/11：9 块/虚拟注册表/只读保护/另存副本/行为快速模型/`internal_sim` 开关/对比 API/UI），剩完整电路级内部结构；R19 参考级图纸暂停。**2026-11-07 刚完成**：R15 功率电子与电机、R06 电路侧接口、R18 图纸增强、R19 SchemDraw 静态导出（§7.85）；R11 多窗口周期、R14 全局搜索、R34 Bode 光标（§7.86）；SchemDraw 版式、搜索分组、Bode 拖动（§7.87）；全量 **627 passed / 1 skipped**、静态 3.20.1。
@@ -24,7 +24,7 @@
 
 | 顺序 | 事项 | 为什么排这里 | 体量 |
 | --- | --- | --- | --- |
-| ▶ 当前 | **真实未完成主线**：① **R25 完整电路级内部结构**（P7-09/10/11 仅做到宏模型）待后续；② **R41 推送 origin 合并**（本地 main 领先 origin/main **17 提交**，P16/P17/R42/P18/R43 仅在本地）；③ **R43 M2 放量评审**（默认 `NETLAB_MATH_ACCEL=off`，需工程 opt-in）；④ **R40 节点卡片自由字段编辑**（已知限制）；⑤ R19 参考级图纸继续暂停 | 本轮核对后仍真正未完成的主线，其余 ①–⑩ 均已闭环 | 大/中 |
+| ▶ 当前 | **真实未完成主线**：① **R25 完整电路级内部结构**（P7-09/10/11 仅做到宏模型）待后续；② **R41 推送 origin 合并**（本地与 origin 的领先/落后提交数见 [status.json](status.json)）；③ **R43 M2 放量评审**（默认 `NETLAB_MATH_ACCEL=off`，需工程 opt-in）；④ **R40 节点卡片自由字段编辑**（已知限制）；⑤ R19 参考级图纸继续暂停 | 本轮核对后仍真正未完成的主线，其余 ①–⑩ 均已闭环 | 大/中 |
 | ① | ~~R33 收尾~~ → 已随 D78 关闭（原生壳下线，相关验收项作废） | — | — |
 | ② | ~~web 版去留~~ → 已定：保留 web（D78），Qt 只留备份分支 | — | — |
 | ③ | ~~R25 P7-09~~：opamp / comparator 内置只读内部结构 → **已完成（宏模型，§7.69）** | 只读内部/另存副本/空库回退已验证；电路级待后续 | — |

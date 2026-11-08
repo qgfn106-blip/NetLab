@@ -115,6 +115,9 @@ app.include_router(
     )
 )
 _DESKTOP_TOKEN = os.environ.get("NETLAB_DESKTOP_TOKEN")
+# 桌面会话 cookie：桌面外壳打开 ``/?token=...`` 时由宿主种下，供同源 iframe
+# （PlotKit 子应用）自动携带；HttpOnly + SameSite=Strict，脚本读不到也跨站带不出。
+DESKTOP_COOKIE_NAME = "netlab_desktop_token"
 
 
 def _json_default(value: Any) -> Any:
@@ -243,21 +246,38 @@ def is_guarded_api_path(path: str) -> bool:
 
 @app.middleware("http")
 async def desktop_token_guard(request: Request, call_next):
-    """桌面模式下只允许携带会话 token 的本地页面调用 API。"""
+    """桌面模式下只允许携带会话 token 的本地页面调用 API。
+
+    token 可来自 ``X-Netlab-Token`` 请求头（宿主前端 api() 助手）或同源
+    ``netlab_desktop_token`` cookie（PlotKit 子应用自己的 fetch/导航）。cookie 只在
+    桌面外壳打开首页 ``/?token=...`` 且 token 匹配时种下，HttpOnly + SameSite=Strict。
+    """
     path = request.url.path
+    supplied = request.headers.get("x-netlab-token") or request.cookies.get(
+        DESKTOP_COOKIE_NAME
+    ) or ""
     if (
         _DESKTOP_TOKEN
         and is_guarded_api_path(path)
         and path != "/api/health"
-        and not secrets.compare_digest(
-            request.headers.get("x-netlab-token") or "", _DESKTOP_TOKEN
-        )
+        and not secrets.compare_digest(supplied, _DESKTOP_TOKEN)
     ):
         return JSONResponse(
             status_code=403,
             content={"detail": "桌面会话 token 无效，请从桌面窗口打开页面"},
         )
-    return await call_next(request)
+    response = await call_next(request)
+    if _DESKTOP_TOKEN and path == "/":
+        query_token = request.query_params.get("token") or ""
+        if secrets.compare_digest(query_token, _DESKTOP_TOKEN):
+            response.set_cookie(
+                DESKTOP_COOKIE_NAME,
+                _DESKTOP_TOKEN,
+                path="/",
+                httponly=True,
+                samesite="strict",
+            )
+    return response
 
 
 @app.exception_handler(NetlabError)

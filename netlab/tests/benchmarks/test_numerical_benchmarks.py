@@ -43,15 +43,15 @@ def test_rc_step_matches_analytic_solution() -> None:
     assert value == pytest.approx(analytic, abs=0.01)
 
 
-def test_rc_step_backward_euler_convergence_order() -> None:
-    """步长减半时后向欧拉误差应按一阶 O(dt) 下降（p≈1）。"""
+def test_rc_step_trapezoidal_convergence_order() -> None:
+    """步长减半时梯形法误差应二阶 O(dt²) 下降（p≈2；P3 修复前实测 1）。"""
     target = 5.0 * (1.0 - math.exp(-2.0))
     coarse = abs(_rc_mid_voltage(1.0e-5, 200) - target)
     fine = abs(_rc_mid_voltage(5.0e-6, 400) - target)
     assert coarse > 1.0e-6
     assert fine < coarse
     order = math.log2(coarse / fine)
-    assert order == pytest.approx(1.0, abs=0.35)
+    assert order == pytest.approx(2.0, abs=0.25)
 
 
 def test_rc_transient_steady_state_matches_dc_operating_point() -> None:

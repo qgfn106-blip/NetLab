@@ -19,6 +19,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from .core.model.channels import ChannelKey
+
 LOGGER = logging.getLogger(__name__)
 
 MOUNT_PATH = "/plotkit"
@@ -194,12 +196,14 @@ def last_error() -> str:
 
 def _label(key: str) -> str:
     """``n:signal:voltage`` → ``signal·voltage``；其它形状原样返回。"""
-    parts = key.split(":")
-    if len(parts) >= 3:
-        return f"{parts[1]}·{':'.join(parts[2:])}"
-    if len(parts) == 2:
-        return parts[1]
-    return key
+    channel = ChannelKey.parse(key)
+    return channel.label() if channel is not None else key
+
+
+def _kind_tag(key: str) -> str:
+    """通道类型标签（``n``/``e``/``state``）；未知键返回空串。"""
+    channel = ChannelKey.parse(key)
+    return channel.kind if channel is not None else ""
 
 
 def _theme_name(service: Any) -> str:
@@ -312,7 +316,7 @@ def set_channels(keys: list[str] | None) -> bool:
                     np.full(len(figure.store.get("t")), np.nan),
                     role="series",
                     life="append",
-                    tags=[key.split(":")[0]],
+                    tags=[_kind_tag(key)],
                 )
                 _REGISTERED.add(key)
     except Exception:
@@ -419,7 +423,7 @@ def build_figure(service: Any) -> Any:
     )
     fig.add_data("t", [], unit="s", role="coord", life="append")
     for key in keys:
-        fig.add_data(key, [], role="series", life="append", tags=[key.split(":")[0]])
+        fig.add_data(key, [], role="series", life="append", tags=[_kind_tag(key)])
         _REGISTERED.add(key)
     # D-PlotView：只登记数据源；曲线由用户在 PlotKit 图层面板里自己加
     fig.set_view(0, xlabel="t / s", grid=True)
@@ -558,7 +562,7 @@ def _ensure_channels(
             np.full(t_len, np.nan, dtype="float64"),
             role="series",
             life="append",
-            tags=[key.split(":")[0]],
+            tags=[_kind_tag(key)],
         )
         _REGISTERED.add(key)
         room -= 1

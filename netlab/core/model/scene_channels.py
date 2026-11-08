@@ -3,29 +3,29 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from .channels import KIND_EDGE, KIND_NODE, KIND_STATE, ChannelKey
 from .scene_engines import SignalEngine, _Engine
 
 
 class _SceneChannelsMixin:
-    def channel_display_name(self, key: str) -> str:
-        """把内部稳定通道键 ``<kind>:<node-or-edge-id>:<field>`` 映射为显示名。
+    def channel_display_name(self, key: str | ChannelKey) -> str:
+        """把内部稳定通道键映射为显示名。
 
         记录器内部保存 id 键，避免节点/连接改名后历史帧与新帧断档；对外
         ``/api/live`` 仍按当前显示名返回，调用方看到的是同一逻辑通道。
         未知键原样返回，便于兼容旧工程与第三方插件。
         """
-        parts = key.split(":", 2)
-        if len(parts) != 3:
-            return key
-        kind, ident, field = parts
+        channel = ChannelKey.coerce(key)
+        if channel is None:
+            return str(key)
         record = None
-        if kind in {"n", "state"}:
-            record = self.nodes.get(ident)
-        elif kind == "e":
-            record = self.edges.get(ident)
+        if channel.kind in {KIND_NODE, KIND_STATE}:
+            record = self.nodes.get(channel.ident)
+        elif channel.kind == KIND_EDGE:
+            record = self.edges.get(channel.ident)
         if record is None:
-            return key
-        return f"{kind}:{record.name}:{field}"
+            return str(channel)
+        return str(channel.with_ident(record.name))
 
     def probes(self, *, by_id: bool = False) -> dict[str, float]:
         engine = self.ensure_engine()

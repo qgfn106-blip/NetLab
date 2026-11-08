@@ -2617,3 +2617,10 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - `scene_engines.py` 的 SignalEngine/CircuitEngine 探针改为 `ChannelKey.node/edge/state(...)` 构造；`scene_channels.channel_display_name()` 与 `plotkit_bridge._label/_kind_tag` 不再 `split(":")`，只用 `ChannelKey.parse`。
 - wire 格式保持 `<kind>:<id>:<field>`，`/api/live`、recorder、PlotKit 无需迁移；重命名仍由 `channel_display_name` 在显示层替换 id→name。
 - 测试：`netlab/tests/test_channel_key.py` 5 条（往返、非法形状、引擎探针、显示名、桥接标签）；全量 **738 passed / 1 skipped / 91.51s**。提交 `9dc0bac`。
+
+## §7.126 C-5 路径白名单与桌面 token 收口（2026-11-09）
+
+- 路径：`ensure_allowed_path` 统一根白名单；`path_guard._is_under` 捕获 Windows 跨盘 `commonpath` 的 `ValueError`；`project.py` 的 `atomic_write`/`load_project`/`load_project_raw` 增加同一入口，堵住绕过 workspace 的直接读写。
+- 桌面 token：外壳生成一次性 `bootstrap` nonce，打开 `/__desktop_session__/<nonce>`；中间件校验后种 `netlab_desktop_token`（HttpOnly/SameSite=Strict）并 303 回 `/`；`/?token=` 不再种 cookie。`--no-token` 需 `NETLAB_DEBUG=1`。
+- 测试：`test_workspace.py` 补绝对路径与目录联接/符号链接逃逸；`test_plotkit_frontend_auth.py` 改 bootstrap 路径并加 query-token 反例；新增 `test_desktop_session.py`（URL 无 token、缺 nonce 报错、调试开关）。
+- 证据：全量 **745 passed / 1 skipped**；覆盖率 **81.19%**（门限 81）；变更行覆盖率 **8/8 = 100%**。提交 `b88483d`、`5aa1c1a`、`56f14d3`。

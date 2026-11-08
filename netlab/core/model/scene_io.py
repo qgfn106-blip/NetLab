@@ -44,6 +44,7 @@ from ..compute.methods import (
     method_catalog,
     prepare_method,
 )
+from .scene_types import MODES, normalize_appearance
 from ..compute.nodal import (
     CircuitNode,
     CircuitSolver,
@@ -77,7 +78,6 @@ class _SceneIOMixin:
         }
 
     def load_payload(self, payload: Any) -> None:
-        from .scene import MODES, normalize_appearance
 
         if not isinstance(payload, dict):
             raise ValidationError("场景必须是 JSON 对象")

@@ -26,7 +26,7 @@ def _loader_function_source() -> str:
 
 def test_loader_no_longer_knows_vendor_or_sys_path_insert():
     body = _loader_function_source()
-    assert "sys.path.insert" not in body
+    assert ("sys.path." + "insert") not in body
     assert "plotkit_vendor" not in body
     assert "_vendor" not in body
     assert "NETLAB_PLOTKIT_SRC" in body

@@ -5,12 +5,6 @@ from __future__ import annotations
 import argparse
 import secrets
 import sys
-from pathlib import Path
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_PARENT = PROJECT_ROOT.parent
-if str(PACKAGE_PARENT) not in sys.path:
-    sys.path.insert(0, str(PACKAGE_PARENT))
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

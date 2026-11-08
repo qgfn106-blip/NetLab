@@ -21,6 +21,7 @@ import { buildParamField, applyPresetOnModelChange, applyWaveFieldVisibility, bu
 import { hideHelpCard, showHelpCard, typeLabelHelp, paramRangeText, setSwitchTab } from './app/help_card.js';
 import { activeTab, modeLabel, selectedNode, selectedEdge, nodeById, edgeById, nodeByName, edgeByName, getNodeSpec, getEdgeSpec, specDefaults, uniqueNodeName, hasGroundNode, displayDataFor, nodeDisplayData, edgeDisplayData } from './app/model.js';
 import { sectionLabel, section, buildHeader, renderEmptyInspector, setEmptyInspectorActions } from './app/inspector_shell.js';
+import { modulePorts, deviceElementSpec, isPinNode, devicePins, buildDevicePinList } from './app/device_pins.js';
 declare const desc: HTMLElement;
 declare function setStatusHint(hint: string): void;
 
@@ -404,40 +405,8 @@ declare function setStatusHint(hint: string): void;
   }
 
   // ---- R20：器件节点（组件框 + 引脚） --------------------------------------
-  function deviceElementSpec(node: NodeItem) {
-    const element = String(node?.params?.element || '');
-    return (state.catalog?.elements || []).find((spec: SpecRec) => spec.kind === element) || null;
-  }
-
   function isModuleNode(node: NodeItem) {
     return state.scene?.mode === 'circuit' && node?.kind === 'module';
-  }
-
-  // 电路里"带引脚的东西"：器件与模块实例都按引脚连线。
-  function isPinNode(node: NodeItem) {
-    return state.scene?.mode === 'circuit'
-      && (node?.kind === 'device' || node?.kind === 'module');
-  }
-
-  function modulePorts(node: NodeItem) {
-    return Array.isArray(node?.params?.ports) ? node.params.ports : [];
-  }
-
-  function devicePins(node: NodeItem): PortSpec[] {
-    if (node?.kind === 'module') {
-      // R24/D49：模块实例的端口就是引脚，方向决定它画在哪一侧。
-      return modulePorts(node).map((port: PortSpec) => ({
-        name: String(port?.name || ''),
-        role: port?.direction === 'input'
-          ? 'input'
-          : port?.direction === 'output'
-            ? 'output'
-            : 'passive',
-        required: false,
-        module: true,
-      }));
-    }
-    return (deviceElementSpec(node)?.pins || []) as PortSpec[];
   }
 
   function devicePinGroups(node: NodeItem) {
@@ -4257,27 +4226,6 @@ declare function setStatusHint(hint: string): void;
   }
 
 
-
-  function buildDevicePinList(node: NodeItem) {
-    const container = div('kv');
-    const wires = (state.scene?.edges || []).filter((edge) => edge.kind === 'wire');
-    const pins = devicePins(node);
-    if (!pins.length) {
-      container.appendChild(div('help', '该元件没有引脚声明。'));
-      return container;
-    }
-    for (const pin of pins) {
-      const row = div('kv-row');
-      row.appendChild(el('span', null, `${pin.name}${pin.required ? ' *' : ''}`));
-      const wire = wires.find((edge) => (edge.source === node.id && edge.source_pin === pin.name)
-        || (edge.target === node.id && edge.target_pin === pin.name));
-      const netId = wire ? (wire.source === node.id ? wire.target : wire.source) : '';
-      const net = netId ? nodeById(netId) : null;
-      row.appendChild(el('b', null, net ? net.name : (pin.required ? '未接' : '—')));
-      container.appendChild(row);
-    }
-    return container;
-  }
 
   function renderInspector() {
     syncFnRoleToSelection();

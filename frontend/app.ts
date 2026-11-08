@@ -21,6 +21,7 @@ import { formatAny, valueToText, parseSmartValue, kindListFor, buildKindSelect, 
 import { buildParamField, applyPresetOnModelChange, applyWaveFieldVisibility, buildWaveFieldVisibility, buildParamFields, collectParamValues, dataRow, collectData, markDirty, clearDirty, setTypeLabelHelp } from './app/param_fields.js';
 import { hideHelpCard, showHelpCard, typeLabelHelp, paramRangeText, setSwitchTab } from './app/help_card.js';
 import { appearanceOf, activeTab, modeLabel, selectedNode, selectedEdge, nodeById, edgeById, nodeByName, edgeByName, getNodeSpec, getEdgeSpec, specDefaults, uniqueNodeName, hasGroundNode, displayDataFor, nodeDisplayData, edgeDisplayData } from './app/model.js';
+import { groupNodeSpecs } from './app/menu_model.js';
 import { drawEdges, labelCollisionFree } from './app/canvas_edges.js';
 import { SHEET_SIZES, drawDrawingFrame, pipeModeLabel, drawLinkPreview, drawGraph, drawSelectionBox, drawDragHud, requestDraw, __graphMs, __dbgGraph, animationLoop } from './app/canvas_render.js';
 import { drawPhase, phaseFrameCount, phaseStateKeys, renderVectorNodeList, resizePhase, schedulePhaseDraw, setPhaseIndex, stopPhasePlay, togglePhasePlay } from './app/phase.js';
@@ -1588,31 +1589,11 @@ declare function setStatusHint(hint: string): void;
     '放大与比较', '晶体管', '数字与逻辑', '计时与电源管理', '磁性',
   ];
 
-  // 信号流/矢量场的计算节点分类顺序；未列出的组按 catalog 出现顺序补在后面。
-  const COMPUTE_GROUP_ORDER = ['基础', '动态', '高级', '矢量', '模块', '接口'];
-
   function buildAddMenuItems(placeX: number, placeY: number) {
     const list = kindListFor('node');
     const items = [];
     if (state.mode !== 'circuit') {
-      const byGroup = new Map();
-      for (const spec of list) {
-        // 模块实例/端口节点只能由模块库实例化或封装生成，手动添加会得到
-        // 没有 block_id 的坏节点（P0-0），所以按 catalog 的 addable 过滤。
-        if (spec.addable === false) continue;
-        const group = String(spec.group || '未分类');
-        if (!byGroup.has(group)) byGroup.set(group, []);
-        byGroup.get(group).push(spec);
-      }
-      const order = state.mode === 'vector'
-        ? ['矢量', ...COMPUTE_GROUP_ORDER.filter((group: string) => group !== '矢量')]
-        : COMPUTE_GROUP_ORDER;
-      const emitted = new Set();
-      for (const group of [...order, ...byGroup.keys()]) {
-        if (emitted.has(group)) continue;
-        const specs = byGroup.get(group);
-        if (!specs || !specs.length) continue;
-        emitted.add(group);
+      for (const { group, specs } of groupNodeSpecs(list, state.mode)) {
         items.push({
           label: `节点 · ${group}`,
           hint: `${specs.length} 种`,

@@ -13,6 +13,7 @@ import { kindListFor, numberedField, trimNumber } from "./app/fields.js";
 import { buildParamField, collectParamValues, setTypeLabelHelp } from "./app/param_fields.js";
 import { hideHelpCard, showHelpCard, typeLabelHelp, paramRangeText, setSwitchTab } from "./app/help_card.js";
 import { activeTab, modeLabel, selectedNode, selectedEdge, nodeById, edgeById, getNodeSpec, getEdgeSpec, specDefaults, uniqueNodeName } from "./app/model.js";
+import { groupNodeSpecs } from "./app/menu_model.js";
 import { SHEET_SIZES, drawGraph, requestDraw, animationLoop } from "./app/canvas_render.js";
 import { drawPhase, phaseFrameCount, phaseStateKeys, renderVectorNodeList, resizePhase, schedulePhaseDraw, setPhaseIndex, stopPhasePlay, togglePhasePlay } from "./app/phase.js";
 import { setInstrumentActions, fillInstrumentSelects, drawInstruments, resizeInstrument, initInstruments } from "./app/instruments.js";
@@ -1397,25 +1398,11 @@ import { elementPins, elementRot } from "./app/circuit_symbols.js";
     "\u8BA1\u65F6\u4E0E\u7535\u6E90\u7BA1\u7406",
     "\u78C1\u6027"
   ];
-  const COMPUTE_GROUP_ORDER = ["\u57FA\u7840", "\u52A8\u6001", "\u9AD8\u7EA7", "\u77E2\u91CF", "\u6A21\u5757", "\u63A5\u53E3"];
   function buildAddMenuItems(placeX, placeY) {
     const list = kindListFor("node");
     const items = [];
     if (state.mode !== "circuit") {
-      const byGroup = /* @__PURE__ */ new Map();
-      for (const spec of list) {
-        if (spec.addable === false) continue;
-        const group = String(spec.group || "\u672A\u5206\u7C7B");
-        if (!byGroup.has(group)) byGroup.set(group, []);
-        byGroup.get(group).push(spec);
-      }
-      const order = state.mode === "vector" ? ["\u77E2\u91CF", ...COMPUTE_GROUP_ORDER.filter((group) => group !== "\u77E2\u91CF")] : COMPUTE_GROUP_ORDER;
-      const emitted = /* @__PURE__ */ new Set();
-      for (const group of [...order, ...byGroup.keys()]) {
-        if (emitted.has(group)) continue;
-        const specs = byGroup.get(group);
-        if (!specs || !specs.length) continue;
-        emitted.add(group);
+      for (const { group, specs } of groupNodeSpecs(list, state.mode)) {
         items.push({
           label: `\u8282\u70B9 \xB7 ${group}`,
           hint: `${specs.length} \u79CD`,

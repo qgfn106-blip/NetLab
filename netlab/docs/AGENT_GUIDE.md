@@ -42,7 +42,7 @@
 4. **测试要能红**：静态子串断言之外，补真实 endpoint 测试（缺 token 403 / 带 token 200 且数据非空）与错误文案断言。参考 `netlab/tests/test_plotkit_frontend_auth.py`。
 5. **版本戳四处联动**：`frontend/app.js` 的 `UI_BUILD`、`netlab/server.py` 的 `APP_BUILD`、`frontend/index.html` 两处 `?v=`（另 `netlab/server.py:401` 的 desktop-shim query 也应对齐）。改完 grep 全部版本号。
 
-6. **PlotKit iframe/popup 一律用 `plotkitFrameUrl()`**：token 只放 URL fragment（`#netlabToken=…`），由宿主注入子应用 HTML 的 shim 读取并抹除；不要在子应用 URL 上拼 query token，也不要改 vendor `static/app.js`（它有多处裸 fetch 与 `window.open('api/png')`，shim 已统一处理）。
+6. **PlotKit iframe/popup 一律用 `plotkitFrameUrl()`**：桌面 token 由宿主同源 cookie（`netlab_desktop_token`，HttpOnly + SameSite=Strict + Path=/）承载，子应用的同源 `fetch`/导航自动携带；**不要**再往 URL 拼 token（query 与 fragment 都不行），也不要改 PlotKit `static/app.js`。浏览器模式（无 `NETLAB_DESKTOP_TOKEN`）下 `/plotkit/` 同源公开。
 
 完整案例与后果见 [LESSONS.md](LESSONS.md) 末节「PlotKit 桌面 token 误报」与「2026-11-03 架构审计」。这一节的来历：用户报「明明有数据，面板却说没有探针数据/未挂载」，根因就是第 1 条 + 第 2 条叠加。
 

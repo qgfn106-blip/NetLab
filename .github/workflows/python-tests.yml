@@ -35,8 +35,14 @@ jobs:
           PYTHONPATH: .
         run: pytest netlab/tests/benchmarks -q
 
-      - name: Full Python test suite
+      # 覆盖率门限（D154）：只对 core 设硬门限，server_*/desktop/vendor 不设。
+      # 必须用路径形式 --cov=netlab/core：点号形式 --cov=netlab.core 会让 pytest-cov
+      # 提前 import 包，触发 numpy 二次导入，sparse 组装直接 TypeError（见 LESSONS.md）。
+      - name: Full Python test suite + core coverage gate
         working-directory: .
         env:
           PYTHONPATH: .
-        run: pytest netlab/tests -q
+        run: >
+          pytest netlab/tests -q
+          --cov=netlab/core --cov-branch --cov-fail-under=78
+          --cov-report=term-missing:skip-covered

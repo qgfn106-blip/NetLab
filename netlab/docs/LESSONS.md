@@ -728,3 +728,16 @@ window.dispatchEvent(new Event('netlab-desktop-ready'));
 - **开关级示例只做趋势验证**：P11-06 用理想 nmos + 50 Hz 方波栅极/死区，不是 10 kHz PWM 载波，也没有器件损耗；测试只断言 pcc/mid 峰值与不发散，不能拿它承诺绝对 EMT 精度。
 - **长仿真必须可中断**：`Simulation.cancel_precompute()` 用 `threading.Event` 在每步检查；UI 的「停止计算」只负责发 `POST /api/control {action:"cancel_precompute"}`，要保留已算帧而不是清空。
 - **工程生成脚本要放 scratch**：`NetlabExtras/scratch/build_grid_switch.py` 等一次性脚本不要进 `NetlabHome` 包；生成后的 `.netlab` 要经 `load_project` + `Simulation.precompute` 验收，不能只检查 JSON。
+
+## §7.73 pytest-cov 的 source 必须写路径，不能写点号包名（2026-11-08，D154）
+
+- **现象**：`pytest netlab/tests -q --cov=netlab.core --cov-branch` 在 **collection 阶段**就炸，4 个 plotkit 测试全报
+  `TypeError: int() argument must be a string, a bytes-like object or a real number, not '_NoValueType'`，
+  栈底是 `netlab/core/compute/fem.py:239 _assemble` → `scipy/sparse/_coo.py:221 _check` → `numpy/_core/_methods.py:43 _amax`；
+  同时有一条被淹掉的警告：`netlab/core/common/fastcopy.py:19: UserWarning: The NumPy module was reloaded`。
+  换成 `--cov=netlab` 或 `--cov=netlab/core` 则 678 passed。
+- **根因**：点号形式让 pytest-cov/coverage 为了解析 source **提前 import `netlab.core`**，这条路径上的 numpy 与测试进程里后来用的 numpy 不是同一个实例（二次导入），
+  `np._NoValue` 这个单例身份对不上，scipy 的 `idx.max()` 就返回 `_NoValueType` 而不是数字。
+  所以这**不是**被测代码的 bug，是测量工具污染了被测进程——不要顺着 `fem.py` 去改。
+- **规则**：覆盖率一律用路径形式 `--cov=netlab/core`；`--cov=netlab.core`、`--cov=netlab` 与 `--include="netlab/server_*"`（须写 `netlab/server_*/*`）这些写法都记在案。
+- **另一个代价**：全仓 `--cov=netlab --cov-branch` 让全量测试从 70.71s 涨到 217.32s（约 3×）；只覆盖 `netlab/core` 时开销明显更小，CI 只在全量那一步带覆盖率，benchmarks 那一步不带。

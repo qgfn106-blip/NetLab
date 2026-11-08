@@ -2624,3 +2624,16 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 桌面 token：外壳生成一次性 `bootstrap` nonce，打开 `/__desktop_session__/<nonce>`；中间件校验后种 `netlab_desktop_token`（HttpOnly/SameSite=Strict）并 303 回 `/`；`/?token=` 不再种 cookie。`--no-token` 需 `NETLAB_DEBUG=1`。
 - 测试：`test_workspace.py` 补绝对路径与目录联接/符号链接逃逸；`test_plotkit_frontend_auth.py` 改 bootstrap 路径并加 query-token 反例；新增 `test_desktop_session.py`（URL 无 token、缺 nonce 报错、调试开关）。
 - 证据：全量 **745 passed / 1 skipped**；覆盖率 **81.19%**（门限 81）；变更行覆盖率 **8/8 = 100%**。提交 `b88483d`、`5aa1c1a`、`56f14d3`。
+
+## §7.127 D-2 版本单一来源与依赖锁定（2026-11-09）
+
+- N-21 收口：`netlab/__init__.py` 是唯一版本定义；`frontend/index.html` 的 4 处
+  `?v=` 改为 `__NETLAB_VERSION__`，由 `netlab/server_shell` 在响应时注入 `APP_BUILD`；
+  `frontend/app/constants.ts` 的 `UI_BUILD` 改为 `__NETLAB_BUILD__`，由
+  `frontend/scripts/build.mjs` 从 `netlab/__init__.py` 读取并 define。
+- 新增 `tools/check_version.py`：校验 `__version__` 唯一、运行时源码无硬编码版本、
+  `index.html` 保留占位符；CI `python-tests` 增加该步骤。
+- 新增 `requirements.lock`：全新 venv `pip install -e .` 后 `pip freeze` 生成。
+- 验收：干净 venv `python -m netlab.desktop --selftest` 返回 200（exit 0）；
+  全量 748 passed / 1 skipped；覆盖率 81.19%（门限 81）；前端 typecheck/build/
+  parity/check:sections/漂移门全绿。

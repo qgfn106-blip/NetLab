@@ -2652,3 +2652,11 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 层 D 实测 RC 阶 **1.012/1.006**，与声明 2 阶不符：以 `xfail(strict=True)` 显式登记审计 §3.2 的源步末采样降阶，禁止静默通过。
 - `tools/bench_solver.py` 输出 `reports/bench.jsonl`（err_abs/err_rel/observed_order/wall_ms/peak_mb；residual 暂为 null，待 G2 后续轮补 KCL 残差）。
 - 门禁：全量 **779 passed / 1 skipped / 1 xfailed**；架构 A1/A2/A3/A6 OK（baseline 3 环）；契约生成 `--check` OK；前端 typecheck/build/parity/check:sections 全绿。
+
+## §7.130 G2 数值对照层 C/E、KCL 残差与变异烟雾（2026-11-09）
+
+- 层 C 外部交叉：`netlab/tests/evals/test_crossval.py` 用 `scipy.integrate.solve_ivp`（rtol 1e-11）独立积分 RC/RLC，与 Netlab 固定步长结果对比；参考解不调用 Netlab 求解器。
+- 层 E 病态与事件：`netlab/tests/evals/test_pathological.py` 覆盖 `reset()` 清反应性状态、`zero_time()` 按 R11/D14 保留状态、非法 dt（0/负/NaN/Inf）、负电阻、并联理想电压源奇异电路报 `ComputeError`、失败后状态保持有限。
+- KCL 残差：`tools/bench_solver.py` 的 `residual` 不再为 null，改为从 R1/C1 器件电流计算中点 KCL 失配（实测 1e-18 A 量级）。
+- 变异烟雾：`tools/mutation_smoke.py` 对 `elements.py` 施加 6 个变异体（电阻增益、电容/电感梯形系数、源增益、电容值、电感历史符号），逐个跑 `tests/evals` 并恢复原字节；实测 **6/6 killed，score=1.0**（阈值 0.6）。这是 smoke，不是完整变异测试。
+- 门禁：全量 pytest（791 passed / 1 skipped / 1 xfailed）；evals 单独 19 passed / 1 xfailed。

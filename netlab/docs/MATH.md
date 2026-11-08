@@ -26,21 +26,21 @@
 
 | 符号 | 含义 | 备注 |
 | --- | --- | --- |
-| $`v_i`$ | 节点 $`i`$ 的对地电压（未知量） | 地为参考 0 V |
-| $`i_k`$ | 第 $`k`$ 条支路电流（未知量） | 独立电压源/VCVS/运放等 |
-| $`\mathbf{A},\ \mathbf{z}`$ | MNA 系数矩阵、右端向量 | 解 $`\mathbf{A}\mathbf{x}=\mathbf{z}`$ |
-| $`g`$ | 电导 | $`g=1/R`$ |
-| $`C,\ L`$ | 电容、电感 | |
-| $`\Delta t`$ | 时间步长 | 代码中 `dt` |
-| $`V_t`$ | 热电压 $`kT/q`$ | $`k=8.617333262\times10^{-5}\,\mathrm{eV/K}`$ |
-| $`\beta`$ | BJT 电流放大倍数 | |
-| $`\lambda`$ | MOSFET 沟道长度调制系数 | |
-| $`\gamma`$ | MOSFET 体效应系数 | |
-| $`\phi`$ | MOSFET 表面势 | |
-| $`n`$ | 发射系数（二极管/BJT） | |
-| $`I_s`$ | 反向饱和电流 | |
-| $`\eta`$ | 后向误差度量 | 见 §4 |
-| $`\omega`$ | 角频率 $`2\pi f`$ | AC 扫描 |
+| $0$ | 节点 $1$ 的对地电压（未知量） | 地为参考 0 V |
+| $0$ | 第 $1$ 条支路电流（未知量） | 独立电压源/VCVS/运放等 |
+| $0$ | MNA 系数矩阵、右端向量 | 解 $1$ |
+| $0$ | 电导 | $1$ |
+| $0$ | 电容、电感 | |
+| $0$ | 时间步长 | 代码中 `dt` |
+| $0$ | 热电压 $1$ | $2$ |
+| $0$ | BJT 电流放大倍数 | |
+| $0$ | MOSFET 沟道长度调制系数 | |
+| $0$ | MOSFET 体效应系数 | |
+| $0$ | MOSFET 表面势 | |
+| $0$ | 发射系数（二极管/BJT） | |
+| $0$ | 反向饱和电流 | |
+| $0$ | 后向误差度量 | 见 §4 |
+| $0$ | 角频率 $1$ | AC 扫描 |
 
 误差/规模常量：`K_BOLTZMANN=8.617333262e-5`（nodal.py:41、transistors.py:11），
 `MAX_NEWTON_ITERATIONS=60`、`NEWTON_ABS_TOL=1e-6`、`NEWTON_REL_TOL=1e-9`、
@@ -50,7 +50,7 @@
 
 ## 1. 信号流与矢量网络的求值
 
-实现：`core/model/graph.py`。`Network.step()`（graph.py:497）推进一个时间步。
+实现：`core/model/graph.py`。`Network.step()`（graph.py:497）推进一个时间步。自 2026-11-08（D122）起，`Network.time`、`CircuitSolver.time`、`FemModel.time` 与 `Simulation.time` 都是同一个 `Scene.clock`（`core/compute/clock.py` 的 `SimClock`）的代理；时间只在成功步后由当前内核推进一次，失败步不推进，因此四套旧时间轴不再各自漂移。
 
 ### 1.1 计算模型
 
@@ -91,7 +91,7 @@ $$
 
 延迟边不参与，因为它输出的是上一时刻的值，天然打断代数环。
 
-### 1.4 延迟边 = 单位延迟 $`z^{-1}`$
+### 1.4 延迟边 = 单位延迟 ### z^{-1}`$
 
 `step()`（graph.py:514-521）在步开始时**先**求值所有延迟边。此时所有节点仍持有上一时刻的值，
 因此延迟边的输出恰为
@@ -138,13 +138,13 @@ $$
 
 ### 2.2 空矩阵
 
-`_blank_matrix()`（nodal.py:1574-1578）：
+`_blank_matrix()`（nodal.py:1728-1732）：
 
 - 稠密模式：`numpy.zeros((n,n))`；
 - 稀疏模式：`scipy.sparse.lil_matrix`（LIL 便于逐元素 `+=` 盖章）。
 
-稀疏与否由 `_decide_sparse()` 决定（nodal.py:1561-1572），`sparse="auto"` 时以
-`sparse_threshold=200` 为界。
+稀疏与否由 `_decide_sparse()` 决定（nodal.py:1714-1726），`sparse="auto"` 时以
+`sparse_threshold=512` 为界（D120，2026-11-08：≤512 未知量默认稠密，避免 LIL 的 Python 逐元素开销）。
 
 ### 2.3 基本盖章原语
 
@@ -217,11 +217,11 @@ $$
 
 $`i=C\,\dfrac{dv}{dt}`$。
 
-| 积分器 | 电导 $`g`$ | 等效电流源 `isrc` |
+| 积分器 | 电导 $0$ | 等效电流源 `isrc` |
 | --- | --- | --- |
-| backward_euler | $`C/\Delta t`$ | $`-g\,v_{n-1}`$ |
-| trapezoidal | $`2C/\Delta t`$ | $`-g\,v_{n-1}-i_{n-1}`$ |
-| gear2 (BDF2) | $`1.5C/\Delta t`$ | $`C\,(-2v_{n-1}+0.5v_{n-2})/\Delta t`$ |
+| backward_euler | $0$ | $1$ |
+| trapezoidal | $0$ | $1$ |
+| gear2 (BDF2) | $0$ | $1$ |
 
 对应代码：BE（nodal.py:248-250），gear2（nodal.py:251-263），trapezoidal（nodal.py:264-268）。
 
@@ -233,11 +233,11 @@ $`i=C\,\dfrac{dv}{dt}`$。
 
 $`v=L\,\dfrac{di}{dt}`$，`DC_CONDUCTANCE=1.0e5` 表示直流短路。
 
-| 积分器 | 电导 $`g`$ | 等效电流源 `isrc` |
+| 积分器 | 电导 $0$ | 等效电流源 `isrc` |
 | --- | --- | --- |
-| backward_euler | $`\Delta t/L`$ | $`i_{n-1}`$ |
-| trapezoidal | $`\Delta t/(2L)`$ | $`i_{n-1}+g\,v_{n-1}`$ |
-| gear2 (BDF2) | $`\Delta t/(1.5L)`$ | $`(2i_{n-1}-0.5i_{n-2})/1.5`$ |
+| backward_euler | $0$ | $1$ |
+| trapezoidal | $0$ | $1$ |
+| gear2 (BDF2) | $0$ | $1$ |
 
 对应代码：BE（nodal.py:349-351），gear2（nodal.py:352-364），trapezoidal（nodal.py:366-367）。
 `stamp`：`dc` 用 $`g=10^5`$（短路，nodal.py:370-372）；`ac` 若 $`\omega=0`$ 用 $`10^5`$，否则 $`1/(j\omega L)`$
@@ -724,7 +724,7 @@ R39 的 `analysis.frequency_response()` 对 signal 走 13.1，对 circuit 转调
 | `MAX_DEPTH` | 8 | 嵌套最大深度 |
 | `MAX_ARRAY` | 256 | 数组最大长度 |
 | `MAX_MATRIX` | 12 | 矩阵最大维 |
-| `MAX_NUMBER` | $`1.0\times10^{15}`$ | 数值绝对值上限 |
+| `MAX_NUMBER` | $1$ | 数值绝对值上限 |
 | `MAX_NAME` | 32 | 名称最大长度 |
 | `MAX_PRECOMPUTE_STEPS` | 200000 | 单次预计算最大步数 |
 

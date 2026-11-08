@@ -1,6 +1,6 @@
 # Netlab 文档索引（DOCS INDEX）
 
-> 最后核对：2026-11-07（本轮以 3.20.1 代码复核 UI_SPEC/EXTENDING/EXTENSIBILITY/PLUGIN_GUIDE/VSCODE/AGENT_GUIDE/OPERATION/ARCHITECTURE，并新增 APPEARANCE_ENGINE_DESIGN + adr/0003 索引）· 当前基线：静态 3.20.1 / 627 passed / R01–R43 / D1–D119；新增 **CODE_STANDARDS.md（代码规范，强制）**
+> 最后核对：2026-11-08（审计 A 阶段后复核 + D125 PlotKit 插件封装 + D129 测试配置 + D130 N-36 步骤事务 + D131 records 拆分 + D132 文档隐私清理 + D133 端到端控制实验 + D134 文档分层与会话日志 + D135 求解器影子门 + D136 影子门 CI 接入 + D137 插件路由拆分、D138 帮助检索路由拆分、D139 二维有限元路由拆分、D140 块库路由拆分、D141 分析路由拆分、D142 文档基线同步、D143 偏好/布局路由拆分、D144 BACKLOG 基线清理、D145 缓存/文档/加速路由拆分、D146 应用内扩展路由拆分、D147 仿真控制路由拆分、D148 工作区路由拆分、D149 多网络管理路由拆分、D150 PlotKit 接入/预计算路由拆分、D151 场景/模板路由拆分、D152 页面/UI/状态/诊断路由拆分、D153 工程文件路由拆分；本轮新增 VISION 草案、HASH_TABLE_OPTIMIZATION_RESEARCH、extensions/plugins/netlab.plotkit 官方插件、sessions 会话日志，更新 PROGRESS/DOCS_INDEX）· 当前基线：静态 3.20.1 / 678 passed / 1 skipped / R01–R43 / D1–D153；新增 **CODE_STANDARDS.md（代码规范，强制）**
 > 目的：先在这里找文档，不要凭文件名猜新旧。**历史文档保留原文，但不得作为当前实现口径。**
 
 ## 1. 建议阅读路线
@@ -13,7 +13,7 @@
 | 想查数学公式 | [MATH.md](MATH.md) | [CODE_GUIDE.md](CODE_GUIDE.md) |
 | 想写插件/扩展 | [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md) | [PLUGIN_GUIDE.md](PLUGIN_GUIDE.md) + [CODE_STANDARDS.md](CODE_STANDARDS.md)（Python 规范） |
 | 想改前端/UI | [UI_SPEC.md](UI_SPEC.md) | [APPEARANCE_ENGINE_DESIGN.md](APPEARANCE_ENGINE_DESIGN.md)（外观引擎/令牌/色板/§12 实施进度，改色改 UI 必读）+ [CODE_STANDARDS.md](CODE_STANDARDS.md)（TS/JS 规范）+ [FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md) |
-| 想知道项目做到哪 | [PROGRESS.md](PROGRESS.md) | [BACKLOG.md](BACKLOG.md) |
+| 想知道项目做到哪 | [MILESTONES.md](MILESTONES.md)（精简里程碑） | [PROGRESS.md](PROGRESS.md)（逐轮会话日志） + [BACKLOG.md](BACKLOG.md) |
 | 想查需求/决策 | [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) | [adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md) |
 | 想改代码（贡献者 / agent） | **[CODE_STANDARDS.md](CODE_STANDARDS.md)** | [AGENT_GUIDE.md](AGENT_GUIDE.md) + [APPEARANCE_ENGINE_DESIGN.md](APPEARANCE_ENGINE_DESIGN.md)（改外观/画布色时） |
 
@@ -24,6 +24,7 @@
 | 文档 | 用途 | 状态 |
 | --- | --- | --- |
 | [README.md](../../README.md) | 定位、主要能力、快速开始、演示、文档导航 | 当前 |
+| [VISION.md](VISION.md) | 产品愿景草案：为谁、替代什么/不做什么、三条可证伪成功判据（B-1，待产品确认） | 草案 |
 | [ARCHITECTURE.md](../../ARCHITECTURE.md) | 面向贡献者的短架构：分层、数据流、扩展点 | 当前 |
 | [OPERATION.md](../../OPERATION.md) | 界面操作、工作流、演示图、快捷键 | 当前 |
 | [INSTALL.md](../../INSTALL.md) | 安装、离线部署、局域网、故障排查 | 当前 |
@@ -39,6 +40,7 @@
 | [MODULES_HOWTO.md](MODULES_HOWTO.md) | 模块化/封装/内部结构操作 | 当前 |
 | [SCHEMATIC_DRAWING_SPEC.md](SCHEMATIC_DRAWING_SPEC.md) | 电路图绘制规范 | 当前 |
 | [PERFORMANCE_AND_CONCURRENCY.md](PERFORMANCE_AND_CONCURRENCY.md) | 并发/性能评估研究：多线程·多进程·异步·数据压缩编解码·计算优化（评估记录，非实现口径） | 当前（研究） |
+| [HASH_TABLE_OPTIMIZATION_RESEARCH.md](HASH_TABLE_OPTIMIZATION_RESEARCH.md) | 哈希表/嵌套数据结构优化研究：论文综述、数学分析、双层数据架构与 P0–P3 改造路线（研究记录，非实现口径） | 研究（2026-11-08） |
 | [MATH_INTEGRATION_PLAN.md](MATH_INTEGRATION_PLAN.md) | R43 数学成果接入计划：P1 稀疏排序 / P3 AC 扫频 Woodbury / P5 遥测误差预算，影子验证 M0–M1d | 当前 |
 | [UNIFIED_SIM_MATH_SPEC.md](UNIFIED_SIM_MATH_SPEC.md) | 统一仿真数学规范（§0–§17 完整；§0–§16 于 2026-11-06 从会话日志恢复） | 研究（完整） |
 | [WORKTREE_RULES.md](WORKTREE_RULES.md) | 多工作树/多会话规范 | 当前 |
@@ -50,6 +52,7 @@
 | --- | --- | --- |
 | [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md) | `netlab.plugin_api.v1`、manifest、EngineProtocol、工程 v6、UI profile | 当前（首版实现完成） |
 | [PLUGIN_GUIDE.md](PLUGIN_GUIDE.md) | 插件包目录、manifest 与 `PluginContext` 快速示例 | 当前 |
+| `extensions/plugins/netlab.plotkit/` | 官方 PlotKit 插件声明（PanelSpec + `/plotkit/` iframe，D125） | 当前 |
 | [EXTENDING.md](EXTENDING.md) | 快速扩展指南；顶部链接插件包规范 | 当前（legacy 段落保留） |
 | [adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md) | 24 条扩展架构决策 | 当前 |
 | [adr/0003-appearance-engine.md](adr/0003-appearance-engine.md) | 外观引擎 ADR：令牌单一来源（D75）+ LIGHT/DARK 双色板 + 画布令牌化 + 外观面板决策 | 当前 |
@@ -71,14 +74,23 @@
 
 | 文档 | 用途 | 状态 |
 | --- | --- | --- |
-| [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) | R01–R43 需求、D1–D119 决策、分期、不做清单 | 当前 |
-| [PROGRESS.md](PROGRESS.md) | 执行证据与验收记录（含 §7.70–§7.87） | 当前 |
+| [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) | R01–R43 需求、D1–D153 决策、分期、不做清单 | 当前 |
+| [MILESTONES.md](MILESTONES.md) | 精简里程碑（可对外复述的阶段结果与复现命令） | 当前 |
+| [PROGRESS.md](PROGRESS.md) | 执行证据与验收记录（含 §7.70–§7.121；逐轮执行日志） | 当前 |
 | [BACKLOG.md](BACKLOG.md) | 当前主线、剩余项、待拍板决定 | 当前 |
 | [LESSONS.md](LESSONS.md) | 踩坑与经验（按 §7.x 记录） | 当前 |
 | [AGENT_GUIDE.md](AGENT_GUIDE.md) | Agent 开工三问、文档路由、闸门 | 当前 |
 | [CODE_STANDARDS.md](CODE_STANDARDS.md) | **代码规范（强制）**：TS/JS + Python + 测试 + 提交 + 文档规范；改代码前必读 | 当前 |
 
-### 2.6 功能规格（spec，按日期归档）
+### 2.6 会话日志（sessions）
+
+| 文档 | 用途 | 状态 |
+| --- | --- | --- |
+| [sessions/README.md](sessions/README.md) | 会话日志命名、隐私与证据约定 | 当前 |
+| [sessions/2026-11-08-audit-repair.md](sessions/2026-11-08-audit-repair.md) | 2026-11-08 审计修复的目标、基线、已完成项与剩余项 | 当前 |
+| [PROGRESS.md](PROGRESS.md) | 逐轮执行证据的主日志（§7.x） | 当前 |
+
+### 2.7 功能规格（spec，按日期归档）
 
 | 文档 | 主题 | 状态 |
 | --- | --- | --- |

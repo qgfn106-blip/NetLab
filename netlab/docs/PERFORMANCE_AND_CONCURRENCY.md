@@ -1943,3 +1943,226 @@ python -m pytest mathspec/tests -q
 - **分析层**输出 `event_time`、`interval_index`、`bound`、`valid`。只有区间保持、未饱和且 $d>2\epsilon$ 时 `valid=true`；否则输出无效原因。
 
 该接口是数学验证后的候选形态，不是对现有 NetLab API 的修改建议或已完成实现。下一阶段若接入真实 Recorder，必须再测采样插值误差、窗口边界、长时间序列的差分范围和实际吞吐；这些不能由当前零耦合实验外推。
+
+### 33.5 数据结构与检查点优化的数学补充
+
+> 来源：`NetlabHome/netlab/docs/HASH_TABLE_OPTIMIZATION_RESEARCH.md` §4 的数学分析。下式是**成本模型与适用条件**，除注明审计实测外均为解析估算或说明性量级，不是 NetLab 端到端实测。
+
+#### 33.5.1 嵌套 dict 的访问成本
+
+设一次字段访问穿过 $d$ 层字典，每层平均哈希/探测成本为 $c_{h,k}$，指针解引用与对象访问成本为 $c_{p,k}$，则
+
+$$
+T_{\mathrm{nested}}(d)=\sum_{k=1}^{d}\left(c_{h,k}+c_{p,k}\right)\approx d\left(c_h+c_p\right).
+$$
+
+若编译期把热字段变为连续数组、用整数索引访问，则
+
+$$
+T_{\mathrm{flat}}=c_a+c_{\mathrm{index}},\qquad
+R=\frac{T_{\mathrm{nested}}(d)}{T_{\mathrm{flat}}}\approx
+\frac{d\left(c_h+c_p\right)}{c_a+c_{\mathrm{index}}}.
+$$
+
+每步总访问次数可写成
+
+$$
+N_{\mathrm{access}}=N_{\mathrm{node}}\,A_{\mathrm{hot}}\,I_{\mathrm{Newton}}\,S_{\mathrm{steps}}\,d.
+$$
+
+说明性估算（`c_h≈30ns`、`c_p≈80ns`、`c_a≈2ns`、`d=4`）给出 $R\approx220$，但 Python 解释器、对象分配和真实缓存行为会显著降低端到端收益；该比值只能用于比较访问模式，不能当作验收指标。
+
+#### 33.5.2 内存与缓存局部性
+
+CPython 的每个独立 `dict` 都有对象头、索引表和条目表。一个带 7 个字段 dict 的节点即使每表只有少量键，结构开销也在每节点约 1.5–2.5 KB 量级；10,000 个节点的结构开销约 15–25 MB，而 10 个 `float64` 热字段的 SoA 仅约 0.8 MB。缓存角度，`dict` 访问是“dict 对象 → 索引表 → 条目 → 值对象”的指针链，随机访问时每级都可能 cache miss；连续 NumPy 数组的顺序访问可由硬件预取。**嵌套 dict 的主要问题是 locality，不是哈希函数。**
+
+#### 33.5.3 单表负载因子与探测
+
+在均匀散列/双重散列假设下，开放寻址的成功查找和失败查找期望探测数分别为
+
+$$
+S(\alpha)\approx\frac{1}{\alpha}\ln\frac{1}{1-\alpha},\qquad
+U(\alpha)\approx\frac{1}{1-\alpha}.
+$$
+
+线性探测更差：成功约 $\frac12\left(1+\frac{1}{1-\alpha}\right)$，失败约 $\frac12\left(1+\frac{1}{(1-\alpha)^2}\right)$。数值上 $\alpha=0.5$ 时 $S\approx1.39,U\approx2$；$\alpha=0.75$ 时 $S\approx1.85,U\approx4$；$\alpha=0.9$ 时 $S\approx2.56,U\approx10$；$\alpha=0.99$ 时 $S\approx4.65,U\approx100$。因此 Python `dict` 在正常负载下已接近常数；真正危险的是把负载推到 0.9 以上，或让每个节点维护多个小 dict。若未来做原生表，默认负载应控制在 0.5–0.75。
+
+#### 33.5.4 编译/扁平化的盈亏平衡
+
+设编译一次的成本为
+
+$$
+T_{\mathrm{compile}}=aN+bE+cK,
+$$
+
+其中 $K$ 是字段/类型数量；编译后每步节省 $\Delta=T_{\mathrm{old}}-T_{\mathrm{new}}$。若之后还要跑 $S$ 步，则
+
+$$
+T_{\mathrm{avg}}(S)=\frac{T_{\mathrm{compile}}}{S}+T_{\mathrm{new}},\qquad
+S^*=\frac{T_{\mathrm{compile}}}{\Delta}.
+$$
+
+只有 $S>S^*$ 时编译才划算。若 `T_compile=20ms`、每步节省 `0.5ms`，则 $S^*=40$ 步；用户每编辑一次只跑 10 步时编译层反而亏。因此应采用**惰性编译 + 版本失效**：只有连续仿真/批量分析超过阈值才构建 RuntimeModel，编辑阶段继续用 Scene 的 dict。
+
+#### 33.5.5 CSR 与图结构
+
+对 $N$ 个节点、$E$ 条边的有向图，CSR 使用 `indptr: int32[N+1]`、`indices: int32[E]`、可选 `weights: float64[E]`，总内存约
+
+$$
+M_{\mathrm{CSR}}=4(N+1)+4E+8E=4N+12E+4\ \text{bytes}.
+$$
+
+一次邻居遍历为 $O(\deg(v))$，全图遍历 $O(N+E)$；而“每节点一个 dict of dict”的邻接表至少有每节点一个 dict 对象和每条边一个条目对象，常数和 locality 都更差。CSR 的代价是插入/删除边最坏 $O(E)$；正确用法是编辑期用 dict/list，计算期一次性构建 CSR，拓扑变化标记 dirty，高频局部编辑用可编辑 overlay，不要每改一条边就重建整个 CSR。
+
+#### 33.5.6 检查点：全量拷贝与 undo-log
+
+设状态对象数为 $B$、状态总字节为 $M$，全量 checkpoint 成本
+
+$$
+C_{\mathrm{ckpt}}=c_{\mathrm{alloc}}B+c_{\mathrm{mem}}M.
+$$
+
+每步都 checkpoint 的期望成本为
+
+$$
+C_{\mathrm{always}}=C_{\mathrm{ckpt}}+pC_{\mathrm{restore}},
+$$
+
+其中 $p$ 是单步失败/超时概率。undo-log 只记录本步修改的 $u$ 个字段：
+
+$$
+C_{\mathrm{undo}}=c_{\mathrm{log}}u+pC_{\mathrm{undo\text{-}restore}}.
+$$
+
+当
+
+$$
+C_{\mathrm{ckpt}}-c_{\mathrm{log}}u>p\left(C_{\mathrm{undo\text{-}restore}}-C_{\mathrm{restore}}\right)
+$$
+
+时 undo-log 更优。审计实测 `C_ckpt≈2.7ms/步`（6ms/步的 45%），而正常步的 $u$ 远小于 $B$，所以理论上 undo-log 通常占优；但正确性要求每个修改路径都写 journal、失败时逆序精确恢复、不能漏掉 `deepcopy` 隐藏的可变对象（如 `connection.output`），并且回滚后 revision/缓存失效一致。**没有这些保证时，性能优化会变成正确性风险。**
+
+#### 33.5.7 序列化、名称索引与频响
+
+`runtime_state` 的成本可建模为
+
+$$
+T_{\mathrm{snap}}=\alpha N+\beta E+\gamma K,
+$$
+
+其中 $K$ 是字符串/JSON 字段数。审计实测 392 节点约 17ms/帧（`runtime_state` 7.44ms + `json.dumps` 9.86ms）。版本化缓存可把未变化帧的轮询成本降到
+
+$$
+T_{\mathrm{poll}}=
+\begin{cases}
+O(1), & \text{revision 未变},\\
+O(\Delta), & \text{只有局部变化},\\
+O(N+E), & \text{全量重建}.
+\end{cases}
+$$
+
+名称线性扫描的批量成本是
+
+$$
+\sum_{i=1}^{N}i=\frac{N(N+1)}{2}=O(N^2),
+$$
+
+维护 `set`/`dict` 名称索引后期望 $T_{\mathrm{index}}=c_{\mathrm{hash}}N=O(N)$。频响/遍历若对每个频点、每个节点、每条边都线性扫描，复杂度 $O(FNE)$；按目标/源节点预分组边后为 $O(F(N+E))$。
+
+#### 33.5.8 布局选择的形式化
+
+布局选择可写成带约束的多目标问题：
+
+$$
+\min_{L\in\mathcal L}\ \alpha T_{\mathrm{edit}}(L)+\beta T_{\mathrm{step}}(L)+\gamma M(L)+\delta T_{\mathrm{serialize}}(L)
+$$
+
+subject to：语义等价（同一输入数值结果在约定容差内一致）、编辑能力（增删改节点/边不丢字段）、打包约束（纯 Python/NumPy/SciPy，不引入新二进制依赖）、回滚正确性（失败后可恢复到上一步一致状态）。候选布局至少包括 $L_{\mathrm{nested}}$（现状）、$L_{\mathrm{slots}}$（`dataclass(slots=True)` + `extra` dict）、$L_{\mathrm{soa}}$（热字段列数组 + 冷字段 dict）、$L_{\mathrm{compiled}}$（整数索引 + SoA + CSR）和 $L_{\mathrm{native}}$（C++/Rust 扩展，仅在 P0–P2 后评估）。实际选型应看 Pareto 前沿：如果 $L_{\mathrm{compiled}}$ 只快 1.2× 却增加大量 dirty 逻辑，不应上线；如果 $L_{\mathrm{slots}}$ 只快 5% 但零风险，可先做。
+
+**边界**：上述公式中的数值量级来自审计记录或微架构估算，不是本轮新实测；P0 的稀疏阈值收益以实际 benchmark 为准，不能用公式替代验收。
+
+## 34. 第三十四轮：数据结构与检查点优化实施规划（P0–P3）
+
+> 规划依据：`PERF_DICT_AND_CPP_AUDIT.md` 的 B.1–B.3 与 `HASH_TABLE_OPTIMIZATION_RESEARCH.md` §5。原则：**先做可回退的常数级优化，再做结构性改造；任何会改变数值路径的改动都必须先有等价性测试和 feature flag。**
+
+### 34.1 基线（审计实测，待本轮复核）
+
+| 指标 | 基线 | 说明 |
+|---|---:|---|
+| 390 节点 RC 梯形每步 | 约 6ms（审计） | 本机复测以 `tools/bench_step.py` 和 390 节点脚本为准 |
+| 检查点 | 约 45% | `Scene.capture_checkpoint` + `CircuitSolver.capture_checkpoint` 的深拷贝 |
+| 元件 stamp | 约 25% | 逐元件 Python 写入 `ctx.A`/`ctx.rhs` |
+| 线性求解 | <1% | 不是主要瓶颈 |
+| 稀疏 vs 稠密 | 稀疏慢 2.1–2.2× | `lil_matrix` 装配与每步 LIL→CSR 开销；`sparse_threshold=200` 在 ≤400 节点场景是负优化 |
+| `runtime_state` + JSON | 约 17ms/帧（392 节点） | 其中序列化约 9.86ms |
+
+### 34.2 阶段与门控
+
+| 阶段 | 内容 | 预期收益 | 风险 | 验收门槛 |
+|---|---|---:|---|---|
+| **P0** | `SolverOptions.sparse_threshold` / `SimConfig.sparse_threshold` 默认由 200 提高到 512；`sparse="on"/"off"` 与显式阈值保持原语义 | 约 1.5–2×（本机待测） | 极低 | 390 节点稠密/稀疏电压 `assert_allclose`；全量测试通过；benchmark 记录 |
+| **P1** | 线性元件预生成三元组 + `np.bincount`/`np.add.at` 向量化装配；非线性/受控源保留原 stamp 路径 | 约 1.6×（审计） | 中 | 逐元件 stamp 对照测试；全量回归；数值差在既有容差内 |
+| **P2** | 条件 checkpoint + undo journal/COW；先保留异常回滚语义，再逐步替换全量深拷贝 | 高 | 中高 | 故障注入：step 中途异常后逐字段一致；1000 步随机编辑对照 |
+| **P3** | `precompute` 与 live/snapshot 的锁解耦（克隆或分块） | 中（消 UI 冻结） | 低中 | `/api/live` 与 snapshot 在 precompute 期间不阻塞；revision 一致 |
+
+**本轮执行范围：只做 P0。** P1–P3 不在本轮代码中启用，避免把数据结构改造、数值路径和回滚语义混在一次变更里。
+> 编号说明：本表的 **P0 是实施切分，只指 `sparse_threshold` 默认值变更**；`HASH_TABLE_OPTIMIZATION_RESEARCH.md` §5.2 的 P0 是包含 7 项的研究优先池，不等于一次性全部实施。P1–P3 的编号在该报告与本文之间也不是一一对应，跨文档引用时以本文 §34.2 为准。
+
+### 34.3 兼容性契约
+
+- `SolverOptions` 与 `SimConfig` 的字段名、取值域、`PATCH /api/config` 契约不变；只改 `sparse_threshold` 的默认值。
+- 显式 `sparse="on"` 仍强制稀疏；显式 `sparse="off"` 仍强制稠密；显式 `sparse_threshold` 仍按用户值生效。
+- `SolverOptions.sparse="auto"` 在 `matrix_size > threshold` 时仍走稀疏，语义不变；只是默认阈值提高，使当前 `MAX_NODES=400` 的电路场景默认走稠密。
+- 数值正确性：稀疏与稠密求解同一线性系统，浮点结果不要求逐位相同，但必须满足现有回归容差（`rtol=1e-9, atol=1e-12`）；任何超出即回退。
+- 数据安全：不改 `NodeRecord`/`EdgeRecord` 字段、序列化格式、检查点格式；不改变 `capture_checkpoint`/`restore_checkpoint` 的契约。
+- 回退：只回退两个默认常量及对应文档；无 schema/API 迁移。
+
+### 34.4 验证与性能检测
+
+1. `python -m pytest netlab/tests/test_solver_sparse.py -q` — 稀疏路径、阈值、奇异诊断、配置透传。
+2. `python -m pytest netlab/tests/test_solver_p0.py netlab/tests/test_solver_analysis.py -q` — 求解器回归。
+3. `python -m pytest netlab/tests -q` — 全量回归；记录 passed/skipped 与耗时。
+4. 390 节点 RC 梯形 benchmark：预热后 120 步，记录 median/mean/p95；对照 `sparse="auto"`（新默认）、`sparse="off"`、`sparse="on"`。
+5. `python tools/bench_step.py` — 模板级 sanity，确认没有意外退化。
+6. 记录“优化状态”：代码改动、测试结果、benchmark 数值、未实施项与风险；不以单一最好值代替中位数/波动范围。
+
+### 34.5 P0 实施记录（2026-11-08）
+
+**代码改动**
+- `netlab/core/compute/nodal.py`：`SolverOptions.sparse_threshold` 默认 `200 → 512`；`_decide_sparse()` 的兜底阈值同步改为 512。
+- `netlab/core/compute/simulation.py`：`SimConfig.sparse_threshold` 默认 `200 → 512`。
+- `netlab/tests/test_solver_sparse.py`：新增 `test_default_sparse_threshold_keeps_max_sized_ladder_dense()`，断言默认 `SimConfig().sparse_threshold == 512`，并构造 390 节点梯形走一步后 `engine.solver.sparse is False`。
+
+**回归结果**
+- `python -m pytest netlab/tests/test_solver_sparse.py -q` → **7 passed in 1.17s**。
+- `python -m pytest netlab/tests/test_solver_p0.py netlab/tests/test_solver_analysis.py netlab/tests/test_solver_sparse.py -q` → **31 passed, 1 warning in 0.97s**（warning 为 `test_singular_matrix_reports_node` 的预期奇异矩阵警告）。
+- 全量回归见 `PROGRESS.md` §7.90。
+
+**390 节点 RC 梯形（391 未知量；预热 5 步、计时 120 步，同一进程）**
+
+| 模式 | sparse 标志 | median / ms | mean / ms | p95 / ms |
+|---|---:|---:|---:|---:|
+| `auto`（新默认 512） | False（稠密） | 5.462 | 5.622 | 6.322 |
+| `off`（强制稠密） | False | 5.111 | 5.158 | 5.430 |
+| `on`（强制稀疏） | True | 8.537 | 10.297 | 15.389 |
+
+旧默认（阈值 200）下同一场景的基线为 median **8.494 ms**（此前记录），因此新默认 `auto` 相对旧 `auto` 约 **1.56×**（8.494/5.462）；auto 与 off 都应走稠密，二者的差异来自同进程测量噪声与缓存状态，不作为稀疏/稠密差异的结论。
+
+**数值与兼容性**
+- 显式 `sparse="on"`、`sparse="off"` 不变；`test_sparse_on_reports_flag_and_matches_dense` 在 60 节点梯形上仍以 `rtol=1e-9, atol=1e-12` 对齐。
+- P0 只改变默认阈值；400 节点以内默认走稠密，400–512 未知量也走稠密，`>512` 仍按原逻辑走稀疏。
+- 已有 engine 的运行时：`Scene.set_solver_options()` 当前只更新 `solver_options` 与 `revision`，不置 `_dirty`；要应用新的默认阈值或显式选项，需要重新载入场景/重建 engine（`PATCH /api/config` 后若引擎已存在也同理）。这是既有行为，不是 P0 新引入的 schema 变化。
+- 未实施 P1–P3；它们仍需独立评审与故障注入，不在本轮代码中启用。
+
+**风险与边界**
+- 阈值是就“当前 LIL 实现 + 本机 CPU”测得；更换稀疏后端（例如 CSR 预装配）或硬件后应重测，不应把 512 当作普适常数。
+- 稠密 400×400 `float64` 约 1.28 MB；在当前 `MAX_NODES=400` 上限内可接受；超过 512 未知量仍由稀疏路径处理。
+- benchmark 只覆盖单一 RC 梯形，不能外推到所有电路拓扑或非线性场景；全量回归与模板 sanity 另行记录。
+
+### 34.6 审计 A 阶段实施记录（2026-11-08）
+
+- **A-1/A-2（N-01/02/03/04）**：信号流边不再静默自动延迟；`auto_delay` 默认 False，成环且未显式 opt-in 时抛 `ConflictError` 并列出环路径；`auto_delay` 与 `solve_algebraic` 纳入工程快照，`load_payload()` 不再篡改边集合。验证：`test_no_silent_topology_rewrite.py` 通过。
+- **A-3（N-05/N-06）**：新增 `core/compute/clock.py` 的 `SimClock`；`Scene.clock` 为唯一时钟源，`Network`/`CircuitSolver`/`FemModel`/`Simulation` 全部代理它；`Simulation._advance_locked()` 只在成功步后推进一次。`SimConfig.numerical_params()/presentation_params()` 分离数值/呈现配置；recorder 使用实际采样间隔，breakpoint 短步不伪报名义 `dt`。验证：`test_sim_clock.py` 4 passed；`test_analysis_api.py` 与相关全量回归通过。**N-36 的深拷贝→事务/撤销日志未实施，仍是已知性能债务。**
+- **A-4（N-19）**：新增 `netlab/tests/benchmarks/test_numerical_benchmarks.py`，5 项解析解/交叉检查（RC 终值、后向 Euler 收敛阶、瞬态稳态↔DC、AC↔DC、RL 电流）。验证：`pytest netlab/tests/benchmarks -q` → **5 passed in 1.04s**。
+- **A-6（N-15/N-16）**：新增 `.github/workflows/python-tests.yml`（Python 3.12；先基准后全量）；`test_control_project.py` 超调区间收紧为粗步长 38.0–40.5%、细步长 36.5–38.5%；`test_current_loop.py`/`test_fields.py` 的反馈边改为显式 `auto_delay=True`。全量结果见 `PROGRESS.md` §7.91：**665 passed / 1 skipped / 4 warnings / 114.99s**；最终复跑 **665 passed / 1 skipped / 4 warnings / 86.64s**。
+- **边界**：A-3 只完成时钟与采样语义，未替换 `capture_checkpoint`；A-5 跨模块通道键、B/C/D 阶段未启动。上述数字是当前 `HEAD 9cc5641` 工作树实测，不把审计文档的历史快照当作固定基线。

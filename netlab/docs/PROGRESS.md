@@ -1,19 +1,19 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-07 13:50
+> 最后修改：2026-11-08 12:47
 
 | 项 | 内容 |
 | --- | --- |
-| 记录时间 | 2026-11-07 13:50（Asia/Shanghai） |
-| 当前阶段 | **2026-11-07 全局外观引擎 P-A1–P-A4 完成（§7.88）**：新增 `frontend/theme.tokens.ts` 令牌唯一源 + `gen_theme_css.mjs` 生成 `theme.generated.css`、LIGHT/DARK 双色板 WCAG 10/10、画布裸色 97→0、设置窗外观面板 9 项（默认零视觉变化）；netlab **627 passed / 1 skipped**。上一阶段 **SchemDraw 版式 + 帮助搜索分组 + Bode 拖动读数（§7.87）**：SchemDraw 导出加打印图框/标题栏/位号参数值与重叠网格回退；`/api/help/search` 按类别分组、kind 精确/前缀/标题/正文排序并返回 `kind_label/groups`；Bode 光标支持拖动连续读数与 `←/→`（Shift ×10）吸附采样点，MATH.md 补对数轴反查公式；netlab **627 passed / 1 skipped**。更早 **R11 多窗口周期 + R14 全局搜索 + R34 Bode 光标（§7.86）**：626 passed。更早 **R15 功率电子 + R06 电路侧接口 + R18 图纸增强 + R19 SchemDraw 导出（§7.85）**：622 passed；**§7.83 P18**：两仓库 `flake8` 0、`black` 88 列；**§7.84**：UNIFIED_SIM_MATH_SPEC §0–§17 已从会话日志恢复。 |
+| 记录时间 | 2026-11-08 12:47（Asia/Shanghai） |
+| 当前阶段 | **2026-11-08 审计 A 阶段正确性止血（§7.91）、部分 B/C 文档收口（§7.92）与 D125 PlotKit 插件封装（§7.93）**：A-1/A-2/A-3（时钟/采样）/A-4/A-6/A-5 稳定通道键（§7.95）/D126–D133 已落地；B-1 VISION 草案、B-2 需求三栏模板、B-3 D66/需求冻结/里程碑文件、C-4 D124、C-5 路径白名单、D125 PlotKit 插件已落文档；A-3 的 N-36 已完成冗余全量深拷贝层替换（§7.98；残留 O(n) 浅快照/增量 undo log），A-5 已拆出 `records.py`（§7.99，N-10 尚未完成），D132 文档隐私首轮清理（§7.100），D133 二阶控制系统端到端实验（§7.101）、D134 文档分层与会话日志（§7.102）、D135 求解器影子验证门（§7.103）、D136 影子门 CI 接入（§7.104）、D137 插件路由拆分（§7.105）、D138 帮助检索路由拆分（§7.106）、D139 二维有限元路由拆分（§7.107）、D140 块库路由拆分（§7.108）、D141 分析路由拆分（§7.109）、D142 文档基线同步（§7.110）、D143 偏好/布局路由拆分（§7.111）、D144 BACKLOG 基线清理、D145 缓存/文档/加速路由拆分（§7.113）、D146 应用内扩展路由拆分（§7.114）、D147 仿真控制路由拆分（§7.115）、D148 工作区路由拆分（§7.116）、D149 多网络管理路由拆分（§7.117）、D150 PlotKit 接入/预计算路由拆分（§7.118）、D151 场景/模板路由拆分（§7.119）、D152 页面/UI/状态/诊断路由拆分（§7.120）、D153 工程文件路由拆分（§7.121），C-1/C-3、D 阶段其余项未完成。上一阶段 **2026-11-08 数据结构优化 P0（§7.90）**：`sparse="auto"` 默认阈值 200→512，390 节点梯形 median 8.494→5.462ms。 |
 | 基线 | 修改前 43 passed（2026-10-24 14:26） |
-| 当前测试 | **627 passed / 1 skipped**（2026-11-07 02:24 全量 `python -m pytest netlab/tests -q`，4 warnings，80.12 s，退出码 0；含 SchemDraw 版式、帮助搜索分组、R34 光标）；PlotKit 全量 **470 passed**（67.0 s） |
+| 当前测试 | **678 passed / 1 skipped**（2026-11-08 12:47 全量 `python -m pytest netlab/tests -q`，4 warnings，退出码 0，70.71s；含 A-1/A-3/A-4/A-5/A-6、D125 PlotKit 插件、D128、N-36 步骤事务、D131 records 拆分与 D132 文档隐私护栏、D133 端到端控制实验、D134 会话日志、D135 求解器影子门、D136 影子门 CI 接入、D137 插件路由拆分、D138 帮助检索路由拆分、D139 二维有限元路由拆分、D140 块库路由拆分、D141 分析路由拆分、D142 文档基线同步、D143 偏好/布局路由拆分、D144 BACKLOG 清理、D145 缓存/文档/加速路由拆分、D146 应用内扩展路由拆分、D147 仿真控制路由拆分、D148 工作区路由拆分、D149 多网络管理路由拆分；PlotKit 全量 **470 passed**（67.0 s） |
 | 本地备份 | `NetlabExtras/backups/ProjectPoint_backups/netlab_3_20_1_20261106_0205`（10 文件 + MANIFEST.sha256，iro.js 颜色选择器集成备份，mismatches=0）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_20_0_20261106_0136`（36 文件 + MANIFEST.sha256，R40 代码 + 文档重构最终备份，mismatches=0）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_19_0_20261105_1450`（28 文件 + MANIFEST.sha256，§7.72 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_18_0_20261105_1340`（15 文件 + MANIFEST.sha256，§7.71 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_17_1_20261105_0845`（15 文件 + MANIFEST.sha256，§7.70 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_17_0_20261105_0345`（23 文件 + MANIFEST.sha256，§7.69 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_final_20261105_0205`（14 文件 + MANIFEST.sha256，§7.68 最终集成检查）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_r38_20261105_0155`（9 文件 + MANIFEST.sha256，§7.67 相图指标/CSV）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p5_20261105_0140`（12 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p4_20261105_0125`（本轮 §7.65 的 analysis.py / test_network_tf.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p3_20261105_0110`（§7.64 的 graph.py / computes.py / scene.py / test_algebraic_solver.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p2_20261105_0055`（§7.63 的 graph.py / scene.py / test_algebraic_solver.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p1_20261105_0040`（§7.62 的 graph.py / computes.py / scene.py / test_solver_plan.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_plan_20261104_2355`（本轮规划文档 4 文件 + MANIFEST.sha256，R36–R38/D92–D94）、`NetlabExtras/backups/ProjectPoint_backups/netlab_control_20261104_1815`（本轮 14 文件 + MANIFEST.sha256，§7.61）、`NetlabExtras/backups/ProjectPoint_backups/netlab_import_20261104_1423`（§7.60 10 文件 + MANIFEST.sha256，§7.60）、`NetlabExtras/backups/ProjectPoint_backups/netlab_guard_20261104_1356`（本轮 5 文件 + MANIFEST.sha256，§7.59）、`NetlabExtras/backups/ProjectPoint_backups/netlab_delayfix_20261104_1315`（本轮 7 文件 + MANIFEST.sha256，§7.58）、`NetlabExtras/backups/ProjectPoint_backups/netlab_menu_20261104_0756`（§7.57 7 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_fields_20261104_0225`（21 文件 + MANIFEST.sha256，R35/D91）、`NetlabExtras/backups/ProjectPoint_backups/netlab_audit_20261103_1920`（15 文件 + MANIFEST.sha256，架构审计 §7.55）、`NetlabExtras/backups/ProjectPoint_backups/netlab_transfer_20261103_1602`（14 文件 + MANIFEST.sha256，R34/D90）、`netlab_20261101_2010`（本轮 7 源文件 + 5 文档 + 5 测试 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_plotkit_token_20261103_1253`（8 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_free_layout_20261103_1430`（P4 自由布局）、`NetlabExtras/backups/ProjectPoint_backups/netlab_layer_window_20261103_1450`（P3 图层浮窗）、`NetlabExtras/backups/ProjectPoint_backups/netlab_notes_20261103_1508`（P5 批注）、`NetlabExtras/backups/ProjectPoint_backups/netlab_precision_20261103_1552`（PlotKit 预览精度 §7.53）、`NetlabExtras/backups/ProjectPoint_backups/netlab_20261024_142654`、`_1727`、`netlab_20261025_0125`、`netlab_20261025_1306`（P0-0）、`netlab_20261026_0348p1retry`（P1 收口）、`netlab_20261026_1240`（R15 收尾）、`netlab_20261026_1318`（R20 模型批基础层）、`netlab_20261026_1322`（R20 模型批功能完成）、`netlab_20261026_1330`（R20 UI 批）、`netlab_20261026_1335`（R20 UI 迁移动作）、`netlab_20261026_1340`（R20 信号端口）、`netlab_20261026_1415`（纯导线/共集示例）、`netlab_20261027_0150`（P7-01 前快照）、`netlab_20261027_1744`（P7-03 收尾）、`netlab_20261027_1753`（R22 参数放宽/单位）、`netlab_20261027_1856`（三极管型号预设）、`netlab_20261027_2218`（拐点拖动）、`netlab_20261027_2324`（P7-03/P7-05 收尾）、`netlab_20261027_2330`（P0 求解可靠性）、`netlab_20261028_0016`（P0 收尾/P7-05）、`netlab_20261028_0048`（电源波形界面）、`netlab_20261028_0103`（dt 精度预设）、`netlab_20261028_0114`（奇异阈值/步长原位微调）、`netlab_20261028_0318`（P0 求解加固：事务/均衡/断点/超时）、`netlab_20261028_0405`（Phase D/E 代码前快照）、`netlab_20261028_0434`（R26 代码前快照）、`netlab_20261028_1219`（工程校验和修复前 `project.py`）、`project_20261028_1219`（用户工程文件前快照）、`netlab_20261028_1855`（R27 后端/前端快照）、`docs_20261028_1932`（公开仓库文档前快照）、`docs_20261028_2108`（R28 文档前快照）、`web_20261028_2130`（演示页与 workflow 删除前快照）、`ui_20261028_2205`（R29 回放滑块前 static 快照）、`netlab_ui_20261028_2242`（R30 UI 集中优化前 netlab 全量）；文档快照见 `docs_20261026_*、docs_20261027_1744、netlab_docs_20261028_0420、netlab_docs_20261028_0445` |
 | 备份清单 | 各自目录下 `MANIFEST.sha256` |
 | 版本控制 | 用户已授权 GitHub `qgfn106-blip` 做版本管理/备份（2026-10-24）；仓库在 `NetlabHome/.git`，本地备份同时保留；GitHub `main` 已包含功能提交 `f564485` 与文档补记 `261f8a`（功能提交 tree `9ea4909842a34dc496cc0c1dd9b4ff38a1977854`，与本地 `51b1eba` 一致） |
 | 速查文档 | **[AGENT_GUIDE.md](AGENT_GUIDE.md)（开工先读）**、**[UI_SPEC.md](UI_SPEC.md)（UI 设计语言/组件/接口）**、[FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md)、[LESSONS.md](LESSONS.md)、[REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)、[SOLVER_CODE_MAP.md](SOLVER_CODE_MAP.md)；仓库根 `AGENTS.md` 指向本套文档 |
 | 下一步 | R40 插件/UI/工程 v6 首版与全量文档重构已完成（§7.74/§7.75）；R31 P11-01…P11-07 已完成（§7.72）；R19 参考级图纸暂停；R25 完整电路级内部结构留后续 |
-| 需求口径 | **以 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) 的 R01–R43 + D1–D119 为准**；本文档 §7 为执行进度地图 |
+| 需求口径 | **以 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) 的 R01–R43 + D1–D143 为准**；本文档 §7 为执行进度地图 |
 
 > 本文件只记录**已实际验证**的内容；未完成的能力明确标为“未接通/未实现”，
 > 不把计划写成已完成。
@@ -902,7 +902,7 @@ P7-01 证据：`test_device_nodes` 单端比较器两例、`test_project_migrati
 - 稀疏：60 节梯形 60 节点解与稠密逐点 `rtol=1e-9` 一致；并联双压源报「电路矩阵奇异」；`sparse="bogus"` 报「sparse 必须是 auto、on 或 off」。
 - 全套 **315 passed, 2 warnings**（8.88 s）；`compileall` COMPILE_OK；`desktop --selftest` → `"ok": true`。
 
-**仍未做/边界**：AC 只做线性小信号（非线性元件明确拒绝）；DC 电感用 1e5 S 短路近似、不是 0 Ω；Gear2 固定 dt，回退规则见 D55；稀疏默认 auto>200，无 SciPy 退稠密；UI 图表与「分析」面板入口未接；自适应 dt/自适应 LTE 仍按 D17 不做。
+**仍未做/边界**：AC 只做线性小信号（非线性元件明确拒绝）；DC 电感用 1e5 S 短路近似、不是 0 Ω；Gear2 固定 dt，回退规则见 D55；稀疏默认 auto>200（后由 D120 调整为 >512，见 §7.90），无 SciPy 退稠密；UI 图表与「分析」面板入口未接；自适应 dt/自适应 LTE 仍按 D17 不做。
 
 ### 7.10 工程校验和二次校验修复（2026-10-28 12:24）
 
@@ -2208,7 +2208,7 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 **状态：完成**
 
 - **问题**：`UNIFIED_SIM_MATH_SPEC.md` 早前被一次 write 误覆盖，只剩 §17（88 行）；ProjectPoint 目录无备份副本。
-- **恢复来源**：扫描 `C:\Users\weijiewang\.dsh\sessions\--E-Python-MyPython-ProjectPoint--` 的 `session.v4.jsonl.zstd`（`zstandard` 流式解压、跨帧），定位本会话原始 `write`（442 行 §0–§13）与后续三次 `edit`（§14/§15/§16）调用；按原 `old_string`/`new_string` 逐段回放，拼接现有 §17。
+- **恢复来源**：扫描本机会话日志的 `session.v4.jsonl.zstd`（`zstandard` 流式解压、跨帧），定位本会话原始 `write`（442 行 §0–§13）与后续三次 `edit`（§14/§15/§16）调用；按原 `old_string`/`new_string` 逐段回放，拼接现有 §17。
 - **结果**：`UNIFIED_SIM_MATH_SPEC.md` 恢复为 **927 行、§0–§17 完整**（heading 0–17 全部校验）；恢复前副本保存于 `NetlabExtras/scratch/UNIFIED_SIM_MATH_SPEC.before_restore.md`。
 - **同步**：`DOCS_INDEX.md` 该行改为「§0–§17 完整；§0–§16 于 2026-11-06 从会话日志恢复」/研究（完整）；`UNIFIED_SIM_MATH_SPEC.md` 头部补恢复记录、研究脉络基线改 P&C §0–§33。
 
@@ -2267,3 +2267,311 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 节点/连线元素级外观覆盖（color/opacity/lineWidth/fontSize），视图设计器「元素外观」面板 + 画布即时预览 + scene payload 持久化；默认零变化、向后兼容。
 - 验收：tsc0 / esbuild build / contrast 10/10 / 画布裸色 0 / netlab 627 passed 1 skipped / GUI probe OK / pb_appearance_demo 通过。
 - 待办：P-B 完整版（多粒度/多属性/端口接入/批量/撤销）。
+
+## §7.90 数据结构优化 P0：sparse 默认阈值 200→512（D120，2026-11-08）
+
+**状态：完成（仅 P0；P1–P3 仅规划）**
+
+- **背景**：`PERF_DICT_AND_CPP_AUDIT.md` 与 390 节点 RC 梯形实测显示，`lil_matrix` 的 Python 逐元素装配 + 每步 LIL→CSR 在 ≤400 未知量比稠密慢约 2.1–2.2×；旧的 `sparse_threshold=200` 会让 `MAX_NODES=400` 的典型电路默认走稀疏，属于负优化。
+- **代码**：`netlab/core/compute/nodal.py` 的 `SolverOptions.sparse_threshold` 默认 `200 → 512`，`_decide_sparse()` 兜底同步 512；`netlab/core/compute/simulation.py` 的 `SimConfig.sparse_threshold` 默认 `200 → 512`；显式 `sparse="on"/"off"` 与显式阈值语义不变。
+- **测试**：`netlab/tests/test_solver_sparse.py` 新增 `test_default_sparse_threshold_keeps_max_sized_ladder_dense()`；定向 `test_solver_p0.py + test_solver_analysis.py + test_solver_sparse.py` **31 passed, 1 warning**（预期奇异矩阵警告）；全量 **651 passed, 1 skipped, 4 warnings in 145.59s**（2026-11-08 05:02，退出码 0）。
+- **性能**：390 节点 RC 梯形（391 未知量，预热 5 步、计时 120 步）median：`auto` 新默认 **5.462 ms**（旧 auto 基线 8.494 ms，约 **1.56×**），`off` 5.111 ms，`on` 8.537 ms；mean/p95 见 `PERFORMANCE_AND_CONCURRENCY.md` §34.5。
+- **兼容与数据安全**：只改默认阈值，不改字段、序列化、检查点契约；60 节点稀疏/稠密对拍仍 `rtol=1e-9, atol=1e-12`；400 节点稠密矩阵约 1.28 MB，可接受；`>512` 仍走原稀疏路径。
+- **文档**：`MATH.md` §2.2、`SOLVER_CODE_MAP.md` 决策表、`REQUIREMENTS_AND_RULES.md` D120、`PERFORMANCE_AND_CONCURRENCY.md` §33.5/§34.5、本节。
+- **未实施**：P1 向量化装配、P2 undo-log/COW 检查点、P3 precompute/live 锁解耦均未在本轮启用，需独立评审与故障注入。
+
+## §7.91 审计 A 阶段：正确性止血（A-1/A-2/A-3/A-4/A-6，2026-11-08）
+
+**状态：A-1、A-2、A-3（时钟/采样部分）、A-4、A-6 修复；A-3 的事务日志/撤销日志（N-36）和 A-5 的跨模块通道键仍待后续。**
+
+- **A-1 无声拓扑改写（N-01/02/03）**：`Scene.add_edge()` 的 `auto_delay` 默认改为 `False`；未显式 `auto_delay=True` 且未启用 `solve_algebraic` 的成环连接抛 `ConflictError` 并列出 `_cycle_path()` 路径；`EdgeRecord.auto_delay` 写入 `snapshot()`；删除 `load_payload()` 的自动改边循环，导入含未处理环的信号流工程直接拒绝。`server.py` 的 `POST /api/edges` 只在显式请求 `auto_delay=true` 时给出提示。新增 `netlab/tests/test_no_silent_topology_rewrite.py`，覆盖默认拒绝、显式 opt-in、保存/载入往返与导入拒绝。
+- **A-2 代数求解器持久化（N-04）**：`Scene.solve_algebraic` 跨 `to_payload`/`load_payload`/`runtime_state` 持久化；新增 `PUT /api/scene/algebraic` 与前端信号流“代数环”复选框；默认仍为关闭以保持旧工程行为，但切换是显式且可审计的，不再静默。
+- **A-3 唯一仿真时钟（N-05/N-06）**：新增 `netlab/core/compute/clock.py` 的 `SimClock`；`Scene` 持有 `scene.clock`，`Network`、`CircuitSolver`、`FemModel` 共享并代理 `time`；`Simulation` 删除重复 `time += dt`，失败步不推进时钟；`SimConfig.numerical_params()`/`presentation_params()` 分离数值与呈现参数；recorder 的 `sample_dt` 按真实采样间隔记录，breakpoint 短步不再冒充名义 `dt`。`test_sim_clock.py` 4 项通过。**N-36 的事务/撤销日志尚未实现**，现有 `capture_checkpoint` 仍保留，不能在文档中宣称性能已解决。
+- **A-4 独立数值基准（N-19）**：`netlab/tests/benchmarks/test_numerical_benchmarks.py` 5 项通过：RC 解析终值、后向 Euler 收敛阶 p≈1、RC 瞬态稳态对 DC 工作点、RC 低频 AC 对 DC 增益、RL 解析电流上升；全部为可重复的解析解/交叉检查，不依赖外部 SPICE。
+- **A-6 CI 与测试门禁（N-15/N-16）**：新增 `.github/workflows/python-tests.yml`（Python 3.12，先跑 `netlab/tests/benchmarks` 再跑全量 pytest）；`test_control_project.py` 的超调区间由 30–45% 收紧为 38.0–40.5%（粗步长）和 36.5–38.5%（细步长），并保留 `abs(Δ)<2.5` 的收敛比较；`test_current_loop.py`/`test_fields.py` 的反馈边改为显式 `auto_delay=True`。
+- **验证**：定向 A 阶段测试 **26 passed, 1 warning in 3.15s**；全量 `python -m pytest netlab/tests -q` **665 passed, 1 skipped, 4 warnings in 114.99s（退出码 0，2026-11-08 06:08）**，文档收口后复跑 **665 passed, 1 skipped, 4 warnings in 94.80s（退出码 0）**，最终复跑 **665 passed, 1 skipped, 4 warnings in 86.64s（退出码 0）**（warnings 均为既有 FastAPI/Matplotlib/SciPy/SyntaxWarning）。前端 `npm.cmd run build` 成功，`frontend/app.js` 已由 `app.ts` 重新生成。
+- **未完成边界**：A-3 的 `capture_checkpoint`→增量事务/撤销日志（N-36）未做；A-5 的跨模块通道键（N-08）已在 §7.95 补做，但巨石文件拆分（N-09）未做；B/C/D 的其余项（B-2 契约、C-1/C-3、D 覆盖率门槛）未完成；C-5 路径白名单已在 §7.93 前补做。不得把本节当作“审计全部关闭”。
+
+## §7.92 审计 B/C 文档收口（部分，2026-11-08）
+
+- **B-1 产品愿景**：新增 [VISION.md](VISION.md) 草案（待产品负责人确认），写明为谁、替代/不做什么、三条可证伪成功判据；不改变 R/D 台账效力。
+- **B-2 工程契约**：`REQUIREMENTS_AND_RULES.md` 增加新需求三栏模板（用户场景、失败代价、外部可观察验收命令），缺一不予立项；现有 R 条目保留原六段式。
+- **B-3 治理修正**：`REQUIREMENTS_AND_RULES.md` 增加需求冻结（2026-11-08 至 2027-02-08，R01–R43 不扩编号）；D66 状态明确标记“已由 D84 事实推翻”；新增 [MILESTONES.md](MILESTONES.md) 精简里程碑，`PROGRESS.md` 明确定位为逐轮会话日志。
+- **C-4 PlotKit 接入收口**：新增 D124，正式承认 `netlab/_vendor/plotkit` 为唯一运行来源，D66 独立包条文废止；现有 `sys.path.insert` 兼容 fallback 保留一个版本，下一轮清理。
+- **C-5 路径白名单**：新增 `netlab/core/model/path_guard.py`，`workspace.py`/`desktop/webview_bridge.py` 对工程/保存/打开路径统一做 realpath 根目录校验；`test_workspace.py` 新增越界拒绝测试（11 passed）。
+- 仍待处理：A-3 的 N-36 事务日志、A-5 的巨石文件拆分、C-1/C-3 测试与 CI 覆盖率门、D 阶段覆盖率提升。A-5 的 N-08 稳定通道键已在 §7.95 修复，但以上未完成项不得记作已修复。
+
+## §7.93 PlotKit 插件化封装（D125，2026-11-08）
+
+- `extensions/plugins/netlab.plotkit/` 新增官方插件：`plugin.json`（`netlab-plugin/1`、`id=netlab.plotkit`、`capabilities=["panel"]`）与 `plugin.py`（只依赖 `netlab.plugin_api.v1`，注册 `PanelSpec(id="plotkit")`，iframe 指向 `/plotkit/`）。
+- `netlab/plotkit_bridge.py` 增加 `PLUGIN_ID/PLUGIN_DIR`、`plugin_available()`、`plugin_enabled()`（读取 `extensions/plugins/plugins_state.json` 的 `disabled`）、`diagnose()` 插件字段；插件存在但停用时跳过挂载，插件包不存在时保留旧 vendor 回退；插件内 `plotkit/` 副本优先于 `netlab/_vendor/plotkit`。
+- 新增 `netlab/tests/test_plotkit_plugin.py`。当前验证：PlotKit 相关 7 个测试文件 **23 passed in 2.61s**；`import netlab.server` 报告 `PLOTKIT_MOUNTED=True`、插件路径正确。
+- 文档：`REQUIREMENTS_AND_RULES.md` D125 / D1–D127，`DOCS_INDEX.md` 基线 D1–D127，`PLUGIN_GUIDE.md` 官方插件章节。
+- 全量验证：`python -m pytest netlab/tests -q` → **670 passed / 1 skipped / 4 warnings / 90.37s**（2026-11-08 06:49，exit 0；新增插件诊断与 2 项 A-4 数值基准测试）。
+- 未完成：A-3 N-36、A-5、N-08、C-1/C-3、D 阶段仍按审计计划保留。
+
+## §7.94 打包与发布元数据（D126，2026-11-08）
+
+- 新增根 `pyproject.toml`：setuptools 构建、`netlab` 包发现、基础依赖 `fastapi/uvicorn/numpy/scipy`，可选 `dev`（pytest/httpx）与 `desktop`（pywebview/pythonnet/PySide6）依赖。
+- 新增 `CHANGELOG.md`；`LICENSE` 保持原文件。
+- 验证：`python -m pip install -e . --no-deps` 构建并安装 editable 包成功；`python -m netlab.desktop --selftest` 返回 HTTP 200、`shim_injected=true`。
+- 边界：尚未在干净环境执行全依赖安装，也未提供 lock 文件；D-2 只完成元数据基线，不宣称完全关闭。
+
+## §7.95 稳定通道键（A-5/N-08，2026-11-08）
+
+- `Scene.probes(by_id=True)` 用节点/连接稳定 id 生成录制键；`Scene.channel_display_name()` 在展示层把 id 键映射回当前名称。`Simulation._advance_locked()` 使用 `by_id=True` 录制，`Simulation.live()` 与 `analysis._frames()/_keys()` 对返回帧做显示名映射，因此节点/连接改名后既有曲线不会断成两个通道。
+- 兼容边界：`Scene.probes()` 默认仍用显示名，直接调用方行为不变；新增 `test_probe_channels_use_stable_ids_across_rename`，并把受固定显示名影响的 `test_control_project.py`、`test_grid_inverter_project.py`、`test_grid_switch_project.py`、`test_pll_template.py` 改为通过 `sim.live(...)[\"frames\"]` 读取展示键。
+- 验证：通道/分析/实时接口定向 **35 passed, 1 warning**；录制帧相关子集 **28 passed, 1 warning**；全量 `python -m pytest netlab/tests -q` → **671 passed / 1 skipped / 4 warnings / 85.99s**（2026-11-08，exit 0，收集 672 项）。
+- 文档：D127；`REQUIREMENTS_AND_RULES.md`/`DOCS_INDEX.md` D1–D128。
+
+## §7.96 版本单一来源与缓存路径守卫（N-21/N-22，2026-11-08）
+
+- `netlab/server.py` 的 `APP_BUILD` 改为 `from . import __version__; APP_BUILD = __version__`，删除重复的 `"3.20.1"` 字面量；`netlab/__init__.py` 仍为唯一 Python 版本源。
+- `NetworkContainer.set_project_dir()` 调用 `ensure_allowed_path(raw, purpose="工程缓存路径")`，工程上下文 API 不能把缓存目录登记到允许根之外；新增 `test_workspace.py` 越界拒绝断言。
+- 验证：`test_workspace.py` **11 passed, 1 warning**；`test_desktop_drag.py + test_run_warn.py + test_plotkit_channels.py` **23 passed, 1 warning in 64.33s**。版本相关的原有断言（`APP_BUILD`/`UI_BUILD`）保持全绿。
+- 全量复跑：`python -m pytest netlab/tests -q` → **671 passed / 1 skipped / 4 warnings / 113.45s**（2026-11-08，exit 0，收集 672 项）。
+
+## §7.97 测试运行配置与覆盖率入口（N-20/C-3，2026-11-08）
+
+- 新增根 `pytest.ini`：`testpaths=netlab/tests`、`python_files=test_*.py`、`addopts=-ra`，保证本地和 CI 使用同一收集口径。
+- 新增 `.coveragerc`：`source=netlab`、`branch=True`；覆盖率门槛尚未启用，留待 C-3 以真实基线绑定。
+- 验证：`python -m pytest netlab/tests -q` 收集仍为 672 项，`671 passed / 1 skipped`；`pytest.ini` 不改变现有测试选择。
+
+## §7.98 N-36 步骤事务替代全量 Scene 深拷贝（2026-11-08）
+
+**状态：部分完成（A-3/N-36 第一步；残留 O(n) 浅快照与增量 undo log 未实现）**
+
+- **背景**：`Simulation._advance_locked()` 每步先调用 `Scene.capture_checkpoint()`，
+  对全部节点 `data/state/inputs`、边 `state`、块缓冲区和块运行时做 `copy.deepcopy`，
+  异常/超时再 `restore_checkpoint()` 深拷贝回去；390 节点 RC 阶梯审计中该项约占 45%。
+- **实现**：`Simulation._advance_locked()` 不再构造 `Scene.capture_checkpoint()`；
+  计算异常与超时改为调用 `Scene.rollback_last_step()`。
+  `Network.step()`/`Network._step_solved()` 在 try 前保存 `_last_step_snapshot`，
+  `Network.restore_last_step_state()` 原地恢复；`CircuitSolver.step()` 保存
+  `_last_step_checkpoint`，`CircuitSolver.restore_last_step_checkpoint()` 恢复求解器、
+  元素状态与节点电压；`SignalEngine` 保存/恢复功能块快照；`CircuitEngine` 保存/恢复
+  节点 `data` 浅快照；`Scene.rollback_last_step()` 统一委托给当前引擎。
+- **验证**：`python -m pytest netlab/tests/test_solver_transactions.py -q` → **8 passed in 0.28s**；
+  新增 `test_scene_rollback_last_step_after_success` 与
+  `test_simulation_does_not_call_scene_capture_checkpoint`。全量 `python -m pytest netlab/tests -q` → **673 passed / 1 skipped / 4 warnings in 97.32s, exit 0**（674 collected）。
+- **性能旁证**：`_ladder(390)`（391 nodes / 780 edges）`Scene.step` 100 步 median **5.236 ms**（mean 5.503，p95 5.760）；P0 §34.5 同规模 `sparse="auto"` 中位 5.462 ms，差值与系统负载同量级，不能单独归因于 N-36；`Simulation.step_once` median 6.363 ms（含 recorder）。
+- **兼容边界**：保留 `Scene.capture_checkpoint()`/`restore_checkpoint()` 供
+  `operating_point()`、`ac_sweep()`、`BlockRuntime` 及显式快照调用继续使用；
+  `Network.capture_step_state()` 仍是按节点/连接数量线性增长的浅快照，
+  真正增量 undo log/COW 与单步开销不随规模线性增长的证明尚未完成，N-36 不标“完全关闭”。
+- **文档**：D130 记录本步；A-5 巨石文件拆分、C-1/C-3 覆盖率门槛和 D 阶段仍待推进。
+
+## §7.99 A-5 首个切片：记录类型移出 scene（N-10，2026-11-08）
+
+- **状态：部分完成（A-5/N-10 第一步）**。新增 `netlab/core/model/records.py`，把
+  `NodeRecord`/`EdgeRecord` 及其 `snapshot()` 从 2237 行的 `scene.py` 移出。
+- `scene.py` 通过 `from .records import EdgeRecord, NodeRecord` 重新导出旧路径，
+  其余模块和测试的 `from netlab.core.model.scene import ...` 不需改动；序列化字段
+  与 `snapshot()` 语义保持原样。
+- 验证：`python -m pytest netlab/tests/test_netlab.py netlab/tests/test_solver_transactions.py netlab/tests/test_project.py -q`
+  → **64 passed, 1 warning in 4.36 s**；`flake8` 对 `records.py`/`scene.py` 无输出。
+- 边界：这只是巨石文件拆分的低风险首片，`server.py`/`nodal.py`/`frontend/app.ts`
+  的拆分（N-09/N-10）仍未完成，不能宣称 A-5 已关闭。
+- 补测（N-06）：`netlab/tests/test_sim_clock.py` 新增 `test_recorder_sample_dt_tracks_actual_step_interval`，
+  验证 `sample_dt` 记录两次采样之间的真实时间差（不是名义 dt）；该文件 **5 passed**。
+  随后全量 `python -m pytest netlab/tests -q` → **674 passed / 1 skipped / 4 warnings**，退出码 0（2026-11-08 07:45）。
+
+## §7.100 文档隐私清理与回归护栏（D-3/N-30 第一步，2026-11-08）
+
+- **状态：部分完成（D-3/N-30 第一步）**。删除 `PROGRESS.md` 中残留的本机用户目录与
+  私有会话日志路径；在 `netlab/tests/test_structure_layout.py` 增加
+  `test_docs_do_not_contain_private_paths`，扫描 `netlab/docs/*.md` 中的
+  本机用户目录、用户名、私有环境变量与本地代理端口。
+- 验证：`python -m pytest netlab/tests/test_structure_layout.py -q` → **15 passed, 1 warning in 2.82 s**；
+  全量 `python -m pytest netlab/tests -q` → **675 passed / 1 skipped / 4 warnings / 98.01 s**，退出码 0。
+- 边界：这只是 D-3 的隐私信息首轮清理；用户文档/开发者文档/会话日志的分层尚未完成，N-30 不能标记关闭。
+
+## §7.101 二阶控制系统端到端实验（D-4/N-28，2026-11-08）
+
+**状态：完成首个可执行端到端验收，D-3/D-4/D-5 其余治理项仍保留。**
+
+- **脚本**：新增 `NetlabHome/tools/e2e_control_experiment.py`，一条命令完成 `建工程 -> 连线 -> 仿真 -> 对照解析解 -> 输出 CSV/SVG 与误差表`；默认输出到临时目录，支持 `--out/--steps/--dt`。
+- **场景**：`G(s)=4/(s(s+1.2))` 单位负反馈，`ωn=2`、`ζ=0.3`；反馈边显式 `auto_delay=True`，不依赖静默拓扑改写。
+- **实测**（`--steps 1200 --dt 0.01`）：final `1.0011`（解析 `1.0`，误差 `0.0011`，限 `1.0`）；overshoot `39.1536%`（解析 `37.2326%`，误差 `1.9210pp`，限 `2.0pp`）；settling 2pct `6.91s`（解析 `6.6667s`，误差 `0.2433s`，限 `2.5s`）；三项均通过。
+- **产物**：`underdamped_control.netlab`（可 `load_project` 校验）、`step_response.csv`、`step_response.svg`。
+- **边界**：这是 D-4 的单个真实场景验收，不是全部 D 阶段完成；D-3 文档分层、D-4 其他场景、D-5 shadow 门仍待后续。
+
+## §7.102 文档分层与会话日志（D-3/N-24/N-30，2026-11-08）
+
+**状态：完成 D-3 的会话日志分层第一步。**
+
+- 新增 `netlab/docs/sessions/README.md`：约定 `YYYY-MM-DD-主题.md` 命名、日志必填字段、隐私边界（不写用户名/本机私有路径/私有代理端口/密钥）。
+- 新增 `netlab/docs/sessions/2026-11-08-audit-repair.md`：记录本轮审计目标、起始 HEAD、A-1…A-6/D-4 已完成项、675/1 基线、剩余项与下一步。
+- `DOCS_INDEX.md` 新增「2.6 会话日志（sessions）」入口，修正需求表 D1–D133、PROGRESS §7.101 范围。
+- 验证：`python -m pytest netlab/tests/test_structure_layout.py -q` → **15 passed, 1 warning in 2.90s**；私有用户名/本机用户目录检索零命中。
+- 边界：用户文档与开发者文档的既有目录已存在；本次补齐会话日志入口，D-3 的其余验收（全库私有信息零命中、session 日志持续维护）仍保留。
+
+## §7.103 求解器影子验证门（D-5/N-19，2026-11-08）
+
+**状态：完成 D-5 的首个可执行门，已覆盖 dense/sparse 两条求解路径。**
+
+- 新增 `netlab/core/compute/shadow.py`：`SHADOW_MODES=("off","shadow","on")`，`ShadowComparison` 记录 `max_abs_error/max_rel_error/passed`，`shadow_gate()` 对非有限值直接判失败，`assert_shadow_agreement()` 失败时抛出带数值证据的 `AssertionError`。
+- 新增 `netlab/tests/test_solver_shadow.py`：覆盖 `off` 短路、非法模式、扰动检测、NaN 拒绝，以及 390 节点 RC 梯形 `sparse="off"` vs `sparse="on"` 的 `max_rel < 1e-10` 对拍。
+- 验证：`python -m pytest netlab/tests/test_solver_shadow.py -q` → **3 passed in 0.73s**；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 4 warnings / 72.24s**，退出码 0。
+- 边界：这是 D-5 的通用门与首个 solver 对拍；尚未把该门接入每个未来的 solver 改动 CI，也未覆盖所有 solver 操作模式。
+
+## §7.104 求解器影子门 CI 接入（D-5/N-19，2026-11-08）
+
+**状态：完成 D-5 的 CI 首个硬门接入。**
+
+- 新增 `tools/solver_shadow_check.py`：构造 390 节点 RC 梯形，分别用 `sparse="off"` 与 `sparse="on"` 求解，经 `shadow_gate(mode="shadow", rtol=1e-10)` 对拍；`--json` 输出 `max_abs_error`/`max_rel_error`/`passed`，失败返回非零。
+- `.github/workflows/python-tests.yml` 在数值基准前新增 `Solver shadow gate (hard gate)` 步骤：`python tools/solver_shadow_check.py --json`。
+- 验证：`python tools/solver_shadow_check.py --json` → `passed=true`，`max_abs_error≈5.6e-17`，`max_rel_error≈4.9e-14`；`python -m pytest netlab/tests/test_solver_shadow.py netlab/tests/test_structure_layout.py -q` → 18 passed；全量 `python -m pytest netlab/tests -q` → 678 passed / 1 skipped / 4 warnings / 105.88s，退出码 0。
+- 边界：CI 门只覆盖当前 dense/sparse 对拍；未来每个 solver 改动仍需新增对应影子测试并接入本步骤。
+
+## §7.105 插件路由拆分（A-5/N-10 第二步，D137，2026-11-08）
+
+**状态：完成 `server.py` 的第一个按域路由拆分，行为不变。**
+
+- 新增 `netlab/server_plugins/__init__.py` 包：`APIRouter(tags=["plugins"])` 承载 `/api/plugins`、`/api/plugins/scan`、`/api/plugins/{plugin_id}`、`/api/plugins/{plugin_id}/enable`、`/api/plugins/{plugin_id}/reload` 五个路由；异常语义保持 `NotFoundError` / `ValidationError`。
+- `netlab/server.py` 删除原有内联路由，改为 `from .server_plugins import router as plugins_router` 并在 `app` 创建后 `app.include_router(plugins_router)`；路由路径、请求/响应结构不变。
+- 验证：`python -m pytest netlab/tests/test_structure_layout.py netlab/tests/test_project_v6_ui.py netlab/tests/test_plugin_manager.py -q` → **23 passed, 2 warnings in 2.87s**；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 4 warnings / 89.51s**，退出码 0。
+- 边界：A-5/N-10 仍未完成，`server.py`、`nodal.py`、`frontend/app.ts` 仍为巨石；本轮只拆出插件域路由，未改业务逻辑。
+
+## §7.106 帮助检索路由拆分（C-1 第二步，D138，2026-11-08）
+
+**状态：完成 `server.py` 第二个按域路由拆分，行为不变。**
+
+- 新增 `netlab/server_help/__init__.py` 包：`build_router(service, templates, docs_dir)` 注入依赖，`APIRouter(tags=["help"])` 承载 `/api/help/search` 与 `/api/help/doc` 两个路由；路径、查询参数与 HTML 输出保持不变。
+- `netlab/server.py` 删除原内联帮助路由，改为 `from .server_help import build_router as build_help_router`，在 `app` 创建后 `app.include_router(build_help_router(...))`；`server.py` 行数 **2587 → 2415**。
+- 验证：`python -m pytest netlab/tests/test_help_search.py netlab/tests/test_structure_layout.py -q` → **19 passed, 2 warnings in 4.16s**；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 4 warnings / 90.30s**，退出码 0。
+- 边界：C-1 路由拆分尚未完成；`server.py`、`nodal.py`、`frontend/app.ts` 仍是巨石文件，本轮只拆出帮助检索域，未改业务逻辑。
+
+## §7.107 二维有限元路由拆分（C-1 第三步，D139，2026-11-08）
+
+**状态：完成 `server.py` 第三个按域路由拆分，行为不变。**
+
+- 新增 `netlab/server_fem/__init__.py`：`build_router(fem, fast_json)` 注入 FEM 实例与 JSON 响应器，承载 `/api/fem/state`、`/api/fem/live`、`/api/fem/control`、`/api/fem/config` 四个路由；请求字段完整保留（含 `source_amplitude`、`source_frequency`、边界与初始温度参数）。
+- `netlab/server.py` 删除原内联二维有限元路由，改为 `from .server_fem import build_router as build_fem_router` 并在 `fast_json` 定义后 `app.include_router(build_fem_router(fem=FEM, fast_json=fast_json))`；`server.py` 行数 **2415 → 2368**。
+- 验证：`python -m pytest netlab/tests/test_netlab.py netlab/tests/test_structure_layout.py -q` → **59 passed, 2 warnings in 5.91s**；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 4 warnings / 79.34s**，退出码 0；flake8 干净。
+- 边界：只拆路由，不改 FEM 数值逻辑或 API 语义；`nodal.py`、`frontend/app.ts` 与 `core/model ↔ core/compute` 反向依赖仍未处理。
+
+## §7.108 块库路由拆分（C-1 第四步，D140，2026-11-08）
+
+**状态：完成 `server.py` 第四个按域路由拆分，块库 API 行为不变。**
+
+- 新增 `netlab/server_blocks/__init__.py`（403 行）：`build_router(*, service, current_workspace)` 注入 `NetworkContainer` 与当前工程目录读取器，承载 13 个 `/api/blocks` 路由；`BlockValidateRequest`、`BlockOpenInternalRequest`、`BlockCompareRequest`、`BlockSaveCopyRequest`、`BlockImportRequest` 等请求模型一并迁入。实现上以模块级绑定保存注入对象，保持每个进程单应用实例的既有假设。
+- `netlab/server.py` 删除原块库路由段，改为 `from .server_blocks import build_router as build_blocks_router` 并在 FEM 路由后 `app.include_router(build_blocks_router(service=SERVICE, current_workspace=lambda: CURRENT_WORKSPACE))`；`server.py` **2368 → 2009 行**。`_library_path()` 因仍被工程导入/导出路由使用，保留在 `server.py`。
+- 验证：`python -m pytest netlab/tests/test_blocks.py netlab/tests/test_block_internal.py netlab/tests/test_structure_layout.py -q` → **31 passed, 2 warnings in 3.32s**；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 4 warnings / 69.27s**，退出码 0；flake8 干净。
+- 边界：只拆路由，不改块库序列化、版本、引用扫描或错误语义；`nodal.py`、`frontend/app.ts` 与 `core/model ↔ core/compute` 反向依赖仍未处理。
+
+## §7.109 分析路由拆分（C-1 第五步，D141，2026-11-08）
+
+**状态：完成 `server.py` 第五个按域路由拆分，分析 API 行为不变。**
+
+- 新增 `netlab/server_analysis/__init__.py`（225 行）：`build_router(*, service, current_workspace)` 注入 `NetworkContainer` 与工程目录读取器，承载 `/api/analysis/metrics`、`/spectrum`、`/period`、`/math`、`/transfer`、`/tf`、`/phase`、`/frequency`、`/export` 九个路由，以及 `AnalysisTFRequest`、`AnalysisPhaseRequest`、`AnalysisFrequencyRequest`、`AnalysisExportRequest`。
+- `netlab/server.py` 删除分析路由段与四个请求模型，改为 `from .server_analysis import build_router as build_analysis_router` 并在块库路由后 `app.include_router(build_analysis_router(service=SERVICE, current_workspace=lambda: CURRENT_WORKSPACE))`；`server.py` **2009 → 1806 行**。CSV 导出仍使用 `workspace/exports` 或 `cwd/exports`；分析结果、错误语义与查询参数不变。
+- 验证：`python -m pytest netlab/tests/test_analysis_api.py netlab/tests/test_structure_layout.py -q` → **19 passed, 2 warnings in 3.62s**；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 4 warnings / 73.49s**，退出码 0；flake8 干净。
+- 边界：只拆路由与请求模型，不改 `analysis` 计算层；`nodal.py`、`frontend/app.ts` 与 `core/model ↔ core/compute` 反向依赖仍未处理。
+
+## §7.110 文档基线同步（D142，2026-11-08）
+
+**状态：完成文档基线收口，不新增决策编号。**
+
+- 将 `AGENT_GUIDE.md`、`ARCHITECTURE.md`、`FRAMEWORK_CHEATSHEET.md`、`UI_SPEC.md` 中残留的 `675 passed / 1 skipped`、`676 collected` 统一为当前实测 `678 passed / 1 skipped`、`679 collected`。
+- 将上述文档中的决策台账引用从 `D1–D138` 统一为 `D1–D141`；`FRAMEWORK_CHEATSHEET.md` 的最后修改时间同步为 2026-11-08 09:30。
+- 本轮只改 5 个文档文件（上述 4 个 + 本文件），不触碰代码；`BACKLOG.md` 的 `D1–D138` 引用留待下一轮单独清理，避免突破 ≤5 文件约束。
+- 验证：`python -m pytest netlab/tests/test_structure_layout.py -q` → **15 passed, 1 warning**；全量基线仍为 `678 passed / 1 skipped / 73.49s`。
+
+## §7.111 偏好/布局路由拆分（C-1 第六步，D143，2026-11-08）
+
+**状态：完成 `server.py` 第六个按域路由拆分，偏好、布局与设置 API 行为不变。**
+
+- 新增 `netlab/server_preferences/__init__.py`（68 行）：`build_router(*, service)` 注入 `NetworkContainer`，承接 `/api/schematic/layout`（GET/POST）、`/api/schematic/validate`、`/api/profile`（GET/PATCH）、`/api/settings`（GET/PATCH）七个路由，以及 `ProfileRequest` 请求模型；`schematic`、`profiling`、`load_settings`、`save_settings`、`settings_file` 依赖移入包内。
+- `netlab/server.py` 删除对应路由段与 `ProfileRequest`，改为导入 `build_preferences_router` 并 `app.include_router(build_preferences_router(service=SERVICE))`；`server.py` **1806 → 1754 行**。路由路径、请求字段、响应结构和异常语义均未改变。
+- 验证：`python -m pytest netlab/tests/test_schematic.py netlab/tests/test_time_profile.py netlab/tests/test_r30_ui.py netlab/tests/test_workspace.py netlab/tests/test_project_refs.py netlab/tests/test_structure_layout.py -q` → **49 passed, 2 warnings in 3.91s**；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 4 warnings / 76.25s**，退出码 0；flake8 干净。
+- 边界：只拆路由与请求模型，不改 `schematic`/`profiling` 计算层；`server.py` 仍有缓存、诊断、工作区等路由，C-1 未完成；`BACKLOG.md` 的旧基线仍待 D144 清理。
+
+## §7.112 BACKLOG 基线清理（D144，2026-11-08）
+
+**状态：完成；只改一个文档，不触碰代码。**
+
+- `netlab/docs/BACKLOG.md` 的 `D1–D138` 引用更新为 `D1–D143`，最后修改日期改到 2026-11-08 09:55，“能用的产品”测试基线 `627 passed` 更新为 `678 passed / 1 skipped`。
+- 历史段落（§3 里程碑等）中的旧测试数字保留为当时证据，不追溯改写；本轮只清理当前基线与决策号。
+- 验证：`python -m pytest netlab/tests/test_structure_layout.py -q` → **15 passed, 1 warning**；全量基线仍为 `678 passed / 1 skipped`。
+
+## §7.113 缓存/文档/加速路由拆分（C-1 第七步，D145，2026-11-08）
+
+**状态：完成 `server.py` 第七个按域路由拆分，缓存、文档、加速与设置 API 行为不变。**
+
+- 新增 `netlab/server_tools/__init__.py`（83 行）：`build_router()` 承接 `/api/cache/status`、`/api/cache/clean`、`/api/docs`、`/api/docs/{slug}`、`/api/accel`（GET/PATCH）六个路由，以及 `AccelRequest`、`USER_DOCS_DIR`/`USER_DOC_ORDER`/`_user_docs`；设置读取依赖 `load_settings` 留在包内。
+- `netlab/server.py` 删除对应路由段，改为导入 `build_tools_router` 并 `app.include_router(build_tools_router())`；`server.py` **1754 → 1685 行**。路由路径、请求字段、响应结构和缓存清理 dry-run 语义均未改变。
+- 验证：`python -m pytest netlab/tests/test_r30_ui.py netlab/tests/test_structure_layout.py netlab/tests/test_netlab.py -q` → **63 passed, 2 warnings in 4.97s**；TestClient 冒烟 `/api/cache/status`、`/api/docs`、`/api/accel`、`/api/settings` 均 200，`/api/accel` 返回 `policy=auto`；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 4 warnings / 82.02s**，退出码 0；flake8 干净。
+- 边界：只拆路由与请求模型，不改缓存、文档读取、加速策略计算层；`server.py` 仍有工作区、诊断、导出等路由，C-1 未完成；D-3/D-4/D-5 与 N-36 增量 undo 仍待后续轮次。
+
+## §7.114 应用内扩展路由拆分（C-1 第八步，D146，2026-11-08）
+
+**状态：完成 `server.py` 第八个按域路由拆分，扩展校验/激活/停用/详情/扫描 API 行为不变。**
+
+- 新增 `netlab/server_extensions/__init__.py`（111 行）：`build_router(*, service)` 承接 `/api/extensions`、`/api/extensions/validate`、`/api/extensions/activate`、`/api/extensions/deactivate`、`/api/extensions/{kind}`、`/api/extensions/scan` 六个路由，以及 `ExtensionValidateRequest`/`ExtensionActivateRequest`/`ExtensionDeactivateRequest`；`_extension_in_use` 改为包内闭包。
+- `netlab/server.py` 删除对应路由段、请求模型和 `_extension_in_use`，改为导入 `build_extensions_router` 并 `app.include_router(build_extensions_router(service=SERVICE))`；`server.py` **1685 → 1588 行**。路由路径、请求字段、响应结构和异常语义均未改变。
+- 验证：`python -m pytest netlab/tests/test_spec.py netlab/tests/test_structure_layout.py netlab/tests/test_project_v6_ui.py -q` → **29 passed, 2 warnings in 3.73s**；OpenAPI 六个扩展路径 `missing=[]`；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 4 warnings / 85.34s**，退出码 0；flake8 干净。
+- 边界：只拆路由与请求模型，不改 `core.model.extensions` 的代码执行/注册逻辑；`server.py` 仍有工作区、项目、网络、场景、节点/边等路由，C-1 未完成。
+
+## §7.115 仿真控制路由拆分（C-1 第九步，D147，2026-11-08）
+
+**状态：完成 `server.py` 第九个按域路由拆分，运行控制、预计算、DC/AC 分析与配置 API 行为不变。**
+
+- 新增 `netlab/server_control/__init__.py`（144 行）：`build_router(*, service)` 承接 `/api/control`、`/api/solve-window`、`/api/operating-point`、`/api/ac-sweep`、`/api/config`（PATCH）、`/api/mode` 六个路由，以及 `ConfigUpdate`/`SolveWindowRequest`/`ControlRequest`/`ModeRequest`。
+- `netlab/server.py` 删除对应路由段与请求模型，改为导入 `build_control_router` 并 `app.include_router(build_control_router(service=SERVICE))`；`server.py` **1588 → 1461 行**。路由路径、请求字段、响应结构和异常语义均未改变；`build_template` 仍保留在 server.py 供模板路由使用。
+- 验证：`python -m pytest netlab/tests/test_netlab.py netlab/tests/test_solver_p0.py netlab/tests/test_analysis_api.py netlab/tests/test_structure_layout.py -q` → **76 passed, 3 warnings in 7.05s**；OpenAPI 六个路径 `missing=[]`；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 4 warnings / 72.58s**，退出码 0；flake8 干净。
+- 边界：只拆路由与请求模型，不改 `Simulation`/`CircuitSolver` 的计算逻辑；`server.py` 仍有工作区、项目、网络、场景、节点/边等路由，C-1 未完成。
+
+## §7.116 工作区路由拆分（C-1 第十步，D148，2026-11-08）
+
+**状态：完成 `server.py` 第十个按域路由拆分，工作区创建/保存/打开/快照/恢复 API 行为不变。**
+
+- 新增 `netlab/server_workspace/__init__.py`（199 行）：`build_router(*, service, apply_project, set_current_workspace)` 承接 `/api/workspace`、`/api/workspace/create`、`/api/workspace/save`、`/api/workspace/open`、`/api/workspace/snapshots`、`/api/workspace/snapshot`、`/api/workspace/restore` 七个路由，以及 `WorkspaceCreateRequest`/`WorkspacePathRequest`/`WorkspaceSaveRequest`/`WorkspaceSnapshotRequest`/`WorkspaceRestoreRequest` 五个请求模型。
+- `netlab/server.py` 删除对应路由段与请求模型，改为导入 `build_workspace_router` 并 `app.include_router(build_workspace_router(service=SERVICE, apply_project=..., set_current_workspace=_set_current_workspace))`；保留模块级 `CURRENT_WORKSPACE` 与注入的 `_set_current_workspace()` 闭包，供项目校验/导出路由继续读取；`server.py` **1461 → 1298 行**。路由路径、请求字段、响应结构和异常语义均未改变。
+- 验证：`python -m pytest netlab/tests/test_workspace.py netlab/tests/test_project.py netlab/tests/test_project_refs.py netlab/tests/test_structure_layout.py -q` → **44 passed, 2 warnings in 4.24s**；OpenAPI 七个工作区路径 `missing=[]`；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 4 warnings / 89.44s**，退出码 0；flake8 干净。
+- 边界：只拆路由与请求模型，不改 `core.model.workspace` 的工程读写/快照逻辑；`server.py` 仍有工程导入导出、网络、场景、节点/边、模板等路由，C-1 未完成。
+
+## §7.117 多网络管理路由拆分（C-1 第十一步，D149，2026-11-08）
+
+**状态：完成 `server.py` 第十一个按域路由拆分，多网络列表/创建/改名/模式/删除/激活/批量运行暂停 API 行为不变。**
+
+- 新增 `netlab/server_networks/__init__.py`（98 行）：`build_router(*, service)` 承接 `/api/networks`（GET/POST）、`/api/networks/{network_id}`（PATCH/DELETE）、`/api/networks/{network_id}/activate`、`/api/networks/run-all`、`/api/networks/pause-all` 七个路由，以及 `NetworkCreateRequest`/`NetworkUpdateRequest` 两个请求模型。
+- `netlab/server.py` 删除对应路由段与请求模型，改为导入 `build_networks_router` 并 `app.include_router(build_networks_router(service=SERVICE))`；`server.py` **1298 → 1230 行**。路由路径、请求字段、响应结构和异常语义均未改变；网络状态缓存路由仍留在 server.py。
+- 验证：`python -m pytest netlab/tests/test_networks.py netlab/tests/test_structure_layout.py -q` → **23 passed, 2 warnings in 3.67s**；OpenAPI 七个多网络路径 `missing=[]`；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 4 warnings / 84.84s**，退出码 0；flake8 干净。
+- 边界：只拆路由与请求模型，不改 `NetworkContainer` 的网络生命周期/状态切换逻辑；`server.py` 仍有工程导入导出、场景、节点/边、模板、网络状态缓存等路由，C-1 未完成。
+
+## §7.118 PlotKit 接入/预计算路由拆分（C-1 第十二步，D150，2026-11-08）
+
+**状态：完成 `server.py` 第十二个按域路由拆分，PlotKit 通道选择、面板采样、分析曲线与预计算 API 行为不变。**
+
+- 新增 `netlab/server_plotkit/__init__.py`（198 行）：`build_router(*, service, app, build, mounted, set_mounted)` 承接 `/api/plotkit/diag`、`/api/plotkit/channels`（GET/POST）、`/api/plotkit/active`、`/api/plotkit/analysis`、`/api/plotkit/precompute`、`/api/precompute/progress` 七个路由，并迁移 `precompute_step_dt`/`PRECOMPUTE_MAX_STEPS`。
+- `netlab/server.py` 删除对应路由段与 `_plotkit_available()`，改为导入 `build_plotkit_router`、`precompute_step_dt`；`PLOTKIT_MOUNTED` 仍由 server 持有，通过 `mounted`/`set_mounted` 回调注入，自愈重挂载后回写同一状态；`server.py` **1230 → 1052 行**。路由路径、请求/响应结构、预计算降级语义与旧 `from netlab.server import precompute_step_dt` 导入路径均保留。
+- 验证：`python -m pytest netlab/tests/test_plotkit_channels.py netlab/tests/test_plotkit_bridge_lifecycle.py netlab/tests/test_structure_layout.py netlab/tests/test_project_v6_ui.py -q` → **43 passed, 2 warnings in 64.02s**；OpenAPI 六个 PlotKit/预计算路径 `missing=[]`；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 4 warnings / 93.66s**，退出码 0；flake8 干净。
+- 边界：只拆路由与预计算辅助函数，不改 `plotkit_bridge` 的挂载/同步/通道实现，也不改 PlotKit 插件 `PanelSpec`；`server.py` 仍有场景、节点/边、模板、工程导入导出等路由，C-1 未完成；`BACKLOG.md` 仍停在 D148。
+
+## §7.119 场景/模板路由拆分（C-1 第十三步，D151，2026-11-08）
+
+**状态：完成 `server.py` 第十三个按域路由拆分，节点、边、位置、模板与场景导入导出的 API 行为不变。**
+
+- 新增 `netlab/server_scene/__init__.py`（293 行）：`build_router(*, service, fast_json)` 承接 15 个路由与 8 个请求模型：节点 POST/PATCH/DELETE、边 POST/PATCH/DELETE、`/api/positions`、`/api/templates`（GET）、`/api/templates/{name}`（POST）、`/api/scene/export`、`/api/export/schematic`、`/api/scene`（POST/PATCH）、`/api/scene/migrate-devices`、`/api/scene/clear`、`/api/scene/algebraic`（PUT）；成环提示、器件迁移计数、清空模式映射与集成模式请求均按原逻辑保留。
+- `netlab/server.py` 删除对应路由段与请求模型，改为导入 `build_scene_router` 并 `app.include_router(build_scene_router(service=SERVICE, fast_json=fast_json))`；`server.py` **1052 → 771 行**。为兼容既有测试导入路径，保留 `build_template` 的 `# noqa: F401` 再导出。
+- 验证：`python -m pytest netlab/tests/test_netlab.py netlab/tests/test_schematic.py netlab/tests/test_project_v6_ui.py netlab/tests/test_structure_layout.py -q` → **70 passed, 2 warnings in 5.57s**；OpenAPI 场景路径 `missing=[]`；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 73.84s**，退出码 0；flake8 干净。
+- 边界：只拆路由与请求模型，不改 `Scene`/模板/迁移算法；`server.py` 仍有工程、工作区、网络状态缓存等路由，C-1 未完成；`BACKLOG.md` 的 `D1–D148` 引用留待下一轮单独清理，避免突破 ≤5 文件约束。
+
+## §7.120 页面/UI/状态/诊断路由拆分（C-1 第十四步，D152，2026-11-08）
+
+**状态：完成 `server.py` 第十四个按域路由拆分，页面入口、目录、UI 配置、插件分析入口、实时状态与诊断 API 行为不变。**
+
+- 新增 `netlab/server_shell/__init__.py`（147 行）：`build_router(*, service, fem, fast_json, static_dir, app_build)` 承接 `/`、`/api/catalog`、`/api/ui`（GET/POST）、`/api/analysis/plugin`、`/api/state`、`/api/live`、`/api/health`、`/api/diagnostics/telemetry`、`/api/diagnostics/math-accel` 十个路由，以及 `UIProfileRequest`/`PluginAnalysisRequest` 两个请求模型；桌面壳 shim 注入仍以 `app_build` 为单一版本来源。
+- `netlab/server.py` 删除对应路由段与请求模型，改为导入 `build_shell_router` 并 `app.include_router(build_shell_router(service=SERVICE, fem=FEM, fast_json=fast_json, static_dir=STATIC_DIR, app_build=APP_BUILD))`；`server.py` **771 → 654 行**。`test_desktop_drag.py` 的版本化 shim 检查改为同时扫描 `server.py` 与 `server_shell/__init__.py`，仍拒绝硬编码数字。
+- 验证：`python -m pytest netlab/tests/test_netlab.py netlab/tests/test_project_v6_ui.py netlab/tests/test_telemetry_quality.py netlab/tests/test_plotkit_channels.py netlab/tests/test_structure_layout.py -q` → **85 passed, 2 warnings in 50.87s**；OpenAPI 八个 API 路径 `missing=[]`；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 81.93s**，退出码 0；flake8 干净。
+- 边界：只拆 HTTP 适配与请求模型，不改 `NetworkContainer`/`FemSimulation`/UI 规范化/插件分析算法；`server.py` 仍有工程导入导出、网络状态缓存、关闭等路由，C-1 未完成。`DOCS_INDEX.md` 基线留到下一轮文档专用轮次统一更新，避免本轮文件数继续超限。
+
+## §7.121 工程文件路由拆分（C-1 第十五步，D153，2026-11-08）
+
+**状态：完成 `server.py` 第十五个按域路由拆分，工程导出、校验、导入、重试与工程目录登记行为不变。**
+
+- 新增 `netlab/server_project/__init__.py`：`ProjectManager` 以模块级 `_service`/`_fem` 注入，承接 `GET /api/project`、`POST /api/project/export`、`/validate`、`/retry`、`/import`、`/context` 六个路由，以及 `ProjectExportRequest`、`ProjectImportRequest`、`ProjectContextRequest`。
+- `netlab/server.py` 删除内联工程段与 `LAST_PROJECT`/`LAST_PROJECT_LIBRARY`，改为 `server_project.init(service=SERVICE, fem=FEM)` + `app.include_router(server_project.router)`；保留 `_apply_project()` 兼容包装供工作区路由和既有 monkeypatch 使用，`server.py` **654 → 442 行**。
+- 边界：只迁移路由与工程文件状态，不改 `validate_project`、`load_project`、FEM 应用顺序、降级只读/重试语义；`server.py` 仍保留网络状态、诊断与关闭路由，C-1 尚未全部完成。
+- 验证：`test_project.py + test_project_refs.py + test_workspace.py + test_structure_layout.py` → **44 passed, 2 warnings**；OpenAPI 六个工程路径 missing=[]；`GET /api/project` 200、`POST /api/project/context` 200；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 4 warnings / 70.71s**，退出码 0。

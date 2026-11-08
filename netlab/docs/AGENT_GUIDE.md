@@ -1,6 +1,6 @@
 # Netlab Agent 指南（开工第一步）
 
-> 最后修改：2026-11-07（§5 测试基线 627 passed / 1 skipped；§3 补 CODE_STANDARDS 权威行）
+> 最后修改：2026-11-08（§5 测试基线 678 passed / 1 skipped；审计 A 阶段 D121–D132；§3 补 CODE_STANDARDS 权威行）
 > 这份文档只回答四件事：**开工先问什么、去哪找东西、哪些文档说了算、发现冲突怎么改**。
 > 需求正文、架构细节、踩坑记录都不在这里复制——只给指针（单一事实来源）。
 > 适用于任何 agent 会话，不论模型与窗口；读完 §1 就可以开始干活。
@@ -19,7 +19,7 @@
 
 1. **这条需求是第几号？** 在 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) §3 找到 `R01–R43` 里对应那条，读它的「原话 / 解读 / 验收 / 现状」。
 2. **当前阶段是什么？** 读 [PROGRESS.md](PROGRESS.md) 头部表格（阶段 + 测试数 + 备份位置）与 §7（P0–P6 进度）。
-3. **这个决定定过没有？** 在 REQUIREMENTS §2 的 `D1–D119` 台账里搜关键词；定过就照台账做，不要再自己拍。
+3. **这个决定定过没有？** 在 REQUIREMENTS §2 的 `D1–D141` 台账里搜关键词；定过就照台账做，不要再自己拍。
 
 **完成判据**：你能说出「R 编号 + P 期次 + 相关 D 编号 + 现状里哪几条是已核实事实」。说不出来就别改代码。
 
@@ -118,7 +118,7 @@ grep -n "^   \* [0-9]" ../frontend/app.js         # 定位前端分区
 
 ### 4.2 检查清单（逐条过，每条给结论：一致 / 已改 / 待确认）
 
-1. 新增内容是否与 `D1–D119` 台账里已有决定冲突？
+1. 新增内容是否与 `D1–D141` 台账里已有决定冲突？
 2. 是否落进 §6「不做清单」？（落进去就停，先问）
 3. 是否与 PROGRESS 里已核实的事实冲突（测试数、已完成能力）？
 4. 是否与代码实际行为冲突？（以代码为准，改文档；若代码错，登记到 PROGRESS §7 的待办，而不是直接改需求）
@@ -146,7 +146,7 @@ grep -n "^   \* [0-9]" ../frontend/app.js         # 定位前端分区
 
 ```bash
 cd NetlabHome                            # 仓库根是 ProjectPoint/，但运行根是 NetlabHome/
-python -m pytest netlab/tests -q          # 数量只增不减（当前 627 passed / 1 skipped，2026-11-07）
+python -m pytest netlab/tests -q          # 数量只增不减（当前 678 passed / 1 skipped，2026-11-08）
 python -m compileall -q netlab
 python -m netlab.desktop --selftest       # 期望 status 200 / shim_injected true
 ```
@@ -155,7 +155,7 @@ python -m netlab.desktop --selftest       # 期望 status 200 / shim_injected tr
 
 然后：更新 PROGRESS §7 状态列（附证据）→ REQUIREMENTS §9 加一行 → 复制变更文件到 `NetlabExtras/backups/ProjectPoint_backups/<name>_<时间戳>/` + `MANIFEST.sha256` → 修改过的文档顶部加「最后修改：日期 时间」（时间用 `date '+%Y-%m-%d %H:%M'` 取，不要估算）→ 简报（含耗时）。
 
-**完成判据（四项全中才算收尾）**：测试数对上、编译无错、selftest ok、三处文档（需求/进度/索引）口径一致。
+**完成判据（四项全中才算收尾）**：行为验收命令真跑并留下证据、编译无错、selftest ok、三处文档（需求/进度/索引）口径一致。测试数量只增不减不是完成理由；不得以“测试数对上”代替行为验收。
 
 ---
 
@@ -181,7 +181,7 @@ python -m netlab.desktop --selftest       # 期望 status 200 / shim_injected tr
 | 模块 | 封装成可复用功能节点的子网络（`*.block`） | 功能块节点 |
 | 占位块 | 库文件缺失时的降级替身，带标记 | default 模板 |
 | 口径 | 需求与决策的唯一表述来源 | — |
-| 台账 | REQUIREMENTS §2 的 D1–D119 决策表 | — |
+| 台账 | REQUIREMENTS §2 的 D1–D141 决策表 | — |
 | 闸门 | 每期做完必须停下的批准点 | — |
 | 票号 | `P<期>-<序号>`（如 P1-03）；正文括号里的 `R**` 才是需求编号，两者不可混用 | — |
 

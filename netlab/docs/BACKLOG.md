@@ -1,8 +1,8 @@
 # Netlab 主线待办（BACKLOG）
 
-> 最后修改：2026-11-07 13:50
+> 最后修改：2026-11-08 10:45
 > 用途：**一页回答「现在要做什么、还有什么没做」**。需求与决策的唯一口径仍是
-> [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)（R01–R43 / D1–D119），进度证据在
+> [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)（R01–R43 / D1–D148），进度证据在
 > [PROGRESS.md](PROGRESS.md)。本文只做**汇总与排序**，不重复定义需求。
 > 维护规则：做完一项就把「状态」改掉并写上证据（测试数 / 截图 / 实测数）；口径冲突以需求台账为准。
 
@@ -10,7 +10,7 @@
 
 ## 0. 一句话现状
 
-- **能用的产品**：`start_desktop.bat` / `python -m netlab.desktop` 起 pywebview + WebView2 网页壳（**627 passed**，2026-11-07，静态 3.20.1；全量文档重构 §7.75 完成）。
+- **能用的产品**：`start_desktop.bat` / `python -m netlab.desktop` 起 pywebview + WebView2 网页壳（**678 passed / 1 skipped**，2026-11-08，静态 3.20.1；全量文档重构 §7.75 完成）。
 - **界面口径**：前端在 `frontend/`（index.html / app.js / style.css）；Qt 原生界面已按 D78 备份到 Git 分支 `backup/qt-native-2026-11-02` 后删除，不再是产品形态。
 - **已完成（一期）**：R41 前端 JavaScript→TypeScript 全局迁移（一期 P16 类型化、二期 P17 模块化均已完成），tsc strict 0 / node --test 纯函数单测绿 / AST 行为等价 / pytest 627 passed / 1 skipped，见 REQUIREMENTS R41 / PROGRESS §7.76。
 - **没做完的主线**：R25 三阶段已交付（P7-09/10/11：9 块/虚拟注册表/只读保护/另存副本/行为快速模型/`internal_sim` 开关/对比 API/UI），剩完整电路级内部结构；R19 参考级图纸暂停。**2026-11-07 刚完成**：R15 功率电子与电机、R06 电路侧接口、R18 图纸增强、R19 SchemDraw 静态导出（§7.85）；R11 多窗口周期、R14 全局搜索、R34 Bode 光标（§7.86）；SchemDraw 版式、搜索分组、Bode 拖动（§7.87）；全量 **627 passed / 1 skipped**、静态 3.20.1。

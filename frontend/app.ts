@@ -1,4 +1,4 @@
-import { fmt, intText, clamp, hashString, baseName } from './app.utils.js';
+﻿import { fmt, intText, clamp, hashString, baseName } from './app.utils.js';
 import {
   CANVAS_LIGHT, CANVAS_DARK,
   CHART_PALETTE_HC_LIGHT, CHART_PALETTE_HC_DARK,
@@ -9,6 +9,7 @@ import { UI_BUILD, PALETTE, GROUP_COLORS, NODE_RADIUS, NODE_W, NODE_H, CHART_KEY
 import { $, $$, stage, canvas, ctx, chartCanvas, chartCtx, phaseCanvas, phaseCtx, scopeCanvas, scopeCtx, lissCanvas, lissCtx } from './app/dom.js';
 import { state, ui } from './app/state.js';
 import type { ApiOptions } from './app/net.js';
+import { el, div, button, clone, isFormTarget } from './app/ui.js';
 import { api, jsonRequest, plotkitFrameUrl } from './app/net.js';
 declare const desc: HTMLElement;
 declare function setStatusHint(hint: string): void;
@@ -32,32 +33,6 @@ declare function setStatusHint(hint: string): void;
   // 浏览器模式的工程文件选择器（桌面模式走原生对话框）。
   let projectFileInput: HTMLInputElement | null = null;
 
-  function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string | null, text?: string | number | null): HTMLElementTagNameMap[K];
-  function el<T extends HTMLElement = HTMLElement>(tag: string, cls?: string | null, text?: string | number | null): T;
-  function el(tag: string, cls?: string | null, text?: string | number | null): HTMLElement {
-    const node = document.createElement(tag);
-    if (cls) node.className = cls;
-    if (text !== undefined && text !== null) node.textContent = String(text);
-    return node;
-  }
-
-  function div(cls?: string | null, text?: string | number | null): HTMLDivElement {
-    return el<HTMLDivElement>('div', cls, text);
-  }
-
-  function button(label?: string | null, cls?: string | null, onClick?: ((event: MouseEvent) => void) | null): HTMLButtonElement {
-    const node = el<HTMLButtonElement>('button', cls || 'btn', label);
-    node.type = 'button';
-    if (onClick) node.addEventListener('click', onClick);
-    return node;
-  }
-
-
-
-
-  function clone<T>(value: T): T {
-    return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
-  }
 
 
   function colorForKey(key: string): string {
@@ -153,11 +128,6 @@ declare function setStatusHint(hint: string): void;
     return (state.scene?.nodes || []).some((node) => node.kind === 'ground');
   }
 
-  function isFormTarget(target: EventTarget | null): boolean {
-    if (!target) return false;
-    const tag = (target as HTMLElement).tagName;
-    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON';
-  }
 
   /* ======================================================================
    * 0. 桌面模式会话

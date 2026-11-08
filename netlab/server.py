@@ -17,7 +17,7 @@ from typing import Any
 
 from fastapi import FastAPI, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 
@@ -115,7 +115,10 @@ app.include_router(
     )
 )
 _DESKTOP_TOKEN = os.environ.get("NETLAB_DESKTOP_TOKEN")
-# 桌面会话 cookie：桌面外壳打开 ``/?token=...`` 时由宿主种下，供同源 iframe
+#: C-5：桌面外壳用一次性 nonce 路径种 cookie，token 不进 URL 查询串。
+DESKTOP_BOOTSTRAP_PREFIX = "/__desktop_session__/"
+_DESKTOP_BOOTSTRAP = os.environ.get("NETLAB_DESKTOP_BOOTSTRAP") or ""
+# 桌面会话 cookie：桌面外壳打开一次性 bootstrap 路径时由宿主种下，供同源 iframe
 # （PlotKit 子应用）自动携带；HttpOnly + SameSite=Strict，脚本读不到也跨站带不出。
 DESKTOP_COOKIE_NAME = "netlab_desktop_token"
 
@@ -253,9 +256,27 @@ async def desktop_token_guard(request: Request, call_next):
 
     token 可来自 ``X-Netlab-Token`` 请求头（宿主前端 api() 助手）或同源
     ``netlab_desktop_token`` cookie（PlotKit 子应用自己的 fetch/导航）。cookie 只在
-    桌面外壳打开首页 ``/?token=...`` 且 token 匹配时种下，HttpOnly + SameSite=Strict。
+    桌面外壳打开一次性 ``/__desktop_session__/<nonce>`` 路径时种下，HttpOnly +
+    SameSite=Strict；token 不进 URL 查询串。
     """
     path = request.url.path
+    if (
+        _DESKTOP_TOKEN
+        and _DESKTOP_BOOTSTRAP
+        and path.startswith(DESKTOP_BOOTSTRAP_PREFIX)
+        and secrets.compare_digest(
+            path[len(DESKTOP_BOOTSTRAP_PREFIX):], _DESKTOP_BOOTSTRAP
+        )
+    ):
+        response = RedirectResponse(url="/", status_code=303)
+        response.set_cookie(
+            DESKTOP_COOKIE_NAME,
+            _DESKTOP_TOKEN,
+            path="/",
+            httponly=True,
+            samesite="strict",
+        )
+        return response
     supplied = request.headers.get("x-netlab-token") or request.cookies.get(
         DESKTOP_COOKIE_NAME
     ) or ""
@@ -269,18 +290,7 @@ async def desktop_token_guard(request: Request, call_next):
             status_code=403,
             content={"detail": "桌面会话 token 无效，请从桌面窗口打开页面"},
         )
-    response = await call_next(request)
-    if _DESKTOP_TOKEN and path == "/":
-        query_token = request.query_params.get("token") or ""
-        if secrets.compare_digest(query_token, _DESKTOP_TOKEN):
-            response.set_cookie(
-                DESKTOP_COOKIE_NAME,
-                _DESKTOP_TOKEN,
-                path="/",
-                httponly=True,
-                samesite="strict",
-            )
-    return response
+    return await call_next(request)
 
 
 @app.exception_handler(NetlabError)

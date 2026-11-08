@@ -112,16 +112,14 @@ def test_plotkit_child_index_is_served_unmodified(monkeypatch):
 
 
 def test_plotkit_child_api_accepts_same_origin_session_cookie(monkeypatch):
-    """S3：桌面 token 改用宿主同源 cookie，子应用前端不再依赖注入的 shim。
-
-    桌面外壳打开 ``/?token=...`` 时宿主种下 HttpOnly + SameSite=Strict 会话 cookie；
-    之后 iframe 内 PlotKit 自己发的同源 ``/plotkit/api/*`` 请求会自动带上 cookie。
-    """
+    """S3/C-5：桌面 token 走一次性 bootstrap 路径种 cookie，不进 URL 查询串。"""
     monkeypatch.setattr(server, "_DESKTOP_TOKEN", "audit-child-token")
+    monkeypatch.setattr(server, "_DESKTOP_BOOTSTRAP", "boot-nonce")
     client = TestClient(app)
 
-    page = client.get("/?token=audit-child-token")
-    assert page.status_code == 200
+    page = client.get("/__desktop_session__/boot-nonce", follow_redirects=False)
+    assert page.status_code == 303
+    assert page.headers.get("location") == "/"
     set_cookie = page.headers.get("set-cookie", "")
     assert "netlab_desktop_token=audit-child-token" in set_cookie
     assert "HttpOnly" in set_cookie
@@ -132,6 +130,21 @@ def test_plotkit_child_api_accepts_same_origin_session_cookie(monkeypatch):
     forged = TestClient(app)
     forged.cookies.set("netlab_desktop_token", "wrong")
     assert forged.get("/plotkit/api/spec").status_code == 403
+
+
+def test_query_token_no_longer_sets_session_cookie(monkeypatch):
+    """C-5：``/?token=...`` 不再种 cookie，token 不得出现在 URL 查询串。"""
+    monkeypatch.setattr(server, "_DESKTOP_TOKEN", "audit-child-token")
+    monkeypatch.setattr(server, "_DESKTOP_BOOTSTRAP", "boot-nonce")
+    client = TestClient(app)
+
+    page = client.get("/?token=audit-child-token")
+    assert page.status_code == 200
+    assert "netlab_desktop_token" not in page.headers.get("set-cookie", "")
+    assert client.get("/plotkit/api/spec").status_code == 403
+    wrong = client.get("/__desktop_session__/wrong", follow_redirects=False)
+    assert wrong.status_code == 404
+    assert "netlab_desktop_token" not in wrong.headers.get("set-cookie", "")
 
 
 def test_plotkit_child_api_stays_open_in_browser_mode(monkeypatch):

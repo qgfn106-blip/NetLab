@@ -2660,3 +2660,10 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - KCL 残差：`tools/bench_solver.py` 的 `residual` 不再为 null，改为从 R1/C1 器件电流计算中点 KCL 失配（实测 1e-18 A 量级）。
 - 变异烟雾：`tools/mutation_smoke.py` 对 `elements.py` 施加 6 个变异体（电阻增益、电容/电感梯形系数、源增益、电容值、电感历史符号），逐个跑 `tests/evals` 并恢复原字节；实测 **6/6 killed，score=1.0**（阈值 0.6）。这是 smoke，不是完整变异测试。
 - 门禁：全量 pytest（791 passed / 1 skipped / 1 xfailed）；evals 单独 19 passed / 1 xfailed。
+## §7.131 P3 梯形源采样与初始电容电流自洽（2026-11-09）
+
+- 根因：阶跃源在 t=0 跳变时，电容电流 i(0+) 并不为 0；以 0 作梯形历史会让整条曲线退化为 1 阶（实测 1.012/1.006/1.003）。单纯改源步内平均不能修复。
+- 修复：`CircuitSolver._initialize_reactive_currents()` 在首个梯形步前做一次 BE 预测步（不推进时间），用预测电压反算 `i(0+) = C·(v_pred−v_prev)/dt`；主步仍按梯形积分。`_source_value()` 对梯形法取步首/步末平均。
+- 收敛阶：RC 阶跃实测 **1.980/1.990/1.995**（P3 前 1.01），`test_convergence.py` 改为断言 2 阶；`test_numerical_benchmarks.py` 原误标 backward_euler 的用例更名 trapezoidal 并断言 p≈2。
+- 牛顿真残差：`_true_residual()` 在解处重新盖章计算 F(x*)=Ax*−b(x*)，非线性收敛判据不再使用上一次线性化的后向误差。
+- 门禁：全量 **791 passed / 1 skipped**；core 覆盖率 **81.44%**（门限 81）；改动行覆盖 **41/50 = 82.0%**。

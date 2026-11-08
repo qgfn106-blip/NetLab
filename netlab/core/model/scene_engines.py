@@ -15,6 +15,7 @@ import uuid
 from typing import Any
 
 from .blocks import BlockRuntime, BlockStore
+from .channels import ChannelKey
 from .records import EdgeRecord, NodeRecord
 from ..compute.clock import SimClock
 from ..compute.computes import (
@@ -368,7 +369,7 @@ class SignalEngine(_Engine):
                     and not isinstance(value, bool)
                     and math.isfinite(float(value))
                 ):
-                    values[f"n:{ident}:{key}"] = float(value)
+                    values[str(ChannelKey.node(ident, str(key)))] = float(value)
                     count += 1
         for record in self.scene.edges.values():
             connection = self.edge_map.get(record.id)
@@ -384,7 +385,7 @@ class SignalEngine(_Engine):
                     and not isinstance(value, bool)
                     and math.isfinite(float(value))
                 ):
-                    values[f"e:{ident}:{key}"] = float(value)
+                    values[str(ChannelKey.edge(ident, str(key)))] = float(value)
                     count += 1
         # R36/P5：把节点内部状态暴露成相平面可选通道。状态空间用
         # state:<node>:<index>，积分器/延迟等标量状态用 state:<node>:<key>。
@@ -401,13 +402,13 @@ class SignalEngine(_Engine):
                             and not isinstance(item, bool)
                             and math.isfinite(float(item))
                         ):
-                            values[f"state:{ident}:{index}"] = float(item)
+                            values[str(ChannelKey.state(ident, str(index)))] = float(item)
                 elif (
                     isinstance(value, (int, float))
                     and not isinstance(value, bool)
                     and math.isfinite(float(value))
                 ):
-                    values[f"state:{ident}:{key}"] = float(value)
+                    values[str(ChannelKey.state(ident, str(key)))] = float(value)
         return values
 
     def stats(self) -> dict[str, Any]:
@@ -775,7 +776,7 @@ class CircuitEngine(_Engine):
             for key in ("current", "voltage_difference", "power"):
                 value = element.state.get(key)
                 if isinstance(value, (int, float)) and math.isfinite(float(value)):
-                    values[f"e:{ident}:{key}"] = float(value)
+                    values[str(ChannelKey.edge(ident, str(key)))] = float(value)
         return values
 
     def stats(self) -> dict[str, Any]:

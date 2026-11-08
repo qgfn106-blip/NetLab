@@ -16,8 +16,8 @@ export function setGeometryActions(actions: GeometryActions): void {
   Object.assign(geometryActions, actions);
 }
 function distance(ax: number, ay: number, bx: number, by: number) { return geometryActions.distance(ax, ay, bx, by); }
-function circuitPinPath(edge: EdgeItem, source: NodeItem, target: NodeItem) { return geometryActions.circuitPinPath(edge, source, target); }
-function wirePathPoints(edge: EdgeItem, source: Pt, target: Pt) { return geometryActions.wirePathPoints(edge, source, target); }
+function geometryCircuitPinPath(edge: EdgeItem, source: NodeItem, target: NodeItem) { return geometryActions.circuitPinPath(edge, source, target); }
+function geometryWirePathPoints(edge: EdgeItem, source: Pt, target: Pt) { return geometryActions.wirePathPoints(edge, source, target); }
 
 export function worldToScreen(point: { x: number; y: number }): { x: number; y: number } {
     return {
@@ -336,10 +336,10 @@ export function edgePathPoints(edge: EdgeItem) {
     const source = nodeById(edge.source);
     const target = nodeById(edge.target);
     if (!source || !target) return null;
-    const pinned = circuitPinPath(edge, source, target);
+    const pinned = geometryCircuitPinPath(edge, source, target);
     if (pinned) return pinned;
     if (edge.kind === 'wire' && state.scene?.mode === 'circuit') {
-      return wirePathPoints(edge, source, target);
+      return geometryWirePathPoints(edge, source, target);
     }
 
     const sc = nodeCenterScreen(source);

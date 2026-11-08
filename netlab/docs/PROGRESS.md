@@ -2575,3 +2575,15 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - `netlab/server.py` 删除内联工程段与 `LAST_PROJECT`/`LAST_PROJECT_LIBRARY`，改为 `server_project.init(service=SERVICE, fem=FEM)` + `app.include_router(server_project.router)`；保留 `_apply_project()` 兼容包装供工作区路由和既有 monkeypatch 使用，`server.py` **654 → 442 行**。
 - 边界：只迁移路由与工程文件状态，不改 `validate_project`、`load_project`、FEM 应用顺序、降级只读/重试语义；`server.py` 仍保留网络状态、诊断与关闭路由，C-1 尚未全部完成。
 - 验证：`test_project.py + test_project_refs.py + test_workspace.py + test_structure_layout.py` → **44 passed, 2 warnings**；OpenAPI 六个工程路径 missing=[]；`GET /api/project` 200、`POST /api/project/context` 200；全量 `python -m pytest netlab/tests -q` → **678 passed / 1 skipped / 4 warnings / 70.71s**，退出码 0。
+
+## §7.122 PlotKit 外部依赖接口收口（C-4，S2–S5，2026-11-08）
+
+**状态：完成。R2 四款全部有可复现判据；PlotKit 从"包内源码副本"变为外部依赖（`plotkit>=0.2,<0.3`），未安装/版本不符时 `/plotkit` 给出显式三态降级。**
+
+- **S2 公开接口**（`b0d2f70`）：PlotKit 侧新增 `src/plotkit/host_api.py`——`API_VERSION="1"`、`probe()` 三态、`create_server()`、`PlotRenderPort`、`store_lock()`、`index_html()`；版本 0.2.0→0.2.1（PlotKit 仓 `c563707`）。宿主 `plotkit_bridge.py` 新增 `probe()`，删除对 `DATA_LOCK`/`STATIC_DIR`/`create_app` 的私有引用；`tests/test_plotkit_public_api.py` 5 条先红后绿。
+- **S3 等价鉴权**（`075ee81`）：选宿主同源 cookie（`netlab_desktop_token`，HttpOnly + SameSite=Strict + Path=/），`desktop_token_guard` 同时接受 `X-Netlab-Token` 头与 cookie；删除 111 行 `_HOST_SHIM` JS 注入、fragment token 与首页接管路由；`frontend/app.ts` 的 `plotkitFrameUrl()` 不再带 token。curl 验证：无凭据/错头/仅 query token 均 403，正确头/cookie 200；`GET /?token=` 返回 Set-Cookie；浏览器模式公开。
+- **S4 加载链收敛**（`875231e`、`9ec1173`）：`ensure_plotkit_importable()` 从 6 级降为 2 级——已安装 `plotkit` 包，或 `NETLAB_PLOTKIT_SRC` 显式开发路径（`importlib.util.spec_from_file_location`，不写 `sys.path`）；删除 `_plotkit_src_candidates()`、插件副本/vendor/同仓库回退；全仓 `sys.path.insert` 清零（`run.py`/`desktop/app.py`/`tests/conftest.py` 均删，`pytest.ini` 用 `pythonpath = .`）。根 `pyproject.toml` 增加 optional dependency `plotkit = ["plotkit>=0.2,<0.3"]`。验证：`python -m build` 不可用，改用 `pip wheel . --no-deps` 产出 `plotkit-0.2.1-py3-none-any.whl`（268560 bytes、64 files、9 static）；全新 venv `pip install --no-index --find-links s4_wheels plotkit==0.2.1` 成功（numpy 2.5.4 / matplotlib 3.11.2 / pillow 13.0.0），`plotkit.__version__`=0.2.1、`static/index.html` 9413 bytes。
+- **S5 删除副本 + 降级三态**（`c223378`、`979b660` + 12 个删除批次）：`plotkit_bridge.mount_fallback()` 在 `/plotkit` 任意子路径返回 503 JSON `{state,version,detail,path}`（不 404/500/空页），`server.py` 在 `PLOTKIT_MOUNTED=False` 时安装；`tests/test_plotkit_degraded.py` 3 条先红后绿。删除 `netlab/_vendor/plotkit` 58 个受控文件（分 12 批，每批 ≤5 文件）、`netlab/plotkit_vendor.py` 与 `tests/test_plotkit_vendor.py`、`_vendor/**/*` package-data；物理 `_vendor` 目录（仅剩 `__pycache__`）已移除。
+- **验证**：`git ls-files -- netlab/_vendor/plotkit` 零命中、`test -d netlab/_vendor` 为假、`sys.path.insert` 零命中、`plotkit.store/server` 私有模块 grep 零命中；全量 `python -m pytest netlab/tests -q` → **687 passed / 1 skipped / 3 warnings / 93.36s**（基线 678 + 9 条新增）。
+- 边界：只改 netlab 侧加载/注入/调用与 PlotKit 最小公开接口；PlotKit 内部渲染一致性、NS 求解器、性能基准等 P 项仍归 PlotKit 仓，不在本轮。
+

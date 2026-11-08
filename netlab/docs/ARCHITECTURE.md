@@ -110,7 +110,7 @@ NetlabHome/
 │  ├─ tests/                  conftest.py + test_*.py（2026-11-08 全量 678 passed / 1 skipped）
 │  ├─ docs/                   截图 + 文档（本文件、CODE_GUIDE、MATH…）
 │  └─ tools/                  可选 Edge CDP 冒烟脚本 / 结构整理脚本
-└─ （无兼容层）netlab/ 包根只剩 __init__ / server / run / plotkit_bridge / plotkit_vendor / vscode_bridge / cache_guard / desktop / core
+└─ （无兼容层）netlab/ 包根只剩 __init__ / server / run / plotkit_bridge / vscode_bridge / cache_guard / desktop / core（PlotKit 为外部依赖，无 _vendor）
 ```
 
 带 ★ 的是“改功能时最常碰”的模块。依赖方向只有一个：

@@ -59,7 +59,7 @@ jobs:
           PYTHONPATH: .
         run: >
           pytest netlab/tests -q
-          --cov=netlab/core --cov-branch --cov-fail-under=80
+          --cov=netlab/core --cov-branch --cov-fail-under=81
           --cov-report=term-missing:skip-covered
           --cov-report=json:coverage.json
 

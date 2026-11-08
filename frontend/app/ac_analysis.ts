@@ -6,6 +6,7 @@ import { chartPalette } from './theme.js';
 import { div } from './ui.js';
 import { raiseFloatWindow } from './float.js';
 import { state, ui } from './state.js';
+import { probeNamesForAc } from './ac_probe.js';
 import { toast } from './desktop.js';
 import type { AcResultRec, OpElementRec } from './types.js';
 
@@ -122,12 +123,9 @@ export async function runAcSweep() {
     params.set('f_stop', ($('#analAcF2') as HTMLInputElement)?.value || '1000000');
     params.set('points', ($('#analAcPts') as HTMLInputElement)?.value || '121');
     params.set('scale', ($('#analAcScale') as HTMLInputElement)?.value || 'log');
-    // 默认只看节点电压（元件电流曲线太密，需要时可在后端 probes 指定）
-    // 接地节点电压恒为 0，且后端 AC 探针不接受 ground，一并排除
-    const probeNames = (state.scene?.nodes || [])
-      .filter((node) => node.kind === 'node')
-      .map((node) => node.name)
-      .filter(Boolean);
+    // 默认只看节点电压（元件电流曲线太密，需要时可在后端 probes 指定）；
+    // 接地节点由 probeNamesForAc 排除（后端 AC 探针不接受 ground）。
+    const probeNames = probeNamesForAc(state.scene?.nodes || []);
     if (probeNames.length) params.set('probes', probeNames.join(','));
     if (meta) meta.textContent = '扫频中…';
     try {

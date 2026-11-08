@@ -24,6 +24,12 @@ library/*
 !library/.gitkeep
 extensions/*
 !extensions/.gitkeep
+# 插件包是代码，不是个人数据：只保留官方随仓库分发的插件
+!extensions/plugins/
+!extensions/plugins/README.md
+!extensions/plugins/netlab.plotkit/
+!extensions/plugins/netlab.plotkit/**
+extensions/plugins/netlab.plotkit/__pycache__/
 
 # 操作系统杂项
 .DS_Store

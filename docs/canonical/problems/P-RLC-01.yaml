@@ -1,0 +1,22 @@
+id: P-RLC-01
+family: linear_second_order
+input_domain:
+  R: [5.0, 50.0]
+  L: [1.0e-3, 1.0e-2]
+  C: [1.0e-6, 1.0e-5]
+  dt: [1.0e-6, 1.0e-5]
+  source: [dc_step]
+observable:
+  quantity: v_c(t)
+  sampling: analytic_grid
+  units: V
+independent_reference: "欠阻尼 v_c(t)=V*(1-exp(-a*t)*(cos(wd*t)+(a/wd)*sin(wd*t)))"
+tolerance:
+  abs: 5.0e-2
+  rel: 1.0e-2
+  order: 2
+scale_axis:
+  nodes: [4]
+exclusions:
+  - "不使用 Netlab 另一条求解路径作为参考"
+  - "不在过阻尼/欠阻尼边界上取点"

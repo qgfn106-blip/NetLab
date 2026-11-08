@@ -1,0 +1,21 @@
+id: P-RC-01
+family: linear_first_order
+input_domain:
+  R: [1.0e3, 1.0e4]
+  C: [1.0e-6, 1.0e-5]
+  dt: [1.25e-6, 1.0e-5]
+  source: [dc_step]
+observable:
+  quantity: v_c(t)
+  sampling: analytic_grid
+  units: V
+independent_reference: "v_c(t)=V*(1-exp(-t/(R*C)))"
+tolerance:
+  abs: 1.0e-2
+  rel: 5.0e-3
+  order: 2
+scale_axis:
+  nodes: [3]
+exclusions:
+  - "不使用 Netlab 另一条求解路径作为参考"
+  - "不把稳态工作点当瞬态证据"

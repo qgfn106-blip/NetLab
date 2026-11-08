@@ -18,6 +18,7 @@ import { CHART_PALETTE, chartPalette, themeKey } from './app/theme.js';
 import { hexToRgb, hexToRgbString, mixHex } from './app/color.js';
 import { formatAny, valueToText, parseSmartValue, kindListFor, buildKindSelect, numberedField, UNIT_PREFIXES, PREFIXABLE_UNITS, unitStorageKey, savedUnitFactor, bestUnitFactor, trimNumber } from './app/fields.js';
 import { buildParamField, applyPresetOnModelChange, applyWaveFieldVisibility, buildWaveFieldVisibility, buildParamFields, collectParamValues, dataRow, collectData, markDirty, clearDirty, setTypeLabelHelp } from './app/param_fields.js';
+import { hideHelpCard, showHelpCard, typeLabelHelp, paramRangeText, setSwitchTab } from './app/help_card.js';
 import { activeTab, modeLabel, selectedNode, selectedEdge, nodeById, edgeById, nodeByName, edgeByName, getNodeSpec, getEdgeSpec, specDefaults, uniqueNodeName, hasGroundNode, displayDataFor, nodeDisplayData, edgeDisplayData } from './app/model.js';
 declare const desc: HTMLElement;
 declare function setStatusHint(hint: string): void;
@@ -4996,14 +4997,6 @@ declare function setStatusHint(hint: string): void;
     return row;
   }
 
-  function paramRangeText(param: ParamSpec) {
-    const parts = [];
-    if (param.min !== undefined && param.min !== null) parts.push(`≥ ${param.min}`);
-    if (param.max !== undefined && param.max !== null) parts.push(`≤ ${param.max}`);
-    if (param.positive) parts.push('> 0');
-    if (param.step !== undefined && param.step !== null) parts.push(`步长 ${param.step}`);
-    return parts.join(' · ');
-  }
 
   function paramTable(spec: SpecRec) {
     const wrap = div('spec-table-wrap');
@@ -14800,49 +14793,6 @@ declare function setStatusHint(hint: string): void;
   }
 
   // ---- 参数 ? 卡片 -----------------------------------------------------------
-  function hideHelpCard() {
-    if (ui.qcard) ui.qcard.hidden = true;
-  }
-
-  function showHelpCard(anchor: HTMLElement, info: HelpInfoRec) {
-    if (!ui.qcard) return;
-    ui.qcard.replaceChildren();
-    const head = div('qcard-head');
-    head.appendChild(el('b', null, info.title || '参数说明'));
-    const close = button('✕', 'qcard-close', hideHelpCard);
-    head.appendChild(close);
-    ui.qcard.appendChild(head);
-
-    const dl = el('dl');
-    const sections = [
-      ['说明', info.description || '该参数没有额外说明。'],
-      ['取值', info.range || '—'],
-      ['单位与默认', `${info.unit || '无量纲'} · 默认 ${info.def === undefined || info.def === null || info.def === '' ? '—' : info.def}`],
-      ['公式 / 实现', info.formula || '—'],
-    ];
-    for (const [label, value] of sections) {
-      dl.appendChild(el('dt', null, label));
-      dl.appendChild(el('dd', null, value));
-    }
-    ui.qcard.appendChild(dl);
-    if (info.source) {
-      const actions = div('qcard-actions');
-      const jump = button('查看实现页 →', 'btn tiny', () => {
-        hideHelpCard();
-        switchTab(info.role === 'edge' ? 'edge-fn' : 'node-fn');
-        toast((info.source as string), 'info', 5200);
-      });
-      actions.appendChild(jump);
-      ui.qcard.appendChild(actions);
-    }
-    ui.qcard.hidden = false;
-    const rect = anchor.getBoundingClientRect();
-    const width = 320;
-    const left = clamp(rect.right + 10, 12, window.innerWidth - width - 12);
-    const top = clamp(rect.top - 8, 56, window.innerHeight - 240);
-    ui.qcard.style.left = `${left}px`;
-    ui.qcard.style.top = `${top}px`;
-  }
 
   function attachParamHelp(cell: HTMLElement, param: ParamSpec, spec: SpecRec, role: string) {
     if (!cell) return;
@@ -14936,23 +14886,6 @@ declare function setStatusHint(hint: string): void;
 
 
 
-  function typeLabelHelp(label: HTMLElement, param: ParamSpec) {
-    if (!label || !param) return;
-    const ask = button('?', 'qbtn inline', (event: MouseEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      showHelpCard(ask, {
-        title: `${param.label || param.key}（${param.key}）`,
-        description: (param.help as string | undefined),
-        range: paramRangeText(param),
-        unit: (param.unit as string | undefined),
-        def: param.default,
-        role: state.selection?.type === 'edge' ? 'edge' : 'node',
-      });
-    });
-    ask.title = '参数说明：说明 / 取值 / 单位与默认';
-    label.appendChild(ask);
-  }
 
 
   function openDocSearch() {
@@ -14979,6 +14912,7 @@ declare function setStatusHint(hint: string): void;
   }
 
   setTypeLabelHelp(typeLabelHelp);
+  setSwitchTab(switchTab);
   loadUiProfile();
   boot();
   setTimeout(checkCacheQuietly, 6000);

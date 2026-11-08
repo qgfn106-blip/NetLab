@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import copy
 import hashlib
 import sys
 from dataclasses import dataclass
@@ -34,6 +35,20 @@ class Definition:
 
 
 def _source_hash(text: str, node: ast.AST) -> str:
+    """函数体 AST hash（相对导入层级归一化）。
+
+    模块跨包搬移时，函数体内的 ``from ..model import x`` 必须改成
+    ``from ...model import x``；这是路径调整而非逻辑变化。因此计算 hash 前
+    把 ``ImportFrom.level`` 归零，其余 AST 结构（含全部语句与表达式）保持
+    精确比较。非函数/类节点仍按源码片段比较。
+    """
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        clone = copy.deepcopy(node)
+        for sub in ast.walk(clone):
+            if isinstance(sub, ast.ImportFrom):
+                sub.level = 0
+        payload = ast.dump(ast.Module(body=clone.body, type_ignores=[]), include_attributes=False)
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
     segment = ast.get_source_segment(text, node) or ""
     return hashlib.sha256(segment.encode("utf-8")).hexdigest()
 

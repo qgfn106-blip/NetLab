@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ..common.limits import LimitError, NetlabError, ValidationError, json_safe
+from .path_guard import ensure_allowed_path
 from .scene import MODES, Scene
 from .engine_registry import plugin_modes
 from ..compute.simulation import Simulation
@@ -996,7 +997,7 @@ def atomic_write(
     * ``dict``（工程）→ 写**压缩容器**（魔数 + zlib），MAX 按未压缩 body 判定；
     * ``str`` / ``bytes``（设置、模块库 .block、CSV 导出等通用文件）→ 原样写入。
     """
-    target = Path(path).expanduser().resolve()
+    target = ensure_allowed_path(path, purpose="写入路径").expanduser().resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
     if isinstance(payload, dict):
         body = project_to_text(payload).encode("utf-8")
@@ -1034,7 +1035,7 @@ def atomic_write(
 def load_project(
     path: str | os.PathLike[str], library: str | None = None
 ) -> dict[str, Any]:
-    target = Path(path).expanduser().resolve()
+    target = ensure_allowed_path(path, purpose="工程路径").expanduser().resolve()
     if not target.is_file():
         raise ValidationError(f"工程文件不存在：{target}")
     payload = decode_project_bytes(target.read_bytes())
@@ -1047,7 +1048,7 @@ def load_project_raw(path: str | os.PathLike[str]) -> dict[str, Any]:
     桌面桥需要在**执行任何扩展代码之前**把工程交给前端，让用户确认信任；
     因此这里不做需要注册表的运行时校验。
     """
-    target = Path(path).expanduser().resolve()
+    target = ensure_allowed_path(path, purpose="工程路径").expanduser().resolve()
     if not target.is_file():
         raise ValidationError(f"工程文件不存在：{target}")
     payload = decode_project_bytes(target.read_bytes())

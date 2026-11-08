@@ -3,8 +3,8 @@ import {
   CANVAS_LIGHT,
   CANVAS_DARK
 } from "./theme.tokens.js";
-import { UI_BUILD, PALETTE, GROUP_COLORS, NODE_W, NODE_H, CHART_KEYS, MAX_IMPORT_BYTES, MAX_FRAMES, INST_COLORS } from "./app/constants.js";
-import { $, $$, stage, canvas, ctx, chartCanvas, chartCtx, scopeCanvas, lissCanvas } from "./app/dom.js";
+import { UI_BUILD, PALETTE, GROUP_COLORS, NODE_W, NODE_H, CHART_KEYS, MAX_IMPORT_BYTES, MAX_FRAMES } from "./app/constants.js";
+import { $, $$, stage, canvas, ctx, chartCanvas, chartCtx } from "./app/dom.js";
 import { state, ui } from "./app/state.js";
 import { el, div, button, clone, isFormTarget } from "./app/ui.js";
 import { toast, showBanner, hideBanner } from "./app/desktop.js";
@@ -19,7 +19,7 @@ import { buildParamField, collectParamValues, setTypeLabelHelp } from "./app/par
 import { hideHelpCard, showHelpCard, typeLabelHelp, paramRangeText, setSwitchTab } from "./app/help_card.js";
 import { activeTab, modeLabel, selectedNode, selectedEdge, nodeById, edgeById, getNodeSpec, getEdgeSpec, specDefaults, uniqueNodeName, nodeDisplayData, edgeDisplayData } from "./app/model.js";
 import { drawPhase, phaseFrameCount, phaseStateKeys, renderVectorNodeList, resizePhase, schedulePhaseDraw, setPhaseIndex, stopPhasePlay, togglePhasePlay } from "./app/phase.js";
-import { setInstrumentActions, loadInstrumentPrefs, saveInstrumentPrefs, fillInstrumentSelects, renderInstrumentMeter, instrumentFrames, drawScope, drawLissajous } from "./app/instruments.js";
+import { setInstrumentActions, fillInstrumentSelects, drawInstruments, resizeInstrument, initInstruments } from "./app/instruments.js";
 import { section, renderEmptyInspector, setEmptyInspectorActions } from "./app/inspector_shell.js";
 import { deviceElementSpec, isPinNode, devicePins } from "./app/device_pins.js";
 import { renderNodeInspector, renderEdgeInspector, applyInspector, updateInspectorLive, setInspectorActions } from "./app/inspector.js";
@@ -4592,83 +4592,6 @@ import { circuitMidAngle, drawCircuitGlyph, circuitWireGap, elementPins, element
     state.replay.index = next;
     updateReplayUI();
     scheduleChartDraw();
-  }
-  function drawInstruments() {
-    if (activeTab() !== "inst") return;
-    const { frames, window: window2 } = instrumentFrames();
-    renderInstrumentMeter(frames);
-    drawScope(frames, window2);
-    drawLissajous(frames);
-    if (ui.instStatus) {
-      if (frames.length) {
-        ui.instStatus.textContent = `${frames.length} \u5E27 \xB7 \u7A97\u53E3 ${fmt(window2, 2)} s${state.replay.active ? " \xB7 \u56DE\u653E\u4E2D" : ""}`;
-      } else {
-        ui.instStatus.textContent = state.sim?.running ? "\u7B49\u5F85\u91C7\u96C6\u4E2D\u2026" : "\u8FD0\u884C\u4EFF\u771F\u540E\u663E\u793A\u8BFB\u6570\u4E0E\u6CE2\u5F62";
-      }
-    }
-  }
-  function resizeInstrument() {
-    const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5);
-    for (const [target, key] of [[scopeCanvas, "scopeSize"], [lissCanvas, "lissSize"]]) {
-      if (!target) continue;
-      const wrap = target.parentElement;
-      if (!wrap) continue;
-      const rect = wrap.getBoundingClientRect();
-      const w = Math.max(1, Math.floor(rect.width));
-      const h = Math.max(1, Math.floor(rect.height));
-      state.instrument[key] = { w, h, dpr };
-      target.width = Math.max(1, Math.round(w * dpr));
-      target.height = Math.max(1, Math.round(h * dpr));
-    }
-    scheduleChartDraw();
-  }
-  function bindInstrumentEvents() {
-    const bind = (element, event, handler) => {
-      if (element) element.addEventListener(event, handler);
-    };
-    bind(ui.instMeterKey, "change", () => {
-      state.instrument.meterKey = ui.instMeterKey.value || "";
-      saveInstrumentPrefs();
-      scheduleChartDraw();
-    });
-    ui.instCh.forEach((select, index) => {
-      bind(select, "change", () => {
-        state.instrument.channels[index] = select.value || null;
-        const dot = select.closest(".inst-ch")?.querySelector(".dot");
-        if (dot) {
-          dot.classList.toggle("on", Boolean(select.value));
-          dot.style.color = select.value ? INST_COLORS[index] : "";
-        }
-        saveInstrumentPrefs();
-        scheduleChartDraw();
-      });
-    });
-    bind(ui.instLX, "change", () => {
-      state.instrument.lx = ui.instLX.value || "";
-      saveInstrumentPrefs();
-      scheduleChartDraw();
-    });
-    bind(ui.instLY, "change", () => {
-      state.instrument.ly = ui.instLY.value || "";
-      saveInstrumentPrefs();
-      scheduleChartDraw();
-    });
-    bind(ui.instWindow, "input", () => {
-      state.instrument.window = clamp(Number(ui.instWindow.value) || 5, 0.1, 120);
-      saveInstrumentPrefs();
-      scheduleChartDraw();
-    });
-    bind(ui.instTrail, "input", () => {
-      state.instrument.trail = clamp(Math.round(Number(ui.instTrail.value) || 600), 20, 4e3);
-      saveInstrumentPrefs();
-      scheduleChartDraw();
-    });
-  }
-  function initInstruments() {
-    loadInstrumentPrefs();
-    resizeInstrument();
-    bindInstrumentEvents();
-    fillInstrumentSelects();
   }
   function drawChart() {
     if (activeTab() !== "chart") return;

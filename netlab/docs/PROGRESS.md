@@ -2596,11 +2596,17 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - **CI**：`python-tests` https://github.com/qgfn106-blip/NetLab/actions/runs/42488484544 （ubuntu-latest / Python 3.12，success）；`frontend-ts-build` https://github.com/qgfn106-blip/NetLab/actions/runs/42488484534 （success）。HEAD `844206e`。
 - 边界：C-3（帧数据→绘图语义统一）与 D 阶段其余项仍未做；D-1 覆盖率按用户口径在 S5 收尾后再启动。
 
-## §7.124 D-1 覆盖率与前端行为断言（进行中，2026-11-08）
+## §7.124 D-1 覆盖率与前端行为断言（2026-11-08）
 
 - **覆盖率门限**：`--cov=netlab/core --cov-branch --cov-fail-under=80`（原 78）。本地 686 tests → 80.64%；CI（ubuntu / Python 3.12，683 passed / 2 skipped）→ 80.02%，门限通过。
 - **变更行覆盖率**：新增 `tools/diff_coverage.py`，读 coverage.py JSON + `git diff --unified=0`，排除注释/空行，取 `merge-base` 后统计新增可执行行；阈值 80%。CI 新增 `Changed-line coverage (D-1)` 步骤。C-1b/C-2 全量范围 `a053eda..844206e` 实测 2059/2320 = 88.75%（scene_edit 77.9%、scene_io 85.4%，其余 85–100%）。
 - **前端行为断言**：新增 `frontend/tests/net.test.mjs`（6 条）与 `frontend/tests/menu_model.test.mjs`（3 条），覆盖 `api()` token/超时/错误文案、`plotkitFrameUrl()` 不带 token、添加节点菜单分组与 `addable` 过滤；删除 `test_frontend_menus.py` 源码字符串断言，新增 `frontend/app/menu_model.ts` 纯函数模块供 node 直接调用。`test_plotkit_frontend_auth.py` 删除 2 条源码字符串断言（token-aware helper / frame URL），保留 9 条行为与 HTML 断言。
 - **提交**：`9f83158`（行为测试与断言删除）、`a19d610`（覆盖率门限 80 + diff coverage）、`5b63616`（CI `fetch-depth: 0`，修复浅克隆下 `git diff HEAD^` exit 128）、`2fad9e1`（菜单分组纯函数化）。全量 684 passed / 1 skipped（删除 2 条菜单静态测试、新增 3 条 node 测试）。
 - **CI**：python-tests https://github.com/qgfn106-blip/NetLab/actions/runs/42492199443 （success，含 Changed-line coverage 步骤）；frontend-ts-build https://github.com/qgfn106-blip/NetLab/actions/runs/42492199498 （success）。HEAD `2fad9e1`。
-- **仍未完成**：`test_desktop_drag.py`、`test_frontend_api_contract.py`、`test_plotkit_frontend_auth.py`（剩余 3 处）、`test_run_warn.py`、`test_structure_layout.py`、`test_ui_analysis_entry.py` 中的源码/结构字符串断言需逐项判定「行为化或保留为架构护栏」；`test_control_project.py` 数值断言复核；故意放宽断言变红的证据。
+- **收尾（`071d1d6`）**：core 覆盖率抬到 **81.14%**（11416/13436 statements、3532/4986 branches），门限 78→80→**81**；全量 **733 passed / 1 skipped / 275.82s**。新增 `test_limits_validation.py`（50 条）覆盖 `core/common/limits.py` 的校验/JSON 安全边界。
+- **AC 探针行为化**：新增 `frontend/app/ac_probe.ts` 纯函数 `probeNamesForAc()`，`ac_analysis.ts` 改为调用；新增 `frontend/tests/ac_probe.test.mjs`（3 条），删除 `test_ui_analysis_entry.py::test_ac_probe_defaults_skip_ground` 源码扫描。node 测试 17 pass。
+- **数值断言**：`test_control_project.py` 增加解析解超调 `exp(-πζ/√(1-ζ²))`（ζ=0.3 → 37.23%）±0.5pp，并断言细步长误差 < 粗步长误差的 1/3（收敛证据），保留原窄区间。
+- **静态护栏**：新增 `netlab/docs/D1_STATIC_GUARDS.md`，逐条登记剩余 6 个文件为什么保留为静态/结构护栏、替代路径与删除条件。
+- **CI**：python-tests https://github.com/qgfn106-blip/NetLab/actions/runs/42494677867 （success，HEAD `071d1d6`，含 Changed-line coverage 步骤）；frontend-ts-build https://github.com/qgfn106-blip/NetLab/actions/runs/42494677718 （success）。
+- **故意变红证据**：临时分支 `d1-red-check`（`ad8c43d`，把 `check_name` 的 `_NAME_RE` 校验改成 `if False and ...`）触发 python-tests **failure**：https://github.com/qgfn106-blip/NetLab/actions/runs/42494722079 （失败步骤 `Full Python test suite + core coverage gate`）。分支本地已删除；远端删除因网络阻塞待重试。
+- **仍未完成**：远端 `d1-red-check` 分支待删除（网络恢复后 `git push origin --delete d1-red-check`）。

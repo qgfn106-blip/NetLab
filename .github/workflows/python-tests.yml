@@ -9,6 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # D-1 变更行覆盖率需要 HEAD^ / merge-base，浅克隆会让 git diff 退出 128。
+          fetch-depth: 0
 
       - name: Checkout PlotKit (公开依赖)
         uses: actions/checkout@v4

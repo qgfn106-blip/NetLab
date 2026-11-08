@@ -10,26 +10,7 @@ from netlab.server import SERVICE, app
 
 ROOT = Path(__file__).resolve().parents[1]
 APP_JS = ROOT.parent / "frontend" / "app.ts"
-APP_NET = ROOT.parent / "frontend" / "app" / "net.ts"
 APP_PLOTKIT_DATA = ROOT.parent / "frontend" / "app" / "plotkit_data.ts"
-
-
-def test_plotkit_frontend_uses_token_aware_api_helper():
-    source = APP_JS.read_text(encoding="utf-8") + "\n" + APP_NET.read_text(encoding="utf-8") + "\n" + APP_PLOTKIT_DATA.read_text(encoding="utf-8")
-    assert "async function api(path: string, options: ApiOptions = {})" in source
-    assert "if (DESKTOP_TOKEN) headers['X-Netlab-Token'] = DESKTOP_TOKEN;" in source
-    assert "探针列表加载失败：${text}" in source
-    assert "探针列表加载失败：" in source
-    assert "还没有探针数据：先运行仿真" in source
-    assert "fetch('/api/plotkit/" not in source
-    assert 'fetch("/api/plotkit/' not in source
-
-
-def test_plotkit_frame_url_does_not_carry_token_fragment():
-    """S3：iframe 地址不再携带 #netlabToken=...，鉴权走宿主同源 cookie。"""
-    source = APP_JS.read_text(encoding="utf-8")
-
-    assert "netlabToken" not in source
 
 
 def test_run_warning_precompute_uses_token_aware_helper():

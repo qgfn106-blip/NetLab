@@ -40,6 +40,7 @@ import { analysisSignalKey, analysisGet, setAnalysisOutput, runAnalysisMetrics, 
 import { analEscape, analNum, analToken, analysisWarn, openAnalysis, closeAnalysis, selectAnalTab, fillAcSources, runOperatingPoint, runAcSweep, drawAcChart } from './app/ac_analysis.js';
 import { pkChannelCache, pkKeyShort, pkCheckedKeys, renderPkChannels, showPkChannelLoadError, refreshPkChannels, retryPlotkit, reloadPlotkitFrame, PrecomputeProgress, mountPrecomputeBar, paintPrecomputeBar, runPrecomputeWithProgress, syncAfterPrecompute, applyPkChannels, pkKeysForSelectedNode, initPlotkitDataBar, setPlotkitDataActions } from './app/plotkit_data.js';
 import { plotkitReady, layoutPlotkitWindow, togglePlotkitDock, ensurePlotkitFrame, placePlotkit, openPlotkit, closePlotkit, vscodeStarting, ensureVscodeFrame, openVscode, closeVscode, vscodeWasUsed, maybePrewarmVscode } from './app/plotkit_frame.js';
+import { initAnalWin, initDocWin, setWindowActions } from './app/windows.js';
 import { ensureDocs, docBySlug, openDoc, closeDoc, renderDocNav, renderDocBody, renderInline, renderMarkdown, docSearchSeq, searchDocs, setDocsActions } from './app/docs.js';
 import { openSettings, closeSettings, setSettingsPane, initSettingsWin, showGuide, hideGuide, selectGuideMode, enterGuideScene, initGuide, setGuideActions } from './app/settings_guide.js';
 import { setPlotkitFrameActions } from './app/plotkit_frame.js';
@@ -7823,77 +7824,6 @@ declare function setStatusHint(hint: string): void;
 
   // ---- PlotKit 数据接入：把探针通道挑给 PlotKit -------------------------
 
-  function initAnalWin() {
-    const win = $('#analWin');
-    if (!win) return;
-    win.querySelector('#analWinClose')?.addEventListener('click', closeAnalysis);
-    for (const btn of $$('.anal-tab')) {
-      btn.addEventListener('click', () => {
-        selectAnalTab(btn.dataset.anal || 'op');
-        if (btn.dataset.anal === 'ac') fillAcSources();
-      });
-    }
-    $('#analRunOp')?.addEventListener('click', () => void runOperatingPoint());
-    $('#analRunAc')?.addEventListener('click', () => void runAcSweep());
-    initFloatWindow(win, 'analGeo', { minWidth: 560, minHeight: 420 });
-    window.addEventListener('resize', () => {
-      if (!win.hidden && !(win.querySelector('.anal-pane[data-anal-pane="ac"]') as HTMLElement)?.hidden) {
-        drawAcChart();
-      }
-    });
-  }
-
-  function initDocWin() {
-    if (!ui.docWin) return;
-    ui.docWin.querySelector('#docWinClose')?.addEventListener('click', closeDoc);
-    ui.docSearch?.addEventListener('input', () => searchDocs(ui.docSearch.value));
-    ui.docSearch?.addEventListener('keydown', (event: KeyboardEvent) => {
-      if ((event as Event as KeyboardEvent).key === 'Enter') {
-        const first = ui.docResults.querySelector('.doc-hit');
-        if (first) (first as HTMLElement).click();
-      }
-      if ((event as Event as KeyboardEvent).key === 'Escape') {
-        ui.docSearch.value = '';
-        searchDocs('');
-      }
-    });
-    initFloatWindow(ui.docWin, 'docGeo', { minWidth: 420, minHeight: 320 });
-    const plotkitWin = $('#plotkitWin');
-    if (plotkitWin) {
-      initFloatWindow(plotkitWin, 'plotkitGeo', { minWidth: 720, minHeight: 480 });
-      $('#plotkitWinClose')?.addEventListener('click', closePlotkit);
-      $('#plotkitDock')?.addEventListener('click', togglePlotkitDock);
-      window.addEventListener('resize', () => {
-        if (state.plotkitDock && !plotkitWin.hidden) layoutPlotkitWindow();
-      });
-      $('#btnOpenPlotkit')?.addEventListener('click', () => placePlotkit('float'));
-      $('#btnPlotkitInline')?.addEventListener('click', () => placePlotkit('inline'));
-      $('#btnPlotkitPopup')?.addEventListener('click', () => placePlotkit('popup'));
-      $('#plotkitPopout')?.addEventListener('click', () => {
-        closePlotkit();
-        placePlotkit('popup');
-      });
-    }
-    const vscodeWin = $('#vscodeWin');
-    if (vscodeWin) {
-      initFloatWindow(vscodeWin, 'vscodeGeo', { minWidth: 720, minHeight: 520 });
-      $('#vscodeWinClose')?.addEventListener('click', closeVscode);
-      maybePrewarmVscode();
-    }
-    const wbSignalWin = $('#wbSignalWin');
-    if (wbSignalWin) {
-      initFloatWindow(wbSignalWin, 'wbSignalGeo', { minWidth: 280, minHeight: 320 });
-      $('#wbSignalWinClose')?.addEventListener('click', () => setWbSignalDock(true));
-      $('#wbSignalDockBtn')?.addEventListener('click', () => setWbSignalDock(true));
-      window.addEventListener('resize', () => {
-        if (activeTab() === 'wb-analysis' && wbComparePayload) renderCompareGrid();
-      });
-    }
-    void syncProjectContext();
-  }
-
-  // ---- 参数 ? 卡片 -----------------------------------------------------------
-
   function attachParamHelp(cell: HTMLElement, param: ParamSpec, spec: SpecRec, role: string) {
     if (!cell) return;
     const ask = button('?', 'qbtn', (event: MouseEvent) => {
@@ -8029,6 +7959,7 @@ declare function setStatusHint(hint: string): void;
     confirmModal, applySnapshot, syncProjectContext, applyProjectUi, renderScenePanel,
     renderInspector, renderSignalList, fetchNetworks, fitView, chooseModeModal, task, showHelp,
   });
+  setWindowActions({ renderCompareGrid, setWbSignalDock, syncProjectContext, getWbComparePayload: () => wbComparePayload });
 
   loadUiProfile();
   boot();

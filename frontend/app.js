@@ -26,10 +26,11 @@ import { loadUiPrefs, setPref, setAppearanceActions } from "./app/appearance.js"
 import { initAppearanceControls, saveAutosaveSetting, refreshTelemetryQuality, setAppearanceControlActions } from "./app/appearance_controls.js";
 import { setGeometryActions, worldToScreen, screenToWorld, nodeDiameter, nodeRect, devicePinScreen, snapWorld, portOut, edgeEndpointHit, waypointHitAt, anchorSideFor, edgePathPoints, pathMidpoint, distanceToPath } from "./app/geometry.js";
 import { analysisSignalKey, runAnalysisMetrics, runAnalysisSpectrum, runAnalysisPeriod, runAnalysisMath, runAnalysisTransfer, analysisTFSummary, runAnalysisTF, drawAnalysisTF, exportTFStateSpace, sendTFToPlotKit, sendPhaseToPlotKit, exportAnalysisCsv, drawAnalysisSpectrum, setAnalysisActions } from "./app/analysis.js";
-import { openAnalysis, closeAnalysis, selectAnalTab, fillAcSources, runOperatingPoint, runAcSweep, drawAcChart } from "./app/ac_analysis.js";
+import { openAnalysis, closeAnalysis, drawAcChart } from "./app/ac_analysis.js";
 import { refreshPkChannels, runPrecomputeWithProgress, syncAfterPrecompute, initPlotkitDataBar, setPlotkitDataActions } from "./app/plotkit_data.js";
-import { layoutPlotkitWindow, togglePlotkitDock, placePlotkit, closePlotkit, openVscode, closeVscode, maybePrewarmVscode } from "./app/plotkit_frame.js";
-import { ensureDocs, openDoc, closeDoc, searchDocs, setDocsActions } from "./app/docs.js";
+import { openVscode } from "./app/plotkit_frame.js";
+import { initAnalWin, initDocWin, setWindowActions } from "./app/windows.js";
+import { ensureDocs, openDoc, closeDoc, setDocsActions } from "./app/docs.js";
 import { openSettings, closeSettings, initSettingsWin, showGuide, initGuide, setGuideActions } from "./app/settings_guide.js";
 import { setPlotkitFrameActions } from "./app/plotkit_frame.js";
 import { elementPins, elementRot } from "./app/circuit_symbols.js";
@@ -7052,73 +7053,6 @@ import { elementPins, elementRot } from "./app/circuit_symbols.js";
     worldToScreen,
     screenToWorld
   };
-  function initAnalWin() {
-    const win = $("#analWin");
-    if (!win) return;
-    win.querySelector("#analWinClose")?.addEventListener("click", closeAnalysis);
-    for (const btn of $$(".anal-tab")) {
-      btn.addEventListener("click", () => {
-        selectAnalTab(btn.dataset.anal || "op");
-        if (btn.dataset.anal === "ac") fillAcSources();
-      });
-    }
-    $("#analRunOp")?.addEventListener("click", () => void runOperatingPoint());
-    $("#analRunAc")?.addEventListener("click", () => void runAcSweep());
-    initFloatWindow(win, "analGeo", { minWidth: 560, minHeight: 420 });
-    window.addEventListener("resize", () => {
-      if (!win.hidden && !win.querySelector('.anal-pane[data-anal-pane="ac"]')?.hidden) {
-        drawAcChart();
-      }
-    });
-  }
-  function initDocWin() {
-    if (!ui.docWin) return;
-    ui.docWin.querySelector("#docWinClose")?.addEventListener("click", closeDoc);
-    ui.docSearch?.addEventListener("input", () => searchDocs(ui.docSearch.value));
-    ui.docSearch?.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        const first = ui.docResults.querySelector(".doc-hit");
-        if (first) first.click();
-      }
-      if (event.key === "Escape") {
-        ui.docSearch.value = "";
-        searchDocs("");
-      }
-    });
-    initFloatWindow(ui.docWin, "docGeo", { minWidth: 420, minHeight: 320 });
-    const plotkitWin = $("#plotkitWin");
-    if (plotkitWin) {
-      initFloatWindow(plotkitWin, "plotkitGeo", { minWidth: 720, minHeight: 480 });
-      $("#plotkitWinClose")?.addEventListener("click", closePlotkit);
-      $("#plotkitDock")?.addEventListener("click", togglePlotkitDock);
-      window.addEventListener("resize", () => {
-        if (state.plotkitDock && !plotkitWin.hidden) layoutPlotkitWindow();
-      });
-      $("#btnOpenPlotkit")?.addEventListener("click", () => placePlotkit("float"));
-      $("#btnPlotkitInline")?.addEventListener("click", () => placePlotkit("inline"));
-      $("#btnPlotkitPopup")?.addEventListener("click", () => placePlotkit("popup"));
-      $("#plotkitPopout")?.addEventListener("click", () => {
-        closePlotkit();
-        placePlotkit("popup");
-      });
-    }
-    const vscodeWin = $("#vscodeWin");
-    if (vscodeWin) {
-      initFloatWindow(vscodeWin, "vscodeGeo", { minWidth: 720, minHeight: 520 });
-      $("#vscodeWinClose")?.addEventListener("click", closeVscode);
-      maybePrewarmVscode();
-    }
-    const wbSignalWin = $("#wbSignalWin");
-    if (wbSignalWin) {
-      initFloatWindow(wbSignalWin, "wbSignalGeo", { minWidth: 280, minHeight: 320 });
-      $("#wbSignalWinClose")?.addEventListener("click", () => setWbSignalDock(true));
-      $("#wbSignalDockBtn")?.addEventListener("click", () => setWbSignalDock(true));
-      window.addEventListener("resize", () => {
-        if (activeTab() === "wb-analysis" && wbComparePayload) renderCompareGrid();
-      });
-    }
-    void syncProjectContext();
-  }
   function attachParamHelp(cell, param, spec, role) {
     if (!cell) return;
     const ask = button("?", "qbtn", (event) => {
@@ -7251,6 +7185,7 @@ import { elementPins, elementRot } from "./app/circuit_symbols.js";
     task,
     showHelp
   });
+  setWindowActions({ renderCompareGrid, setWbSignalDock, syncProjectContext, getWbComparePayload: () => wbComparePayload });
   loadUiProfile();
   boot();
   setTimeout(checkCacheQuietly, 6e3);

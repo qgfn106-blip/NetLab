@@ -7,7 +7,7 @@
   },
   "scripts": {
     "gen:theme": "node scripts/gen_theme_css.mjs",
-    "build": "node scripts/gen_theme_css.mjs && esbuild app.ts app.utils.ts theme.tokens.ts app/constants.ts app/dom.ts app/state.ts app/net.ts app/ui.ts app/desktop.ts app/cache.ts app/float.ts app/model.ts app/theme.ts app/color.ts --format=esm --target=es2020 --outdir=. --log-level=warning && esbuild desktop-shim.ts --format=iife --target=es2020 --outfile=desktop-shim.js --log-level=warning",
+    "build": "node scripts/gen_theme_css.mjs && esbuild app.ts app.utils.ts theme.tokens.ts app/constants.ts app/dom.ts app/state.ts app/net.ts app/ui.ts app/desktop.ts app/cache.ts app/float.ts app/model.ts app/theme.ts app/color.ts app/fields.ts --format=esm --target=es2020 --outdir=. --log-level=warning && esbuild desktop-shim.ts --format=iife --target=es2020 --outfile=desktop-shim.js --log-level=warning",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:utils": "node --test tests/*.test.mjs",
     "test": "node --test tests/*.test.mjs"

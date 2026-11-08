@@ -94,11 +94,13 @@ def test_接入_available_keys_registers_datasets():
     assert set(avail).issubset(set(posted["channels"]))
 
 
-def test_diag_reports_vendor_and_error():
+def test_diag_reports_probe_state_and_development_source():
     c = _client()
     data = c.get("/api/plotkit/diag").json()
     assert "mounted" in data
-    assert "candidates" in data and data["candidates"]
+    assert "probe" in data
+    assert data["probe"]["state"] in {"available", "missing", "incompatible"}
+    assert "development_source" in data
 
 
 def test_channels_payload_has_build_stamp(client):

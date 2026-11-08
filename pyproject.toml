@@ -21,6 +21,10 @@ dev = [
     "pytest>=8.0,<9.0",
     "httpx>=0.27,<1.0",
 ]
+# PlotKit 是可选外部绘图依赖（C-4 契约）：版本区间锁死，缺失时 netlab 降级运行。
+plotkit = [
+    "plotkit>=0.2,<0.3",
+]
 desktop = [
     "pywebview>=4.0",
     "pythonnet>=3.0",

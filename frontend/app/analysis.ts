@@ -22,8 +22,8 @@ export function setAnalysisActions(actions: AnalysisActions): void {
 function task<T>(run: () => T | Promise<T>, options?: Record<string, unknown>) { return analysisActions.task(run, options); }
 function downloadText(text: string, filename: string) { analysisActions.downloadText(text, filename); }
 function phaseStateKeys(node: NodeItem) { return analysisActions.phaseStateKeys(node); }
-function C(value: string) { return analysisActions.C(value); }
-function tokens() { return analysisActions.tokens(); }
+function analysisC(value: string) { return analysisActions.C(value); }
+function analysisTokens() { return analysisActions.tokens(); }
 
   /* ======================================================================
    * 8.8 分析面板（R12 / R13 / R17）：旁路分析，不写求解器
@@ -235,14 +235,14 @@ export function drawTFBode(ctx: CanvasRenderingContext2D, data: TfDataRec, width
     const logMax = Math.log10(Math.max(omega[omega.length - 1], 1e-8));
     const logSpan = Math.max(logMax - logMin, 1e-9);
     const xAt = (index: number) => left + plotWidth * ((Math.log10(Math.max(omega[index], 1e-9)) - logMin) / logSpan);
-    const grid = tokens().tfGrid;
-    const axis = tokens().tfAxis;
+    const grid = analysisTokens().tfGrid;
+    const axis = analysisTokens().tfAxis;
     ctx.font = '9px "Cascadia Code", Consolas, monospace';
 
     const panel = (base: number, values: number[], color: string, unit: string) => {
       const [low, high] = tfRange(values);
       ctx.strokeStyle = grid;
-      ctx.fillStyle = C('#7b7266');
+      ctx.fillStyle = analysisC('#7b7266');
       ctx.textAlign = 'right';
       for (let index = 0; index <= 3; index += 1) {
         const y = base + (plotHeight * index) / 3;
@@ -281,11 +281,11 @@ export function drawTFBode(ctx: CanvasRenderingContext2D, data: TfDataRec, width
       ctx.stroke();
     };
 
-    panel(top, magnitude, C('#a8541f'), 'dB');
-    panel(phaseTop, phase, C('#3f6f8f'), 'deg');
+    panel(top, magnitude, analysisC('#a8541f'), 'dB');
+    panel(phaseTop, phase, analysisC('#3f6f8f'), 'deg');
 
     ctx.strokeStyle = grid;
-    ctx.fillStyle = C('#7b7266');
+    ctx.fillStyle = analysisC('#7b7266');
     ctx.textAlign = 'center';
     let decades = 0;
     for (let exponent = Math.ceil(logMin); exponent <= Math.floor(logMax); exponent += 1) {
@@ -304,14 +304,14 @@ export function drawTFBode(ctx: CanvasRenderingContext2D, data: TfDataRec, width
       ctx.fillText(fmt(omega[omega.length - 1], 2), left + plotWidth, height - 5);
     }
     ctx.textAlign = 'left';
-    ctx.fillStyle = C('#7b7266');
+    ctx.fillStyle = analysisC('#7b7266');
     ctx.fillText('rad/s', left + plotWidth - 34, height - 5);
 
     const cursor = state.tfCursor;
     if (cursor != null && cursor >= 0 && cursor < omega.length) {
       const x = xAt(cursor);
       ctx.save();
-      ctx.strokeStyle = C('rgba(168, 84, 31, 0.55)');
+      ctx.strokeStyle = analysisC('rgba(168, 84, 31, 0.55)');
       ctx.setLineDash([4, 3]);
       ctx.beginPath();
       ctx.moveTo(x, top);
@@ -322,8 +322,8 @@ export function drawTFBode(ctx: CanvasRenderingContext2D, data: TfDataRec, width
         if (!Number.isFinite(value)) return;
         const [low, high] = tfRange(base === top ? magnitude : phase);
         const y = base + plotHeight * (1 - (value - low) / Math.max(high - low, 1e-9));
-        ctx.fillStyle = C('#a8541f');
-        ctx.strokeStyle = tokens().tfDotRing;
+        ctx.fillStyle = analysisC('#a8541f');
+        ctx.strokeStyle = analysisTokens().tfDotRing;
         ctx.lineWidth = 1.4;
         ctx.beginPath();
         ctx.arc(x, y, 3.4, 0, Math.PI * 2);
@@ -335,17 +335,17 @@ export function drawTFBode(ctx: CanvasRenderingContext2D, data: TfDataRec, width
       const label = `ω=${fmt(omega[cursor], 3)}  |G|=${fmt(magnitude[cursor], 2)} dB  ∠=${fmt(phase[cursor], 1)}°`;
       ctx.font = '10px "Cascadia Code", Consolas, monospace';
       const labelWidth = ctx.measureText(label).width + 12;
-      ctx.fillStyle = tokens().tfCalloutBg;
-      ctx.strokeStyle = C('rgba(168, 84, 31, 0.35)');
+      ctx.fillStyle = analysisTokens().tfCalloutBg;
+      ctx.strokeStyle = analysisC('rgba(168, 84, 31, 0.35)');
       ctx.beginPath();
       ctx.roundRect(left + 4, top + 3, Math.min(labelWidth, plotWidth - 8), 30, 4);
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = C('#5f3a20');
+      ctx.fillStyle = analysisC('#5f3a20');
       ctx.textAlign = 'left';
       ctx.fillText(label, left + 10, top + 15);
       ctx.font = '8px "Cascadia Code", Consolas, monospace';
-      ctx.fillStyle = C('#8a7b68');
+      ctx.fillStyle = analysisC('#8a7b68');
       ctx.fillText('拖动读数 · ← → 吸附采样点（Shift ×10）', left + 10, top + 27);
       ctx.restore();
     }
@@ -449,11 +449,11 @@ export function drawTFStep(ctx: CanvasRenderingContext2D, data: TfDataRec, width
     const [low, high] = tfRange(values);
     const xAt = (index: number) => left + plotWidth * ((time[index] - time[0]) / Math.max(time[time.length - 1] - time[0], 1e-9));
     const yAt = (value: number) => top + plotHeight * (1 - (value - low) / Math.max(high - low, 1e-9));
-    const grid = tokens().tfGrid;
-    const axis = tokens().tfAxis;
+    const grid = analysisTokens().tfGrid;
+    const axis = analysisTokens().tfAxis;
     ctx.font = '9px "Cascadia Code", Consolas, monospace';
     ctx.strokeStyle = grid;
-    ctx.fillStyle = C('#7b7266');
+    ctx.fillStyle = analysisC('#7b7266');
     ctx.textAlign = 'right';
     for (let index = 0; index <= 3; index += 1) {
       const y = top + (plotHeight * index) / 3;
@@ -471,14 +471,14 @@ export function drawTFStep(ctx: CanvasRenderingContext2D, data: TfDataRec, width
     const metrics = (step.metrics || {}) as TfMetricsRec;
     if (Number.isFinite(metrics.final)) {
       ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = tokens().tfGhostLine;
+      ctx.strokeStyle = analysisTokens().tfGhostLine;
       ctx.beginPath();
       ctx.moveTo(left, yAt((metrics.final as number)));
       ctx.lineTo(left + plotWidth, yAt((metrics.final as number)));
       ctx.stroke();
       ctx.setLineDash([]);
     }
-    ctx.strokeStyle = C('#a8541f');
+    ctx.strokeStyle = analysisC('#a8541f');
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     let started = false;
@@ -508,7 +508,7 @@ export function drawTFStep(ctx: CanvasRenderingContext2D, data: TfDataRec, width
       }
       const px = xAt(peakIndex);
       const py = yAt((metrics.peak_value as number));
-      ctx.fillStyle = C('#8a4b12');
+      ctx.fillStyle = analysisC('#8a4b12');
       ctx.beginPath();
       ctx.arc(px, py, 2.6, 0, Math.PI * 2);
       ctx.fill();
@@ -519,7 +519,7 @@ export function drawTFStep(ctx: CanvasRenderingContext2D, data: TfDataRec, width
         Math.max(top + 9, py - 6),
       );
     }
-    ctx.fillStyle = C('#7b7266');
+    ctx.fillStyle = analysisC('#7b7266');
     ctx.textAlign = 'left';
     ctx.fillText('0 s', left, height - 5);
     ctx.textAlign = 'right';
@@ -546,10 +546,10 @@ export function drawTFPoles(ctx: CanvasRenderingContext2D, data: TfDataRec, widt
     const scale = Math.min(plotWidth / (2 * extent), plotHeight / (2 * extent));
     const xAt = (real: number) => cx + real * scale;
     const yAt = (imag: number) => cy - imag * scale;
-    ctx.fillStyle = tokens().tfLeftTint;
+    ctx.fillStyle = analysisTokens().tfLeftTint;
     ctx.fillRect(left, top, plotWidth / 2, plotHeight);
-    const grid = tokens().tfGrid;
-    const axis = tokens().tfAxisStrong;
+    const grid = analysisTokens().tfGrid;
+    const axis = analysisTokens().tfAxisStrong;
     ctx.strokeStyle = grid;
     ctx.beginPath();
     ctx.moveTo(cx, top);
@@ -565,7 +565,7 @@ export function drawTFPoles(ctx: CanvasRenderingContext2D, data: TfDataRec, widt
     ctx.lineTo(left + plotWidth, cy);
     ctx.stroke();
     ctx.font = '9px "Cascadia Code", Consolas, monospace';
-    ctx.fillStyle = C('#7b7266');
+    ctx.fillStyle = analysisC('#7b7266');
     ctx.textAlign = 'center';
     ctx.fillText('Re', left + plotWidth - 10, cy - 4);
     ctx.textAlign = 'left';
@@ -573,7 +573,7 @@ export function drawTFPoles(ctx: CanvasRenderingContext2D, data: TfDataRec, widt
     for (const point of zeros) {
       const x = xAt(Number(point.real) || 0);
       const y = yAt(Number(point.imag) || 0);
-      ctx.strokeStyle = C('#3f6f8f');
+      ctx.strokeStyle = analysisC('#3f6f8f');
       ctx.lineWidth = 1.3;
       ctx.beginPath();
       ctx.arc(x, y, 4, 0, Math.PI * 2);
@@ -582,7 +582,7 @@ export function drawTFPoles(ctx: CanvasRenderingContext2D, data: TfDataRec, widt
     for (const point of poles) {
       const x = xAt(Number(point.real) || 0);
       const y = yAt(Number(point.imag) || 0);
-      ctx.strokeStyle = C('#a8541f');
+      ctx.strokeStyle = analysisC('#a8541f');
       ctx.lineWidth = 1.6;
       ctx.beginPath();
       ctx.moveTo(x - 4, y - 4);
@@ -591,7 +591,7 @@ export function drawTFPoles(ctx: CanvasRenderingContext2D, data: TfDataRec, widt
       ctx.lineTo(x - 4, y + 4);
       ctx.stroke();
     }
-    ctx.fillStyle = C('#7b7266');
+    ctx.fillStyle = analysisC('#7b7266');
     ctx.textAlign = 'left';
     ctx.fillText('× 极点   ○ 零点', left + 2, top + 9);
   }
@@ -709,15 +709,15 @@ export function drawAnalysisSpectrum() {
     for (let index = 0; index < n; index += 1) {
       const value = mags[index] / peak;
       const barH = Math.max(0, Math.min(1, value)) * (height - 18);
-      ctx!.fillStyle = index === 0 ? tokens().nyqLabel : C('rgba(168, 84, 31, 0.55)');
+      ctx!.fillStyle = index === 0 ? analysisTokens().nyqLabel : analysisC('rgba(168, 84, 31, 0.55)');
       ctx!.fillRect(index * bw, height - 14 - barH, Math.max(1, bw - 0.5), barH);
     }
-    ctx!.strokeStyle = tokens().tfAxisSoft;
+    ctx!.strokeStyle = analysisTokens().tfAxisSoft;
     ctx!.beginPath();
     ctx!.moveTo(0, height - 14.5);
     ctx!.lineTo(width, height - 14.5);
     ctx!.stroke();
-    ctx!.fillStyle = C('#7b7266');
+    ctx!.fillStyle = analysisC('#7b7266');
     ctx!.font = '9px "Cascadia Code", Consolas, monospace';
     ctx!.fillText('0 Hz', 2, height - 3);
     const maxFreq = freqs.length ? freqs[Math.min(freqs.length - 1, 399)] : 0;

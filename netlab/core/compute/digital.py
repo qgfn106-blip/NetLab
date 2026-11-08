@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from .nodal import CircuitElement, StampContext
+from .circuit.elements import CircuitElement
+from .circuit.stamps import StampContext
 from .params import ParamSpec, choice_param, float_param
 
 

@@ -17,7 +17,8 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from .nodal import CircuitElement, StampContext
+from .circuit.elements import CircuitElement
+from .circuit.stamps import StampContext
 from .params import ParamSpec, float_param
 
 

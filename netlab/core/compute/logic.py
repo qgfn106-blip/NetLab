@@ -9,7 +9,8 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from .nodal import CircuitElement, StampContext, _stamp_conductance
+from .circuit.elements import CircuitElement
+from .circuit.stamps import StampContext, _stamp_conductance
 from .params import ParamSpec, choice_param, float_param
 
 LOGIC_LEVELS = ("and", "or", "not", "xor")

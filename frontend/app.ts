@@ -16,6 +16,7 @@ import { openCacheDialog, checkCacheQuietly } from './app/cache.js';
 import { placeFloatWindow, placeDocWindow, raiseFloatWindow, toggleFloatMaximize, initFloatWindow } from './app/float.js';
 import { CHART_PALETTE, chartPalette, themeKey } from './app/theme.js';
 import { hexToRgb, hexToRgbString, mixHex } from './app/color.js';
+import { activeTab, modeLabel, selectedNode, selectedEdge, nodeById, edgeById, nodeByName, edgeByName, getNodeSpec, getEdgeSpec, specDefaults, uniqueNodeName, hasGroundNode, displayDataFor, nodeDisplayData, edgeDisplayData } from './app/model.js';
 declare const desc: HTMLElement;
 declare function setStatusHint(hint: string): void;
 
@@ -56,82 +57,6 @@ declare function setStatusHint(hint: string): void;
     [k: string]: unknown;
   }
 
-  function activeTab(): string {
-    const group = $('.panel-group.active')?.dataset.group || 'inspect';
-    if (group === 'fn') return state.fnRole === 'edge' ? 'edge-fn' : 'node-fn';
-    if (group === 'analysis' || group === 'modules' || group === 'workbench') {
-      const sub = $('.panel-group.active .group-subnav [data-sub].active');
-      if (sub) return sub.dataset.sub as string;
-      return group === 'modules' ? 'blocks' : group === 'workbench' ? 'wb-analysis' : 'chart';
-    }
-    return 'inspect';
-  }
-
-  function modeLabel(mode: string): string {
-    if (mode === 'circuit') return '电路';
-    if (mode === 'vector') return '矢量';
-    return '信号流';
-  }
-
-  function selectedNode(): NodeItem | null {
-    return state.selection.type === 'node' ? nodeById(state.selection.id) : null;
-  }
-
-  function selectedEdge(): EdgeItem | null {
-    return state.selection.type === 'edge' ? edgeById(state.selection.id) : null;
-  }
-
-  function nodeById(id: string | null): NodeItem | null {
-    return state.scene?.nodes?.find((node) => node.id === id) || null;
-  }
-
-  function edgeById(id: string | null): EdgeItem | null {
-    return state.scene?.edges?.find((edge) => edge.id === id) || null;
-  }
-
-  function nodeByName(name: string): NodeItem | null {
-    return state.scene?.nodes?.find((node) => node.name === name) || null;
-  }
-
-  function edgeByName(name: string): EdgeItem | null {
-    return state.scene?.edges?.find((edge) => edge.name === name) || null;
-  }
-
-  function getNodeSpec(kind: string): SpecRec | null {
-    if (!state.catalog) return null;
-    const list = state.mode === 'circuit' ? state.catalog.circuit_nodes : state.catalog.computes;
-    return (list || []).find((spec: SpecRec) => spec.kind === kind) || null;
-  }
-
-  function getEdgeSpec(kind: string): SpecRec | null {
-    if (!state.catalog) return null;
-    const list = state.mode === 'circuit' ? state.catalog.elements : state.catalog.methods;
-    return (list || []).find((spec: SpecRec) => spec.kind === kind) || null;
-  }
-
-  function specDefaults(spec: SpecRec | null): Record<string, unknown> {
-    const result: Record<string, unknown> = {};
-    if (!spec || !Array.isArray(spec.params)) return result;
-    for (const param of spec.params) {
-      result[param.key] = clone(param.default);
-    }
-    return result;
-  }
-
-  function uniqueNodeName(base: string): string {
-    const names = new Set((state.scene?.nodes || []).map((node) => node.name));
-    let index = 1;
-    let candidate = `${base}${index}`;
-    while (names.has(candidate)) {
-      index += 1;
-      candidate = `${base}${index}`;
-    }
-    return candidate.slice(0, 32);
-  }
-
-  function hasGroundNode(): boolean {
-    return (state.scene?.nodes || []).some((node) => node.kind === 'ground');
-  }
 
 
   /* ======================================================================
@@ -401,36 +326,6 @@ declare function setStatusHint(hint: string): void;
       }
     }
   }
-
-  function displayDataFor(record: DataHolder, liveMap: Map<string, Record<string, unknown>>) {
-    const merged = Object.assign({}, record?.data || {});
-    const live = liveMap.get((record?.name as string));
-    if (live) {
-      for (const [key, value] of Object.entries(live)) {
-        if (typeof value === 'number' && Number.isFinite(value)) merged[key] = value;
-      }
-    }
-    return merged;
-  }
-
-  function nodeDisplayData(node: NodeItem) {
-    return displayDataFor(node, state.nodeValues);
-  }
-
-  function edgeDisplayData(edge: EdgeItem) {
-    const merged = Object.assign({}, edge?.output || {}, edge?.state || {}) as Record<string, number>;
-    const live = state.edgeValues.get(edge?.name);
-    if (live) {
-      for (const [key, value] of Object.entries(live)) {
-        if (typeof value === 'number' && Number.isFinite(value)) merged[key] = value;
-      }
-    }
-    return merged;
-  }
-
-  /* ======================================================================
-   * 3. 画布尺寸、视图变换与渲染
-   * ==================================================================== */
 
   function resizeGraph() {
     const rect = stage.getBoundingClientRect();

@@ -35,8 +35,16 @@ from .backends.dispatch import (
 )
 from .store.reclaim import Reclaimer
 from .store.registry import DataStore
+from .host_api import (
+    API_VERSION,
+    PlotRenderPort,
+    create_server,
+    index_html,
+    probe,
+    store_lock,
+)
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 
 class _DataProxy:
@@ -187,5 +195,11 @@ __all__ = [
     "RendererSelector",
     "BackendUnavailable",
     "BackendUnsupported",
+    "API_VERSION",
+    "PlotRenderPort",
+    "create_server",
+    "index_html",
+    "probe",
+    "store_lock",
     "__version__",
 ]

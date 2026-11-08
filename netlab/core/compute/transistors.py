@@ -5,7 +5,8 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from .nodal import CircuitElement, StampContext, _stamp_conductance, _stamp_current
+from .circuit.elements import CircuitElement
+from .circuit.stamps import StampContext, _stamp_conductance, _stamp_current
 from .params import ParamSpec, choice_param, float_param
 
 K_BOLTZMANN = 8.617333262e-5

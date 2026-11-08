@@ -29,7 +29,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .blocks import BlockDef
+from .blocks import BlockDef, validate_block_structure
 from .builtins import builtin_block, builtin_blocks, is_builtin
 from ..common.limits import LimitError, NotFoundError, ValidationError
 from .project import atomic_write, canonical_json
@@ -99,29 +99,6 @@ def parse_block_file(payload: Any) -> BlockDef:
     block = BlockDef.from_payload(raw_block)
     validate_block_structure(block)
     return block
-
-
-def validate_block_structure(block: BlockDef) -> None:
-    """基本结构检查：节点 id 唯一、连接端点存在、不可自引用。"""
-    ids: set[str] = set()
-    for index, node in enumerate(block.nodes):
-        if not isinstance(node, dict):
-            raise ValidationError(f"第 {index + 1} 个内部节点必须是对象")
-        node_id = str(node.get("id") or "")
-        if not node_id:
-            raise ValidationError(f"第 {index + 1} 个内部节点缺少 id")
-        if node_id in ids:
-            raise ValidationError(f"功能块内部节点 id 重复：{node_id}")
-        ids.add(node_id)
-        if node.get("kind") == "block":
-            child = str((node.get("params") or {}).get("block_id") or "")
-            if child == block.id:
-                raise ValidationError("功能块不能直接包含自身")
-    for index, edge in enumerate(block.edges):
-        if not isinstance(edge, dict):
-            raise ValidationError(f"第 {index + 1} 条内部连接必须是对象")
-        if edge.get("source") not in ids or edge.get("target") not in ids:
-            raise ValidationError(f"第 {index + 1} 条内部连接的端点不存在")
 
 
 def read_block_file(path: str | Path) -> BlockDef:

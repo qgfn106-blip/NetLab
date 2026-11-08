@@ -21,7 +21,7 @@ export function setAnalysisActions(actions: AnalysisActions): void {
 }
 function task<T>(run: () => T | Promise<T>, options?: Record<string, unknown>) { return analysisActions.task(run, options); }
 function downloadText(text: string, filename: string) { analysisActions.downloadText(text, filename); }
-function phaseStateKeys(node: NodeItem) { return analysisActions.phaseStateKeys(node); }
+function analysisPhaseStateKeys(node: NodeItem) { return analysisActions.phaseStateKeys(node); }
 function analysisC(value: string) { return analysisActions.C(value); }
 function analysisTokens() { return analysisActions.tokens(); }
 
@@ -642,7 +642,7 @@ export function phaseSeriesForPlotKit() {
     if (!node) return null;
     const frames = state.frames || [];
     const pairs = [];
-    const stateKeys = phaseStateKeys(node);
+    const stateKeys = analysisPhaseStateKeys(node);
     if (stateKeys.length >= 2) pairs.push([stateKeys[0], stateKeys[1]]);
     pairs.push(
       [`n:${node.name}:x`, `n:${node.name}:y`],

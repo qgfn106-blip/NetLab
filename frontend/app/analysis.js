@@ -14,7 +14,7 @@ function task(run, options) {
 function downloadText(text, filename) {
   analysisActions.downloadText(text, filename);
 }
-function phaseStateKeys(node) {
+function analysisPhaseStateKeys(node) {
   return analysisActions.phaseStateKeys(node);
 }
 function analysisC(value) {
@@ -628,7 +628,7 @@ function phaseSeriesForPlotKit() {
   if (!node) return null;
   const frames = state.frames || [];
   const pairs = [];
-  const stateKeys = phaseStateKeys(node);
+  const stateKeys = analysisPhaseStateKeys(node);
   if (stateKeys.length >= 2) pairs.push([stateKeys[0], stateKeys[1]]);
   pairs.push(
     [`n:${node.name}:x`, `n:${node.name}:y`],

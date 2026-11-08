@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import re
 
 from pathlib import Path
 
@@ -189,3 +190,16 @@ def test_plotkit_bridge_mounts_route():
         pytest.skip("本机未安装 plotkit，跳过路由断言")
     paths = {getattr(r, "path", "") for r in server.app.routes}
     assert any(p.startswith("/plotkit") for p in paths)
+
+
+def test_docs_do_not_contain_private_paths():
+    """N-30/D-3：文档不得写入本机用户目录、私有会话路径或本机代理端口。"""
+    private = re.compile(r"C:\\Users\\|weijiewang|DSH_HOME|\.dsh\\|127\.0\.0\.1:1896")
+    offenders = []
+    for path in (PKG / "docs").rglob("*.md"):
+        for lineno, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), start=1
+        ):
+            if private.search(line):
+                offenders.append(f"{path.relative_to(ROOT)}:{lineno}")
+    assert not offenders, "文档包含本机私有信息：" + ", ".join(offenders)

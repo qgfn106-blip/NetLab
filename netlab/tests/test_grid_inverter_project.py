@@ -31,7 +31,7 @@ def test_grid_inverter_avg_project_loads_and_precomputes() -> None:
         assert report["frames"] == 4000
         assert report["last_time"] == 2.0e-1
 
-        frames = list(sim.recorder.frames)
+        frames = sim.live(0, 6000)["frames"]
         tail = frames[-200:]
         for key in ("n:i_d_meas:value", "n:i_q_meas:value"):
             values = [frame["v"][key] for frame in tail]

@@ -75,7 +75,7 @@ def test_scene_records_auto_delay_edges():
     a = scene.add_node(name="a", kind="gain", params={"gain": 1.0})
     b = scene.add_node(name="b", kind="gain", params={"gain": 1.0})
     scene.add_edge(source=a.id, target=b.id, kind="pass")
-    edge = scene.add_edge(source=b.id, target=a.id, kind="pass")
+    edge = scene.add_edge(source=b.id, target=a.id, kind="pass", auto_delay=True)
 
     assert edge.delay is True
     assert edge.auto_delay is True

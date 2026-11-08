@@ -37,9 +37,11 @@ def test_easy_drag_disabled():
 
 def test_shim_script_tag_is_versioned():
     server = (ROOT / "netlab" / "server.py").read_text(encoding="utf-8")
-    # 版本号必须来自 APP_BUILD 单一来源：写死数字会在每次 bump 时漏改（2026-11-03 审查 P3）
-    assert "desktop-shim.js?v={APP_BUILD}" in server
-    assert not re.search(r"desktop-shim\.js\?v=\d", server)
+    shell = (ROOT / "netlab" / "server_shell" / "__init__.py").read_text(encoding="utf-8")
+    source = server + shell
+    # 版本号必须来自构建版本单一来源：写死数字会在每次 bump 时漏改（2026-11-03 审查 P3）
+    assert re.search(r"desktop-shim\.js\?v=\{(?:APP_BUILD|app_build)\}", source)
+    assert not re.search(r"desktop-shim\.js\?v=\d", source)
 
 
 def test_shim_script_tag_renders_numeric_version(monkeypatch):

@@ -46,6 +46,9 @@ node_modules/
 build/
 dist/
 
+# Python 构建产物（C-4，2026-11-08）：wheel 二进制不入库（X6）
+*.whl
+
 # 工程迁移备份文件不入库（W4，2026-11-08）：.netlab 压缩迁移前的原始纯文本备份
 *.netlab.bak-*
 *.netlab.bak

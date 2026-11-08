@@ -1,0 +1,14 @@
+{
+  "schema": "netlab-plugin/1",
+  "id": "netlab.plotkit",
+  "name": "PlotKit",
+  "version": "1.0.0",
+  "plugin_api": "1.0",
+  "netlab": ">=3.0 <4.0",
+  "entry": "plugin:register",
+  "author": "Netlab",
+  "description": "PlotKit 绘图面板（宿主桥接插件）",
+  "capabilities": ["panel"],
+  "permissions": ["recorder", "analysis"],
+  "dependencies": {}
+}

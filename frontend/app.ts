@@ -7261,7 +7261,7 @@ declare function setStatusHint(hint: string): void;
       params: specDefaults(spec),
       delay: false,
       enabled: true,
-      auto_delay: true,
+      auto_delay: false,
     };
     if (state.mode === 'circuit' && state.ui?.circuitOrthogonal !== false) body.route = 'orthogonal';
     const response = await task(() => jsonRequest('/api/edges', 'POST', body));
@@ -7576,6 +7576,23 @@ declare function setStatusHint(hint: string): void;
     solverSection.appendChild(div('help', '残差容差 0 = 只记录不强制；失败时自动 gmin/source stepping，仍失败会报最大节点。修改后立即生效（重建电路引擎）。'));
     pane.appendChild(solverSection);
 
+    if (state.mode !== 'circuit') {
+      const algebraicSection = section('信号流代数环', '显式选择；不再静默改写拓扑');
+      const algebraicRow = div('set-row');
+      const algebraicLabel = el('label', null, '直接馈通求解');
+      algebraicLabel.appendChild(el('em', null, '开启后环路由 solver_plan/SCC 求线性解；关闭时含环连接报错，除非显式设置单步延迟'));
+      const algebraicControl = div('set-control');
+      const algebraicInput = el('input');
+      algebraicInput.type = 'checkbox';
+      algebraicInput.dataset.role = 'algebraic';
+      algebraicInput.checked = Boolean(state.scene?.solve_algebraic);
+      algebraicInput.addEventListener('change', () => void changeAlgebraicSolver(algebraicInput.checked));
+      algebraicControl.appendChild(algebraicInput);
+      algebraicRow.append(algebraicLabel, algebraicControl);
+      algebraicSection.appendChild(algebraicRow);
+      pane.appendChild(algebraicSection);
+    }
+
     const statsSection = section('网络统计', '运行时更新');
     const statsGrid = div('stat-grid');
     const statSpecs = [
@@ -7847,6 +7864,8 @@ declare function setStatusHint(hint: string): void;
       if (lock) (lock as HTMLInputElement).checked = Boolean(config.lock_dt);
       const realtime = $('[data-sim="realtime"]', pane);
       if (realtime) (realtime as HTMLInputElement).checked = Boolean(config.realtime);
+      const algebraic = $('[data-role="algebraic"]', pane);
+      if (algebraic) (algebraic as HTMLInputElement).checked = Boolean(state.scene?.solve_algebraic);
       const dtInput = $('[data-sim="dt"]', pane);
       if (dtInput) (dtInput as HTMLButtonElement).disabled = Boolean(config.lock_dt);
 
@@ -7994,6 +8013,17 @@ declare function setStatusHint(hint: string): void;
     applySnapshot(response);
     renderScenePanel();
     toast(`积分方法已切换为 ${value === 'trapezoidal' ? '梯形法' : '后向欧拉'}`, 'ok', 2000);
+  }
+
+  async function changeAlgebraicSolver(enabled: boolean) {
+    const response = await task(() => jsonRequest('/api/scene/algebraic', 'PUT', { enabled }));
+    if (!response) {
+      updateScenePanelValues();
+      return;
+    }
+    applySnapshot(response);
+    renderScenePanel();
+    toast(enabled ? '已开启信号流代数环直接求解' : '已关闭代数环直接求解', 'ok', 2000);
   }
 
   async function switchMode(mode: string, options: ApiOptions = {}) {

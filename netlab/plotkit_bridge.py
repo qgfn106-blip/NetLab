@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 import logging
 import os
 import sys
@@ -20,6 +21,8 @@ from typing import Any
 LOGGER = logging.getLogger(__name__)
 
 MOUNT_PATH = "/plotkit"
+PLUGIN_ID = "netlab.plotkit"
+PLUGIN_DIR = Path(__file__).resolve().parents[1] / "extensions" / "plugins" / PLUGIN_ID
 #: 每个通道保留的点数；超出后只留尾部（对应 spec 里的 life="replace" 语义）
 MAX_POINTS = 20_000
 #: 每次同步最多取多少帧。必须 ≥ recorder 容量（见 simulation.RECORDER_CAPACITY），
@@ -48,6 +51,25 @@ _REGISTERED: set[str] = set()
 _LAST_ERROR: str = ""
 
 
+def plugin_available() -> bool:
+    """PlotKit 是否以插件包形式安装（``extensions/plugins/netlab.plotkit``）。"""
+    return (PLUGIN_DIR / "plugin.json").is_file()
+
+
+def plugin_enabled() -> bool:
+    """读取插件管理器的持久化开关；没有状态文件时按启用处理。"""
+    if not plugin_available():
+        return False
+    state_file = PLUGIN_DIR.parent / "plugins_state.json"
+    if not state_file.is_file():
+        return True
+    try:
+        payload = json.loads(state_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return True
+    return PLUGIN_ID not in set(map(str, payload.get("disabled") or []))
+
+
 def _plotkit_src_candidates() -> list[Path]:
     """PlotKit 源码目录的几个可能位置（同仓库并列布局优先）。"""
     here = Path(__file__).resolve()
@@ -61,15 +83,17 @@ def _plotkit_src_candidates() -> list[Path]:
 def ensure_plotkit_importable() -> bool:
     """确保 ``import plotkit`` 可用。
 
-    优先级：已导入 → ``NETLAB_PLOTKIT_SRC``（显式指定源码）→ 内置副本
+    优先级：已导入 → ``NETLAB_PLOTKIT_SRC``（显式指定源码）→ 插件内副本
+    ``extensions/plugins/netlab.plotkit/plotkit`` → 内置副本
     ``netlab/_vendor/plotkit`` → 已安装的 wheel → 同仓库 ``PlotKit/src``。
-    内置副本随 netlab 一起分发、版本固定，因此优先于环境里可能残留的旧安装；
-    本地单机应用也不需要用户先跑 ``pip install -e``。
+    插件内副本优先于宿主内置副本，便于把 PlotKit 作为独立插件升级；插件包
+    完全不存在时（旧安装）仍回退到宿主内置副本，保证兼容。
     """
     global _LAST_ERROR
     if "plotkit" in sys.modules:
         return True
     override = (os.environ.get("NETLAB_PLOTKIT_SRC") or "").strip()
+    plugin_vendored = PLUGIN_DIR
     vendored = None
     try:  # 内置副本（netlab/_vendor/plotkit）：装好 netlab 就带着 PlotKit
         from . import plotkit_vendor
@@ -80,6 +104,8 @@ def ensure_plotkit_importable() -> bool:
     prioritized: list[tuple[Path, str]] = []
     if override:
         prioritized.append((Path(override), "NETLAB_PLOTKIT_SRC"))
+    if (plugin_vendored / "plotkit" / "__init__.py").is_file():
+        prioritized.append((plugin_vendored, "插件副本"))
     if vendored is not None:
         prioritized.append((vendored, "内置副本"))
     errors: list[str] = []
@@ -552,7 +578,13 @@ def _ingest(figure: Any, frames: list[dict[str, Any]], keys: list[str]) -> None:
 
 def diagnose() -> dict[str, Any]:
     """挂载诊断：告诉界面到底缺什么。"""
-    info: dict[str, Any] = {"mounted": _STATE.get("figure") is not None}
+    info: dict[str, Any] = {
+        "mounted": _STATE.get("figure") is not None,
+        "plugin_id": PLUGIN_ID,
+        "plugin_available": plugin_available(),
+        "plugin_enabled": plugin_enabled(),
+        "plugin_path": str(PLUGIN_DIR),
+    }
     try:
         from . import plotkit_vendor
 
@@ -670,6 +702,9 @@ def mount(app: Any, service: Any | None = None) -> bool:
     """把 PlotKit 子应用挂到 ``/plotkit``；成功返回 True，缺依赖/已挂载返回 False。"""
     with _LOCK:
         if _STATE.get("app") is not None:
+            return False
+        if plugin_available() and not plugin_enabled():
+            LOGGER.info("netlab.plotkit 插件已停用，跳过 /plotkit 子应用")
             return False
         try:
             if not ensure_plotkit_importable():

@@ -8,21 +8,9 @@ import {
   CHART_PALETTE_CB_DARK
 } from "./theme.tokens.js";
 import { UI_BUILD, PALETTE, GROUP_COLORS, NODE_RADIUS, NODE_W, NODE_H, CHART_KEYS, MAX_IMPORT_BYTES, MAX_FRAMES, INST_COLORS } from "./app/constants.js";
+import { $, $$, stage, canvas, ctx, chartCanvas, chartCtx, phaseCanvas, phaseCtx, scopeCanvas, scopeCtx, lissCanvas, lissCtx } from "./app/dom.js";
 (() => {
   "use strict";
-  const $ = (selector, root = document) => root.querySelector(selector);
-  const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
-  const stage = $("#stage");
-  const canvas = $("#graph");
-  const ctx = canvas.getContext("2d");
-  const chartCanvas = $("#chart");
-  const chartCtx = chartCanvas.getContext("2d");
-  const phaseCanvas = $("#phase");
-  const phaseCtx = phaseCanvas.getContext("2d");
-  const scopeCanvas = $("#scope");
-  const scopeCtx = scopeCanvas?.getContext("2d");
-  const lissCanvas = $("#lissajous");
-  const lissCtx = lissCanvas?.getContext("2d");
   const ui = {
     main: $("main"),
     panel: $("#panel"),

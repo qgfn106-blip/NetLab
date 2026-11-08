@@ -6,6 +6,7 @@ import {
 } from './theme.tokens.js';
 import type { AcResultRec, AppearanceRec, BezierRec, BlockItem, BoxRec, CacheEntryRec, CatalogRec, ChartRec, ClipboardRec, ComplexLike, DataHolder, DeclaredItemRec, DegradedItemRec, DegradedRec, DocItem, DragRec, EdgeBodyRec, EdgeItem, ExtItemRec, ExtRec, ExtResultRec, FieldKey, FloatGeo, FloatWindowSpec, FrameItem, HelpInfoRec, HoverRec, HoverWaypointRec, InstrumentRec, IroGlobal, IroPicker, IssueRec, LayoutRec, LimitsRec, MenuItemRec, MultiRec, NetworkItem, NodeItem, OpElementRec, ParamSpec, PayloadRec, PerfRowRec, PointerRec, PortSpec, PrefsRec, PreviewNode, ProjectRec, Pt, RailItemRec, ReplayRec, SceneRec, SelectionRec, SimRec, SimStats, SizeRec, SnapshotRec, SpecRec, SpectrumRec, State, StateSpaceRec, TemplateRec, TfBodeRec, TfDataRec, TfMetricsRec, TfStepRec, Ui, UiPrefsRec, ViewRec, WireToolRec } from './app/types.js';
 import { UI_BUILD, PALETTE, GROUP_COLORS, NODE_RADIUS, NODE_W, NODE_H, CHART_KEYS, MAX_IMPORT_BYTES, MAX_FRAMES, INST_COLORS } from './app/constants.js';
+import { $, $$, stage, canvas, ctx, chartCanvas, chartCtx, phaseCanvas, phaseCtx, scopeCanvas, scopeCtx, lissCanvas, lissCtx } from './app/dom.js';
 declare const desc: HTMLElement;
 declare function setStatusHint(hint: string): void;
 
@@ -20,20 +21,6 @@ declare function setStatusHint(hint: string): void;
  */
 (() => {
   'use strict';
-
-  const $ = <T extends Element = HTMLElement>(selector: string, root: ParentNode = document): T => root.querySelector<T>(selector) as T;
-  const $$ = <T extends Element = HTMLElement>(selector: string, root: ParentNode = document): T[] => Array.from(root.querySelectorAll<T>(selector));
-  const stage = $('#stage')!;
-  const canvas = $<HTMLCanvasElement>('#graph')!;
-  const ctx = canvas.getContext('2d')!;
-  const chartCanvas = $<HTMLCanvasElement>('#chart')!;
-  const chartCtx = chartCanvas.getContext('2d')!;
-  const phaseCanvas = $<HTMLCanvasElement>('#phase')!;
-  const phaseCtx = phaseCanvas.getContext('2d')!;
-  const scopeCanvas = $<HTMLCanvasElement>('#scope')!;
-  const scopeCtx = scopeCanvas?.getContext('2d');
-  const lissCanvas = $<HTMLCanvasElement>('#lissajous')!;
-  const lissCtx = lissCanvas?.getContext('2d');
 
 
 

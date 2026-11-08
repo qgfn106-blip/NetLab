@@ -5,6 +5,7 @@ import {
   CHART_PALETTE_CB_LIGHT, CHART_PALETTE_CB_DARK,
 } from './theme.tokens.js';
 import type { AcResultRec, AppearanceRec, BezierRec, BlockItem, BoxRec, CacheEntryRec, CatalogRec, ChartRec, ClipboardRec, ComplexLike, DataHolder, DeclaredItemRec, DegradedItemRec, DegradedRec, DocItem, DragRec, EdgeBodyRec, EdgeItem, ExtItemRec, ExtRec, ExtResultRec, FieldKey, FloatGeo, FloatWindowSpec, FrameItem, HelpInfoRec, HoverRec, HoverWaypointRec, InstrumentRec, IroGlobal, IroPicker, IssueRec, LayoutRec, LimitsRec, MenuItemRec, MultiRec, NetworkItem, NodeItem, OpElementRec, ParamSpec, PayloadRec, PerfRowRec, PointerRec, PortSpec, PrefsRec, PreviewNode, ProjectRec, Pt, RailItemRec, ReplayRec, SceneRec, SelectionRec, SimRec, SimStats, SizeRec, SnapshotRec, SpecRec, SpectrumRec, State, StateSpaceRec, TemplateRec, TfBodeRec, TfDataRec, TfMetricsRec, TfStepRec, Ui, UiPrefsRec, ViewRec, WireToolRec } from './app/types.js';
+import { UI_BUILD, PALETTE, GROUP_COLORS, NODE_RADIUS, NODE_W, NODE_H, CHART_KEYS, MAX_IMPORT_BYTES, MAX_FRAMES, INST_COLORS } from './app/constants.js';
 declare const desc: HTMLElement;
 declare function setStatusHint(hint: string): void;
 
@@ -20,39 +21,8 @@ declare function setStatusHint(hint: string): void;
 (() => {
   'use strict';
 
-
-
-  /* ======================================================================
-   * 0. 常量与小工具
-   * ==================================================================== */
-
-  // 界面版本号：必须与 index.html 的 ?v= 和 netlab/server.py 的 APP_BUILD 一致。
-  // 用来识别「前端文件已更新、后端进程还是旧的」这种只关窗口不重启的情况。
-  const UI_BUILD = '3.20.1';
-
   const $ = <T extends Element = HTMLElement>(selector: string, root: ParentNode = document): T => root.querySelector<T>(selector) as T;
   const $$ = <T extends Element = HTMLElement>(selector: string, root: ParentNode = document): T[] => Array.from(root.querySelectorAll<T>(selector));
-
-  const PALETTE = [
-    '#a8541f', '#1f5f5b', '#2a2621', '#7b8c3a', '#8a4a7c',
-    '#b08a3e', '#4a6f8a', '#8e2f24', '#5f6b52', '#7a4a2a',
-  ];
-  const GROUP_COLORS = {
-    '基础': '#1f5f5b',
-    '动态': '#4f6b40',
-    '高级': '#8a4a7c',
-    '信号': '#a8541f',
-    '电路': '#9a6a1c',
-    '矢量': '#a8541f',
-    '数学': '#4a6f8a',
-  };
-  const NODE_RADIUS = 46;
-  const NODE_W = NODE_RADIUS * 2;
-  const NODE_H = NODE_RADIUS * 2;
-  const CHART_KEYS = 8;
-  const MAX_IMPORT_BYTES = 2_000_000;
-  const MAX_FRAMES = 5000;
-
   const stage = $('#stage')!;
   const canvas = $<HTMLCanvasElement>('#graph')!;
   const ctx = canvas.getContext('2d')!;
@@ -64,7 +34,9 @@ declare function setStatusHint(hint: string): void;
   const scopeCtx = scopeCanvas?.getContext('2d');
   const lissCanvas = $<HTMLCanvasElement>('#lissajous')!;
   const lissCtx = lissCanvas?.getContext('2d');
-  const INST_COLORS = ['#c2542f', '#2f6f9e', '#7a5aa8', '#3f8f6b'];
+
+
+
 
   const ui: Ui = {
     main: $('main'),

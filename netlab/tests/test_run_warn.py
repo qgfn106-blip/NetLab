@@ -4,6 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT.parent / "frontend" / "app.ts"
+CONSTANTS = ROOT.parent / "frontend" / "app" / "constants.ts"
 INDEX = ROOT.parent / "frontend" / "index.html"
 
 
@@ -25,4 +26,5 @@ def test_build_stamp_matches_index_version():
 
     html = INDEX.read_text(encoding="utf-8")
     assert f"?v={APP_BUILD}" in html
-    assert f"UI_BUILD = '{APP_BUILD}'" in APP.read_text(encoding="utf-8")
+    source = APP.read_text(encoding="utf-8") + CONSTANTS.read_text(encoding="utf-8")
+    assert f"UI_BUILD = '{APP_BUILD}'" in source

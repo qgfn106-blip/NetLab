@@ -20,7 +20,7 @@ def test_index_has_analysis_window() -> None:
 
 
 def test_app_calls_solver_analysis_endpoints() -> None:
-    js = _read("app.ts")
+    js = _read("app.ts") + "\n" + _read("app/ac_analysis.ts")
     assert "/api/operating-point" in js
     assert "/api/ac-sweep" in js
     assert "function openAnalysis(" in js
@@ -33,7 +33,7 @@ def test_app_calls_solver_analysis_endpoints() -> None:
 
 def test_ac_probe_defaults_skip_ground() -> None:
     """ground 节点不能作为 AC 探针（后端会报「AC 探针不存在」）。"""
-    js = _read("app.ts")
+    js = _read("app/ac_analysis.ts")
     start = js.index("const probeNames =")
     block = js[start : start + 400]
     assert "node.kind === 'node'" in block

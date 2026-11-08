@@ -19,7 +19,7 @@ function deleteNode(...args) {
 function patchNodeGeometry(...args) {
   hooks.patchNodeGeometry(...args);
 }
-function nodeDiameter(...args) {
+function nodeDiameterHook(...args) {
   return hooks.nodeDiameter(...args);
 }
 function deleteEdge(...args) {
@@ -103,10 +103,10 @@ function renderNodeInspector(node) {
   sizeInput.min = "24";
   sizeInput.max = "200";
   sizeInput.step = "4";
-  sizeInput.value = String(Math.round(isDevice ? Number(node.size?.w) || 120 : nodeDiameter(node)));
+  sizeInput.value = String(Math.round(isDevice ? Number(node.size?.w) || 120 : nodeDiameterHook(node)));
   sizeInput.dataset.role = "node-size";
   sizeInput.addEventListener("change", () => {
-    const value = clamp(Math.round(Number(sizeInput.value) || (isDevice ? Number(node.size?.w) || 120 : nodeDiameter(node))), 24, 200);
+    const value = clamp(Math.round(Number(sizeInput.value) || (isDevice ? Number(node.size?.w) || 120 : nodeDiameterHook(node))), 24, 200);
     sizeInput.value = String(value);
     void patchNodeGeometry(node.id, { size: { w: value } });
   });

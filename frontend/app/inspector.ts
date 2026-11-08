@@ -34,7 +34,7 @@ export function setInspectorActions(actions: InspectorHooks): void {
 
 function deleteNode(...args: Parameters<InspectorHooks['deleteNode']>) { hooks.deleteNode!(...args); }
 function patchNodeGeometry(...args: Parameters<InspectorHooks['patchNodeGeometry']>) { hooks.patchNodeGeometry!(...args); }
-function nodeDiameter(...args: Parameters<InspectorHooks['nodeDiameter']>) { return hooks.nodeDiameter!(...args); }
+function nodeDiameterHook(...args: Parameters<InspectorHooks['nodeDiameter']>) { return hooks.nodeDiameter!(...args); }
 function deleteEdge(...args: Parameters<InspectorHooks['deleteEdge']>) { hooks.deleteEdge!(...args); }
 function patchEdgeGeometry(...args: Parameters<InspectorHooks['patchEdgeGeometry']>) { hooks.patchEdgeGeometry!(...args); }
 function syncUI() { hooks.syncUI!(); }
@@ -107,10 +107,10 @@ export function renderNodeInspector(node: NodeItem) {
     sizeInput.min = '24';
     sizeInput.max = '200';
     sizeInput.step = '4';
-    sizeInput.value = String(Math.round(isDevice ? (Number(node.size?.w) || 120) : nodeDiameter(node)));
+    sizeInput.value = String(Math.round(isDevice ? (Number(node.size?.w) || 120) : nodeDiameterHook(node)));
     sizeInput.dataset.role = 'node-size';
     sizeInput.addEventListener('change', () => {
-      const value = clamp(Math.round(Number(sizeInput.value) || (isDevice ? (Number(node.size?.w) || 120) : nodeDiameter(node))), 24, 200);
+      const value = clamp(Math.round(Number(sizeInput.value) || (isDevice ? (Number(node.size?.w) || 120) : nodeDiameterHook(node))), 24, 200);
       sizeInput.value = String(value);
       void patchNodeGeometry(node.id, { size: { w: value } });
     });

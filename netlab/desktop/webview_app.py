@@ -293,23 +293,7 @@ def main(argv: list[str] | None = None) -> int:
         ]
         return qt_main(legacy)
 
-    try:
-        import webview
-    except Exception as exc:  # pragma: no cover - 依赖桌面环境
-        print("桌面模式需要 pywebview。请先运行：", file=sys.stderr)
-        print("  python -m pip install pywebview", file=sys.stderr)
-        print(f"详细错误：{exc}", file=sys.stderr)
-        return 2
-
     from .server_host import ServerHost
-    from .webview_bridge import WebviewBridge
-
-    # 无边框窗口：拖动区由页面自绘（desktop-shim.js），这里仍保留该设置，
-    # 万一页面垫片没加载，pywebview 的 drag-region 机制还能作为兜底。
-    try:
-        webview.settings["DRAG_REGION_DIRECT_TARGET_ONLY"] = True
-    except Exception:
-        pass
 
     token = None if args.no_token else secrets.token_urlsafe(24)
     bootstrap = None if token is None else secrets.token_urlsafe(24)
@@ -325,13 +309,30 @@ def main(argv: list[str] | None = None) -> int:
 
     url = _session_url(host.url, token, bootstrap)
 
-    try:
-        if args.selftest:
-            report = _check_page(url, base=host.url)
-            print(report, flush=True)
-            ok = bool(report.get("shim_injected")) and report.get("shim_status") == 200
-            return 0 if ok else 1
+    if args.selftest:
+        report = _check_page(url, base=host.url)
+        print(report, flush=True)
+        ok = bool(report.get("shim_injected")) and report.get("shim_status") == 200
+        return 0 if ok else 1
 
+    try:
+        import webview
+    except Exception as exc:  # pragma: no cover - 依赖桌面环境
+        print("桌面模式需要 pywebview。请先运行：", file=sys.stderr)
+        print("  python -m pip install pywebview", file=sys.stderr)
+        print(f"详细错误：{exc}", file=sys.stderr)
+        return 2
+
+    from .webview_bridge import WebviewBridge
+
+    # 无边框窗口：拖动区由页面自绘（desktop-shim.js），这里仍保留该设置，
+    # 万一页面垫片没加载，pywebview 的 drag-region 机制还能作为兜底。
+    try:
+        webview.settings["DRAG_REGION_DIRECT_TARGET_ONLY"] = True
+    except Exception:
+        pass
+
+    try:
         bridge = WebviewBridge(url)
         saved = _load_window_state()
         window = webview.create_window(

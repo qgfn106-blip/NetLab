@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "netlab/frame/1",
+  "title": "Frame",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["t", "values"],
+  "properties": {
+    "t": {"type": "number"},
+    "values": {"type": "object", "additionalProperties": {"type": "number"}},
+    "v": {"const": 1}
+  }
+}

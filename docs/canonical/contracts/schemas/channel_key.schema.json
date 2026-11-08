@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "netlab/channel_key/1",
+  "title": "ChannelKey",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "ident", "field"],
+  "properties": {
+    "kind": {"enum": ["n", "e", "state"]},
+    "ident": {"type": "string", "minLength": 1, "maxLength": 128},
+    "field": {"type": "string", "minLength": 1, "maxLength": 128},
+    "v": {"const": 1}
+  }
+}

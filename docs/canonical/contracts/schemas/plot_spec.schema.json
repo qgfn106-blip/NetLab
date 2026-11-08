@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "netlab/plot_spec/0.1",
+  "title": "PlotSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["spec_version", "figure", "layers"],
+  "properties": {
+    "spec_version": {"const": "0.1"},
+    "figure": {"type": "object"},
+    "layers": {"type": "array"}
+  }
+}

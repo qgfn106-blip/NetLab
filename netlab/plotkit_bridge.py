@@ -124,88 +124,65 @@ def probe() -> dict[str, Any]:
     }
 
 
-def _plotkit_src_candidates() -> list[Path]:
-    """PlotKit 源码目录的几个可能位置（同仓库并列布局优先）。"""
-    here = Path(__file__).resolve()
-    return [
-        here.parents[2] / "PlotKit" / "src",  # ProjectPoint/PlotKit/src
-        here.parents[1] / "PlotKit" / "src",  # NetlabHome/PlotKit/src
-        here.parents[3] / "PlotKit" / "src",  # 更外层
-    ]
+def _load_development_source(src: Path) -> None:
+    """从显式开发目录加载 ``plotkit``（仅开发用；绝不修改 ``sys.path``）。
+
+    用 ``importlib.util.spec_from_file_location`` 建立包，子模块通过包的
+    ``__path__`` 解析，因此不需要把源码目录塞进 ``sys.path``。
+    """
+    package_dir = src / "plotkit"
+    init = package_dir / "__init__.py"
+    if not init.is_file():
+        raise FileNotFoundError(f"{src} 下没有 plotkit/__init__.py")
+    spec = importlib.util.spec_from_file_location(
+        "plotkit", init, submodule_search_locations=[str(package_dir)]
+    )
+    if spec is None or spec.loader is None:  # pragma: no cover - 解释器异常
+        raise ImportError(f"无法为 {init} 创建 import spec")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["plotkit"] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        sys.modules.pop("plotkit", None)
+        raise
 
 
 def ensure_plotkit_importable() -> bool:
-    """确保 ``import plotkit`` 可用。
+    """确保 ``import plotkit`` 可用（C-4 / D154：只剩两级来源）。
 
-    优先级：已导入 → ``NETLAB_PLOTKIT_SRC``（显式指定源码）→ 插件内副本
-    ``extensions/plugins/netlab.plotkit/plotkit`` → 内置副本
-    ``netlab/_vendor/plotkit`` → 已安装的 wheel → 同仓库 ``PlotKit/src``。
-    插件内副本优先于宿主内置副本，便于把 PlotKit 作为独立插件升级；插件包
-    完全不存在时（旧安装）仍回退到宿主内置副本，保证兼容。
+    1. 已安装的包（``pip install plotkit``，正常运行与 CI 的唯一来源）；
+    2. ``NETLAB_PLOTKIT_SRC`` 指定的开发源码目录（仅开发/调试用，用 importlib
+       直接加载，不写 ``sys.path``）。
+
+    不再有任何内置副本 / 插件副本 / 同仓库相对路径的隐式回退；找不到时返回
+    False，并通过 :func:`last_error` 给出可读原因。
     """
     global _LAST_ERROR
     if "plotkit" in sys.modules:
         return True
-    override = (os.environ.get("NETLAB_PLOTKIT_SRC") or "").strip()
-    plugin_vendored = PLUGIN_DIR
-    vendored = None
-    try:  # 内置副本（netlab/_vendor/plotkit）：装好 netlab 就带着 PlotKit
-        from . import plotkit_vendor
-
-        vendored = plotkit_vendor.vendor_path()
-    except Exception:
-        vendored = None
-    prioritized: list[tuple[Path, str]] = []
-    if override:
-        prioritized.append((Path(override), "NETLAB_PLOTKIT_SRC"))
-    if (plugin_vendored / "plotkit" / "__init__.py").is_file():
-        prioritized.append((plugin_vendored, "插件副本"))
-    if vendored is not None:
-        prioritized.append((vendored, "内置副本"))
-    errors: list[str] = []
-    for path, label in prioritized:
-        entry = str(path)
-        inserted = entry not in sys.path
-        if inserted:
-            sys.path.insert(0, entry)
-        try:
-            if (path / "plotkit" / "__init__.py").is_file():
-                importlib.invalidate_caches()
-                importlib.import_module("plotkit")
-                LOGGER.info("PlotKit 使用%s %s", label, entry)
-                return True
-        except Exception as exc:  # 记下原因，继续退回其它来源
-            errors.append(f"{path}: {exc}")
-            LOGGER.debug("从 %s 加载 PlotKit 失败", path, exc_info=True)
-        finally:
-            if inserted and "plotkit" not in sys.modules and entry in sys.path:
-                sys.path.remove(entry)
-    # 已安装的 wheel（没有内置副本时的常规路径）
     try:
         importlib.import_module("plotkit")
         LOGGER.info("PlotKit 使用已安装的包")
         return True
-    except Exception:
-        pass
-    for path in _plotkit_src_candidates():
-        entry = str(path)
-        inserted = entry not in sys.path
-        if inserted:
-            sys.path.insert(0, entry)
+    except Exception as exc:
+        installed_error = f"{type(exc).__name__}: {exc}"
+    override = (os.environ.get("NETLAB_PLOTKIT_SRC") or "").strip()
+    if override:
+        src = Path(override)
         try:
-            if (path / "plotkit" / "__init__.py").is_file():
-                importlib.invalidate_caches()
-                importlib.import_module("plotkit")
-                LOGGER.info("PlotKit 使用源码目录 %s", entry)
-                return True
+            _load_development_source(src)
+            LOGGER.info("PlotKit 使用开发源码 %s", src)
+            return True
         except Exception as exc:
-            errors.append(f"{path}: {exc}")
-            LOGGER.debug("从 %s 加载 PlotKit 失败", path, exc_info=True)
-        finally:
-            if inserted and "plotkit" not in sys.modules and entry in sys.path:
-                sys.path.remove(entry)
-    _LAST_ERROR = "找不到可导入的 plotkit；候选：" + "; ".join(
-        errors or [str(p) for p in _plotkit_src_candidates()]
+            _LAST_ERROR = (
+                f"NETLAB_PLOTKIT_SRC={src} 加载失败：{type(exc).__name__}: {exc}"
+            )
+            return False
+    _LAST_ERROR = (
+        "PlotKit 未安装（"
+        + installed_error
+        + "）；请 pip install 'plotkit>=0.2,<0.3'，或设置 NETLAB_PLOTKIT_SRC 指向开发源码"
     )
     return False
 
@@ -640,21 +617,13 @@ def diagnose() -> dict[str, Any]:
         "plugin_path": str(PLUGIN_DIR),
     }
     try:
-        from . import plotkit_vendor
-
-        vendor = plotkit_vendor.vendor_path()
-        info["vendor"] = str(vendor)
-        info["vendor_exists"] = (vendor / "plotkit" / "__init__.py").is_file()
-    except Exception as exc:
-        info["vendor"] = None
-        info["vendor_exists"] = False
-        info["vendor_error"] = str(exc)
-    try:
         spec = importlib.util.find_spec("plotkit")
         info["plotkit_module"] = getattr(spec, "origin", None) if spec else None
     except Exception:
         info["plotkit_module"] = None
-    info["candidates"] = [str(p) for p in _plotkit_src_candidates()]
+    override = (os.environ.get("NETLAB_PLOTKIT_SRC") or "").strip()
+    info["development_source"] = override or None
+    info["probe"] = probe()
     info["last_error"] = _LAST_ERROR
     info["active"] = _ACTIVE.is_set()
     return info

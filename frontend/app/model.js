@@ -88,8 +88,12 @@ function edgeDisplayData(edge) {
   }
   return merged;
 }
+function appearanceOf(item) {
+  return item.appearance || {};
+}
 export {
   activeTab,
+  appearanceOf,
   displayDataFor,
   edgeById,
   edgeByName,

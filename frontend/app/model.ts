@@ -3,7 +3,7 @@ import { fmt } from '../app.utils.js';
 import { $ } from './dom.js';
 import { clone } from './ui.js';
 import { state } from './state.js';
-import type { DataHolder, EdgeItem, NodeItem, SpecRec } from './types.js';
+import type { AppearanceRec, DataHolder, EdgeItem, NodeItem, SpecRec } from './types.js';
 
   export function activeTab(): string {
     const group = $('.panel-group.active')?.dataset.group || 'inspect';
@@ -112,3 +112,7 @@ import type { DataHolder, EdgeItem, NodeItem, SpecRec } from './types.js';
    * 3. 画布尺寸、视图变换与渲染
    * ==================================================================== */
 
+
+export function appearanceOf(item: { appearance?: AppearanceRec }): AppearanceRec {
+  return item.appearance || {};
+}

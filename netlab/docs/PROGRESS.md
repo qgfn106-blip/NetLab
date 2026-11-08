@@ -2644,3 +2644,11 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
   `PROGRESS.md` 删除本机代理端口。
 - 新增 `netlab/tests/test_docs_privacy.py`：对 `git ls-files` 跟踪的 `.md/.txt/.rst`
   扫描本机路径、私有代理端口、记忆库路径，零命中才通过。
+
+## §7.129 G2 数值对照层 A/B/D/F（2026-11-09）
+
+- 规格：`netlab/docs/specs/2026-11-09-g2-numerical-evals.md`；问题定义 `docs/canonical/problems/P-RC-01.yaml`、`P-RLC-01.yaml`（独立解析解，禁止自家对拍）。
+- 新增 `netlab/tests/evals/`：层 A RC/RLC 解析解；层 B LC 能量守恒（200 步漂移 <1e-6）；层 D dt 减半实测阶；层 F `Resistor.stamp` 5% 变异必须被解析解门杀死。
+- 层 D 实测 RC 阶 **1.012/1.006**，与声明 2 阶不符：以 `xfail(strict=True)` 显式登记审计 §3.2 的源步末采样降阶，禁止静默通过。
+- `tools/bench_solver.py` 输出 `reports/bench.jsonl`（err_abs/err_rel/observed_order/wall_ms/peak_mb；residual 暂为 null，待 G2 后续轮补 KCL 残差）。
+- 门禁：全量 **779 passed / 1 skipped / 1 xfailed**；架构 A1/A2/A3/A6 OK（baseline 3 环）；契约生成 `--check` OK；前端 typecheck/build/parity/check:sections 全绿。

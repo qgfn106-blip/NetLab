@@ -56,5 +56,14 @@ jobs:
           PYTHONPATH: .
         run: >
           pytest netlab/tests -q
-          --cov=netlab/core --cov-branch --cov-fail-under=78
+          --cov=netlab/core --cov-branch --cov-fail-under=80
           --cov-report=term-missing:skip-covered
+          --cov-report=json:coverage.json
+
+      # D-1：变更行覆盖率。push 用 github.event.before，PR 用 base.sha；
+      # 脚本内部取 merge-base，非可执行新增行（注释/空行）不计入分母。
+      - name: Changed-line coverage (D-1)
+        env:
+          PYTHONPATH: .
+          DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python tools/diff_coverage.py --coverage coverage.json --base "$DIFF_BASE" --threshold 80

@@ -12,7 +12,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from .nodal import CircuitElement, StampContext, _stamp_conductance, _stamp_current
+from .circuit.elements import CircuitElement
+from .circuit.stamps import StampContext, _stamp_conductance, _stamp_current
 from .params import ParamSpec, float_param
 
 

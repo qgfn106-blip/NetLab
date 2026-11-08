@@ -4,6 +4,16 @@ All notable changes to Netlab are recorded here. The format follows
 Keep a Changelog, and versions follow the package metadata in
 `netlab/__init__.py`.
 
+## Unreleased
+
+### Changed
+
+- D-2 / N-21: version now has a single source (`netlab/__init__.py`).
+  `frontend/index.html` uses the `__NETLAB_VERSION__` placeholder, filled at
+  response time; `UI_BUILD` is injected by the esbuild build script.
+- D-2 / N-20: added `requirements.lock` generated from a clean editable
+  install, plus a `tools/check_version.py` CI guard.
+
 ## 3.20.1 — 2026-11-08
 
 ### Added

@@ -33,6 +33,9 @@ jobs:
           pip install -r requirements-dev.txt
           pip install ../.plotkit-src
 
+      - name: Version single source (D-2)
+        run: python tools/check_version.py
+
       - name: Prepare sample projects for regression tests
         run: |
           mkdir -p MyProject

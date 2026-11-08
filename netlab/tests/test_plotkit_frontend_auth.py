@@ -11,10 +11,11 @@ from netlab.server import SERVICE, app
 ROOT = Path(__file__).resolve().parents[1]
 APP_JS = ROOT.parent / "frontend" / "app.ts"
 APP_NET = ROOT.parent / "frontend" / "app" / "net.ts"
+APP_PLOTKIT_DATA = ROOT.parent / "frontend" / "app" / "plotkit_data.ts"
 
 
 def test_plotkit_frontend_uses_token_aware_api_helper():
-    source = APP_JS.read_text(encoding="utf-8") + "\n" + APP_NET.read_text(encoding="utf-8")
+    source = APP_JS.read_text(encoding="utf-8") + "\n" + APP_NET.read_text(encoding="utf-8") + "\n" + APP_PLOTKIT_DATA.read_text(encoding="utf-8")
     assert "async function api(path: string, options: ApiOptions = {})" in source
     assert "if (DESKTOP_TOKEN) headers['X-Netlab-Token'] = DESKTOP_TOKEN;" in source
     assert "探针列表加载失败：${text}" in source
@@ -41,12 +42,12 @@ def test_run_warning_precompute_uses_token_aware_helper():
 
 
 def test_retry_does_not_report_ready_when_channel_refresh_fails():
-    source = APP_JS.read_text(encoding="utf-8")
+    source = APP_PLOTKIT_DATA.read_text(encoding="utf-8")
     refresh_start = source.index(
-        "  async function refreshPkChannels(keepSelection?: boolean)"
+        "async function refreshPkChannels(keepSelection?: boolean)"
     )
-    retry_start = source.index("  async function retryPlotkit()", refresh_start)
-    frame_start = source.index("  function reloadPlotkitFrame()", retry_start)
+    retry_start = source.index("async function retryPlotkit()", refresh_start)
+    frame_start = source.index("function reloadPlotkitFrame()", retry_start)
     refresh = source[refresh_start:retry_start]
     retry = source[retry_start:frame_start]
 
@@ -79,7 +80,7 @@ def test_precompute_degradation_is_surfaced_in_both_call_sites():
     2026-11-03：预计算曾经把任何 dt 抬成 seconds/2000，前端也只显示帧数；
     现在后端会回 requested_dt / dt_used / degraded，两个调用点都要显示它。
     """
-    source = APP_JS.read_text(encoding="utf-8")
+    source = APP_PLOTKIT_DATA.read_text(encoding="utf-8")
     assert source.count("pre.degraded") >= 2
     assert "20 万步上限" in source
     assert "预计算已降级步长" in source

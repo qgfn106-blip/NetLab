@@ -53,3 +53,6 @@ dist/
 # 工程迁移备份文件不入库（W4，2026-11-08）：.netlab 压缩迁移前的原始纯文本备份
 *.netlab.bak-*
 *.netlab.bak
+
+# G1 架构/契约生成报告
+reports/

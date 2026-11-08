@@ -47,6 +47,12 @@ jobs:
       - name: Version single source (D-2)
         run: python tools/check_version.py
 
+      - name: Architecture contracts (G1)
+        run: python tools/check_architecture.py --json reports/architecture.json
+
+      - name: Contract artifacts in sync (C1/C2)
+        run: python tools/gen_contracts.py --check
+
       - name: Prepare sample projects for regression tests
         run: |
           mkdir -p MyProject

@@ -12,7 +12,8 @@ import { api, jsonRequest, plotkitFrameUrl } from "./app/net.js";
 import { openCacheDialog, checkCacheQuietly } from "./app/cache.js";
 import { placeFloatWindow, placeDocWindow, raiseFloatWindow, initFloatWindow } from "./app/float.js";
 import { chartPalette, themeKey } from "./app/theme.js";
-import { hexToRgb, hexToRgbString, mixHex } from "./app/color.js";
+import { hexToRgbString, mixHex } from "./app/color.js";
+import { THEME_TOKENS, C, tokens, setRuntimeOverride } from "./app/colors.js";
 import { kindListFor, numberedField, trimNumber } from "./app/fields.js";
 import { buildParamField, collectParamValues, setTypeLabelHelp } from "./app/param_fields.js";
 import { hideHelpCard, showHelpCard, typeLabelHelp, paramRangeText, setSwitchTab } from "./app/help_card.js";
@@ -9450,21 +9451,6 @@ import { analysisSignalKey, runAnalysisMetrics, runAnalysisSpectrum, runAnalysis
     worldToScreen,
     screenToWorld
   };
-  const THEME_TOKENS = { light: CANVAS_LIGHT, dark: CANVAS_DARK };
-  const COLOR_ALIAS = {
-    "#a8541f": "accent",
-    "#1f5f5b": "accent2",
-    "#6f695f": "muted",
-    "#969083": "dim",
-    "#11100e": "ink",
-    "#faf8f2": "panel",
-    "#f7f4ec": "paper",
-    "#fffdf8": "surface",
-    "#f2efe7": "paper",
-    "#bcb3a1": "line",
-    "#cfc6b5": "gridAxis",
-    "#e7e1d5": "paper3"
-  };
   const ACCENT_SWATCHES = ["", "#9b7247", "#565c46", "#3f5d6b", "#8a4234", "#6b6257", "#7a5a33", "#5f7a52"];
   const PREF_CACHE_KEY = "netlab.ui.prefs";
   const PREF_DEFAULTS = {
@@ -9484,7 +9470,6 @@ import { analysisSignalKey, runAnalysisMetrics, runAnalysisSpectrum, runAnalysis
   const RADIUS_STEPS = [0, 2, 4];
   const LINE_STEPS = [1, 1.5];
   const CHART_MODES = ["theme", "high-contrast", "colorblind"];
-  let RT_OVERRIDE = {};
   function activeAccent(theme, pal) {
     const pref = state.prefs || {};
     const custom = theme === "dark" ? pref.accentDark : pref.accent;
@@ -9511,31 +9496,6 @@ import { analysisSignalKey, runAnalysisMetrics, runAnalysisSpectrum, runAnalysis
     }
     return override;
   }
-  function tokens() {
-    const base = THEME_TOKENS[themeKey()];
-    return RT_OVERRIDE && Object.keys(RT_OVERRIDE).length ? { ...base, ...RT_OVERRIDE } : base;
-  }
-  const LEGACY_RGB = {
-    "168,84,31": "accent",
-    "31,95,91": "accent2",
-    "142,47,36": "red",
-    "79,107,64": "green",
-    "176,118,42": "amber"
-  };
-  function C(value) {
-    const raw = String(value || "").trim();
-    const legacy = raw.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([0-9.]+))?\s*\)$/i);
-    if (legacy) {
-      const target = LEGACY_RGB[`${legacy[1]},${legacy[2]},${legacy[3]}`];
-      const hex = target ? tokens()[target] : "";
-      const rgb = hex ? hexToRgb(hex) : null;
-      if (rgb) return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${legacy[4] ?? 1})`;
-    }
-    const token = COLOR_ALIAS[raw.toLowerCase()];
-    if (token) return tokens()[token];
-    if (themeKey() === "dark") return mixHex(raw, "#e0e3dc", 0.42);
-    return raw;
-  }
   function applyAppearance() {
     const root = document.documentElement;
     const pref = state.prefs || {};
@@ -9554,16 +9514,17 @@ import { analysisSignalKey, runAnalysisMetrics, runAnalysisSpectrum, runAnalysis
     const radius = RADIUS_STEPS.includes(Number(pref.radius)) ? Number(pref.radius) : PREF_DEFAULTS.radius;
     root.style.setProperty("--radius", `${radius}px`);
     const pal = THEME_TOKENS[theme];
-    RT_OVERRIDE = computeRuntimeOverride(theme);
-    const accent = RT_OVERRIDE.accent || pal.accent;
+    const override = computeRuntimeOverride(theme);
+    setRuntimeOverride(override);
+    const accent = override.accent || pal.accent;
     root.style.setProperty("--accent", accent);
     root.style.setProperty("--accent-rgb", hexToRgbString(accent));
-    root.style.setProperty("--accent-soft", RT_OVERRIDE.accentSoft || mixHex(pal.paper, accent, 0.28));
+    root.style.setProperty("--accent-soft", override.accentSoft || mixHex(pal.paper, accent, 0.28));
     root.style.setProperty("--accent-2", pal.accent2);
     root.style.setProperty("--green", pal.green);
-    root.style.setProperty("--paper", RT_OVERRIDE.paper || pal.paper);
-    root.style.setProperty("--paper-2", RT_OVERRIDE.panel || pal.panel);
-    root.style.setProperty("--paper-3", RT_OVERRIDE.surface || pal.surface);
+    root.style.setProperty("--paper", override.paper || pal.paper);
+    root.style.setProperty("--paper-2", override.panel || pal.panel);
+    root.style.setProperty("--paper-3", override.surface || pal.surface);
     state.palette = pal;
     if (ui.infoBar) ui.infoBar.style.display = pref.infobar === false ? "none" : "";
     syncPrefControls();

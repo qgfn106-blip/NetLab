@@ -16,6 +16,7 @@ import { openCacheDialog, checkCacheQuietly } from './app/cache.js';
 import { placeFloatWindow, placeDocWindow, raiseFloatWindow, toggleFloatMaximize, initFloatWindow } from './app/float.js';
 import { CHART_PALETTE, chartPalette, themeKey } from './app/theme.js';
 import { hexToRgb, hexToRgbString, mixHex } from './app/color.js';
+import { THEME_TOKENS, C, tokens, setRuntimeOverride } from './app/colors.js';
 import { formatAny, valueToText, parseSmartValue, kindListFor, buildKindSelect, numberedField, UNIT_PREFIXES, PREFIXABLE_UNITS, unitStorageKey, savedUnitFactor, bestUnitFactor, trimNumber } from './app/fields.js';
 import { buildParamField, applyPresetOnModelChange, applyWaveFieldVisibility, buildWaveFieldVisibility, buildParamFields, collectParamValues, dataRow, collectData, markDirty, clearDirty, setTypeLabelHelp } from './app/param_fields.js';
 import { hideHelpCard, showHelpCard, typeLabelHelp, paramRangeText, setSwitchTab } from './app/help_card.js';
@@ -10282,21 +10283,14 @@ declare function setStatusHint(hint: string): void;
 
   // P-A1：外观令牌唯一来源见 frontend/theme.tokens.ts（画布调色板旧值快照 CANVAS_LIGHT/CANVAS_DARK）。
   // 此处仅引用同源数据，不再重复字面量；C() 行为不变。
-  const THEME_TOKENS = { light: CANVAS_LIGHT, dark: CANVAS_DARK };
-
-  const COLOR_ALIAS = {
-    '#a8541f': 'accent', '#1f5f5b': 'accent2', '#6f695f': 'muted', '#969083': 'dim',
-    '#11100e': 'ink', '#faf8f2': 'panel', '#f7f4ec': 'paper', '#fffdf8': 'surface',
-    '#f2efe7': 'paper', '#bcb3a1': 'line', '#cfc6b5': 'gridAxis', '#e7e1d5': 'paper3',
-  };
 
   const ACCENT_SWATCHES = ['', '#9b7247', '#565c46', '#3f5d6b', '#8a4234', '#6b6257', '#7a5a33', '#5f7a52'];
   const PREF_CACHE_KEY = 'netlab.ui.prefs';
 
   /* ---- P-A4 外观面板：默认值、档位枚举与运行期覆盖层 ----
    * 单一来源原则：默认令牌仍只来自 theme.tokens.ts；本层仅保存「用户可调项」的偏好，
-   * 由 applyAppearance() 计算出一张精简的 RT_OVERRIDE（只含与默认不同的键），
-   * tokens() 返回 {...基础令牌, ...RT_OVERRIDE}，从而同一份覆盖同时驱动 DOM(--accent…) 与画布取色。 */
+   * 由 applyAppearance() 计算出一张精简的运行期覆盖（只含与默认不同的键），
+   * tokens() 返回 {...基础令牌, ...运行期覆盖}，从而同一份覆盖同时驱动 DOM(--accent…) 与画布取色。 */
   interface AppearanceDefaults {
     theme: string; motion: string; perf: string; accent: string; accentDark: string;
     fontScale: number; density: string; surfaceTone: number; radius: number;
@@ -10313,7 +10307,6 @@ declare function setStatusHint(hint: string): void;
   const CHART_MODES = ['theme', 'high-contrast', 'colorblind'];
 
   // 运行期令牌覆盖表：默认空（=与静态令牌完全一致）；applyAppearance 按需填充。
-  let RT_OVERRIDE: Record<string, string> = {};
 
   // 当前主题实际生效的强调色（浅色读 accent，深色读 accentDark，各自记忆）。
   function activeAccent(theme: string, pal: Record<string, string>): string {
@@ -10322,7 +10315,7 @@ declare function setStatusHint(hint: string): void;
     return (typeof custom === 'string' && custom) ? custom : pal.accent;
   }
 
-  // 计算 RT_OVERRIDE：只记录与默认不同的键（强调色 / 明暗强度微调）。
+  // 计算运行期覆盖：只记录与默认不同的键（强调色 / 明暗强度微调）。
   function computeRuntimeOverride(theme: 'light' | 'dark'): Record<string, string> {
     const base = THEME_TOKENS[theme] as Record<string, string>;
     const pref = state.prefs || {};
@@ -10345,36 +10338,6 @@ declare function setStatusHint(hint: string): void;
     return override;
   }
 
-  function tokens(): Record<string, string> {
-    const base = THEME_TOKENS[themeKey()] as Record<string, string>;
-    // P-A4：叠加运行期覆盖（仅当存在覆盖时才展开，默认零开销、零差异）。
-    return RT_OVERRIDE && Object.keys(RT_OVERRIDE).length ? { ...base, ...RT_OVERRIDE } : base;
-  }
-
-
-  // 画布取色：把旧版硬编码色映射到当前主题令牌；未知色在深色下向纸面文字方向提亮。
-  const LEGACY_RGB = {
-    '168,84,31': 'accent',
-    '31,95,91': 'accent2',
-    '142,47,36': 'red',
-    '79,107,64': 'green',
-    '176,118,42': 'amber',
-  };
-
-  function C(value: string) {
-    const raw = String(value || '').trim();
-    const legacy = raw.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([0-9.]+))?\s*\)$/i);
-    if (legacy) {
-      const target = LEGACY_RGB[`${legacy[1]},${legacy[2]},${legacy[3]}` as keyof typeof LEGACY_RGB];
-      const hex = target ? (tokens() as Record<string, string>)[target] : '';
-      const rgb = hex ? (hexToRgb(hex) as number[] & { r: number; g: number; b: number }) : null;
-      if (rgb) return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${legacy[4] ?? 1})`;
-    }
-    const token = COLOR_ALIAS[raw.toLowerCase() as keyof typeof COLOR_ALIAS];
-    if (token) return (tokens() as Record<string, string>)[token];
-    if (themeKey() === 'dark') return mixHex(raw, '#e0e3dc', 0.42);
-    return raw;
-  }
 
   function applyAppearance() {
     const root = document.documentElement;
@@ -10400,17 +10363,18 @@ declare function setStatusHint(hint: string): void;
 
     // 运行期覆盖层（强调色 / 明暗微调）：同步写入画布 token 与 DOM CSS 变量
     const pal = THEME_TOKENS[theme] as Record<string, string>;
-    RT_OVERRIDE = computeRuntimeOverride(theme);
-    const accent = RT_OVERRIDE.accent || pal.accent;
+    const override = computeRuntimeOverride(theme);
+    setRuntimeOverride(override);
+    const accent = override.accent || pal.accent;
     root.style.setProperty('--accent', accent);
     root.style.setProperty('--accent-rgb', hexToRgbString(accent));
-    root.style.setProperty('--accent-soft', RT_OVERRIDE.accentSoft || mixHex(pal.paper, accent, 0.28));
+    root.style.setProperty('--accent-soft', override.accentSoft || mixHex(pal.paper, accent, 0.28));
     root.style.setProperty('--accent-2', pal.accent2);
     root.style.setProperty('--green', pal.green);
     // 5) 明暗强度微调：纸面(paper) / 表面(paper-2↔panel, paper-3↔surface)；默认值=基础令牌值，无变化
-    root.style.setProperty('--paper', RT_OVERRIDE.paper || pal.paper);
-    root.style.setProperty('--paper-2', RT_OVERRIDE.panel || pal.panel);
-    root.style.setProperty('--paper-3', RT_OVERRIDE.surface || pal.surface);
+    root.style.setProperty('--paper', override.paper || pal.paper);
+    root.style.setProperty('--paper-2', override.panel || pal.panel);
+    root.style.setProperty('--paper-3', override.surface || pal.surface);
 
     state.palette = pal;
     if (ui.infoBar) ui.infoBar.style.display = pref.infobar === false ? 'none' : '';

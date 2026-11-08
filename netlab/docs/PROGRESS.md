@@ -2666,4 +2666,4 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 修复：`CircuitSolver._initialize_reactive_currents()` 在首个梯形步前做一次 BE 预测步（不推进时间），用预测电压反算 `i(0+) = C·(v_pred−v_prev)/dt`；主步仍按梯形积分。`_source_value()` 对梯形法取步首/步末平均。
 - 收敛阶：RC 阶跃实测 **1.980/1.990/1.995**（P3 前 1.01），`test_convergence.py` 改为断言 2 阶；`test_numerical_benchmarks.py` 原误标 backward_euler 的用例更名 trapezoidal 并断言 p≈2。
 - 牛顿真残差：`_true_residual()` 在解处重新盖章计算 F(x*)=Ax*−b(x*)，非线性收敛判据不再使用上一次线性化的后向误差。
-- 门禁：全量 **791 passed / 1 skipped**；core 覆盖率 **81.44%**（门限 81）；改动行覆盖 **41/50 = 82.0%**。
+- 门禁：全量 **791 passed / 1 skipped**；core 覆盖率 **81.44%**（门限 81）；改动行覆盖 **41/50 = 82.0%**。CI python-tests `42524401708` success、frontend `42524401679` success（HEAD 8856e75）。

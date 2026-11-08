@@ -79,7 +79,6 @@ def test_no_compatibility_shims_left():
         "server.py",
         "run.py",
         "plotkit_bridge.py",
-        "plotkit_vendor.py",
         "vscode_bridge.py",
         "cache_guard.py",
     }

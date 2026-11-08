@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from .contracts import PLOTKIT_MAX_EXCLUSIVE, PLOTKIT_MIN
 from .core.model.channels import ChannelKey
 
 LOGGER = logging.getLogger(__name__)
@@ -73,10 +74,6 @@ def plugin_enabled() -> bool:
     return PLUGIN_ID not in set(map(str, payload.get("disabled") or []))
 
 
-#: PlotKit 兼容版本区间（与 pyproject 声明的 ``plotkit>=0.2,<0.3`` 保持一致）
-PLOTKIT_MIN = (0, 2)
-PLOTKIT_MAX_EXCLUSIVE = (0, 3)
-
 
 def _version_tuple(version: str) -> tuple[int, ...]:
     parts: list[int] = []
@@ -117,7 +114,7 @@ def probe() -> dict[str, Any]:
                 "version": version,
                 "detail": f"PlotKit probe 失败：{exc}",
             }
-    if PLOTKIT_MIN <= _version_tuple(version)[:2] < PLOTKIT_MAX_EXCLUSIVE:
+    if PLOTKIT_MIN <= _version_tuple(version) < PLOTKIT_MAX_EXCLUSIVE:
         return {"state": "available", "version": version, "detail": ""}
     return {
         "state": "incompatible",
@@ -638,12 +635,9 @@ def remount(app: Any | None = None, service: Any | None = None) -> bool:
     if _STATE.get("figure") is not None:
         return True
     if app is None:
-        try:
-            import netlab.server as _srv
-
-            app = _srv.app
-        except Exception:
-            return False
+        # 不反向 import netlab.server（A2 无环）；调用方必须显式传入 app。
+        LOGGER.info("PlotKit remount 缺少 app，跳过")
+        return False
     return mount(app, service)
 
 
@@ -664,9 +658,11 @@ def mount(app: Any, service: Any | None = None) -> bool:
             LOGGER.info("未安装 plotkit，跳过 /plotkit 子应用", exc_info=True)
             return False
         try:
-            from .server import SERVICE
-
-            target = service if service is not None else SERVICE
+            target = service if service is not None else _STATE.get("service")
+            if target is None:
+                LOGGER.info("PlotKit 挂载缺少 service，跳过")
+                return False
+            _STATE["service"] = target
             figure = build_figure(target)
             sub_app = pk.PlotRenderPort(
                 figure, title="Netlab · PlotKit", layout_path=None

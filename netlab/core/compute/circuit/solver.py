@@ -113,7 +113,6 @@ from .catalog import (
     create_element_from_pins,
     element_catalog,
     element_spec,
-    node_catalog,
 )
 
 
@@ -1170,3 +1169,52 @@ def integration_methods() -> list[dict[str, str]]:
     ]
 
 
+def node_catalog() -> list[dict[str, Any]]:
+    """电路模式的节点类型。
+
+    和元素规格一样返回「公式 + 真实源码 + 源码路径」，前端规格页才能对
+    电路节点给出与实现一致的说明，而不是空白。
+    """
+    from ..introspection import safe_source, source_path
+
+    entries: list[dict[str, Any]] = [
+        {
+            "kind": "node",
+            "label": "电学节点",
+            "group": "电路节点",
+            "description": "一个等电位节点，数据中保存 voltage。",
+            "outputs": ["voltage"],
+            "notes": "节点本身没有独立算式：它的电压由整张 MNA 方程一起解出。",
+            "formula": (
+                "MNA：对每个非接地节点 Σ 注入电流 = 0 → G·V = I；\n"
+                "解出后把 V_i 写回 data.voltage（非线性元件走 Newton 迭代）"
+            ),
+            "target": CircuitSolver.step,
+        },
+        {
+            "kind": "ground",
+            "label": "接地",
+            "group": "电路节点",
+            "description": "参考节点（0 V）。每个电路至少需要一个接地节点。",
+            "outputs": [],
+            "notes": "接地节点不进入未知量集合，作为矩阵的参考电位。",
+            "formula": "V_ground ≡ 0（参考电位）；未知量只包含非接地节点",
+            "target": CircuitSolver._build_index,
+        },
+    ]
+    result: list[dict[str, Any]] = []
+    for entry in entries:
+        target = entry.pop("target")
+        result.append(
+            {
+                **entry,
+                "mode": "circuit",
+                "editable": False,
+                "builtin": True,
+                "addable": True,
+                "params": [],
+                "source": safe_source(target),
+                "source_path": source_path(target),
+            }
+        )
+    return result

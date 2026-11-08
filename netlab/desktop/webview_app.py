@@ -173,14 +173,23 @@ def _rss_tree() -> float | None:
         return None
 
 
-def _check_page(url: str) -> dict:
+def _session_url(base: str, token: str | None, bootstrap: str | None) -> str:
+    """C-5：token 不进 URL 查询串；外壳只打开一次性 nonce 路径。"""
+    if not token:
+        return base
+    if not bootstrap:
+        raise ValueError("桌面会话缺少 bootstrap nonce")
+    return base + "__desktop_session__/" + bootstrap
+
+
+def _check_page(url: str, *, base: str | None = None) -> dict:
     """自检：页面可达、垫片已注入、静态资源可取。"""
     report: dict[str, object] = {"url": url}
     with urllib.request.urlopen(url, timeout=15) as response:
         html = response.read().decode("utf-8", "replace")
         report["status"] = response.status
     report["shim_injected"] = "desktop-shim.js" in html
-    shim_url = url.split("?")[0].rstrip("/") + "/static/desktop-shim.js"
+    shim_url = (base or url).split("?")[0].rstrip("/") + "/static/desktop-shim.js"
     with urllib.request.urlopen(shim_url, timeout=15) as response:
         report["shim_status"] = response.status
     return report
@@ -272,6 +281,9 @@ def main(argv: list[str] | None = None) -> int:
     t_start = _time.perf_counter()
     args = parse_args(argv)
     _fix_console()
+    if args.no_token and os.environ.get("NETLAB_DEBUG") != "1":
+        print("--no-token 只允许在 NETLAB_DEBUG=1 的调试构建中使用", file=sys.stderr)
+        return 2
 
     if args.qt:
         from .app import main as qt_main
@@ -300,21 +312,22 @@ def main(argv: list[str] | None = None) -> int:
         pass
 
     token = None if args.no_token else secrets.token_urlsafe(24)
+    bootstrap = None if token is None else secrets.token_urlsafe(24)
     # 服务端据此在 index.html 注入桌面垫片；浏览器访问时不存在该变量。
     os.environ["NETLAB_DESKTOP_SHELL"] = "pywebview"
 
     host = ServerHost(port=args.port or None)
     try:
-        host.start(token=token, log_level="warning")
+        host.start(token=token, bootstrap=bootstrap, log_level="warning")
     except Exception as exc:
         print(f"本地服务启动失败：{exc}", file=sys.stderr)
         return 1
 
-    url = host.url + (f"?token={token}" if token else "")
+    url = _session_url(host.url, token, bootstrap)
 
     try:
         if args.selftest:
-            report = _check_page(url)
+            report = _check_page(url, base=host.url)
             print(report, flush=True)
             ok = bool(report.get("shim_injected")) and report.get("shim_status") == 200
             return 0 if ok else 1

@@ -61,14 +61,20 @@ def main(argv: list[str] | None = None) -> int:
     from .main_window import MainWindow
     from .server_host import ServerHost
 
+    if args.no_token and os.environ.get("NETLAB_DEBUG") != "1":
+        print("--no-token 只允许在 NETLAB_DEBUG=1 的调试构建中使用", file=sys.stderr)
+        return 2
     token = None if args.no_token else secrets.token_urlsafe(24)
+    bootstrap = None if token is None else secrets.token_urlsafe(24)
     host = ServerHost(port=args.port or None)
     try:
-        host.start(token=token, log_level="warning")
+        host.start(token=token, bootstrap=bootstrap, log_level="warning")
     except Exception as exc:
         print(f"本地服务启动失败：{exc}", file=sys.stderr)
         return 1
-    url = host.url + (f"?token={token}" if token else "")
+    url = host.url
+    if token:
+        url += "__desktop_session__/" + bootstrap
     window = MainWindow(url, debug=args.debug)
     window.show()
     try:

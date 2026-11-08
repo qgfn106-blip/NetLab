@@ -39,11 +39,19 @@ class ServerHost:
         self._server: Any = None
         self._ready = False
 
-    def start(self, *, token: str | None = None, log_level: str = "warning") -> None:
+    def start(
+        self,
+        *,
+        token: str | None = None,
+        bootstrap: str | None = None,
+        log_level: str = "warning",
+    ) -> None:
         if self._thread is not None and self._thread.is_alive():
             return
         if token:
             os.environ["NETLAB_DESKTOP_TOKEN"] = token
+        if bootstrap:
+            os.environ["NETLAB_DESKTOP_BOOTSTRAP"] = bootstrap
         import uvicorn
 
         from netlab.server import app

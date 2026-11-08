@@ -28,12 +28,17 @@ def _rc_scene() -> Scene:
     return scene
 
 
-def _rc_value(steps: int, dt: float) -> float:
+def _rc_value(steps: int, dt: float) -> tuple[float, float]:
     scene = _rc_scene()
     for _ in range(steps):
         scene.step(dt)
     node = next(item for item in scene.nodes.values() if item.name == "mid")
-    return float(node.data.get("voltage", 0.0))
+    value = float(node.data.get("voltage", 0.0))
+    elements = {getattr(item, "name", ""): item for item in scene.ensure_engine().element_map.values()}
+    resistor = elements["R1"].state
+    capacitor = elements["C1"].state
+    residual = abs(float(resistor["current"]) - float(capacitor["current"]))
+    return value, residual
 
 
 def _rc_analytic(t: float, *, r: float = 1000.0, c: float = 1.0e-6, v: float = 5.0) -> float:
@@ -47,7 +52,7 @@ def run_rc(scale: int = 3) -> list[dict[str, Any]]:
         dt = TAU / n
         tracemalloc.start()
         started = time.perf_counter()
-        value = _rc_value(n, dt)
+        value, residual = _rc_value(n, dt)
         wall_ms = (time.perf_counter() - started) * 1000.0
         _, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
@@ -63,7 +68,7 @@ def run_rc(scale: int = 3) -> list[dict[str, Any]]:
                 "err_abs": err,
                 "err_rel": err / abs(analytic),
                 "observed_order": None,
-                "residual": None,
+                "residual": residual,
                 "steps": n,
                 "wall_ms": wall_ms,
                 "peak_mb": peak / (1024.0 * 1024.0),

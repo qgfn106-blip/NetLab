@@ -1,0 +1,19 @@
+# D-2 / N-20：运行时依赖锁定。
+# 生成方式：全新 venv 中 `pip install -e .`，再 `pip freeze`（排除可编辑的 netlab 本身）。
+# 升级依赖时同步更新本文件；CI 仍用 netlab/requirements-dev.txt 安装测试环境。
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anyio==4.16.0
+click==8.5.1
+fastapi==0.162.2
+h11==0.16.0
+idna==3.20
+numpy==2.5.4
+opentelemetry-api==1.45.2
+pydantic==2.14.3
+pydantic_core==2.50.4
+scipy==1.18.1
+starlette==1.10.0
+typing-inspection==0.4.5
+typing_extensions==4.16.0
+uvicorn==0.54.0

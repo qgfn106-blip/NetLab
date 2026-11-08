@@ -14,6 +14,7 @@ import { desktopBridge, isDesktop, callBridge, toast, showBanner, hideBanner } f
 import { api, jsonRequest, plotkitFrameUrl } from './app/net.js';
 import { openCacheDialog, checkCacheQuietly } from './app/cache.js';
 import { placeFloatWindow, placeDocWindow, raiseFloatWindow, toggleFloatMaximize, initFloatWindow } from './app/float.js';
+import { CHART_PALETTE, chartPalette, themeKey } from './app/theme.js';
 declare const desc: HTMLElement;
 declare function setStatusHint(hint: string): void;
 
@@ -13635,11 +13636,6 @@ declare function setStatusHint(hint: string): void;
     '#f2efe7': 'paper', '#bcb3a1': 'line', '#cfc6b5': 'gridAxis', '#e7e1d5': 'paper3',
   };
 
-  const CHART_PALETTE = [
-    '#a8541f', '#1f5f5b', '#7b8c3a', '#8a4a7c', '#4a6f8a',
-    '#b08a3e', '#8e2f24', '#5f6b52', '#7a4a2a', '#4d463c',
-  ];
-
   const ACCENT_SWATCHES = ['', '#9b7247', '#565c46', '#3f5d6b', '#8a4234', '#6b6257', '#7a5a33', '#5f7a52'];
   const PREF_CACHE_KEY = 'netlab.ui.prefs';
 
@@ -13693,19 +13689,6 @@ declare function setStatusHint(hint: string): void;
       }
     }
     return override;
-  }
-
-  // 画布/图表配色：默认「跟随主题」用 CHART_PALETTE（经 C() 映射到令牌）；其余用替代色板原样值。
-  function chartPalette(): string[] {
-    const mode = String((state.prefs && state.prefs.chartPalette) || 'theme');
-    const dark = themeKey() === 'dark';
-    if (mode === 'high-contrast') return dark ? CHART_PALETTE_HC_DARK : CHART_PALETTE_HC_LIGHT;
-    if (mode === 'colorblind') return dark ? CHART_PALETTE_CB_DARK : CHART_PALETTE_CB_LIGHT;
-    return CHART_PALETTE;
-  }
-
-  function themeKey() {
-    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
   }
 
   function tokens(): Record<string, string> {

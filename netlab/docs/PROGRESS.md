@@ -2610,3 +2610,10 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - **CI**：python-tests https://github.com/qgfn106-blip/NetLab/actions/runs/42494677867 （success，HEAD `071d1d6`，含 Changed-line coverage 步骤）；frontend-ts-build https://github.com/qgfn106-blip/NetLab/actions/runs/42494677718 （success）。
 - **故意变红证据**：临时分支 `d1-red-check`（`ad8c43d`，把 `check_name` 的 `_NAME_RE` 校验改成 `if False and ...`）触发 python-tests **failure**：https://github.com/qgfn106-blip/NetLab/actions/runs/42494722079 （失败步骤 `Full Python test suite + core coverage gate`）。分支本地已删除；远端删除因网络阻塞待重试。
 - **仍未完成**：远端 `d1-red-check` 分支待删除（网络恢复后 `git push origin --delete d1-red-check`）。
+
+## §7.125 N-08 通道键结构化（2026-11-09）
+
+- 新增 `netlab/core/model/channels.py`：`ChannelKey(kind, ident, field)` + `parse/coerce/with_ident/label`；kind 限 `n`/`e`/`state`。
+- `scene_engines.py` 的 SignalEngine/CircuitEngine 探针改为 `ChannelKey.node/edge/state(...)` 构造；`scene_channels.channel_display_name()` 与 `plotkit_bridge._label/_kind_tag` 不再 `split(":")`，只用 `ChannelKey.parse`。
+- wire 格式保持 `<kind>:<id>:<field>`，`/api/live`、recorder、PlotKit 无需迁移；重命名仍由 `channel_display_name` 在显示层替换 id→name。
+- 测试：`netlab/tests/test_channel_key.py` 5 条（往返、非法形状、引擎探针、显示名、桥接标签）；全量 **738 passed / 1 skipped / 91.51s**。提交 `9dc0bac`。

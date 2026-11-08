@@ -28,6 +28,7 @@ from netlab.core.model.workspace import (
     ensure_library,
     load_settings,
     load_workspace,
+    project_file_for,
     save_settings,
     save_workspace,
     scan_library,
@@ -249,3 +250,24 @@ def test_workspace_open_failure_keeps_previous_workspace(client, tmp_path, monke
 def test_workspace_for_rejects_unknown_suffix(tmp_path):
     with pytest.raises(Exception, match="不是 Netlab 工程路径"):
         workspace_for(tmp_path / "x.txt")
+
+
+def test_path_guard_rejects_escape_and_accepts_configured_root(tmp_path, monkeypatch):
+    from netlab.core.common.limits import ValidationError
+
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+
+    monkeypatch.setenv("NETLAB_ALLOWED_ROOTS", str(allowed))
+    assert project_file_for(allowed / "project") == allowed / "project" / PROJECT_FILENAME
+
+    with pytest.raises(ValidationError, match="不在允许的根目录内"):
+        project_file_for(outside / "project")
+    with pytest.raises(ValidationError, match="不在允许的根目录内"):
+        project_file_for(allowed / ".." / "outside" / "project")
+
+    container = NetworkContainer(build_simulation(), name="路径守卫")
+    with pytest.raises(ValidationError, match="不在允许的根目录内"):
+        container.set_project_dir(str(outside))

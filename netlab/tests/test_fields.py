@@ -178,7 +178,9 @@ def test_delayed_edge_uses_zero_before_source_is_computed():
     )
     scene.add_edge(name="e1", source=source.id, target=total.id, kind="pass")
     scene.add_edge(name="e2", source=total.id, target=tf.id, kind="pass")
-    feedback = scene.add_edge(name="e3", source=tf.id, target=total.id, kind="pass")
+    feedback = scene.add_edge(
+        name="e3", source=tf.id, target=total.id, kind="pass", auto_delay=True
+    )
 
     assert feedback.delay is True
     scene.step(0.1)

@@ -113,7 +113,13 @@ def _build_scene():
         ("vq_cmd", cmd_q, plant),
     ]
     for name, source, target in edges:
-        scene.add_edge(name=name, source=source.id, target=target.id, kind="pass")
+        scene.add_edge(
+            name=name,
+            source=source.id,
+            target=target.id,
+            kind="pass",
+            auto_delay=target is plant,
+        )
     return scene, plant
 
 

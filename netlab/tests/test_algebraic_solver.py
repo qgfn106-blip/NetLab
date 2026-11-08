@@ -113,6 +113,25 @@ def test_nonlinear_loop_without_solution_reports_newton_failure() -> None:
         scene.step(0.1)
 
 
+def test_explicit_algebraic_solver_solves_linear_feedback_loop() -> None:
+    scene = Scene("signal")
+    scene.set_algebraic_solver(True)
+    assert scene.solve_algebraic is True
+    source = scene.add_node(name="u", kind="manual", data={"value": 1.0})
+    total = scene.add_node(
+        name="s", kind="sum", params={"weights": {"ref": 1.0, "fb": 1.0}}
+    )
+    gain = scene.add_node(name="g", kind="gain", params={"gain": -0.5})
+    scene.add_edge(name="ref", source=source.id, target=total.id, kind="pass")
+    scene.add_edge(name="forward", source=total.id, target=gain.id, kind="pass")
+    scene.add_edge(name="fb", source=gain.id, target=total.id, kind="pass")
+
+    scene.step(0.1)
+
+    assert _value(scene, "s") == pytest.approx(2.0 / 3.0, abs=1e-9)
+    assert _value(scene, "g") == pytest.approx(-1.0 / 3.0, abs=1e-9)
+
+
 def test_singular_algebraic_loop_reports_nodes() -> None:
     scene = Scene("signal")
     scene.set_algebraic_solver(True)

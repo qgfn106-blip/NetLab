@@ -51,6 +51,7 @@ def _build_underdamped_scene() -> tuple[Scene, object]:
         target=error.id,
         kind="scale",
         params={"gain": -1.0},
+        auto_delay=True,
     )
     assert feedback.delay is True
     return scene, plant
@@ -68,8 +69,9 @@ def test_underdamped_closed_loop_step_has_expected_transient():
     peak = max(values)
     assert peak > 1.3
     overshoot = (peak - values[-1]) / values[-1] * 100.0
-    # 连续理想 37.2%；信号流反馈边自动 z^-1，实测约 39%，留在欠阻尼区间。
-    assert 30.0 <= overshoot <= 45.0
+    # 连续理想 37.2%；显式 z^-1 反馈边实测约 39.18%，用窄区间锁定，
+    # 避免把已知偏差用 30–45% 的宽区间固化成“合格”。
+    assert 38.0 <= overshoot <= 40.5
 
 
 def test_underdamped_precompute_converges_with_dt():
@@ -78,9 +80,9 @@ def test_underdamped_precompute_converges_with_dt():
     sim = Simulation(scene)
     try:
         report_fast = sim.precompute(12.0, dt=0.01)
-        frames_fast = list(sim.recorder.frames)
+        frames_fast = sim.live(0, 6000)["frames"]
         report_fine = sim.precompute(12.0, dt=0.002)
-        frames_fine = list(sim.recorder.frames)
+        frames_fine = sim.live(0, 6000)["frames"]
     finally:
         sim.shutdown()
 
@@ -95,7 +97,8 @@ def test_underdamped_precompute_converges_with_dt():
     assert report_fast["error"] is None and report_fine["error"] is None
     assert final_fast == pytest.approx(final_fine, abs=0.005)
     assert abs(overshoot_fast - overshoot_fine) < 2.5
-    assert 30.0 <= overshoot_fine <= 45.0
+    # 细步长收敛到连续理想 37.2% 附近；宽区间只用于粗步长的 z^-1 实现。
+    assert 36.5 <= overshoot_fine <= 38.5
 
 
 def test_control_project_roundtrip_is_openable(tmp_path):

@@ -31,6 +31,33 @@ def test_state_space_exposes_state_probes() -> None:
     assert all(math.isfinite(value) for value in probes.values())
 
 
+def test_probe_channels_use_stable_ids_across_rename() -> None:
+    scene = Scene("signal")
+    source = scene.add_node(name="u", kind="manual", data={"value": 1.0})
+    plant = scene.add_node(
+        name="g",
+        kind="transfer_function",
+        params={
+            "form": "coeff",
+            "numerator": [4.0],
+            "denominator": [1.0, 1.2, 4.0],
+            "method": "zoh",
+        },
+    )
+    scene.add_edge(name="u-g", source=source.id, target=plant.id, kind="pass")
+    scene.step(0.1)
+
+    before = scene.probes(by_id=True)
+    before_states = {key for key in before if key.startswith(f"state:{plant.id}:")}
+    assert f"state:{plant.id}:0" in before_states
+    scene.update_node(plant.id, {"name": "plant_renamed"})
+    after = scene.probes(by_id=True)
+    after_states = {key for key in after if key.startswith(f"state:{plant.id}:")}
+
+    assert after_states == before_states
+    assert scene.channel_display_name(f"state:{plant.id}:0") == "state:plant_renamed:0"
+
+
 def test_phase_metrics_circle() -> None:
     count = 100
     xs = [math.cos(2.0 * math.pi * index / count) for index in range(count + 1)]

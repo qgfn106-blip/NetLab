@@ -27,7 +27,7 @@ def test_grid_switch_project_loads_and_runs() -> None:
         report = sim.precompute(0.02, dt=1.0e-5)
         assert report["error"] is None
         assert report["steps"] == 2000
-        frames = list(sim.recorder.frames)
+        frames = sim.live(0, 6000)["frames"]
         keys = list(frames[-1]["v"])
         pcc_key = next(key for key in keys if "pcc_a" in key)
         mid_key = next(key for key in keys if "mid_a" in key)

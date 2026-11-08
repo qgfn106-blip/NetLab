@@ -10,6 +10,7 @@ import copy
 
 import pytest
 
+from netlab.core.compute.simulation import Simulation
 from netlab.core.model.blocks import encapsulate_nodes, instantiate_block
 from netlab.core.model.graph import Network, Node
 from netlab.core.common.limits import ComputeError
@@ -209,3 +210,35 @@ def test_signal_step_rolls_back_block_state_on_failure():
     scene.step(0.1)
     # 块内积分器若被失败步推进过，这里会变成 0.6。
     assert voltage(scene, "t") == pytest.approx(0.5)
+
+
+def test_scene_rollback_last_step_after_success():
+    """N-36：成功一步后也能回到步首，供 Simulation 超时/异常使用。"""
+    scene = _block_scene()
+    initial = {
+        record.id: copy.deepcopy(record.data) for record in scene.nodes.values()
+    }
+    scene.step(0.1)
+    assert voltage(scene, "t") == pytest.approx(0.1)
+    assert scene.clock.time == pytest.approx(0.1)
+
+    scene.rollback_last_step()
+
+    assert scene.clock.time == pytest.approx(0.0)
+    for record in scene.nodes.values():
+        assert record.data == initial[record.id]
+
+
+def test_simulation_does_not_call_scene_capture_checkpoint(monkeypatch):
+    """N-36：正常推进路径不得再构造 Scene 全量深拷贝检查点。"""
+    scene = _block_scene()
+    simulation = Simulation(scene)
+
+    def boom():
+        raise AssertionError("N-36 仍调用了 Scene.capture_checkpoint")
+
+    monkeypatch.setattr(scene, "capture_checkpoint", boom)
+    try:
+        simulation.step_once(1)
+    finally:
+        simulation.shutdown()

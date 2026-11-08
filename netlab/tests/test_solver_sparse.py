@@ -69,6 +69,17 @@ def test_sparse_auto_threshold_switches():
     assert engine.solver.sparse is False
 
 
+def test_default_sparse_threshold_keeps_max_sized_ladder_dense():
+    """默认阈值必须覆盖 MAX_NODES 附近的电路，避免默认走 LIL 负优化。"""
+    from netlab.core.compute.simulation import SimConfig
+
+    assert SimConfig().sparse_threshold == 512
+    scene = _ladder(390)
+    engine = scene.ensure_engine()
+    engine.step(1e-4)
+    assert engine.solver.sparse is False
+
+
 def test_sparse_on_reports_flag_and_matches_dense():
     dense_scene = _ladder(60, source=3.0)
     dense_scene.set_solver_options(SolverOptions(sparse="off"))

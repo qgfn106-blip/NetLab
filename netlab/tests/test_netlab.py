@@ -195,7 +195,9 @@ def test_scene_auto_delay_breaks_cycle():
         name="b", kind="sum", data={"voltage": 0.0}, position={"x": 100, "y": 0}
     )
     first = scene.add_edge(source=a.id, target=b.id, kind="scale")
-    second = scene.add_edge(source=b.id, target=a.id, kind="scale")
+    second = scene.add_edge(
+        source=b.id, target=a.id, kind="scale", auto_delay=True
+    )
     assert first.delay is False
     assert second.delay is True
     scene.step(0.01)
@@ -741,6 +743,7 @@ def test_edge_crud_and_auto_delay(client):
             "target": first,
             "kind": "scale",
             "params": {"gain": 1.0},
+            "auto_delay": True,
         },
     )
     assert backward.status_code == 200

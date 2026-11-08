@@ -22,7 +22,7 @@ def test_pll_template_project_loads_and_locks() -> None:
         sim.load_scene(project_scene_payload(project))
         report = sim.precompute(0.1, dt=5e-5)
         assert report["error"] is None
-        frames = list(sim.recorder.frames)
+        frames = sim.live(0, 6000)["frames"]
         keys = list(frames[-1]["v"])
         freq_key = next(key for key in keys if "freq_meas" in key)
         d_key = next(key for key in keys if "d_meas" in key)

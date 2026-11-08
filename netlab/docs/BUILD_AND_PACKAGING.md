@@ -51,22 +51,29 @@ npm run test:utils
   `npm ci → typecheck → build → test → git diff --exit-code`（产物漂移守卫）。
 - 若构建产物与提交的 `.js` 不一致，CI 直接失败，防止「只改 `.ts` 忘了重新 build」。
 
-## 4. 运行时侧的 PlotKit 内置副本（vendor）
+## 4. PlotKit 依赖（外部包，C-4 已收口）
 
-netlab 运行期 import 的是包内副本 `netlab/_vendor/plotkit`（非外部 PlotKit）。**改了 PlotKit 静态脚本后必须重装 vendor**：
+netlab 运行期 import 的是**已安装的 `plotkit` 包**（`plotkit>=0.2,<0.3`），不携带源码副本（`netlab/_vendor/plotkit` 已删除；R2①）。开发时用可编辑安装：
 
 ```bash
 cd NetlabHome
-python -m netlab.plotkit_vendor install --src ../PlotKit/src/plotkit --force
+pip install -e ../PlotKit          # 开发：改 PlotKit 源码立即生效
 ```
 
-`netlab/plotkit_vendor.py` 的 IGNORE 已排除 `*.ts` / `*.tsbuildinfo`，vendor 只随包 `.js`。
+离线/打包用 wheelhouse（不依赖网络，也不把二进制提交进 git）：
+
+```bash
+python -m pip wheel ../PlotKit --no-deps -w NetlabExtras/tmp/s4_wheels
+pip install --no-index --find-links NetlabExtras/tmp/s4_wheels plotkit==0.2.1
+```
+
+`NETLAB_PLOTKIT_SRC` 仅用于显式开发路径（`plotkit_bridge` 用 `importlib` 按文件加载，不写 `sys.path`）；生产环境不要设置。
 
 ## 5. 单 exe 桌面分发（POC 已验证，2026-11-06）
 
 把程序交给普通用户可打包为单安装器（与上面的前端构建正交，B 方案下先 `npm run build` 再打包）：
 
-1. **PyInstaller / Nuitka** 打 `netlab.desktop`（onedir 最稳）：内含 Python 解释器、依赖、`frontend/`、`_vendor/plotkit` —— 用户无需装 Python。
+1. **PyInstaller / Nuitka** 打 `netlab.desktop`（onedir 最稳）：内含 Python 解释器、依赖、`frontend/`、已安装的 `plotkit` 包（含其 `static/`）—— 用户无需装 Python。
 2. **Inno Setup / NSIS** 生成单文件 `NetlabSetup-x.y.z.exe`，可集成 WebView2 Evergreen Bootstrapper。
 3. CI（GitHub Actions windows runner）打 tag 时自动出包并上传 Release。
 

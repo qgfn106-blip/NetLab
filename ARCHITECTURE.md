@@ -35,7 +35,7 @@ NetlabHome/
     └─ docs/                  规格、进度、经验、数学与代码导读
 ```
 
-> 包根只有真正的入口与适配模块：`__init__.py`、`server.py`、`run.py`、`plotkit_bridge.py`、`plotkit_vendor.py`、`vscode_bridge.py`、`cache_guard.py`、`desktop/`、`core/`。**没有历史转发 shim**（D85 已清空并改写全部引用）。
+> 包根只有真正的入口与适配模块：`__init__.py`、`server.py`、`run.py`、`plotkit_bridge.py`、`vscode_bridge.py`、`cache_guard.py`、`desktop/`、`core/`。**没有历史转发 shim**（D85 已清空并改写全部引用），也没有 PlotKit 源码副本（C-4 收口，PlotKit 作为外部依赖安装）。
 
 > 说明：后端目录就是 `netlab/`（Python 包名必须叫 `netlab`，`python -m netlab.*` 才能工作，所以不再套一层 `backend/`）。前端与后端已经是两个平级目录，互不混淆。
 

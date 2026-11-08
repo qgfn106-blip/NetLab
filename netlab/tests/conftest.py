@@ -40,9 +40,9 @@ def _clean_plotkit_bridge_state():
     bridge.set_active(False)
     figure = bridge.figure()
     if figure is not None:
-        from plotkit.store.registry import DATA_LOCK
+        import plotkit
 
-        with DATA_LOCK:
+        with plotkit.store_lock():
             for name in list(bridge._REGISTERED):
                 try:
                     figure.store.remove(name)

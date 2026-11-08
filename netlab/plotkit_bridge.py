@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import json
 import logging
 import os
@@ -68,6 +69,59 @@ def plugin_enabled() -> bool:
     except (OSError, ValueError):
         return True
     return PLUGIN_ID not in set(map(str, payload.get("disabled") or []))
+
+
+#: PlotKit 兼容版本区间（与 pyproject 声明的 ``plotkit>=0.2,<0.3`` 保持一致）
+PLOTKIT_MIN = (0, 2)
+PLOTKIT_MAX_EXCLUSIVE = (0, 3)
+
+
+def _version_tuple(version: str) -> tuple[int, ...]:
+    parts: list[int] = []
+    for chunk in str(version).split(".")[:3]:
+        digits = "".join(ch for ch in chunk if ch.isdigit())
+        parts.append(int(digits or 0))
+    while len(parts) < 3:
+        parts.append(0)
+    return tuple(parts)
+
+
+def probe() -> dict[str, Any]:
+    """PlotKit 可用性三态：``missing`` / ``incompatible`` / ``available``。
+
+    只依赖 PlotKit 的公开接口 ``plotkit.probe()``；旧版本没有该接口时退回
+    ``__version__`` 区间判断，绝不 import PlotKit 的任何内部模块。
+    """
+    if not ensure_plotkit_importable():
+        return {"state": "missing", "version": None, "detail": "PlotKit 未安装"}
+    try:
+        import plotkit
+    except Exception as exc:  # pragma: no cover - 安装损坏时给可读降级
+        return {
+            "state": "missing",
+            "version": None,
+            "detail": f"PlotKit 导入失败：{exc}",
+        }
+    version = str(getattr(plotkit, "__version__", "") or "")
+    inner = getattr(plotkit, "probe", None)
+    if callable(inner):
+        try:
+            result = dict(inner())
+            result.setdefault("version", version)
+            return result
+        except Exception as exc:  # pragma: no cover - 公开 probe 自身故障
+            return {
+                "state": "incompatible",
+                "version": version,
+                "detail": f"PlotKit probe 失败：{exc}",
+            }
+    if PLOTKIT_MIN <= _version_tuple(version)[:2] < PLOTKIT_MAX_EXCLUSIVE:
+        return {"state": "available", "version": version, "detail": ""}
+    return {
+        "state": "incompatible",
+        "version": version,
+        "detail": f"PlotKit {version or '未知版本'} 不在 >=0.2,<0.3 兼容范围内",
+    }
 
 
 def _plotkit_src_candidates() -> list[Path]:
@@ -349,9 +403,9 @@ def add_analysis_curve(
     x_name = f"{key}:x"
     y_name = f"{key}:y"
     label = str(name)
-    from plotkit.store.registry import DATA_LOCK
+    import plotkit as pk
 
-    with DATA_LOCK:
+    with pk.store_lock():
         # 同名曲线先移除旧图层（x/y 数据集直接覆盖）。
         layers = list(fig.spec.get("layers") or [])
         kept = [
@@ -423,17 +477,17 @@ def _sync_once(
         frames = payload.get("frames") or []
         if payload.get("generation") is not None:
             generation = payload["generation"]
-        from plotkit.store.registry import DATA_LOCK as _DL
+        import plotkit as pk
 
-        with _DL:
+        with pk.store_lock():
             _reset(figure, payload.get("keys"))
     else:
         frames = payload.get("frames") or []
     if frames:
         cursor = payload.get("cursor", cursor)
-        from plotkit.store.registry import DATA_LOCK
+        import plotkit as pk
 
-        with DATA_LOCK:  # 与出图线程互斥，避免读到半写入的数据集
+        with pk.store_lock():  # 与出图线程互斥，避免读到半写入的数据集
             if _FORCED.get("keys") is None:
                 _ensure_channels(figure, frames, limit=MAX_CHANNELS)
             _ingest(figure, frames, [])
@@ -675,9 +729,9 @@ _HOST_SHIM = """<script>
 
 def _host_index_html() -> str:
     """读取实际导入的 PlotKit 首页，并在第一个脚本前插入宿主鉴权 shim。"""
-    from plotkit.server.assets import STATIC_DIR
+    import plotkit as pk
 
-    html = (Path(STATIC_DIR) / "index.html").read_text(encoding="utf-8")
+    html = pk.index_html()
     position = html.find("<script")
     if position < 0:
         return html
@@ -710,7 +764,7 @@ def mount(app: Any, service: Any | None = None) -> bool:
             if not ensure_plotkit_importable():
                 LOGGER.info("未安装 plotkit，跳过 /plotkit 子应用")
                 return False
-            from plotkit.server.app import create_app
+            import plotkit as pk
         except Exception:
             LOGGER.info("未安装 plotkit，跳过 /plotkit 子应用", exc_info=True)
             return False
@@ -719,7 +773,9 @@ def mount(app: Any, service: Any | None = None) -> bool:
 
             target = service if service is not None else SERVICE
             figure = build_figure(target)
-            sub_app = create_app(figure, title="Netlab · PlotKit", layout_path=None)
+            sub_app = pk.PlotRenderPort(
+                figure, title="Netlab · PlotKit", layout_path=None
+            ).app
             # 子应用首页由宿主先接管：在 PlotKit 自己的脚本之前注入 shim，让它把
             # 同源 /plotkit/api/ 请求自动带上桌面 token。首页与静态资源本身仍公开。
             try:

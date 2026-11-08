@@ -5,10 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 APP_JS = Path(__file__).resolve().parents[2] / "frontend" / "app.ts"
+APP_NET = Path(__file__).resolve().parents[2] / "frontend" / "app" / "net.ts"
 
 
 def test_frontend_api_fetches_only_through_token_aware_helper():
-    source = APP_JS.read_text(encoding="utf-8")
+    source = APP_NET.read_text(encoding="utf-8") + "\n" + APP_JS.read_text(encoding="utf-8")
     fetch_calls = [line.strip() for line in source.splitlines() if "fetch(" in line]
     assert fetch_calls == [
         "const response = await fetch(path, config);",

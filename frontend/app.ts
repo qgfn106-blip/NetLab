@@ -1,4 +1,4 @@
-﻿import { fmt, intText, clamp, hashString, baseName } from './app.utils.js';
+import { fmt, intText, clamp, hashString, baseName } from './app.utils.js';
 import {
   CANVAS_LIGHT, CANVAS_DARK,
   CHART_PALETTE_HC_LIGHT, CHART_PALETTE_HC_DARK,
@@ -8,6 +8,8 @@ import type { AcResultRec, AppearanceRec, BezierRec, BlockItem, BoxRec, CacheEnt
 import { UI_BUILD, PALETTE, GROUP_COLORS, NODE_RADIUS, NODE_W, NODE_H, CHART_KEYS, MAX_IMPORT_BYTES, MAX_FRAMES, INST_COLORS } from './app/constants.js';
 import { $, $$, stage, canvas, ctx, chartCanvas, chartCtx, phaseCanvas, phaseCtx, scopeCanvas, scopeCtx, lissCanvas, lissCtx } from './app/dom.js';
 import { state, ui } from './app/state.js';
+import type { ApiOptions } from './app/net.js';
+import { api, jsonRequest, plotkitFrameUrl } from './app/net.js';
 declare const desc: HTMLElement;
 declare function setStatusHint(hint: string): void;
 
@@ -67,18 +69,6 @@ declare function setStatusHint(hint: string): void;
     return mode === 'theme' ? C(raw) : raw;
   }
 
-  interface ApiOptions {
-    timeoutMs?: number;
-    headers?: Record<string, string>;
-    method?: string;
-    body?: string;
-    quiet?: boolean;
-    skipConfirm?: boolean;
-    min?: number;
-    max?: number;
-    step?: number | string;
-    [k: string]: unknown;
-  }
   interface TaskOptions {
     dirty?: boolean;
     history?: boolean;
@@ -174,23 +164,6 @@ declare function setStatusHint(hint: string): void;
    * ==================================================================== */
 
   // 桌面外壳通过 ?token= 传入会话 token；读取后立刻从地址栏移除。
-  const DESKTOP_TOKEN = (() => {    try {
-      const params = new URLSearchParams(window.location.search);
-      const token = params.get('token') || '';
-      if (token) {
-        params.delete('token');
-        const query = params.toString();
-        window.history.replaceState(
-          {},
-          '',
-          `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`,
-        );
-      }
-      return token;
-    } catch (error) {
-      return '';
-    }
-  })();
 
   function desktopBridge() {
     return window.netlabDesktop || null;
@@ -218,59 +191,6 @@ declare function setStatusHint(hint: string): void;
    * 1. 网络请求与提示
    * ==================================================================== */
 
-  async function api(path: string, options: ApiOptions = {}) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), Number(options.timeoutMs) || 15000);
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (DESKTOP_TOKEN) headers['X-Netlab-Token'] = DESKTOP_TOKEN;
-    const config = {
-      headers,
-      signal: controller.signal,
-      ...options,
-    };
-    if (options.headers) config.headers = { ...headers, ...options.headers };
-    try {
-      const response = await fetch(path, config);
-      const text = await response.text();
-      let payload = null;
-      if (text) {
-        try {
-          payload = JSON.parse(text);
-        } catch (error) {
-          throw new Error(`服务器返回了无法解析的数据（HTTP ${response.status}）`);
-        }
-      }
-      if (!response.ok) {
-        let detail = payload && payload.detail;
-        if (detail && typeof detail !== 'string') detail = JSON.stringify(detail);
-        if (response.status === 403 && /token/i.test(String(detail || ''))) {
-          throw new Error('桌面会话 token 无效：请从桌面窗口重新打开页面');
-        }
-        throw new Error(detail || `请求失败（HTTP ${response.status}）`);
-      }
-      return payload;
-    } catch (error) {
-      if ((error as Error).name === 'AbortError') {
-        throw new Error('请求超时：后端可能未启动或计算阻塞（15 秒）');
-      }
-      throw error;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
-  function jsonRequest(path: string, method: string, body?: unknown) {
-    return api(path, { method, body: body === undefined ? undefined : JSON.stringify(body) });
-  }
-
-  // PlotKit 子应用是独立页面，拿不到 api() 的请求头；桌面鉴权走宿主同源 cookie
-  // （桌面外壳打开 /?token= 时种下，HttpOnly + SameSite=Strict），子应用自己的
-  // fetch/导航会自动携带。不要把 token 放进 URL 查询串或片段。
-  function plotkitFrameUrl(extra: string | Record<string, string>) {
-    const params = new URLSearchParams(extra || {});
-    const query = params.toString();
-    return `/plotkit/${query ? `?${query}` : ''}`;
-  }
 
   function toast(message: string, type: string = 'info', timeout: number = 4200) {
     const node = div(`toast ${type}`, message);

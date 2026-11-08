@@ -10,10 +10,11 @@ from netlab.server import SERVICE, app
 
 ROOT = Path(__file__).resolve().parents[1]
 APP_JS = ROOT.parent / "frontend" / "app.ts"
+APP_NET = ROOT.parent / "frontend" / "app" / "net.ts"
 
 
 def test_plotkit_frontend_uses_token_aware_api_helper():
-    source = APP_JS.read_text(encoding="utf-8")
+    source = APP_JS.read_text(encoding="utf-8") + "\n" + APP_NET.read_text(encoding="utf-8")
     assert "async function api(path: string, options: ApiOptions = {})" in source
     assert "if (DESKTOP_TOKEN) headers['X-Netlab-Token'] = DESKTOP_TOKEN;" in source
     assert "探针列表加载失败：${text}" in source

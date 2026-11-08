@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import argparse
 import copy
 import hashlib
 import sys
@@ -107,7 +108,10 @@ def _walk_defs(body: list[ast.stmt], prefix: str, text: str, out: list[Definitio
                 "async_function" if isinstance(node, ast.AsyncFunctionDef) else "function"
             )
             qualname = f"{prefix}{node.name}"
-            out.append(Definition(kind, qualname, _signature(node), _source_hash(text, node)))
+            # 私有类只作为命名空间/混入基类存在；其方法仍逐个比较，类本身不参与
+            # 公开符号与定义集合比对（避免 mixin 拆分时凭空多出一个类定义）。
+            if not (isinstance(node, ast.ClassDef) and node.name.startswith("_")):
+                out.append(Definition(kind, qualname, _signature(node), _source_hash(text, node)))
             if isinstance(node, ast.ClassDef):
                 _walk_defs(node.body, qualname + ".", text, out)
         elif isinstance(node, (ast.Assign, ast.AnnAssign)):
@@ -188,14 +192,37 @@ def _diff(name: str, before, after) -> list[str]:
     return problems
 
 
+def _method_owner_agnostic(defs: list[Definition]) -> list[Definition]:
+    """把类方法按 leaf name 归一，并忽略类定义 bases 差异。
+
+    用于 mixin 拆分：方法从 ``Scene.foo`` 搬到 ``SceneChannelsMixin.foo``，
+    函数签名与函数体必须逐字等价，仅所有者类名变化。
+    """
+    normalized: list[Definition] = []
+    for item in defs:
+        qualname = item.qualname.rsplit(".", 1)[-1] if "." in item.qualname else item.qualname
+        signature = "" if item.kind == "class" else item.signature
+        body_hash = "" if item.kind == "class" else item.body_hash
+        normalized.append(Definition(item.kind, qualname, signature, body_hash))
+    return normalized
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="M 轮 AST 等价检查")
     parser.add_argument("--before", required=True, type=Path, nargs="+")
     parser.add_argument("--after", required=True, type=Path, nargs="+")
+    parser.add_argument(
+        "--allow-method-owner-change",
+        action="store_true",
+        help="允许方法搬入 mixin（qualname 按 leaf name 归一，类签名忽略 bases）",
+    )
     args = parser.parse_args()
 
     before_defs, before_public, before_all = _collect_many(args.before)
     after_defs, after_public, after_all = _collect_many(args.after)
+    if args.allow_method_owner_change:
+        before_defs = _method_owner_agnostic(before_defs)
+        after_defs = _method_owner_agnostic(after_defs)
 
     problems: list[str] = []
     if before_defs != after_defs:

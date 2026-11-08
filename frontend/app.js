@@ -6302,7 +6302,7 @@ import {
       params: specDefaults(spec),
       delay: false,
       enabled: true,
-      auto_delay: true
+      auto_delay: false
     };
     if (state.mode === "circuit" && state.ui?.circuitOrthogonal !== false) body.route = "orthogonal";
     const response = await task(() => jsonRequest("/api/edges", "POST", body));
@@ -6590,6 +6590,22 @@ import {
     solverSection.appendChild(solverGrid);
     solverSection.appendChild(div("help", "\u6B8B\u5DEE\u5BB9\u5DEE 0 = \u53EA\u8BB0\u5F55\u4E0D\u5F3A\u5236\uFF1B\u5931\u8D25\u65F6\u81EA\u52A8 gmin/source stepping\uFF0C\u4ECD\u5931\u8D25\u4F1A\u62A5\u6700\u5927\u8282\u70B9\u3002\u4FEE\u6539\u540E\u7ACB\u5373\u751F\u6548\uFF08\u91CD\u5EFA\u7535\u8DEF\u5F15\u64CE\uFF09\u3002"));
     pane.appendChild(solverSection);
+    if (state.mode !== "circuit") {
+      const algebraicSection = section("\u4FE1\u53F7\u6D41\u4EE3\u6570\u73AF", "\u663E\u5F0F\u9009\u62E9\uFF1B\u4E0D\u518D\u9759\u9ED8\u6539\u5199\u62D3\u6251");
+      const algebraicRow = div("set-row");
+      const algebraicLabel = el("label", null, "\u76F4\u63A5\u9988\u901A\u6C42\u89E3");
+      algebraicLabel.appendChild(el("em", null, "\u5F00\u542F\u540E\u73AF\u8DEF\u7531 solver_plan/SCC \u6C42\u7EBF\u6027\u89E3\uFF1B\u5173\u95ED\u65F6\u542B\u73AF\u8FDE\u63A5\u62A5\u9519\uFF0C\u9664\u975E\u663E\u5F0F\u8BBE\u7F6E\u5355\u6B65\u5EF6\u8FDF"));
+      const algebraicControl = div("set-control");
+      const algebraicInput = el("input");
+      algebraicInput.type = "checkbox";
+      algebraicInput.dataset.role = "algebraic";
+      algebraicInput.checked = Boolean(state.scene?.solve_algebraic);
+      algebraicInput.addEventListener("change", () => void changeAlgebraicSolver(algebraicInput.checked));
+      algebraicControl.appendChild(algebraicInput);
+      algebraicRow.append(algebraicLabel, algebraicControl);
+      algebraicSection.appendChild(algebraicRow);
+      pane.appendChild(algebraicSection);
+    }
     const statsSection = section("\u7F51\u7EDC\u7EDF\u8BA1", "\u8FD0\u884C\u65F6\u66F4\u65B0");
     const statsGrid = div("stat-grid");
     const statSpecs = [
@@ -6852,6 +6868,8 @@ import {
       if (lock) lock.checked = Boolean(config.lock_dt);
       const realtime = $('[data-sim="realtime"]', pane);
       if (realtime) realtime.checked = Boolean(config.realtime);
+      const algebraic = $('[data-role="algebraic"]', pane);
+      if (algebraic) algebraic.checked = Boolean(state.scene?.solve_algebraic);
       const dtInput = $('[data-sim="dt"]', pane);
       if (dtInput) dtInput.disabled = Boolean(config.lock_dt);
       const note2 = $('[data-role="sim-note"]', pane);
@@ -6990,6 +7008,16 @@ import {
     applySnapshot(response);
     renderScenePanel();
     toast(`\u79EF\u5206\u65B9\u6CD5\u5DF2\u5207\u6362\u4E3A ${value === "trapezoidal" ? "\u68AF\u5F62\u6CD5" : "\u540E\u5411\u6B27\u62C9"}`, "ok", 2e3);
+  }
+  async function changeAlgebraicSolver(enabled) {
+    const response = await task(() => jsonRequest("/api/scene/algebraic", "PUT", { enabled }));
+    if (!response) {
+      updateScenePanelValues();
+      return;
+    }
+    applySnapshot(response);
+    renderScenePanel();
+    toast(enabled ? "\u5DF2\u5F00\u542F\u4FE1\u53F7\u6D41\u4EE3\u6570\u73AF\u76F4\u63A5\u6C42\u89E3" : "\u5DF2\u5173\u95ED\u4EE3\u6570\u73AF\u76F4\u63A5\u6C42\u89E3", "ok", 2e3);
   }
   async function switchMode(mode, options = {}) {
     if (mode === state.mode) return;

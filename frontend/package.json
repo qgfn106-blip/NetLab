@@ -11,7 +11,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:utils": "node --test tests/*.test.mjs",
     "test": "node --test tests/*.test.mjs",
-    "verify:parity": "node tools/verify_app_parity.js"
+    "verify:parity": "node tools/verify_app_parity.js",
+    "check:sections": "node tools/check_app_sections.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

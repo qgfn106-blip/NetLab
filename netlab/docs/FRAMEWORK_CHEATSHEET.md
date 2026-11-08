@@ -12,7 +12,7 @@
 
 | 项 | 值 |
 | --- | --- |
-| 项目根 | `E:\Python\MyPython\ProjectPoint`（包在 `netlab/`） |
+| 项目根 | `<repo>`（包在 `netlab/`） |
 | 语言/栈 | Python 3.13 + FastAPI/uvicorn + NumPy/SciPy + TypeScript 前端（esbuild 构建为 JS）+ pywebview/WebView2 桌面外壳 |
 | 启动 | `python netlab/run.py --port 8010 --no-browser`；桌面 `python -m netlab.desktop` |
 | 前端 | `frontend/`：`app.ts`/`app.utils.ts`/`desktop-shim.ts` 源 + `index.html`/`style.css`；`npm run build`（esbuild）生成 `app.js` 等产物，改完构建并刷新，注意 bump `?v=` |

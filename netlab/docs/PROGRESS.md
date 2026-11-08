@@ -2105,7 +2105,7 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 **DoD（每个文件全过才进下一个）**：①`tsc` strict + `eslint` 0 error + `prettier` 已格式化（或已登记临时豁免）②迁移前后 e2e 基线逐条一致、控制台 0 报错 ③现有 Python 契约测试全绿（改名 / 路径同步更新并保留）④版号三处同步（`frontend/index.html` `?v=`、`frontend/app.js` `UI_BUILD`、`netlab/server.py` `APP_BUILD`）⑤提交干净（精确 pathspec）。
 **一期收尾门禁**：临时豁免清零、`tsc --strict` 全绿、全部 e2e 基线通过。
 
-**下一步**：一期 P16 已收官——vscode 扩展 `cf9d633`、PlotKit `render2d` `885014b` / `view3d` `394e979` / `app` `08691bd` / `nsview` `795aaad`、netlab `desktop-shim` `4eeed2e` / `app.js` `753988e`（app.ts 修正提交；P16 原 `7a5cdce` 为中间态）全部完成。PlotKit 运行时内置副本已同步（`python -m netlab.plotkit_vendor install --force`，55 文件，vendor 忽略 `*.ts`、只随包 `.js`），提交 `0f41632`。待办：PlotKit 分支+tag 因代理 127.0.0.1:7897 暂断仍待补推；后续按 R42/P18 做 Python PEP 8 规范化。二期 P17：P17.1 纯函数抽离+单测 `958a509`、P17.2 PlotKit ESM 化已完成（PlotKit `render2d/view3d/app/nsview` 转 module、index/ns `type=module`、netlab `plotkit_bridge.py` shim 锚点改 `find("<script")`、vendor 重装 57 文件）；P17.3 netlab 前端 ESM 化 + 纯函数拆分（`frontend/app.utils` + node 单测）已完成；P17.4 收尾完成（全量验证全绿、版号三处一致 3.20.1、两仓库 feat 可 fast-forward 合并），待网络补推后合并；决策 D112–D117 见 REQUIREMENTS 附录 C（原设计文档已删除）。
+**下一步**：一期 P16 已收官——vscode 扩展 `cf9d633`、PlotKit `render2d` `885014b` / `view3d` `394e979` / `app` `08691bd` / `nsview` `795aaad`、netlab `desktop-shim` `4eeed2e` / `app.js` `753988e`（app.ts 修正提交；P16 原 `7a5cdce` 为中间态）全部完成。PlotKit 运行时内置副本已同步（`python -m netlab.plotkit_vendor install --force`，55 文件，vendor 忽略 `*.ts`、只随包 `.js`），提交 `0f41632`。待办：PlotKit 分支+tag 因网络中断暂未补推；后续按 R42/P18 做 Python PEP 8 规范化。二期 P17：P17.1 纯函数抽离+单测 `958a509`、P17.2 PlotKit ESM 化已完成（PlotKit `render2d/view3d/app/nsview` 转 module、index/ns `type=module`、netlab `plotkit_bridge.py` shim 锚点改 `find("<script")`、vendor 重装 57 文件）；P17.3 netlab 前端 ESM 化 + 纯函数拆分（`frontend/app.utils` + node 单测）已完成；P17.4 收尾完成（全量验证全绿、版号三处一致 3.20.1、两仓库 feat 可 fast-forward 合并），待网络补推后合并；决策 D112–D117 见 REQUIREMENTS 附录 C（原设计文档已删除）。
 
 **R42/P18 已完成（2026-11-06）**：netlab 121 个 .py、PlotKit 92 个 .py 经 `black` 做 PEP 8 规范化（AST 等价、行为不变）；提交 netlab `3673808`、PlotKit `32587c4`（均已推 `feat/ts-migration`）；`pytest netlab/tests` 589 passed、PlotKit 470 passed、`node test:utils` 19 passed。
 
@@ -2637,3 +2637,12 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 验收：干净 venv `python -m netlab.desktop --selftest` 返回 200（exit 0）；
   全量 748 passed / 1 skipped；覆盖率 81.19%（门限 81）；前端 typecheck/build/
   parity/check:sections/漂移门全绿。
+
+## §7.128 D-3 文档分层与隐私边界（2026-11-09）
+
+- `DOCS_INDEX.md` 增加文档分层表：用户文档（`docs/user/`、根 README/INSTALL/OPERATION）、
+  开发者文档（`docs/*.md`、`adr/`、`specs/`）、会话日志（`docs/sessions/`）。
+- 清理本机私有信息：`FRAMEWORK_CHEATSHEET.md` 的项目根改为 `<repo>`；
+  `PROGRESS.md` 删除本机代理端口。
+- 新增 `netlab/tests/test_docs_privacy.py`：对 `git ls-files` 跟踪的 `.md/.txt/.rst`
+  扫描本机路径、私有代理端口、记忆库路径，零命中才通过。

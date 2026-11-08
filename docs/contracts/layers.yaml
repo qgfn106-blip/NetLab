@@ -1,0 +1,91 @@
+# 架构契约（严格审计 §4 A1/A2/A3/A6）
+# 机器读取：tools/check_architecture.py；修改后必须重跑该工具。
+version: 1
+
+# A1 依赖方向：from 前缀 → 禁止 import 的 to 前缀
+forbidden_edges:
+  - from: netlab.core
+    to:
+      - netlab.server
+      - netlab.desktop
+      - netlab.plotkit_bridge
+      - netlab.vscode_bridge
+      - plotkit
+    reason: core 必须可在无 UI/无绘图/无桌面环境独立导入
+  - from: netlab.server_
+    to:
+      - netlab.server_
+    except_same_module: true
+    reason: server_* 路由包之间不得互相 import，聚合只允许 netlab.server
+  - from: netlab.plotkit_bridge
+    to:
+      - plotkit.
+    reason: 只允许 import plotkit 顶层公开名，禁止深入 plotkit.* 私有模块
+
+# A3 模块级可变全局白名单：module + name，必须写原因与删除时间
+# 未列出的模块级可变全局一律失败；新增条目需在本文件登记。
+mutable_globals_whitelist:
+  - module: netlab.plotkit_bridge
+    names: [_LOCK, _STATE, _ACTIVE, _FORCED, _REGISTERED, _LAST_ERROR]
+    reason: PlotKit 挂载状态与同步锁，待 G1 后续迁移到 AppState 注入
+    remove_by: "2026-12-31"
+  - module: netlab.vscode_bridge
+    names: [_lock, _proc, _port, _error, _log_path]
+    reason: VS Code 子进程句柄，进程级单例
+    remove_by: "2026-12-31"
+  - module: netlab.server_analysis
+    names: [_service]
+    reason: 路由聚合期的 service 注入点，待 AppState 化
+    remove_by: "2026-12-31"
+  - module: netlab.server_blocks
+    names: [_service, _current_workspace]
+    reason: 路由聚合期的 service/工作区注入点，待 AppState 化
+    remove_by: "2026-12-31"
+  - module: netlab.server_project
+    names: [_service, _fem, _last_project, _last_project_library]
+    reason: 路由聚合期的 service/FEM/最近工程缓存，待 AppState 化
+    remove_by: "2026-12-31"
+  - module: netlab.core.compute.accel
+    names: [_GPU, _GPU_ERROR, _LOCK]
+    reason: GPU 探测缓存与初始化锁，只初始化一次
+    remove_by: "2027-01-31"
+  - module: netlab.core.compute.circuit.solver
+    names: [_scipy_lu_factor, _scipy_lu_solve, _sparse, _splu]
+    reason: SciPy 延迟导入缓存，进程级只写一次
+    remove_by: "2027-01-31"
+  - module: netlab.core.compute.math_accel.diagnostics
+    names: [_LOCK, _COUNTERS]
+    reason: 性能计数器与锁，进程级单例
+    remove_by: "2027-01-31"
+  - module: netlab.core.model.builtins
+    names: [_BUILTIN_IDS, _BEHAVIOR_SPECS, _CACHE]
+    reason: 只读常量表 + 编译缓存
+    remove_by: "2027-01-31"
+  - module: netlab.core.model.extensions
+    names: [_LOCK, _REGISTRY, _FORBIDDEN_NAMES, _SAFE_BUILTINS]
+    reason: 扩展注册表与只读安全表，注册表由锁保护
+    remove_by: "2027-01-31"
+  - module: netlab.core.model.plugins
+    names: [_PLUGIN_LOCK, _MANAGER, _MANAGER_LOCK]
+    reason: 插件管理器单例与锁
+    remove_by: "2026-12-31"
+  - module: netlab.core.model.workspace
+    names: [_SETTINGS_RULES]
+    reason: 只读设置规则表
+    remove_by: "2027-01-31"
+  - module: netlab.core.compute.safeexpr
+    names: [_FUNCTIONS]
+    reason: 只读安全表达式函数表
+    remove_by: "2027-01-31"
+
+# A2 环基线：仅登记 2026-11-09 前已存在的环，禁止新增；每项到期前必须拆掉。
+a2_cycle_baseline:
+  - cycle: [netlab.core.compute.circuit_modules, netlab.core.model.blocks]
+    reason: circuit_modules 需要 BlockDef 类型，blocks 运行期回调 circuit_modules 展开模块
+    remove_by: "2026-12-31"
+  - cycle: [netlab.core.compute.circuit_modules, netlab.core.model.blocks, netlab.core.model.scene]
+    reason: 同上，scene 经 circuit_modules 触达 blocks
+    remove_by: "2026-12-31"
+  - cycle: [netlab.core.model.blocklib, netlab.core.model.project]
+    reason: blocklib 复用 project 的 canonical_json/atomic_write；待抽 model_io
+    remove_by: "2026-12-31"

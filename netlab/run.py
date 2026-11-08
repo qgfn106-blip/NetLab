@@ -2,7 +2,7 @@
 
 默认绑定 127.0.0.1:8010，并自动打开浏览器；也可以从命令行覆盖：
 
-    python run.py --port 8020 --no-browser
+    python -m netlab.run --port 8020 --no-browser
 """
 
 from __future__ import annotations
@@ -12,12 +12,6 @@ import sys
 import threading
 import time
 import webbrowser
-from pathlib import Path
-
-PROJECT_ROOT = Path(__file__).resolve().parent
-PACKAGE_PARENT = PROJECT_ROOT.parent
-if str(PACKAGE_PARENT) not in sys.path:
-    sys.path.insert(0, str(PACKAGE_PARENT))
 
 
 def setup_console() -> None:

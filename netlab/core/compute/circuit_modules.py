@@ -518,7 +518,7 @@ def encapsulate_circuit(
         ports=ports,
         model=model if model in ("behavioral", "structural") else "structural",
     )
-    from ..model.blocklib import validate_block_structure
+    from ..model.blocks import validate_block_structure
 
     validate_block_structure(block)
     scene.blocks.add(block)

@@ -2714,3 +2714,11 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 新增 `netlab/tests/test_e2e_control_experiment.py`：绿色路径 exit 0 且三项误差 pass；`--plant-scale 1.05` 变异路径 exit 1 且 `error_table.pass=false`；变异体 SVG 与误差表入仓 `reports/e2e-mutation/`。
 - `.github/workflows/python-tests.yml` 新增硬门：`D-4 end-to-end acceptance (green)` 与 `D-4 mutation must turn red`（变异必须非零退出）。
 - 实测：green 误差 final 1.0011/1.0、overshoot 39.1536/37.2326（1.9210 pp，限 2.00）、settling 6.9100/6.6667（0.2433 s，限 2.50）；变异体 overshoot 40.1975（2.9649 pp）判红。
+
+## §7.140 D-5 影子验证制度化（2026-11-09）
+
+- 新增 `tools/check_solver_change.py`：以 `git diff <base>..HEAD` 检测 `netlab/core/compute/**` 数值代码改动；有改动必须携带 `reports/shadow/<code_fingerprint>.json` 三态报告（`off` / `shadow` / `on`），`shadow` 与 `on` 的 `max_rel_error < 1e-10` 且 `passed=true`，并含独立参考解（`numpy_dense_ladder_solve`，不调用 netlab 求解器）。
+- 报告按代码指纹命名而非 `<HEAD>`：报告须在提交前生成，若用 HEAD 会自指；指纹绑定被验证的 compute 源码内容，可在任意后续提交复核。产物已 tracked，`reports/shadow/` 已加入 .gitignore 白名单。
+- 脚本自带 `--self-test`：基线绿；删除 `modes.shadow` / 把 shadow 相对误差抬到 1.0 / 删除 `reference` 三种篡改均必须判红。
+- CI：新增 `D-5 shadow report self-test (tool)` 与 `D-5 solver change shadow report` 硬门；原 `Solver shadow gate` 降级为 `advisory regression diagnostics`（`continue-on-error: true`，不删检查），正确性硬门由 `tests/evals` 的解析解/收敛阶/变异体承担。
+- 实测报告：off vs on `max_abs_error=5.55e-17`、`max_rel_error=4.97e-14`；独立参考解 `max_abs_error=1.11e-16`；`pass=true`。

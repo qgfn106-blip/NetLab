@@ -84,8 +84,21 @@ jobs:
             echo "mutation gate correctly failed"
           fi
 
-      - name: Solver shadow gate (hard gate)
+      - name: D-5 shadow report self-test (tool)
+        env:
+          PYTHONPATH: .
+        run: python tools/check_solver_change.py --self-test
+
+      - name: D-5 solver change shadow report
+        env:
+          PYTHONPATH: .
+          DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python tools/check_solver_change.py --base "$DIFF_BASE"
+
+      # D-5：影子门降级为回归诊断；正确性硬门在 tests/evals（解析解/收敛阶/变异体）。
+      - name: Solver shadow gate (advisory regression diagnostics)
         working-directory: .
+        continue-on-error: true
         env:
           PYTHONPATH: .
         run: python tools/solver_shadow_check.py --json

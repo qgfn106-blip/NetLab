@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import signal
 import threading
 import time
 from contextlib import asynccontextmanager
@@ -469,7 +470,8 @@ def shutdown(request: ShutdownRequest, http_request: Request) -> dict[str, Any]:
 
     def terminate() -> None:
         time.sleep(0.4)
-        os._exit(0)
+        # 走 uvicorn 的 SIGINT 优雅关闭，确保监听端口与线程正常释放。
+        signal.raise_signal(signal.SIGINT)
 
     threading.Thread(target=terminate, name="netlab-shutdown", daemon=True).start()
     return {"ok": True, "message": "服务正在关闭，端口即将释放"}

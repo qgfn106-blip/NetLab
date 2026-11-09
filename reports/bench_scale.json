@@ -1,0 +1,21 @@
+{
+  "max_nodes": 400,
+  "results": [
+    {
+      "nodes": 100,
+      "edges": 300,
+      "steps": 20,
+      "median_ms": 6.9196,
+      "steps_per_second": 144.5,
+      "peak_tracemalloc_mb": 0.388
+    },
+    {
+      "nodes": 400,
+      "edges": 1200,
+      "steps": 20,
+      "median_ms": 29.2426,
+      "steps_per_second": 34.2,
+      "peak_tracemalloc_mb": 1.547
+    }
+  ]
+}

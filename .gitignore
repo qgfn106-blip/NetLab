@@ -62,4 +62,5 @@ reports/*
 !reports/e2e-mutation/**
 !reports/shadow/
 !reports/shadow/**
+!reports/bench_scale.json
 CON

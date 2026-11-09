@@ -1,6 +1,6 @@
 # Netlab G0–G6 闸门契约（仓内 SSOT）
 
-> 本文件是 `netlab/docs/specs/2026-11-09-g0-g4-signoff.md` 的依据文件，内容重建自 2026-11-10 会话日志中 `NETLAB_AGENT_PROMPT_2026-11-10.md`（原文件已删除，revision `2da6c36022715c48a7ded311c31019001aff6026e57fa2a49d00211d3c6bc55b`）。本文件入库后，签字表不得再引用仓外或不存在的文档。
+> 本文件是 `netlab/docs/specs/2026-11-09-g0-g4-signoff.md` 的**当前仓内规则 SSOT**。内容根据 2026-11-10 会话日志重建自已删除的 `NETLAB_AGENT_PROMPT_2026-11-10.md`（原 revision `2da6c36022715c48a7ded311c31019001aff6026e57fa2a49d00211d3c6bc55b`）。它提供当前可读的规则出处，但**不等同于原始用户授权或批准原文**；授权/追认仍须以可核验的用户原文或 S4 逐项签字为准。本文所称 `docs/` 均指 `NetlabHome` 仓库根下的 `docs/`（工作区路径为 `NetlabHome/docs/`）。
 
 ## 1. 阶段与唯一目标
 
@@ -19,7 +19,7 @@ S0–S2 是唯一硬阻塞目标。S3 不要求签字、S4 不催促、S5 不预
 
 - **X1** 禁止自行 `git push` / `force-push` / `rebase` / `amend` / `reset` / 改 `.git/config` 与代理网络设置。任何 push 须用户书面授权并逐字指定 HEAD。
 - **X2** 禁止改写远端历史；禁止用 tree 等价冒充“本地/远端一致”。
-- **X3** 禁止事后补豁免。`docs/waivers.md` 目前不存在；如需豁免必须**事前**书面裁定，写明理由、影响判据、绑定 SHA。
+- **X3** 禁止事后补豁免。`docs/waivers.md` 现为仓内追认登记表；任何豁免仍必须有可核验的事前书面裁定，或明确标为「待用户追认」，写明理由、影响判据、绑定 SHA。
 - **X4** 禁止把未 tracked 产物写成“已有”；`reports/` 只有 11 个 tracked 文件，`architecture.json` / `bench.jsonl` / `crossval.json` 仍不存在。
 - **X5** 禁止把影子门、advisory 诊断或本机全绿当作正确性证据；正确性硬门是 `tests/evals` 的解析解/收敛阶/变异体。
 - **X6** 证据基线必须重新钉死，禁止沿用本文件历史快照；远端 SHA 与本地 `origin/main` 引用分开记。

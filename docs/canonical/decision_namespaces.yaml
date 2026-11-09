@@ -1,0 +1,4 @@
+schema_version: 1
+namespaces:
+  netlab: {prefix: "D-NL-", width: 3, legacy: "D#", file: decisions.yaml}
+  plotkit: {prefix: "D-PK-", width: 3, legacy: "D#", file: PlotKit/docs/REQUIREMENTS_AND_PROGRESS.md}

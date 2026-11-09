@@ -80,7 +80,7 @@ def _index(requirements: list[dict], decisions: list[dict]) -> tuple[str, str]:
     d = ["# 决策索引（生成，勿手改）", "", "| ID | 主题 | 决策摘要 |", "| --- | --- | --- |"]
     for item in decisions:
         decision = (item.get("decision") or "").replace("|", "／")
-        d.append(f"| {item['id']} | {item['title']} | {decision[:100]} |")
+        d.append(f"| {item.get('canonical_id') or item['id']} | {item['title']} | {decision[:100]} |")
     return "\n".join(r) + "\n", "\n".join(d) + "\n"
 
 

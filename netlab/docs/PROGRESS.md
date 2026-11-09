@@ -2730,3 +2730,11 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 逐条复核严格审计 §7.4 五项：①LTE 估计/误差控制零实现；②统一离散语义未完成（`_source_value()` 只对梯形法取平均，`gear_dt != dt` 仍静默回退 BE）；③真实 KCL 残差有 `_true_residual()` 与 bench 1e-18 A，但存在重复定义且无公开契约；④`cond` 计算/返回缺失；⑤延迟语义未形成跨方法统一契约。`solver.py:1252` 标明 gear2 固定步长，`test_solver_integration.py::test_gear2_dt_change_resets_history` 把静默回退 BE 固化为期望。
 - 结论：严格审计 §3.2/§7.4 语境下的 P3 数值内核**五项均未完成签收**（LTE/自适应步长、统一离散、真实 KCL 残差、cond/残差返回、延迟语义统一）；不得标注「P3 完成」或「P3 部分修复」。其他 P3 编号不受影响，逐行清单见 `netlab/docs/specs/2026-11-09-n5-p3-withdrawal-list.md`；§7.131 的梯形首步初始电流修复是另一缺陷，不能替代。
 - 用户裁定：A′（收窄版）——只撤回严格审计 §3.2/§7.4 语境的 P3 数值内核完成标注；其他 P3 编号不动；`§7.131` 独立命名、与 P3 五项脱钩。A′ 已于 2026-11-09 执行，清单见 `netlab/docs/specs/2026-11-09-n5-p3-withdrawal-list.md`，裁定全文见 `netlab/docs/specs/2026-11-09-n5-p3-audit.md`。B 为 A 之后的独立项目，不是并列选项。
+
+## §7.142 用户反馈四项 UI 缺陷修复（2026-11-09）
+
+- 多选拖动：`onPointerDown`/`onPointerMove`/`onPointerUp` 支持 `drag.type='nodes'`，按多选集合的 origin 批量位移并逐个 `queuePositionSave`；`pasteClipboard` 粘贴后自动把新节点/新边加入 `state.multi` 并选中首个新节点，粘贴结果可直接整组拖动。
+- 分析信号显示名：后端 `_info_locked()` 增加 `probe_labels`（稳定键→当前显示名），`probe_keys` 仍保持稳定 id 键；前端 `updateSignalKeyCache` 用 `probe_labels` 把 `state.probeKeys` 映射为显示名，`decodeProbeKey` 以显示名解析出 `节点名 · 字段`；信号列表与工作台共享信号都显示预设名而非 id。
+- 电路模式分析无数据：`live()` 帧键与 `keys` 统一为显示名，`probe_keys` 仍为稳定键、`probe_labels` 提供映射，前端绘图用同一显示名查 `frame.v`，修复“有数据但显示没有数值”。
+- 工作台参数表：新增 `frontend/app/param_groups.ts`（`createParamGroupTable`/`fallbackParams`），按对象折叠 `<details>`，支持节点/连接/参数名与 id 检索；spec 缺失时按 `node.params`/`edge.params` 合成字段，节点与连接参数可直接编辑。
+- 验证：`npm run typecheck` 0；`npm run build` 0；`npm test` 20 pass；`npm run check:sections` OK；新增 `netlab/tests/test_live_signal_labels.py` 2 passed；全量 `python -m pytest netlab/tests -q` → 800 passed / 1 skipped / 137.86s。

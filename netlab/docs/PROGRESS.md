@@ -2684,3 +2684,8 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 新增 `tools/e2e_desktop_smoke.py`：调用 `python -m netlab.desktop --selftest`，解析返回 dict（兼容 JSON / Python 字面量），断言 `status==200` 且 `shim_injected is True`；本地 `OK: desktop L2 smoke passed`。
 - `python-tests.yml` 新增 `desktop-l2` job（windows-latest + pywebview/pythonnet）；CI python-tests `42555549182` success（test + desktop-l2 均 success）、frontend-ts-build `42555549285` success（HEAD 5a61bc4）；G3a 的 python-tests `42554982723` success。
 - G3 状态：G3a 锁定（requirements.lock，干净 venv 787 passed/2 skipped）、G3c L1 e2e、G3d L2 完成；G3b 容器、G3e 发布待做。
+## §7.135 G3e 发布产物门（2026-11-09）
+
+- 新增 `.github/workflows/release.yml`：`v*` tag 触发 `python -m build --sdist --wheel` → `twine check` → `SHA256SUMS` → CycloneDX SBOM → 上传 `netlab-dist`。
+- 本地验证：`python -m build --sdist --wheel -o dist` 生成 `netlab-3.20.1.tar.gz` 与 `netlab-3.20.1-py3-none-any.whl`，`python -m twine check dist/*` 两者均 **PASSED**。
+- G3 状态：G3a 锁定、G3c L1 e2e、G3d L2、G3e 发布门完成；G3b 容器（本机无 docker，需 CI/有 docker 环境验证）待做。

@@ -2674,3 +2674,8 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 本地：`npm run typecheck` / `npm test` / `verify:parity`（47 TS/568 decl/41 runtime）/ `check:sections` 全绿；`E2E_CHANNEL=msedge npm run e2e` → `OK: L1 smoke passed (menu=9)`；全量 pytest **791 passed / 1 skipped / 93.36s**。
 - CI：`frontend-ts-build.yml` 新增 `e2e-l1` job（ubuntu + chromium + 服务端依赖）；python-tests `42551238003` success、frontend-ts-build `42551237939` success（含 e2e-l1，HEAD 6ddaf8c）。
 - 规格：`netlab/docs/specs/2026-11-09-g3-packaging-e2e.md`；G3a/G3b/G3d/G3e 留后续轮。
+## §7.133 G3a 依赖锁定与 README 最近更新（2026-11-09）
+
+- `.python-version` 固定 3.12；`requirements.lock` 由 `uv pip compile --universal --python-version 3.12 --generate-hashes` 生成（fastapi/uvicorn/numpy/scipy + pytest/httpx/pytest-cov/sympy/jsonschema/PyYAML，35 个包均带 sha256）。
+- 干净 venv（`NetlabExtras/tmp/venv_g3`，Python 3.12）`uv pip install --require-hashes -r requirements.lock` 成功；加装可选 PlotKit 后全量 **787 passed / 2 skipped**（schemdraw/GUI 环境缺失跳过）。
+- 用户新增规则：每次 GitHub 推送在 README 显示最近一次更新并保留最近 10 次；新增 `tools/update_readme_changelog.py`（`--write/--check`），README 插入「最近更新（自动记录最近 10 次）」表；CI python-tests 增加漂移检查步骤。

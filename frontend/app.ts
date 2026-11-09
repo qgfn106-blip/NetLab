@@ -46,7 +46,10 @@ import { ensureDocs, docBySlug, openDoc, closeDoc, renderDocNav, renderDocBody, 
 import { openSettings, closeSettings, setSettingsPane, initSettingsWin, showGuide, hideGuide, selectGuideMode, enterGuideScene, initGuide, setGuideActions } from './app/settings_guide.js';
 import { setPlotkitFrameActions } from './app/plotkit_frame.js';
 import { circuitMidAngle, drawCircuitGlyph, circuitWireGap, drawJunctionDots, elementPins, elementLayoutCenter, elementRot, symbolScalePx } from './app/circuit_symbols.js';
-declare function setStatusHint(hint: string): void;
+function setStatusHint(hint: string): void {
+  const node = document.getElementById('statusHint');
+  if (node) node.textContent = hint;
+}
 
 /* Netlab 拓扑网络仿真台 — 前端交互脚本
  *

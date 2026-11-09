@@ -19,7 +19,7 @@ S0–S2 是唯一硬阻塞目标。S3 不要求签字、S4 不催促、S5 不预
 
 - **X1** 禁止自行 `git push` / `force-push` / `rebase` / `amend` / `reset` / 改 `.git/config` 与代理网络设置。任何 push 须用户书面授权并逐字指定 HEAD。
 - **X2** 禁止改写远端历史；禁止用 tree 等价冒充“本地/远端一致”。
-- **X3** 禁止事后补豁免。`docs/waivers.md` 现为仓内追认登记表；任何豁免仍必须有可核验的事前书面裁定，或明确标为「待用户追认」，写明理由、影响判据、绑定 SHA。
+- **X3** 禁止事后补豁免。`docs/waivers.md` 是历史授权/追认的核查登记，不是授权本身；事后追认不能改写为事前批准，也不能追溯授权未来动作。任何未找到可核验原文的历史事项只能列为「待用户明确追认」，不得由 agent 自证。
 - **X4** 禁止把未 tracked 产物写成“已有”；`reports/` 只有 11 个 tracked 文件，`architecture.json` / `bench.jsonl` / `crossval.json` 仍不存在。
 - **X5** 禁止把影子门、advisory 诊断或本机全绿当作正确性证据；正确性硬门是 `tests/evals` 的解析解/收敛阶/变异体。
 - **X6** 证据基线必须重新钉死，禁止沿用本文件历史快照；远端 SHA 与本地 `origin/main` 引用分开记。
@@ -49,7 +49,7 @@ S0–S2 是唯一硬阻塞目标。S3 不要求签字、S4 不催促、S5 不预
 
 | 闸门 | 判据（必须同时满足） | 证据位置 |
 |---|---|---|
-| **NL-G0 基线 + 首绿** | 重新记录 `date` / 工作树 / `git rev-parse HEAD` / `git status --short` / `git rev-list --left-right --count origin/main...main` / 远端 main；三 workflow 全 success；python-tests step 3 与 D-5 步骤 success 且 step 4–24 未被 skipped | 签字表 G0 行 + 三 run URL |
+| **NL-G0 基线 + 首绿** | 重新记录 `date` / 工作树 / `git rev-parse HEAD` / `git status --short` / `git rev-list --left-right --count origin/main...main` / 远端 main；三 workflow 全 success；python-tests step 3 与 D-5 步骤 success 且 step 4–24 未被 skipped；S3 锚点允许绑定「上一已推送 HEAD + 本提交 run URL」（本提交仅改文档时） | 签字表 G0 行 + 三 run URL |
 | **NL-G1 需求可验证** | B-1 `bench_sparse_off_vs_auto.py` 输出 `passed=true` 且 ratio 在 VISION 判据内；B-2 43 条均有 `user_scenario/failure_cost/verify_command/expected/failure_condition`，`check_requirement_verifiability.py --ids R01,R43,R26` 全 PASS（其余 40 条静态 schema 明示为残余风险）；B-3 `check_status_freshness.py` 输出 `OK: status fresh at <HEAD>` | 签字表 G1 行 + `reports/test_status.json` |
 | **NL-G2 端到端可复算** | `e2e_control_experiment.py` 退出 0，`error_table.json` 每项 error 在 limit 内；`--plant-scale 1.05` 变异必红；`plot_spec.json` 走 canonical `plot_semantics.yaml` | 签字表 G2 行 + `reports/e2e/*` |
 | **NL-G3 数值变更防线** | `check_solver_change.py --self-test` 退出 0；compute 改动必须带 `reports/shadow/<fingerprint>.json`，含 off/shadow/on 三态 + 独立参考解 + `max_rel_error<1e-10`；不得用无 `--base` 假绿 | 签字表 G3 行 + `reports/shadow/*` |
@@ -59,7 +59,7 @@ S0–S2 是唯一硬阻塞目标。S3 不要求签字、S4 不催促、S5 不预
 
 ## 5. S4/S5 边界与 N6
 
-用户回复只允许三种：①「G0–G4 全部签字」（仅放行 N6，不含 PlotKit G4、不含 X1/X8 事后豁免、不含批准 B）；②指出某闸补证据或改结论；③改目标顺序。收到①且仅在此之后才允许启动 N6：
+用户回复只允许三种：①「G0–G4 全部签字」（仅放行 N6，不含 PlotKit G4、不含 X1/X8 事后豁免、不含批准 B；也不自动追认 `docs/waivers.md` 的 W-01/W-02/W-03，W 事项须用户逐项填写）；②指出某闸补证据或改结论；③改目标顺序。收到①且仅在此之后才允许启动 N6：
 
 - N6 目标：`graph.py:1076 capture_step_state()` 从 O(n) 浅快照改为增量事务 / undo log / COW。
 - 机器判据：n=100/1000/10000 的开销斜率与置信区间、回滚后逐字段相等、回放 N 步状态一致。
@@ -72,4 +72,4 @@ S0–S2 是唯一硬阻塞目标。S3 不要求签字、S4 不催促、S5 不预
 
 ## 7. 批准出处与 waivers
 
-`docs/waivers.md` 记录三项事前/追认事项：G0 rebase+push、A′ 裁定、X8 changelog 门降级。任何一项找不到可核验原文时，本文件与签字表统一写「待用户追认」，并由用户在 S4 签字时一并追认。
+`docs/waivers.md` 记录三条 W 事项：W-2026-11-10-01 G0 rebase+push、W-2026-11-10-02 A′ 裁定（§7.4 五项）、W-2026-11-10-03 X8 changelog 门降级。任何一项找不到可核验原文时，本文件与签字表统一写「待用户追认」；「G0–G4 全部签字」不自动追认 W 事项，用户须在 S4 逐项填写追认栏。

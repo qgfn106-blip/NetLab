@@ -2667,3 +2667,10 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 收敛阶：RC 阶跃实测 **1.980/1.990/1.995**（P3 前 1.01），`test_convergence.py` 改为断言 2 阶；`test_numerical_benchmarks.py` 原误标 backward_euler 的用例更名 trapezoidal 并断言 p≈2。
 - 牛顿真残差：`_true_residual()` 在解处重新盖章计算 F(x*)=Ax*−b(x*)，非线性收敛判据不再使用上一次线性化的后向误差。
 - 门禁：全量 **791 passed / 1 skipped**；core 覆盖率 **81.44%**（门限 81）；改动行覆盖 **41/50 = 82.0%**。CI python-tests `42524401708` success、frontend `42524401679` success（HEAD 8856e75）。
+## §7.132 G3c 真实浏览器 L1 e2e（2026-11-09）
+
+- 新增 `frontend/e2e/smoke.mjs`：启动 uvicorn（浏览器模式）→ Playwright 真实浏览器加载 `index.html` → 断言 `#btnRun`/`#stage` 可见、菜单 ≥1、点「适配」后无 console/pageerror、`/api/health.ok`；`npm run e2e`。
+- **首个真实回归**：运行即报 `ReferenceError: setStatusHint is not defined`——S5-37 把只有 `declare` 没有实现的 `setStatusHint` 直接传给 `setPlotkitFrameActions`，导致整个应用初始化中断、菜单为空。此前 16 个读源码的静态护栏全部漏掉。修复：在 `frontend/app.ts` 实现 `setStatusHint()` 更新 `#statusHint` 文本。
+- 本地：`npm run typecheck` / `npm test` / `verify:parity`（47 TS/568 decl/41 runtime）/ `check:sections` 全绿；`E2E_CHANNEL=msedge npm run e2e` → `OK: L1 smoke passed (menu=9)`；全量 pytest **791 passed / 1 skipped / 93.36s**。
+- CI：`frontend-ts-build.yml` 新增 `e2e-l1` job（ubuntu + chromium + 服务端依赖）。
+- 规格：`netlab/docs/specs/2026-11-09-g3-packaging-e2e.md`；G3a/G3b/G3d/G3e 留后续轮。

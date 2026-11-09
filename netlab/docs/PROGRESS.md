@@ -2744,3 +2744,9 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 旁路分析不匹配：`updateSignalKeyCache` 的 `available` 与自动选择改用 `state.probeKeys`（显示名），不再把 raw 稳定键塞进 `state.chart.selected`；`analysisSignalKey` 的 fallback 改用 `state.probeKeys`；分析面板下拉选项与选中同步改用显示名并补 `change` 绑定，指标/频谱/周期按用户实际选择执行。
 - 工作台“数字报错”：`fallbackParams` 原把 JS 的 `number`/`boolean` 直接写进 `ParamSpec.type`，而控件只认 `float/int/bool/choice/text`，导致数字字段退化成文本框、后端收到字符串并报“必须是数字”。改为 `number → float`、`boolean → bool`，并新增 `frontend/tests/param_groups.test.mjs` 2 条回归。
 - 验证：`npm run typecheck`/`build` 0；`npm test` 22 pass；`npm run e2e` L1 smoke OK；`npm run check:sections` OK（app.ts 8000 行）；`verify:parity` `49 TS files, 578 declarations, 43 runtime, 1 type-only`；全量 `python -m pytest netlab/tests -q` → 800 passed / 1 skipped / 120.44s。提交 `7381978`。
+## 7.144 Phase 1 正确性与 Phase 2 规模基准（2026-11-10）
+
+- Phase 1（提交 `a35e7a8`、`9b461da`）：单步协作式 deadline（Newton 每轮检查，超时抛 `ComputeError`）、push 失败回滚场景/steps、预计算原子快照恢复、`Recorder` 溢出 `dropped` 计数；删除重复 `_true_residual`；关闭路径改 SIGINT 优雅退出；桌面依赖移除 PySide6、补 `import os`。
+- PlotKit Phase 1（`b06be8b`、`3f9ca1b`）：`DataSet.values` 只读视图、PKF1 JSON 列 `byte_length`、`record_update` 保留 CRLF。
+- Phase 2（`f48db27`）：`tools/bench_scene_scale.py` 实测 100 节点/300 边 **6.92 ms/步（144.5 步/s）**、400 节点/1200 边 **29.24 ms/步（34.2 步/s）**，峰值 tracemalloc 0.388/1.547 MB；`MAX_NODES=400` 保持不变，500/1000/5000 档位标 `PENDING_USER_AUTHORIZATION`。
+- 当前全量：805 passed / 1 skipped / 251.2s；core 覆盖率 81.55%。

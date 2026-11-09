@@ -2697,3 +2697,4 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 新增 `docs/canonical/requirements.yaml`（R01–R43）与 `docs/canonical/decisions.yaml`（D1–D154），从需求台账一次性导入，之后以 canonical 为唯一真源。
 - 新增 `tools/render_docs.py`：从 canonical + `netlab/docs/status.json` 生成 `PROGRESS.md`/`BACKLOG.md` 顶部状态段（`<!-- BEGIN/END GENERATED: status -->`）、`netlab/docs/REQUIREMENTS_INDEX.md`、`netlab/docs/DECISIONS_INDEX.md`；`--check` 只比对不写。
 - `python-tests.yml` 新增 `Docs SSOT render (G4)` 步骤；新增 `netlab/tests/test_docs_ssot.py`（canonical 计数 + 零漂移）。全量 **793 passed / 1 skipped / 3 warnings / 102.35s**。
+- CI（HEAD `2579490`）：python-tests `42562533001` success、frontend-ts-build `42562532872` success、container `42562532783` success。

@@ -315,14 +315,14 @@ class CircuitSolver:
 
     # ---- 推进 -------------------------------------------------------------
     @timed("circuit.solver.step")
-    def step(self, dt: float) -> dict[str, Any]:
+    def step(self, dt: float, deadline: float | None = None) -> dict[str, Any]:
         if not math.isfinite(dt) or dt <= 0:
             raise ValidationError("dt 必须为正的有限数")
         started = _time.perf_counter()
         checkpoint = self.capture_checkpoint()
         self._last_step_checkpoint = checkpoint
         try:
-            return self._step_locked(dt, started)
+            return self._step_locked(dt, started, deadline)
         except Exception:
             self.restore_checkpoint(checkpoint)
             raise
@@ -333,7 +333,7 @@ class CircuitSolver:
         if checkpoint is not None:
             self.restore_checkpoint(checkpoint)
 
-    def _initialize_reactive_currents(self, dt: float) -> None:
+    def _initialize_reactive_currents(self, dt: float, deadline: float | None = None) -> None:
         """P3：首个梯形步前用一次后向欧拉预测步求一致的初始电容电流。
 
         阶跃源在 t=0 跳变时，电容电流 i(0+) 并不为 0；若以 0 作梯形历史，
@@ -352,7 +352,7 @@ class CircuitSolver:
                 self.solution if self.solution is not None else np.zeros(self.matrix_size)
             )
             predicted, _, converged, _, _ = self._newton_with_strategies(
-                dt, guess, mode="tran"
+                dt, guess, mode="tran", deadline=deadline
             )
             if not converged:
                 return
@@ -369,11 +369,11 @@ class CircuitSolver:
             for element in reactive:
                 element.integration = saved[id(element)]
 
-    def _step_locked(self, dt: float, started: float) -> dict[str, Any]:
+    def _step_locked(self, dt: float, started: float, deadline: float | None = None) -> dict[str, Any]:
         self.time += dt
         if self._startup_pending:
             self._startup_pending = False
-            self._initialize_reactive_currents(dt)
+            self._initialize_reactive_currents(dt, deadline)
         for element in self.elements:
             element.prepare(dt, self.time)
 
@@ -381,7 +381,7 @@ class CircuitSolver:
             self.solution if self.solution is not None else np.zeros(self.matrix_size)
         )
         solution, iterations, converged, residual, attempted = (
-            self._newton_with_strategies(dt, guess, mode="tran")
+            self._newton_with_strategies(dt, guess, mode="tran", deadline=deadline)
         )
         if not converged:
             trouble = self._trouble_name(solution, dt=dt, residual=residual)
@@ -424,13 +424,13 @@ class CircuitSolver:
         }
 
     def _newton_with_strategies(
-        self, dt: float, guess: np.ndarray, *, mode: str = "tran"
+        self, dt: float, guess: np.ndarray, *, mode: str = "tran", deadline: float | None = None
     ) -> tuple[np.ndarray, int, bool, float, list[str]]:
         """Newton + gmin/source stepping 的统一入口（瞬态与 DC 工作点共用）。"""
         options = self.options
         nonlinear = any(element.nonlinear for element in self.elements)
         solution, iterations, converged, residual = self._newton_solve(
-            dt, 0.0, guess, mode=mode
+            dt, 0.0, guess, mode=mode, deadline=deadline
         )
         attempted: list[str] = []
         if not converged and nonlinear and options.gmin_steps > 0:
@@ -440,7 +440,7 @@ class CircuitSolver:
             for _ in range(max(1, int(options.gmin_steps))):
                 trial_snapshot = self._capture_element_state()
                 trial, trial_iters, trial_ok, _ = self._newton_solve(
-                    dt, gmin, solution, mode=mode
+                    dt, gmin, solution, mode=mode, deadline=deadline
                 )
                 iterations += trial_iters
                 if trial_ok:
@@ -449,7 +449,7 @@ class CircuitSolver:
                     self._restore_element_states(trial_snapshot)
                 gmin *= 0.1
             solution, trial_iters, converged, residual = self._newton_solve(
-                dt, 0.0, solution, mode=mode
+                dt, 0.0, solution, mode=mode, deadline=deadline
             )
             iterations += trial_iters
         if not converged and nonlinear and options.src_steps > 0:
@@ -460,7 +460,7 @@ class CircuitSolver:
                 scale = step / steps
                 trial_snapshot = self._capture_element_state()
                 trial, trial_iters, trial_ok, _ = self._newton_solve(
-                    dt, 0.0, solution, source_scale=scale, mode=mode
+                    dt, 0.0, solution, source_scale=scale, mode=mode, deadline=deadline
                 )
                 iterations += trial_iters
                 if trial_ok:
@@ -551,27 +551,6 @@ class CircuitSolver:
             element.stamp(ctx)
         return self._residual_metric(matrix, solution, rhs, dt)
 
-    def _true_residual(self, solution: np.ndarray, dt: float, mode: str) -> tuple[float, int | None]:
-        """在 ``solution`` 处重新盖章并计算真实 F(x*) = Ax* − b(x*) 的尺度无关残差。
-
-        审计 §3.3：不能用上一次线性化矩阵的 A·x_new − b 当非线性收敛证据。
-        """
-        matrix = self._blank_matrix()
-        rhs = np.zeros(self.matrix_size)
-        ctx = StampContext(
-            A=matrix,
-            rhs=rhs,
-            index=self.index,
-            solution=solution,
-            dt=dt,
-            time=self.time,
-            iteration=0,
-            mode=mode,
-        )
-        for element in self.elements:
-            element.stamp(ctx)
-        return self._residual_metric(matrix, solution, rhs, dt)
-
     @staticmethod
     def _residual_metric(
         matrix: Any, solution: np.ndarray, rhs: np.ndarray, dt: float
@@ -597,6 +576,7 @@ class CircuitSolver:
         source_scale: float = 1.0,
         *,
         mode: str = "tran",
+        deadline: float | None = None,
     ) -> tuple[np.ndarray, int, bool, float]:
         options = self.options
         sources = [e for e in self.elements if e.kind in ("vsource", "isource")]
@@ -609,6 +589,8 @@ class CircuitSolver:
         self._worst_residual_index = None
         try:
             for iteration in range(max_iter if nonlinear_elements else 1):
+                if deadline is not None and _time.perf_counter() > deadline:
+                    raise ComputeError("单步计算超时，已中止 Newton 迭代")
                 iterations = iteration + 1
                 matrix = self._blank_matrix()
                 rhs = self._rhs

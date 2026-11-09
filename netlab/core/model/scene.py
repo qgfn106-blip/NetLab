@@ -212,10 +212,10 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
         return best
 
     @timed("scene.step")
-    def step(self, dt: float) -> dict[str, Any]:
+    def step(self, dt: float, deadline: float | None = None) -> dict[str, Any]:
         engine = self.ensure_engine()
         started = time.perf_counter()
-        engine.step(dt)
+        engine.step(dt, deadline=deadline)
         self.last_step_ms = (time.perf_counter() - started) * 1000.0
         stats = engine.stats()
         stats["step_ms"] = self.last_step_ms

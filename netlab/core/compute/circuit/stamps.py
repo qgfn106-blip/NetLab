@@ -42,6 +42,8 @@ class SolverOptions:
     #: auto 模式下矩阵尺寸超过该值改用稀疏。当前 LIL 装配在 ≤400 节点反而更慢，
     #: 默认提高到 512，避免默认踩到负优化；显式 on/off 不受影响（P0）。
     sparse_threshold: int = 512
+    #: 单步计算截止时刻（time.perf_counter 的单调时钟）；None 表示不限制。
+    deadline: float | None = None
 
 
 @dataclass(slots=True)

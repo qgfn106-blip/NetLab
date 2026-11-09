@@ -112,16 +112,16 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-10 | docs(gate): add in-repo G0-G6 contract SSOT and waivers; rebind signoff anchors |
+| 2026-11-10 | docs(gate): S3 回填 G0–G4 签字表 8 处缺口 |
+| 2026-11-10 | fix(ci): D-5 指纹跨平台归一（CRLF→LF） |
+| 2026-11-10 | fix(ci): S1 D-5 指纹报告与 README changelog 结构门 |
 | 2026-11-10 | docs(ui): 记录旁路分析与工作台数值参数修复 |
 | 2026-11-10 | fix(ui): 工作台数值参数类型与分析信号显示名映射 |
 | 2026-11-09 | docs(ui): 记录四项 UI 缺陷修复 |
 | 2026-11-09 | fix(ui): 多选拖动、信号显示名与工作台参数折叠 |
 | 2026-11-09 | docs(governance): G0–G4 闸门证据表（签字列留白） |
 | 2026-11-09 | docs(n5): A′ 撤回严格审计 P3 五项完成标注并出收窄清单 |
-| 2026-11-09 | docs(n5): PROGRESS §7.141 记录 P3 复核裁定 |
-| 2026-11-09 | docs(n5): P3 复核裁定（三项未实现，待用户选择 A/B） |
-| 2026-11-09 | docs(d5): 补 §7.140 远端三 CI 绿与行尾说明 |
-| 2026-11-09 | docs(d5): PROGRESS §7.140 记录影子验证制度化 |
 
 <!-- END LAST 10 UPDATES -->
 

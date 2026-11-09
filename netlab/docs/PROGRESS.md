@@ -2698,3 +2698,10 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 新增 `tools/render_docs.py`：从 canonical + `netlab/docs/status.json` 生成 `PROGRESS.md`/`BACKLOG.md` 顶部状态段（`<!-- BEGIN/END GENERATED: status -->`）、`netlab/docs/REQUIREMENTS_INDEX.md`、`netlab/docs/DECISIONS_INDEX.md`；`--check` 只比对不写。
 - `python-tests.yml` 新增 `Docs SSOT render (G4)` 步骤；新增 `netlab/tests/test_docs_ssot.py`（canonical 计数 + 零漂移）。全量 **793 passed / 1 skipped / 3 warnings / 102.35s**。
 - CI（HEAD `2579490`）：python-tests `42562533001` success、frontend-ts-build `42562532872` success、container `42562532783` success。
+## §7.138 C-3 绘图语义单一真源（2026-11-09）
+
+- 新增 `docs/canonical/contracts/plot_semantics.yaml`（time_field=t、value_field=values、line_width=1.6、grid_width=1.0、max_points=20000、sync_pull_limit=6000、max_channels=64、downsample=minmax），由 `tools/gen_contracts.py` 生成 `netlab/contracts/generated.py` 与 `frontend/app/contracts.ts`。
+- 新增 `frontend/app/plot_semantics.ts`：`frameSeriesToPoints()`、`plotLineStyle()`、`buildPlotLineLayers()`；老 canvas `drawWbSubplot` 与内嵌 `PlotKitRenderer` 共用时间字段、线宽与配色映射；后端 `plotkit_bridge` 的 `MAX_POINTS`/`SYNC_PULL_LIMIT`/`MAX_CHANNELS`/`LINE_STYLE.width` 改为读取生成常量。
+- 测试：`netlab/tests/test_plot_semantics_contract.py`（3 passed）、`frontend/tests/plot_semantics.test.mjs`（3 passed，node --test 合计 20 passed）。
+- 门禁：全量 pytest **796 passed / 1 skipped / 3 warnings / 220.61s**；core 覆盖率 **81.43%**（门限 81）；`npm run typecheck`/`build`/`verify:parity`（48 TS/574 decl/42 runtime）+ `check:sections`（app.ts 7,942 行）全绿。
+- 规格：`netlab/docs/specs/2026-11-09-c3-plot-semantics.md`。

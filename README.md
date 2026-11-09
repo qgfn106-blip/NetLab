@@ -112,6 +112,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-09 | ci(container): 容器烟测排除 D-4 e2e（镜像未装 PlotKit） |
 | 2026-11-09 | docs(d4): PROGRESS §7.139 记录端到端验收闭环 |
 | 2026-11-09 | test(d4): 入仓变异体反证产物（plant +5% 判红） |
 | 2026-11-09 | test(d4): 入仓 D-4 绿色端到端产物（error_table/plot_spec/csv/netlab/svg） |
@@ -121,7 +122,6 @@ python -m netlab.desktop
 | 2026-11-09 | ci(b2): 需求可验证性抽查移到样例工程准备之后（R43 依赖 MyProject） |
 | 2026-11-09 | fix(docs): B-3 提交恢复两点 CRLF 误转为 LF 的换行，避免整文件 diff |
 | 2026-11-09 | docs(b3): D 编号命名空间 D-NL/D-PK 统一 + 里程碑基线更新 |
-| 2026-11-09 | docs(b2): R01-R43 补用户场景/失败代价/可执行验收命令 + 抽查脚本进 CI |
 
 <!-- END LAST 10 UPDATES -->
 

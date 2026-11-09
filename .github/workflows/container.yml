@@ -1,0 +1,24 @@
+name: container
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t netlab:ci .
+
+      - name: Run tests inside container
+        run: docker run --rm netlab:ci python -m pytest netlab/tests -q -k "not plotkit and not gui_smoke and not schematic_export"
+
+      - name: Health smoke
+        run: |
+          docker run -d --name netlab-ci -p 8010:8010 netlab:ci
+          sleep 8
+          curl -fsS http://127.0.0.1:8010/api/health
+          docker rm -f netlab-ci

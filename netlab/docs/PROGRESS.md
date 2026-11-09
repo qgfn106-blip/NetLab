@@ -2689,3 +2689,9 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 新增 `.github/workflows/release.yml`：`v*` tag 触发 `python -m build --sdist --wheel` → `twine check` → `SHA256SUMS` → CycloneDX SBOM → 上传 `netlab-dist`。
 - 本地验证：`python -m build --sdist --wheel -o dist` 生成 `netlab-3.20.1.tar.gz` 与 `netlab-3.20.1-py3-none-any.whl`，`python -m twine check dist/*` 两者均 **PASSED**。
 - G3 状态：G3a 锁定、G3c L1 e2e、G3d L2、G3e 发布门完成；G3b 容器（本机无 docker，需 CI/有 docker 环境验证）待做。
+## §7.136 G3b 容器交付（2026-11-09）
+
+- 新增 `Dockerfile`（python:3.12-slim + requirements.txt，`python -m netlab.server`，暴露 8010）与 `docker-compose.yml`（端口映射 + MyProject 卷）。
+- 新增 `.github/workflows/container.yml`：`docker build` → 容器内 `pytest -q -k "not plotkit and not gui_smoke and not schematic_export"` → `/api/health` smoke。
+- 本机无 docker，未本地验证；由 CI ubuntu runner 首次构建验证。
+- G3 状态：G3a/G3b/G3c/G3d/G3e 均已落地。

@@ -25,7 +25,7 @@ function analysisTokens() {
 }
 function analysisSignalKey() {
   if (state.chart.selected.size) return [...state.chart.selected][0];
-  const keys = state.sim?.probe_keys || [];
+  const keys = state.probeKeys || [];
   return keys[0] || "";
 }
 async function analysisGet(path, query) {

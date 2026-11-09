@@ -2657,7 +2657,7 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - KCL 残差：`tools/bench_solver.py` 的 `residual` 不再为 null，改为从 R1/C1 器件电流计算中点 KCL 失配（实测 1e-18 A 量级）。
 - 变异烟雾：`tools/mutation_smoke.py` 对 `elements.py` 施加 6 个变异体（电阻增益、电容/电感梯形系数、源增益、电容值、电感历史符号），逐个跑 `tests/evals` 并恢复原字节；实测 **6/6 killed，score=1.0**（阈值 0.6）。这是 smoke，不是完整变异测试。
 - 门禁：全量 pytest（791 passed / 1 skipped / 1 xfailed）；evals 单独 19 passed / 1 xfailed。
-## §7.131 P3 梯形源采样与初始电容电流自洽（2026-11-09）
+## §7.131 梯形首步初始电容电流自洽缺陷（非 P3 数值内核）（2026-11-09）
 
 - 根因：阶跃源在 t=0 跳变时，电容电流 i(0+) 并不为 0；以 0 作梯形历史会让整条曲线退化为 1 阶（实测 1.012/1.006/1.003）。单纯改源步内平均不能修复。
 - 修复：`CircuitSolver._initialize_reactive_currents()` 在首个梯形步前做一次 BE 预测步（不推进时间），用预测电压反算 `i(0+) = C·(v_pred−v_prev)/dt`；主步仍按梯形积分。`_source_value()` 对梯形法取步首/步末平均。
@@ -2727,6 +2727,6 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 
 ## §7.141 N5 P3 复核裁定（2026-11-09）
 
-- 逐条复核严格审计 §3.2 第 3/4 条：LTE 估计/误差控制、自适应步长、Gear2 变步长显式报错三项全仓零实现（`ast.LtE` 等为检索假阳性）；`solver.py:1252` 标明 gear2 固定步长，`test_solver_integration.py::test_gear2_dt_change_resets_history` 把静默回退 BE 固化为期望。
-- 结论：三项均**未实现**，不得标注「P3 完成」；§7.131 的梯形首步初始电流修复是另一缺陷，不能替代。
-- 裁定建议：A 先撤回完成标注（推荐）；B 按 §7.4 补 LTE/自适应/Gear2 显式报错。详见 `netlab/docs/specs/2026-11-09-n5-p3-audit.md`，待用户拍板后进入 N6。
+- 逐条复核严格审计 §7.4 五项：①LTE 估计/误差控制零实现；②统一离散语义未完成（`_source_value()` 只对梯形法取平均，`gear_dt != dt` 仍静默回退 BE）；③真实 KCL 残差有 `_true_residual()` 与 bench 1e-18 A，但存在重复定义且无公开契约；④`cond` 计算/返回缺失；⑤延迟语义未形成跨方法统一契约。`solver.py:1252` 标明 gear2 固定步长，`test_solver_integration.py::test_gear2_dt_change_resets_history` 把静默回退 BE 固化为期望。
+- 结论：严格审计 §3.2/§7.4 语境下的 P3 数值内核**五项均未完成签收**（LTE/自适应步长、统一离散、真实 KCL 残差、cond/残差返回、延迟语义统一）；不得标注「P3 完成」或「P3 部分修复」。其他 P3 编号不受影响，逐行清单见 `netlab/docs/specs/2026-11-09-n5-p3-withdrawal-list.md`；§7.131 的梯形首步初始电流修复是另一缺陷，不能替代。
+- 用户裁定：A′（收窄版）——只撤回严格审计 §3.2/§7.4 语境的 P3 数值内核完成标注；其他 P3 编号不动；`§7.131` 独立命名、与 P3 五项脱钩。A′ 已于 2026-11-09 执行，清单见 `netlab/docs/specs/2026-11-09-n5-p3-withdrawal-list.md`，裁定全文见 `netlab/docs/specs/2026-11-09-n5-p3-audit.md`。B 为 A 之后的独立项目，不是并列选项。

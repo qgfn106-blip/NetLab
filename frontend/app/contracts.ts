@@ -36,3 +36,14 @@ export const CONTRACT_VERSIONS = {
 } as const;
 
 export const PLOTKIT_API_VERSION = "1";
+
+export const PLOT_SEMANTICS = {
+  timeField: "t",
+  valueField: "values",
+  lineWidth: 1.6,
+  gridWidth: 1.0,
+  maxPoints: 20000,
+  syncPullLimit: 6000,
+  maxChannels: 64,
+  downsample: "minmax",
+} as const;

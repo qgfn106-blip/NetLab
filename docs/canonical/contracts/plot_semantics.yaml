@@ -1,0 +1,11 @@
+# 帧数据 → 绘图语义的唯一真源（C-3 / N-14）。
+# 老 canvas（drawWbSubplot）、内嵌 PlotKitRenderer 与后端 plotkit_bridge 都从这里取值。
+version: 1
+time_field: t
+value_field: values
+line_width: 1.6
+grid_width: 1.0
+max_points: 20000
+sync_pull_limit: 6000
+max_channels: 64
+downsample: minmax

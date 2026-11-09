@@ -121,6 +121,8 @@ class Recorder:
         repr=False,
         compare=False,
     )
+    #: 环形缓冲溢出时累计丢弃的最旧帧数（诊断口径，不进入帧本身）。
+    dropped: int = 0
     #: P5 遥测质量口径：当前链路无量化/压缩；字段固定，供
     #: ``/api/diagnostics/telemetry`` 只读查询，不进入 ``/api/live``。
     quality: dict[str, Any] = field(
@@ -163,6 +165,8 @@ class Recorder:
             self._keys = list(probes)
         if sample_dt is not None:
             self.quality["sample_dt"] = round(float(sample_dt), 12)
+        if len(self.frames) >= self.capacity:
+            self.dropped += 1
         self.frames.append(
             {
                 "seq": self.seq,
@@ -176,6 +180,7 @@ class Recorder:
         return {
             "frames": list(self.frames),
             "seq": self.seq,
+            "dropped": self.dropped,
             "keys": list(self._keys) if self._keys is not None else None,
             "quality": dict(self.quality),
         }

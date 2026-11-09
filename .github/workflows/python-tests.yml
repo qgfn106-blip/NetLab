@@ -41,6 +41,9 @@ jobs:
           pip install -r requirements-dev.txt
           pip install ../.plotkit-src
 
+      - name: Docs SSOT render (G4)
+        run: python tools/render_docs.py --check
+
       - name: Section budget (strict audit P0)
         working-directory: frontend
         run: |

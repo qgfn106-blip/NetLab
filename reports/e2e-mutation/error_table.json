@@ -1,0 +1,37 @@
+{
+  "env": {
+    "python": "3.13.9",
+    "platform": "win32"
+  },
+  "head": "eac89a857b9091bda5e0c029b19fd422ef17bea9",
+  "rows": [
+    {
+      "metric": "final",
+      "measured": 1.0012897087904027,
+      "analytic": 1.0,
+      "error": 0.0012897087904026883,
+      "limit": 1.0,
+      "unit": "abs",
+      "pass": true
+    },
+    {
+      "metric": "overshoot_pct",
+      "measured": 40.19749874041062,
+      "analytic": 37.232610492658644,
+      "error": 2.964888247751979,
+      "limit": 2.0,
+      "unit": "pp",
+      "pass": false
+    },
+    {
+      "metric": "settling_2pct_s",
+      "measured": 6.8100000000000005,
+      "analytic": 6.666666666666667,
+      "error": 0.14333333333333353,
+      "limit": 2.5,
+      "unit": "s",
+      "pass": true
+    }
+  ],
+  "pass": false
+}

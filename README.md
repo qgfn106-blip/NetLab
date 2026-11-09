@@ -112,6 +112,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-09 | fix(g3): 容器内复制样例工程并排除环境依赖检查（L 轮） |
 | 2026-11-09 | fix(g3): 容器补测试依赖并改用 uvicorn 启动（L 轮） |
 | 2026-11-09 | chore(g3): Dockerfile/compose 与容器 CI（L 轮） |
 | 2026-11-09 | ci(g3): 发布产物门 build/twine/SHA256SUMS/SBOM（L 轮） |

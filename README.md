@@ -112,15 +112,16 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-09 | fix(docs): B-3 提交恢复两点 CRLF 误转为 LF 的换行，避免整文件 diff |
+| 2026-11-09 | docs(b3): D 编号命名空间 D-NL/D-PK 统一 + 里程碑基线更新 |
+| 2026-11-09 | docs(b2): R01-R43 补用户场景/失败代价/可执行验收命令 + 抽查脚本进 CI |
+| 2026-11-09 | ci(b3): status.json 新鲜度门 + 真实 pytest 产物写入 |
+| 2026-11-09 | docs(b1): VISION 三条判据补可执行命令与失败条件 + 390 节点 sparse 基准 |
 | 2026-11-09 | docs(c3): 绘图语义单一真源规格与进度 |
 | 2026-11-09 | refactor(frontend,core): 老 canvas 与 PlotKit 共用绘图语义（C-3/N-14） |
 | 2026-11-09 | feat(frontend): 共享帧→绘图语义模块与契约测试（C-3） |
 | 2026-11-09 | feat(contracts): 绘图语义单一真源 canonical + 生成器（C-3/N-14） |
 | 2026-11-09 | docs(g4): 回填 G4 CI 证据并更新 README 最近更新 |
-| 2026-11-09 | ci(g4): 增加文档 SSOT 零漂移检查 |
-| 2026-11-09 | docs(g4): 生成 PROGRESS/BACKLOG 状态段与需求/决策索引 |
-| 2026-11-09 | feat(docs): G4 canonical requirements/decisions + render_docs 生成器与漂移测试 |
-| 2026-11-09 | docs(g3): G3 全部完成与 CI 证据（L 轮） |
 
 <!-- END LAST 10 UPDATES -->
 

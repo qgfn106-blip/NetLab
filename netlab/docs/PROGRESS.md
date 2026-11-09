@@ -2738,3 +2738,9 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 电路模式分析无数据：`live()` 帧键与 `keys` 统一为显示名，`probe_keys` 仍为稳定键、`probe_labels` 提供映射，前端绘图用同一显示名查 `frame.v`，修复“有数据但显示没有数值”。
 - 工作台参数表：新增 `frontend/app/param_groups.ts`（`createParamGroupTable`/`fallbackParams`），按对象折叠 `<details>`，支持节点/连接/参数名与 id 检索；spec 缺失时按 `node.params`/`edge.params` 合成字段，节点与连接参数可直接编辑。
 - 验证：`npm run typecheck` 0；`npm run build` 0；`npm test` 20 pass；`npm run check:sections` OK；新增 `netlab/tests/test_live_signal_labels.py` 2 passed；全量 `python -m pytest netlab/tests -q` → 800 passed / 1 skipped / 137.86s。
+
+## §7.143 旁路分析与工作台数值参数修复（2026-11-10）
+
+- 旁路分析不匹配：`updateSignalKeyCache` 的 `available` 与自动选择改用 `state.probeKeys`（显示名），不再把 raw 稳定键塞进 `state.chart.selected`；`analysisSignalKey` 的 fallback 改用 `state.probeKeys`；分析面板下拉选项与选中同步改用显示名并补 `change` 绑定，指标/频谱/周期按用户实际选择执行。
+- 工作台“数字报错”：`fallbackParams` 原把 JS 的 `number`/`boolean` 直接写进 `ParamSpec.type`，而控件只认 `float/int/bool/choice/text`，导致数字字段退化成文本框、后端收到字符串并报“必须是数字”。改为 `number → float`、`boolean → bool`，并新增 `frontend/tests/param_groups.test.mjs` 2 条回归。
+- 验证：`npm run typecheck`/`build` 0；`npm test` 22 pass；`npm run e2e` L1 smoke OK；`npm run check:sections` OK（app.ts 8000 行）；`verify:parity` `49 TS files, 578 declarations, 43 runtime, 1 type-only`；全量 `python -m pytest netlab/tests -q` → 800 passed / 1 skipped / 120.44s。提交 `7381978`。

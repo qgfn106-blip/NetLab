@@ -44,3 +44,37 @@ jobs:
       - name: Artifact drift guard (committed JS must match a fresh build)
         working-directory: frontend
         run: git diff --ignore-cr-at-eol --exit-code -- app.js app.utils.js desktop-shim.js app
+
+  e2e-l1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright-core install --with-deps chromium
+
+      - name: Install server deps
+        run: pip install fastapi uvicorn numpy scipy jsonschema
+
+      - name: L1 browser e2e
+        working-directory: frontend
+        env:
+          PYTHON: python
+        run: npm run e2e

@@ -42,7 +42,7 @@ def _status_block() -> str:
         f"| 版本 | {_version()} |",
         "| 状态详情 | 见 [status.json](status.json)（由 `tools/gen_status.py` 生成，禁止手写） |",
         f"| 覆盖率门限 | core line ≥{gate.get('core_line_min', '?')}% / changed line ≥{gate.get('changed_line_min', '?')}% |",
-        "| 当前阶段 | 见严格审计文档 §11 顺序与 [BACKLOG.md](BACKLOG.md) |",
+        "| 当前阶段 | 产品开发主线见 [BACKLOG.md](BACKLOG.md)；历史严格审计 §11 已删除，不再引用 |",
     ]
     return "\n".join([BEGIN, "| 项 | 内容 |", "| --- | --- |", *rows, END])
 

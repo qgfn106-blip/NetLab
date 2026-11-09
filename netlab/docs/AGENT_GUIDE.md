@@ -1,6 +1,6 @@
 # Netlab Agent 指南（开工第一步）
 
-> 最后修改：2026-11-08（§5 测试基线 678 passed / 1 skipped；审计 A 阶段 D121–D132；§3 补 CODE_STANDARDS 权威行）
+> 最后修改：2026-11-10（事实同步；协议 V3 优先；当前基线见 [status.json](status.json)，678 passed / 1 skipped 为 2026-11-08 历史数）
 > 这份文档只回答四件事：**开工先问什么、去哪找东西、哪些文档说了算、发现冲突怎么改**。
 > 需求正文、架构细节、踩坑记录都不在这里复制——只给指针（单一事实来源）。
 > 适用于任何 agent 会话，不论模型与窗口；读完 §1 就可以开始干活。
@@ -146,7 +146,7 @@ grep -n "^   \* [0-9]" ../frontend/app.js         # 定位前端分区
 
 ```bash
 cd NetlabHome                            # 仓库根是 ProjectPoint/，但运行根是 NetlabHome/
-python -m pytest netlab/tests -q          # 数量只增不减（当前 678 passed / 1 skipped，2026-11-08）
+python -m pytest netlab/tests -q          # 数量只增不减（当前基线见 status.json；678 为 2026-11-08 历史数）
 python -m compileall -q netlab
 python -m netlab.desktop --selftest       # 期望 status 200 / shim_injected true
 ```

@@ -1,6 +1,6 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-08 12:47
+> 最后修改：2026-11-10（事实同步；当前基线：全量 800 passed / 1 skipped，以 status.json 与本机实测为准；3.20.1）
 
 <!-- BEGIN GENERATED: status -->
 | 项 | 内容 |
@@ -8,7 +8,7 @@
 | 版本 | 3.20.1 |
 | 状态详情 | 见 [status.json](status.json)（由 `tools/gen_status.py` 生成，禁止手写） |
 | 覆盖率门限 | core line ≥81% / changed line ≥80% |
-| 当前阶段 | 见严格审计文档 §11 顺序与 [BACKLOG.md](BACKLOG.md) |
+| 当前阶段 | 产品开发主线见 [BACKLOG.md](BACKLOG.md)；历史严格审计 §11 已删除，不再引用 |
 <!-- END GENERATED: status -->
 > 本文件只记录**已实际验证**的内容；未完成的能力明确标为“未接通/未实现”，
 > 不把计划写成已完成。
@@ -207,7 +207,7 @@ V2-0 已接通的部分（全部有测试覆盖，见 `netlab/tests/test_blocks.
 
 ### 1.6 当前测试状态
 
-> ⚠ 本节为 **V2-3 时期（2026-10-25）历史快照**，数字已过时；当前基线以文首表格与 §7.87（**627 passed / 1 skipped**，2026-11-07）为准。
+> ⚠ 本节为 **V2-3 时期（2026-10-25）历史快照**，数字已过时；当前基线以文首表格与 [status.json](status.json) 为准（627 passed / 1 skipped 为 2026-11-07 历史数）。
 
 ```text
 python -m pytest netlab/tests -q

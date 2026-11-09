@@ -2679,3 +2679,8 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - `.python-version` 固定 3.12；`requirements.lock` 由 `uv pip compile --universal --python-version 3.12 --generate-hashes` 生成（fastapi/uvicorn/numpy/scipy + pytest/httpx/pytest-cov/sympy/jsonschema/PyYAML，35 个包均带 sha256）。
 - 干净 venv（`NetlabExtras/tmp/venv_g3`，Python 3.12）`uv pip install --require-hashes -r requirements.lock` 成功；加装可选 PlotKit 后全量 **787 passed / 2 skipped**（schemdraw/GUI 环境缺失跳过）。
 - 用户新增规则：每次 GitHub 推送在 README 显示最近一次更新并保留最近 10 次；新增 `tools/update_readme_changelog.py`（`--write/--check`），README 插入「最近更新（自动记录最近 10 次）」表；CI python-tests 增加漂移检查步骤。
+## §7.134 G3d 桌面壳 L2 烟测（2026-11-09）
+
+- 新增 `tools/e2e_desktop_smoke.py`：调用 `python -m netlab.desktop --selftest`，解析返回 dict（兼容 JSON / Python 字面量），断言 `status==200` 且 `shim_injected is True`；本地 `OK: desktop L2 smoke passed`。
+- `python-tests.yml` 新增 `desktop-l2` job（windows-latest + pywebview/pythonnet）。
+- G3 状态：G3a 锁定（requirements.lock，干净 venv 787 passed/2 skipped）、G3c L1 e2e、G3d L2 完成；G3b 容器、G3e 发布待做。

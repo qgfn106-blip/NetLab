@@ -149,6 +149,7 @@ export const state: State = {
     nodeValues: new Map(),
     edgeValues: new Map(),
     probeKeys: [],
+    probeLabels: {},
     probeSignature: '',
     chart: {
       selected: new Set(),

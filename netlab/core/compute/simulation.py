@@ -869,7 +869,13 @@ class Simulation:
             "error_at": self.error_at,
             "frames_recorded": len(self.recorder),
             "cursor": self.recorder.seq,
+            # 稳定 id 键（N-08/A-5）：前端用它做选择、取帧数据；
+            # 显示名另走 probe_labels，改名不会改变通道身份。
             "probe_keys": self.recorder.keys(),
+            "probe_labels": {
+                key: self.scene.channel_display_name(key)
+                for key in self.recorder.keys()
+            },
         }
 
     def snapshot(self) -> dict[str, Any]:
@@ -895,8 +901,9 @@ class Simulation:
         limit = max(1, min(RECORDER_CAPACITY, int(limit)))
         with self.lock:
             raw_frames = self.recorder.since(cursor, limit)
-            # 记录器内部保存稳定 id 键；对外统一映射到当前显示名，避免节点
-            # 改名后旧帧与新帧被拆成两个通道（N-08/A-5）。
+            # 记录器内部保存稳定 id 键；对外帧数据映射到当前显示名，避免节点
+            # 改名后旧帧与新帧被拆成两个通道（N-08/A-5）。sim.probe_keys 保持
+            # 稳定键，sim.probe_labels 提供 id→显示名映射供前端解码。
             frames = []
             for frame in raw_frames:
                 item = dict(frame)

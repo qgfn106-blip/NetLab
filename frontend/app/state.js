@@ -145,6 +145,7 @@ const state = {
   nodeValues: /* @__PURE__ */ new Map(),
   edgeValues: /* @__PURE__ */ new Map(),
   probeKeys: [],
+  probeLabels: {},
   probeSignature: "",
   chart: {
     selected: /* @__PURE__ */ new Set(),

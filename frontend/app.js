@@ -14,6 +14,7 @@ import { buildParamField, collectParamValues, setTypeLabelHelp } from "./app/par
 import { hideHelpCard, showHelpCard, typeLabelHelp, paramRangeText, setSwitchTab } from "./app/help_card.js";
 import { activeTab, modeLabel, selectedNode, selectedEdge, nodeById, edgeById, getNodeSpec, getEdgeSpec, specDefaults, uniqueNodeName } from "./app/model.js";
 import { PLOT_SEMANTICS, frameSeriesToPoints, buildPlotLineLayers } from "./app/plot_semantics.js";
+import { createParamGroupTable, fallbackParams } from "./app/param_groups.js";
 import { groupNodeSpecs } from "./app/menu_model.js";
 import { SHEET_SIZES, drawGraph, requestDraw, animationLoop } from "./app/canvas_render.js";
 import { drawPhase, phaseFrameCount, phaseStateKeys, renderVectorNodeList, resizePhase, schedulePhaseDraw, setPhaseIndex, stopPhasePlay, togglePhasePlay } from "./app/phase.js";
@@ -223,10 +224,13 @@ function setStatusHint(hint) {
   }
   function updateSignalKeyCache() {
     const keys = Array.isArray(state.sim?.probe_keys) ? state.sim.probe_keys : [];
-    const signature = keys.join("");
+    const rawLabels = state.sim?.probe_labels;
+    const labels = rawLabels && typeof rawLabels === "object" ? rawLabels : {};
+    const signature = keys.join("") + "" + JSON.stringify(labels);
     if (signature === state.probeSignature) return;
     state.probeSignature = signature;
-    state.probeKeys = keys;
+    state.probeKeys = keys.map((key) => labels[key] || key);
+    state.probeLabels = labels;
     if (!keys.length) {
       renderSignalList();
       fillInstrumentSelects();
@@ -608,6 +612,28 @@ function setStatusHint(hint) {
     }
     if (hit && hit.type === "node") {
       const node = hit.node;
+      const multi = multiSelection();
+      const inGroup = !event.ctrlKey && !event.metaKey && multi.nodes.has(node.id);
+      if (inGroup) {
+        const origins = /* @__PURE__ */ new Map();
+        for (const id of multi.nodes) {
+          const item = nodeById(id);
+          if (item?.position) origins.set(id, { x: item.position.x, y: item.position.y });
+        }
+        if (origins.size > 1) {
+          state.drag = {
+            type: "nodes",
+            startX: point.x,
+            startY: point.y,
+            origins,
+            moved: false
+          };
+          canvas.setPointerCapture(event.pointerId);
+          canvas.style.cursor = "grabbing";
+          event.preventDefault();
+          return;
+        }
+      }
       void selectEntity("node", node.id);
       state.drag = {
         type: "node",
@@ -730,6 +756,22 @@ function setStatusHint(hint) {
       requestDraw();
       return;
     }
+    if (drag.type === "nodes") {
+      const k = state.view.k;
+      const dx = (point.x - drag.startX) / k;
+      const dy = (point.y - drag.startY) / k;
+      const origins = drag.origins;
+      for (const [id, origin] of origins) {
+        const node = nodeById(id);
+        if (!node?.position) continue;
+        const snapped = snapWorld(origin.x + dx, origin.y + dy, event.altKey);
+        node.position.x = snapped.x;
+        node.position.y = snapped.y;
+      }
+      drag.moved = true;
+      requestDraw();
+      return;
+    }
     if (drag.type === "node") {
       const k = state.view.k;
       const node = nodeById(drag.id);
@@ -782,6 +824,10 @@ function setStatusHint(hint) {
         toast(`\u6846\u9009 ${nodes.length} \u8282\u70B9 / ${edges.length} \u8FDE\u63A5`, "info", 1800);
       }
       return;
+    }
+    if (drag.type === "nodes" && drag.moved) {
+      const origins = drag.origins;
+      for (const id of origins.keys()) queuePositionSave(id);
     }
     if (drag.type === "node" && drag.moved) {
       queuePositionSave(drag.id);
@@ -1800,6 +1846,8 @@ function setStatusHint(hint) {
     await pushUndoSnapshot();
     const reserved = /* @__PURE__ */ new Set();
     const idMap = /* @__PURE__ */ new Map();
+    const pastedNodeIds = [];
+    const pastedEdgeIds = [];
     let nodesCreated = 0;
     let edgesCreated = 0;
     for (const node of clipboard.nodes) {
@@ -1817,6 +1865,7 @@ function setStatusHint(hint) {
       const response = await task(() => jsonRequest("/api/nodes", "POST", payload), { history: false });
       if (!response?.node) continue;
       idMap.set(node.id, response.node.id);
+      pastedNodeIds.push(response.node.id);
       nodesCreated += 1;
     }
     for (const edge of clipboard.edges) {
@@ -1838,9 +1887,16 @@ function setStatusHint(hint) {
         }),
         { history: false }
       );
-      if (response) edgesCreated += 1;
+      if (response) {
+        pastedEdgeIds.push(response.id || response.edge?.id || "");
+        edgesCreated += 1;
+      }
     }
     await refreshState(true);
+    state.multi.nodes = new Set(pastedNodeIds);
+    state.multi.edges = new Set(pastedEdgeIds.filter(Boolean));
+    state.selection = pastedNodeIds.length ? { type: "node", id: pastedNodeIds[0] } : { type: null, id: null };
+    requestDraw();
     toast(`\u5DF2\u7C98\u8D34 ${nodesCreated} \u8282\u70B9 / ${edgesCreated} \u8FDE\u63A5`, "ok", 2600);
   }
   async function captureSceneSnapshot() {
@@ -3138,8 +3194,9 @@ function setStatusHint(hint) {
     toast("\u573A\u666F\u5DF2\u5BFC\u5165", "ok", 2200);
   }
   function decodeProbeKey(key) {
-    if (key.startsWith("n:")) {
-      const rest = key.slice(2);
+    const displayKey = state.probeLabels[key] || key;
+    if (key.startsWith("n:") || displayKey.startsWith("n:")) {
+      const rest = displayKey.startsWith("n:") ? displayKey.slice(2) : displayKey;
       const cut = rest.lastIndexOf(":");
       return {
         group: "\u8282\u70B9",
@@ -3147,8 +3204,8 @@ function setStatusHint(hint) {
         target: "\u8282\u70B9"
       };
     }
-    if (key.startsWith("e:")) {
-      const rest = key.slice(2);
+    if (key.startsWith("e:") || displayKey.startsWith("e:")) {
+      const rest = displayKey.startsWith("e:") ? displayKey.slice(2) : displayKey;
       const cut = rest.lastIndexOf(":");
       return {
         group: "\u8FDE\u63A5",
@@ -3156,7 +3213,7 @@ function setStatusHint(hint) {
         target: "\u8FDE\u63A5"
       };
     }
-    return { group: "\u4FE1\u53F7", label: key };
+    return { group: "\u4FE1\u53F7", label: displayKey };
   }
   function renderSignalList() {
     if (!ui.signalList) return;
@@ -3167,7 +3224,11 @@ function setStatusHint(hint) {
       return;
     }
     const filter = state.chart.filter.trim().toLowerCase();
-    const keys = state.probeKeys.filter((key) => key.toLowerCase().includes(filter));
+    const keys = state.probeKeys.filter((key) => {
+      if (!filter) return true;
+      const label = state.probeLabels[key] || "";
+      return key.toLowerCase().includes(filter) || label.toLowerCase().includes(filter);
+    });
     if (!keys.length) {
       ui.signalList.appendChild(div("help", "\u6CA1\u6709\u5339\u914D\u7684\u4FE1\u53F7\u3002"));
       renderLegend();
@@ -5088,7 +5149,9 @@ function setStatusHint(hint) {
       box.addEventListener("change", () => wbToggleInArray(wbCompareSignals, key, box.checked));
       const swatch = el("span", "wb-swatch");
       swatch.style.background = colorForKey(key);
-      label.append(box, swatch, el("span", null, key));
+      const nameSpan = el("span", null, decodeProbeKey(key).label);
+      nameSpan.title = key;
+      label.append(box, swatch, nameSpan);
       signalList.appendChild(label);
     }
     signalSection.appendChild(signalList);
@@ -5593,40 +5656,30 @@ function setStatusHint(hint) {
     const filterRow = div("field-row");
     filterRow.append(el("label", null, "\u68C0\u7D22"), filter);
     host.appendChild(filterRow);
-    const table = div("wb-param-table");
-    const rows = [];
-    const addRow = (objLabel, paramLabel, control2) => {
-      const row = div("wb-param-row");
-      row.append(el("span", "wb-obj", objLabel), el("span", "wb-key", paramLabel));
-      const valCell = div("wb-val");
-      valCell.appendChild(control2);
-      row.appendChild(valCell);
-      table.appendChild(row);
-      rows.push({ el: row, text: `${objLabel} ${paramLabel}`.toLowerCase() });
-    };
+    const { table, addRow, applyFilter: applyGroupFilter } = createParamGroupTable();
     const scene = state.scene;
     for (const node of scene?.nodes || []) {
       const spec = getNodeSpec(node.kind);
-      const list = spec && Array.isArray(spec.params) ? spec.params : [];
+      const list = spec && Array.isArray(spec.params) && spec.params.length ? spec.params : fallbackParams(node.params);
       if (!list.length) continue;
-      const baseParams = Object.assign(specDefaults(spec), node.params || {});
+      const baseParams = spec ? Object.assign(specDefaults(spec), node.params || {}) : Object.assign({}, node.params || {});
       for (const param of list) {
         const value = param.key in baseParams ? baseParams[param.key] : clone(param.default);
         const control2 = buildParamField(param, value);
         control2.addEventListener("change", () => void wbCommitNodeParam(node.id, control2, baseParams));
-        addRow(`${node.name} \xB7 ${node.kind}`, String(param.label || param.key), control2);
+        addRow(`${node.name} \xB7 ${node.kind}`, node.id, String(param.label || param.key), control2);
       }
     }
     for (const edge of scene?.edges || []) {
       const spec = getEdgeSpec(edge.kind);
-      const list = spec && Array.isArray(spec.params) ? spec.params : [];
+      const list = spec && Array.isArray(spec.params) && spec.params.length ? spec.params : fallbackParams(edge.params);
       if (!list.length) continue;
-      const baseParams = Object.assign(specDefaults(spec), edge.params || {});
+      const baseParams = spec ? Object.assign(specDefaults(spec), edge.params || {}) : Object.assign({}, edge.params || {});
       for (const param of list) {
         const value = param.key in baseParams ? baseParams[param.key] : clone(param.default);
         const control2 = buildParamField(param, value);
         control2.addEventListener("change", () => void wbCommitEdgeParam(edge.id, control2, baseParams));
-        addRow(`${edge.name} \xB7 ${edge.kind}`, String(param.label || param.key), control2);
+        addRow(`${edge.name || edge.id} \xB7 ${edge.kind}`, edge.id, String(param.label || param.key), control2);
       }
     }
     const config = state.sim?.config || {};
@@ -5642,23 +5695,19 @@ function setStatusHint(hint) {
       const value = field.key in config ? config[field.key] : void 0;
       const control2 = buildParamField(paramSpec, value);
       control2.addEventListener("change", () => void wbCommitSimParam(field.key, control2));
-      addRow("\u4EFF\u771F\u8BBE\u7F6E", field.label, control2);
+      addRow("\u4EFF\u771F\u8BBE\u7F6E", "sim", field.label, control2);
     }
     const integValue = String(scene?.integration || "trapezoidal");
     const integSpec = {
       key: "integration",
       type: "choice",
-      label: "\u79EF\u5206\u65B9\u6CD5 integration",
-      choices: WB_INTEGRATIONS
+      label: "\u79EF\u5206\u65B9\u6CD5",
+      choices: ["trapezoidal", "backward_euler", "gear2"]
     };
     const integControl = buildParamField(integSpec, integValue);
-    integControl.addEventListener("change", () => void wbCommitIntegration(integControl));
-    addRow("\u573A\u666F", "\u79EF\u5206\u65B9\u6CD5 (integration)", integControl);
-    const applyFilter = () => {
-      for (const item of rows) {
-        item.el.classList.toggle("hidden", wbFilterText !== "" && item.text.indexOf(wbFilterText) < 0);
-      }
-    };
+    integControl.addEventListener("change", () => void wbCommitSimParam("integration", integControl));
+    addRow("\u4EFF\u771F\u8BBE\u7F6E", "sim", "\u79EF\u5206\u65B9\u6CD5", integControl);
+    const applyFilter = () => applyGroupFilter(wbFilterText);
     filter.addEventListener("input", () => {
       wbFilterText = filter.value.trim().toLowerCase();
       applyFilter();

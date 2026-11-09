@@ -2672,5 +2672,5 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 新增 `frontend/e2e/smoke.mjs`：启动 uvicorn（浏览器模式）→ Playwright 真实浏览器加载 `index.html` → 断言 `#btnRun`/`#stage` 可见、菜单 ≥1、点「适配」后无 console/pageerror、`/api/health.ok`；`npm run e2e`。
 - **首个真实回归**：运行即报 `ReferenceError: setStatusHint is not defined`——S5-37 把只有 `declare` 没有实现的 `setStatusHint` 直接传给 `setPlotkitFrameActions`，导致整个应用初始化中断、菜单为空。此前 16 个读源码的静态护栏全部漏掉。修复：在 `frontend/app.ts` 实现 `setStatusHint()` 更新 `#statusHint` 文本。
 - 本地：`npm run typecheck` / `npm test` / `verify:parity`（47 TS/568 decl/41 runtime）/ `check:sections` 全绿；`E2E_CHANNEL=msedge npm run e2e` → `OK: L1 smoke passed (menu=9)`；全量 pytest **791 passed / 1 skipped / 93.36s**。
-- CI：`frontend-ts-build.yml` 新增 `e2e-l1` job（ubuntu + chromium + 服务端依赖）。
+- CI：`frontend-ts-build.yml` 新增 `e2e-l1` job（ubuntu + chromium + 服务端依赖）；python-tests `42551238003` success、frontend-ts-build `42551237939` success（含 e2e-l1，HEAD 6ddaf8c）。
 - 规格：`netlab/docs/specs/2026-11-09-g3-packaging-e2e.md`；G3a/G3b/G3d/G3e 留后续轮。

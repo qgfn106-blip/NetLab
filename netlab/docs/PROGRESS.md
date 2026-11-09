@@ -2693,5 +2693,5 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 
 - 新增 `Dockerfile`（python:3.12-slim + requirements.txt，`python -m netlab.server`，暴露 8010）与 `docker-compose.yml`（端口映射 + MyProject 卷）。
 - 新增 `.github/workflows/container.yml`：`docker build` → 容器内 `pytest -q -k "not plotkit and not gui_smoke and not schematic_export"` → `/api/health` smoke。
-- 本机无 docker，未本地验证；由 CI ubuntu runner 首次构建验证。
-- G3 状态：G3a/G3b/G3c/G3d/G3e 均已落地。
+- 本机无 docker，由 CI ubuntu runner 验证：container `42557588464` **success**（build + 容器内测试 + health smoke）；同 HEAD `50f806f` 的 python-tests `42557588338` success、frontend-ts-build `42557588333` success。
+- G3 状态：G3a/G3b/G3c/G3d/G3e 全部落地，G3 完成。

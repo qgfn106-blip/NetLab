@@ -112,6 +112,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-09 | docs(governance): G0–G4 闸门证据表（签字列留白） |
 | 2026-11-09 | docs(n5): A′ 撤回严格审计 P3 五项完成标注并出收窄清单 |
 | 2026-11-09 | docs(n5): PROGRESS §7.141 记录 P3 复核裁定 |
 | 2026-11-09 | docs(n5): P3 复核裁定（三项未实现，待用户选择 A/B） |
@@ -121,7 +122,6 @@ python -m netlab.desktop
 | 2026-11-09 | feat(d5): 求解器改动三态影子报告检查器与基线报告 |
 | 2026-11-09 | ci(container): 容器烟测排除 D-4 e2e（镜像未装 PlotKit） |
 | 2026-11-09 | docs(d4): PROGRESS §7.139 记录端到端验收闭环 |
-| 2026-11-09 | test(d4): 入仓变异体反证产物（plant +5% 判红） |
 
 <!-- END LAST 10 UPDATES -->
 

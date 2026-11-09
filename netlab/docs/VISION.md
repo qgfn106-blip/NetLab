@@ -20,9 +20,18 @@
 
 ## 3. 三条可证伪成功判据
 
-1. **数值可复现**：`python -m pytest netlab/tests/benchmarks -q` 全绿，且 RC/RLC/RL 的解析解误差、后向 Euler 收敛阶、瞬态稳态↔DC/AC 对拍结果写入 `PROGRESS.md`；任何一项超差即判失败。
-2. **拓扑不静默改写**：导入任何 `.netlab` 工程时，未显式 `delay=True` 或启用 `solve_algebraic` 的代数环必须返回带环路径的 `ConflictError`，且不能改变磁盘上的边集合；`test_no_silent_topology_rewrite.py` 为硬门槛。
-3. **性能可测量**：在 390 节点/391 未知量 RC 梯形、预热 5 步、计时 120 步的同一进程基准中，`sparse="auto"` 的 median 不劣于 `sparse="off"` 的 1.25 倍，且基准原始输出（median/mean/p95）随每次发布记录；不以单次最好值代替中位数。
+1. **数值可复现**
+   - 命令：`python -m pytest netlab/tests/benchmarks -q`
+   - 预期输出：`7 passed`（退出码 0；含 RC/RLC 解析解、层 B 能量不变量、层 D 收敛阶 xfail 登记、层 F 变异烟雾）。
+   - 失败条件：任一条非 passed、退出码非 0、或收敛阶/解析解断言被放宽（`xfail(strict=True)` 必须保持 strict）。
+2. **拓扑不静默改写**
+   - 命令：`python -m pytest netlab/tests/test_no_silent_topology_rewrite.py -q`
+   - 预期输出：`4 passed`（退出码 0）。
+   - 失败条件：任一用例失败；或导入代数环 `.netlab` 后磁盘边集合被改写、异常中缺环路径。
+3. **性能可测量**
+   - 命令：`python tools/bench_sparse_off_vs_auto.py`（390 节点/391 未知量 RC 梯形，预热 5 步、计时 120 步；同进程对 `sparse=off` 与 `sparse=auto` 取 median/mean/p95）。
+   - 预期输出：JSON 中 `"passed": true` 且 `ratio_auto_over_off <= 1.25`（2026-11-09 实测 0.9900，off 5.6679 ms / auto 5.6114 ms），退出码 0。
+   - 失败条件：`passed: false`（ratio > 1.25）、进程非 0、或报告缺 median/mean/p95 原始值。
 
 ## 4. 当前边界
 

@@ -106,6 +106,25 @@ python -m netlab.desktop
 - 插件能力：节点计算、连接函数、电路元件、分析算法、数据导入导出、面板、视觉、模板、独立引擎。
 - 完整规范见 [EXTENSIBILITY_ARCHITECTURE.md](netlab/docs/EXTENSIBILITY_ARCHITECTURE.md)，上手示例见 [PLUGIN_GUIDE.md](netlab/docs/PLUGIN_GUIDE.md)，扩展点清单见 [EXTENDING.md](netlab/docs/EXTENDING.md)。
 
+<!-- BEGIN LAST 10 UPDATES -->
+
+## 最近更新（自动记录最近 10 次）
+
+| 日期 | 提交 | 更新内容 |
+|---|---|---|
+| 2026-11-09 | `794109e` | docs(g3): L1 e2e CI 证据回填（L 轮） |
+| 2026-11-09 | `de26d9b` | ci(g3): L1 e2e job 与规格/PROGRESS 回填（L 轮） |
+| 2026-11-09 | `97744ce` | fix(frontend): 实现 setStatusHint + G3-L1 真实浏览器 e2e（L 轮） |
+| 2026-11-09 | `c30aabf` | docs(core): P3 CI 证据回填（L 轮） |
+| 2026-11-09 | `8856e75` | docs(core): P3 收敛阶修复证据与规格回填（L 轮） |
+| 2026-11-09 | `ddc7f5e` | fix(core): P3 源步内梯形平均 + 初始电容电流自洽 + 牛顿真残差（L 轮） |
+| 2026-11-09 | `4999d11` | docs(g2): 层 C/E、KCL 残差与变异分数收口 |
+| 2026-11-09 | `46a6748` | feat(g2): bench 输出 KCL 残差 + 变异烟雾测试 |
+| 2026-11-09 | `c1251bf` | test(g2): 层 C scipy 交叉验证与层 E 病态边界 |
+| 2026-11-09 | `c6ffb6d` | docs(progress): G2 数值对照层 A/B/D/F 收口 |
+
+<!-- END LAST 10 UPDATES -->
+
 ## 文档
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) —— 分层、场景数据模型、求解器、插件层与前端数据流（含[结构图](docs/assets/netlab-architecture.svg)）

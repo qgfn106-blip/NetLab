@@ -110,18 +110,18 @@ python -m netlab.desktop
 
 ## 最近更新（自动记录最近 10 次）
 
-| 日期 | 提交 | 更新内容 |
-|---|---|---|
-| 2026-11-09 | `fad454e` | docs(g3): G3a 依赖锁定与 README 更新记录回填（L 轮） |
-| 2026-11-09 | `ca680c4` | chore(g3): 依赖锁定 requirements.lock + README 最近10次更新门（L 轮） |
-| 2026-11-09 | `794109e` | docs(g3): L1 e2e CI 证据回填（L 轮） |
-| 2026-11-09 | `de26d9b` | ci(g3): L1 e2e job 与规格/PROGRESS 回填（L 轮） |
-| 2026-11-09 | `97744ce` | fix(frontend): 实现 setStatusHint + G3-L1 真实浏览器 e2e（L 轮） |
-| 2026-11-09 | `c30aabf` | docs(core): P3 CI 证据回填（L 轮） |
-| 2026-11-09 | `8856e75` | docs(core): P3 收敛阶修复证据与规格回填（L 轮） |
-| 2026-11-09 | `ddc7f5e` | fix(core): P3 源步内梯形平均 + 初始电容电流自洽 + 牛顿真残差（L 轮） |
-| 2026-11-09 | `4999d11` | docs(g2): 层 C/E、KCL 残差与变异分数收口 |
-| 2026-11-09 | `46a6748` | feat(g2): bench 输出 KCL 残差 + 变异烟雾测试 |
+| 日期 | 更新内容 |
+|---|---|
+| 2026-11-09 | docs(g3): G3a 依赖锁定与 README 更新记录回填（L 轮） |
+| 2026-11-09 | chore(g3): 依赖锁定 requirements.lock + README 最近10次更新门（L 轮） |
+| 2026-11-09 | docs(g3): L1 e2e CI 证据回填（L 轮） |
+| 2026-11-09 | ci(g3): L1 e2e job 与规格/PROGRESS 回填（L 轮） |
+| 2026-11-09 | fix(frontend): 实现 setStatusHint + G3-L1 真实浏览器 e2e（L 轮） |
+| 2026-11-09 | docs(core): P3 CI 证据回填（L 轮） |
+| 2026-11-09 | docs(core): P3 收敛阶修复证据与规格回填（L 轮） |
+| 2026-11-09 | fix(core): P3 源步内梯形平均 + 初始电容电流自洽 + 牛顿真残差（L 轮） |
+| 2026-11-09 | docs(g2): 层 C/E、KCL 残差与变异分数收口 |
+| 2026-11-09 | feat(g2): bench 输出 KCL 残差 + 变异烟雾测试 |
 
 <!-- END LAST 10 UPDATES -->
 

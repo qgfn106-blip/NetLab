@@ -316,12 +316,13 @@ function setStatusHint(hint: string): void {
       scheduleChartDraw();
       return;
     }
-    const available = new Set(keys);
+    // 帧/分析/信号列表统一用显示名，不能退回 raw 稳定键。
+    const available = new Set(state.probeKeys);
     for (const key of Array.from(state.chart.selected)) {
       if (!available.has(key)) state.chart.selected.delete(key);
     }
     if (state.chart.selected.size === 0) {
-      keys.slice(0, 2).forEach((key: string) => state.chart.selected.add(key));
+      state.probeKeys.slice(0, 2).forEach((key: string) => state.chart.selected.add(key));
     }
     renderSignalList();
     fillInstrumentSelects();
@@ -5629,7 +5630,8 @@ function setStatusHint(hint: string): void {
     const source = pick.length ? pick : rows;
     for (const row of source) for (const probe of row.probes || []) set.add(String(probe));
     if (!set.size) {
-      const keys = (state.sim?.probe_keys || []) as string[];
+      // 正常使用显示名；raw probe_keys 仅作最后兜底。
+      const keys = (state.probeKeys.length ? state.probeKeys : (state.sim?.probe_keys || [])) as string[];
       for (const key of keys) set.add(String(key));
     }
     return Array.from(set);
@@ -6573,20 +6575,26 @@ function setStatusHint(hint: string): void {
     title.append(el('h2', null, '分析（旁路）'), el('p', null, '只读录制数据；结论带来源，不写求解器'));
     head.appendChild(title);
     host.appendChild(head);
-
-    const keys = state.sim?.probe_keys || [];
+    const keys = state.probeKeys || [];
     const signal = el('select', 'input');
     for (const key of keys) {
-      const option = el('option', null, key);
+      const option = el('option', null, decodeProbeKey(key).label);
       option.value = key;
       signal.appendChild(option);
     }
     const key = analysisSignalKey();
     if (key) signal.value = key;
+    signal.addEventListener('change', () => {
+      const chosen = String(signal.value || '');
+      if (!chosen) return;
+      state.chart.selected.clear();
+      state.chart.selected.add(chosen);
+      renderSignalList();
+      scheduleChartDraw();
+    });
     const keyRow = div('field-row');
     keyRow.append(el('label', null, '信号'), signal);
     host.appendChild(keyRow);
-
     const row = div('blocks-toolbar');
     row.append(
       button('指标', 'btn tiny primary', () => void runAnalysisMetrics()),
@@ -6596,7 +6604,6 @@ function setStatusHint(hint: string): void {
       button('导出 CSV', 'btn tiny', () => void exportAnalysisCsv()),
     );
     host.appendChild(row);
-
     const canvas = el('canvas', 'analysis-chart');
     canvas.id = 'analysisChart';
     host.appendChild(canvas);

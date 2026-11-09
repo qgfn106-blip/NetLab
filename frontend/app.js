@@ -237,12 +237,12 @@ function setStatusHint(hint) {
       scheduleChartDraw();
       return;
     }
-    const available = new Set(keys);
+    const available = new Set(state.probeKeys);
     for (const key of Array.from(state.chart.selected)) {
       if (!available.has(key)) state.chart.selected.delete(key);
     }
     if (state.chart.selected.size === 0) {
-      keys.slice(0, 2).forEach((key) => state.chart.selected.add(key));
+      state.probeKeys.slice(0, 2).forEach((key) => state.chart.selected.add(key));
     }
     renderSignalList();
     fillInstrumentSelects();
@@ -5064,7 +5064,7 @@ function setStatusHint(hint) {
     const source = pick.length ? pick : rows;
     for (const row of source) for (const probe of row.probes || []) set.add(String(probe));
     if (!set.size) {
-      const keys = state.sim?.probe_keys || [];
+      const keys = state.probeKeys.length ? state.probeKeys : state.sim?.probe_keys || [];
       for (const key of keys) set.add(String(key));
     }
     return Array.from(set);
@@ -5865,15 +5865,23 @@ function setStatusHint(hint) {
     title.append(el("h2", null, "\u5206\u6790\uFF08\u65C1\u8DEF\uFF09"), el("p", null, "\u53EA\u8BFB\u5F55\u5236\u6570\u636E\uFF1B\u7ED3\u8BBA\u5E26\u6765\u6E90\uFF0C\u4E0D\u5199\u6C42\u89E3\u5668"));
     head.appendChild(title);
     host.appendChild(head);
-    const keys = state.sim?.probe_keys || [];
+    const keys = state.probeKeys || [];
     const signal = el("select", "input");
     for (const key2 of keys) {
-      const option = el("option", null, key2);
+      const option = el("option", null, decodeProbeKey(key2).label);
       option.value = key2;
       signal.appendChild(option);
     }
     const key = analysisSignalKey();
     if (key) signal.value = key;
+    signal.addEventListener("change", () => {
+      const chosen = String(signal.value || "");
+      if (!chosen) return;
+      state.chart.selected.clear();
+      state.chart.selected.add(chosen);
+      renderSignalList();
+      scheduleChartDraw();
+    });
     const keyRow = div("field-row");
     keyRow.append(el("label", null, "\u4FE1\u53F7"), signal);
     host.appendChild(keyRow);

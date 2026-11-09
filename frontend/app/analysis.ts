@@ -31,7 +31,8 @@ function analysisTokens() { return analysisActions.tokens(); }
 
 export function analysisSignalKey() {
     if (state.chart.selected.size) return [...state.chart.selected][0];
-    const keys = state.sim?.probe_keys || [];
+    // 分析后端以显示名索引帧数据，fallback 必须与 updateSignalKeyCache 一致。
+    const keys = state.probeKeys || [];
     return keys[0] || '';
   }
 

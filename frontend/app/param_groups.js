@@ -48,7 +48,10 @@ function fallbackParams(params) {
   return Object.keys(params || {}).map((key) => ({
     key,
     label: key,
-    type: typeof params[key] === "number" ? "number" : typeof params[key] === "boolean" ? "boolean" : "text"
+    // ParamSpec 使用 float/int/bool/choice/text，而不是 TS 的 number/boolean；
+    // 这里必须是 float，否则 buildParamField 会退化成文本框，后端收到字符串
+    // 值时报「必须是数字」。
+    type: typeof params[key] === "number" ? "float" : typeof params[key] === "boolean" ? "bool" : "text"
   }));
 }
 export {

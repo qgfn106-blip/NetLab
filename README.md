@@ -112,6 +112,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-09 | fix(docs): README 最近更新排除 docs(readme) 后仍取满 10 条（-invert-grep） |
 | 2026-11-09 | docs(readme): 修正最近 10 次表（B-2 CI 修订后重算） |
 | 2026-11-09 | docs(readme): 更新最近 10 次记录（B-2 CI 修订） |
 | 2026-11-09 | fix(ci): 恢复 python-tests.yml 原 CRLF 换行 |
@@ -121,7 +122,6 @@ python -m netlab.desktop
 | 2026-11-09 | docs(b3): D 编号命名空间 D-NL/D-PK 统一 + 里程碑基线更新 |
 | 2026-11-09 | docs(b2): R01-R43 补用户场景/失败代价/可执行验收命令 + 抽查脚本进 CI |
 | 2026-11-09 | ci(b3): status.json 新鲜度门 + 真实 pytest 产物写入 |
-| 2026-11-09 | docs(b1): VISION 三条判据补可执行命令与失败条件 + 390 节点 sparse 基准 |
 
 <!-- END LAST 10 UPDATES -->
 

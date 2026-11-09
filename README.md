@@ -112,6 +112,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-09 | test(g3): 桌面壳 L2 selftest 烟测与 windows job（L 轮） |
 | 2026-11-09 | docs(g3): G3a 依赖锁定与 README 更新记录回填（L 轮） |
 | 2026-11-09 | chore(g3): 依赖锁定 requirements.lock + README 最近10次更新门（L 轮） |
 | 2026-11-09 | docs(g3): L1 e2e CI 证据回填（L 轮） |
@@ -120,8 +121,6 @@ python -m netlab.desktop
 | 2026-11-09 | docs(core): P3 CI 证据回填（L 轮） |
 | 2026-11-09 | docs(core): P3 收敛阶修复证据与规格回填（L 轮） |
 | 2026-11-09 | fix(core): P3 源步内梯形平均 + 初始电容电流自洽 + 牛顿真残差（L 轮） |
-| 2026-11-09 | docs(g2): 层 C/E、KCL 残差与变异分数收口 |
-| 2026-11-09 | feat(g2): bench 输出 KCL 残差 + 变异烟雾测试 |
 
 <!-- END LAST 10 UPDATES -->
 

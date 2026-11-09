@@ -55,5 +55,9 @@ dist/
 *.netlab.bak
 
 # G1 架构/契约生成报告
-reports/
+reports/*
+!reports/e2e/
+!reports/e2e/**
+!reports/e2e-mutation/
+!reports/e2e-mutation/**
 CON

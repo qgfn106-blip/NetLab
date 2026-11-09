@@ -35,6 +35,10 @@ import { ensureDocs, openDoc, closeDoc, setDocsActions } from "./app/docs.js";
 import { openSettings, closeSettings, initSettingsWin, showGuide, initGuide, setGuideActions } from "./app/settings_guide.js";
 import { setPlotkitFrameActions } from "./app/plotkit_frame.js";
 import { elementPins, elementRot } from "./app/circuit_symbols.js";
+function setStatusHint(hint) {
+  const node = document.getElementById("statusHint");
+  if (node) node.textContent = hint;
+}
 (() => {
   "use strict";
   let projectFileInput = null;

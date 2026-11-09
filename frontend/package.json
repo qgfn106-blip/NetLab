@@ -12,10 +12,12 @@
     "test:utils": "node --test tests/*.test.mjs",
     "test": "node --test tests/*.test.mjs",
     "verify:parity": "node tools/verify_app_parity.js",
-    "check:sections": "node tools/check_app_sections.mjs"
+    "check:sections": "node tools/check_app_sections.mjs",
+    "e2e": "node e2e/smoke.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
+    "playwright-core": "^1.65.0",
     "typescript": "5.6.3"
   }
 }

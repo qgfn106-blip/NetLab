@@ -112,6 +112,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-10 | docs: refresh README recent updates before gate submission |
 | 2026-11-10 | docs(gate): add in-repo G0-G6 contract SSOT and waivers; rebind signoff anchors |
 | 2026-11-10 | docs(gate): S3 回填 G0–G4 签字表 8 处缺口 |
 | 2026-11-10 | fix(ci): D-5 指纹跨平台归一（CRLF→LF） |
@@ -121,7 +122,6 @@ python -m netlab.desktop
 | 2026-11-09 | docs(ui): 记录四项 UI 缺陷修复 |
 | 2026-11-09 | fix(ui): 多选拖动、信号显示名与工作台参数折叠 |
 | 2026-11-09 | docs(governance): G0–G4 闸门证据表（签字列留白） |
-| 2026-11-09 | docs(n5): A′ 撤回严格审计 P3 五项完成标注并出收窄清单 |
 
 <!-- END LAST 10 UPDATES -->
 

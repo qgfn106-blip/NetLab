@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "generated_at": "2026-11-09T17:01:02.221254+00:00",
-  "code_fingerprint": "5ac049fc77fcd339ddc0526d69ab70569d351747729e646a0e5804b4307cc5a3",
+  "generated_at": "2026-11-09T17:25:55.319669+00:00",
+  "code_fingerprint": "a0203d1cd6cf8eec41325b4ba6f442ed8dbd887675168a914e67a1552ed5541f",
   "files": [],
   "modes": {
     "off": {
@@ -20,8 +20,8 @@
     },
     "shadow": {
       "compared": "off vs on",
-      "max_abs_error": 2.220446049250313e-16,
-      "max_rel_error": 4.796619585951164e-14,
+      "max_abs_error": 5.551115123125783e-17,
+      "max_rel_error": 4.738408183209041e-14,
       "rtol": 1e-10,
       "passed": true
     },
@@ -38,8 +38,8 @@
         0.003558724
       ],
       "max": 3.0,
-      "max_abs_error": 2.220446049250313e-16,
-      "max_rel_error": 4.796619585951164e-14,
+      "max_abs_error": 5.551115123125783e-17,
+      "max_rel_error": 4.738408183209041e-14,
       "rtol": 1e-10,
       "passed": true
     }

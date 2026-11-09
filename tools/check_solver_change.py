@@ -57,7 +57,8 @@ def code_fingerprint(files: list[str] | None = None) -> str:
     for path in sorted(files):
         digest.update(path.encode("utf-8"))
         digest.update(b"\0")
-        digest.update((ROOT / path).read_bytes())
+        # 指纹必须跨平台稳定：Windows 工作树可能是 CRLF，CI checkout 是 LF。
+        digest.update((ROOT / path).read_bytes().replace(b"\r\n", b"\n"))
         digest.update(b"\0")
     return digest.hexdigest()
 

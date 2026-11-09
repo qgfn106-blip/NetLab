@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r /app/netlab/requirements.txt \
     && pip install --no-cache-dir pytest httpx sympy jsonschema PyYAML
 
 COPY . /app
+COPY netlab/tests/fixtures/projects /app/MyProject/
 
 EXPOSE 8010
 CMD ["python", "-m", "uvicorn", "netlab.server:app", "--host", "0.0.0.0", "--port", "8010"]

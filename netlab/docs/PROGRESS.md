@@ -2724,3 +2724,9 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 实测报告：off vs on `max_abs_error=5.55e-17`、`max_rel_error=4.97e-14`；独立参考解 `max_abs_error=1.11e-16`；`pass=true`。
 - 远端 `265f703` 三 CI 全绿：python-tests `42610696374` success（含 D-5 shadow 步骤）、container `42610696385` success、frontend-ts-build `42610696323` success。
 - 说明：本地提交 `d5a843e`/`a5ad22b` 曾因 workflow 行尾被整文件改写，`git diff --ignore-cr-at-eol d5a843e~1 d5a843e` 确认语义差异仅 14+/1− 的 D-5 步骤；最终远端 tree 与本地 HEAD tree 一致 `dfcf0236…`。
+
+## §7.141 N5 P3 复核裁定（2026-11-09）
+
+- 逐条复核严格审计 §3.2 第 3/4 条：LTE 估计/误差控制、自适应步长、Gear2 变步长显式报错三项全仓零实现（`ast.LtE` 等为检索假阳性）；`solver.py:1252` 标明 gear2 固定步长，`test_solver_integration.py::test_gear2_dt_change_resets_history` 把静默回退 BE 固化为期望。
+- 结论：三项均**未实现**，不得标注「P3 完成」；§7.131 的梯形首步初始电流修复是另一缺陷，不能替代。
+- 裁定建议：A 先撤回完成标注（推荐）；B 按 §7.4 补 LTE/自适应/Gear2 显式报错。详见 `netlab/docs/specs/2026-11-09-n5-p3-audit.md`，待用户拍板后进入 N6。

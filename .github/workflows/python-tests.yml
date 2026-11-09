@@ -84,10 +84,12 @@ jobs:
         env:
           PYTHONPATH: .
         run: >
+          mkdir -p reports &&
           pytest netlab/tests -q
           --cov=netlab/core --cov-branch --cov-fail-under=81
           --cov-report=term-missing:skip-covered
           --cov-report=json:coverage.json
+          --junitxml=reports/pytest.xml
 
       # D-1：变更行覆盖率。push 用 github.event.before，PR 用 base.sha；
       # 脚本内部取 merge-base，非可执行新增行（注释/空行）不计入分母。
@@ -96,6 +98,22 @@ jobs:
           PYTHONPATH: .
           DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: python tools/diff_coverage.py --coverage coverage.json --base "$DIFF_BASE" --threshold 80
+
+      - name: Write test status artifact (B-3)
+        env:
+          PYTHONPATH: .
+        run: >
+          python tools/write_test_status.py
+          --junit reports/pytest.xml
+          --coverage coverage.json
+          --command "pytest netlab/tests -q --cov=netlab/core --cov-branch --cov-fail-under=81"
+
+      - name: Status freshness (B-3)
+        env:
+          PYTHONPATH: .
+        run: |
+          python tools/gen_status.py
+          python tools/check_status_freshness.py
 
   desktop-l2:
     runs-on: windows-latest

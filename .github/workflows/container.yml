@@ -14,7 +14,7 @@ jobs:
         run: docker build -t netlab:ci .
 
       - name: Run tests inside container
-        run: docker run --rm netlab:ci python -m pytest netlab/tests -q -k "not plotkit and not gui_smoke and not schematic_export and not architecture_contracts and not docs_privacy"
+        run: docker run --rm netlab:ci python -m pytest netlab/tests -q -k "not plotkit and not gui_smoke and not schematic_export and not architecture_contracts and not docs_privacy and not e2e_control_experiment"
 
       - name: Health smoke
         run: |

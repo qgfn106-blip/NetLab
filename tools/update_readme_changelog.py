@@ -17,17 +17,9 @@ BEGIN = "<!-- BEGIN LAST 10 UPDATES -->"
 END = "<!-- END LAST 10 UPDATES -->"
 
 
-def commits(limit: int = 12) -> list[tuple[str, str, str]]:
+def commits(limit: int = 40) -> list[tuple[str, str, str]]:
     out = subprocess.check_output(
-        [
-            "git",
-            "log",
-            "--invert-grep",
-            "--grep=^(docs\\(readme\\):|fix\\(docs\\): README)",
-            "-10",
-            "--pretty=format:%h\t%ad\t%s",
-            "--date=short",
-        ],
+        ["git", "log", f"-{limit}", "--pretty=format:%h\t%ad\t%s", "--date=short"],
         cwd=ROOT,
         text=True,
         encoding="utf-8",
@@ -35,9 +27,12 @@ def commits(limit: int = 12) -> list[tuple[str, str, str]]:
     rows = []
     for line in out.splitlines():
         sha, date, subject = line.split("\t", 2)
+        if subject.startswith("docs(readme):") or subject.startswith("fix(docs): README"):
+            continue
         rows.append((sha, date, subject))
+        if len(rows) == 10:
+            break
     return rows
-
 
 def block(rows: list[tuple[str, str, str]]) -> str:
     lines = [BEGIN, "", "## 最近更新（自动记录最近 10 次）", "", "| 日期 | 更新内容 |", "|---|---|"]

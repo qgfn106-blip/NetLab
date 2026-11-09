@@ -13,6 +13,9 @@ jobs:
           # D-1 变更行覆盖率需要 HEAD^ / merge-base，浅克隆会让 git diff 退出 128。
           fetch-depth: 0
 
+      - name: README changelog check (最近 10 次更新)
+        run: python tools/update_readme_changelog.py --check
+
       - name: Checkout PlotKit (公开依赖)
         uses: actions/checkout@v4
         with:

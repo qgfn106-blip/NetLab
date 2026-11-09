@@ -8,17 +8,22 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import math
+import os
+import subprocess
 import tempfile
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
 
 from netlab.core.compute.simulation import Simulation
 from netlab.core.model.project import load_project, save_project
 from netlab.core.model.scene import Scene
 
 
-def build_scene() -> tuple[Scene, object]:
-    """G(s)=4/(s(s+1.2)) 单位负反馈，ωn=2、ζ=0.3。"""
+def build_scene(plant_scale: float = 1.0) -> tuple[Scene, object]:
+    """G(s)=4/(s(s+1.2)) 单位负反馈，ωn=2、ζ=0.3；plant_scale 用于变异体反证。"""
     scene = Scene("signal")
     reference = scene.add_node(
         name="reference",
@@ -45,7 +50,7 @@ def build_scene() -> tuple[Scene, object]:
         kind="transfer_function",
         params={
             "form": "expr",
-            "expr": "4/(s^2+1.2*s)",
+            "expr": f"{4.0 * plant_scale:g}/(s^2+1.2*s)",
             "method": "zoh",
             "field": "value",
             "output": "value",
@@ -72,33 +77,45 @@ def write_csv(path: Path, times: list[float], values: list[float]) -> None:
 
 
 def write_svg(path: Path, times: list[float], values: list[float]) -> None:
-    """不依赖绘图库，生成可直接打开的 step response SVG。"""
-    width, height = 900, 360
-    left, top, right, bottom = 70, 30, 30, 50
-    x_span = max(times) - min(times) or 1.0
-    y_min = min(0.0, min(values))
-    y_max = max(1.05, max(values) * 1.05)
-    y_span = y_max - y_min or 1.0
+    """用 PlotKit 真实渲染管线出图，线宽取绘图语义单一真源。"""
+    from netlab.contracts import PLOT_LINE_WIDTH
+    import plotkit as pk
 
-    def px(t: float) -> float:
-        return left + (t - min(times)) / x_span * (width - left - right)
+    pk.quick(
+        times,
+        values,
+        title="D-4 二阶欠阻尼阶跃响应",
+        xlabel="time (s)",
+        ylabel="output",
+        path=path,
+        fmt="svg",
+        style={"width": PLOT_LINE_WIDTH, "color": "#1f77b4"},
+    )
 
-    def py(v: float) -> float:
-        return height - bottom - (v - y_min) / y_span * (height - top - bottom)
 
-    points = " ".join(f"{px(t):.2f},{py(v):.2f}" for t, v in zip(times, values))
-    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
-  <rect width="100%" height="100%" fill="white"/>
-  <line x1="{left}" y1="{height-bottom}" x2="{width-right}" y2="{height-bottom}" stroke="#333"/>
-  <line x1="{left}" y1="{top}" x2="{left}" y2="{height-bottom}" stroke="#333"/>
-  <text x="{width/2:.0f}" y="{height-12}" text-anchor="middle" font-family="sans-serif" font-size="13">time (s)</text>
-  <text x="14" y="{height/2:.0f}" text-anchor="middle" font-family="sans-serif" font-size="13" transform="rotate(-90 14 {height/2:.0f})">output</text>
-  <line x1="{left}" y1="{py(1.0):.2f}" x2="{width-right}" y2="{py(1.0):.2f}" stroke="#999" stroke-dasharray="5 4"/>
-  <polyline points="{points}" fill="none" stroke="#1f77b4" stroke-width="2"/>
-  <text x="{left+8}" y="{py(1.0)-8:.2f}" font-family="sans-serif" font-size="12" fill="#555">target = 1.0</text>
-</svg>
-"""
-    path.write_text(svg, encoding="utf-8")
+def write_plot_spec(path: Path, times: list[float], values: list[float]) -> None:
+    """写一份符合 canonical plot_spec 的图层描述（与老 canvas/PlotKit 共用语义）。"""
+    from netlab.contracts import PLOT_LINE_WIDTH, PLOT_TIME_FIELD, PLOT_VALUE_FIELD
+
+    spec = {
+        "spec_version": "0.1",
+        "figure": {"title": "D-4 二阶欠阻尼阶跃响应"},
+        "layers": [
+            {
+                "kind": "line",
+                "data": {PLOT_TIME_FIELD: times, PLOT_VALUE_FIELD: values},
+                "style": {"width": PLOT_LINE_WIDTH},
+            }
+        ],
+    }
+    path.write_text(json.dumps(spec, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _head() -> str:
+    return os.environ.get("GITHUB_SHA") or subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+    ).strip()
+
 
 
 def metrics(values: list[float], dt: float) -> dict[str, float]:
@@ -118,6 +135,37 @@ def metrics(values: list[float], dt: float) -> dict[str, float]:
         "overshoot_pct": overshoot,
         "settling_2pct_s": settled_at,
     }
+
+
+def write_error_table(path: Path, measured: dict[str, float], analytic: dict[str, float]) -> bool:
+    rows = [
+        ("final", measured["final"], analytic["final"], 1.0, "abs"),
+        ("overshoot_pct", measured["overshoot_pct"], analytic["overshoot_pct"], 2.0, "pp"),
+        ("settling_2pct_s", measured["settling_2pct_s"], analytic["settling_2pct_s"], 2.5, "s"),
+    ]
+    table = []
+    ok = True
+    for name, actual, expected, limit, unit in rows:
+        error = abs(actual - expected)
+        passed = error <= limit
+        ok = ok and passed
+        table.append({
+            "metric": name,
+            "measured": actual,
+            "analytic": expected,
+            "error": error,
+            "limit": limit,
+            "unit": unit,
+            "pass": passed,
+        })
+    payload = {
+        "env": {"python": os.sys.version.split()[0], "platform": os.sys.platform},
+        "head": _head(),
+        "rows": table,
+        "pass": ok,
+    }
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return ok
 
 
 def print_error_table(measured: dict[str, float], analytic: dict[str, float]) -> bool:
@@ -140,16 +188,17 @@ def print_error_table(measured: dict[str, float], analytic: dict[str, float]) ->
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--out", type=Path, default=None, help="output directory")
+    parser.add_argument("--out", type=Path, default=ROOT / "reports" / "e2e", help="output directory")
     parser.add_argument("--steps", type=int, default=1200, help="simulation steps")
     parser.add_argument("--dt", type=float, default=0.01, help="time step in seconds")
+    parser.add_argument("--plant-scale", type=float, default=1.0, help="plant gain scale (mutation testing)")
     args = parser.parse_args()
     if args.steps <= 0 or args.dt <= 0:
         parser.error("--steps and --dt must be positive")
     out_dir = args.out or Path(tempfile.mkdtemp(prefix="netlab-e2e-control-"))
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    scene, plant = build_scene()
+    scene, plant = build_scene(args.plant_scale)
     times: list[float] = []
     values: list[float] = []
     for index in range(args.steps):
@@ -171,6 +220,7 @@ def main() -> int:
     svg_path = out_dir / "step_response.svg"
     write_csv(csv_path, times, values)
     write_svg(svg_path, times, values)
+    write_plot_spec(out_dir / "plot_spec.json", times, values)
 
     zeta = 0.3
     omega_n = 2.0
@@ -181,6 +231,7 @@ def main() -> int:
     }
     measured = metrics(values, args.dt)
     ok = print_error_table(measured, analytic)
+    ok = write_error_table(out_dir / "error_table.json", measured, analytic) and ok
     print(f"project: {project_path}")
     print(f"csv:     {csv_path}")
     print(f"svg:     {svg_path}")

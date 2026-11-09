@@ -112,13 +112,12 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-09 | chore(g3): Dockerfile/compose 与容器 CI（L 轮） |
 | 2026-11-09 | ci(g3): 发布产物门 build/twine/SHA256SUMS/SBOM（L 轮） |
 | 2026-11-09 | docs(g3): G3a/G3d CI 证据回填（L 轮） |
 | 2026-11-09 | test(g3): 桌面壳 L2 selftest 烟测与 windows job（L 轮） |
 | 2026-11-09 | docs(g3): G3a 依赖锁定与 README 更新记录回填（L 轮） |
 | 2026-11-09 | chore(g3): 依赖锁定 requirements.lock + README 最近10次更新门（L 轮） |
-| 2026-11-09 | docs(g3): L1 e2e CI 证据回填（L 轮） |
-| 2026-11-09 | ci(g3): L1 e2e job 与规格/PROGRESS 回填（L 轮） |
 
 <!-- END LAST 10 UPDATES -->
 

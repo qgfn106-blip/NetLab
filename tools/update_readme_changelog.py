@@ -23,7 +23,7 @@ def commits(limit: int = 12) -> list[tuple[str, str, str]]:
             "git",
             "log",
             "--invert-grep",
-            "--grep=^docs\\(readme\\):",
+            "--grep=^(docs\\(readme\\):|fix\\(docs\\): README)",
             "-10",
             "--pretty=format:%h\t%ad\t%s",
             "--date=short",

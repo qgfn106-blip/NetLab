@@ -2705,3 +2705,12 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 测试：`netlab/tests/test_plot_semantics_contract.py`（3 passed）、`frontend/tests/plot_semantics.test.mjs`（3 passed，node --test 合计 20 passed）。
 - 门禁：全量 pytest **796 passed / 1 skipped / 3 warnings / 220.61s**；core 覆盖率 **81.43%**（门限 81）；`npm run typecheck`/`build`/`verify:parity`（48 TS/574 decl/42 runtime）+ `check:sections`（app.ts 7,942 行）全绿。
 - 规格：`netlab/docs/specs/2026-11-09-c3-plot-semantics.md`。
+
+## §7.139 D-4 端到端验收闭环（2026-11-09）
+
+- `tools/e2e_control_experiment.py` 保留原有六段流程（建工程→连线→仿真→对照解析解→出图→误差表），新增 `--plant-scale` 变异入口；`--out` 默认 `reports/e2e`。
+- 新增 `reports/e2e/error_table.json`（含 measured/analytic/error/limit/unit/pass/env/HEAD 与总体 pass）与 `reports/e2e/plot_spec.json`（canonical plot_spec `0.1`，图层数据字段取 `PLOT_TIME_FIELD`/`PLOT_VALUE_FIELD`）。
+- 出图改走 PlotKit 真实渲染管线 `plotkit.quick(..., fmt="svg", style={"width": PLOT_LINE_WIDTH})`，不再是手写 SVG；线宽取 `netlab.contracts.PLOT_LINE_WIDTH`（绘图语义单一真源）。
+- 新增 `netlab/tests/test_e2e_control_experiment.py`：绿色路径 exit 0 且三项误差 pass；`--plant-scale 1.05` 变异路径 exit 1 且 `error_table.pass=false`；变异体 SVG 与误差表入仓 `reports/e2e-mutation/`。
+- `.github/workflows/python-tests.yml` 新增硬门：`D-4 end-to-end acceptance (green)` 与 `D-4 mutation must turn red`（变异必须非零退出）。
+- 实测：green 误差 final 1.0011/1.0、overshoot 39.1536/37.2326（1.9210 pp，限 2.00）、settling 6.9100/6.6667（0.2433 s，限 2.50）；变异体 overshoot 40.1975（2.9649 pp）判红。

@@ -112,6 +112,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-10 | docs(g0-g4): S3′ 绑定 43da6f5 三 CI；明确逐闸签字与 W 追认 |
 | 2026-11-10 | docs: refresh README recent updates before gate submission |
 | 2026-11-10 | docs(gate): add in-repo G0-G6 contract SSOT and waivers; rebind signoff anchors |
 | 2026-11-10 | docs(gate): S3 回填 G0–G4 签字表 8 处缺口 |
@@ -121,7 +122,6 @@ python -m netlab.desktop
 | 2026-11-10 | fix(ui): 工作台数值参数类型与分析信号显示名映射 |
 | 2026-11-09 | docs(ui): 记录四项 UI 缺陷修复 |
 | 2026-11-09 | fix(ui): 多选拖动、信号显示名与工作台参数折叠 |
-| 2026-11-09 | docs(governance): G0–G4 闸门证据表（签字列留白） |
 
 <!-- END LAST 10 UPDATES -->
 

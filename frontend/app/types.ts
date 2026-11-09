@@ -377,6 +377,7 @@ export interface State {
   nodeValues: Map<string, Record<string, number>>;
   edgeValues: Map<string, Record<string, number>>;
   probeKeys: string[];
+  probeLabels: Record<string, string>;
   probeSignature: string;
   chart: ChartRec;
   instrument: InstrumentRec;

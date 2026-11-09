@@ -2192,6 +2192,13 @@ html[data-density="loose"] .setwin-nav button { padding-top: calc(8px * var(--ui
 .wb-obj { color: var(--text-secondary); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wb-key { font-weight: 600; font-size: 12px; color: var(--text-primary); }
 .wb-param-row .field { margin: 0; }
+.wb-obj-group { border-top: 1px solid var(--line); }
+.wb-obj-group:first-child { border-top: none; }
+.wb-obj-summary { cursor: pointer; padding: 6px 10px; font-weight: 600; background: color-mix(in srgb, var(--panel) 88%, var(--line)); user-select: none; }
+.wb-obj-summary:hover { background: color-mix(in srgb, var(--panel) 75%, var(--line)); }
+.wb-obj-body { display: flex; flex-direction: column; }
+.wb-obj-body .wb-param-row { grid-template-columns: 150px 1fr; padding-left: 18px; }
+
 
 /* 工作台 · 分析（W2：多子图对比 + 可分离信号浮窗） */
 .wb-analysis { gap: 10px; }

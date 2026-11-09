@@ -22,6 +22,7 @@ import { buildParamField, applyPresetOnModelChange, applyWaveFieldVisibility, bu
 import { hideHelpCard, showHelpCard, typeLabelHelp, paramRangeText, setSwitchTab } from './app/help_card.js';
 import { appearanceOf, activeTab, modeLabel, selectedNode, selectedEdge, nodeById, edgeById, nodeByName, edgeByName, getNodeSpec, getEdgeSpec, specDefaults, uniqueNodeName, hasGroundNode, displayDataFor, nodeDisplayData, edgeDisplayData } from './app/model.js';
 import { PLOT_SEMANTICS, frameSeriesToPoints, buildPlotLineLayers } from './app/plot_semantics.js';
+import { createParamGroupTable, fallbackParams } from './app/param_groups.js';
 import { groupNodeSpecs } from './app/menu_model.js';
 import { drawEdges, labelCollisionFree } from './app/canvas_edges.js';
 import { SHEET_SIZES, drawDrawingFrame, pipeModeLabel, drawLinkPreview, drawGraph, drawSelectionBox, drawDragHud, requestDraw, __graphMs, __dbgGraph, animationLoop } from './app/canvas_render.js';
@@ -300,10 +301,13 @@ function setStatusHint(hint: string): void {
 
   function updateSignalKeyCache() {
     const keys = Array.isArray(state.sim?.probe_keys) ? state.sim.probe_keys : [];
-    const signature = keys.join('\u0001');
+    const rawLabels = (state.sim as unknown as { probe_labels?: Record<string, string> } | null)?.probe_labels;
+    const labels: Record<string, string> = rawLabels && typeof rawLabels === 'object' ? rawLabels : {};
+    const signature = keys.join('\u0001') + '\u0002' + JSON.stringify(labels);
     if (signature === state.probeSignature) return;
     state.probeSignature = signature;
-    state.probeKeys = keys;
+    state.probeKeys = keys.map((key: string) => labels[key] || key);
+    state.probeLabels = labels;
 
     // 重置后 probe_keys 会短暂为空：保留用户探针选择，避免“重置即清空通道”。
     if (!keys.length) {
@@ -732,15 +736,37 @@ function setStatusHint(hint: string): void {
     }
 
     if (hit && hit.type === 'node') {
-      const node = hit.node;
-      void selectEntity('node', node!.id);
+      const node = hit.node!;
+      const multi = multiSelection();
+      const inGroup = !event.ctrlKey && !event.metaKey && multi.nodes.has(node.id);
+      if (inGroup) {
+        const origins = new Map<string, { x: number; y: number }>();
+        for (const id of multi.nodes) {
+          const item = nodeById(id);
+          if (item?.position) origins.set(id, { x: item.position.x, y: item.position.y });
+        }
+        if (origins.size > 1) {
+          state.drag = {
+            type: 'nodes',
+            startX: point.x,
+            startY: point.y,
+            origins,
+            moved: false,
+          };
+          canvas.setPointerCapture(event.pointerId);
+          canvas.style.cursor = 'grabbing';
+          event.preventDefault();
+          return;
+        }
+      }
+      void selectEntity('node', node.id);
       state.drag = {
         type: 'node',
-        id: node!.id,
+        id: node.id,
         startX: point.x,
         startY: point.y,
-        originX: node!.position!.x,
-        originY: node!.position!.y,
+        originX: node.position!.x,
+        originY: node.position!.y,
         moved: false,
       };
       canvas.setPointerCapture(event.pointerId);
@@ -868,6 +894,23 @@ function setStatusHint(hint: string): void {
       return;
     }
 
+    if (drag.type === 'nodes') {
+      const k = state.view.k;
+      const dx = (point.x - drag.startX!) / k;
+      const dy = (point.y - drag.startY!) / k;
+      const origins = drag.origins as Map<string, { x: number; y: number }>;
+      for (const [id, origin] of origins) {
+        const node = nodeById(id);
+        if (!node?.position) continue;
+        const snapped = snapWorld(origin.x + dx, origin.y + dy, event.altKey);
+        node.position.x = snapped.x;
+        node.position.y = snapped.y;
+      }
+      drag.moved = true;
+      requestDraw();
+      return;
+    }
+
     if (drag.type === 'node') {
       const k = state.view.k;
       const node = nodeById((drag.id as string | null));
@@ -924,6 +967,11 @@ function setStatusHint(hint: string): void {
         toast(`框选 ${nodes.length} 节点 / ${edges.length} 连接`, 'info', 1800);
       }
       return;
+    }
+
+    if (drag.type === 'nodes' && drag.moved) {
+      const origins = drag.origins as Map<string, { x: number; y: number }>;
+      for (const id of origins.keys()) queuePositionSave(id);
     }
 
     if (drag.type === 'node' && drag.moved) {
@@ -2023,6 +2071,8 @@ function setStatusHint(hint: string): void {
     await pushUndoSnapshot();
     const reserved = new Set();
     const idMap = new Map();
+    const pastedNodeIds: string[] = [];
+    const pastedEdgeIds: string[] = [];
     let nodesCreated = 0;
     let edgesCreated = 0;
     for (const node of clipboard.nodes) {
@@ -2040,6 +2090,7 @@ function setStatusHint(hint: string): void {
       const response = await task(() => jsonRequest('/api/nodes', 'POST', payload), { history: false });
       if (!response?.node) continue;
       idMap.set(node.id, response.node.id);
+      pastedNodeIds.push(response.node.id);
       nodesCreated += 1;
     }
     for (const edge of clipboard.edges) {
@@ -2061,9 +2112,16 @@ function setStatusHint(hint: string): void {
         }),
         { history: false },
       );
-      if (response) edgesCreated += 1;
+      if (response) {
+        pastedEdgeIds.push(response.id || response.edge?.id || '');
+        edgesCreated += 1;
+      }
     }
     await refreshState(true);
+    state.multi.nodes = new Set(pastedNodeIds);
+    state.multi.edges = new Set(pastedEdgeIds.filter(Boolean));
+    state.selection = pastedNodeIds.length ? { type: 'node', id: pastedNodeIds[0] } : { type: null, id: null };
+    requestDraw();
     toast(`已粘贴 ${nodesCreated} 节点 / ${edgesCreated} 连接`, 'ok', 2600);
   }
 
@@ -3452,8 +3510,9 @@ function setStatusHint(hint: string): void {
    * ==================================================================== */
 
   function decodeProbeKey(key: string) {
-    if (key.startsWith('n:')) {
-      const rest = key.slice(2);
+    const displayKey = state.probeLabels[key] || key;
+    if (key.startsWith('n:') || displayKey.startsWith('n:')) {
+      const rest = displayKey.startsWith('n:') ? displayKey.slice(2) : displayKey;
       const cut = rest.lastIndexOf(':');
       return {
         group: '节点',
@@ -3461,8 +3520,8 @@ function setStatusHint(hint: string): void {
         target: '节点',
       };
     }
-    if (key.startsWith('e:')) {
-      const rest = key.slice(2);
+    if (key.startsWith('e:') || displayKey.startsWith('e:')) {
+      const rest = displayKey.startsWith('e:') ? displayKey.slice(2) : displayKey;
       const cut = rest.lastIndexOf(':');
       return {
         group: '连接',
@@ -3470,7 +3529,7 @@ function setStatusHint(hint: string): void {
         target: '连接',
       };
     }
-    return { group: '信号', label: key };
+    return { group: '信号', label: displayKey };
   }
 
   function renderSignalList() {
@@ -3482,7 +3541,11 @@ function setStatusHint(hint: string): void {
       return;
     }
     const filter = state.chart.filter.trim().toLowerCase();
-    const keys = state.probeKeys.filter((key: string) => key.toLowerCase().includes(filter));
+    const keys = state.probeKeys.filter((key: string) => {
+      if (!filter) return true;
+      const label = state.probeLabels[key] || '';
+      return key.toLowerCase().includes(filter) || label.toLowerCase().includes(filter);
+    });
     if (!keys.length) {
       ui.signalList.appendChild(div('help', '没有匹配的信号。'));
       renderLegend();
@@ -5659,7 +5722,9 @@ function setStatusHint(hint: string): void {
       box.addEventListener('change', () => wbToggleInArray(wbCompareSignals, key, box.checked));
       const swatch = el('span', 'wb-swatch') as HTMLElement;
       swatch.style.background = colorForKey(key);
-      label.append(box, swatch, el('span', null, key));
+      const nameSpan = el('span', null, decodeProbeKey(key).label);
+      nameSpan.title = key;
+      label.append(box, swatch, nameSpan);
       signalList.appendChild(label);
     }
     signalSection.appendChild(signalList);
@@ -6273,41 +6338,31 @@ function setStatusHint(hint: string): void {
     filterRow.append(el('label', null, '检索'), filter);
     host.appendChild(filterRow);
 
-    const table = div('wb-param-table');
-    const rows: Array<{ el: HTMLElement; text: string }> = [];
-    const addRow = (objLabel: string, paramLabel: string, control: HTMLElement): void => {
-      const row = div('wb-param-row');
-      row.append(el('span', 'wb-obj', objLabel), el('span', 'wb-key', paramLabel));
-      const valCell = div('wb-val');
-      valCell.appendChild(control);
-      row.appendChild(valCell);
-      table.appendChild(row);
-      rows.push({ el: row, text: `${objLabel} ${paramLabel}`.toLowerCase() });
-    };
+    const { table, addRow, applyFilter: applyGroupFilter } = createParamGroupTable();
 
     const scene = state.scene;
     for (const node of scene?.nodes || []) {
       const spec = getNodeSpec(node.kind);
-      const list = spec && Array.isArray(spec.params) ? spec.params : [];
+      const list = spec && Array.isArray(spec.params) && spec.params.length ? spec.params : fallbackParams(node.params);
       if (!list.length) continue;
-      const baseParams = Object.assign(specDefaults(spec), node.params || {});
+      const baseParams = spec ? Object.assign(specDefaults(spec), node.params || {}) : Object.assign({}, node.params || {});
       for (const param of list) {
         const value = param.key in baseParams ? baseParams[param.key] : clone(param.default);
         const control = buildParamField(param, value);
         control.addEventListener('change', () => void wbCommitNodeParam(node.id, control, baseParams));
-        addRow(`${node.name} · ${node.kind}`, String(param.label || param.key), control);
+        addRow(`${node.name} · ${node.kind}`, node.id, String(param.label || param.key), control);
       }
     }
     for (const edge of scene?.edges || []) {
       const spec = getEdgeSpec(edge.kind);
-      const list = spec && Array.isArray(spec.params) ? spec.params : [];
+      const list = spec && Array.isArray(spec.params) && spec.params.length ? spec.params : fallbackParams(edge.params);
       if (!list.length) continue;
-      const baseParams = Object.assign(specDefaults(spec), edge.params || {});
+      const baseParams = spec ? Object.assign(specDefaults(spec), edge.params || {}) : Object.assign({}, edge.params || {});
       for (const param of list) {
         const value = param.key in baseParams ? baseParams[param.key] : clone(param.default);
         const control = buildParamField(param, value);
         control.addEventListener('change', () => void wbCommitEdgeParam(edge.id, control, baseParams));
-        addRow(`${edge.name} · ${edge.kind}`, String(param.label || param.key), control);
+        addRow(`${edge.name || edge.id} · ${edge.kind}`, edge.id, String(param.label || param.key), control);
       }
     }
     const config = state.sim?.config || {};
@@ -6323,24 +6378,20 @@ function setStatusHint(hint: string): void {
       const value = field.key in config ? config[field.key] : undefined;
       const control = buildParamField(paramSpec, value);
       control.addEventListener('change', () => void wbCommitSimParam(field.key, control));
-      addRow('仿真设置', field.label, control);
+      addRow('仿真设置', 'sim', field.label, control);
     }
     const integValue = String(scene?.integration || 'trapezoidal');
     const integSpec: ParamSpec = {
       key: 'integration',
       type: 'choice',
-      label: '积分方法 integration',
-      choices: WB_INTEGRATIONS,
+      label: '积分方法',
+      choices: ['trapezoidal', 'backward_euler', 'gear2'],
     };
     const integControl = buildParamField(integSpec, integValue);
-    integControl.addEventListener('change', () => void wbCommitIntegration(integControl));
-    addRow('场景', '积分方法 (integration)', integControl);
+    integControl.addEventListener('change', () => void wbCommitSimParam('integration', integControl));
+    addRow('仿真设置', 'sim', '积分方法', integControl);
 
-    const applyFilter = (): void => {
-      for (const item of rows) {
-        item.el.classList.toggle('hidden', wbFilterText !== '' && item.text.indexOf(wbFilterText) < 0);
-      }
-    };
+    const applyFilter = (): void => applyGroupFilter(wbFilterText);
     filter.addEventListener('input', () => {
       wbFilterText = filter.value.trim().toLowerCase();
       applyFilter();

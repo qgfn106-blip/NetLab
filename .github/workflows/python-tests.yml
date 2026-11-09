@@ -93,3 +93,23 @@ jobs:
           PYTHONPATH: .
           DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: python tools/diff_coverage.py --coverage coverage.json --base "$DIFF_BASE" --threshold 80
+
+  desktop-l2:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime + desktop deps
+        working-directory: netlab
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pywebview pythonnet
+
+      - name: L2 desktop selftest
+        run: python tools/e2e_desktop_smoke.py

@@ -282,7 +282,7 @@ def test_gmin_start_value_comes_from_options(monkeypatch):
     solver = scene.ensure_engine().solver
     seen: list[float] = []
 
-    def fake_newton(_dt, gmin, initial, source_scale=1.0, *, mode="tran"):
+    def fake_newton(_dt, gmin, initial, source_scale=1.0, *, mode="tran", deadline=None):
         seen.append(float(gmin))
         return np.zeros(solver.matrix_size), 1, False, 1.0
 
@@ -333,7 +333,7 @@ def test_timeout_restores_scene_checkpoint(monkeypatch):
     solver = scene.ensure_engine().solver
     original_step = scene.step
 
-    def slow_step(dt):
+    def slow_step(dt, deadline=None):
         time.sleep(0.01)
         return original_step(dt)
 

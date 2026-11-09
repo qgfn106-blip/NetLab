@@ -171,6 +171,22 @@ class Recorder:
             }
         )
 
+    def snapshot(self) -> dict[str, Any]:
+        """原子预计算用：保存帧、序号、键缓存与质量元数据。"""
+        return {
+            "frames": list(self.frames),
+            "seq": self.seq,
+            "keys": list(self._keys) if self._keys is not None else None,
+            "quality": dict(self.quality),
+        }
+
+    def restore(self, snapshot: dict[str, Any]) -> None:
+        self.frames = deque(snapshot["frames"], maxlen=self.capacity)
+        self.seq = int(snapshot["seq"])
+        keys = snapshot.get("keys")
+        self._keys = list(keys) if keys is not None else None
+        self.quality.update(snapshot.get("quality") or {})
+
     def since(self, cursor: int, limit: int) -> list[dict[str, Any]]:
         if not self.frames:
             return []
@@ -364,8 +380,9 @@ class Simulation:
             point = self.scene.next_breakpoint(self.time, dt)
             if point is not None:
                 step_dt = max(1.0e-12, min(dt, point - self.time))
+        deadline = started + timeout_ms / 1000.0 if timeout_ms > 0 else None
         try:
-            self.scene.step(step_dt)
+            self.scene.step(step_dt, deadline=deadline)
         except Exception as exc:  # 计算错误：暂停并保留现场
             self.scene.rollback_last_step()
             self._record_error(exc)
@@ -403,6 +420,10 @@ class Simulation:
                 )
                 self._last_sample_time = self.time
             except Exception as exc:
+                # 录制失败时，场景已经推进但帧缺失；回滚整步并回退步数，
+                # 保证 steps / scene 时间 / 录制帧三者一致。
+                self.scene.rollback_last_step()
+                self.steps = max(0, self.steps - 1)
                 self._record_error(exc)
                 return False
         return True
@@ -531,6 +552,14 @@ class Simulation:
             sample = max(sample, needed, 1)
             self.ensure_thread()
             self.running = False
+            # 原子预计算：成功才替换；取消/异常恢复旧场景与旧录制。
+            before_scene = self.scene.to_payload()
+            before_time = self.time
+            before_steps = self.steps
+            before_last_sample = self._last_sample_time
+            before_recorder = self.recorder.snapshot()
+            before_error = self.error
+            before_error_at = self.error_at
             self.scene.reset()
             self.time = 0.0
             self.steps = 0
@@ -578,6 +607,16 @@ class Simulation:
                         elapsed=round(elapsed, 3),
                         eta=(round(eta, 2) if eta is not None else None),
                     )
+            if cancelled or self.error:
+                self.scene.load_payload(before_scene)
+                self.time = before_time
+                self.steps = before_steps
+                self._last_sample_time = before_last_sample
+                self.recorder.restore(before_recorder)
+                if cancelled:
+                    self.error = before_error
+                    self.error_at = before_error_at
+                self._frame_times.clear()
             frames = len(self.recorder)
             first_time = self.recorder.frames[0]["t"] if frames else 0.0
             last_time = self.recorder.frames[-1]["t"] if frames else 0.0

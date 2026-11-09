@@ -59,7 +59,7 @@ from ..compute.params import validate_params
 from .ports import pins_for_device
 from ..compute.profiling import timed
 class _Engine:
-    def step(self, dt: float) -> None:  # pragma: no cover - 抽象
+    def step(self, dt: float, deadline: float | None = None) -> None:  # pragma: no cover - 抽象
         raise NotImplementedError
 
     def reset(self) -> None:  # pragma: no cover - 抽象
@@ -333,7 +333,7 @@ class SignalEngine(_Engine):
                 runtime.restore_checkpoint(snapshot)
         self.network.restore_last_step_state()
 
-    def step(self, dt: float) -> None:
+    def step(self, dt: float, deadline: float | None = None) -> None:
         # 整步事务：网络层已回滚节点/连接，功能块内部场景另行快照，
         # 保证块内 state（积分器、滤波器记忆等）在失败时一起回退。
         self._last_block_snapshots = {
@@ -683,14 +683,14 @@ class CircuitEngine(_Engine):
             record.data[signal] = voltage
             record.data["voltage"] = voltage
 
-    def step(self, dt: float) -> None:
+    def step(self, dt: float, deadline: float | None = None) -> None:
         # N-36：只保存会被 step 写回的 data，而不是整套 Scene 深拷贝。
         self._last_step_data_snapshot = {
             record.id: dict(record.data) for record in self.scene.nodes.values()
         }
         try:
             self._apply_bridge_actuators()
-            self.solver.step(dt)
+            self.solver.step(dt, deadline=deadline)
             for record in self.scene.nodes.values():
                 if record.kind == "device":
                     continue

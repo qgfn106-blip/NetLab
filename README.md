@@ -112,6 +112,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-09 | docs(n5): PROGRESS §7.141 记录 P3 复核裁定 |
 | 2026-11-09 | docs(n5): P3 复核裁定（三项未实现，待用户选择 A/B） |
 | 2026-11-09 | docs(d5): 补 §7.140 远端三 CI 绿与行尾说明 |
 | 2026-11-09 | docs(d5): PROGRESS §7.140 记录影子验证制度化 |
@@ -121,7 +122,6 @@ python -m netlab.desktop
 | 2026-11-09 | docs(d4): PROGRESS §7.139 记录端到端验收闭环 |
 | 2026-11-09 | test(d4): 入仓变异体反证产物（plant +5% 判红） |
 | 2026-11-09 | test(d4): 入仓 D-4 绿色端到端产物（error_table/plot_spec/csv/netlab/svg） |
-| 2026-11-09 | ci(d4): e2e 绿色门 + 变异必然变红门，入仓 reports/e2e |
 
 <!-- END LAST 10 UPDATES -->
 

@@ -112,13 +112,15 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-09 | docs(c3): 绘图语义单一真源规格与进度 |
+| 2026-11-09 | refactor(frontend,core): 老 canvas 与 PlotKit 共用绘图语义（C-3/N-14） |
+| 2026-11-09 | feat(frontend): 共享帧→绘图语义模块与契约测试（C-3） |
+| 2026-11-09 | feat(contracts): 绘图语义单一真源 canonical + 生成器（C-3/N-14） |
+| 2026-11-09 | docs(g4): 回填 G4 CI 证据并更新 README 最近更新 |
 | 2026-11-09 | ci(g4): 增加文档 SSOT 零漂移检查 |
 | 2026-11-09 | docs(g4): 生成 PROGRESS/BACKLOG 状态段与需求/决策索引 |
 | 2026-11-09 | feat(docs): G4 canonical requirements/decisions + render_docs 生成器与漂移测试 |
 | 2026-11-09 | docs(g3): G3 全部完成与 CI 证据（L 轮） |
-| 2026-11-09 | fix(g3): 容器内复制样例工程并排除环境依赖检查（L 轮） |
-| 2026-11-09 | fix(g3): 容器补测试依赖并改用 uvicorn 启动（L 轮） |
-| 2026-11-09 | chore(g3): Dockerfile/compose 与容器 CI（L 轮） |
 
 <!-- END LAST 10 UPDATES -->
 

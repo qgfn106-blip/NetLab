@@ -59,6 +59,11 @@ jobs:
       - name: Contract artifacts in sync (C1/C2)
         run: python tools/gen_contracts.py --check
 
+      - name: Requirement verifiability sample (B-2)
+        env:
+          PYTHONPATH: .
+        run: python tools/check_requirement_verifiability.py --ids R01,R43,R26
+
       - name: Prepare sample projects for regression tests
         run: |
           mkdir -p MyProject

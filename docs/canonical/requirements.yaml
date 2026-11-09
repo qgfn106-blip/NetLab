@@ -2,450 +2,589 @@ schema_version: 1
 requirements:
 - id: R01
   title: 工程目录与通用库
-  status: '**2026-10-26 后端已落地**——新增 `netlab/core/model/workspace.py`（工程目录约定、建工程、库扫描、路径解析、用户设置）；`project.netlab`
-    放进工程目录，`library/` 在父目录单份共享；设置写 `%APPDATA%/Netlab/settings.json`（`NETLAB_SETTINGS_DIR`
-    可覆盖）；服务端有 `/api/workspace` 与 `/api/settings`；`test_workspace.py` 7 项通过。**未做**：前端新建/打开工程面板接线、桌面桥目录选择（票
+  status: '**2026-10-26 后端已落地**——新增 `netlab/core/model/workspace.py`（工程目录约定、建工程、库扫描、路径解析、用户设置）；`project.netlab` 放进工程目录，`library/` 在父目录单份共享；设置写
+    `%APPDATA%/Netlab/settings.json`（`NETLAB_SETTINGS_DIR` 可覆盖）；服务端有 `/api/workspace` 与 `/api/settings`；`test_workspace.py` 7 项通过。**未做**：前端新建/打开工程面板接线、桌面桥目录选择（票
     02/04）。'
   acceptance: 新建工程生成完整目录树；两个工程共用同一 `library/` 下的模块；删除工程不影响库；`settings.json` 在用户目录且不随工程走。
   weight: ⭐⭐⭐⭐⭐ / P0
   stage: ⭐⭐⭐⭐⭐ / P0
+  user_scenario: 用户需要在真实工程中完成「工程目录与通用库」；可观察验收：新建工程生成完整目录树；两个工程共用同一 `library/` 下的模块；删除工程不影响库；`settings.json` 在用户目录且不随工程走。
+  failure_cost: 「工程目录与通用库」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_workspace.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R02
   title: 模块文件化与模块库面板
-  status: '**2026-10-26 完成**——① 文件层 `netlab/core/model/blocklib.py`（`.block` JSON
-    + sha256、`library/blocks/<id>/v<N>.block`、同版本冲突拒绝/幂等、导入必须更高版本）；② UI：右侧「模块」页签（列表/刷新/导入
-    `.block`/封装选中/实例化），API `POST /api/blocks/{instantiate,encapsulate}`；③ 未接线实例按端口默认值补
-    0，可先摆放后接线。**2026-10-26 收尾**：模块项可拖拽到画布实例化（DragEvent + DataTransfer，落点是世界坐标）；库删除/改名/覆盖统一先扫引用（R03）。'
+  status: '**2026-10-26 完成**——① 文件层 `netlab/core/model/blocklib.py`（`.block` JSON + sha256、`library/blocks/<id>/v<N>.block`、同版本冲突拒绝/幂等、导入必须更高版本）；②
+    UI：右侧「模块」页签（列表/刷新/导入 `.block`/封装选中/实例化），API `POST /api/blocks/{instantiate,encapsulate}`；③ 未接线实例按端口默认值补 0，可先摆放后接线。**2026-10-26 收尾**：模块项可拖拽到画布实例化（DragEvent
+    + DataTransfer，落点是世界坐标）；库删除/改名/覆盖统一先扫引用（R03）。'
   acceptance: 封装 → 生成 `.block` → 新工程拖入可用；模块文件可单独拷到另一台机器导入；库面板可搜索/预览/删除（删除前查引用）。
   weight: ⭐⭐⭐⭐⭐ / P1
   stage: ⭐⭐⭐⭐⭐ / P1
+  user_scenario: 用户需要在真实工程中完成「模块文件化与模块库面板」；可观察验收：封装 → 生成 `.block` → 新工程拖入可用；模块文件可单独拷到另一台机器导入；库面板可搜索/预览/删除（删除前查引用）。
+  failure_cost: 「模块文件化与模块库面板」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_blocklib.py netlab/tests/test_blocks.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R03
   title: 版本、引用保护与缺失降级
-  status: '**2026-10-26 完成**——① 工程 v3 `blocks` 只存 `{id,version}`，保存前 `ensure_blocks`
-    同步库，打开时按库解析；② 缺失时**降级只读**：用占位块（端口由场景映射推导、带 placeholder 标记）打开，`sim.degraded` 暴露清单，`/api/control`
-    运行/单步返回 409，`NetworkContainer.mutate` 拒绝一切编辑；③ 删除模块前 `scan_block_references` 扫描工程目录引用，`POST
-    /api/blocks/{id}/delete` 无 force 时 409 并列出工程名；④ 前端收到 degraded 显示红色横幅。**2026-10-26
-    收尾**：删除、改名、覆盖都先 `scan_block_references`，有引用默认 409、`force=true` 才执行（D6 三项齐）；D7
-    的解除路径：补回库文件后模块面板「补回后重试」→ `POST /api/project/retry` 严格重校验并解除只读（仍缺 → 409）；占位块替换成新模块的交互未做。'
+  status: '**2026-10-26 完成**——① 工程 v3 `blocks` 只存 `{id,version}`，保存前 `ensure_blocks` 同步库，打开时按库解析；② 缺失时**降级只读**：用占位块（端口由场景映射推导、带 placeholder 标记）打开，`sim.degraded`
+    暴露清单，`/api/control` 运行/单步返回 409，`NetworkContainer.mutate` 拒绝一切编辑；③ 删除模块前 `scan_block_references` 扫描工程目录引用，`POST /api/blocks/{id}/delete` 无
+    force 时 409 并列出工程名；④ 前端收到 degraded 显示红色横幅。**2026-10-26 收尾**：删除、改名、覆盖都先 `scan_block_references`，有引用默认 409、`force=true` 才执行（D6 三项齐）；D7 的解除路径：补回库文件后模块面板「补回后重试」→
+    `POST /api/project/retry` 严格重校验并解除只读（仍缺 → 409）；占位块替换成新模块的交互未做。'
   acceptance: 改库后旧工程行为不变；删库文件后打开工程报明确清单且不能运行；确认替换后可运行但带"占位"标记；同 id 同 version 内容不同被拒。
   weight: ⭐⭐⭐⭐ / P1
   stage: ⭐⭐⭐⭐ / P1
+  user_scenario: 用户需要在真实工程中完成「版本、引用保护与缺失降级」；可观察验收：改库后旧工程行为不变；删库文件后打开工程报明确清单且不能运行；确认替换后可运行但带"占位"标记；同 id 同 version 内容不同被拒。
+  failure_cost: 「版本、引用保护与缺失降级」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_degraded.py netlab/tests/test_blocklib.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R04
   title: 模块导入前校验
   status: '**2026-10-26 完成**——新增 `netlab/core/model/block_validate.py`：阻断级（结构/坏端点/端口无内部接口/自引用/干跑失败）与警告级（缺描述、空模块、无内部连接、无输入/输出、端口无字段、接口未声明、嵌套子模块不在库）两级；干跑真实
-    `BlockRuntime.step` 1 步并记录 passed/skipped/failed；报告为 JSON（`blocking/warnings/summary/block`）+
-    纯文本 `text`，可直接复制；API `POST /api/blocks/validate`；前端 `.block` 导入流程改为「先校验：阻断→横幅拒绝，警告→确认后导入」。**2026-10-26
-    收尾**：`POST /api/blocks/validate` 支持 `save_report=true`，把 JSON 报告写进当前工程 `exports/block-validate-<id>-v<N>-<时间戳>.json`（`CURRENT_WORKSPACE`
+    `BlockRuntime.step` 1 步并记录 passed/skipped/failed；报告为 JSON（`blocking/warnings/summary/block`）+ 纯文本 `text`，可直接复制；API `POST /api/blocks/validate`；前端
+    `.block` 导入流程改为「先校验：阻断→横幅拒绝，警告→确认后导入」。**2026-10-26 收尾**：`POST /api/blocks/validate` 支持 `save_report=true`，把 JSON 报告写进当前工程 `exports/block-validate-<id>-v<N>-<时间戳>.json`（`CURRENT_WORKSPACE`
     由新建/保存/打开工程设置）。模块面板独立「校验」按钮未做（导入流程已内置校验）。'
   acceptance: 端口错位被拒并指出端口名；缺公式/缺描述可导入但标警告；干跑失败拒绝导入并给最小复现信息。
   weight: ⭐⭐⭐⭐ / P1
   stage: ⭐⭐⭐⭐ / P1
+  user_scenario: 用户需要在真实工程中完成「模块导入前校验」；可观察验收：端口错位被拒并指出端口名；缺公式/缺描述可导入但标警告；干跑失败拒绝导入并给最小复现信息。
+  failure_cost: 「模块导入前校验」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_block_validate.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R05
   title: 模块内部编辑与双模型
-  status: '**2026-10-26 完成基础层**——`BlockDef.model`（behavioral|structural）写进 `.block`
-    与 summary；封装 API 支持 `model`（面板有「封装为结构模型」勾选）；`POST /api/blocks/{id}/open-internal`
-    仅对 structural 开放（behavioral → 409），把内部作为**独立临时网络**打开（D30，不做面包屑）；`POST /api/blocks/save-copy`
-    把当前网络另存为新模块（新 id、v1、默认 structural，D10）；面板每个模块有「打开内部」按钮（behavioral 置灰）、工具栏「另存为副本」。**2026-10-26
-    收尾**：画布从不展开内部（behavioral 天然满足展示层「不展开」）；运行时仍展开内部求值（行为公式路径未定义，性能目标未变）——这点在 R05 正文明确标注。临时网络清理：模块面板「关闭内部网络」按钮（删除当前以「模块
+  status: '**2026-10-26 完成基础层**——`BlockDef.model`（behavioral|structural）写进 `.block` 与 summary；封装 API 支持 `model`（面板有「封装为结构模型」勾选）；`POST /api/blocks/{id}/open-internal`
+    仅对 structural 开放（behavioral → 409），把内部作为**独立临时网络**打开（D30，不做面包屑）；`POST /api/blocks/save-copy` 把当前网络另存为新模块（新 id、v1、默认 structural，D10）；面板每个模块有「打开内部」按钮（behavioral
+    置灰）、工具栏「另存为副本」。**2026-10-26 收尾**：画布从不展开内部（behavioral 天然满足展示层「不展开」）；运行时仍展开内部求值（行为公式路径未定义，性能目标未变）——这点在 R05 正文明确标注。临时网络清理：模块面板「关闭内部网络」按钮（删除当前以「模块
     」开头的临时网络）。'
   acceptance: 行为模型实例化不展开内部（性能不变）；结构模型可看内部并另存为副本；默认必须是 behavioral。
   weight: ⭐⭐⭐⭐ / P1
   stage: ⭐⭐⭐⭐ / P1
+  user_scenario: 用户需要在真实工程中完成「模块内部编辑与双模型」；可观察验收：行为模型实例化不展开内部（性能不变）；结构模型可看内部并另存为副本；默认必须是 behavioral。
+  failure_cost: 「模块内部编辑与双模型」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_block_internal.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R06
   title: 跨模式与接口块
-  status: '**2026-10-26 P1 部分完成**——① 跨模式拒绝：`Scene._check_block_mode` 在 add_node /
-    update_node / load_payload 三处校验，模块 mode 与场景不一致即 ValidationError（提示改用同模式模块或显式接口），实例化
-    API 返回 422；② 新增两个显式接口节点：`if_signal_to_vector`（u → x=u·cosθ, y=u·sinθ）、`if_vector_to_signal`（x/y/模长
-    → 标量，可缩放），已登记公式与 catalog；③ 单测覆盖角度映射、分量/模长、跨模式拒绝。**2026-11-07 电路侧接口完成**——新增 `if_voltage_to_signal`（复用
-    `SensorElement`，高阻采样并写 `voltage` 字段）与 `if_signal_to_current`（`ActuatorCurrent`，按
-    `state[''drive'']` 驱动电流源，显式一拍延迟）；两者登记 catalog/group，`test_powerelectronics.py`
-    覆盖存在性；新建工程流程改为先选 `signal/circuit/vector` 模式，再 POST `/api/scene/clear?mode=...`（未知模式
+  status: '**2026-10-26 P1 部分完成**——① 跨模式拒绝：`Scene._check_block_mode` 在 add_node / update_node / load_payload 三处校验，模块 mode 与场景不一致即 ValidationError（提示改用同模式模块或显式接口），实例化
+    API 返回 422；② 新增两个显式接口节点：`if_signal_to_vector`（u → x=u·cosθ, y=u·sinθ）、`if_vector_to_signal`（x/y/模长 → 标量，可缩放），已登记公式与 catalog；③ 单测覆盖角度映射、分量/模长、跨模式拒绝。**2026-11-07
+    电路侧接口完成**——新增 `if_voltage_to_signal`（复用 `SensorElement`，高阻采样并写 `voltage` 字段）与 `if_signal_to_current`（`ActuatorCurrent`，按 `state[''drive'']`
+    驱动电流源，显式一拍延迟）；两者登记 catalog/group，`test_powerelectronics.py` 覆盖存在性；新建工程流程改为先选 `signal/circuit/vector` 模式，再 POST `/api/scene/clear?mode=...`（未知模式
     422）。'
   acceptance: signal 块放入 circuit 被拒并给替换建议；经接口块能跨界且数值正确；接口块有单测。
   weight: ⭐⭐⭐ / P1（接口块）/ P4（电路侧完善）
   stage: ⭐⭐⭐ / P1（接口块）/ P4（电路侧完善）
+  user_scenario: 用户需要在真实工程中完成「跨模式与接口块」；可观察验收：signal 块放入 circuit 被拒并给替换建议；经接口块能跨界且数值正确；接口块有单测。
+  failure_cost: 「跨模式与接口块」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_blocks.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R07
   title: 一工程多网络（层）
-  status: '**2026-10-26 数据模型 + 服务容器 + API 已落地**——`project.netlab` v3（`networks: [...]`
-    + `current` + 引用式 `blocks`，v1/v2 自动迁移，旧校验和迁移后重算）；新增 `netlab/core/model/networks.py`
-    的 `NetworkContainer`（每网络独立 `Simulation`/线程/录制器，切换即暂停旧网络，未运行层不推进）；API `GET/POST
-    /api/networks`、`PATCH/DELETE /api/networks/{id}`、`POST /api/networks/{id}/activate`、`POST
+  status: '**2026-10-26 数据模型 + 服务容器 + API 已落地**——`project.netlab` v3（`networks: [...]` + `current` + 引用式 `blocks`，v1/v2 自动迁移，旧校验和迁移后重算）；新增 `netlab/core/model/networks.py`
+    的 `NetworkContainer`（每网络独立 `Simulation`/线程/录制器，切换即暂停旧网络，未运行层不推进）；API `GET/POST /api/networks`、`PATCH/DELETE /api/networks/{id}`、`POST /api/networks/{id}/activate`、`POST
     /api/networks/run-all|pause-all`；工程导入会整体替换全部网络。**未做**：左侧网络栏 UI、跨层输入绑定（P1）。'
   acceptance: 两网络并存互不干扰；单层运行另一层不耗 CPU；冻结有明确标注；删除被引用网络被拒。
   weight: ⭐⭐⭐⭐⭐ / P0（数据模型）+ P1（跨层绑定 UI）
   stage: ⭐⭐⭐⭐⭐ / P0（数据模型）+ P1（跨层绑定 UI）
+  user_scenario: 用户需要在真实工程中完成「一工程多网络（层）」；可观察验收：两网络并存互不干扰；单层运行另一层不耗 CPU；冻结有明确标注；删除被引用网络被拒。
+  failure_cost: 「一工程多网络（层）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_circuit_semantics.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R08
   title: 信息架构：菜单栏、侧栏、顶部信息条
-  status: '**2026-10-26 外壳已落地**——8 项菜单栏（未实现项显式置灰并标注期次）、顶部信息条、左侧网络列表（切换/改名/新建/删除/收起/拖宽，接
-    `/api/networks`）、右侧「节点函数」「连接函数」两个页签（按角色锁定）、「场景」改名「工程」；静态资源 `?v=2.3.0`。**未做**：菜单里的撤销/快捷键（票
-    05）、分析/搜索/文档中心（P3/P5）。'
+  status: '**2026-10-26 外壳已落地**——8 项菜单栏（未实现项显式置灰并标注期次）、顶部信息条、左侧网络列表（切换/改名/新建/删除/收起/拖宽，接 `/api/networks`）、右侧「节点函数」「连接函数」两个页签（按角色锁定）、「场景」改名「工程」；静态资源
+    `?v=2.3.0`。**未做**：菜单里的撤销/快捷键（票 05）、分析/搜索/文档中心（P3/P5）。'
   acceptance: 原面板功能都能从菜单到达；侧栏宽度可拖且状态持久化；静态资源版本号随之 bump。
   weight: ⭐⭐⭐⭐ / P0
   stage: ⭐⭐⭐⭐ / P0
+  user_scenario: 用户需要在真实工程中完成「信息架构：菜单栏、侧栏、顶部信息条」；可观察验收：原面板功能都能从菜单到达；侧栏宽度可拖且状态持久化；静态资源版本号随之 bump。
+  failure_cost: 「信息架构：菜单栏、侧栏、顶部信息条」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_canvas_model.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R09
   title: 画布：路由、锚点、尺寸、吸附、符号与风格
-  status: '**2026-10-26 首批完成**——节点 `size{w}`（24–200，端口/连线联动）、连线 `route`（auto/straight/orthogonal/manual）+
-    `waypoints` + `anchors`（左右上下/自动）已进数据模型与 API；画布按路由绘制（手动路由 Alt+点击加拐点、拖圆点调整）、节点右下角尺寸手柄、网格吸附（默认
-    20，Alt 临时暂停）、工程级符号风格（经典圆形 / GB 矩形首批）与 `ui.grid/symbol` 落地；检查器「几何」区可改路由/锚点/清空拐点。**未做**：GB
+  status: '**2026-10-26 首批完成**——节点 `size{w}`（24–200，端口/连线联动）、连线 `route`（auto/straight/orthogonal/manual）+ `waypoints` + `anchors`（左右上下/自动）已进数据模型与
+    API；画布按路由绘制（手动路由 Alt+点击加拐点、拖圆点调整）、节点右下角尺寸手柄、网格吸附（默认 20，Alt 临时暂停）、工程级符号风格（经典圆形 / GB 矩形首批）与 `ui.grid/symbol` 落地；检查器「几何」区可改路由/锚点/清空拐点。**未做**：GB
     符号库细化与元件图形（P4/R15）、逐边锚点拖拽手柄（当前用下拉）。'
   acceptance: 三态路由可切换且保存后一致；拖过的边不被自动算法覆盖；节点放大后连线仍贴边；GB 图形符合国标；风格切换只影响本工程。
   weight: ⭐⭐⭐⭐ / P2
   stage: ⭐⭐⭐⭐ / P2
+  user_scenario: 用户需要在真实工程中完成「画布：路由、锚点、尺寸、吸附、符号与风格」；可观察验收：三态路由可切换且保存后一致；拖过的边不被自动算法覆盖；节点放大后连线仍贴边；GB 图形符合国标；风格切换只影响本工程。
+  failure_cost: 「画布：路由、锚点、尺寸、吸附、符号与风格」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_canvas_model.py netlab/tests/test_device_nodes.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R10
   title: 选择、快捷键、撤销与剪贴板
-  status: '**2026-10-26 完成基础层**——快捷键表按 D28 生效（`Ctrl+S` 保存工程、`Ctrl+Shift+E` 导出场景、`Ctrl+Alt+S`
-    另存为、`Ctrl+Z`/`Ctrl+Shift+Z` 撤销重做、`Ctrl+C/X/V`、`Ctrl+A`、Delete）；多选（Ctrl+单击）与框选（Ctrl+拖框）；内部剪贴板含连接与参数、跨网络粘贴需确认；撤销
+  status: '**2026-10-26 完成基础层**——快捷键表按 D28 生效（`Ctrl+S` 保存工程、`Ctrl+Shift+E` 导出场景、`Ctrl+Alt+S` 另存为、`Ctrl+Z`/`Ctrl+Shift+Z` 撤销重做、`Ctrl+C/X/V`、`Ctrl+A`、Delete）；多选（Ctrl+单击）与框选（Ctrl+拖框）；内部剪贴板含连接与参数、跨网络粘贴需确认；撤销
     100 步（服务端场景快照，保留当前库文件，不会复活已删库模块）。**未做**：跨工程片段文件、拖动多选整体移动。'
   acceptance: 多选/框选/复制粘贴/剪切可用且跨层提示正确；撤销 100 步内可回；撤销不复活已删库模块；重名自动加序号。
   weight: ⭐⭐⭐⭐ / P0（快捷键+选择）/ P1（剪贴板绑定提示）
   stage: ⭐⭐⭐⭐ / P0（快捷键+选择）/ P1（剪贴板绑定提示）
+  user_scenario: 用户需要在真实工程中完成「选择、快捷键、撤销与剪贴板」；可观察验收：多选/框选/复制粘贴/剪切可用且跨层提示正确；撤销 100 步内可回；撤销不复活已删库模块；重名自动加序号。
+  failure_cost: 「选择、快捷键、撤销与剪贴板」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_frontend_api_contract.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R11
   title: 时间与循环播放
-  status: '`t_step`/`zero_time` 已落地（P0）；**2026-10-26 P3 完成推荐周期**：`analysis.recommend_period`
-    用录制数据 FFT 峰值 → 候选周期 → 平移一致性（MAE/σ）→ 按 score 排序并给诊断；`GET /api/analysis/period`；前端分析面板「周期」按钮。**2026-11-07
-    补多窗口**：`_period_windows` 取全窗 + 前后 65%/35% 重叠子窗，逐窗算平移一致性（score/MAE），候选附 `windows`/`score_std`，结果附
+  status: '`t_step`/`zero_time` 已落地（P0）；**2026-10-26 P3 完成推荐周期**：`analysis.recommend_period` 用录制数据 FFT 峰值 → 候选周期 → 平移一致性（MAE/σ）→ 按 score 排序并给诊断；`GET
+    /api/analysis/period`；前端分析面板「周期」按钮。**2026-11-07 补多窗口**：`_period_windows` 取全窗 + 前后 65%/35% 重叠子窗，逐窗算平移一致性（score/MAE），候选附 `windows`/`score_std`，结果附
     `period_std`；仍是 FFT 峰值驱动的简化五步（未做候选周期网格/自相关预处理）。'
   acceptance: 单步按 `T_step` 推进；推荐周期给依据与备选；无稳定周期如实报告；时间归零不清状态、重置清状态。
   weight: ⭐⭐⭐⭐ / P0（T_step、归零/重置）/ P3（推荐周期）
   stage: ⭐⭐⭐⭐ / P0（T_step、归零/重置）/ P3（推荐周期）
+  user_scenario: 用户需要在真实工程中完成「时间与循环播放」；可观察验收：单步按 `T_step` 推进；推荐周期给依据与备选；无稳定周期如实报告；时间归零不清状态、重置清状态。
+  failure_cost: 「时间与循环播放」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_solver_integration.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R12
   title: 分析：时域/频域、指标、数学形式、CSV
-  status: '**2026-10-26 P3 完成**——新增 `netlab/core/compute/analysis.py`：① 时域指标（初/终值、min/max/mean/rms、峰值时间、超调、10/90%
-    上升时间、±2% 调节时间，附算法来源）；② 频谱（录制数据 FFT，去均值+Hann 窗+幅度校正，输出 freqs/magnitude/phase 与
-    Top 峰值）；③ 数学形式（节点注册表公式+参数，仅呈现）；④ CSV 导出（`网络.节点.字段` 列名、`#` 元数据头、时间窗裁剪、抽稀、只写 `exports/`、同名自动加序号）；⑤
-    符号传递函数（sympy 可选，gain/sum/lag/integrate+pass，忽略偏置/限幅，独立源按 0，附假设）；⑥ 前端「分析」面板（信号选择、指标/频谱/周期/数学形式/CSV、频谱图、传递函数推导、性能与单步超时）。API
-    `/api/analysis/{metrics,spectrum,period,math,transfer,export}`，分析整体 5 s 超时保护。**未做**：运行点线性化的
-    Bode 曲线（第二条频域路径目前是「符号传递函数」，不是幅相曲线）；时域图沿用「信号」页。'
+  status: '**2026-10-26 P3 完成**——新增 `netlab/core/compute/analysis.py`：① 时域指标（初/终值、min/max/mean/rms、峰值时间、超调、10/90% 上升时间、±2% 调节时间，附算法来源）；② 频谱（录制数据
+    FFT，去均值+Hann 窗+幅度校正，输出 freqs/magnitude/phase 与 Top 峰值）；③ 数学形式（节点注册表公式+参数，仅呈现）；④ CSV 导出（`网络.节点.字段` 列名、`#` 元数据头、时间窗裁剪、抽稀、只写 `exports/`、同名自动加序号）；⑤
+    符号传递函数（sympy 可选，gain/sum/lag/integrate+pass，忽略偏置/限幅，独立源按 0，附假设）；⑥ 前端「分析」面板（信号选择、指标/频谱/周期/数学形式/CSV、频谱图、传递函数推导、性能与单步超时）。API `/api/analysis/{metrics,spectrum,period,math,transfer,export}`，分析整体
+    5 s 超时保护。**未做**：运行点线性化的 Bode 曲线（第二条频域路径目前是「符号传递函数」，不是幅相曲线）；时域图沿用「信号」页。'
   acceptance: 两条频域路径都带来源标注；指标可追溯到算法；sympy 未装时降级并说明；CSV 含元数据头且列名带层名。
   weight: ⭐⭐⭐ / P3
   stage: ⭐⭐⭐ / P3
+  user_scenario: 用户需要在真实工程中完成「分析：时域/频域、指标、数学形式、CSV」；可观察验收：两条频域路径都带来源标注；指标可追溯到算法；sympy 未装时降级并说明；CSV 含元数据头且列名带层名。
+  failure_cost: 「分析：时域/频域、指标、数学形式、CSV」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_analysis.py netlab/tests/test_analysis_api.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R13
   title: 性能与计时
-  status: '`netlab/core/compute/profiling.py`（`@timed` / `measure` / 环形采样，默认关；已装饰
-    `scene.step`、`network.step`、`circuit.solver.step`）；`GET /api/profile`、`PATCH /api/profile{enabled,reset}`
-    可用；**性能面板与单拍超时保护已完成（P3）**：前端性能页显示 Top 表，`step_timeout_ms` 超时会中断并定位节点；离线基准仍是 `tools/bench.py`。'
+  status: '`netlab/core/compute/profiling.py`（`@timed` / `measure` / 环形采样，默认关；已装饰 `scene.step`、`network.step`、`circuit.solver.step`）；`GET /api/profile`、`PATCH
+    /api/profile{enabled,reset}` 可用；**性能面板与单拍超时保护已完成（P3）**：前端性能页显示 Top 表，`step_timeout_ms` 超时会中断并定位节点；离线基准仍是 `tools/bench.py`。'
   acceptance: 关闭时开销可忽略；开启能排出 Top 慢节点；超时能及时暂停并指出节点名。
   weight: ⭐⭐⭐ / P0（装饰器）/ P3（面板与保护）
   stage: ⭐⭐⭐ / P0（装饰器）/ P3（面板与保护）
+  user_scenario: 用户需要在真实工程中完成「性能与计时」；可观察验收：关闭时开销可忽略；开启能排出 Top 慢节点；超时能及时暂停并指出节点名。
+  failure_cost: 「性能与计时」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_control_project.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R14
   title: 帮助、文档与搜索
-  status: 参数表单已有 `help` 文案；已有非模态文档中心（`docs/*.md` 列表 + 段落搜索 + Ctrl+K）。**2026-11-07
-    补全局搜索**：`GET /api/help/search?q=&limit=` 覆盖元件、电路节点、信号节点、计算方法、模板与文档（带 kind/score/ref/line）；前端搜索框先列文档段落，再按「元件
-    / 电路节点 / 计算 / 方法 / 模板 / 文档」分组显示并带类别 badge；排序按 kind 精确命中 > 前缀 > 标题 > 正文，再按类别优先级；`GET
-    /api/help/doc?path=&line=` 只读渲染文档并高亮行、拒绝路径穿越。**未做**：按层限定筛选（需求/规范/历史）、术语统一表、顶部信息条。
+  status: 参数表单已有 `help` 文案；已有非模态文档中心（`docs/*.md` 列表 + 段落搜索 + Ctrl+K）。**2026-11-07 补全局搜索**：`GET /api/help/search?q=&limit=` 覆盖元件、电路节点、信号节点、计算方法、模板与文档（带
+    kind/score/ref/line）；前端搜索框先列文档段落，再按「元件 / 电路节点 / 计算 / 方法 / 模板 / 文档」分组显示并带类别 badge；排序按 kind 精确命中 > 前缀 > 标题 > 正文，再按类别优先级；`GET /api/help/doc?path=&line=`
+    只读渲染文档并高亮行、拒绝路径穿越。**未做**：按层限定筛选（需求/规范/历史）、术语统一表、顶部信息条。
   acceptance: 任一参数 `?` 能给四段内容并跳转实现页；文档窗口非模态；搜索可按层限定并跳转定位。
   weight: ⭐⭐⭐ / P5
   stage: ⭐⭐⭐ / P5
+  user_scenario: 用户需要在真实工程中完成「帮助、文档与搜索」；可观察验收：任一参数 `?` 能给四段内容并跳转实现页；文档窗口非模态；搜索可按层限定并跳转定位。
+  failure_cost: 「帮助、文档与搜索」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_help_search.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R15
   title: 电路元件与 GB 符号
-  status: '**2026-10-26 P4 批次 1–2 完成**——`element_catalog()` 共 **14 种**：原有 9 种（R/C/L/电压源/电流源/二极管/开关/VCVS/VCCS）+
-    本批新增 5 种行为元件：`opamp`（tanh 平滑饱和，闭环增益/饱和有测试）、`comparator`（高增益+迟滞，双向饱和）、`zener`（正向
-    PN + softplus 平滑击穿钳位，`ron` 动态电阻）、`led`（二极管电学行为）、`dflipflop`（上升沿 Q←D、单步延迟、保持）。GB
-    符号：电路模式 + `ui.symbol=gb` 时按元件 kind 绘制符号（电阻锯齿、电容双板、电感弧、电压/电流源圆、二极管/稳压管/LED、开关、VCVS/VCCS
-    菱形、运放/比较器三角、D 触发器矩形）；符号放大 1.6–2.4×、主题色描边、与导线同线宽且无贴图底（导线在符号处自然穿过）；**电路节点改为 CAD
-    式小圆/实心点/小方框（样式可选）**，接地用标准接地符号；GB 功能节点按类型画专属符号（Σ/三角 K/∫/τ/f(x)/~/s/M/I/O/B），未知回落小圆+标签，截图
-    [assets/p4-gb-symbols.png](assets/p4-gb-symbols.png)。行为测试 `test_p4_elements.py`
-    6 项。**未做**：晶闸管/IGBT/JFET/继电器/电机等清单内尚未建模的功率/执行器件；第二批复用 R05 块机制的「内部电路」双模型视图；元件级
-    GB 图形细化（当前为通用绘制，非标准图纸级）。'
+  status: '**2026-10-26 P4 批次 1–2 完成**——`element_catalog()` 共 **14 种**：原有 9 种（R/C/L/电压源/电流源/二极管/开关/VCVS/VCCS）+ 本批新增 5 种行为元件：`opamp`（tanh 平滑饱和，闭环增益/饱和有测试）、`comparator`（高增益+迟滞，双向饱和）、`zener`（正向
+    PN + softplus 平滑击穿钳位，`ron` 动态电阻）、`led`（二极管电学行为）、`dflipflop`（上升沿 Q←D、单步延迟、保持）。GB 符号：电路模式 + `ui.symbol=gb` 时按元件 kind 绘制符号（电阻锯齿、电容双板、电感弧、电压/电流源圆、二极管/稳压管/LED、开关、VCVS/VCCS
+    菱形、运放/比较器三角、D 触发器矩形）；符号放大 1.6–2.4×、主题色描边、与导线同线宽且无贴图底（导线在符号处自然穿过）；**电路节点改为 CAD 式小圆/实心点/小方框（样式可选）**，接地用标准接地符号；GB 功能节点按类型画专属符号（Σ/三角 K/∫/τ/f(x)/~/s/M/I/O/B），未知回落小圆+标签，截图
+    [assets/p4-gb-symbols.png](assets/p4-gb-symbols.png)。行为测试 `test_p4_elements.py` 6 项。**未做**：晶闸管/IGBT/JFET/继电器/电机等清单内尚未建模的功率/执行器件；第二批复用 R05
+    块机制的「内部电路」双模型视图；元件级 GB 图形细化（当前为通用绘制，非标准图纸级）。'
   acceptance: 第一批有解析/行为测试；运放/比较器闭环增益与饱和符合预期；触发器真值表与边沿测试通过；每个元件有 GB 图形。
   weight: ⭐⭐⭐ / P4
   stage: ⭐⭐⭐ / P4
+  user_scenario: 用户需要在真实工程中完成「电路元件与 GB 符号」；可观察验收：第一批有解析/行为测试；运放/比较器闭环增益与饱和符合预期；触发器真值表与边沿测试通过；每个元件有 GB 图形。
+  failure_cost: 「电路元件与 GB 符号」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_device_nodes.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R16
   title: 数据保护（横切）
-  status: 原子写/校验和/`.bak` 已有；**快照式自动保存已落地**：`workspace.write_snapshot / prune_snapshots
-    / list_snapshots / load_snapshot`（只写工程 `backups/`，命名 `snapshot-YYYYmmdd-HHMMSS-<8hex>.netlab`，保留最近
-    N + 每日 1，非法 tag 白名单化）；API `POST /api/workspace/snapshot`、`GET /api/workspace/snapshots`、`POST
-    /api/workspace/restore`；前端自动保存按设置间隔（默认 60 s、可关）写快照。**2026-10-26 收尾**：库文件版本不可原地改（同
-    id+version 内容不同→拒绝，D10）；删除/改名/覆盖前均扫描工程引用（无引用才直接执行，有引用需显式 force）；校验报告只写 `exports/`、不覆盖正本。
+  status: 原子写/校验和/`.bak` 已有；**快照式自动保存已落地**：`workspace.write_snapshot / prune_snapshots / list_snapshots / load_snapshot`（只写工程 `backups/`，命名 `snapshot-YYYYmmdd-HHMMSS-<8hex>.netlab`，保留最近
+    N + 每日 1，非法 tag 白名单化）；API `POST /api/workspace/snapshot`、`GET /api/workspace/snapshots`、`POST /api/workspace/restore`；前端自动保存按设置间隔（默认 60 s、可关）写快照。**2026-10-26
+    收尾**：库文件版本不可原地改（同 id+version 内容不同→拒绝，D10）；删除/改名/覆盖前均扫描工程引用（无引用才直接执行，有引用需显式 force）；校验报告只写 `exports/`、不覆盖正本。
   acceptance: 中断不留下半个工程；自动保存不影响正本；同名导出自动加序号；删库模块前必须看到受影响清单。
   weight: ⭐⭐⭐⭐⭐ / P0
   stage: ⭐⭐⭐⭐⭐ / P0
+  user_scenario: 用户需要在真实工程中完成「数据保护（横切）」；可观察验收：中断不留下半个工程；自动保存不影响正本；同名导出自动加序号；删库模块前必须看到受影响清单。
+  failure_cost: 「数据保护（横切）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_fields.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R17
   title: 控制理论导向（呈现层）
-  status: '**2026-10-26 P3 部分完成**：L2 传递函数呈现已可用（`analysis.transfer_function`，sympy
-    可选：线性节点逐级拼接、约分、分子/分母系数与阶数、附假设与来源；不可解析时给原因）；**L3 状态空间已具备**（同一返回附 `state_space`
-    可控标准型 A/B/C/D，`transfer_math` 解析失败时为 null 并保留原因）；L1 术语/图形样式按需求为「不强制」；Mason 增益未做（可选增强）。'
+  status: '**2026-10-26 P3 部分完成**：L2 传递函数呈现已可用（`analysis.transfer_function`，sympy 可选：线性节点逐级拼接、约分、分子/分母系数与阶数、附假设与来源；不可解析时给原因）；**L3 状态空间已具备**（同一返回附
+    `state_space` 可控标准型 A/B/C/D，`transfer_math` 解析失败时为 null 并保留原因）；L1 术语/图形样式按需求为「不强制」；Mason 增益未做（可选增强）。'
   acceptance: 任一线性网络能给出闭环传递函数或状态空间（含假设）；无法解析时给原因；求解器路径无改动（以测试与 diff 证明）。
   weight: ⭐⭐ / P3
   stage: ⭐⭐ / P3
+  user_scenario: 用户需要在真实工程中完成「控制理论导向（呈现层）」；可观察验收：任一线性网络能给出闭环传递函数或状态空间（含假设）；无法解析时给原因；求解器路径无改动（以测试与 diff 证明）。
+  failure_cost: 「控制理论导向（呈现层）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_circuit_modules.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R18
   title: 图纸级电路图规范（GB/T 4728 风格）
-  status: '**2026-10-26 首批完成**——位号（R1/L1/C1/V1 等）+ 参数（`10 Ω`、`0.01 H`、`0.001 F`、`sine
-    1 V/50 Hz`）常显；≥3 线汇合画实心节点；符号处导线断开（只擦中点一小段，不用贴图底）；正交布线；电路节点小圆/点/框可选；截图 [assets/cad-schematic.png](assets/cad-schematic.png)。**未做**：图纸模式（隐藏网格/图框）、端子号/线号、线宽分级、完整国标尺寸与多页图幅。'
+  status: '**2026-10-26 首批完成**——位号（R1/L1/C1/V1 等）+ 参数（`10 Ω`、`0.01 H`、`0.001 F`、`sine 1 V/50 Hz`）常显；≥3 线汇合画实心节点；符号处导线断开（只擦中点一小段，不用贴图底）；正交布线；电路节点小圆/点/框可选；截图
+    [assets/cad-schematic.png](assets/cad-schematic.png)。**未做**：图纸模式（隐藏网格/图框）、端子号/线号、线宽分级、完整国标尺寸与多页图幅。'
   acceptance: 常见元件（R/C/L/D/ZD/LED/V/I/开关/运放/比较器/触发器）有位号与参数；汇合点可见；符号与导线同线宽、同色系、符号处导线断开；正交布线；缩放清晰；截图与文档证据。
   weight: ⭐⭐⭐⭐ / P4
   stage: ⭐⭐⭐⭐ / P4
+  user_scenario: 用户需要在真实工程中完成「图纸级电路图规范（GB/T 4728 风格）」；可观察验收：常见元件（R/C/L/D/ZD/LED/V/I/开关/运放/比较器/触发器）有位号与参数；汇合点可见；符号与导线同线宽、同色系、符号处导线断开；正交布线；缩放清晰；截图与文档证据。
+  failure_cost: 「图纸级电路图规范（GB/T 4728 风格）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_schematic_export.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R19
   title: 电气图纸模型与 Agent 绘制规范
-  status: '**2026-10-26 数据层首批完成**——① `netlab/core/model/schematic.py`：`pins_for`/`apply_pin_bindings`（多端
-    `pins{引脚:节点}`→params 绑定）、`auto_layout`（BFS 分层 + 220/120 网格步长 + lane，确定性，rot 量化
-    30°）、`apply_layout`、`validate_schematic`；② `EdgeRecord.layout`（x/y/rot 校验 30°
-    倍数）+ API `pins`/`layout` 透传；③ 前端符号位置与旋转优先读 `layout`，工程页「自动布局（电路）」按钮（应用后 fitView，可撤销）；④
-    测试 `test_schematic.py` 5 项。**2026-10-26 第三批首批**：新增 `netlab/core/compute/transistors.py`——NPN/PNP（分段线性
-    B-E + β 集电极电流）、NMOS/PMOS（平方律、栅极无直流）；catalog 14→18 种；`test_transistors.py` 4 项；GB
-    符号补 BJT/MOS 与位号 Q。**2026-10-26 第三批第二批**：新增 `netlab/core/compute/logic.py`——与/或/非/异或门行为模型（输出经
-    Ron 接 VDD/GND 的平滑开关，阈值/斜率可调），catalog 18→22；`test_logic.py` 4 项真值表；**2026-10-26
-    第三批第三批**：新增 `netlab/core/compute/timers.py`——`ne555`（行为级无稳态方波，freq/duty/vhigh/vlow）与
-    `ldo`（Vout=min(Vtarget,Vin−dropout)）；catalog 22→24；`test_timers.py` 3 项（555 高低电平、LDO
-    稳压/压差、catalog）。**2026-10-26 第三批第四批**：新增 `netlab/core/compute/digital.py`——`counter4`（4
-    位计数器，CLK 上升沿 +1、RST 高有效，`branch_width=4` 多输出）与 `dac4`（Vref·code/15）；求解器支持多支路元件（branch_width）；catalog
-    24→26；`test_digital.py` 3 项。**2026-10-26 第三批第五批**：新增 `shift4`（4 位串入并出移位寄存器，CLK
-    上升沿 D→Q0→…→Q3，RST 高有效），catalog 26→27；`test_digital.py` 5 项（新增串入并出、复位清零）。**未做**：ADC、变压器/互感；R19
-    参考级图纸已暂停。'
-  acceptance: 同一网表两次自动布局逐字节一致；引脚坐标与导线端点误差 ≤0.5px；汇合点数量=网络分支数；拖动元件/折点后拓扑校验不变；旧工程自动补布局且能保存/加载；`scene.step`
-    数值与改动前一致（测试证明）；绘制规范文档含验收清单。
+  status: '**2026-10-26 数据层首批完成**——① `netlab/core/model/schematic.py`：`pins_for`/`apply_pin_bindings`（多端 `pins{引脚:节点}`→params 绑定）、`auto_layout`（BFS
+    分层 + 220/120 网格步长 + lane，确定性，rot 量化 30°）、`apply_layout`、`validate_schematic`；② `EdgeRecord.layout`（x/y/rot 校验 30° 倍数）+ API `pins`/`layout`
+    透传；③ 前端符号位置与旋转优先读 `layout`，工程页「自动布局（电路）」按钮（应用后 fitView，可撤销）；④ 测试 `test_schematic.py` 5 项。**2026-10-26 第三批首批**：新增 `netlab/core/compute/transistors.py`——NPN/PNP（分段线性
+    B-E + β 集电极电流）、NMOS/PMOS（平方律、栅极无直流）；catalog 14→18 种；`test_transistors.py` 4 项；GB 符号补 BJT/MOS 与位号 Q。**2026-10-26 第三批第二批**：新增 `netlab/core/compute/logic.py`——与/或/非/异或门行为模型（输出经
+    Ron 接 VDD/GND 的平滑开关，阈值/斜率可调），catalog 18→22；`test_logic.py` 4 项真值表；**2026-10-26 第三批第三批**：新增 `netlab/core/compute/timers.py`——`ne555`（行为级无稳态方波，freq/duty/vhigh/vlow）与
+    `ldo`（Vout=min(Vtarget,Vin−dropout)）；catalog 22→24；`test_timers.py` 3 项（555 高低电平、LDO 稳压/压差、catalog）。**2026-10-26 第三批第四批**：新增 `netlab/core/compute/digital.py`——`counter4`（4
+    位计数器，CLK 上升沿 +1、RST 高有效，`branch_width=4` 多输出）与 `dac4`（Vref·code/15）；求解器支持多支路元件（branch_width）；catalog 24→26；`test_digital.py` 3 项。**2026-10-26
+    第三批第五批**：新增 `shift4`（4 位串入并出移位寄存器，CLK 上升沿 D→Q0→…→Q3，RST 高有效），catalog 26→27；`test_digital.py` 5 项（新增串入并出、复位清零）。**未做**：ADC、变压器/互感；R19 参考级图纸已暂停。'
+  acceptance: 同一网表两次自动布局逐字节一致；引脚坐标与导线端点误差 ≤0.5px；汇合点数量=网络分支数；拖动元件/折点后拓扑校验不变；旧工程自动补布局且能保存/加载；`scene.step` 数值与改动前一致（测试证明）；绘制规范文档含验收清单。
   weight: ⭐⭐⭐⭐⭐ / P4（R18 之后）
   stage: ⭐⭐⭐⭐⭐ / P4（R18 之后）
+  user_scenario: 用户需要在真实工程中完成「电气图纸模型与 Agent 绘制规范」；可观察验收：同一网表两次自动布局逐字节一致；引脚坐标与导线端点误差 ≤0.5px；汇合点数量=网络分支数；拖动元件/折点后拓扑校验不变；旧工程自动补布局且能保存/加载；`scene.step`…
+  failure_cost: 「电气图纸模型与 Agent 绘制规范」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_schematic_export.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R20
   title: 多端口元件节点化（器件节点 + 显式端口）
-  status: '**2026-10-26 模型批基础层已落地**（票 09）：① `netlab/core/model/ports.py` 提供 `PinSpec`（name/role/required/顺序/几何）与
-    30 种电路元件的 `PINS`；② 场景支持 `kind="device"` 器件节点（`params.element` + 元件参数）与 `kind="wire"`
-    导线边（`source_pin`/`target_pin`，只允许 pin↔net，校验引脚存在/必接/重复）；③ `nodal.create_element_from_pins`
-    用引脚表装配元件（PinMap；多引脚用 `PIN_BINDINGS` 把引脚写回旧参数端口作过渡）；④ v3→v4 自动迁移：元件边 → 器件节点 + 引脚导线（保留位置，旋转暂存
-    `data.rotation`；必接引脚缺失时保留旧边），`PROJECT_VERSION=4`；⑤ 工程校验拒绝引脚未接齐的器件，运行前阻断、编辑期允许暂缺；⑥
-    **元件类已统一用 `self.pin(引脚名, 旧参数键)`**（旧参数仅作兼容回退）；30 种元件全部通过「器件节点 + 引脚导线」装配的参数化测试；⑦
-    测试 `test_device_nodes.py` 43 项 + `test_project_migration.py` 4 项，**242 passed**。**未做**：旧「边=元件」路径仍保留（模板/测试仍用它），参数端口随之作为兼容垫片，待模板迁移后清零；信号/矢量端口未做。'
-  acceptance: ① 器件节点 + 导线模型可建/存/读；v3 工程自动迁 v4，迁移幂等且迁移前有备份，旧字段读成引脚；② `required` 引脚恰好一条导线，未声明/重复/缺接为阻断级；③
-    30 种电路元件全部走 PinMap，无参数端口残留，MNA 数值与改前逐点一致（测试证明）；④ 信号/矢量多端口节点 + 端口绑定可用，旧边兼容；⑤ 每阶段全绿
-    + 新增端口/迁移/引擎测试；UI 阶段另加截图；⑥ §8.1 兼容表随改动更新。
+  status: '**2026-10-26 模型批基础层已落地**（票 09）：① `netlab/core/model/ports.py` 提供 `PinSpec`（name/role/required/顺序/几何）与 30 种电路元件的 `PINS`；② 场景支持 `kind="device"`
+    器件节点（`params.element` + 元件参数）与 `kind="wire"` 导线边（`source_pin`/`target_pin`，只允许 pin↔net，校验引脚存在/必接/重复）；③ `nodal.create_element_from_pins` 用引脚表装配元件（PinMap；多引脚用
+    `PIN_BINDINGS` 把引脚写回旧参数端口作过渡）；④ v3→v4 自动迁移：元件边 → 器件节点 + 引脚导线（保留位置，旋转暂存 `data.rotation`；必接引脚缺失时保留旧边），`PROJECT_VERSION=4`；⑤ 工程校验拒绝引脚未接齐的器件，运行前阻断、编辑期允许暂缺；⑥
+    **元件类已统一用 `self.pin(引脚名, 旧参数键)`**（旧参数仅作兼容回退）；30 种元件全部通过「器件节点 + 引脚导线」装配的参数化测试；⑦ 测试 `test_device_nodes.py` 43 项 + `test_project_migration.py`
+    4 项，**242 passed**。**未做**：旧「边=元件」路径仍保留（模板/测试仍用它），参数端口随之作为兼容垫片，待模板迁移后清零；信号/矢量端口未做。'
+  acceptance: ① 器件节点 + 导线模型可建/存/读；v3 工程自动迁 v4，迁移幂等且迁移前有备份，旧字段读成引脚；② `required` 引脚恰好一条导线，未声明/重复/缺接为阻断级；③ 30 种电路元件全部走 PinMap，无参数端口残留，MNA 数值与改前逐点一致（测试证明）；④
+    信号/矢量多端口节点 + 端口绑定可用，旧边兼容；⑤ 每阶段全绿 + 新增端口/迁移/引擎测试；UI 阶段另加截图；⑥ §8.1 兼容表随改动更新。
   weight: ⭐⭐⭐⭐⭐ / P4（R15 之后；先模型批，再 UI，再信号/矢量端口）
   stage: ⭐⭐⭐⭐⭐ / P4（R15 之后；先模型批，再 UI，再信号/矢量端口）
+  user_scenario: 用户需要在真实工程中完成「多端口元件节点化（器件节点 + 显式端口）」；可观察验收：① 器件节点 + 导线模型可建/存/读；v3 工程自动迁 v4，迁移幂等且迁移前有备份，旧字段读成引脚；② `required` 引脚恰好一条导线，未声明/重复/缺接为阻断级；③
+    …
+  failure_cost: 「多端口元件节点化（器件节点 + 显式端口）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_device_nodes.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R21
   title: 元件电源语义与接线放宽
-  status: '**2026-10-27 规划完成；P7-01（D41/D42）与 P7-02（D43/D44）已落地**——① `ports.PINS` 的
-    opamp/comparator 改 5 脚 `IN+/IN−/V+/V−/OUT`（V± `required=False`）；② `OpAmp/Comparator`
-    改单端盖章：V± 同时接线时按引脚电压、参考 V−，未接线时用 `VCC/VEE`（默认 ±15）且参考地；旧「边=元件」保留 `vmax` 差分语义（兼容垫片，§8.1）；③
-    `project.py` v4→v5 自动迁移与报告；④ 接线放宽：未接齐器件不参与求解（运行不阻断；前端运行中红色辉光；孤立网络自动忽略）、`vsource/isource`
-    单端接线空脚自动对地并画接地标记；⑤ 多接地放开：场景三处校验删除，前端可任意添加并提示"共 N 个，自动合并为 0V"；⑥ `编辑 → 批量设置尺寸…`
-    支持多选统一宽/直径；⑦ 前端电源引脚上正下负 + 未接线显示参数默认值；静态版本 3.7.2；⑧ 测试 `test_circuit_semantics.py`
-    4 项 + 迁移/比较器用例，**258 passed**，`desktop --selftest` ok；备份 `netlab_20261027_0150`（P7-01
-    前）。'
-  acceptance: ① 比较器/运放符号只有一个输出端，检查器有 `VCC/VEE`，接 V± 后按引脚电压；② 旧工程迁移后 `OUT−` 接地者节点电压与旧版逐点一致，非地者列报告；③
-    运行含未接齐器件不报错，器件红色辉光、状态列出"未参与"；④ 多接地合并后结果与单接地一致；⑤ 电源只接一端自动对地且图上有接地标记。
+  status: '**2026-10-27 规划完成；P7-01（D41/D42）与 P7-02（D43/D44）已落地**——① `ports.PINS` 的 opamp/comparator 改 5 脚 `IN+/IN−/V+/V−/OUT`（V± `required=False`）；②
+    `OpAmp/Comparator` 改单端盖章：V± 同时接线时按引脚电压、参考 V−，未接线时用 `VCC/VEE`（默认 ±15）且参考地；旧「边=元件」保留 `vmax` 差分语义（兼容垫片，§8.1）；③ `project.py` v4→v5 自动迁移与报告；④ 接线放宽：未接齐器件不参与求解（运行不阻断；前端运行中红色辉光；孤立网络自动忽略）、`vsource/isource`
+    单端接线空脚自动对地并画接地标记；⑤ 多接地放开：场景三处校验删除，前端可任意添加并提示"共 N 个，自动合并为 0V"；⑥ `编辑 → 批量设置尺寸…` 支持多选统一宽/直径；⑦ 前端电源引脚上正下负 + 未接线显示参数默认值；静态版本 3.7.2；⑧ 测试 `test_circuit_semantics.py`
+    4 项 + 迁移/比较器用例，**258 passed**，`desktop --selftest` ok；备份 `netlab_20261027_0150`（P7-01 前）。'
+  acceptance: ① 比较器/运放符号只有一个输出端，检查器有 `VCC/VEE`，接 V± 后按引脚电压；② 旧工程迁移后 `OUT−` 接地者节点电压与旧版逐点一致，非地者列报告；③ 运行含未接齐器件不报错，器件红色辉光、状态列出"未参与"；④ 多接地合并后结果与单接地一致；⑤
+    电源只接一端自动对地且图上有接地标记。
   weight: ⭐⭐⭐⭐ / P7-A
   stage: ⭐⭐⭐⭐ / P7-A
+  user_scenario: 用户需要在真实工程中完成「元件电源语义与接线放宽」；可观察验收：① 比较器/运放符号只有一个输出端，检查器有 `VCC/VEE`，接 V± 后按引脚电压；② 旧工程迁移后 `OUT−` 接地者节点电压与旧版逐点一致，非地者列报告；③ 运行含未接…
+  failure_cost: 「元件电源语义与接线放宽」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_desktop_drag.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R22
   title: 工业级交互（右键、元件分类、导线工具、批量尺寸）
-  status: '**2026-10-27 代码主体落地（票 P7-03），余项待补**——① **分类（D46）**：`nodal.ELEMENT_GROUP_ORDER`
-    固定 10 组 + `ELEMENT_GROUPS` 登记 30 种元件，`ElementSpec.group` 为唯一来源，`test_spec` 断言"30
-    种全落组、10 组全用到、无未分类"；② **右键（D45，部分）**：`openGenericMenu` 支持子菜单"下钻 + 返回"，已实现空白/器件/网络节点/导线四类上下文，多选
-    ≥2 时节点菜单出现「对齐 / 分布」（6 对齐 + 2 分布）；含"断开全部导线""设为接地""添加/清除拐点""选中整条网络"；③ **导线**：添加菜单「导线（选择端点）…」对话框（A/B
-    端点 + 器件引脚）；④ **CDP 实测**（`common_collector`，Edge 9445）：四类菜单分别 9/4/5/5 项、10 组子菜单、基础无源
-    3 项、对齐子菜单 8 项、导线对话框 4 个下拉；截图 [assets/r22-categories.png](assets/r22-categories.png)；**259
-    passed**、selftest ok、静态 3.7.3；⑤ **A1–A5 已完成（2026-10-27）**：引脚右键（引脚信息/从此引脚建线/断开该引脚导线）、空白「显示」子菜单、空白多选上下文（对齐/分布/批量尺寸/删除）、画布式「导线工具（点两端）」+预览+Esc、批量尺寸右键入口；截图
-    `assets/p703-context-menu.png`；⑥ **拐点拖动（2026-10-27 追加）**：导线拐点可直接在画布拖动（无需先选中导线），拖动时画布显示十字准线与坐标标签，状态栏同步鼠标世界坐标；见
-    PROGRESS §7.2。'
-  acceptance: ① 五类上下文右键动作均可用（CDP 实测）；② 菜单层级 ≤2，无平铺长列表；③ 30 种元件全部落 10 组，无一"未分类"；④ 导线工具可完成"点工具→点两个端点"；⑤
-    多选批量尺寸生效且可撤销。
+  status: '**2026-10-27 代码主体落地（票 P7-03），余项待补**——① **分类（D46）**：`nodal.ELEMENT_GROUP_ORDER` 固定 10 组 + `ELEMENT_GROUPS` 登记 30 种元件，`ElementSpec.group`
+    为唯一来源，`test_spec` 断言"30 种全落组、10 组全用到、无未分类"；② **右键（D45，部分）**：`openGenericMenu` 支持子菜单"下钻 + 返回"，已实现空白/器件/网络节点/导线四类上下文，多选 ≥2 时节点菜单出现「对齐 / 分布」（6
+    对齐 + 2 分布）；含"断开全部导线""设为接地""添加/清除拐点""选中整条网络"；③ **导线**：添加菜单「导线（选择端点）…」对话框（A/B 端点 + 器件引脚）；④ **CDP 实测**（`common_collector`，Edge 9445）：四类菜单分别 9/4/5/5
+    项、10 组子菜单、基础无源 3 项、对齐子菜单 8 项、导线对话框 4 个下拉；截图 [assets/r22-categories.png](assets/r22-categories.png)；**259 passed**、selftest ok、静态 3.7.3；⑤ **A1–A5
+    已完成（2026-10-27）**：引脚右键（引脚信息/从此引脚建线/断开该引脚导线）、空白「显示」子菜单、空白多选上下文（对齐/分布/批量尺寸/删除）、画布式「导线工具（点两端）」+预览+Esc、批量尺寸右键入口；截图 `assets/p703-context-menu.png`；⑥
+    **拐点拖动（2026-10-27 追加）**：导线拐点可直接在画布拖动（无需先选中导线），拖动时画布显示十字准线与坐标标签，状态栏同步鼠标世界坐标；见 PROGRESS §7.2。'
+  acceptance: ① 五类上下文右键动作均可用（CDP 实测）；② 菜单层级 ≤2，无平铺长列表；③ 30 种元件全部落 10 组，无一"未分类"；④ 导线工具可完成"点工具→点两个端点"；⑤ 多选批量尺寸生效且可撤销。
   weight: ⭐⭐⭐ / P7-B
   stage: ⭐⭐⭐ / P7-B
+  user_scenario: 用户需要在真实工程中完成「工业级交互（右键、元件分类、导线工具、批量尺寸）」；可观察验收：① 五类上下文右键动作均可用（CDP 实测）；② 菜单层级 ≤2，无平铺长列表；③ 30 种元件全部落 10 组，无一"未分类"；④ 导线工具可完成"点工具→点两个端点"；⑤
+    多选…
+  failure_cost: 「工业级交互（右键、元件分类、导线工具、批量尺寸）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_frontend_api_contract.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R23
   title: 仪器、时间轴回放与求解窗口
-  status: '**2026-10-28 P7-05 完成**——① 图表工具栏时间轴（帧索引）+ ▶回放/⏸暂停 + 循环 + 回到实时；回放只读 `state.frames`，不写回电路；②
-    场景 revision 与录制时 revision 不一致 → 红色「记录已过期」+「重新求解」；③ 时间窗沿用 `chart.window`；④ 重置保留探针通道（probe_keys
-    为空时不裁剪 `chart.selected`），提示「探针与仪器设置保留」；CDP 实测回放 1001/3250、过期文案；截图 `assets/p705-replay.png`。另已补
-    **求解窗口 0→T**：`Simulation.precompute()` + `POST /api/solve-window` + 图表「预计算 0→T…」按钮（CDP
-    实测 100 帧）。P7-04 仪器**已完成（2026-10-29）**：右栏 分析 → 仪器 `#tab-inst`，万用表（实时/平均/有效值/峰峰值/最大最小）、示波器
-    1–4 通道（时间窗、统一幅值缩放、图例带当前值）、李萨如 X/Y（轨迹帧数 20–4000）；全面板只读 `state.frames`，旁路验证步数不变（240
-    → 240）；通道/仪表选择存 localStorage，刷新后恢复；CDP 实测无异常、无 console error，截图 `NetlabExtras/scratch/p704/p704-instruments-{dark,light}.png`。'
-  acceptance: ① 探针测量不改变任何节点电压（与不测量逐点一致）；② 拖动时间轴时画面标"回放中"，电路状态不变；③ 改动电路后记录标过期并可重新求解；④
-    循环播放窗口内无跳变；⑤ 重置后探针与仪器设置仍在；⑥ 波形时间窗口可设且不再无限变密。
+  status: '**2026-10-28 P7-05 完成**——① 图表工具栏时间轴（帧索引）+ ▶回放/⏸暂停 + 循环 + 回到实时；回放只读 `state.frames`，不写回电路；② 场景 revision 与录制时 revision 不一致 → 红色「记录已过期」+「重新求解」；③
+    时间窗沿用 `chart.window`；④ 重置保留探针通道（probe_keys 为空时不裁剪 `chart.selected`），提示「探针与仪器设置保留」；CDP 实测回放 1001/3250、过期文案；截图 `assets/p705-replay.png`。另已补
+    **求解窗口 0→T**：`Simulation.precompute()` + `POST /api/solve-window` + 图表「预计算 0→T…」按钮（CDP 实测 100 帧）。P7-04 仪器**已完成（2026-10-29）**：右栏 分析 → 仪器 `#tab-inst`，万用表（实时/平均/有效值/峰峰值/最大最小）、示波器
+    1–4 通道（时间窗、统一幅值缩放、图例带当前值）、李萨如 X/Y（轨迹帧数 20–4000）；全面板只读 `state.frames`，旁路验证步数不变（240 → 240）；通道/仪表选择存 localStorage，刷新后恢复；CDP 实测无异常、无 console error，截图
+    `NetlabExtras/scratch/p704/p704-instruments-{dark,light}.png`。'
+  acceptance: ① 探针测量不改变任何节点电压（与不测量逐点一致）；② 拖动时间轴时画面标"回放中"，电路状态不变；③ 改动电路后记录标过期并可重新求解；④ 循环播放窗口内无跳变；⑤ 重置后探针与仪器设置仍在；⑥ 波形时间窗口可设且不再无限变密。
   weight: ⭐⭐⭐ / P7-C
   stage: ⭐⭐⭐ / P7-C
+  user_scenario: 用户需要在真实工程中完成「仪器、时间轴回放与求解窗口」；可观察验收：① 探针测量不改变任何节点电压（与不测量逐点一致）；② 拖动时间轴时画面标"回放中"，电路状态不变；③ 改动电路后记录标过期并可重新求解；④ 循环播放窗口内无跳变；⑤ 重置后探针与…
+  failure_cost: 「仪器、时间轴回放与求解窗口」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_fields.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R24
   title: 电路模块化（端口、内部视图、电气直连）
   status: '**2026-10-29 P7-06 完成**（端口标记 + 封装 + 落库 + 实例化 + 校验）：'
-  acceptance: ① 同一电路封装前后节点电压逐点相等（等价性测试）；② 端口名称/方向可编辑并随模块保存；③ 浮窗关闭不丢未保存改动，可再打开；④ 信号流模块行为不回归（现有
-    251 项全绿）。
+  acceptance: ① 同一电路封装前后节点电压逐点相等（等价性测试）；② 端口名称/方向可编辑并随模块保存；③ 浮窗关闭不丢未保存改动，可再打开；④ 信号流模块行为不回归（现有 251 项全绿）。
   weight: ⭐⭐⭐⭐⭐ / P7-D
   stage: ⭐⭐⭐⭐⭐ / P7-D
+  user_scenario: 用户需要在真实工程中完成「电路模块化（端口、内部视图、电气直连）」；可观察验收：① 同一电路封装前后节点电压逐点相等（等价性测试）；② 端口名称/方向可编辑并随模块保存；③ 浮窗关闭不丢未保存改动，可再打开；④ 信号流模块行为不回归（现有 251 项全绿）。
+  failure_cost: 「电路模块化（端口、内部视图、电气直连）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_block_internal.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R25
   title: 内置内部结构与结构仿真
-  status: '**2026-11-05 三阶段完成（P7-09/10/11）**：`netlab/core/model/builtins.py` 提供 9
-    个只读内置 structural 块（opamp/comparator/dff/counter4/shift4/timer555/ldo/adc4/dac4，固定
-    id `a25000000001`–`a25000000009`）；`blocklib` 虚拟注册表/空库回退/写删改名保护，`server.py` API
-    合并显示，前端「内置」徽标与「另存副本」；①打开只读内部、②另存副本可编辑、③「按内部结构仿真」开关与行为/结构对比 API/UI 均已满足。9 个实现仍是
-    signal 宏模型，完整电路级内部结构留作后续；counter4/shift4/adc4 的量化/时序差异由对比接口如实返回。'
-  acceptance: ① 每个内置元件可打开只读内部结构；② 另存副本后可编辑为普通模块；③ 开关打开后用结构求解且与行为模型结果有对比展示（差异有解释）；④
-    顺序按 opamp/comparator → dff/counter/shift → 555/LDO → ADC/DAC 交付，前一批全绿再进下一批。
+  status: '**2026-11-05 三阶段完成（P7-09/10/11）**：`netlab/core/model/builtins.py` 提供 9 个只读内置 structural 块（opamp/comparator/dff/counter4/shift4/timer555/ldo/adc4/dac4，固定
+    id `a25000000001`–`a25000000009`）；`blocklib` 虚拟注册表/空库回退/写删改名保护，`server.py` API 合并显示，前端「内置」徽标与「另存副本」；①打开只读内部、②另存副本可编辑、③「按内部结构仿真」开关与行为/结构对比
+    API/UI 均已满足。9 个实现仍是 signal 宏模型，完整电路级内部结构留作后续；counter4/shift4/adc4 的量化/时序差异由对比接口如实返回。'
+  acceptance: ① 每个内置元件可打开只读内部结构；② 另存副本后可编辑为普通模块；③ 开关打开后用结构求解且与行为模型结果有对比展示（差异有解释）；④ 顺序按 opamp/comparator → dff/counter/shift → 555/LDO → ADC/DAC
+    交付，前一批全绿再进下一批。
   weight: ⭐⭐⭐ / P7-E
   stage: ⭐⭐⭐ / P7-E
+  user_scenario: 用户需要在真实工程中完成「内置内部结构与结构仿真」；可观察验收：① 每个内置元件可打开只读内部结构；② 另存副本后可编辑为普通模块；③ 开关打开后用结构求解且与行为模型结果有对比展示（差异有解释）；④ 顺序按 opamp/comparator …
+  failure_cost: 「内置内部结构与结构仿真」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_block_internal.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R26
   title: 求解器分析能力（DC / AC / Gear / 稀疏）
-  status: '**2026-10-28 内核完成，2026-11-02 补齐 UI 入口**（`netlab/core/compute/nodal.py`
-    内核 + scene/simulation/server 接入 + `test_solver_analysis.py` 11 项、`test_solver_integration.py`
-    6 项、`test_solver_sparse.py` 6 项；2026-11-02 前端加「工具 → DC 工作点 / AC 扫频」菜单与 `#analWin`
-    电路分析浮窗：工作点表（节点电压 + 元件电流/端压/功率、迭代/矩阵/残差）+ Bode 双区图（幅值 dB / 相位 °，激励源与频率范围可选），护栏
-    `test_ui_analysis_entry.py` 3 项 → **383 passed**）。'
-  acceptance: ① DC 分压、电容开路、电感短路（近似）、分析后瞬态时间/解不变；② AC RC 低通在 fc 处 −3.01 dB / −45°、反相增益
-    2×/180°、含二极管时给出「AC 分析暂不支持」；③ Gear2 同 dt 下 RC/RL 误差小于 backward_euler，首步与 dt 变化回退
-    BE；④ 稀疏与稠密解逐点一致、奇异报「矩阵奇异」、auto 阈值可切换；⑤ 全量 315 passed、compileall、selftest ok。
+  status: '**2026-10-28 内核完成，2026-11-02 补齐 UI 入口**（`netlab/core/compute/nodal.py` 内核 + scene/simulation/server 接入 + `test_solver_analysis.py`
+    11 项、`test_solver_integration.py` 6 项、`test_solver_sparse.py` 6 项；2026-11-02 前端加「工具 → DC 工作点 / AC 扫频」菜单与 `#analWin` 电路分析浮窗：工作点表（节点电压 + 元件电流/端压/功率、迭代/矩阵/残差）+
+    Bode 双区图（幅值 dB / 相位 °，激励源与频率范围可选），护栏 `test_ui_analysis_entry.py` 3 项 → **383 passed**）。'
+  acceptance: ① DC 分压、电容开路、电感短路（近似）、分析后瞬态时间/解不变；② AC RC 低通在 fc 处 −3.01 dB / −45°、反相增益 2×/180°、含二极管时给出「AC 分析暂不支持」；③ Gear2 同 dt 下 RC/RL 误差小于 backward_euler，首步与
+    dt 变化回退 BE；④ 稀疏与稠密解逐点一致、奇异报「矩阵奇异」、auto 阈值可切换；⑤ 全量 315 passed、compileall、selftest ok。
   weight: ⭐⭐⭐ / P8（用户指定）
   stage: ⭐⭐⭐ / P8（用户指定）
+  user_scenario: 用户需要在真实工程中完成「求解器分析能力（DC / AC / Gear / 稀疏）」；可观察验收：① DC 分压、电容开路、电感短路（近似）、分析后瞬态时间/解不变；② AC RC 低通在 fc 处 −3.01 dB / −45°、反相增益 2×/180°、含二极管时给出「AC…
+  failure_cost: 「求解器分析能力（DC / AC / Gear / 稀疏）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_solver_analysis.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R27
   title: 回放与时间轴可用性（极速波形 / 预计算起点 / 顶栏时间轴）
-  status: '**2026-10-28 已完成**（后端 `simulation.py` + 前端 `app.js`/`index.html`/`style.css`
-    + `test_recorder_sampling.py` 3 项）。'
-  acceptance: ① 3000 帧、limit=600 时投递 600 帧、帧间隔 ≤3 且差值 ≤1、末帧为最新；② 2 s/1 ms 预计算帧数 ≤1200、首帧
-    ≤1 ms、末帧 = 2.0 s；③ 顶栏滑块可拖动进入回放、双击回实时；④ 全量测试 ≥319 passed、compileall、selftest ok。
-  weight: ⭐⭐ / P9（用户指定）
-  stage: ⭐⭐ / P9（用户指定）
-- id: R28
-  title: 浏览器内演示（Pyodide 静态站 / GitHub Pages）
-  status: 2026-10-28 21:08 曾完成并上线（提交 `bad6b63`/`1cc94fc`，Actions 成功，CDP 实测 2000 步
-    564 ms）；**同日 21:15 用户要求「将这个静态网页全部删掉」，已撤销**：Pages 关闭（API DELETE 204，站点 404）、`web/`
-    与 `.github/workflows/pages.yml` 从仓库移除（提交 `dd0e7d1`）、README 删除演示节；备份见 `web_20261028_2130`。
-  acceptance: ① 站点可打开且页面状态最终为「完成」，2000 步仿真有波形；② 全程无后端请求，仅从 CDN 取 Pyodide/numpy；③ 仓库仍不含
-    agent 文档、`MyProject/`、测试代码；④ 冷启动慢有进度提示（实测首次约 79 s）。
-  weight: ⭐⭐ / P9（用户指定）
-  stage: ⭐⭐ / P9（用户指定）
-- id: R29
-  title: 回放速度可调（一个滑块）
-  status: '**2026-10-28 已完成**（`app.js` 播放循环重写 + `index.html`/`style.css` 滑块；静态版本 `3.8.14`）。'
-  acceptance: ① 滑块 5–240 帧/秒、拖动即时改变推进速度（实测 30/120/240 设定 → 29.8/119.1/240.9 帧/秒）；②
-    240 帧/秒连续播放 3 s 无 >50 ms 长任务；③ 暂停立即停住、循环模式播到末尾回到开头；④ 全量测试 ≥319 passed、compileall、selftest
+  status: '**2026-10-28 已完成**（后端 `simulation.py` + 前端 `app.js`/`index.html`/`style.css` + `test_recorder_sampling.py` 3 项）。'
+  acceptance: ① 3000 帧、limit=600 时投递 600 帧、帧间隔 ≤3 且差值 ≤1、末帧为最新；② 2 s/1 ms 预计算帧数 ≤1200、首帧 ≤1 ms、末帧 = 2.0 s；③ 顶栏滑块可拖动进入回放、双击回实时；④ 全量测试 ≥319 passed、compileall、selftest
     ok。
   weight: ⭐⭐ / P9（用户指定）
   stage: ⭐⭐ / P9（用户指定）
+  user_scenario: 用户需要在真实工程中完成「回放与时间轴可用性（极速波形 / 预计算起点 / 顶栏时间轴）」；可观察验收：① 3000 帧、limit=600 时投递 600 帧、帧间隔 ≤3 且差值 ≤1、末帧为最新；② 2 s/1 ms 预计算帧数 ≤1200、首帧
+    ≤1 ms、末帧 = 2.0 …
+  failure_cost: 「回放与时间轴可用性（极速波形 / 预计算起点 / 顶栏时间轴）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_recorder_sampling.py netlab/tests/test_time_profile.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
+- id: R28
+  title: 浏览器内演示（Pyodide 静态站 / GitHub Pages）
+  status: 2026-10-28 21:08 曾完成并上线（提交 `bad6b63`/`1cc94fc`，Actions 成功，CDP 实测 2000 步 564 ms）；**同日 21:15 用户要求「将这个静态网页全部删掉」，已撤销**：Pages 关闭（API DELETE
+    204，站点 404）、`web/` 与 `.github/workflows/pages.yml` 从仓库移除（提交 `dd0e7d1`）、README 删除演示节；备份见 `web_20261028_2130`。
+  acceptance: ① 站点可打开且页面状态最终为「完成」，2000 步仿真有波形；② 全程无后端请求，仅从 CDN 取 Pyodide/numpy；③ 仓库仍不含 agent 文档、`MyProject/`、测试代码；④ 冷启动慢有进度提示（实测首次约 79 s）。
+  weight: ⭐⭐ / P9（用户指定）
+  stage: ⭐⭐ / P9（用户指定）
+  user_scenario: 用户需要在真实工程中完成「浏览器内演示（Pyodide 静态站 / GitHub Pages）」；可观察验收：① 站点可打开且页面状态最终为「完成」，2000 步仿真有波形；② 全程无后端请求，仅从 CDN 取 Pyodide/numpy；③ 仓库仍不含
+    agent 文档、`MyProje…
+  failure_cost: 「浏览器内演示（Pyodide 静态站 / GitHub Pages）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_frontend_api_contract.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
+- id: R29
+  title: 回放速度可调（一个滑块）
+  status: '**2026-10-28 已完成**（`app.js` 播放循环重写 + `index.html`/`style.css` 滑块；静态版本 `3.8.14`）。'
+  acceptance: ① 滑块 5–240 帧/秒、拖动即时改变推进速度（实测 30/120/240 设定 → 29.8/119.1/240.9 帧/秒）；② 240 帧/秒连续播放 3 s 无 >50 ms 长任务；③ 暂停立即停住、循环模式播到末尾回到开头；④ 全量测试 ≥319
+    passed、compileall、selftest ok。
+  weight: ⭐⭐ / P9（用户指定）
+  stage: ⭐⭐ / P9（用户指定）
+  user_scenario: 用户需要在真实工程中完成「回放速度可调（一个滑块）」；可观察验收：① 滑块 5–240 帧/秒、拖动即时改变推进速度（实测 30/120/240 设定 → 29.8/119.1/240.9 帧/秒）；② 240 帧/秒连续播放 3 s 无 >50…
+  failure_cost: 「回放速度可调（一个滑块）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_grid_performance.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R30
   title: 界面集中优化（启动引导 / 信息架构 / 可定制外观 / 帮助体系）
   status: 2026-10-28 开工，按 UI-01…UI-06 六票推进。
-  acceptance: ① 冷启动先见引导层，三种模式任选进入对应空白场景且「运行」为关闭态；勾选不再显示后下次直进空白场景；菜单可重开引导；demo 不再自动载入、示例改由模板/引导入口进入。②
-    右栏只有 4 组；选中节点只出现节点函数、选中连线只出现连接函数；工程与设置在顶部菜单；FEM 在工作区切换中独立出现。③ 设置抽屉不遮挡画布、改动即时生效并持久化；主题（跟随系统/浅/深）、强调色、动效四档、性能三档均可改。④
-    视觉与动效符合设计令牌；动效只动 transform/opacity；`prefers-reduced-motion` 与「动效=关」双重生效。⑤ `?`
-    卡片给四段内容并可跳转实现页；文档浮窗非模态、可搜索、可跳转定位。⑥ 顶部信息条 9 项齐全且随状态更新；顶级菜单 9 项。⑦ `UI_SPEC.md` 覆盖设计令牌、组件、布局、接口、动效、性能与扩展约定。⑧
-    全量 pytest 数量不降、compileall、`desktop --selftest` 通过。
+  acceptance: ① 冷启动先见引导层，三种模式任选进入对应空白场景且「运行」为关闭态；勾选不再显示后下次直进空白场景；菜单可重开引导；demo 不再自动载入、示例改由模板/引导入口进入。② 右栏只有 4 组；选中节点只出现节点函数、选中连线只出现连接函数；工程与设置在顶部菜单；FEM
+    在工作区切换中独立出现。③ 设置抽屉不遮挡画布、改动即时生效并持久化；主题（跟随系统/浅/深）、强调色、动效四档、性能三档均可改。④ 视觉与动效符合设计令牌；动效只动 transform/opacity；`prefers-reduced-motion` 与「动效=关」双重生效。⑤
+    `?` 卡片给四段内容并可跳转实现页；文档浮窗非模态、可搜索、可跳转定位。⑥ 顶部信息条 9 项齐全且随状态更新；顶级菜单 9 项。⑦ `UI_SPEC.md` 覆盖设计令牌、组件、布局、接口、动效、性能与扩展约定。⑧ 全量 pytest 数量不降、compileall、`desktop
+    --selftest` 通过。
   weight: ⭐⭐⭐⭐ / P10（用户指定）
   stage: ⭐⭐⭐⭐ / P10（用户指定）
+  user_scenario: 用户需要在真实工程中完成「界面集中优化（启动引导 / 信息架构 / 可定制外观 / 帮助体系）」；可观察验收：① 冷启动先见引导层，三种模式任选进入对应空白场景且「运行」为关闭态；勾选不再显示后下次直进空白场景；菜单可重开引导；demo 不再自动载入、示例改由模板/引导入口进入。②
+    右栏只…
+  failure_cost: 「界面集中优化（启动引导 / 信息架构 / 可定制外观 / 帮助体系）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_grid_performance.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R31
   title: 并网逆变器电网控制仿真（三相 VSC / PLL / abc-dq / 电流环 / PWM）
-  status: 2026-11-05 完成 P11-01…P11-07（§7.72）：L1 平均模型 `grid_inverter_avg.netlab`、`abc_dq`、SRF-PLL
-    `pll_template.netlab`、dq 电流环 `grid_inverter_current.netlab`、`sensor`/`actuator`
-    跨域桥（显式一拍延迟）、六开关三相桥 `grid_inverter_switch.netlab`、`cancel_precompute` 中断；全量 **581
-    passed**、静态 **3.19.0**。已知限制：P11-06 为理想 nmos + 50 Hz 方波栅极（未做 10 kHz PWM 载波/损耗），趋势验证成立、绝对精度不作承诺；R25
-    完整电路级内部结构留后续。
-  acceptance: ① 平均模型示例工程可一键载入并跑出稳定波形：dq 电流跟随阶跃参考、解耦成立、PLL 锁相误差 < 1°（50 Hz 与 ±0.5 Hz
-    频偏）；② `abc_dq` 有单元测试（正序三相 → dq 的幅值/相位与解析解一致，反变换可还原）；③ 开关级示例：6 开关三相桥 + LCL + 死区能运行，PCC
-    电流波形与平均模型趋势一致（不追绝对精度）；④ 跨域桥有测试：采样延迟一拍、驱动不产生代数环、旧工程（无桥元素）行为不变、checksum 兼容；⑤ 长仿真（0.1
-    s @ 1 µs）有耗时数据且 UI 可中断；⑥ pytest 数量只增不减、compileall、`desktop --selftest`、CDP 截图证据；⑦
-    文档同步：本文档 R31/D63/D64/P11、PROGRESS 票状态、ARCHITECTURE 与 FRAMEWORK_CHEATSHEET 补「跨域桥与三相变换」。
+  status: 2026-11-05 完成 P11-01…P11-07（§7.72）：L1 平均模型 `grid_inverter_avg.netlab`、`abc_dq`、SRF-PLL `pll_template.netlab`、dq 电流环 `grid_inverter_current.netlab`、`sensor`/`actuator`
+    跨域桥（显式一拍延迟）、六开关三相桥 `grid_inverter_switch.netlab`、`cancel_precompute` 中断；全量 **581 passed**、静态 **3.19.0**。已知限制：P11-06 为理想 nmos + 50 Hz 方波栅极（未做
+    10 kHz PWM 载波/损耗），趋势验证成立、绝对精度不作承诺；R25 完整电路级内部结构留后续。
+  acceptance: ① 平均模型示例工程可一键载入并跑出稳定波形：dq 电流跟随阶跃参考、解耦成立、PLL 锁相误差 < 1°（50 Hz 与 ±0.5 Hz 频偏）；② `abc_dq` 有单元测试（正序三相 → dq 的幅值/相位与解析解一致，反变换可还原）；③ 开关级示例：6
+    开关三相桥 + LCL + 死区能运行，PCC 电流波形与平均模型趋势一致（不追绝对精度）；④ 跨域桥有测试：采样延迟一拍、驱动不产生代数环、旧工程（无桥元素）行为不变、checksum 兼容；⑤ 长仿真（0.1 s @ 1 µs）有耗时数据且 UI 可中断；⑥ pytest
+    数量只增不减、compileall、`desktop --selftest`、CDP 截图证据；⑦ 文档同步：本文档 R31/D63/D64/P11、PROGRESS 票状态、ARCHITECTURE 与 FRAMEWORK_CHEATSHEET 补「跨域桥与三相变换」。
   weight: ⭐⭐⭐⭐ / P11（2026-10-29 用户指定）
   stage: ⭐⭐⭐⭐ / P11（2026-10-29 用户指定）
+  user_scenario: 用户需要在真实工程中完成「并网逆变器电网控制仿真（三相 VSC / PLL / abc-dq / 电流环 / PWM）」；可观察验收：① 平均模型示例工程可一键载入并跑出稳定波形：dq 电流跟随阶跃参考、解耦成立、PLL 锁相误差 < 1°（50 Hz
+    与 ±0.5 Hz 频偏）；② `abc_dq` 有单元测试…
+  failure_cost: 「并网逆变器电网控制仿真（三相 VSC / PLL / abc-dq / 电流环 / PWM）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_current_loop.py netlab/tests/test_abc_dq.py netlab/tests/test_pll.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R32
   title: 论文级绘图子系统（PlotKit）与非模态绘图窗口
-  status: 2026-10-30 接入完成（子页签 + 浮窗 + 桥接 + 4 项测试）。PlotKit 后续的图表能力扩展（3/18 种图层 → 18 种、matplotlib
-    方法归属表、票单 P13-00…08）**全部记在 `PlotKit/docs/REQUIREMENTS_AND_PROGRESS.md`**（PK-R11–R16
-    / D24–D36），netlab 侧只留这一行指针。另：2026-10-31 起 PlotKit 渲染统一走 matplotlib、plotly 退役（其
-    D33），netlab 侧只显示渲染结果。
-  acceptance: ① `/plotkit/` 与 `/plotkit/api/{meta,spec,figure.json,datasets,series,png}`
-    可用且与 netlab 的 `/static`、`/api/*` 互不干扰；② 前端入口与浮窗骨架在首页 HTML 中，页签切换不触发 iframe 加载（懒加载）；③
-    仿真运行后绘图窗口能自动出现新通道曲线（最多 6 条，超限丢弃旧通道）；④ 绘图子应用不可用时 netlab 照常启动（`PLOTKIT_MOUNTED=False`）；⑤
-    `netlab/tests/test_plotkit_tab.py` 4 项封口、全量 pytest 只增不减（343 → 347）。
+  status: 2026-10-30 接入完成（子页签 + 浮窗 + 桥接 + 4 项测试）。PlotKit 后续的图表能力扩展（3/18 种图层 → 18 种、matplotlib 方法归属表、票单 P13-00…08）**全部记在 `PlotKit/docs/REQUIREMENTS_AND_PROGRESS.md`**（PK-R11–R16
+    / D24–D36），netlab 侧只留这一行指针。另：2026-10-31 起 PlotKit 渲染统一走 matplotlib、plotly 退役（其 D33），netlab 侧只显示渲染结果。
+  acceptance: ① `/plotkit/` 与 `/plotkit/api/{meta,spec,figure.json,datasets,series,png}` 可用且与 netlab 的 `/static`、`/api/*` 互不干扰；② 前端入口与浮窗骨架在首页
+    HTML 中，页签切换不触发 iframe 加载（懒加载）；③ 仿真运行后绘图窗口能自动出现新通道曲线（最多 6 条，超限丢弃旧通道）；④ 绘图子应用不可用时 netlab 照常启动（`PLOTKIT_MOUNTED=False`）；⑤ `netlab/tests/test_plotkit_tab.py`
+    4 项封口、全量 pytest 只增不减（343 → 347）。
   weight: ⭐⭐⭐ / P12（2026-10-30）
   stage: ⭐⭐⭐ / P12（2026-10-30）
+  user_scenario: 用户需要在真实工程中完成「论文级绘图子系统（PlotKit）与非模态绘图窗口」；可观察验收：① `/plotkit/` 与 `/plotkit/api/{meta,spec,figure.json,datasets,series,png}` 可用且与
+    netlab 的 `…
+  failure_cost: 「论文级绘图子系统（PlotKit）与非模态绘图窗口」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_plot_semantics_contract.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R33
   title: netlab 显示层原生桌面化（Qt Widgets）
-  status: '**已撤回（D78）**。`netlab/ui/` 与 `start_native.bat` 已于 2026-11-02 整体备份到 Git
-    分支 `backup/qt-native-2026-11-02`（标签 `qt-native-2026-11-02`）后从工作树删除，界面回到 web（`frontend/`，同日
-    D79 从 `netlab/static` 移出，前后端分目录）。R33 状态改为「已实现但按用户决定撤回」，规格原文见 git 历史（`QT_NATIVE_SPEC.md`
-    已删除）。'
-  acceptance: 见 `QT_NATIVE_SPEC.md`（已删除，原文见 git 历史）§8 的 A1–A25 与 §9 的 20 项交互清单。关键数字：启动
-    ≤1.5 s、常驻 ≤350 MB（未开 PlotKit）、未开 PlotKit 时无 `QtWebEngineProcess`、像素 diff <1%、正常运行不监听
-    TCP 端口、现有 pytest 全绿且只增不减。
+  status: '**已撤回（D78）**。`netlab/ui/` 与 `start_native.bat` 已于 2026-11-02 整体备份到 Git 分支 `backup/qt-native-2026-11-02`（标签 `qt-native-2026-11-02`）后从工作树删除，界面回到
+    web（`frontend/`，同日 D79 从 `netlab/static` 移出，前后端分目录）。R33 状态改为「已实现但按用户决定撤回」，规格原文见 git 历史（`QT_NATIVE_SPEC.md` 已删除）。'
+  acceptance: 见 `QT_NATIVE_SPEC.md`（已删除，原文见 git 历史）§8 的 A1–A25 与 §9 的 20 项交互清单。关键数字：启动 ≤1.5 s、常驻 ≤350 MB（未开 PlotKit）、未开 PlotKit 时无 `QtWebEngineProcess`、像素
+    diff <1%、正常运行不监听 TCP 端口、现有 pytest 全绿且只增不减。
   weight: ⭐⭐⭐ / P0–P5（2026-11-02 实现完成，A4 已实机验证；待人工复验 A5/A13/A14/A18/A21）
   stage: ⭐⭐⭐ / P0–P5（2026-11-02 实现完成，A4 已实机验证；待人工复验 A5/A13/A14/A18/A21）
+  user_scenario: 用户需要在真实工程中完成「netlab 显示层原生桌面化（Qt Widgets）」；可观察验收：见 `QT_NATIVE_SPEC.md`（已删除，原文见 git 历史）§8 的 A1–A25 与 §9 的 20 项交互清单。关键数字：启动 ≤1.5
+    s、常驻 ≤350 MB…
+  failure_cost: 「netlab 显示层原生桌面化（Qt Widgets）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_desktop_session.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R34
   title: s 域传递函数节点与分析（Simulink 式）
-  status: '**已实现**。规格见 [docs/specs/2026-11-03-s-domain-transfer-function.md](specs/2026-11-03-s-domain-transfer-function.md)；定向
-    27 passed。**2026-11-07 补 Bode 光标**：Bode 视图鼠标移动显示十字线、幅频/相频两点与 `ω / |G| dB / ∠°`
-    读数，读数吸附最近采样点；支持按住拖动连续读数、`←/→` 前后移动（Shift ×10），读数为该采样点的 `(ω,|G|,∠G)`；仍是只读读数，不做零极点拖动。'
+  status: '**已实现**。规格见 [docs/specs/2026-11-03-s-domain-transfer-function.md](specs/2026-11-03-s-domain-transfer-function.md)；定向 27 passed。**2026-11-07
+    补 Bode 光标**：Bode 视图鼠标移动显示十字线、幅频/相频两点与 `ω / |G| dB / ∠°` 读数，读数吸附最近采样点；支持按住拖动连续读数、`←/→` 前后移动（Shift ×10），读数为该采样点的 `(ω,|G|,∠G)`；仍是只读读数，不做零极点拖动。'
   acceptance: ''
   weight: ⭐⭐⭐ / P3（2026-11-03 实现完成，见 PROGRESS §7.54）。
   stage: ⭐⭐⭐ / P3（2026-11-03 实现完成，见 PROGRESS §7.54）。
+  user_scenario: 用户需要在真实工程中完成「s 域传递函数节点与分析（Simulink 式）」；可观察验收：
+  failure_cost: 「s 域传递函数节点与分析（Simulink 式）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_blocks.py netlab/tests/test_signal_ports.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R35
   title: 输入字段自动匹配与 value 优先（兼容旧键）
-  status: '**已实现**。规格见 [docs/specs/2026-11-04-auto-field-matching.md](specs/2026-11-04-auto-field-matching.md)；定向
-    22 + 全量 484 passed。'
+  status: '**已实现**。规格见 [docs/specs/2026-11-04-auto-field-matching.md](specs/2026-11-04-auto-field-matching.md)；定向 22 + 全量 484 passed。'
   acceptance: ''
   weight: ⭐⭐ / P3（2026-11-04 实现完成，见 PROGRESS §7.56）。
   stage: ⭐⭐ / P3（2026-11-04 实现完成，见 PROGRESS §7.56）。
+  user_scenario: 用户需要在真实工程中完成「输入字段自动匹配与 value 优先（兼容旧键）」；可观察验收：
+  failure_cost: 「输入字段自动匹配与 value 优先（兼容旧键）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_fields.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R36
   title: 非线性 / 非定常闭环求解（状态断点 + SCC + Newton）
-  status: '**P1–P5 已完成**。P1 已落地节点求解语义标签（`linear`/`stateful`/`direct_feedthrough`/`time_varying`/`nonlinear`）、`Network.solver_plan()`（状态断点
-    + 直接馈通 Tarjan SCC + SCC DAG 拓扑）、`auto_delayed_connections()` 与 `Connection.auto_delay`
-    可见记录；P2 新增 `Network(solve_algebraic=True)` / `_step_solved()`：按执行图分阶段，直接馈通 SCC
-    解 `(I-A)y=b`，奇异矩阵 / 不支持节点抛 `AlgebraicLoopError`；`Scene.set_algebraic_solver(True)`
-    后不再自动 `z⁻¹`；P3 对非线性 / 时变 SCC 增加阻尼 Newton（有限差分雅可比、线搜索、`NewtonConvergenceError`），`expression`
-    每拍注入 `t`/`time` 变量；P4 线性网络 `analysis.transfer_function()` 支持串联/并联/反馈环，`tf_analysis()`
-    可直接算网络 Bode；P5 `SignalEngine.probes()` 暴露 `state:<node>:<index>`，`analysis.phase_metrics()`
-    与前端相图独立播放/步进/循环/帧滑块落地。默认 `solve_algebraic=False` 行为不变。新增 4+3+3+4+3 条测试，全量 **521
-    passed**。规划与进度见 [docs/specs/2026-11-04-nonlinear-time-varying-solver-plan.md](specs/2026-11-04-nonlinear-time-varying-solver-plan.md)
+  status: '**P1–P5 已完成**。P1 已落地节点求解语义标签（`linear`/`stateful`/`direct_feedthrough`/`time_varying`/`nonlinear`）、`Network.solver_plan()`（状态断点 + 直接馈通
+    Tarjan SCC + SCC DAG 拓扑）、`auto_delayed_connections()` 与 `Connection.auto_delay` 可见记录；P2 新增 `Network(solve_algebraic=True)` / `_step_solved()`：按执行图分阶段，直接馈通
+    SCC 解 `(I-A)y=b`，奇异矩阵 / 不支持节点抛 `AlgebraicLoopError`；`Scene.set_algebraic_solver(True)` 后不再自动 `z⁻¹`；P3 对非线性 / 时变 SCC 增加阻尼 Newton（有限差分雅可比、线搜索、`NewtonConvergenceError`），`expression`
+    每拍注入 `t`/`time` 变量；P4 线性网络 `analysis.transfer_function()` 支持串联/并联/反馈环，`tf_analysis()` 可直接算网络 Bode；P5 `SignalEngine.probes()` 暴露 `state:<node>:<index>`，`analysis.phase_metrics()`
+    与前端相图独立播放/步进/循环/帧滑块落地。默认 `solve_algebraic=False` 行为不变。新增 4+3+3+4+3 条测试，全量 **521 passed**。规划与进度见 [docs/specs/2026-11-04-nonlinear-time-varying-solver-plan.md](specs/2026-11-04-nonlinear-time-varying-solver-plan.md)
     与 PROGRESS §7.66。'
   acceptance: ''
   weight: ⭐⭐⭐⭐ / P13（2026-11-05 P1–P5 已开工）。
   stage: ⭐⭐⭐⭐ / P13（2026-11-05 P1–P5 已开工）。
+  user_scenario: 用户需要在真实工程中完成「非线性 / 非定常闭环求解（状态断点 + SCC + Newton）」；可观察验收：
+  failure_cost: 「非线性 / 非定常闭环求解（状态断点 + SCC + Newton）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_algebraic_solver.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R37
   title: 线性网络总传函预计算与 Bode 相位
-  status: '**已完成（2026-11-05，对外能力 + 内部导出）**：`analysis.transfer_function()` 从线性网络节点方程求总传函（串联/并联/反馈环），`tf_analysis()`
-    支持网络 Bode 幅相；`domain=''z''` 支持纯 `gain`/`sum` 网络的显式 `z⁻¹`（`2/z` 回归）；s 域延迟边按 1–8
-    阶 Padé（默认 3）近似。`_state_space_payload()` 现在同时导出可控标准型 `A/B/C/D`，供前端「导出 A/B/C/D」；非线性网络明确报错。同上
+  status: '**已完成（2026-11-05，对外能力 + 内部导出）**：`analysis.transfer_function()` 从线性网络节点方程求总传函（串联/并联/反馈环），`tf_analysis()` 支持网络 Bode 幅相；`domain=''z''`
+    支持纯 `gain`/`sum` 网络的显式 `z⁻¹`（`2/z` 回归）；s 域延迟边按 1–8 阶 Padé（默认 3）近似。`_state_space_payload()` 现在同时导出可控标准型 `A/B/C/D`，供前端「导出 A/B/C/D」；非线性网络明确报错。同上
     spec。'
   acceptance: ''
   weight: ⭐⭐⭐ / P13–P14（P4 已提供 s 域基础）。
   stage: ⭐⭐⭐ / P13–P14（P4 已提供 s 域基础）。
+  user_scenario: 用户需要在真实工程中完成「线性网络总传函预计算与 Bode 相位」；可观察验收：
+  failure_cost: 「线性网络总传函预计算与 Bode 相位」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_frequency_response.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R38
   title: 相平面状态预计算 + 独立播放条 + 数据分析
-  status: '**已完成（2026-11-05）**：`state:<node>:<index>` 状态通道、`analysis.phase_metrics()`、`/api/analysis/phase`、前端相图状态通道
-    + 独立播放/步进/循环/帧滑块 + L/A/峰值/超调/稳态/调节时间读数 + 导出 CSV；dt 收敛测试 39.15%→37.53%，无状态通道节点显示中文提示。'
+  status: '**已完成（2026-11-05）**：`state:<node>:<index>` 状态通道、`analysis.phase_metrics()`、`/api/analysis/phase`、前端相图状态通道 + 独立播放/步进/循环/帧滑块 + L/A/峰值/超调/稳态/调节时间读数
+    + 导出 CSV；dt 收敛测试 39.15%→37.53%，无状态通道节点显示中文提示。'
   acceptance: ''
   weight: ⭐⭐⭐ / P13–P14（2026-11-05 P5 基础已落地）。
   stage: ⭐⭐⭐ / P13–P14（2026-11-05 P5 基础已落地）。
+  user_scenario: 用户需要在真实工程中完成「相平面状态预计算 + 独立播放条 + 数据分析」；可观察验收：
+  failure_cost: 「相平面状态预计算 + 独立播放条 + 数据分析」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_analysis.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R39
   title: 复数分析层（Complex Bridge）与统一频域响应
-  status: '**已完成（2026-11-05）**。`complex_support.py`、`analysis.frequency_response()`、`nodal.ac_sweep()`
-    复数值、`POST /api/analysis/frequency` 已落地；signal 精确延迟与 circuit 复数 MNA 均有测试；时域/recorder/JSON/PlotKit
-    未改。规格见 [docs/specs/2026-11-05-complex-analysis-layer.md](specs/2026-11-05-complex-analysis-layer.md)。'
+  status: '**已完成（2026-11-05）**。`complex_support.py`、`analysis.frequency_response()`、`nodal.ac_sweep()` 复数值、`POST /api/analysis/frequency` 已落地；signal
+    精确延迟与 circuit 复数 MNA 均有测试；时域/recorder/JSON/PlotKit 未改。规格见 [docs/specs/2026-11-05-complex-analysis-layer.md](specs/2026-11-05-complex-analysis-layer.md)。'
   acceptance: ''
   weight: ⭐⭐⭐ / P14（2026-11-05 完成）。
   stage: ⭐⭐⭐ / P14（2026-11-05 完成）。
+  user_scenario: 用户需要在真实工程中完成「复数分析层（Complex Bridge）与统一频域响应」；可观察验收：
+  failure_cost: 「复数分析层（Complex Bridge）与统一频域响应」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_frequency_response.py netlab/tests/test_complex_support.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R40
   title: 全栈可扩展架构（插件包 / 数据接口 / UI 视图设计）
   status: '**设计完成，代码实现完成（2026-11-06）**。设计见 [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md)、[adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md)、[GLOSSARY.md](GLOSSARY.md)。已实现
-    `netlab.plugin_api.v1`、`PluginManager`、`AnalysisSpec`、`EngineProtocol`、工程 v6、`netlab-ui/1`、插件管理页与视图设计；**2026-11-07
-    补节点卡片字段开关**：视图设计新增「显示节点类型/端口」「显示节点数值」两项，写入 `ui.node.show_detail/show_value` 并即时作用于画布，随工程持久化。已知限制：自由拖拽编辑面板字段尚未做（当前为声明式开关）；插件为受信任进程内代码，不是沙箱。'
+    `netlab.plugin_api.v1`、`PluginManager`、`AnalysisSpec`、`EngineProtocol`、工程 v6、`netlab-ui/1`、插件管理页与视图设计；**2026-11-07 补节点卡片字段开关**：视图设计新增「显示节点类型/端口」「显示节点数值」两项，写入
+    `ui.node.show_detail/show_value` 并即时作用于画布，随工程持久化。已知限制：自由拖拽编辑面板字段尚未做（当前为声明式开关）；插件为受信任进程内代码，不是沙箱。'
   acceptance: ''
   weight: ⭐⭐⭐⭐ / P15（2026-11-06 设计并完成首版实现）。
   stage: ⭐⭐⭐⭐ / P15（2026-11-06 设计并完成首版实现）。
+  user_scenario: 用户需要在真实工程中完成「全栈可扩展架构（插件包 / 数据接口 / UI 视图设计）」；可观察验收：
+  failure_cost: 「全栈可扩展架构（插件包 / 数据接口 / UI 视图设计）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_extensions.py netlab/tests/test_plugin_manager.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R41
   title: 前端 JavaScript → TypeScript 全局迁移（2026-11-06）
-  status: '**一期 P16 已完成（2026-11-06）**：7 个文件全部严格类型化（vscode 扩展、PlotKit `render2d`/`view3d`/`app`/`nsview`、netlab
-    `desktop-shim`/`app.js`），tsc strict 0 / AST 行为等价 / pytest 全量 627 passed 1 skipped；二期
-    P17 模块化已完成（P17.1 纯函数拆分+单测、P17.2 PlotKit ESM 化、P17.3 netlab 前端 ESM 化、P17.4 收尾全量验证全绿）。规划与门禁见本文件
-    R41 与 §5 P16/P17，执行台账与证据见 [PROGRESS.md](PROGRESS.md) §7.76；当前迁移状态=一期 P16 + 二期
-    P17 均已完成，待推送合并。'
+  status: '**一期 P16 已完成（2026-11-06）**：7 个文件全部严格类型化（vscode 扩展、PlotKit `render2d`/`view3d`/`app`/`nsview`、netlab `desktop-shim`/`app.js`），tsc strict
+    0 / AST 行为等价 / pytest 全量 627 passed 1 skipped；二期 P17 模块化已完成（P17.1 纯函数拆分+单测、P17.2 PlotKit ESM 化、P17.3 netlab 前端 ESM 化、P17.4 收尾全量验证全绿）。规划与门禁见本文件
+    R41 与 §5 P16/P17，执行台账与证据见 [PROGRESS.md](PROGRESS.md) §7.76；当前迁移状态=一期 P16 + 二期 P17 均已完成，待推送合并。'
   acceptance: ''
   weight: ⭐⭐⭐⭐ / P16（2026-11-06 立项，规划完成、代码未开始）。
   stage: ⭐⭐⭐⭐ / P16（2026-11-06 立项，规划完成、代码未开始）。
+  user_scenario: 用户需要在真实工程中完成「前端 JavaScript → TypeScript 全局迁移（2026-11-06）」；可观察验收：
+  failure_cost: 「前端 JavaScript → TypeScript 全局迁移（2026-11-06）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_frontend_api_contract.py netlab/tests/test_version_single_source.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R42
   title: Python 代码 PEP 8 规范化与优化（2026-11-06 立项，排在 TS 重构之后）
-  status: '**已完成（2026-11-06，P18）**：netlab 与 PlotKit 全部 Python 按 PEP 8 规范化，两仓库 `flake8`
-    0、`black` 88 列通过、AST 等价、无 API/数值变化；立项时 netlab **589 passed**（P18 后 **606 passed
-    / 1 skipped**，当前全量已到 **627 passed**），PlotKit 470；提交 netlab `34bd1c5`、PlotKit `7f7f4c4`。'
-  acceptance: ①netlab 全量（以 589 passed 为基线）与 PlotKit 全量测试全绿 ②`flake8`（PEP 8）0 error（历史遗留例外逐条登记豁免并挂
-    TODO，最终清零）③关键路径 e2e 基线（沿用 R41/D104 的 `netlab/tools/cdp_*.mjs` 方法）一致 ④不改任何对外 API
-    签名 / JSON 契约 / 数值输出。
+  status: '**已完成（2026-11-06，P18）**：netlab 与 PlotKit 全部 Python 按 PEP 8 规范化，两仓库 `flake8` 0、`black` 88 列通过、AST 等价、无 API/数值变化；立项时 netlab **589 passed**（P18
+    后 **606 passed / 1 skipped**，当前全量已到 **627 passed**），PlotKit 470；提交 netlab `34bd1c5`、PlotKit `7f7f4c4`。'
+  acceptance: ①netlab 全量（以 589 passed 为基线）与 PlotKit 全量测试全绿 ②`flake8`（PEP 8）0 error（历史遗留例外逐条登记豁免并挂 TODO，最终清零）③关键路径 e2e 基线（沿用 R41/D104 的 `netlab/tools/cdp_*.mjs`
+    方法）一致 ④不改任何对外 API 签名 / JSON 契约 / 数值输出。
   weight: ⭐⭐⭐ / P18（2026-11-06 立项；启动条件=TS 重构 P16/P17 全部完成后）。
   stage: ⭐⭐⭐ / P18（2026-11-06 立项；启动条件=TS 重构 P16/P17 全部完成后）。
+  user_scenario: 用户需要在真实工程中完成「Python 代码 PEP 8 规范化与优化（2026-11-06 立项，排在 TS 重构之后）」；可观察验收：①netlab 全量（以 589 passed 为基线）与 PlotKit 全量测试全绿 ②`flake8`（PEP
+    8）0 error（历史遗留例外逐条登记豁免并挂 TODO，最…
+  failure_cost: 「Python 代码 PEP 8 规范化与优化（2026-11-06 立项，排在 TS 重构之后）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m compileall -q netlab
+  expected: 退出码 0（全包可编译，无 SyntaxError）
+  failure_condition: 命令退出码非 0，或输出含 failed/error
 - id: R43
   title: 数学成果接入 NetLab（P1 稀疏排序 / P3 AC 扫频 Woodbury / P5 遥测误差预算，影子验证）
-  status: '**M0–M1d + P5.2 + M2 评审完成（2026-11-06 21:20）**——mathspec 新增 `ac_sweep_woodbury.py`/`ordering_eval.py`（全量
-    107 passed）；netlab 新增 `math_accel` 四模块与 `nodal.ac_sweep` 的 off/shadow/on 分支（全量
-    **606 passed / 1 skipped**，默认 off 行为不变）；P3 仅 `n≥160` 且 `r/n≤0.10` 启用 Woodbury（小矩阵直接稠密解；真实参数规模族多轮
-    3 次中位 n=201 1.21–1.84×、n=301 2.29–3.62×、n=399 2.32–23.45×、误差 ≤1.7e-13；真实工程仅 2
-    个 circuit 且含 nmos/opamp，AC 直接样本为 0；报告 `mathspec/research/P3_AC_CORPUS_REPORT.md`）；P1
-    真实语料 **1/2 达标、未过 DoD → 生产 `_solve_sparse` 保持 COLAMD**（报告 `mathspec/research/P1_ORDERING_REPORT.md`）；P5
-    `Recorder.quality` + 只读 `/api/diagnostics/telemetry`/`math-accel` 已实现，设置页「诊断」误差合同前端接入完成（`/api/live`
-    结构不变）；**P5.2 真实误差界**：`telemetry_quality.py` 计算 `interp_error_bound=max|Δ²y|/8`、`delay_bound=capacity×sample_dt`（7
+  status: '**M0–M1d + P5.2 + M2 评审完成（2026-11-06 21:20）**——mathspec 新增 `ac_sweep_woodbury.py`/`ordering_eval.py`（全量 107 passed）；netlab 新增 `math_accel`
+    四模块与 `nodal.ac_sweep` 的 off/shadow/on 分支（全量 **606 passed / 1 skipped**，默认 off 行为不变）；P3 仅 `n≥160` 且 `r/n≤0.10` 启用 Woodbury（小矩阵直接稠密解；真实参数规模族多轮
+    3 次中位 n=201 1.21–1.84×、n=301 2.29–3.62×、n=399 2.32–23.45×、误差 ≤1.7e-13；真实工程仅 2 个 circuit 且含 nmos/opamp，AC 直接样本为 0；报告 `mathspec/research/P3_AC_CORPUS_REPORT.md`）；P1
+    真实语料 **1/2 达标、未过 DoD → 生产 `_solve_sparse` 保持 COLAMD**（报告 `mathspec/research/P1_ORDERING_REPORT.md`）；P5 `Recorder.quality` + 只读 `/api/diagnostics/telemetry`/`math-accel`
+    已实现，设置页「诊断」误差合同前端接入完成（`/api/live` 结构不变）；**P5.2 真实误差界**：`telemetry_quality.py` 计算 `interp_error_bound=max|Δ²y|/8`、`delay_bound=capacity×sample_dt`（7
     条测试）；**M2 启用评审通过（有条件）：`on` 仅显式 opt-in、默认仍 `off`、P1 不替换，评审记录 `mathspec/research/M2_GATE_REVIEW.md`**。'
   acceptance: 菜单不再出现这三种 kind；坏节点工程打开时提示"缺少 block_id，可删除或重新实例化"。
   weight: ⭐⭐⭐ / M1（2026-11-06 立项；M0 mathspec 原型 3–5 天，M1a=P1、M1b=P3、M1c=P5、M1d 收尾验收）。
   stage: ⭐⭐⭐ / M1（2026-11-06 立项；M0 mathspec 原型 3–5 天，M1a=P1、M1b=P3、M1c=P5、M1d 收尾验收）。
+  user_scenario: 用户需要在真实工程中完成「数学成果接入 NetLab（P1 稀疏排序 / P3 AC 扫频 Woodbury / P5 遥测误差预算，影子验证）」；可观察验收：菜单不再出现这三种 kind；坏节点工程打开时提示"缺少 block_id，可删除或重新实例化"。
+  failure_cost: 「数学成果接入 NetLab（P1 稀疏排序 / P3 AC 扫频 Woodbury / P5 遥测误差预算，影子验证）」失效时，用户无法完成上述验收观察，结果不可复现/不可交付。
+  verify_command: python -m pytest netlab/tests/test_accel.py netlab/tests/test_solver_sparse.py netlab/tests/test_ordering_eval.py -q
+  expected: 退出码 0（全部 passed）
+  failure_condition: 命令退出码非 0，或输出含 failed/error

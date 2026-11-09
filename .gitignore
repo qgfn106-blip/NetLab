@@ -60,4 +60,6 @@ reports/*
 !reports/e2e/**
 !reports/e2e-mutation/
 !reports/e2e-mutation/**
+!reports/shadow/
+!reports/shadow/**
 CON

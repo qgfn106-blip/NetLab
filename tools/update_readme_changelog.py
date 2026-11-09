@@ -36,9 +36,9 @@ def commits(limit: int = 12) -> list[tuple[str, str, str]]:
 
 
 def block(rows: list[tuple[str, str, str]]) -> str:
-    lines = [BEGIN, "", "## 最近更新（自动记录最近 10 次）", "", "| 日期 | 提交 | 更新内容 |", "|---|---|---|"]
-    for sha, date, subject in rows:
-        lines.append(f"| {date} | `{sha}` | {subject.replace('|', '\\|')} |")
+    lines = [BEGIN, "", "## 最近更新（自动记录最近 10 次）", "", "| 日期 | 更新内容 |", "|---|---|"]
+    for _sha, date, subject in rows:
+        lines.append(f"| {date} | {subject.replace('|', '\\|')} |")
     lines += ["", END]
     return "\n".join(lines)
 

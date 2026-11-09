@@ -10,6 +10,15 @@
 
 ## 0. 一句话现状
 
+<!-- BEGIN GENERATED: status -->
+| 项 | 内容 |
+| --- | --- |
+| 版本 | 3.20.1 |
+| 状态详情 | 见 [status.json](status.json)（由 `tools/gen_status.py` 生成，禁止手写） |
+| 覆盖率门限 | core line ≥81% / changed line ≥80% |
+| 当前阶段 | 见严格审计文档 §11 顺序与 [BACKLOG.md](BACKLOG.md) |
+<!-- END GENERATED: status -->
+
 - **能用的产品**：`start_desktop.bat` / `python -m netlab.desktop` 起 pywebview + WebView2 网页壳（测试数/版本/领先提交数见 [status.json](status.json)；全量文档重构 §7.75 完成）。
 - **界面口径**：前端在 `frontend/`（index.html / app.js / style.css）；Qt 原生界面已按 D78 备份到 Git 分支 `backup/qt-native-2026-11-02` 后删除，不再是产品形态。
 - **已完成（一期）**：R41 前端 JavaScript→TypeScript 全局迁移（一期 P16 类型化、二期 P17 模块化均已完成），tsc strict 0 / node --test 纯函数单测绿 / AST 行为等价 / pytest 627 passed / 1 skipped，见 REQUIREMENTS R41 / PROGRESS §7.76。

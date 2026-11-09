@@ -2,17 +2,14 @@
 
 > 最后修改：2026-11-08 12:47
 
+<!-- BEGIN GENERATED: status -->
 | 项 | 内容 |
 | --- | --- |
-| 记录时间 | 见 [status.json](status.json)（由 `tools/gen_status.py` 生成，禁止手写） |
-| 当前阶段 | **2026-11-09 严格审计整改**（`docs/NETLAB_PLOTKIT_STRICT_AUDIT_2026-11-09.md` §11 顺序）；最近执行记录见 §7.129 起 |
-| 基线 | 见 [status.json](status.json)；D-1 基线为 733 passed / 1 skipped、core line 81.14% |
-| 本地备份 | `NetlabExtras/backups/ProjectPoint_backups/netlab_3_20_1_20261106_0205`（10 文件 + MANIFEST.sha256，iro.js 颜色选择器集成备份，mismatches=0）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_20_0_20261106_0136`（36 文件 + MANIFEST.sha256，R40 代码 + 文档重构最终备份，mismatches=0）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_19_0_20261105_1450`（28 文件 + MANIFEST.sha256，§7.72 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_18_0_20261105_1340`（15 文件 + MANIFEST.sha256，§7.71 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_17_1_20261105_0845`（15 文件 + MANIFEST.sha256，§7.70 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_3_17_0_20261105_0345`（23 文件 + MANIFEST.sha256，§7.69 最终备份）；`NetlabExtras/backups/ProjectPoint_backups/netlab_final_20261105_0205`（14 文件 + MANIFEST.sha256，§7.68 最终集成检查）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_r38_20261105_0155`（9 文件 + MANIFEST.sha256，§7.67 相图指标/CSV）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p5_20261105_0140`（12 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p4_20261105_0125`（本轮 §7.65 的 analysis.py / test_network_tf.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p3_20261105_0110`（§7.64 的 graph.py / computes.py / scene.py / test_algebraic_solver.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p2_20261105_0055`（§7.63 的 graph.py / scene.py / test_algebraic_solver.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_solver_p1_20261105_0040`（§7.62 的 graph.py / computes.py / scene.py / test_solver_plan.py / 文档 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_plan_20261104_2355`（本轮规划文档 4 文件 + MANIFEST.sha256，R36–R38/D92–D94）、`NetlabExtras/backups/ProjectPoint_backups/netlab_control_20261104_1815`（本轮 14 文件 + MANIFEST.sha256，§7.61）、`NetlabExtras/backups/ProjectPoint_backups/netlab_import_20261104_1423`（§7.60 10 文件 + MANIFEST.sha256，§7.60）、`NetlabExtras/backups/ProjectPoint_backups/netlab_guard_20261104_1356`（本轮 5 文件 + MANIFEST.sha256，§7.59）、`NetlabExtras/backups/ProjectPoint_backups/netlab_delayfix_20261104_1315`（本轮 7 文件 + MANIFEST.sha256，§7.58）、`NetlabExtras/backups/ProjectPoint_backups/netlab_menu_20261104_0756`（§7.57 7 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_fields_20261104_0225`（21 文件 + MANIFEST.sha256，R35/D91）、`NetlabExtras/backups/ProjectPoint_backups/netlab_audit_20261103_1920`（15 文件 + MANIFEST.sha256，架构审计 §7.55）、`NetlabExtras/backups/ProjectPoint_backups/netlab_transfer_20261103_1602`（14 文件 + MANIFEST.sha256，R34/D90）、`netlab_20261101_2010`（本轮 7 源文件 + 5 文档 + 5 测试 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_plotkit_token_20261103_1253`（8 文件 + MANIFEST.sha256）、`NetlabExtras/backups/ProjectPoint_backups/netlab_free_layout_20261103_1430`（P4 自由布局）、`NetlabExtras/backups/ProjectPoint_backups/netlab_layer_window_20261103_1450`（P3 图层浮窗）、`NetlabExtras/backups/ProjectPoint_backups/netlab_notes_20261103_1508`（P5 批注）、`NetlabExtras/backups/ProjectPoint_backups/netlab_precision_20261103_1552`（PlotKit 预览精度 §7.53）、`NetlabExtras/backups/ProjectPoint_backups/netlab_20261024_142654`、`_1727`、`netlab_20261025_0125`、`netlab_20261025_1306`（P0-0）、`netlab_20261026_0348p1retry`（P1 收口）、`netlab_20261026_1240`（R15 收尾）、`netlab_20261026_1318`（R20 模型批基础层）、`netlab_20261026_1322`（R20 模型批功能完成）、`netlab_20261026_1330`（R20 UI 批）、`netlab_20261026_1335`（R20 UI 迁移动作）、`netlab_20261026_1340`（R20 信号端口）、`netlab_20261026_1415`（纯导线/共集示例）、`netlab_20261027_0150`（P7-01 前快照）、`netlab_20261027_1744`（P7-03 收尾）、`netlab_20261027_1753`（R22 参数放宽/单位）、`netlab_20261027_1856`（三极管型号预设）、`netlab_20261027_2218`（拐点拖动）、`netlab_20261027_2324`（P7-03/P7-05 收尾）、`netlab_20261027_2330`（P0 求解可靠性）、`netlab_20261028_0016`（P0 收尾/P7-05）、`netlab_20261028_0048`（电源波形界面）、`netlab_20261028_0103`（dt 精度预设）、`netlab_20261028_0114`（奇异阈值/步长原位微调）、`netlab_20261028_0318`（P0 求解加固：事务/均衡/断点/超时）、`netlab_20261028_0405`（Phase D/E 代码前快照）、`netlab_20261028_0434`（R26 代码前快照）、`netlab_20261028_1219`（工程校验和修复前 `project.py`）、`project_20261028_1219`（用户工程文件前快照）、`netlab_20261028_1855`（R27 后端/前端快照）、`docs_20261028_1932`（公开仓库文档前快照）、`docs_20261028_2108`（R28 文档前快照）、`web_20261028_2130`（演示页与 workflow 删除前快照）、`ui_20261028_2205`（R29 回放滑块前 static 快照）、`netlab_ui_20261028_2242`（R30 UI 集中优化前 netlab 全量）；文档快照见 `docs_20261026_*、docs_20261027_1744、netlab_docs_20261028_0420、netlab_docs_20261028_0445` |
-| 备份清单 | 各自目录下 `MANIFEST.sha256` |
-| 版本控制 | 用户已授权 GitHub `qgfn106-blip` 做版本管理/备份（2026-10-24）；仓库在 `NetlabHome/.git`，本地备份同时保留；GitHub `main` 已包含功能提交 `f564485` 与文档补记 `261f8a`（功能提交 tree `9ea4909842a34dc496cc0c1dd9b4ff38a1977854`，与本地 `51b1eba` 一致） |
-| 当前测试 | 见 [status.json](status.json)；禁止手写测试数/覆盖率（严格审计 X4） |
-| 下一步 | 见 [BACKLOG.md](BACKLOG.md) 与严格审计文档 §11（P0 → G1 → G2 → G3 → G4） |
-| 需求口径 | **以 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) 的 R01–R43 + D1–D154 为准**；本文档 §7 为执行进度地图 |
+| 版本 | 3.20.1 |
+| 状态详情 | 见 [status.json](status.json)（由 `tools/gen_status.py` 生成，禁止手写） |
+| 覆盖率门限 | core line ≥81% / changed line ≥80% |
+| 当前阶段 | 见严格审计文档 §11 顺序与 [BACKLOG.md](BACKLOG.md) |
+<!-- END GENERATED: status -->
 > 本文件只记录**已实际验证**的内容；未完成的能力明确标为“未接通/未实现”，
 > 不把计划写成已完成。
 
@@ -2695,3 +2692,8 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 新增 `.github/workflows/container.yml`：`docker build` → 容器内 `pytest -q -k "not plotkit and not gui_smoke and not schematic_export"` → `/api/health` smoke。
 - 本机无 docker，由 CI ubuntu runner 验证：container `42557588464` **success**（build + 容器内测试 + health smoke）；同 HEAD `50f806f` 的 python-tests `42557588338` success、frontend-ts-build `42557588333` success。
 - G3 状态：G3a/G3b/G3c/G3d/G3e 全部落地，G3 完成。
+## §7.137 G4 文档单一真源（2026-11-09）
+
+- 新增 `docs/canonical/requirements.yaml`（R01–R43）与 `docs/canonical/decisions.yaml`（D1–D154），从需求台账一次性导入，之后以 canonical 为唯一真源。
+- 新增 `tools/render_docs.py`：从 canonical + `netlab/docs/status.json` 生成 `PROGRESS.md`/`BACKLOG.md` 顶部状态段（`<!-- BEGIN/END GENERATED: status -->`）、`netlab/docs/REQUIREMENTS_INDEX.md`、`netlab/docs/DECISIONS_INDEX.md`；`--check` 只比对不写。
+- `python-tests.yml` 新增 `Docs SSOT render (G4)` 步骤；新增 `netlab/tests/test_docs_ssot.py`（canonical 计数 + 零漂移）。全量 **793 passed / 1 skipped / 3 warnings / 102.35s**。

@@ -112,6 +112,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-09 | docs(d5): 补 §7.140 远端三 CI 绿与行尾说明 |
 | 2026-11-09 | docs(d5): PROGRESS §7.140 记录影子验证制度化 |
 | 2026-11-09 | ci(d5): 恢复 python-tests.yml CRLF，仅保留 D-5 步骤差异 |
 | 2026-11-09 | feat(d5): 求解器改动三态影子报告检查器与基线报告 |
@@ -121,7 +122,6 @@ python -m netlab.desktop
 | 2026-11-09 | test(d4): 入仓 D-4 绿色端到端产物（error_table/plot_spec/csv/netlab/svg） |
 | 2026-11-09 | ci(d4): e2e 绿色门 + 变异必然变红门，入仓 reports/e2e |
 | 2026-11-09 | feat(tools): D-4 e2e 端到端闭环（误差表/PlotKit 出图/变异入口） |
-| 2026-11-09 | fix(ci): 恢复 python-tests.yml 原 CRLF 换行 |
 
 <!-- END LAST 10 UPDATES -->
 

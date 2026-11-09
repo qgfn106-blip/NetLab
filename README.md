@@ -121,7 +121,6 @@ python -m netlab.desktop
 | 2026-11-09 | docs(b1): VISION 三条判据补可执行命令与失败条件 + 390 节点 sparse 基准 |
 | 2026-11-09 | docs(c3): 绘图语义单一真源规格与进度 |
 | 2026-11-09 | refactor(frontend,core): 老 canvas 与 PlotKit 共用绘图语义（C-3/N-14） |
-| 2026-11-09 | feat(frontend): 共享帧→绘图语义模块与契约测试（C-3） |
 
 <!-- END LAST 10 UPDATES -->
 

@@ -112,16 +112,16 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
-| 2026-11-09 | fix(docs): README 最近更新排除 docs(readme) 后仍取满 10 条（-invert-grep） |
-| 2026-11-09 | docs(readme): 修正最近 10 次表（B-2 CI 修订后重算） |
-| 2026-11-09 | docs(readme): 更新最近 10 次记录（B-2 CI 修订） |
 | 2026-11-09 | fix(ci): 恢复 python-tests.yml 原 CRLF 换行 |
 | 2026-11-09 | ci(b2): 需求可验证性抽查移到样例工程准备之后（R43 依赖 MyProject） |
-| 2026-11-09 | docs(readme): 更新最近 10 次记录（B-1/B-2/B-3） |
 | 2026-11-09 | fix(docs): B-3 提交恢复两点 CRLF 误转为 LF 的换行，避免整文件 diff |
 | 2026-11-09 | docs(b3): D 编号命名空间 D-NL/D-PK 统一 + 里程碑基线更新 |
 | 2026-11-09 | docs(b2): R01-R43 补用户场景/失败代价/可执行验收命令 + 抽查脚本进 CI |
 | 2026-11-09 | ci(b3): status.json 新鲜度门 + 真实 pytest 产物写入 |
+| 2026-11-09 | docs(b1): VISION 三条判据补可执行命令与失败条件 + 390 节点 sparse 基准 |
+| 2026-11-09 | docs(c3): 绘图语义单一真源规格与进度 |
+| 2026-11-09 | refactor(frontend,core): 老 canvas 与 PlotKit 共用绘图语义（C-3/N-14） |
+| 2026-11-09 | feat(frontend): 共享帧→绘图语义模块与契约测试（C-3） |
 
 <!-- END LAST 10 UPDATES -->
 

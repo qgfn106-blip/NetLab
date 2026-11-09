@@ -19,7 +19,14 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .contracts import PLOTKIT_MAX_EXCLUSIVE, PLOTKIT_MIN
+from .contracts import (
+    PLOT_LINE_WIDTH,
+    PLOT_MAX_CHANNELS,
+    PLOT_MAX_POINTS,
+    PLOT_SYNC_PULL_LIMIT,
+    PLOTKIT_MAX_EXCLUSIVE,
+    PLOTKIT_MIN,
+)
 from .core.model.channels import ChannelKey
 
 LOGGER = logging.getLogger(__name__)
@@ -28,20 +35,20 @@ MOUNT_PATH = "/plotkit"
 PLUGIN_ID = "netlab.plotkit"
 PLUGIN_DIR = Path(__file__).resolve().parents[1] / "extensions" / "plugins" / PLUGIN_ID
 #: 每个通道保留的点数；超出后只留尾部（对应 spec 里的 life="replace" 语义）
-MAX_POINTS = 20_000
+MAX_POINTS = PLOT_MAX_POINTS
 #: 每次同步最多取多少帧。必须 ≥ recorder 容量（见 simulation.RECORDER_CAPACITY），
 #: 否则预计算一次灌进来的帧会被 ``Recorder.since`` 再均匀抽稀一遍——2026-11-03
 #: 用户反馈「提高仿真精度 PlotKit 曲线没变化」的另一半原因就是这个 600 的上限。
-SYNC_PULL_LIMIT = 6000
+SYNC_PULL_LIMIT = PLOT_SYNC_PULL_LIMIT
 #: 同步线程的采样节奏（秒）；前端实时重绘是 1Hz，这里 2Hz 足够，再快只是白烧 CPU
 SYNC_INTERVAL = 0.5
 #: 最多同时接多少个通道（probes 一次可能给 240 个）
-MAX_CHANNELS = 64
+MAX_CHANNELS = PLOT_MAX_CHANNELS
 #: 分析曲线数据集前缀。它们有自己的 x/y，不能参与 recorder 时间轴对齐。
 ANALYSIS_PREFIX = "analysis:"
 DEFAULT_WINDOW = 5.0  # 秒；与 netlab 老画布的「时间窗」默认值一致
 #: 探针曲线统一细实线（默认的「线 + 圆点」在高密度下会糊成一片）
-LINE_STYLE = {"mode": "lines", "width": 1.4, "marker": {"symbol": ""}}
+LINE_STYLE = {"mode": "lines", "width": PLOT_LINE_WIDTH, "marker": {"symbol": ""}}
 
 _LOCK = threading.Lock()
 _STATE: dict[str, Any] = {"figure": None, "app": None, "thread": None, "service": None}

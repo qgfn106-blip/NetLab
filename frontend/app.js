@@ -13,6 +13,7 @@ import { kindListFor, numberedField, trimNumber } from "./app/fields.js";
 import { buildParamField, collectParamValues, setTypeLabelHelp } from "./app/param_fields.js";
 import { hideHelpCard, showHelpCard, typeLabelHelp, paramRangeText, setSwitchTab } from "./app/help_card.js";
 import { activeTab, modeLabel, selectedNode, selectedEdge, nodeById, edgeById, getNodeSpec, getEdgeSpec, specDefaults, uniqueNodeName } from "./app/model.js";
+import { PLOT_SEMANTICS, frameSeriesToPoints, buildPlotLineLayers } from "./app/plot_semantics.js";
 import { groupNodeSpecs } from "./app/menu_model.js";
 import { SHEET_SIZES, drawGraph, requestDraw, animationLoop } from "./app/canvas_render.js";
 import { drawPhase, phaseFrameCount, phaseStateKeys, renderVectorNodeList, resizePhase, schedulePhaseDraw, setPhaseIndex, stopPhasePlay, togglePhasePlay } from "./app/phase.js";
@@ -5262,7 +5263,7 @@ function setStatusHint(hint) {
     const toX = (t) => left + (t - xMin) / spanX * plotW;
     const toY = (v) => top + (1 - (v - yMin) / spanY) * plotH;
     ctx2.strokeStyle = C("#e6e2d6");
-    ctx2.lineWidth = 1;
+    ctx2.lineWidth = PLOT_SEMANTICS.gridWidth;
     ctx2.fillStyle = C("#969083");
     ctx2.font = '10px "Segoe UI","Microsoft YaHei",sans-serif';
     ctx2.textAlign = "right";
@@ -5290,16 +5291,15 @@ function setStatusHint(hint) {
     ctx2.strokeStyle = C("#b8b3a4");
     ctx2.strokeRect(left, top, plotW, plotH);
     for (const key of signals) {
-      const arr = entry.series?.[key] || [];
-      const times = entry.t || [];
-      const n = Math.min(arr.length, times.length);
+      const points = frameSeriesToPoints(entry.t || [], entry.series?.[key] || []);
+      const n = points.x.length;
       if (!n) continue;
       ctx2.strokeStyle = colorForKey(key);
-      ctx2.lineWidth = 1.6;
+      ctx2.lineWidth = PLOT_SEMANTICS.lineWidth;
       ctx2.beginPath();
       for (let i = 0; i < n; i += 1) {
-        const x = toX(times[i]);
-        const y = toY(arr[i]);
+        const x = toX(points.x[i]);
+        const y = toY(points.y[i]);
         if (i === 0) ctx2.moveTo(x, y);
         else ctx2.lineTo(x, y);
       }
@@ -5411,7 +5411,7 @@ function setStatusHint(hint) {
       canvas2.style.width = `${cssW}px`;
       canvas2.style.height = `${cssH}px`;
       const columns = {};
-      columns.__t = Float32Array.from(times);
+      columns[PLOT_SEMANTICS.timeField] = Float32Array.from(times);
       for (const key of signals) {
         const arr = entry.series?.[key] || [];
         const n = Math.min(arr.length, times.length);
@@ -5425,18 +5425,7 @@ function setStatusHint(hint) {
           return values ? { values } : null;
         }
       };
-      const layers = [];
-      for (const key of signals) {
-        const values = columns[key];
-        if (!values || !values.length) continue;
-        layers.push({
-          kind: "line",
-          data: { x: "__t", y: key },
-          style: { color: colorForKey(key), width: 1.6 },
-          label: key,
-          legend: true
-        });
-      }
+      const layers = buildPlotLineLayers(signals, columns, colorForKey);
       const toks = tokens();
       const themeTokens = {
         paper: C("#faf8f2"),

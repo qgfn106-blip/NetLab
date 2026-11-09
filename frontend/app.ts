@@ -21,6 +21,7 @@ import { formatAny, valueToText, parseSmartValue, kindListFor, buildKindSelect, 
 import { buildParamField, applyPresetOnModelChange, applyWaveFieldVisibility, buildWaveFieldVisibility, buildParamFields, collectParamValues, dataRow, collectData, markDirty, clearDirty, setTypeLabelHelp } from './app/param_fields.js';
 import { hideHelpCard, showHelpCard, typeLabelHelp, paramRangeText, setSwitchTab } from './app/help_card.js';
 import { appearanceOf, activeTab, modeLabel, selectedNode, selectedEdge, nodeById, edgeById, nodeByName, edgeByName, getNodeSpec, getEdgeSpec, specDefaults, uniqueNodeName, hasGroundNode, displayDataFor, nodeDisplayData, edgeDisplayData } from './app/model.js';
+import { PLOT_SEMANTICS, frameSeriesToPoints, buildPlotLineLayers } from './app/plot_semantics.js';
 import { groupNodeSpecs } from './app/menu_model.js';
 import { drawEdges, labelCollisionFree } from './app/canvas_edges.js';
 import { SHEET_SIZES, drawDrawingFrame, pipeModeLabel, drawLinkPreview, drawGraph, drawSelectionBox, drawDragHud, requestDraw, __graphMs, __dbgGraph, animationLoop } from './app/canvas_render.js';
@@ -5856,7 +5857,7 @@ function setStatusHint(hint: string): void {
     const toY = (v: number) => top + (1 - (v - yMin) / spanY) * plotH;
 
     ctx.strokeStyle = C('#e6e2d6');
-    ctx.lineWidth = 1;
+    ctx.lineWidth = PLOT_SEMANTICS.gridWidth;
     ctx.fillStyle = C('#969083');
     ctx.font = '10px "Segoe UI","Microsoft YaHei",sans-serif';
     ctx.textAlign = 'right';
@@ -5885,16 +5886,15 @@ function setStatusHint(hint: string): void {
     ctx.strokeRect(left, top, plotW, plotH);
 
     for (const key of signals) {
-      const arr = entry.series?.[key] || [];
-      const times = entry.t || [];
-      const n = Math.min(arr.length, times.length);
+      const points = frameSeriesToPoints(entry.t || [], entry.series?.[key] || []);
+      const n = points.x.length;
       if (!n) continue;
       ctx.strokeStyle = colorForKey(key);
-      ctx.lineWidth = 1.6;
+      ctx.lineWidth = PLOT_SEMANTICS.lineWidth;
       ctx.beginPath();
       for (let i = 0; i < n; i += 1) {
-        const x = toX(times[i]);
-        const y = toY(arr[i]);
+        const x = toX(points.x[i]);
+        const y = toY(points.y[i]);
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
@@ -6072,9 +6072,9 @@ function setStatusHint(hint: string): void {
       canvas.style.width = `${cssW}px`;
       canvas.style.height = `${cssH}px`;
 
-      // 组装 PlotKit Store：__t 共享时间轴 + 各信号序列转 Float32Array。
+      // 组装 PlotKit Store：共享时间轴（语义契约的 timeField）+ 各信号序列转 Float32Array。
       const columns: Record<string, Float32Array> = {};
-      columns.__t = Float32Array.from(times);
+      columns[PLOT_SEMANTICS.timeField] = Float32Array.from(times);
       for (const key of signals) {
         const arr = entry.series?.[key] || [];
         const n = Math.min(arr.length, times.length);
@@ -6089,18 +6089,7 @@ function setStatusHint(hint: string): void {
         },
       };
 
-      const layers: Plot2DLayer[] = [];
-      for (const key of signals) {
-        const values = columns[key];
-        if (!values || !values.length) continue;
-        layers.push({
-          kind: 'line',
-          data: { x: '__t', y: key },
-          style: { color: colorForKey(key), width: 1.6 },
-          label: key,
-          legend: true,
-        });
-      }
+      const layers: Plot2DLayer[] = buildPlotLineLayers(signals, columns, colorForKey) as Plot2DLayer[];
 
       const toks = tokens();
       const themeTokens: Record<string, string> = {

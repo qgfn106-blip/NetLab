@@ -568,6 +568,44 @@ class CircuitSolver:
         worst = int(np.argmax(residual))
         return float(residual[worst]) / denominator, worst
 
+    def _line_search_solution(
+        self,
+        solution: np.ndarray,
+        new_solution: np.ndarray,
+        dt: float,
+        mode: str,
+        current_residual: float,
+    ) -> tuple[np.ndarray, float, int | None]:
+        """Armijo 回溯线搜索：整步不降残差时按 1/2 回退，避免强非线性发散。"""
+        base = np.asarray(solution, dtype=float)
+        full = np.asarray(new_solution, dtype=float)
+        if not np.all(np.isfinite(full)):
+            return base, current_residual, None
+        best: tuple[float, np.ndarray, int | None] | None = None
+        alpha = 1.0
+        for _ in range(8):
+            candidate = base + alpha * (full - base)
+            if not np.all(np.isfinite(candidate)):
+                alpha *= 0.5
+                continue
+            try:
+                residual, worst = self._true_residual(candidate, dt, mode)
+            except ComputeError:
+                alpha *= 0.5
+                continue
+            if best is None or residual < best[0]:
+                best = (residual, candidate, worst)
+            if (
+                not np.isfinite(current_residual)
+                or current_residual <= 1.0e-15
+                or residual <= max(1.0e-15, current_residual * (1.0 - 1.0e-4 * alpha))
+            ):
+                return candidate, residual, worst
+            alpha *= 0.5
+        if best is not None:
+            return best[1], best[0], best[2]
+        return base, current_residual, None
+
     def _newton_solve(
         self,
         dt: float,
@@ -637,10 +675,14 @@ class CircuitSolver:
                         )
                     solution = new_solution
                     break
-                delta = np.abs(new_solution - solution)
-                node_ok = bool(np.all(delta <= self._tolerance(new_solution, solution)))
-                solution = new_solution
-                residual, true_worst = self._true_residual(solution, dt, mode)
+                current_residual, _ = self._true_residual(solution, dt, mode)
+                accepted, true_residual, true_worst = self._line_search_solution(
+                    solution, new_solution, dt, mode, current_residual
+                )
+                delta = np.abs(accepted - solution)
+                node_ok = bool(np.all(delta <= self._tolerance(accepted, solution)))
+                solution = accepted
+                residual = true_residual
                 self._worst_residual_index = true_worst
                 if options.residual_tol > 0:
                     residual_ok = residual <= options.residual_tol

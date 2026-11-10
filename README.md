@@ -1,6 +1,6 @@
 # RHINE LAB · NETLAB
 
-> 最后更新：2026-11-10
+> 最后更新：2026-11-11
 
 > **节点拓扑、非线性动态、二维矢量，放在同一个可操作的本地仿真台。**
 > 纯本地运行：一个 Python 进程 + 一个浏览器页面，不依赖任何云服务或外网资源。
@@ -114,6 +114,8 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-11 | chore(status): 刷新状态快照到 872 passed/1 skipped（2026-11-11） |
+| 2026-11-11 | docs: 同步全量文档基线到 872 passed/1 skipped（2026-11-11） |
 | 2026-11-11 | docs(math): 去除数学表达中的百分号以避免 GitHub KaTeX 解析错误 |
 | 2026-11-11 | docs(math): 修复 KaTeX 文本模式下划线、\& 与 inline bmatrix 语法 |
 | 2026-11-11 | docs(math): 修复 GitHub KaTeX 不支持的 operatorname 与 left/right 语法 |
@@ -122,8 +124,6 @@ python -m netlab.desktop
 | 2026-11-10 | docs: 删除演示视频并移除 README 引用 |
 | 2026-11-10 | docs: 将并网逆变器从核心能力降级为示例应用（README/ARCHITECTURE） |
 | 2026-11-10 | chore(status): 对齐状态快照到 6968ee8 |
-| 2026-11-10 | fix(status): test_status 使用有效 HEAD，避免状态提交自引用 |
-| 2026-11-10 | chore(status): 对齐状态快照到 85ff9ab |
 
 <!-- END LAST 10 UPDATES -->
 

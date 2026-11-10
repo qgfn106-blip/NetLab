@@ -114,16 +114,16 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
-| 2026-11-10 | chore(shadow): 补 AC 小信号阶段 D-5 指纹报告 |
-| 2026-11-10 | chore: 重生成 status.json（866 passed / 81.11%） |
-| 2026-11-10 | chore(reports): 更新 M0–M4 全量 pytest JUnit（含 M3 补充） |
-| 2026-11-10 | docs: 同步 M3 补充测试后的 866 基线 |
-| 2026-11-10 | fix(circuit): M3 非线性线性化补齐工作点入口与 13 项测试 |
-| 2026-11-10 | chore: 重生成 status.json（865 passed / 81.12%，测试提交 7612311） |
-| 2026-11-10 | chore(reports): 更新 M0–M4 全量 pytest JUnit |
-| 2026-11-10 | docs(circuit): 补充 M3 非线性线性化说明 |
-| 2026-11-10 | docs: 同步 AC 小信号阶段基线 865 passed |
-| 2026-11-10 | docs: 记录 AC 小信号 M0–M4 阶段结果 |
+| 2026-11-11 | docs(math): 拆分数学文档为总览与三专题并同步入口 |
+| 2026-11-10 | docs: 删除演示视频并移除 README 引用 |
+| 2026-11-10 | docs: 将并网逆变器从核心能力降级为示例应用（README/ARCHITECTURE） |
+| 2026-11-10 | chore(status): 对齐状态快照到 6968ee8 |
+| 2026-11-10 | fix(status): test_status 使用有效 HEAD，避免状态提交自引用 |
+| 2026-11-10 | chore(status): 对齐状态快照到 85ff9ab |
+| 2026-11-10 | fix(status): gen_status 使用有效 HEAD，避免状态提交自引用 |
+| 2026-11-10 | chore(status): 对齐状态快照到 395d885 |
+| 2026-11-10 | chore(status): 刷新 872 passed / 81.12% 基线 |
+| 2026-11-10 | test(shadow): 记录电路小信号旁路分析的 D-5 三态报告 |
 
 <!-- END LAST 10 UPDATES -->
 

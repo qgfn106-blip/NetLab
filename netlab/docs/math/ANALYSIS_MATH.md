@@ -23,8 +23,8 @@
 **统一的“四相表示”**：一切频响最终都归约为同一组字段——`real` / `imag` / `magnitude` / `phase_deg`（外加 `db`）。幅相与复数的换算是
 
 $$
-|H|=\sqrt{\operatorname{Re}^2+\operatorname{Im}^2},\qquad
-\angle H=\operatorname{atan2}(\operatorname{Im},\operatorname{Re}),\qquad
+|H|=\sqrt{\mathrm{Re}^2+\mathrm{Im}^2},\qquad
+\angle H=\mathrm{atan2}(\mathrm{Im},\mathrm{Re}),\qquad
 H_{\mathrm{dB}}=20\log_{10}|H| .
 $$
 
@@ -75,8 +75,8 @@ return times[mask], values[mask]
 FFT 与多数指标都要求**等间隔**采样，而录制帧的时刻可能抖动、缺帧。`_uniform(times, values)`（`analysis.py:83`）负责把任意时刻序列线性重采样到等间隔网格：
 
 $$
-\Delta t=\operatorname{median}\{\,t_{i+1}-t_i>0\,\},\qquad
-g_k=t_0+k\,\Delta t,\quad k=0,1,\dots,K,\quad K=\left\lfloor \frac{t_{\text{last}}-t_0}{\Delta t}+\tfrac12\right\rfloor .
+\Delta t=\mathrm{median}\{\,t_{i+1}-t_i>0\,\},\qquad
+g_k=t_0+k\,\Delta t,\quad k=0,1,\dots,K,\quad K=\lfloor \frac{t_{\text{last}}-t_0}{\Delta t}+\tfrac12\rfloor .
 $$
 
 ```python
@@ -142,7 +142,7 @@ v_\text{peak}=
 \min_i v_i, & A<0,
 \end{cases}
 \qquad
-\text{overshoot}=\max\!\left(0,\ \frac{v_\text{peak}-v_\infty}{A}\cdot 100\%\right).
+\text{overshoot}=\max\!(0,\ \frac{v_\text{peak}-v_\infty}{A}\cdot 100\%).
 $$
 
 注意分母是**有符号幅度** $A$ 而非 $|v_\infty|$：当 $A>0$ 时 $(v_\text{peak}-v_\infty)>0$ 表示冲过终值；当 $A<0$ 时取最小值、$A$ 为负，比值仍为正。`max(0,·)` 保证欠阻尼不足（没有越过终值）时超调记为 0，而不是负数。
@@ -199,7 +199,7 @@ $$
 入口：`phase_metrics(xs, ys, times=None)`（`analysis.py:170`）。先做长度校验与掩码
 
 $$
-\text{mask}=\operatorname{isfinite}(x)\ \&\ \operatorname{isfinite}(y),
+\text{mask}=\mathrm{isfinite}(x)\ \&\ \mathrm{isfinite}(y),
 $$
 
 只保留两轴都有限的点，随后：
@@ -208,7 +208,7 @@ $$
 
 $$
 L=\sum_{i=0}^{n-2}\sqrt{(x_{i+1}-x_i)^2+(y_{i+1}-y_i)^2}
-=\sum_i \operatorname{hypot}(\Delta x_i,\Delta y_i),
+=\sum_i \mathrm{hypot}(\Delta x_i,\Delta y_i),
 $$
 
 实现见 `analysis.py:194`。它衡量轨迹“走了多远”，对往复振荡会累加。
@@ -228,7 +228,7 @@ y_\infty=y_{n-1},\qquad
 y_\text{peak}=
 \begin{cases}\max_i y_i,& y_\infty\ge0,\\ \min_i y_i,& y_\infty<0,\end{cases}
 \qquad
-\text{overshoot}=\max\!\left(0,\ \frac{y_\text{peak}-y_\infty}{|y_\infty|}\cdot100\%\right).
+\text{overshoot}=\max\!(0,\ \frac{y_\text{peak}-y_\infty}{|y_\infty|}\cdot100\%).
 $$
 
 注意与 §2.2 的差异：这里分母用 $|y_\infty|$（无幅度概念，直接用终值绝对值），因此“相对终值”的超调更贴近相图中“是否冲过目标水平”的直观。
@@ -274,7 +274,7 @@ flowchart LR
 加窗与增益校正（Hann）：
 
 $$
-w_n=\tfrac12\!\left(1-\cos\frac{2\pi n}{N-1}\right),\qquad
+w_n=\tfrac12\!(1-\cos\frac{2\pi n}{N-1}),\qquad
 g=\overline{w}=\frac1N\sum_n w_n,\qquad
 \hat v_n=(v_n-\bar v)\,w_n .
 $$
@@ -282,7 +282,7 @@ $$
 单边幅值谱（`analysis.py:241`）：
 
 $$
-M_k=\frac{2\,|\hat V_k|}{N\,g},\qquad \hat V_k=\sum_{n=0}^{N-1}\hat v_n\,e^{-j2\pi kn/N}=\operatorname{rfft}(\hat v)_k,
+M_k=\frac{2\,|\hat V_k|}{N\,g},\qquad \hat V_k=\sum_{n=0}^{N-1}\hat v_n\,e^{-j2\pi kn/N}=\mathrm{rfft}(\hat v)_k,
 $$
 
 频率轴 `freqs = rfftfreq(N, dt)`（`analysis.py:242`），相位 `phase_deg = degrees(angle(rfft))`（`:243`）。
@@ -309,9 +309,9 @@ $$
 **步骤二：单窗平移评分** `_shift_score(grid, values, period)`（`analysis.py:266`）：把信号整体平移一个周期后与原信号比较，
 
 $$
-\tilde v(t)=\operatorname{interp}(t+T;\ t, v),\qquad
-\sigma=\operatorname{std}\big(v[\text{mask}]\big)\ \text{或}\ 1,\qquad
-\text{mae}=\frac{\operatorname{mean}\big|v[\text{mask}]-\tilde v[\text{mask}]\big|}{\sigma},
+\tilde v(t)=\mathrm{interp}(t+T;\ t, v),\qquad
+\sigma=\mathrm{std}\big(v[\text{mask}]\big)\ \text{或}\ 1,\qquad
+\text{mae}=\frac{\mathrm{mean}\big|v[\text{mask}]-\tilde v[\text{mask}]\big|}{\sigma},
 $$
 
 $$
@@ -367,7 +367,7 @@ $$
 
 $$
 M^{\mathrm{dB}}_k=20\log_{10}|H_k|\ \ (\text{截断到 }[-400,400]),\qquad
-\varphi_k=\operatorname{unwrap}(\angle H_k)\ \text{再转度}.
+\varphi_k=\mathrm{unwrap}(\angle H_k)\ \text{再转度}.
 $$
 
 返回 `omega` 与 `frequency_hz = omega/2π`。两个细节：**dB 截断**防止 $\log 0$ 产生 $-\infty$ 破坏绘图；**相位 unwrap** 消除 $\pm\pi$ 跳变，使相位曲线连续，便于读延迟/阶数。

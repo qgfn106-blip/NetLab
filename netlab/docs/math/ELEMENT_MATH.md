@@ -143,7 +143,7 @@ $$
 **定义**（前向欧拉 + 双侧限幅）：
 
 $$
-y_{k+1} = \operatorname{clip}\!\bigl(y_k + \text{gain}\cdot x_k\cdot \Delta t,\ [\ell, u]\bigr)
+y_{k+1} = \mathrm{clip}\!\bigl(y_k + \text{gain}\cdot x_k\cdot \Delta t,\ [\ell, u]\bigr)
 $$
 
 **参数**

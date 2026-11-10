@@ -1,1 +1,5 @@
 """电路求解子包：盖章、元件、目录与求解器（由 ``nodal.py`` 按 M 轮搬出）。"""
+
+from .descriptor import DescriptorIndex, DescriptorModel, DescriptorSystem
+
+__all__ = ["DescriptorIndex", "DescriptorModel", "DescriptorSystem"]

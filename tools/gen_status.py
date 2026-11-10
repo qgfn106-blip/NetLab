@@ -84,6 +84,11 @@ def _tests() -> dict:
     }
 
 
+def _dirty() -> bool:
+    """工作树脏状态，忽略 status 自身及其直接输入产物（生成物不应把自己算脏）。"""
+    out = _git("status", "--porcelain", "--", ".", ":(exclude)netlab/docs/status.json", ":(exclude)reports/test_status.json", ":(exclude)reports/pytest.xml", ":(exclude)coverage.json")
+    return bool(out)
+
 def build() -> dict:
     ahead, behind = _ahead_behind()
     return {
@@ -93,7 +98,7 @@ def build() -> dict:
         "git": {
             "branch": _git("branch", "--show-current"),
             "head": _git("rev-parse", "HEAD"),
-            "dirty": bool(_git("status", "--porcelain")),
+            "dirty": _dirty(),
             "ahead_origin": ahead,
             "behind_origin": behind,
         },

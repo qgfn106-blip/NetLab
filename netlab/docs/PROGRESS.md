@@ -2786,3 +2786,12 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 本次仅文档与状态同步，未改任何源码。统一当前事实基线：Netlab 全量 872 passed / 1 skipped（2026-11-11 实测 204.51s，core line 覆盖率沿用 81.12%），PlotKit 562 passed。
 - 同步更新：`PROGRESS.md`、`REQUIREMENTS_AND_RULES.md`（头部基线 872、D1–D154）、`AGENT_GUIDE.md`（决策台账范围 D1–D154）、`DOCS_INDEX.md`（基线 872/1、数学专题入口）、`FRAMEWORK_CHEATSHEET.md`（验证命令 872）、`UI_SPEC.md`、`LESSONS.md`；`status.json` 由 `tools/gen_status.py` 按真实测试报告重新生成。
 - 历史章节中的旧数字（678/808/866 等）保留为历史记录，不追改。
+
+## §7.149 电路小信号旁路二期：传函/指标/交互修复（2026-11-11）
+
+- 后端：`descriptor_analysis.descriptor_transfer_function()` 从有限极点/零点重构 SISO `G(s)`（阶数 >64 返回 `supported=false`）；`analysis._circuit_tf_analysis` 新增 `transfer_function` 与 `metrics`（阶跃的 rise/peak/overshoot/settling/稳态误差、极点 ωn/ζ/时间常数、Bode 带宽/谐振）。`expression` 对 RC 低通输出 `(1000) / (s + 1000)`。
+- 前端：小信号旁路页新增 G(s) 摘要、DC 增益、时域指标、极点 ωn/ζ/时间常数与 Bode 带宽/谐振；Bode/阶跃与 signal 传递函数分析图统一使用 `niceAxisTicks` 自适应刻度。
+- 交互修复：电路模式下旧「推导」入口直接转「小信号分析（旁路）」，不再发送 `mode=signal` 错误请求；文件菜单与画布右键新增「导出原理图 SVG…」（仅电路场景）；四套预计算入口统一为「运行 → 预计算…」`openPrecomputeDialog()`（solve / plotkit / states 三种目标），运行前提示保留「直接运行（不预计算）」路径。
+- 验证：全量 `pytest` **873 tests / 872 passed / 1 skipped / 0 failed**（777.8s），core 覆盖率 **81.106%**；前端 `npm run typecheck`/`build`/`test` **22 passed**；`PARITY_ALLOW_BODY_CHANGES=1 npm run verify:parity`（49 TS / 597 declarations / 43 runtime）、`npm run check:sections`（app.ts 7959 行）通过；`node e2e/circuit_bypass.mjs` 与 `npm run e2e`（L1 smoke，menu=10）通过。
+- 未改默认开关、未新增依赖、未触碰 `graph.py`/`scene.py` 冻结区；用户未提交的 `netlab/docs/math/ANALYSIS_MATH.md` 未纳入本次改动。
+- 涉及文件：`netlab/core/compute/circuit/descriptor_analysis.py`、`netlab/core/compute/analysis.py`、`frontend/app/ac_analysis.ts`、`frontend/app/analysis.ts`、`frontend/app.ts`、`frontend/index.html`、`frontend/style.css`、`netlab/tests/test_analysis_circuit_bypass.py`、`netlab/tests/test_ui_analysis_entry.py`、`netlab/tests/test_run_warn.py`、`netlab/tests/test_plotkit_frontend_auth.py`。

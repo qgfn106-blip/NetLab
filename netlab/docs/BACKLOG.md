@@ -19,12 +19,13 @@
 | 当前阶段 | 产品开发主线见 [BACKLOG.md](BACKLOG.md)；历史严格审计 §11 已删除，不再引用 |
 <!-- END GENERATED: status -->
 
-- **当前基线（2026-11-10）**：全量 872 passed / 1 skipped；版本 3.20.1；HEAD/领先提交数/生成时间见 [status.json](status.json)；前端 node --test 22 passed、typecheck/build 通过。
+- **当前基线（2026-11-11）**：全量 872 passed / 1 skipped；版本 3.20.1；HEAD/领先提交数/生成时间见 [status.json](status.json)；前端 node --test 22 passed、typecheck/build 通过。
 - **2026-11-10 电路小信号旁路分析完成**：`POST /api/analysis/tf` 支持 `mode=circuit`（Descriptor 状态空间、零极点、阶跃、同源 Bode），前端新增「小信号旁路」tab 与菜单；全量 872 passed/1 skipped、覆盖率 81.12%、前端 22 passed、Playwright e2e OK；详见 PROGRESS §7.146。
+- **2026-11-11 六项修复完成**：小信号旁路新增 G(s) 表达式与 DC 增益/rise/peak/overshoot/settling/稳态误差/ωn/ζ/Bode 带宽/谐振；Bode/阶跃坐标轴统一 nice ticks；电路模式旧「推导」入口转「小信号分析（旁路）」；文件菜单/画布右键新增「导出原理图 SVG…」；四套预计算入口统一为「运行 → 预计算…」弹窗；全量 872 passed/1 skipped、覆盖率 81.106%、前端 22 passed、e2e OK；详见 PROGRESS §7.149。
 - **待授权项（PENDING_USER_AUTHORIZATION，2026-11-10）**：Phase 3 架构债、Phase 4 CI 证据、500+ 规模档（MAX_NODES=400 不放宽）、Newton 选主元与 SCC 差分 Jacobian/深宽图余项；FEM 明确不改（用户 2026-11-10 决定）。
 - **界面口径**：前端在 `frontend/`（index.html / app.js / style.css）；Qt 原生界面已按 D78 备份到 Git 分支 `backup/qt-native-2026-11-02` 后删除，不再是产品形态。
-pytest 基线见 [status.json](status.json)（627 passed / 1 skipped 为 2026-11-07 历史数），见 REQUIREMENTS R41
-全量基线见 [status.json](status.json)（627 passed / 1 skipped、静态 3.20.1 为 2026-11-07 历史数）。
+pytest 基线见 [status.json](status.json)（872 passed / 1 skipped；627 为 2026-11-07 历史数），见 REQUIREMENTS R41
+全量基线见 [status.json](status.json)（872 passed / 1 skipped、静态 3.20.1）。
 - **2026-11-07 新增完成：全局外观引擎 P-A1–P-A4**：令牌单一来源（`theme.tokens.ts`，`0d1332d`）、LIGHT/DARK 双色板 WCAG 10/10（`194fc79`）、画布裸色 97→0（`b2111d1`）、设置窗「外观」面板 9 项（`62a6132`）；详见 PROGRESS §7.88 / APPEARANCE_ENGINE_DESIGN §12。**下一步：P-B 元素级视图外观待办（承 R40 视图设计，尚未开始）**；已知限制：6 项外观仅 localStorage、不跨机同步。
 525 passed 为历史数（当前基线见 [status.json](status.json)）。R37
 - **刚完成**：**控制链路补强与欠阻尼工程（§7.61：超调按最终值方向、离散 `1/z` 左补零、`reset_state` 初值快照、`output=auto`、非整数时间网格；交付 `MyProject/underdamped_control.netlab`）**、**PlotKit 导入优先级 + 多工作树规范（§7.60：内置副本优先、`NETLAB_PLOTKIT_SRC` 覆盖、gmpy2 坏包清理、`tools/new_worktree.sh` + `docs/WORKTREE_RULES.md`）**、**结构护栏补齐相对导入（§7.59：`test_structure_layout.py` 解析相对/`netlab.*` 越界导入，6→14 条）**、**预计算反馈环首拍修复（§7.58：延迟边空载荷按 0、pass 空 dict 不注入）**、**信号流右键「添加」菜单按节点组分类（§7.57：基础/动态/高级/矢量/模块/接口，矢量置顶）**、**R35 输入字段自动匹配（D91 / §7.56：value 优先、显式键兼容、块端口别名）**、**架构审计修复（§7.55：PlotKit 子应用鉴权 + 宿主 shim、记录器代次、通道上限、桥生命周期、precompute 契约、缓存 API 契约）**、**R34 s 域传递函数节点与分析（D90 / §7.54：表达式/系数/零极点三形态、Bode/阶跃/零极点三视图、`POST /api/analysis/tf`）**、R26 的 UI 入口（§7.37）、D80 数据通路优化（§7.36）、D81 PlotKit 面板卡顿修复（§7.38）。

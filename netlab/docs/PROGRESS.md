@@ -2761,3 +2761,11 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - M3（`b1de678`、`2cfac1d`）：`DescriptorModel.linearize(operating_point)` 使用现有解析导数对二极管/齐纳/BJT/MOSFET/运放/比较器在工作点线性化；新增 `test_descriptor_nonlinear.py`、`test_descriptor_linearization.py`。
 - M4（`3c24f7e`、`2af2475`、`e8a8e28`）：`descriptor_analysis.py` 提供极点、Rosenbrock 零点与阶跃分析；RC 低通极点 -1000 rad/s、RC 高通零点 0、RLC 极/零点与解析解一致；阶跃响应用隐式 Euler 对照 RC 解析解。
 - 当前测试：`test_descriptor_rlc.py`/`test_descriptor_dc.py`/`test_descriptor_poles_zeros.py`/`test_descriptor_step.py`/`test_descriptor_linearization.py`/`test_descriptor_nonlinear.py` 合计 57 passed；M1 契约测试 23 passed。未 push。
+
+## §7.146 电路小信号旁路分析端到端接线（2026-11-10）
+
+- 扩展 `POST /api/analysis/tf`：新增 `mode="signal"|"circuit"`（默认 `signal`，旧行为不变）。`mode="circuit"` 从 `DescriptorModel.from_scene` 构建描述符系统，返回 `A/E/B/C/D`（复数编码为 `[re, im]`）、有限/无穷极点与残差、SISO 零点与残差、隐式 Euler 阶跃，以及同源 `DescriptorModel.frequency_response` Bode；不再调用 legacy `ac_sweep`。
+- 契约：`mode` 与 `scene.mode` 不一致、缺 `input_source/output`、非线性电路无工作点均返回 422；矩阵元素总数超过 `MAX_NODES*MAX_NODES` 返回 422。`operating_point` 接受节点名→电压；前端先取 `/api/operating-point` 的 `node_voltages` 再传入。
+- 前端：电路分析浮窗新增「小信号旁路」tab 与菜单「小信号分析（旁路）…」；输入源/输出节点、阶跃参数、Bode/阶跃画布、极点/零点表；面板注明“基于 DC 工作点线性化；非录波后处理”。
+- 验证：`test_analysis_circuit_bypass.py` 5 passed（RC 低通、Bode parity、signal 零回归、mode/缺参 422、非线性无 OP 422 与带 OP 200）；`test_ui_analysis_entry.py` 3 passed；后端定向 44 passed；全量 **872 passed / 1 skipped / 349.16s**，core 覆盖率 **81.12%**；前端 `npm run typecheck`/`build` 通过、`npm test` **22 passed**；`frontend/e2e/circuit_bypass.mjs` 输出 `circuit bypass e2e: OK (poles, Bode, step)`。
+- 涉及文件：`netlab/core/compute/analysis.py`、`netlab/server_analysis/__init__.py`、`frontend/index.html`、`frontend/app/ac_analysis.ts`、`frontend/app/windows.ts`、`frontend/app.ts`、`frontend/style.css`、`frontend/e2e/circuit_bypass.mjs`、`netlab/tests/test_analysis_circuit_bypass.py`、`netlab/tests/test_ui_analysis_entry.py`。未改默认开关、未新增依赖、未触碰 `graph.py`/`scene.py` 冻结区。

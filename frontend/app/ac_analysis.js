@@ -20,6 +20,28 @@ function analToken(name, fallback) {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name);
   return (value || "").trim() || fallback;
 }
+function niceAxisTicks(min, max, target = 5) {
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+    return { min: 0, max: 1, step: 1, values: [0, 1] };
+  }
+  const rough = (max - min) / Math.max(2, target);
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rough)));
+  const normalized = rough / magnitude;
+  const step = (normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10) * magnitude;
+  const low = Math.floor(min / step) * step;
+  const high = Math.ceil(max / step) * step;
+  const values = [];
+  for (let value = low, index = 0; value <= high + step * 0.5 && index < 100; value += step, index += 1) {
+    values.push(Number(value.toPrecision(12)));
+  }
+  return { min: low, max: high, step, values };
+}
+function niceAxisLabel(value) {
+  if (!Number.isFinite(value)) return "";
+  const abs = Math.abs(value);
+  if (abs !== 0 && (abs < 1e-3 || abs >= 1e6)) return value.toExponential(2);
+  return String(Number(value.toPrecision(6)));
+}
 function analysisWarn() {
   toast("\u5206\u6790\u4F1A\u57FA\u4E8E\u5F53\u524D\u573A\u666F\u91CD\u65B0\u6C42\u89E3\uFF0C\u671F\u95F4\u5B9E\u65F6\u64AD\u653E\u4F1A\u6682\u505C\uFF1B\u53EF\u968F\u65F6\u5173\u95ED\u5206\u6790\u7A97\u3002", "warn", 4200);
 }
@@ -287,17 +309,49 @@ function bypassComplex(value) {
   if (Math.abs(im) < 1e-12) return real;
   return `${real} ${im < 0 ? "\u2212" : "+"} j${imag}`;
 }
-function bypassTable(target, label, data) {
+function bypassTable(target, label, data, poleMetrics) {
   const host = $(target);
   if (!host) return;
   const values = data?.finite || [];
-  const rows = values.map((value, index) => `<tr><td>${index + 1}</td><td class="num">${bypassComplex(value)}</td></tr>`).join("");
+  const showPoleMetrics = Boolean(poleMetrics?.length);
+  const rows = values.map((value, index) => {
+    const metric = poleMetrics?.[index];
+    const extra = showPoleMetrics ? `<td class="num">${analNum(metric?.omega_n)}</td><td class="num">${analNum(metric?.zeta)}</td><td class="num">${analNum(metric?.time_constant)}</td>` : "";
+    return `<tr><td>${index + 1}</td><td class="num">${bypassComplex(value)}</td>${extra}</tr>`;
+  }).join("");
   const notes = [];
   if (data?.infinite_count) notes.push(`\u65E0\u7A77\u6A21\u6001 ${data.infinite_count}`);
   if (data?.max_residual !== void 0) notes.push(`\u6B8B\u5DEE ${analNum(data.max_residual)}`);
   if (data?.regular === false) notes.push("QZ \u975E\u6B63\u5219");
   if (data?.siso === false) notes.push("MIMO \u672A\u6C42\u96F6\u70B9");
-  host.innerHTML = `<div class="anal-meta">${label}\uFF08${values.length} \u4E2A\uFF09${notes.length ? ` \xB7 ${notes.join(" \xB7 ")}` : ""}</div>` + (rows ? `<table class="anal-table"><thead><tr><th>#</th><th>\u503C</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="anal-empty">\u65E0\u6709\u9650\u503C</div>');
+  host.innerHTML = `<div class="anal-meta">${label}\uFF08${values.length} \u4E2A\uFF09${notes.length ? ` \xB7 ${notes.join(" \xB7 ")}` : ""}</div>` + (rows ? `<table class="anal-table"><thead><tr><th>#</th><th>\u503C</th>${showPoleMetrics ? "<th>\u03C9n (rad/s)</th><th>\u03B6</th><th>\u65F6\u95F4\u5E38\u6570 (s)</th>" : ""}</tr></thead><tbody>${rows}</tbody></table>` : '<div class="anal-empty">\u65E0\u6709\u9650\u503C</div>');
+}
+function bypassSummary(result) {
+  const host = $("#analBypassSummary");
+  const transferHost = $("#analBypassTransfer");
+  if (!host || !transferHost) return;
+  const tf = result.transfer_function || {};
+  const metrics = result.metrics || {};
+  const fmtValue = (value, unit = "") => value === null || value === void 0 || !Number.isFinite(Number(value)) ? "\u2014" : `${analNum(value)}${unit}`;
+  if (tf.supported === false) {
+    transferHost.innerHTML = `<div class="anal-empty">\u4F20\u9012\u51FD\u6570\uFF1A${analEscape(tf.reason || "\u5F53\u524D\u7535\u8DEF\u9636\u6570\u8FC7\u9AD8")}</div>`;
+  } else {
+    transferHost.innerHTML = `<div class="anal-transfer">G(s) = <code>${analEscape(tf.expression || "\u2014")}</code><span class="anal-meta"> \xB7 \u9636\u6570 ${tf.order ?? "\u2014"} \xB7 \u76F8\u5BF9\u9636 ${tf.relative_order ?? "\u2014"}</span></div>`;
+  }
+  const items = [
+    ["DC \u589E\u76CA", tf.dc_gain_finite === false ? "\u2014\uFF08A \u5947\u5F02\uFF09" : fmtValue(tf.dc_gain)],
+    ["\u4E0A\u5347\u65F6\u95F4", fmtValue(metrics.rise_time, " s")],
+    ["\u5CF0\u503C\u65F6\u95F4", fmtValue(metrics.peak_time, " s")],
+    ["\u5CF0\u503C", fmtValue(metrics.peak_value, " V")],
+    ["\u8D85\u8C03", fmtValue(metrics.overshoot_pct, " %")],
+    ["\u8C03\u8282\u65F6\u95F4", fmtValue(metrics.settling_time, " s")],
+    ["\u7A33\u6001\u8BEF\u5DEE", fmtValue(metrics.steady_state_error, " V")],
+    ["\u7A33\u5B9A\u6027", metrics.stable ? "\u7A33\u5B9A" : "\u4E0D\u7A33\u5B9A\uFF0F\u65E0\u6709\u9650\u6781\u70B9"]
+  ];
+  const bode = metrics.bode || {};
+  items.push(["Bode \u5E26\u5BBD", fmtValue(bode.bandwidth_hz, " Hz")]);
+  items.push(["\u8C10\u632F\u5CF0", fmtValue(bode.resonant_peak_db, " dB")]);
+  host.innerHTML = `<div class="anal-metrics-grid">${items.map(([label, value]) => `<div><span>${label}</span><b>${analEscape(value)}</b></div>`).join("")}</div>`;
 }
 function bypassPlotFrame(canvasEl, emptyText) {
   const rect = canvasEl.getBoundingClientRect();
@@ -363,21 +417,24 @@ function drawBypassBode() {
     minDb -= 3;
     maxDb += 3;
   }
+  const magTicks = niceAxisTicks(minDb, maxDb, 5);
+  minDb = magTicks.min;
+  maxDb = magTicks.max;
   const yMag = (value) => padT + (1 - (value - minDb) / (maxDb - minDb || 1)) * magH;
   const yPhase = (value) => phaseTop + (1 - (value + 180) / 360) * phaseH;
   const line = analToken("--line", "#d9d3c7");
   const muted = analToken("--muted", "#7b7266");
   context.strokeStyle = line;
   context.lineWidth = 1;
-  for (let i = 0; i <= 4; i += 1) {
-    const y = padT + magH * i / 4;
+  for (const value of magTicks.values) {
+    const y = yMag(value);
     context.beginPath();
     context.moveTo(padL, y);
     context.lineTo(padL + plotW, y);
     context.stroke();
     context.fillStyle = muted;
     context.font = "10px ui-monospace, monospace";
-    context.fillText(`${analNum(maxDb - (maxDb - minDb) * i / 4, 3)} dB`, 4, y + 3);
+    context.fillText(`${niceAxisLabel(value)} dB`, 4, y + 3);
   }
   context.strokeStyle = PALETTE[0];
   context.lineWidth = 1.6;
@@ -447,15 +504,18 @@ function drawBypassStep() {
   const muted = analToken("--muted", "#7b7266");
   context.strokeStyle = line;
   context.lineWidth = 1;
-  for (let i = 0; i <= 4; i += 1) {
-    const y = padT + plotH * i / 4;
+  const yTicks = niceAxisTicks(minV, maxV, 5);
+  minV = yTicks.min;
+  maxV = yTicks.max;
+  for (const value of yTicks.values) {
+    const y = padT + (1 - (value - minV) / (maxV - minV || 1)) * plotH;
     context.beginPath();
     context.moveTo(padL, y);
     context.lineTo(padL + plotW, y);
     context.stroke();
     context.fillStyle = muted;
     context.font = "10px ui-monospace, monospace";
-    context.fillText(analNum(maxV - (maxV - minV) * i / 4, 3), 4, y + 3);
+    context.fillText(niceAxisLabel(value), 4, y + 3);
   }
   context.strokeStyle = PALETTE[2] || PALETTE[0];
   context.lineWidth = 1.6;
@@ -511,12 +571,17 @@ async function runCircuitBypass() {
     if (meta) {
       meta.textContent = result ? `n=${stateSpace?.n ?? "\u2014"} \xB7 \u6781\u70B9 ${poleCount} \xB7 \u96F6\u70B9 ${zeroCount}${result.poles?.infinite_count ? ` \xB7 \u65E0\u7A77 ${result.poles.infinite_count}` : ""}${result.operating_point_supplied ? " \xB7 \u5DE5\u4F5C\u70B9\u7EBF\u6027\u5316" : ""}` : "\u65E0\u7ED3\u679C";
     }
-    bypassTable("#analBypassPoles", "\u6781\u70B9", result?.poles);
+    bypassTable("#analBypassPoles", "\u6781\u70B9", result?.poles, result?.metrics?.poles);
     bypassTable("#analBypassZeros", "\u96F6\u70B9", result?.zeros);
+    bypassSummary(result || {});
     drawBypassCharts();
   } catch (error) {
     bypassResult = null;
     if (meta) meta.textContent = "\u65C1\u8DEF\u5206\u6790\u5931\u8D25";
+    const transferHost = $("#analBypassTransfer");
+    if (transferHost) transferHost.innerHTML = "";
+    const summaryHost = $("#analBypassSummary");
+    if (summaryHost) summaryHost.innerHTML = "";
     toast(`\u65C1\u8DEF\u5206\u6790\u5931\u8D25\uFF1A${error.message}`, "error", 7e3);
     bypassTable("#analBypassPoles", "\u6781\u70B9", void 0);
     bypassTable("#analBypassZeros", "\u96F6\u70B9", void 0);
@@ -535,6 +600,8 @@ export {
   drawBypassStep,
   fillAcSources,
   fillBypassSources,
+  niceAxisLabel,
+  niceAxisTicks,
   openAnalysis,
   runAcSweep,
   runCircuitBypass,

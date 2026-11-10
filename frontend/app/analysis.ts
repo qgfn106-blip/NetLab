@@ -7,6 +7,7 @@ import { toast } from './desktop.js';
 import { fmt } from '../app.utils.js';
 import { $ } from './dom.js';
 import { nodeByName } from './model.js';
+import { openAnalysis, niceAxisTicks, niceAxisLabel } from './ac_analysis.js';
 
 type AnalysisActions = {
   task: <T>(run: () => T | Promise<T>, options?: Record<string, unknown>) => Promise<T | null>;
@@ -99,6 +100,11 @@ export async function runAnalysisMath() {
   }
 
 export async function runAnalysisTransfer() {
+    if ((state.scene?.mode || state.mode) === 'circuit') {
+      toast('电路场景请使用「小信号分析（旁路）」的 G(s) / 零极点 / 阶跃结果。', 'info', 4200);
+      openAnalysis('bypass');
+      return;
+    }
     const input = ($('#analysisInputNode') as HTMLInputElement)?.value?.trim();
     const output = ($('#analysisOutputNode') as HTMLInputElement)?.value?.trim();
     if (!input || !output) return toast('填写输入/输出节点名', 'info', 2400);
@@ -241,17 +247,20 @@ export function drawTFBode(ctx: CanvasRenderingContext2D, data: TfDataRec, width
     ctx.font = '9px "Cascadia Code", Consolas, monospace';
 
     const panel = (base: number, values: number[], color: string, unit: string) => {
-      const [low, high] = tfRange(values);
+      const [rawLow, rawHigh] = tfRange(values);
+      const ticks = niceAxisTicks(rawLow, rawHigh, 4);
+      const low = ticks.min;
+      const high = ticks.max;
       ctx.strokeStyle = grid;
       ctx.fillStyle = analysisC('#7b7266');
       ctx.textAlign = 'right';
-      for (let index = 0; index <= 3; index += 1) {
-        const y = base + (plotHeight * index) / 3;
+      for (const value of ticks.values) {
+        const y = base + plotHeight * (1 - (value - low) / Math.max(high - low, 1e-9));
         ctx.beginPath();
         ctx.moveTo(left, y);
         ctx.lineTo(left + plotWidth, y);
         ctx.stroke();
-        ctx.fillText(fmt(high - ((high - low) * index) / 3, 2), left - 4, y + 3);
+        ctx.fillText(niceAxisLabel(value), left - 4, y + 3);
       }
       ctx.textAlign = 'left';
       ctx.fillText(unit, 3, base + 8);
@@ -447,7 +456,10 @@ export function drawTFStep(ctx: CanvasRenderingContext2D, data: TfDataRec, width
     const bottom = 20;
     const plotWidth = Math.max(24, width - left - right);
     const plotHeight = Math.max(24, height - top - bottom);
-    const [low, high] = tfRange(values);
+    const [rawLow, rawHigh] = tfRange(values);
+    const ticks = niceAxisTicks(rawLow, rawHigh, 4);
+    const low = ticks.min;
+    const high = ticks.max;
     const xAt = (index: number) => left + plotWidth * ((time[index] - time[0]) / Math.max(time[time.length - 1] - time[0], 1e-9));
     const yAt = (value: number) => top + plotHeight * (1 - (value - low) / Math.max(high - low, 1e-9));
     const grid = analysisTokens().tfGrid;
@@ -456,13 +468,13 @@ export function drawTFStep(ctx: CanvasRenderingContext2D, data: TfDataRec, width
     ctx.strokeStyle = grid;
     ctx.fillStyle = analysisC('#7b7266');
     ctx.textAlign = 'right';
-    for (let index = 0; index <= 3; index += 1) {
-      const y = top + (plotHeight * index) / 3;
+    for (const value of ticks.values) {
+      const y = yAt(value);
       ctx.beginPath();
       ctx.moveTo(left, y);
       ctx.lineTo(left + plotWidth, y);
       ctx.stroke();
-      ctx.fillText(fmt(high - ((high - low) * index) / 3, 3), left - 4, y + 3);
+      ctx.fillText(niceAxisLabel(value), left - 4, y + 3);
     }
     ctx.strokeStyle = axis;
     ctx.beginPath();

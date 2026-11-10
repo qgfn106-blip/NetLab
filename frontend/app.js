@@ -25,12 +25,12 @@ import { isPinNode, devicePins } from "./app/device_pins.js";
 import { renderNodeInspector, renderEdgeInspector, applyInspector, updateInspectorLive, setInspectorActions } from "./app/inspector.js";
 import { renderSpecPane, scheduleSpecRender, renderExtensionPanel, setSpecPanelActions } from "./app/spec_panel.js";
 import { AUTOSAVE_ENABLED_KEY, setProjectActions, setProjectFileInput, markProjectDirty, updateProjectPanel, projectDownloadText as downloadText, saveProject, importProjectText, openProject, newProject, recoverAutosave, maybeOfferRecovery, initProject } from "./app/project.js";
-import { loadUiPrefs, setPref, setAppearanceActions } from "./app/appearance.js";
+import { loadUiPrefs, setAppearanceActions } from "./app/appearance.js";
 import { initAppearanceControls, saveAutosaveSetting, refreshTelemetryQuality, setAppearanceControlActions } from "./app/appearance_controls.js";
 import { setGeometryActions, worldToScreen, screenToWorld, nodeDiameter, nodeRect, devicePinScreen, snapWorld, portOut, edgeEndpointHit, waypointHitAt, anchorSideFor, edgePathPoints, pathMidpoint, distanceToPath } from "./app/geometry.js";
 import { analysisSignalKey, runAnalysisMetrics, runAnalysisSpectrum, runAnalysisPeriod, runAnalysisMath, runAnalysisTransfer, analysisTFSummary, runAnalysisTF, drawAnalysisTF, exportTFStateSpace, sendTFToPlotKit, sendPhaseToPlotKit, exportAnalysisCsv, drawAnalysisSpectrum, setAnalysisActions } from "./app/analysis.js";
 import { openAnalysis, closeAnalysis, drawAcChart } from "./app/ac_analysis.js";
-import { refreshPkChannels, runPrecomputeWithProgress, syncAfterPrecompute, initPlotkitDataBar, setPlotkitDataActions } from "./app/plotkit_data.js";
+import { runPrecomputeWithProgress, syncAfterPrecompute, initPlotkitDataBar, setPlotkitDataActions } from "./app/plotkit_data.js";
 import { openVscode } from "./app/plotkit_frame.js";
 import { initAnalWin, initDocWin, setWindowActions } from "./app/windows.js";
 import { ensureDocs, openDoc, closeDoc, setDocsActions } from "./app/docs.js";
@@ -1197,6 +1197,10 @@ function setStatusHint(hint) {
     items.push({ sep: true });
     items.push({ label: "\u9002\u914D\u89C6\u56FE", action: () => fitView(true) });
     items.push({ label: "\u81EA\u52A8\u5E03\u5C40", action: () => void autoLayout() });
+    if (state.mode === "circuit") {
+      items.push({ sep: true });
+      items.push({ label: "\u5BFC\u51FA\u539F\u7406\u56FE SVG\u2026", action: () => void exportSchematic() });
+    }
     openGenericMenu(ui.linkMenu, point.x, point.y, "\u753B\u5E03", items);
   }
   function queuePositionSave(nodeId) {
@@ -3774,7 +3778,7 @@ function setStatusHint(hint) {
   async function control(action, steps, opts) {
     const running = !!(state.sim && state.sim.running);
     if ((action === "toggle" || action === "run") && !running && !(opts && opts.skipWarn) && state.prefs.runWarn !== false && !hasPrecomputed()) {
-      openRunWarn();
+      openPrecomputeDialog("plotkit", () => void networkControl(action, steps));
       return;
     }
     await networkControl(action, steps);
@@ -3787,123 +3791,138 @@ function setStatusHint(hint) {
     const need = Number(state.chart && state.chart.window || 5);
     return span >= need * 0.9;
   }
-  function openRunWarn() {
-    if (document.getElementById("runWarnWin")) return;
+  async function runSolveWindowPrecompute(seconds) {
+    const response = await api("/api/solve-window", {
+      method: "POST",
+      body: JSON.stringify({ duration: seconds }),
+      timeoutMs: 18e4
+    });
+    leaveReplay();
+    state.frames = [];
+    state.cursor = 0;
+    state.values.clear();
+    state.nodeValues.clear();
+    state.edgeValues.clear();
+    state.sim = response.sim;
+    state.replay.recordingRevision = state.scene?.revision ?? null;
+    await pollLive();
+    updateReplayUI();
+    scheduleChartDraw();
+    const result = response.result || {};
+    if (result.error) toast(`\u9884\u8BA1\u7B97\u4E2D\u65AD\uFF1A${result.error}`, "error", 6e3);
+    else toast(`\u9884\u8BA1\u7B97\u5B8C\u6210\uFF1A${result.steps} \u6B65 / ${result.frames} \u5E27`, "ok", 3e3);
+  }
+  async function runPlotkitPrecompute(seconds) {
+    const pre = await runPrecomputeWithProgress(
+      () => api("/api/plotkit/precompute", {
+        method: "POST",
+        body: JSON.stringify({ seconds }),
+        timeoutMs: 18e4
+      }),
+      `\u6B63\u5728\u8BA1\u7B97 0\u2192${seconds}s`
+    );
+    if (!pre || pre.ok === false) {
+      toast(`\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A${pre && pre.error || "\u672A\u77E5\u9519\u8BEF"}`, "error", 6e3);
+      return;
+    }
+    if (pre.cancelled) {
+      toast(`\u5DF2\u505C\u6B62\uFF1A\u4FDD\u7559\u524D ${pre.frames ?? "?"} \u5E27`, "warn", 4200);
+      return;
+    }
+    state.precomputedSeconds = seconds;
+    state.precomputedRevision = state.scene?.revision ?? null;
+    await syncAfterPrecompute(pre);
+    toast(`\u9884\u8BA1\u7B97\u5B8C\u6210\uFF1A${pre.frames ?? 0} \u5E27`, "ok", 3e3);
+  }
+  async function runStatesPrecompute(seconds) {
+    if (!wbCompareStateIds.length) {
+      toast("\u8BF7\u5148\u5728\u4FE1\u53F7\u7A97\u52FE\u9009\u8981\u9884\u8BA1\u7B97\u7684\u72B6\u6001", "error");
+      return;
+    }
+    for (const id of wbCompareStateIds.slice()) {
+      const row = (wbCacheStatus?.states || []).find((item) => String(item.state_id) === id);
+      const label = `\u9884\u8BA1\u7B97 ${row?.name || id}\u2026`;
+      try {
+        const result = await runPrecomputeWithProgress(
+          () => api("/api/network/state/precompute", {
+            method: "POST",
+            body: JSON.stringify({ state_id: id, seconds }),
+            timeoutMs: 6e5
+          }),
+          label
+        );
+        if (result && result.ok === false) toast(`${label}\u5931\u8D25\uFF1A${result.error || "\u672A\u77E5\u9519\u8BEF"}`, "error", 7e3);
+      } catch (error) {
+        toast(`${label}\u5931\u8D25\uFF1A${error?.message || error}`, "error", 7e3);
+      }
+    }
+    toast("\u9884\u8BA1\u7B97\u5B8C\u6210", "ok", 2600);
+    await refreshWbAnalysis();
+  }
+  function openPrecomputeDialog(initial = "solve", onRun) {
+    if (document.getElementById("precomputeDialog")) return;
     const overlay = document.createElement("div");
-    overlay.id = "runWarnWin";
-    overlay.style.cssText = "position:fixed;inset:0;background:rgba(16,20,18,.45);display:flex;align-items:center;justify-content:center;z-index:9999;";
+    overlay.id = "precomputeDialog";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(16,20,18,.45);display:flex;align-items:center;justify-content:center;z-index:10000;";
     const card = document.createElement("div");
-    card.style.cssText = 'width:520px;max-width:92vw;background:var(--paper,#faf8f2);color:var(--text-primary,#080a08);border:1px solid var(--line,#cfc6b5);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.28);padding:22px 24px 18px;font:13px/1.7 "Microsoft YaHei UI",sans-serif;';
+    card.style.cssText = 'width:460px;max-width:92vw;background:var(--paper,#faf8f2);color:var(--text-primary,#080a08);border:1px solid var(--line,#cfc6b5);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.28);padding:20px 22px 16px;font:13px/1.7 "Microsoft YaHei UI",sans-serif;';
     card.innerHTML = `
-      <div style="font-size:16px;font-weight:700;margin-bottom:6px;">\u8FD0\u884C\u524D\u5EFA\u8BAE\u5148\u9884\u8BA1\u7B97</div>
-      <div style="color:var(--text-secondary,#7b7266);margin-bottom:14px;">
-        \u5B9E\u65F6\u8FD0\u884C\u53EA\u767B\u8BB0\u63A2\u9488\uFF0C\u7ED8\u56FE\u9762\u677F\u4E0D\u4F1A\u8FB9\u7B97\u8FB9\u753B\u3002\u5148\u7528\u4E0B\u9762\u7684\u65F6\u95F4\u7A97\u628A 0\u2192T \u6574\u6BB5\u7B97\u5B8C\uFF0C
-        \u4E4B\u540E\u5728\u300C\u7ED8\u56FE\u300D\u9875\u53EF\u4EE5\u6BEB\u79D2\u7EA7\u56DE\u653E\u3001\u5E76\u76F4\u63A5\u63A5\u5165\u4E3A\u6570\u636E\u6E90\u3002
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-        <span>\u9884\u8BA1\u7B97\u65F6\u95F4\u7A97</span>
-        <input id="runWarnSec" type="number" min="1" max="120" step="1" value="${Math.max(1, Math.min(120, Math.round(Number(state.chart && state.chart.window || 5))))}"
-          style="width:84px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:8px;background:var(--field-bg,#ffffff);color:var(--text-input,#111814);-webkit-text-fill-color:var(--text-input,#111814);font:600 14px/1.4 'Microsoft YaHei UI',sans-serif;" />
-        <span>s</span>
-        <span id="runWarnChips" style="display:flex;gap:6px;margin-left:6px;"></span>
-      </div>
-      <div id="runWarnInfo" style="color:var(--text-secondary,#7b7266);min-height:20px;margin-bottom:6px;"></div>
-      <label style="display:flex;align-items:center;gap:8px;margin:10px 0 16px;color:var(--text-secondary,#7b7266);">
-        <input id="runWarnNever" type="checkbox" /> \u4EE5\u540E\u4E0D\u518D\u63D0\u793A
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px;">\u8FD0\u884C\u9884\u8BA1\u7B97</div>
+      <div style="color:var(--text-secondary,#7b7266);margin-bottom:14px;">\u7EDF\u4E00\u5165\u53E3\uFF1A\u628A 0\u2192T \u6574\u6BB5\u7B97\u5B8C\u540E\u518D\u56DE\u653E\u6216\u63A5\u5165\u6570\u636E\u6E90\u3002</div>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">\u76EE\u6807
+        <select id="precomputeTarget" style="flex:1;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
+          <option value="solve">\u5F53\u524D\u7F51\u7EDC\uFF080\u2192T \u5F55\u5236\uFF09</option>
+          <option value="plotkit">PlotKit \u6570\u636E\u6E90</option>
+          <option value="states">\u5DE5\u4F5C\u53F0\u5BF9\u6BD4\u72B6\u6001</option>
+        </select>
       </label>
-      <div style="display:flex;justify-content:flex-end;gap:10px;">
-        <button id="runWarnCancel" class="ghost" style="padding:7px 14px;border:1px solid var(--line,#cfc6b5);border-radius:9px;background:transparent;color:inherit;cursor:pointer;">\u53D6\u6D88</button>
-        <button id="runWarnRun" class="ghost" style="padding:7px 14px;border:1px solid var(--line,#cfc6b5);border-radius:9px;background:transparent;color:inherit;cursor:pointer;">\u76F4\u63A5\u8FD0\u884C</button>
-        <button id="runWarnStop" class="ghost" style="display:none;padding:7px 14px;border:1px solid var(--red,#b75555);border-radius:9px;background:transparent;color:var(--text-button-danger,#b75555);cursor:pointer;">\u505C\u6B62\u8BA1\u7B97</button>
-        <button id="runWarnPre" class="primary" style="padding:7px 16px;border:1px solid var(--accent,#9b7247);border-radius:9px;background:var(--accent,#9b7247);color:var(--text-on-accent,#f7f4ee);cursor:pointer;">\u9884\u8BA1\u7B97\u5E76\u63A5\u5165</button>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">\u65F6\u957F\uFF08\u79D2\uFF09
+        <input id="precomputeSeconds" type="number" min="1" max="120" step="1" value="5" style="width:110px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
+      </label>
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button id="precomputeSkip" type="button" style="display:none">\u76F4\u63A5\u8FD0\u884C\uFF08\u4E0D\u9884\u8BA1\u7B97\uFF09</button>
+        <button id="precomputeCancel" type="button">\u53D6\u6D88</button>
+        <button id="precomputeRun" type="button" class="primary">\u5F00\u59CB\u9884\u8BA1\u7B97</button>
       </div>`;
     overlay.appendChild(card);
     document.body.appendChild(overlay);
-    const sec = card.querySelector("#runWarnSec");
-    const info = card.querySelector("#runWarnInfo");
-    const chips = card.querySelector("#runWarnChips");
-    [1, 5, 10, 30].forEach((v) => {
-      const b = document.createElement("button");
-      b.textContent = v + "s";
-      b.style.cssText = "padding:3px 9px;border:1px solid var(--line,#cfc6b5);border-radius:999px;background:transparent;color:inherit;cursor:pointer;font:inherit;";
-      b.onclick = () => {
-        sec.value = String(v);
-      };
-      chips.appendChild(b);
-    });
+    const target = card.querySelector("#precomputeTarget");
+    const secondsInput = card.querySelector("#precomputeSeconds");
+    if (target) target.value = initial;
     const close = () => overlay.remove();
-    overlay.onclick = (ev) => {
-      if (ev.target === overlay) close();
-    };
-    card.querySelector("#runWarnCancel").onclick = close;
-    card.querySelector("#runWarnRun").onclick = () => {
-      if (card.querySelector("#runWarnNever").checked) void setPref("runWarn", false);
-      close();
-      void control("toggle", void 0, { skipWarn: true });
-    };
-    card.querySelector("#runWarnPre").onclick = async () => {
-      const seconds = Math.max(1, Math.min(120, Math.round(Number(sec.value) || 5)));
-      if (card.querySelector("#runWarnNever").checked) void setPref("runWarn", false);
-      const btn = card.querySelector("#runWarnPre");
-      const stopBtn = card.querySelector("#runWarnStop");
-      btn.disabled = true;
-      btn.textContent = "\u9884\u8BA1\u7B97\u4E2D\u2026";
-      info.textContent = `\u6B63\u5728\u8BA1\u7B97 0\u2192${seconds}s\u2026`;
-      stopBtn.style.display = "inline-block";
-      stopBtn.disabled = false;
-      stopBtn.textContent = "\u505C\u6B62\u8BA1\u7B97";
-      stopBtn.onclick = async () => {
-        stopBtn.disabled = true;
-        stopBtn.textContent = "\u6B63\u5728\u505C\u6B62\u2026";
-        try {
-          await api("/api/control", { method: "POST", body: JSON.stringify({ action: "cancel_precompute" }) });
-        } catch (error) {
-          info.textContent = `\u53D6\u6D88\u5931\u8D25\uFF1A${error.message || "\u8BF7\u6C42\u5931\u8D25"}`;
-        }
-      };
-      try {
-        const pre = await runPrecomputeWithProgress(
-          () => api("/api/plotkit/precompute", {
-            method: "POST",
-            body: JSON.stringify({ seconds }),
-            timeoutMs: 18e4
-          }),
-          `\u6B63\u5728\u8BA1\u7B97 0\u2192${seconds}s`
-        );
-        if (!pre || pre.ok === false) {
-          info.textContent = "\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A" + (pre && pre.error || "\u672A\u77E5\u9519\u8BEF") + "\uFF0C\u53EF\u76F4\u63A5\u8FD0\u884C\u6216\u7F29\u5C0F\u65F6\u95F4\u7A97\u91CD\u8BD5\u3002";
-          return;
-        }
-        if (pre.cancelled) {
-          info.textContent = `\u5DF2\u505C\u6B62\uFF1A\u4FDD\u7559\u524D ${pre.frames ?? "?"} \u5E27\uFF08${Number(pre.last_time || 0).toFixed(3)}s\uFF09\u3002`;
-          return;
-        }
-        state.precomputedSeconds = seconds;
-        state.precomputedRevision = state.scene?.revision ?? null;
-        await syncAfterPrecompute(pre);
-        const preNote = pre.degraded ? `\uFF08\u6B65\u957F\u53D7 20 \u4E07\u6B65\u4E0A\u9650\u9650\u5236\uFF1A\u8BF7\u6C42 ${Number(pre.requested_dt).toExponential(1)}s\uFF0C\u5B9E\u9645 ${Number(pre.dt_used).toExponential(1)}s\uFF09` : "";
-        info.textContent = `\u5B8C\u6210\uFF1A${seconds}s / ${pre.frames ?? "?"} \u5E27 / ${Math.round(pre.elapsed_ms || 0)} ms${preNote}`;
-        toast(
-          pre.degraded ? `\u9884\u8BA1\u7B97\u5B8C\u6210\u4F46\u5DF2\u964D\u7EA7\u6B65\u957F\uFF08${Number(pre.dt_used).toExponential(1)}s\uFF09\uFF1A${pre.frames ?? "?"} \u5E27\uFF0C\u7F29\u5C0F\u65F6\u95F4\u7A97\u53EF\u63D0\u9AD8\u7CBE\u5EA6` : `\u9884\u8BA1\u7B97\u5B8C\u6210\uFF1A${pre.frames ?? "?"} \u5E27\uFF0C\u53BB\u300C\u7ED8\u56FE\u300D\u9875\u52FE\u9009\u63A2\u9488\u540E\u70B9\u300C\u63A5\u5165\u300D`,
-          pre.degraded ? "warn" : "ok",
-          pre.degraded ? 5200 : 4200
-        );
+    card.querySelector("#precomputeCancel").onclick = close;
+    const skip = card.querySelector("#precomputeSkip");
+    if (onRun) {
+      skip.style.display = "inline-block";
+      skip.onclick = () => {
         close();
-        const tab = document.querySelector('[data-sub="plotkit"]');
-        if (tab) tab.click();
-        setTimeout(() => refreshPkChannels(true), 400);
+        onRun();
+      };
+    } else {
+      skip.remove();
+    }
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) close();
+    });
+    card.querySelector("#precomputeRun").onclick = async () => {
+      const seconds = Number(secondsInput.value);
+      if (!Number.isFinite(seconds) || seconds <= 0 || seconds > 120) {
+        toast("\u9884\u8BA1\u7B97\u65F6\u957F\u5FC5\u987B\u5728 (0, 120] s \u5185", "error", 3e3);
+        return;
+      }
+      const kind = target.value;
+      close();
+      try {
+        if (kind === "solve") await runSolveWindowPrecompute(seconds);
+        else if (kind === "plotkit") await runPlotkitPrecompute(seconds);
+        else await runStatesPrecompute(seconds);
       } catch (error) {
-        info.textContent = `\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A${error.message || "\u8BF7\u6C42\u5931\u8D25"}\uFF1B\u53EF\u76F4\u63A5\u8FD0\u884C\u6216\u68C0\u67E5\u684C\u9762\u4F1A\u8BDD\u3002`;
-      } finally {
-        stopBtn.style.display = "none";
-        btn.disabled = false;
-        btn.textContent = "\u9884\u8BA1\u7B97\u5E76\u63A5\u5165";
+        toast(`\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A${error.message}`, "error", 6e3);
       }
     };
-    sec.focus();
   }
-  async function maybeAutostart() {
-    return;
+  function openRunWarn() {
+    openPrecomputeDialog("plotkit");
   }
   function showShutdownScreen() {
     ui.modalCard.replaceChildren();
@@ -3964,6 +3983,7 @@ function setStatusHint(hint) {
           { sep: true },
           { label: "\u6062\u590D\u81EA\u52A8\u4FDD\u5B58", action: () => void recoverAutosave() },
           { label: "\u5BFC\u51FA\u573A\u666F JSON", hint: "Ctrl+Shift+E\uFF08\u4E0B\u4E00\u7968\uFF09", action: () => void exportScene() },
+          { label: "\u5BFC\u51FA\u539F\u7406\u56FE SVG\u2026", hint: "\u7535\u8DEF\u573A\u666F\u5BFC\u51FA\u5F53\u524D\u89C6\u56FE", action: () => void exportSchematic() },
           { sep: true },
           { label: "\u9000\u51FA\u670D\u52A1", action: () => void shutdownApp() }
         ]
@@ -4017,10 +4037,15 @@ function setStatusHint(hint) {
         ]
       },
       {
+        label: "\u8FD0\u884C",
+        items: [
+          { label: "\u9884\u8BA1\u7B97\u2026", hint: "\u7EDF\u4E00\u5165\u53E3\uFF1A\u5F53\u524D\u7F51\u7EDC / PlotKit / \u5DE5\u4F5C\u53F0\u72B6\u6001", action: () => openPrecomputeDialog() }
+        ]
+      },
+      {
         label: "\u4EFF\u771F",
         items: [
           { label: "\u8FD0\u884C / \u6682\u505C", hint: "\u7A7A\u683C", action: () => void control("toggle") },
-          { label: "\u9884\u8BA1\u7B97\u6570\u636E\u2026", hint: "\u5148\u7B97 0\u2192T\uFF0C\u518D\u5728\u7ED8\u56FE\u9875\u56DE\u653E/\u63A5\u5165", action: () => openRunWarn() },
           { label: "\u5355\u6B65", hint: "S", action: () => void control("step") },
           { label: "\u65F6\u95F4\u5F52\u96F6", hint: "\u53EA\u5F52\u96F6\u8BA1\u65F6\u4E0E\u5F55\u5236\uFF0C\u4E0D\u6E05\u72B6\u6001", action: () => void control("zero") },
           { label: "\u91CD\u7F6E", hint: "\u6E05\u9664\u72B6\u6001\u4E0E\u65F6\u95F4", action: () => void control("reset") }
@@ -5532,38 +5557,7 @@ function setStatusHint(hint) {
     return kind === "plotkit" ? new PlotKitRenderer() : new SimpleCanvasRenderer();
   }
   async function wbPrecomputeSelected() {
-    if (!wbCompareStateIds.length) {
-      toast("\u8BF7\u5148\u5728\u4FE1\u53F7\u7A97\u52FE\u9009\u8981\u9884\u8BA1\u7B97\u7684\u72B6\u6001", "error");
-      return;
-    }
-    const input = window.prompt("\u9884\u8BA1\u7B97\u65F6\u957F\uFF08\u79D2\uFF0C0 < \u65F6\u957F \u2264 120\uFF09", "5");
-    if (input === null) return;
-    const seconds = Number(input);
-    if (!(seconds > 0)) {
-      toast("\u9884\u8BA1\u7B97\u65F6\u957F\u9700\u4E3A\u6B63\u6570", "error");
-      return;
-    }
-    for (const id of wbCompareStateIds.slice()) {
-      const row = (wbCacheStatus?.states || []).find((item) => String(item.state_id) === id);
-      const label = `\u9884\u8BA1\u7B97 ${row?.name || id}\u2026`;
-      try {
-        const result = await runPrecomputeWithProgress(
-          () => api("/api/network/state/precompute", {
-            method: "POST",
-            body: JSON.stringify({ state_id: id, seconds }),
-            timeoutMs: 6e5
-          }),
-          label
-        );
-        if (result && result.ok === false) {
-          toast(`${label}\u5931\u8D25\uFF1A${result.error || "\u672A\u77E5\u9519\u8BEF"}`, "error", 7e3);
-        }
-      } catch (error) {
-        toast(`${label}\u5931\u8D25\uFF1A${error?.message || error}`, "error", 7e3);
-      }
-    }
-    toast("\u9884\u8BA1\u7B97\u5B8C\u6210", "ok", 2600);
-    await refreshWbAnalysis();
+    openPrecomputeDialog("states");
   }
   async function wbUnifySim() {
     const rows = wbCacheStatus?.states || [];
@@ -6851,39 +6845,7 @@ function setStatusHint(hint) {
       });
     }
     if (ui.btnPrecompute) {
-      ui.btnPrecompute.addEventListener("click", async () => {
-        const raw = window.prompt("\u9884\u8BA1\u7B97 0\u2192T \u7684\u65F6\u957F\uFF08\u79D2\uFF0C\u6700\u5927 120\uFF09", "5");
-        if (raw === null) return;
-        const duration = Number(raw);
-        if (!Number.isFinite(duration) || duration <= 0 || duration > 120) {
-          toast("\u9884\u8BA1\u7B97\u65F6\u957F\u5FC5\u987B\u5728 (0, 120] s \u5185", "error", 3e3);
-          return;
-        }
-        try {
-          toast(`\u6B63\u5728\u9884\u8BA1\u7B97 0\u2192${duration} s\u2026`, "info", 2400);
-          const response = await api("/api/solve-window", {
-            method: "POST",
-            body: JSON.stringify({ duration }),
-            timeoutMs: 18e4
-          });
-          leaveReplay();
-          state.frames = [];
-          state.cursor = 0;
-          state.values.clear();
-          state.nodeValues.clear();
-          state.edgeValues.clear();
-          state.sim = response.sim;
-          state.replay.recordingRevision = state.scene?.revision ?? null;
-          await pollLive();
-          updateReplayUI();
-          scheduleChartDraw();
-          const result = response.result || {};
-          if (result.error) toast(`\u9884\u8BA1\u7B97\u4E2D\u65AD\uFF1A${result.error}`, "error", 6e3);
-          else toast(`\u9884\u8BA1\u7B97\u5B8C\u6210\uFF1A${result.steps} \u6B65 / ${result.frames} \u5E27`, "ok", 3e3);
-        } catch (error) {
-          toast(`\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A${error.message}`, "error", 6e3);
-        }
-      });
+      ui.btnPrecompute.addEventListener("click", () => openPrecomputeDialog("solve"));
     }
     if (ui.btnLive) {
       ui.btnLive.addEventListener("click", () => {
@@ -7209,20 +7171,7 @@ function setStatusHint(hint) {
   setAppearanceControlActions({ openIroColorPopover });
   setGeometryActions({ distance, circuitPinPath, wirePathPoints });
   setInstrumentActions({ scheduleChartDraw });
-  setProjectActions({
-    confirmModal,
-    applySnapshot,
-    syncProjectContext,
-    applyProjectUi,
-    renderScenePanel,
-    renderInspector,
-    renderSignalList,
-    fetchNetworks,
-    fitView,
-    chooseModeModal,
-    task,
-    showHelp
-  });
+  setProjectActions({ confirmModal, applySnapshot, syncProjectContext, applyProjectUi, renderScenePanel, renderInspector, renderSignalList, fetchNetworks, fitView, chooseModeModal, task, showHelp });
   setWindowActions({ renderCompareGrid, setWbSignalDock, syncProjectContext, getWbComparePayload: () => wbComparePayload });
   loadUiProfile();
   boot();

@@ -82,6 +82,31 @@ def _diode_scene(offset: float, series_resistance: float = 5.0) -> Scene:
     return scene
 
 
+def _diode_cathode_bias_scene(offset: float) -> Scene:
+    """带串联电阻的二极管，其阴极接在非零电位（检查内部节点换算）。"""
+    scene = Scene("circuit")
+    gnd = scene.add_node(name="gnd", kind="ground")
+    vin = scene.add_node(name="vin", kind="node")
+    out = scene.add_node(name="out", kind="node")
+    cathode = scene.add_node(name="cathode", kind="node")
+    _dc(scene, "V1", vin, gnd, offset)
+    _dc(scene, "V2", cathode, gnd, 0.5)
+    _resistor(scene, "R1", vin, out, 100.0)
+    scene.add_edge(
+        name="D1",
+        source=out.id,
+        target=cathode.id,
+        kind="diode",
+        params={
+            "Is": 1.0e-9,
+            "n": 1.0,
+            "temperature": 300.0,
+            "rs": 5.0,
+        },
+    )
+    return scene
+
+
 def _bjt_scene(offset: float) -> Scene:
     scene = Scene("circuit")
     gnd = scene.add_node(name="gnd", kind="ground")
@@ -267,6 +292,24 @@ def test_diode_small_signal_limit_with_series_resistance() -> None:
     assert gain == pytest.approx(finite_difference, rel=2.0e-3, abs=1.0e-6)
 
 
+def test_diode_series_resistance_with_nonzero_cathode() -> None:
+    model, _ = _model_from_scene(_diode_cathode_bias_scene(1.0))
+    assert "__D1__junction" in model.index.node_index
+
+    gain = _ac_gain(model)
+    step = 1.0e-4
+    high_scene = _diode_cathode_bias_scene(1.0 + step)
+    low_scene = _diode_cathode_bias_scene(1.0 - step)
+    high = _node_voltage(
+        high_scene.ensure_engine().operating_point(), high_scene, "out"
+    )
+    low = _node_voltage(
+        low_scene.ensure_engine().operating_point(), low_scene, "out"
+    )
+    finite_difference = (high - low) / (2.0 * step)
+    assert gain == pytest.approx(finite_difference, rel=2.0e-3, abs=1.0e-6)
+
+
 def test_mosfet_common_source_small_signal_limit() -> None:
     model, _ = _model_from_scene(_mos_scene(1.5))
     gain = _ac_gain(model, "drain")
@@ -362,3 +405,6 @@ def test_linearize_rejects_non_mapping_operating_point() -> None:
         DescriptorModel.from_operating_point(
             engine.solver.nodes, engine.solver.elements, None  # type: ignore[arg-type]
         )
+    model, _ = _model_from_scene(scene)
+    with pytest.raises(ValidationError):
+        model.linearize(None)  # type: ignore[arg-type]

@@ -23,6 +23,7 @@ from .circuit.descriptor_analysis import (
     analyze_zeros,
     build_output_matrices,
     descriptor_step_response,
+    descriptor_transfer_function,
 )
 from ..common.limits import MAX_NODES, ComputeError
 from .statespace import StateSpaceModel
@@ -683,6 +684,65 @@ def _complex_list(values: Any) -> list[list[float]]:
     return [[float(value.real), float(value.imag)] for value in array]
 
 
+def _circuit_metrics(
+    transfer: dict[str, Any],
+    poles: dict[str, Any],
+    step: dict[str, Any],
+    bode: dict[str, Any],
+    output: str,
+) -> dict[str, Any]:
+    """汇总旁路分析的关键指标（阶跃、极点、Bode）。"""
+    times = np.asarray(step.get("times", []), dtype=float)
+    values = np.asarray(step.get("values", []), dtype=float)
+    finite = np.asarray(poles.get("finite", []), dtype=float)
+    stable = bool(finite.size) and all(row[0] < 0.0 for row in finite)
+    dc_gain = transfer.get("dc_gain")
+    step_metrics = transfer_math._step_metrics(
+        times, values, stable=stable, dc_gain=dc_gain
+    )
+    pole_metrics = []
+    for row in finite:
+        real, imag = float(row[0]), float(row[1])
+        magnitude = float(np.hypot(real, imag))
+        pole_metrics.append(
+            {
+                "real": real,
+                "imag": imag,
+                "omega_n": magnitude,
+                "zeta": (-real / magnitude) if magnitude > 0.0 else None,
+                "time_constant": (-1.0 / real) if real < 0.0 else None,
+            }
+        )
+    probes = bode.get("probes", {})
+    probe = probes.get(output) if isinstance(probes, dict) else None
+    if not isinstance(probe, dict):
+        probe = next(iter(probes.values()), {}) if isinstance(probes, dict) else {}
+    frequencies = np.asarray(probe.get("frequencies", bode.get("frequencies", [])), dtype=float)
+    magnitudes = np.asarray(probe.get("db", []), dtype=float)
+    resonance_db = None
+    resonance_hz = None
+    bandwidth_hz = None
+    if frequencies.size and magnitudes.size:
+        index = int(np.nanargmax(magnitudes))
+        resonance_db = float(magnitudes[index])
+        resonance_hz = float(frequencies[index])
+        reference = max(float(magnitudes[0]), resonance_db)
+        bandwidth = np.where(magnitudes <= reference - 3.0)[0]
+        if bandwidth.size:
+            bandwidth_hz = float(frequencies[int(bandwidth[0])])
+    return {
+        **step_metrics,
+        "stable": stable,
+        "dc_gain": dc_gain,
+        "poles": pole_metrics,
+        "bode": {
+            "bandwidth_hz": bandwidth_hz,
+            "resonant_peak_db": resonance_db,
+            "resonant_frequency_hz": resonance_hz,
+        },
+    }
+
+
 def _circuit_tf_analysis(
     sim: Any,
     *,
@@ -765,6 +825,31 @@ def _circuit_tf_analysis(
             probes=[output],
         ),
     )
+    transfer = _guard(
+        "传递函数提取",
+        lambda: descriptor_transfer_function(
+            model, input_source=input_source, output=output
+        ),
+    )
+    poles_payload = {
+        "finite": _complex_list(pole_result.finite_poles),
+        "infinite_count": int(pole_result.infinite_count),
+        "max_residual": float(pole_result.max_residual),
+        "size": int(pole_result.size),
+        "regular": bool(pole_result.regular),
+    }
+    zeros_payload = {
+        "finite": _complex_list(zero_result.finite_zeros),
+        "infinite_count": int(zero_result.infinite_count),
+        "max_residual": float(zero_result.max_residual),
+        "size": int(zero_result.size),
+        "regular": bool(zero_result.regular),
+        "siso": bool(zero_result.siso),
+    }
+    metrics = _guard(
+        "关键指标计算",
+        lambda: _circuit_metrics(transfer, poles_payload, step, bode, output),
+    )
 
     matrices = {
         "A": system.A,
@@ -801,21 +886,10 @@ def _circuit_tf_analysis(
             "elements": int(element_count),
             "truncated": False,
         },
-        "poles": {
-            "finite": _complex_list(pole_result.finite_poles),
-            "infinite_count": int(pole_result.infinite_count),
-            "max_residual": float(pole_result.max_residual),
-            "size": int(pole_result.size),
-            "regular": bool(pole_result.regular),
-        },
-        "zeros": {
-            "finite": _complex_list(zero_result.finite_zeros),
-            "infinite_count": int(zero_result.infinite_count),
-            "max_residual": float(zero_result.max_residual),
-            "size": int(zero_result.size),
-            "regular": bool(zero_result.regular),
-            "siso": bool(zero_result.siso),
-        },
+        "poles": poles_payload,
+        "zeros": zeros_payload,
+        "transfer_function": transfer,
+        "metrics": metrics,
         "step": step,
         "bode": bode,
         "assumptions": [

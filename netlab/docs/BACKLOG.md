@@ -19,7 +19,7 @@
 | 当前阶段 | 产品开发主线见 [BACKLOG.md](BACKLOG.md)；历史严格审计 §11 已删除，不再引用 |
 <!-- END GENERATED: status -->
 
-- **当前基线（2026-11-10）**：全量 865 passed / 1 skipped；版本 3.20.1；HEAD/领先提交数/生成时间见 [status.json](status.json)；前端 node --test 22 passed、typecheck/build 通过。
+- **当前基线（2026-11-10）**：全量 866 passed / 1 skipped；版本 3.20.1；HEAD/领先提交数/生成时间见 [status.json](status.json)；前端 node --test 22 passed、typecheck/build 通过。
 - **待授权项（PENDING_USER_AUTHORIZATION，2026-11-10）**：Phase 3 架构债、Phase 4 CI 证据、500+ 规模档（MAX_NODES=400 不放宽）、Newton 选主元与 SCC 差分 Jacobian/深宽图余项；FEM 明确不改（用户 2026-11-10 决定）。
 - **界面口径**：前端在 `frontend/`（index.html / app.js / style.css）；Qt 原生界面已按 D78 备份到 Git 分支 `backup/qt-native-2026-11-02` 后删除，不再是产品形态。
 pytest 基线见 [status.json](status.json)（627 passed / 1 skipped 为 2026-11-07 历史数），见 REQUIREMENTS R41

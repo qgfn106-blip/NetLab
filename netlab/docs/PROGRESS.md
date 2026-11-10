@@ -1,6 +1,6 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-10（事实同步；当前基线：全量 865 passed / 1 skipped，以 status.json 与本机实测为准；3.20.1）
+> 最后修改：2026-11-10（事实同步；当前基线：全量 866 passed / 1 skipped，以 status.json 与本机实测为准；3.20.1）
 
 <!-- BEGIN GENERATED: status -->
 | 项 | 内容 |

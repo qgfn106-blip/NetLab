@@ -63,4 +63,5 @@ reports/*
 !reports/shadow/
 !reports/shadow/**
 !reports/bench_scale.json
+!reports/test_status.json
 CON

@@ -1,11 +1,11 @@
 {
-  "created_at": "2026-11-10T14:50:09+08:00",
-  "head": "7612311a7d7c041223dfd6df65dca372228296f1",
+  "created_at": "2026-11-10T15:17:49+08:00",
+  "head": "fd1a58107d01dd8a689a1b691c7ade1de63f8683",
   "command": "python -m pytest netlab/tests -q --junitxml=reports/pytest.xml --cov=netlab/core --cov-branch --cov-report=json:coverage.json",
   "source": "pytest junit + coverage.py json",
-  "coverage_core_line": 81.12,
-  "passed": 865,
+  "coverage_core_line": 81.11,
+  "passed": 866,
   "skipped": 1,
   "failed": 0,
-  "duration_s": 425.59
+  "duration_s": 279.45
 }

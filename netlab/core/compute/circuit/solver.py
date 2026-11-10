@@ -984,6 +984,8 @@ class CircuitSolver:
             raise ValidationError("AC 扫频至少需要一个频率点")
         if any(not math.isfinite(f) or f <= 0.0 for f in freqs):
             raise ValidationError("AC 频率必须为正的有限数")
+        if any(freqs[index] >= freqs[index + 1] for index in range(len(freqs) - 1)):
+            raise ValidationError("AC 频率必须严格递增")
         unsupported = [e for e in self.elements if e.kind not in self.AC_KINDS]
         if unsupported:
             names = "、".join(element.name for element in unsupported[:3])

@@ -27,12 +27,13 @@ function openAnalysis(tab = "op") {
   const win = $("#analWin");
   if (!win) return;
   if ((state.scene?.mode || state.mode) !== "circuit") {
-    toast("DC \u5DE5\u4F5C\u70B9 / AC \u626B\u9891\u53EA\u5728\u7535\u8DEF\u6A21\u5F0F\u4E0B\u53EF\u7528", "error", 4e3);
+    toast("\u7535\u8DEF\u5206\u6790\u53EA\u5728\u7535\u8DEF\u6A21\u5F0F\u4E0B\u53EF\u7528", "error", 4e3);
     return;
   }
   win.hidden = false;
   raiseFloatWindow(win);
   fillAcSources();
+  fillBypassSources();
   selectAnalTab(tab);
 }
 function closeAnalysis() {
@@ -47,6 +48,10 @@ function selectAnalTab(tab) {
     pane.hidden = pane.dataset.analPane !== tab;
   }
   if (tab === "ac") requestAnimationFrame(() => drawAcChart());
+  if (tab === "bypass") {
+    fillBypassSources();
+    requestAnimationFrame(() => drawBypassCharts());
+  }
 }
 function fillAcSources() {
   const select = $("#analAcInput");
@@ -250,6 +255,274 @@ function drawAcChart() {
   ctx2.fillText("\u5E45\u503C", 6, magTop + 8);
   ctx2.fillText("\u76F8\u4F4D", 6, phaseTop + 10);
 }
+let bypassResult = null;
+function bypassNodeKind(node) {
+  return node.kind === "device" ? node.params?.element || "" : node.kind || "";
+}
+function fillBypassSources() {
+  const input = $("#analBypassInput");
+  const output = $("#analBypassOutput");
+  const nodes = state.scene?.nodes || [];
+  const edges = state.scene?.edges || [];
+  if (input) {
+    const previous = input.value;
+    const edgeSources = edges.filter((edge) => ["vsource", "isource"].includes(edge.kind)).map((edge) => edge.name);
+    const nodeSources = nodes.filter((node) => ["vsource", "isource"].includes(bypassNodeKind(node))).map((node) => node.name);
+    const sources = Array.from(/* @__PURE__ */ new Set([...edgeSources, ...nodeSources]));
+    input.innerHTML = '<option value="">\u81EA\u52A8</option>' + sources.map((name) => `<option value="${analEscape(name)}">${analEscape(name)}</option>`).join("");
+    if (sources.includes(previous)) input.value = previous;
+  }
+  if (output) {
+    const previous = output.value;
+    const probes = nodes.filter((node) => node.kind !== "ground");
+    output.innerHTML = probes.map((node) => `<option value="${analEscape(node.name)}">${analEscape(node.name)}</option>`).join("");
+    if (probes.some((node) => node.name === previous)) output.value = previous;
+  }
+}
+function bypassComplex(value) {
+  if (!Array.isArray(value)) return "\u2014";
+  const [re, im] = value;
+  const real = analNum(re);
+  const imag = Math.abs(im) < 1e-12 ? "0" : analNum(Math.abs(im));
+  if (Math.abs(im) < 1e-12) return real;
+  return `${real} ${im < 0 ? "\u2212" : "+"} j${imag}`;
+}
+function bypassTable(target, label, data) {
+  const host = $(target);
+  if (!host) return;
+  const values = data?.finite || [];
+  const rows = values.map((value, index) => `<tr><td>${index + 1}</td><td class="num">${bypassComplex(value)}</td></tr>`).join("");
+  const notes = [];
+  if (data?.infinite_count) notes.push(`\u65E0\u7A77\u6A21\u6001 ${data.infinite_count}`);
+  if (data?.max_residual !== void 0) notes.push(`\u6B8B\u5DEE ${analNum(data.max_residual)}`);
+  if (data?.regular === false) notes.push("QZ \u975E\u6B63\u5219");
+  if (data?.siso === false) notes.push("MIMO \u672A\u6C42\u96F6\u70B9");
+  host.innerHTML = `<div class="anal-meta">${label}\uFF08${values.length} \u4E2A\uFF09${notes.length ? ` \xB7 ${notes.join(" \xB7 ")}` : ""}</div>` + (rows ? `<table class="anal-table"><thead><tr><th>#</th><th>\u503C</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="anal-empty">\u65E0\u6709\u9650\u503C</div>');
+}
+function bypassPlotFrame(canvasEl, emptyText) {
+  const rect = canvasEl.getBoundingClientRect();
+  if (rect.width < 40 || rect.height < 40) return null;
+  const dpr = window.devicePixelRatio || 1;
+  canvasEl.width = Math.round(rect.width * dpr);
+  canvasEl.height = Math.round(rect.height * dpr);
+  const context = canvasEl.getContext("2d");
+  if (!context) return null;
+  context.setTransform(dpr, 0, 0, dpr, 0, 0);
+  context.clearRect(0, 0, rect.width, rect.height);
+  if (!bypassResult) {
+    context.fillStyle = analToken("--muted", "#7b7266");
+    context.font = '12.5px "Microsoft YaHei UI", sans-serif';
+    context.fillText(emptyText, 16, 26);
+    return null;
+  }
+  return { context, width: rect.width, height: rect.height };
+}
+function drawBypassBode() {
+  const canvasEl = $("#analBypassBode");
+  if (!canvasEl) return;
+  const frame = bypassPlotFrame(canvasEl, "\u9009\u62E9\u6FC0\u52B1\u4E0E\u8F93\u51FA\u540E\u70B9\u300CBode\u300D");
+  if (!frame) return;
+  const { context, width, height } = frame;
+  const freqs = bypassResult?.bode?.frequencies || [];
+  const probes = Object.entries(bypassResult?.bode?.probes || {});
+  const legend = $("#analBypassLegend");
+  if (!freqs.length || !probes.length) {
+    context.fillStyle = analToken("--muted", "#7b7266");
+    context.font = '12.5px "Microsoft YaHei UI", sans-serif';
+    context.fillText("\u6CA1\u6709 Bode \u6570\u636E", 16, 26);
+    if (legend) legend.innerHTML = "";
+    return;
+  }
+  const info = probes[0][1];
+  const db = info.db || [];
+  const phase = info.phase_deg || [];
+  const padL = 52;
+  const padR = 14;
+  const padT = 12;
+  const padB = 26;
+  const gap = 24;
+  const plotW = Math.max(40, width - padL - padR);
+  const magH = (height - padT - padB - gap) * 0.62;
+  const phaseH = height - padT - padB - gap - magH;
+  const phaseTop = padT + magH + gap;
+  const logLo = Math.log10(Math.max(freqs[0], 1e-12));
+  const logHi = Math.log10(Math.max(freqs[freqs.length - 1], 1e-12));
+  const span = logHi - logLo || 1;
+  const xOf = (f) => padL + (Math.log10(Math.max(f, 1e-12)) - logLo) / span * plotW;
+  let minDb = 0;
+  let maxDb = 0;
+  for (const value of db) {
+    if (!Number.isFinite(value)) continue;
+    minDb = Math.min(minDb, value);
+    maxDb = Math.max(maxDb, value);
+  }
+  if (maxDb - minDb < 6) {
+    maxDb += 3;
+    minDb -= 3;
+  } else {
+    minDb -= 3;
+    maxDb += 3;
+  }
+  const yMag = (value) => padT + (1 - (value - minDb) / (maxDb - minDb || 1)) * magH;
+  const yPhase = (value) => phaseTop + (1 - (value + 180) / 360) * phaseH;
+  const line = analToken("--line", "#d9d3c7");
+  const muted = analToken("--muted", "#7b7266");
+  context.strokeStyle = line;
+  context.lineWidth = 1;
+  for (let i = 0; i <= 4; i += 1) {
+    const y = padT + magH * i / 4;
+    context.beginPath();
+    context.moveTo(padL, y);
+    context.lineTo(padL + plotW, y);
+    context.stroke();
+    context.fillStyle = muted;
+    context.font = "10px ui-monospace, monospace";
+    context.fillText(`${analNum(maxDb - (maxDb - minDb) * i / 4, 3)} dB`, 4, y + 3);
+  }
+  context.strokeStyle = PALETTE[0];
+  context.lineWidth = 1.6;
+  context.beginPath();
+  db.forEach((value, index) => {
+    const x = xOf(freqs[index]);
+    const y = yMag(value);
+    if (index === 0) context.moveTo(x, y);
+    else context.lineTo(x, y);
+  });
+  context.stroke();
+  context.strokeStyle = PALETTE[1] || PALETTE[0];
+  context.beginPath();
+  phase.forEach((value, index) => {
+    const x = xOf(freqs[index]);
+    const y = yPhase(value);
+    if (index === 0) context.moveTo(x, y);
+    else context.lineTo(x, y);
+  });
+  context.stroke();
+  context.fillStyle = muted;
+  context.font = "10.5px ui-monospace, monospace";
+  context.fillText("\u5E45\u503C", 6, padT + 9);
+  context.fillText("\u76F8\u4F4D", 6, phaseTop + 10);
+  context.fillText(`${analNum(freqs[0], 3)} Hz`, padL, height - 7);
+  context.fillText(`${analNum(freqs[freqs.length - 1], 3)} Hz`, width - padR - 54, height - 7);
+  if (legend) {
+    legend.innerHTML = `<span><i style="background:${PALETTE[0]}"></i>${analEscape(probes[0][0])} \u5E45\u503C</span><span><i style="background:${PALETTE[1] || PALETTE[0]}"></i>\u76F8\u4F4D</span>`;
+  }
+}
+function drawBypassStep() {
+  const canvasEl = $("#analBypassStep");
+  if (!canvasEl) return;
+  const frame = bypassPlotFrame(canvasEl, "\u8FD0\u884C\u65C1\u8DEF\u540E\u663E\u793A\u9636\u8DC3\u54CD\u5E94");
+  if (!frame) return;
+  const { context, width, height } = frame;
+  const times = bypassResult?.step?.times || [];
+  const values = bypassResult?.step?.values || [];
+  if (!times.length || times.length !== values.length) {
+    context.fillStyle = analToken("--muted", "#7b7266");
+    context.font = '12.5px "Microsoft YaHei UI", sans-serif';
+    context.fillText("\u6CA1\u6709\u9636\u8DC3\u6570\u636E", 16, 26);
+    return;
+  }
+  const padL = 52;
+  const padR = 14;
+  const padT = 14;
+  const padB = 26;
+  const plotW = Math.max(40, width - padL - padR);
+  const plotH = Math.max(30, height - padT - padB);
+  const t0 = times[0];
+  const t1 = times[times.length - 1];
+  let minV = 0;
+  let maxV = 0;
+  for (const value of values) {
+    if (!Number.isFinite(value)) continue;
+    minV = Math.min(minV, value);
+    maxV = Math.max(maxV, value);
+  }
+  if (maxV - minV < 1e-9) {
+    maxV += 1e-6;
+    minV -= 1e-6;
+  }
+  const yOf = (value) => padT + (1 - (value - minV) / (maxV - minV || 1)) * plotH;
+  const xOf = (time) => padL + (time - t0) / (t1 - t0 || 1) * plotW;
+  const line = analToken("--line", "#d9d3c7");
+  const muted = analToken("--muted", "#7b7266");
+  context.strokeStyle = line;
+  context.lineWidth = 1;
+  for (let i = 0; i <= 4; i += 1) {
+    const y = padT + plotH * i / 4;
+    context.beginPath();
+    context.moveTo(padL, y);
+    context.lineTo(padL + plotW, y);
+    context.stroke();
+    context.fillStyle = muted;
+    context.font = "10px ui-monospace, monospace";
+    context.fillText(analNum(maxV - (maxV - minV) * i / 4, 3), 4, y + 3);
+  }
+  context.strokeStyle = PALETTE[2] || PALETTE[0];
+  context.lineWidth = 1.6;
+  context.beginPath();
+  values.forEach((value, index) => {
+    const x = xOf(times[index]);
+    const y = yOf(value);
+    if (index === 0) context.moveTo(x, y);
+    else context.lineTo(x, y);
+  });
+  context.stroke();
+  context.fillStyle = muted;
+  context.font = "10.5px ui-monospace, monospace";
+  context.fillText("V", 6, padT + 9);
+  context.fillText(`${analNum(t0, 3)} s`, padL, height - 7);
+  context.fillText(`${analNum(t1, 3)} s`, width - padR - 50, height - 7);
+}
+function drawBypassCharts() {
+  drawBypassBode();
+  drawBypassStep();
+}
+async function runCircuitBypass() {
+  analysisWarn();
+  const input = $("#analBypassInput")?.value || "";
+  const output = $("#analBypassOutput")?.value || "";
+  const meta = $("#analBypassMeta");
+  if (!input || !output) {
+    toast("\u65C1\u8DEF\u5206\u6790\u9700\u8981\u9009\u62E9\u6FC0\u52B1\u6E90\u4E0E\u8F93\u51FA\u8282\u70B9", "error", 5e3);
+    return;
+  }
+  if (meta) meta.textContent = "\u6C42\u89E3\u4E2D\u2026";
+  try {
+    const opData = await api("/api/operating-point");
+    const op = (opData.result || {}).node_voltages || null;
+    const body = {
+      mode: "circuit",
+      input_source: input,
+      output,
+      operating_point: op,
+      step_dt: Number($("#analBypassDt")?.value || 1e-5),
+      step_duration: Number($("#analBypassDuration")?.value || 5e-3),
+      f_start: Number($("#analBypassF1")?.value || 10),
+      f_stop: Number($("#analBypassF2")?.value || 1e6),
+      points: 121,
+      scale: "log"
+    };
+    const data = await api("/api/analysis/tf", { method: "POST", body: JSON.stringify(body) });
+    bypassResult = data;
+    const result = bypassResult;
+    const stateSpace = result?.state_space;
+    const poleCount = result?.poles?.finite?.length || 0;
+    const zeroCount = result?.zeros?.finite?.length || 0;
+    if (meta) {
+      meta.textContent = result ? `n=${stateSpace?.n ?? "\u2014"} \xB7 \u6781\u70B9 ${poleCount} \xB7 \u96F6\u70B9 ${zeroCount}${result.poles?.infinite_count ? ` \xB7 \u65E0\u7A77 ${result.poles.infinite_count}` : ""}${result.operating_point_supplied ? " \xB7 \u5DE5\u4F5C\u70B9\u7EBF\u6027\u5316" : ""}` : "\u65E0\u7ED3\u679C";
+    }
+    bypassTable("#analBypassPoles", "\u6781\u70B9", result?.poles);
+    bypassTable("#analBypassZeros", "\u96F6\u70B9", result?.zeros);
+    drawBypassCharts();
+  } catch (error) {
+    bypassResult = null;
+    if (meta) meta.textContent = "\u65C1\u8DEF\u5206\u6790\u5931\u8D25";
+    toast(`\u65C1\u8DEF\u5206\u6790\u5931\u8D25\uFF1A${error.message}`, "error", 7e3);
+    bypassTable("#analBypassPoles", "\u6781\u70B9", void 0);
+    bypassTable("#analBypassZeros", "\u96F6\u70B9", void 0);
+    drawBypassCharts();
+  }
+}
 export {
   analEscape,
   analNum,
@@ -257,9 +530,14 @@ export {
   analysisWarn,
   closeAnalysis,
   drawAcChart,
+  drawBypassBode,
+  drawBypassCharts,
+  drawBypassStep,
   fillAcSources,
+  fillBypassSources,
   openAnalysis,
   runAcSweep,
+  runCircuitBypass,
   runOperatingPoint,
   selectAnalTab
 };

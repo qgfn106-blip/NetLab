@@ -2089,6 +2089,16 @@ body { grid-template-columns: minmax(0, 1fr); }
   border-radius: 10px;
   background: var(--panel, #f3efe8);
 }
+.anal-pane[data-anal-pane="bypass"] { overflow-y: auto; }
+.anal-bypass-canvas {
+  flex: none;
+  width: 100%;
+  height: 170px;
+  border: var(--ui-line, 1px) solid var(--line, #d9d3c7);
+  border-radius: 10px;
+  background: var(--panel, #f3efe8);
+}
+#analBypassPoles, #analBypassZeros { flex: none; max-height: 140px; }
 
 
 /* ---- PlotKit 数据接入（探针通道选择） ---- */

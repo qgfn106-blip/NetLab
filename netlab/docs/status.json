@@ -1,21 +1,21 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-11T03:33:47+08:00",
+  "generated_at": "2026-11-11T04:33:54+08:00",
   "version": "3.20.1",
   "git": {
     "branch": "main",
-    "head": "c5903ca232996badff240870962605769504137e",
-    "dirty": true,
-    "ahead_origin": 0,
+    "head": "153808f6d6ddfb7b871ab2824f73324cc3e342ed",
+    "dirty": false,
+    "ahead_origin": 4,
     "behind_origin": 0
   },
   "tests": {
     "passed": 872,
     "skipped": 1,
     "failed": 0,
-    "duration_s": 204.51,
-    "coverage_core_line": 81.12,
-    "command": "python -m pytest netlab/tests -q -p no:warnings（代码与 6968ee8 一致，全量 872 passed/1 skipped；覆盖沿用最近一次 81.12%）",
+    "duration_s": 777.8,
+    "coverage_core_line": 81.11,
+    "command": "python -m pytest netlab/tests -q --junitxml=reports/pytest.xml --cov=netlab/core --cov-branch --cov-report=json:coverage.json",
     "source": "reports/test_status.json"
   },
   "coverage_gate": {

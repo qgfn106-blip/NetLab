@@ -114,6 +114,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-11 | docs(math): 修复 KaTeX 文本模式下划线、\& 与 inline bmatrix 语法 |
 | 2026-11-11 | docs(math): 修复 GitHub KaTeX 不支持的 operatorname 与 left/right 语法 |
 | 2026-11-11 | docs(math): 修复 Mermaid 语法与图示文字遮挡，补充核心类定义源码 |
 | 2026-11-11 | docs(math): 拆分数学文档为总览与三专题并同步入口 |
@@ -123,7 +124,6 @@ python -m netlab.desktop
 | 2026-11-10 | fix(status): test_status 使用有效 HEAD，避免状态提交自引用 |
 | 2026-11-10 | chore(status): 对齐状态快照到 85ff9ab |
 | 2026-11-10 | fix(status): gen_status 使用有效 HEAD，避免状态提交自引用 |
-| 2026-11-10 | chore(status): 对齐状态快照到 395d885 |
 
 <!-- END LAST 10 UPDATES -->
 

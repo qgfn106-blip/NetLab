@@ -107,6 +107,17 @@ def test_circuit_tf_returns_descriptor_state_space_poles_and_step(client) -> Non
     assert bode["probes"]["out"]["magnitude"]
     assert len(bode["frequencies"]) == 11
 
+    transfer = body["transfer_function"]
+    assert transfer["supported"] is True
+    assert transfer["order"] == 1
+    assert "1000" in transfer["expression"]
+    assert transfer["dc_gain"] == pytest.approx(1.0)
+    assert transfer["dc_gain_finite"] is True
+    metrics = body["metrics"]
+    assert metrics["final"] == pytest.approx(1.0, abs=1e-6)
+    assert metrics["rise_time"] == pytest.approx(0.0022, rel=0.05)
+    assert metrics["steady_state_error"] == pytest.approx(0.0, abs=1e-6)
+
 
 def test_circuit_bode_uses_descriptor_and_matches_direct_model(client) -> None:
     scene = _rc_low_pass()

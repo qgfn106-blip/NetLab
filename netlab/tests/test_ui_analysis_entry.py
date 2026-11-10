@@ -33,9 +33,12 @@ def test_index_has_circuit_bypass_controls() -> None:
         "analBypassStep",
         "analBypassPoles",
         "analBypassZeros",
+        "analBypassTransfer",
+        "analBypassSummary",
     ):
         assert f'id="{element_id}"' in html
     assert "非录波后处理" in html
+    assert "基于 DC 工作点线性化" in html
 
 
 def test_app_calls_solver_analysis_endpoints() -> None:
@@ -50,7 +53,12 @@ def test_app_calls_solver_analysis_endpoints() -> None:
     assert "function drawBypassBode(" in js
     assert "function drawBypassStep(" in js
     assert "function runCircuitBypass(" in js
+    assert "function bypassSummary(" in js
+    assert "function niceAxisTicks(" in js
     # 菜单入口
     assert "DC 工作点（.op）" in js
     assert "AC 扫频（Bode）" in js
+    assert "小信号分析（旁路）" in js
+    assert "导出原理图 SVG" in js
+    assert "function openPrecomputeDialog(" in js
     assert "小信号分析（旁路）" in js

@@ -139,9 +139,9 @@ name, inputs, data, state, params, dt, time, ports
 
 ```mermaid
 graph LR
-    subgraph NET["网络 N = (V, E, s, t)"]
+    subgraph NET["网络 N = （V, E, s, t）"]
         direction LR
-        A["节点 A<br/>f_A · S_A · Θ_A"] -- "e1 : g_e1 (source_port→target_port)" --> B["节点 B<br/>f_B · S_B · Θ_B"]
+        A["节点 A<br/>f_A · S_A · Θ_A"] -- "e1 : g_e1" --> B["节点 B<br/>f_B · S_B · Θ_B"]
         B -- "e2 : g_e2" --> C["节点 C<br/>f_C · S_C · Θ_C"]
         C -. "e3 : z⁻¹ 延迟边" .-> A
         D["节点 D<br/>f_D · S_D · Θ_D"] -- "e4" --> C
@@ -155,7 +155,7 @@ sequenceDiagram
     participant N as Network.step
     participant S as 状态快照
     participant E1 as 延迟边集合
-    participant V as 节点(按拓扑序)
+    participant V as 节点（按拓扑序）
     N->>S: capture_step_state()
     N->>E1: 步首统一 evaluate(取上一拍值)
     Note over E1: y_e = z⁻¹·x, 与节点顺序无关
@@ -305,6 +305,89 @@ outputs, notes, formula, source, editable, builtin, addable
 
 `Network.step` 内的 `delayed_payloads: dict[Connection, NodeData]`（`graph.py:724`）是延迟边的"上一拍值缓存"：步首统一求值一次后，按目标节点顺序反复读取，避免重复计算；空载荷不入字典，目标侧按 0 处理（`graph.py:727-730`）。`self._delayed` 由 `topological_order` 末尾缓存（`graph.py:695-696`），只在结构变化时失效（`invalidate`，`graph.py:395`）。
 
+### 4.5 三类核心数据结构的类定义（源码）
+
+网络的数学对象 `N=(V,E,s,t,Port,delay)` 在代码里就是三个 `@dataclass`/普通类：`Node`、`Connection`、`Network`。下面按 `graph.py` 的当前定义给出**忠实节选**（省略以 `...` 标出的方法体与私有辅助字段；完整实现见 `netlab/core/model/graph.py`）。
+
+**节点 `Node`**（`graph.py:164`）：`data` 是当前输出记录，`state` 是跨步状态，`params` 是参数，`inputs`/`ports` 是本步入边载荷，`kind` 选择计算规格，`compute` 或 `handler` 提供计算算子。
+
+```python
+# netlab/core/model/graph.py:164 （节选）
+@dataclass(eq=False)
+class Node:
+    name: str
+    data: NodeData = field(default_factory=dict)
+    compute: NodeCompute | None = None
+    inputs: NodeInputs = field(default_factory=dict)      # 每条入边一个键
+    ports: NodeInputs = field(default_factory=dict)       # 按目标端口分组
+    kind: str = "manual"
+    params: dict[str, Any] = field(default_factory=dict)
+    state: dict[str, Any] = field(default_factory=dict)
+    handler: Callable[[ComputeContext], NodeData] | None = None
+    trusted: bool = False          # 内置已审计算子才可走浅拷贝快路径
+    linear: bool = True            # R36 求解语义标签
+    stateful: bool = False
+    direct_feedthrough: bool = True
+    time_varying: bool = False
+    nonlinear: bool = False
+    _view: NodeView | None = None
+
+    @property
+    def view(self) -> NodeView: ...                       # graph.py:205 只读视图
+    def set_data(self, values: NodeData, *, replace: bool = False) -> None: ...
+    def update(self, dt: float = 1.0, time: float = 0.0) -> None: ...  # graph.py:221
+```
+
+**连接 `Connection`**（`graph.py:291`）：`method` 即连接算子 `g_e`；`source`/`target` 是两端节点；`params`/`state` 为边级参数与历史；`delay`/`auto_delay` 标记延迟边；`source_port`/`target_port` 是端口绑定。
+
+```python
+# netlab/core/model/graph.py:291 （节选）
+@dataclass(eq=False)
+class Connection:
+    name: str
+    source: Node
+    target: Node
+    method: ConnectionCompute
+    params: dict[str, Any] = field(default_factory=dict)
+    state: dict[str, Any] = field(default_factory=dict)
+    kind: str = "custom"
+    delay: bool = False
+    auto_delay: bool = False        # 仅运行期可见，不写入工程
+    enabled: bool = True
+    source_port: str = ""
+    target_port: str = ""
+    output: NodeData = field(default_factory=dict)
+
+    def evaluate(self, dt: float, time: float = 0.0) -> NodeData: ...   # graph.py:332
+```
+
+**网络 `Network`**（`graph.py:362`）：持有节点表、连接表与仿真时钟；`invalidate()` 在结构变化时丢弃拓扑缓存；`step(dt)` 推进一拍；`capture_step_state()/restore_step_state()` 提供整步事务快照。
+
+```python
+# netlab/core/model/graph.py:362 （节选）
+class Network:
+    def __init__(self, *, auto_delay: bool = False,
+                 solve_algebraic: bool = False,
+                 clock: SimClock | None = None) -> None:
+        self.nodes: list[Node] = []
+        self.connections: list[Connection] = []
+        self._clock = clock if clock is not None else SimClock()
+        self.auto_delay = auto_delay
+        self.solve_algebraic = bool(solve_algebraic)
+        self._order: list[Node] | None = None
+        self._incoming: dict[Node, list[Connection]] | None = None
+        self._delayed: list[Connection] | None = None
+
+    def add_node(self, node: Node) -> Node: ...                        # graph.py:400
+    def connect(self, source: Node, target: Node, method: ..., **kwargs: Any) -> Connection: ...  # graph.py:432
+    def topological_order(self) -> list[Node]: ...                     # graph.py:660
+    def step(self, dt: float = 1.0) -> None: ...                       # graph.py:700
+    def capture_step_state(self) -> dict[str, Any]: ...                # graph.py:1061
+    def restore_step_state(self, snapshot: Mapping[str, Any]) -> None: ...  # graph.py:1083
+```
+
+一句话对照：`Node` 定义“点怎么算”，`Connection` 定义“边怎么传”，`Network` 定义“按什么顺序把点和边串成一步”。
+
 ---
 
 ## 5. 电路模式：MNA、Newton 与积分
@@ -418,7 +501,7 @@ flowchart TD
     C -- 是 --> E[iteration = 0]
     E --> F[stamp 伴随模型 + gmin 对角]
     F --> G[_solve_matrix]
-    G --> H{有限且 |x| ≤ 1e9?}
+    G --> H{"有限且 abs(x) ≤ 1e9?"}
     H -- 否 --> X[抛 ComputeError 发散]
     H -- 是 --> I[真实残差 + Armijo 线搜索]
     I --> J{node_ok 且 residual_ok 且 iter>0?}

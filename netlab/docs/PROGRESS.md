@@ -1,6 +1,6 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-10（事实同步；当前基线：全量 805 passed / 1 skipped，以 status.json 与本机实测为准；3.20.1）
+> 最后修改：2026-11-10（事实同步；当前基线：全量 808 passed / 1 skipped，以 status.json 与本机实测为准；3.20.1）
 
 <!-- BEGIN GENERATED: status -->
 | 项 | 内容 |
@@ -2749,4 +2749,4 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - Phase 1（提交 `a35e7a8`、`9b461da`）：单步协作式 deadline（Newton 每轮检查，超时抛 `ComputeError`）、push 失败回滚场景/steps、预计算原子快照恢复、`Recorder` 溢出 `dropped` 计数；删除重复 `_true_residual`；关闭路径改 SIGINT 优雅退出；桌面依赖移除 PySide6、补 `import os`。
 - PlotKit Phase 1（`b06be8b`、`3f9ca1b`）：`DataSet.values` 只读视图、PKF1 JSON 列 `byte_length`、`record_update` 保留 CRLF。
 - Phase 2（`f48db27`）：`tools/bench_scene_scale.py` 实测 100 节点/300 边 **6.92 ms/步（144.5 步/s）**、400 节点/1200 边 **29.24 ms/步（34.2 步/s）**，峰值 tracemalloc 0.388/1.547 MB；`MAX_NODES=400` 保持不变，500/1000/5000 档位标 `PENDING_USER_AUTHORIZATION`。
-- 当前全量：805 passed / 1 skipped / 251.2s；core 覆盖率 81.55%。
+- 当前全量：808 passed / 1 skipped / 233.42s；core 覆盖率 81.52%。

@@ -111,7 +111,9 @@ def _parallel_rc_without_source() -> Scene:
     return scene
 
 
-def _assert_complex_close(actual: np.ndarray, expected: np.ndarray, *, atol: float = 1e-9) -> None:
+def _assert_complex_close(
+    actual: np.ndarray, expected: np.ndarray, *, atol: float = 1e-9
+) -> None:
     """比较复极点/零点，先按实部、虚部（四舍五入后）统一顺序。"""
     actual_array = np.asarray(actual)
     expected_array = np.asarray(expected)

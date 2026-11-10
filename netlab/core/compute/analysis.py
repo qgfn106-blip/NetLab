@@ -16,6 +16,15 @@ import numpy as np
 
 from . import complex_support as complex_layer
 from . import transfer as transfer_math
+from .circuit.descriptor import DescriptorModel
+from .circuit.descriptor_analysis import (
+    UnsupportedAnalysisError,
+    analyze_poles,
+    analyze_zeros,
+    build_output_matrices,
+    descriptor_step_response,
+)
+from ..common.limits import MAX_NODES, ComputeError
 from .statespace import StateSpaceModel
 
 
@@ -659,12 +668,180 @@ def transfer_function(
     }
 
 
+def _complex_pairs(matrix: Any) -> list[list[list[float]]]:
+    """把矩阵编码为 ``[[re, im], ...]``，保证 JSON 可序列化。"""
+    array = np.asarray(matrix, dtype=np.complex128)
+    return [
+        [[float(value.real), float(value.imag)] for value in row]
+        for row in array
+    ]
+
+
+def _complex_list(values: Any) -> list[list[float]]:
+    """把一维复数数组编码为 ``[[re, im], ...]``。"""
+    array = np.asarray(values, dtype=np.complex128).reshape(-1)
+    return [[float(value.real), float(value.imag)] for value in array]
+
+
+def _circuit_tf_analysis(
+    sim: Any,
+    *,
+    input_source: str | None,
+    output: str | None,
+    operating_point: dict[str, float] | None,
+    step_dt: float,
+    step_duration: float,
+    f_start: float,
+    f_stop: float,
+    points: int,
+    scale: str,
+) -> dict[str, Any]:
+    """电路小信号旁路分析：Descriptor 状态空间 + 零极点 + 阶跃 + Bode。"""
+    if sim is None:
+        raise AnalysisError("mode=circuit 时必须提供电路仿真")
+    scene = getattr(sim, "scene", None)
+    if scene is None or getattr(scene, "mode", None) != "circuit":
+        raise AnalysisError("mode=circuit 需要 circuit 模式场景")
+    if not input_source:
+        raise AnalysisError("mode=circuit 必须提供 input_source")
+    if not output:
+        raise AnalysisError("mode=circuit 必须提供 output")
+
+    try:
+        model = DescriptorModel.from_scene(scene, operating_point=operating_point)
+    except ComputeError as exc:
+        message = str(exc)
+        if "非线性" in message:
+            raise AnalysisError(
+                "非线性电路需要线性化工作点：请先运行 DC 工作点分析，"
+                "并通过 operating_point 传入节点电压"
+            ) from exc
+        raise AnalysisError(f"状态空间构建失败：{message}") from exc
+
+    def _guard(label: str, function: Any) -> Any:
+        try:
+            return function()
+        except AnalysisError:
+            raise
+        except (ComputeError, UnsupportedAnalysisError, ValueError) as exc:
+            raise AnalysisError(f"{label}失败：{exc}") from exc
+
+    system = _guard("状态空间构建", lambda: model.build(input_source))
+    pole_result = _guard("极点分析", lambda: analyze_poles(system))
+    c_matrix, d_matrix = _guard(
+        "输出矩阵构建", lambda: build_output_matrices(model, output, input_source)
+    )
+    zero_result = _guard(
+        "零点分析", lambda: analyze_zeros(system, C=c_matrix, D=d_matrix)
+    )
+
+    def _step() -> dict[str, Any]:
+        try:
+            return descriptor_step_response(
+                model,
+                input_source,
+                output,
+                t_end=float(step_duration),
+                dt=float(step_dt),
+            )
+        except UnsupportedAnalysisError as exc:
+            raise AnalysisError(
+                f"阶跃分析只支持非接地节点电压探针：{output!r}"
+            ) from exc
+
+    step = _guard("阶跃分析", _step)
+
+    frequencies = _frequency_axis(
+        f_start=float(f_start),
+        f_stop=float(f_stop),
+        points=int(points),
+        scale=str(scale),
+    )
+    bode = _guard(
+        "Bode 分析",
+        lambda: model.frequency_response(
+            [float(value) for value in frequencies],
+            input_source=input_source,
+            probes=[output],
+        ),
+    )
+
+    matrices = {
+        "A": system.A,
+        "E": system.E,
+        "B": system.B,
+        "C": c_matrix,
+        "D": d_matrix,
+    }
+    element_count = sum(np.asarray(value).size for value in matrices.values())
+    if element_count > MAX_NODES * MAX_NODES:
+        raise AnalysisError(
+            f"状态空间矩阵过大（{element_count} 个元素，上限 "
+            f"{MAX_NODES * MAX_NODES}）；请缩小电路规模"
+        )
+
+    return {
+        "ok": True,
+        "domain": "circuit",
+        "mode": "circuit",
+        "input_source": input_source,
+        "output": output,
+        "operating_point_supplied": operating_point is not None,
+        "state_space": {
+            "realization": "descriptor",
+            "n": int(system.A.shape[0]),
+            "m": 1,
+            "p": 1,
+            "complex": True,
+            "A": _complex_pairs(system.A),
+            "E": _complex_pairs(system.E),
+            "B": _complex_pairs(np.asarray(system.B).reshape(-1, 1)),
+            "C": _complex_pairs(c_matrix),
+            "D": _complex_pairs(d_matrix),
+            "elements": int(element_count),
+            "truncated": False,
+        },
+        "poles": {
+            "finite": _complex_list(pole_result.finite_poles),
+            "infinite_count": int(pole_result.infinite_count),
+            "max_residual": float(pole_result.max_residual),
+            "size": int(pole_result.size),
+            "regular": bool(pole_result.regular),
+        },
+        "zeros": {
+            "finite": _complex_list(zero_result.finite_zeros),
+            "infinite_count": int(zero_result.infinite_count),
+            "max_residual": float(zero_result.max_residual),
+            "size": int(zero_result.size),
+            "regular": bool(zero_result.regular),
+            "siso": bool(zero_result.siso),
+        },
+        "step": step,
+        "bode": bode,
+        "assumptions": [
+            "基于 DC 工作点线性化的 Descriptor 状态空间",
+            "Bode 与零极点同源：DescriptorModel.frequency_response",
+            "阶跃响应使用隐式 Euler，仅节点电压探针",
+        ],
+        "source": "descriptor（小信号）",
+    }
+
+
 def tf_analysis(
     sim: Any = None,
     *,
+    mode: str = "signal",
     node: str | None = None,
     input_node: str | None = None,
     output_node: str | None = None,
+    input_source: str | None = None,
+    output: str | None = None,
+    operating_point: dict[str, float] | None = None,
+    step_dt: float = 1.0e-5,
+    step_duration: float = 5.0e-3,
+    f_start: float = 1.0,
+    f_stop: float = 1_000_000.0,
+    scale: str = "log",
     field: str | None = None,
     expr: str | None = None,
     numerator: list[float] | None = None,
@@ -685,6 +862,27 @@ def tf_analysis(
     不写回求解器；参数错误统一转 ``AnalysisError``，服务层返回 422。
     """
     try:
+        if mode not in ("signal", "circuit"):
+            raise AnalysisError(f"未知分析模式 {mode!r}；只支持 signal/circuit")
+        if mode == "circuit":
+            return _circuit_tf_analysis(
+                sim,
+                input_source=input_source,
+                output=output,
+                operating_point=operating_point,
+                step_dt=step_dt,
+                step_duration=step_duration,
+                f_start=f_start,
+                f_stop=f_stop,
+                points=points,
+                scale=scale,
+            )
+        scene_mode = getattr(getattr(sim, "scene", None), "mode", None)
+        if scene_mode is not None and scene_mode != "signal":
+            raise AnalysisError(
+                f"mode=signal 与 {scene_mode!r} 场景不一致；"
+                "电路场景请传 mode='circuit'"
+            )
         if input_node is not None or output_node is not None:
             if sim is None or not input_node or not output_node:
                 raise AnalysisError("网络总传函必须同时提供 input_node 与 output_node")

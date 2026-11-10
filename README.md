@@ -112,16 +112,16 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
-| 2026-11-10 | chore: 重生成 status.json（808 passed / 81.52%，测试提交 852ae98） |
-| 2026-11-10 | docs: 校正 REQUIREMENTS 基线 808，并入库 pytest.xml 证据 |
-| 2026-11-10 | chore: 重生成 status.json（808 passed / 81.52%，测试提交 7f9f949） |
-| 2026-11-10 | docs: 校正 Netlab 最终基线 808 passed / 81.52% |
-| 2026-11-10 | fix(status): status-only 判定纳入 D-5 shadow 报告 |
-| 2026-11-10 | chore(d5): 重生成 Newton/SCC 改动后的 shadow 报告 |
-| 2026-11-10 | chore: 重生成 status.json（808 passed / 1 skipped，coverage 81.52%，测试提交 016b11e） |
-| 2026-11-10 | fix(status): 生成器忽略 status 自身产物对 dirty 的影响 |
-| 2026-11-10 | chore(status): 允许 status-only 尾提交，status.head 绑定最后被测试提交 |
-| 2026-11-10 | chore: 重生成 status.json（808 passed / 1 skipped，coverage 81.53%） |
+| 2026-11-10 | chore(shadow): 补 AC 小信号阶段 D-5 指纹报告 |
+| 2026-11-10 | chore: 重生成 status.json（866 passed / 81.11%） |
+| 2026-11-10 | chore(reports): 更新 M0–M4 全量 pytest JUnit（含 M3 补充） |
+| 2026-11-10 | docs: 同步 M3 补充测试后的 866 基线 |
+| 2026-11-10 | fix(circuit): M3 非线性线性化补齐工作点入口与 13 项测试 |
+| 2026-11-10 | chore: 重生成 status.json（865 passed / 81.12%，测试提交 7612311） |
+| 2026-11-10 | chore(reports): 更新 M0–M4 全量 pytest JUnit |
+| 2026-11-10 | docs(circuit): 补充 M3 非线性线性化说明 |
+| 2026-11-10 | docs: 同步 AC 小信号阶段基线 865 passed |
+| 2026-11-10 | docs: 记录 AC 小信号 M0–M4 阶段结果 |
 
 <!-- END LAST 10 UPDATES -->
 

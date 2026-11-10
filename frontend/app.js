@@ -4048,6 +4048,7 @@ function setStatusHint(hint) {
           { label: "\u7F13\u5B58\u4F53\u68C0\u4E0E\u6E05\u7406\u2026", hint: "\u53EA\u6E05\u53EF\u518D\u751F\u6210\u7684\u7F13\u5B58\uFF0C\u4E0D\u78B0\u5DE5\u7A0B\u4E0E\u81EA\u52A8\u4FDD\u5B58", action: () => openCacheDialog() },
           { label: "DC \u5DE5\u4F5C\u70B9\uFF08.op\uFF09", hint: "\u4E0D\u63A8\u8FDB\u4EFF\u771F\uFF0C\u9759\u9ED8\u89E3\u4E00\u6B21\u9759\u6001\u7535\u8DEF", action: () => openAnalysis("op") },
           { label: "AC \u626B\u9891\uFF08Bode\uFF09\u2026", hint: "\u5148\u6C42\u5DE5\u4F5C\u70B9\u518D\u9010\u9891\u70B9\u6C42\u89E3", action: () => openAnalysis("ac") },
+          { label: "\u5C0F\u4FE1\u53F7\u5206\u6790\uFF08\u65C1\u8DEF\uFF09\u2026", hint: "\u5DE5\u4F5C\u70B9\u7EBF\u6027\u5316 \xB7 \u6781\u70B9 / \u96F6\u70B9 / \u9636\u8DC3 / Bode", action: () => openAnalysis("bypass") },
           { label: "\u8FC1\u79FB\u573A\u666F\u4E3A\u5668\u4EF6\u6A21\u578B\uFF08R20\uFF09", hint: "\u5143\u4EF6\u8FB9 \u2192 \u5668\u4EF6\u8282\u70B9 + \u5F15\u811A\u5BFC\u7EBF", action: () => void migrateSceneToDevices() },
           { label: "\u65B0\u5EFA\u8FDE\u7EBF\uFF08\u9009\u62E9\u7AEF\u70B9\uFF09\u2026", hint: "\u7F51\u7EDC\u2194\u7F51\u7EDC\u7EAF\u5BFC\u7EBF / \u5668\u4EF6\u5F15\u811A\u2194\u7F51\u7EDC", action: () => openWireDialog() }
         ]

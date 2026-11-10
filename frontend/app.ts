@@ -4444,6 +4444,7 @@ function setStatusHint(hint: string): void {
           { label: '缓存体检与清理…', hint: '只清可再生成的缓存，不碰工程与自动保存', action: () => openCacheDialog() },
           { label: 'DC 工作点（.op）', hint: '不推进仿真，静默解一次静态电路', action: () => openAnalysis('op') },
           { label: 'AC 扫频（Bode）…', hint: '先求工作点再逐频点求解', action: () => openAnalysis('ac') },
+          { label: '小信号分析（旁路）…', hint: '工作点线性化 · 极点 / 零点 / 阶跃 / Bode', action: () => openAnalysis('bypass') },
           { label: '迁移场景为器件模型（R20）', hint: '元件边 → 器件节点 + 引脚导线', action: () => void migrateSceneToDevices() },
           { label: '新建连线（选择端点）…', hint: '网络↔网络纯导线 / 器件引脚↔网络', action: () => openWireDialog() },
         ],
@@ -7843,7 +7844,6 @@ function setStatusHint(hint: string): void {
 
   // P-A1：外观令牌唯一来源见 frontend/theme.tokens.ts（画布调色板旧值快照 CANVAS_LIGHT/CANVAS_DARK）。
   // 此处仅引用同源数据，不再重复字面量；C() 行为不变。
-
 
 
 

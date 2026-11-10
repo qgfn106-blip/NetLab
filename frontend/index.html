@@ -688,11 +688,11 @@
     <div class="floatwin-resize" id="moduleResize" title="拖动调整大小"></div>
   </div>
 
-  <!-- 电路分析（非模态浮窗，R26）：DC 工作点 + AC 扫频 -->
+  <!-- 电路分析（非模态浮窗，R26）：DC 工作点 + AC 扫频 + 小信号旁路 -->
   <div id="analWin" class="floatwin analwin" hidden role="dialog" aria-label="电路分析">
     <header class="floatwin-head">
       <b>NETLAB · 电路分析</b>
-      <span class="floatwin-hint">DC 工作点 · AC 小信号扫频</span>
+      <span class="floatwin-hint">DC 工作点 · AC 扫频 · 小信号旁路</span>
       <button type="button" class="floatwin-min" title="最小化到右下角">—</button>
       <button type="button" class="floatwin-max" title="最大化 / 还原">▢</button>
       <button type="button" id="analWinClose" title="关闭（Esc）">✕</button>
@@ -701,6 +701,7 @@
       <div class="anal-tabs" role="tablist">
         <button type="button" class="anal-tab active" data-anal="op" role="tab">DC 工作点</button>
         <button type="button" class="anal-tab" data-anal="ac" role="tab">AC 扫频</button>
+        <button type="button" class="anal-tab" data-anal="bypass" role="tab">小信号旁路</button>
       </div>
       <section class="anal-pane" data-anal-pane="op">
         <div class="anal-bar">
@@ -723,6 +724,25 @@
         </div>
         <div class="anal-legend" id="analAcLegend"></div>
         <canvas id="analAcCanvas" aria-label="AC 扫频曲线"></canvas>
+      </section>
+      <section class="anal-pane" data-anal-pane="bypass" hidden>
+        <div class="anal-bar">
+          <label>激励 <select id="analBypassInput"><option value="">自动</option></select></label>
+          <label>输出 <select id="analBypassOutput"></select></label>
+          <label>阶跃 dt <input id="analBypassDt" type="number" value="0.00001" min="0.000000001" step="any"></label>
+          <label>时长 <input id="analBypassDuration" type="number" value="0.005" min="0.000001" step="any"></label>
+          <label>f 起 <input id="analBypassF1" type="number" value="10" min="0.001" step="any"></label>
+          <label>f 止 <input id="analBypassF2" type="number" value="1000000" min="0.001" step="any"></label>
+          <button type="button" class="btn tiny primary" id="analRunBypass">运行旁路</button>
+          <button type="button" class="btn tiny" id="analRunBypassBode">Bode</button>
+          <span class="anal-meta" id="analBypassMeta"></span>
+        </div>
+        <div class="anal-meta">基于 DC 工作点线性化；非录波后处理。极点/零点/阶跃与 Bode 同源 Descriptor。</div>
+        <div class="anal-legend" id="analBypassLegend"></div>
+        <canvas id="analBypassBode" class="anal-bypass-canvas" aria-label="小信号 Bode 曲线"></canvas>
+        <canvas id="analBypassStep" class="anal-bypass-canvas" aria-label="小信号阶跃响应"></canvas>
+        <div class="anal-tablewrap" id="analBypassPoles"></div>
+        <div class="anal-tablewrap" id="analBypassZeros"></div>
       </section>
     </div>
     <div class="floatwin-resize" id="analResize" title="拖动调整大小"></div>

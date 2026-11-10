@@ -15,6 +15,30 @@ def _git(*a: str) -> str:
 def _dt(s: str) -> datetime:
     return datetime.fromisoformat(s.replace("Z", "+00:00"))
 
+_STATUS_ONLY_PATHS = {
+    "netlab/docs/status.json",
+    "reports/test_status.json",
+    "tools/check_status_freshness.py",
+}
+
+def _effective_head() -> str:
+    """HEAD, walking back over trailing status-only commits.
+
+    A committed status.json cannot name the commit that contains it (self-reference),
+    so status.head/test_status.head refer to the last code commit covered by the test
+    run. Only commits touching the status artifacts may trail that commit.
+    """
+    head = _git("rev-parse", "HEAD")
+    while True:
+        parent = _git("rev-parse", "--verify", f"{head}^")
+        if not parent:
+            return head
+        changed = {line for line in _git("diff", "--name-only", parent, head).splitlines() if line}
+        if changed and changed <= _STATUS_ONLY_PATHS:
+            head = parent
+            continue
+        return head
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--status", default=str(STATUS))
@@ -23,10 +47,11 @@ def main(argv: list[str] | None = None) -> int:
     errors: list[str] = []
     status = json.loads(Path(args.status).read_text(encoding="utf-8"))
     head = _git("rev-parse", "HEAD")
-    if status.get("git", {}).get("head") != head:
-        errors.append(f"status.git.head={status.get('git',{}).get('head')} != HEAD={head}")
+    tested_head = _effective_head()
+    if status.get("git", {}).get("head") != tested_head:
+        errors.append(f"status.git.head={status.get('git',{}).get('head')} != tested HEAD={tested_head}")
     generated = status.get("generated_at")
-    last_commit = _git("log", "-1", "--format=%cI")
+    last_commit = _git("log", "-1", "--format=%cI", tested_head)
     if not generated:
         errors.append("status.generated_at missing")
     elif last_commit and _dt(generated) < _dt(last_commit):
@@ -42,8 +67,8 @@ def main(argv: list[str] | None = None) -> int:
         errors.append(f"missing {report_path}")
     else:
         report = json.loads(report_path.read_text(encoding="utf-8"))
-        if report.get("head") != head:
-            errors.append(f"test_status.head={report.get('head')} != HEAD={head}")
+        if report.get("head") != tested_head:
+            errors.append(f"test_status.head={report.get('head')} != tested HEAD={tested_head}")
         if report.get("failed") not in (0, None):
             errors.append(f"test_status.failed={report.get('failed')}")
     if errors:
@@ -51,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
         for e in errors:
             print(" -", e)
         return 1
-    print(f"OK: status fresh at {head}")
+    print(f"OK: status fresh at {tested_head}")
     return 0
 
 if __name__ == "__main__":

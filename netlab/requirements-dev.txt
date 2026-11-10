@@ -7,3 +7,4 @@ pytest-cov>=6.0,<7.0
 sympy>=1.12,<2.0
 jsonschema>=4.0,<5.0
 PyYAML>=6.0,<7.0
+schemdraw>=0.19,<1.0

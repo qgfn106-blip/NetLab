@@ -45,7 +45,7 @@
 | --- | --- | --- |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 详细架构与运作原理（含 R31/R39/R40） | 当前 |
 | [CODE_GUIDE.md](CODE_GUIDE.md) | 目录地图、模块职责、关键符号、调用链 | 当前 |
-| [MATH.md](MATH.md) | 数学原理与实际实现位置 | 当前 |
+| [MATH.md](MATH.md) | 数学入口与全局地图；专题见 [math/ARCHITECTURE_MATH.md](math/ARCHITECTURE_MATH.md)、[math/ELEMENT_MATH.md](math/ELEMENT_MATH.md)、[math/ANALYSIS_MATH.md](math/ANALYSIS_MATH.md) | 当前 |
 | [FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md) | 机制速查、常见坑、token 节约 | 当前 |
 | [MODULES_HOWTO.md](MODULES_HOWTO.md) | 模块化/封装/内部结构操作 | 当前 |
 | [SCHEMATIC_DRAWING_SPEC.md](SCHEMATIC_DRAWING_SPEC.md) | 电路图绘制规范 | 当前 |

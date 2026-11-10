@@ -2769,3 +2769,14 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 前端：电路分析浮窗新增「小信号旁路」tab 与菜单「小信号分析（旁路）…」；输入源/输出节点、阶跃参数、Bode/阶跃画布、极点/零点表；面板注明“基于 DC 工作点线性化；非录波后处理”。
 - 验证：`test_analysis_circuit_bypass.py` 5 passed（RC 低通、Bode parity、signal 零回归、mode/缺参 422、非线性无 OP 422 与带 OP 200）；`test_ui_analysis_entry.py` 3 passed；后端定向 44 passed；全量 **872 passed / 1 skipped / 349.16s**，core 覆盖率 **81.12%**；前端 `npm run typecheck`/`build` 通过、`npm test` **22 passed**；`frontend/e2e/circuit_bypass.mjs` 输出 `circuit bypass e2e: OK (poles, Bode, step)`。
 - 涉及文件：`netlab/core/compute/analysis.py`、`netlab/server_analysis/__init__.py`、`frontend/index.html`、`frontend/app/ac_analysis.ts`、`frontend/app/windows.ts`、`frontend/app.ts`、`frontend/style.css`、`frontend/e2e/circuit_bypass.mjs`、`netlab/tests/test_analysis_circuit_bypass.py`、`netlab/tests/test_ui_analysis_entry.py`。未改默认开关、未新增依赖、未触碰 `graph.py`/`scene.py` 冻结区。
+
+## §7.147 数学文档拆分与入口同步（2026-11-11）
+
+- 将 `netlab/docs/MATH.md` 由 785 行单文件重构为 77 行导航父页（符号表、全局 Mermaid 地图、信号流/电路模式对照、专题链接、实现边界），细节迁移到三份专题文档，保持单一事实源。
+- 新增 `netlab/docs/math/ARCHITECTURE_MATH.md`（约 590 行）：网络形式化 `N=(V,E,s,t,Port,delay)`、节点/连接算子与状态参数存储、拓扑序/SCC/事务、22 种节点计算与 12 种连接方法总览、MNA/Newton/Armijo/BE-Trap-Gear2/DC-AC/状态空间/复杂度。
+- 新增 `netlab/docs/math/ELEMENT_MATH.md`（约 718 行）：12 种信号流连接方法的公式/参数/状态，以及电路元件 `prepare/stamp/update` 方程（R/C/L/源/受控源/开关/二极管/运放/比较器/齐纳/D 触发器等）。
+- 新增 `netlab/docs/math/ANALYSIS_MATH.md`（约 564 行）：Recorder 与重采样、时域/相图/频谱/周期指标、传递函数/Bode/阶跃/频响、M0–M4 描述符分析。
+- 新增 4 张静态 SVG companion：`netlab/docs/math/assets/{network-structure,signal-evaluation,mna-newton,analysis-pipeline}.svg`；Mermaid 为可编辑主图，SVG 为静态辅助图（Archify CLI 仅输出内嵌 SVG 的 HTML，未声称直接导出 SVG）。
+- 同步入口：`README.md` 文档索引、`ARCHITECTURE.md` 数学入口、`netlab/docs/AGENT_GUIDE.md` 阅读顺序、`netlab/docs/DOCS_INDEX.md` 均改为「数学总览 + 三份专题」。
+- 如实记录：M0–M4 描述符分析已实现并有测试；`POST /api/analysis/tf` 支持 `mode="circuit"`（`server_analysis/__init__.py:30,160`），前端「小信号旁路」入口已接入（`frontend/app/ac_analysis.ts:575-587`），通用 `frontend/app/analysis.ts:108-112` 仍走 signal。
+- 范围：仅文档与图示，无 Python/TypeScript 源码改动；未改默认开关、未新增依赖。

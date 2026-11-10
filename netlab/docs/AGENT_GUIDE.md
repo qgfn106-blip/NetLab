@@ -11,7 +11,7 @@
 
 > 任何改代码（人类或 agent）前，先读并遵守 **[CODE_STANDARDS.md](CODE_STANDARDS.md)**（TS/JS + Python + 测试 + 提交 + 文档规范；三条铁律：**改代码必须遵守规范、只做等价改进、改代码必须同步文档**）。
 
-**文档阅读顺序（避免混乱）**：本指南 `AGENT_GUIDE.md` → 需求与决策 `REQUIREMENTS_AND_RULES.md`（R/D 台账、§5 分期、§6 不做）→ 进度 `PROGRESS.md` → 主线待办 `BACKLOG.md` → 代码导读 `CODE_GUIDE.md` / 数学 `MATH.md`；全部文档导航见 **[DOCS_INDEX.md](DOCS_INDEX.md)**。同一事实只在「单一事实来源」维护一处，其余一律**链接引用、不复制**。
+**文档阅读顺序（避免混乱）**：本指南 `AGENT_GUIDE.md` → 需求与决策 `REQUIREMENTS_AND_RULES.md`（R/D 台账、§5 分期、§6 不做）→ 进度 `PROGRESS.md` → 主线待办 `BACKLOG.md` → 代码导读 `CODE_GUIDE.md` / 数学入口 `MATH.md`（再按入口进入 `math/ARCHITECTURE_MATH.md`、`math/ELEMENT_MATH.md`、`math/ANALYSIS_MATH.md`）；全部文档导航见 **[DOCS_INDEX.md](DOCS_INDEX.md)**。同一事实只在「单一事实来源」维护一处，其余一律**链接引用、不复制**。
 
 ---
 

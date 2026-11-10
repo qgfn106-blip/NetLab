@@ -240,4 +240,4 @@ graph LR
 
 ---
 
-配套文档：数学推导见 [netlab/docs/MATH.md](netlab/docs/MATH.md)，逐模块导读见 [netlab/docs/CODE_GUIDE.md](netlab/docs/CODE_GUIDE.md)，需求与决策见 [netlab/docs/REQUIREMENTS_AND_RULES.md](netlab/docs/REQUIREMENTS_AND_RULES.md)。
+配套文档：数学入口见 [netlab/docs/MATH.md](netlab/docs/MATH.md)（含架构数学、元件数学、分析数学三份专题），逐模块导读见 [netlab/docs/CODE_GUIDE.md](netlab/docs/CODE_GUIDE.md)，需求与决策见 [netlab/docs/REQUIREMENTS_AND_RULES.md](netlab/docs/REQUIREMENTS_AND_RULES.md)。

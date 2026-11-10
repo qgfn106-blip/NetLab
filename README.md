@@ -7,7 +7,7 @@
 
 ![信号流与实时曲线](docs/assets/signal-flow.png)
 
-[▶ 观看 28 秒介绍视频](docs/assets/netlab-demo.mp4) · [架构图](docs/assets/netlab-architecture.svg)
+[架构图](docs/assets/netlab-architecture.svg)
 
 ---
 
@@ -92,7 +92,7 @@ python -m netlab.desktop
 │  │  └─ common/          limits（输入边界与校验）
 │  ├─ tests/              pytest（HTTP + 纯函数 + 工程回归）
 │  └─ docs/               架构、数学、扩展、UI、进度、需求与规格
-├─ docs/assets/           README 截图、结构图、演示视频
+├─ docs/assets/           README 截图、结构图
 ├─ library/               共享库（运行时生成，默认空）
 ├─ extensions/plugins/    插件包目录（运行时生成，默认空）
 ├─ README.md

@@ -1,21 +1,21 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-10T05:12:25+08:00",
+  "generated_at": "2026-11-10T12:29:09+08:00",
   "version": "3.20.1",
   "git": {
     "branch": "main",
-    "head": "f48db27b53d07ca25a664cb20a03b8b22fbb10b2",
-    "dirty": false,
-    "ahead_origin": 6,
+    "head": "62773ae0fb511b31cd562c177e0f0ecb134c7d36",
+    "dirty": true,
+    "ahead_origin": 10,
     "behind_origin": 0
   },
   "tests": {
-    "passed": 805,
+    "passed": 808,
     "skipped": 1,
     "failed": 0,
-    "duration_s": 251.2,
-    "coverage_core_line": 81.55,
-    "command": "python -m pytest netlab/tests -q",
+    "duration_s": 224.78,
+    "coverage_core_line": 81.53,
+    "command": "python -m pytest netlab/tests -q --junitxml=reports/pytest.xml --cov=netlab/core --cov-branch --cov-report=json:coverage.json",
     "source": "reports/test_status.json"
   },
   "coverage_gate": {

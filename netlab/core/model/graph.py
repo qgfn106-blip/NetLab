@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from ..common.fastcopy import copy_state
 import math
+from collections import deque
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any, Callable, Mapping
@@ -497,51 +498,67 @@ class Network:
             if connection.enabled and (include_delayed or not connection.delay)
         ]
 
-    def algebraic_cycles(self) -> list[list[str]]:
-        """返回不经过延迟边的强连通分量（即无法按拓扑排序的代数环）。"""
-        adjacency: dict[Node, list[Node]] = {node: [] for node in self.nodes}
-        for connection in self._enabled_edges(include_delayed=False):
-            adjacency[connection.source].append(connection.target)
-
+    def _strongly_connected_components(
+        self,
+        nodes: list[Node],
+        adjacency: dict[Node, list[Node]],
+    ) -> list[list[Node]]:
+        """迭代式 Tarjan SCC；避免深链触发 Python 递归上限。"""
         index = 0
         indices: dict[Node, int] = {}
         lowlink: dict[Node, int] = {}
         stack: list[Node] = []
         on_stack: set[Node] = set()
+        components: list[list[Node]] = []
+
+        for root in nodes:
+            if root in indices:
+                continue
+            work: list[tuple[Node, int]] = [(root, 0)]
+            while work:
+                node, neighbour_index = work[-1]
+                if neighbour_index == 0:
+                    indices[node] = lowlink[node] = index
+                    index += 1
+                    stack.append(node)
+                    on_stack.add(node)
+                if neighbour_index < len(adjacency[node]):
+                    neighbour = adjacency[node][neighbour_index]
+                    work[-1] = (node, neighbour_index + 1)
+                    if neighbour not in indices:
+                        work.append((neighbour, 0))
+                    elif neighbour in on_stack:
+                        lowlink[node] = min(lowlink[node], indices[neighbour])
+                    continue
+                work.pop()
+                if work:
+                    parent = work[-1][0]
+                    lowlink[parent] = min(lowlink[parent], lowlink[node])
+                if lowlink[node] == indices[node]:
+                    component: list[Node] = []
+                    while True:
+                        member = stack.pop()
+                        on_stack.discard(member)
+                        component.append(member)
+                        if member is node:
+                            break
+                    components.append(list(reversed(component)))
+        return components
+
+    def algebraic_cycles(self) -> list[list[str]]:
+        """返回不经过延迟边的强连通分量（即无法按拓扑排序的代数环）。"""
+        adjacency: dict[Node, list[Node]] = {node: [] for node in self.nodes}
+        edges = self._enabled_edges(include_delayed=False)
+        for connection in edges:
+            adjacency[connection.source].append(connection.target)
+        self_loop_nodes = {
+            connection.source for connection in edges if connection.source is connection.target
+        }
+
         components: list[list[str]] = []
-
-        def strongconnect(node: Node) -> None:
-            nonlocal index
-            indices[node] = lowlink[node] = index
-            index += 1
-            stack.append(node)
-            on_stack.add(node)
-            for neighbour in adjacency[node]:
-                if neighbour not in indices:
-                    strongconnect(neighbour)
-                    lowlink[node] = min(lowlink[node], lowlink[neighbour])
-                elif neighbour in on_stack:
-                    lowlink[node] = min(lowlink[node], indices[neighbour])
-            if lowlink[node] == indices[node]:
-                component: list[Node] = []
-                while True:
-                    member = stack.pop()
-                    on_stack.discard(member)
-                    component.append(member)
-                    if member is node:
-                        break
-                members = set(component)
-                has_self_loop = any(
-                    connection.source is connection.target
-                    and connection.source in members
-                    for connection in self._enabled_edges(include_delayed=False)
-                )
-                if len(component) > 1 or has_self_loop:
-                    components.append([member.name for member in reversed(component)])
-
-        for node in self.nodes:
-            if node not in indices:
-                strongconnect(node)
+        for component in self._strongly_connected_components(self.nodes, adjacency):
+            if len(component) > 1 or any(node in self_loop_nodes for node in component):
+                components.append([member.name for member in component])
         return components
 
     def auto_delayed_connections(self) -> list[Connection]:
@@ -569,39 +586,7 @@ class Network:
             ):
                 direct_adjacency[connection.source].append(connection.target)
 
-        # Tarjan SCC（仅直接馈通子图）。
-        index = 0
-        indices: dict[Node, int] = {}
-        lowlink: dict[Node, int] = {}
-        stack: list[Node] = []
-        on_stack: set[Node] = set()
-        components: list[list[Node]] = []
-
-        def strongconnect(node: Node) -> None:
-            nonlocal index
-            indices[node] = lowlink[node] = index
-            index += 1
-            stack.append(node)
-            on_stack.add(node)
-            for neighbour in direct_adjacency[node]:
-                if neighbour not in indices:
-                    strongconnect(neighbour)
-                    lowlink[node] = min(lowlink[node], lowlink[neighbour])
-                elif neighbour in on_stack:
-                    lowlink[node] = min(lowlink[node], indices[neighbour])
-            if lowlink[node] == indices[node]:
-                component: list[Node] = []
-                while True:
-                    member = stack.pop()
-                    on_stack.discard(member)
-                    component.append(member)
-                    if member is node:
-                        break
-                components.append(list(reversed(component)))
-
-        for node in direct_nodes:
-            if node not in indices:
-                strongconnect(node)
+        components = self._strongly_connected_components(direct_nodes, direct_adjacency)
         components.extend([[node] for node in breakpoints])
 
         component_of: dict[Node, int] = {}
@@ -621,10 +606,10 @@ class Network:
         for source, target in component_edges:
             outgoing[source].append(target)
             indegree[target] += 1
-        ready = [index for index, degree in enumerate(indegree) if degree == 0]
+        ready = deque(index for index, degree in enumerate(indegree) if degree == 0)
         ordered: list[int] = []
         while ready:
-            current = ready.pop(0)
+            current = ready.popleft()
             ordered.append(current)
             for target in outgoing[current]:
                 indegree[target] -= 1

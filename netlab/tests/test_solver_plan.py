@@ -83,3 +83,17 @@ def test_scene_records_auto_delay_edges():
     assert [
         connection.name for connection in engine.network.auto_delayed_connections()
     ] == [edge.name]
+
+def test_solver_plan_and_cycle_detection_handle_deep_chains():
+    """SCC 遍历必须是迭代式：递归 Tarjan 在 >1000 节点链上会 RecursionError。"""
+    network = Network()
+    nodes = [Node(f"n{i}", kind="gain") for i in range(1200)]
+    for node in nodes:
+        network.add_node(node)
+    for index in range(len(nodes) - 1):
+        network.connect(f"e{index}", nodes[index], nodes[index + 1], _dummy_method)
+
+    plan = network.solver_plan()
+
+    assert len(plan.stages) == len(nodes)
+    assert network.algebraic_cycles() == []

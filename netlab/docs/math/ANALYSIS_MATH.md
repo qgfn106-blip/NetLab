@@ -168,14 +168,14 @@ $$
 允许带 $=\,$`settle_band`（默认 $0.02$，即 $2\%$）乘以幅度绝对值：
 
 $$
-\text{band}=|A|\cdot\texttt{settle\_band},\qquad
+\text{band}=|A|\cdot\mathrm{settle\_band},\qquad
 \text{outside}=\{\,i:\ |v_i-v_\infty|>\text{band}\,\}.
 $$
 
 取**最后一个**越界点 `last_out = max(outside)`，则
 
 $$
-t_\text{settle}=t_{\text{last\_out}+1}-t_0 .
+t_\text{settle}=t_{\mathrm{last\_out}+1}-t_0 .
 $$
 
 即“最后一次离开允许带之后的第一个采样点”相对起点的时刻；若从未越界（`outside` 为空），则 `settle = 0`。这是一种“自起点计时、以最后越界点+1 为界”的保守定义，等价于“此后不再越界”。
@@ -199,7 +199,7 @@ $$
 入口：`phase_metrics(xs, ys, times=None)`（`analysis.py:170`）。先做长度校验与掩码
 
 $$
-\text{mask}=\mathrm{isfinite}(x)\ \&\ \mathrm{isfinite}(y),
+\text{mask}=\mathrm{isfinite}(x)\ \land\ \mathrm{isfinite}(y),
 $$
 
 只保留两轴都有限的点，随后：
@@ -362,7 +362,7 @@ $$
 `bode_data(tf, *, omega=None, points=240)`（`transfer.py:587`）在正频率网格上计算：
 
 $$
-\omega_k\in(0,\infty),\qquad (|H_k|,\angle H_k)=\texttt{tf.frequency\_response}(\omega_k),
+\omega_k\in(0,\infty),\qquad (|H_k|,\angle H_k)=\mathrm{tf.frequency\_response}(\omega_k),
 $$
 
 $$
@@ -467,14 +467,14 @@ $$
 `analyze_poles(source, E=None)`（`descriptor_analysis.py:283`）解 $\det(A+sE)=0$，用**广义特征值**：
 
 $$
-A v=\lambda\,(-E)\,v \quad\Longleftrightarrow\quad \texttt{linalg.eig}(-A,\ E,\ \text{homogeneous\_eigvals=True}),
+A v=\lambda\,(-E)\,v \quad\Longleftrightarrow\quad \mathrm{linalg.eig}(-A,\ E,\ \mathrm{homogeneous\_eigvals=True}),
 $$
 
 返回 $\alpha,\beta$ 对；用相对容差 `_FINITE_BETA_TOL` 判 $\beta\approx0$ 为**无穷极点**，否则 $\lambda=\alpha/\beta$ 为**有限极点**。返回 `PoleResult`（有限极点列表、无穷极点个数、逐点残差）。若矩阵铅笔 $(A,E)$ 奇异，抛 `ComputeError`（不静默给假结果）。
 
 ### 7.3 零点（M3）：Rosenbrock 系统矩阵
 
-`analyze_zeros(source, E, B, C, D)`（`descriptor_analysis.py:424`）用 **Rosenbrock 系统矩阵**把传输零点化为广义特征值问题。构造一对铅笔 $P_0,P_1$（由 $\begin{bmatrix}A&B\\C&D\end{bmatrix}$ 变形，`:500` 附近），对其做与 §7.2 相同的广义特征值分解，取有限广义特征值即 SISO 有限传输零点。**MIMO 情形抛 `UnsupportedAnalysisError`**（当前只做 SISO）。
+`analyze_zeros(source, E, B, C, D)`（`descriptor_analysis.py:424`）用 **Rosenbrock 系统矩阵**把传输零点化为广义特征值问题。构造一对铅笔 $P_0,P_1$（由 2×2 分块 [A B; C D] 变形，`:500` 附近），对其做与 §7.2 相同的广义特征值分解，取有限广义特征值即 SISO 有限传输零点。**MIMO 情形抛 `UnsupportedAnalysisError`**（当前只做 SISO）。
 
 ### 7.4 描述符阶跃（M4）：隐式 Euler
 

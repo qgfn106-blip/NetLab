@@ -199,7 +199,7 @@ $$
 **定义**（把两端电压差换成电流）：
 
 $$
-i = \frac{v_{\text{src}} - v_{\text{tgt}}}{R},\qquad v_{\text{src}} = x[\texttt{voltage}]
+i = \frac{v_{\text{src}} - v_{\text{tgt}}}{R},\qquad v_{\text{src}} = x[\mathrm{voltage}]
 $$
 
 输出 `current`、`voltage_difference`、`power`。

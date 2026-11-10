@@ -112,16 +112,16 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
-| 2026-11-10 | docs(g0-g4): S3′ 绑定 43da6f5 三 CI；明确逐闸签字与 W 追认 |
-| 2026-11-10 | docs: refresh README recent updates before gate submission |
-| 2026-11-10 | docs(gate): add in-repo G0-G6 contract SSOT and waivers; rebind signoff anchors |
-| 2026-11-10 | docs(gate): S3 回填 G0–G4 签字表 8 处缺口 |
-| 2026-11-10 | fix(ci): D-5 指纹跨平台归一（CRLF→LF） |
-| 2026-11-10 | fix(ci): S1 D-5 指纹报告与 README changelog 结构门 |
-| 2026-11-10 | docs(ui): 记录旁路分析与工作台数值参数修复 |
-| 2026-11-10 | fix(ui): 工作台数值参数类型与分析信号显示名映射 |
-| 2026-11-09 | docs(ui): 记录四项 UI 缺陷修复 |
-| 2026-11-09 | fix(ui): 多选拖动、信号显示名与工作台参数折叠 |
+| 2026-11-10 | chore: 重生成 status.json（808 passed / 81.52%，测试提交 852ae98） |
+| 2026-11-10 | docs: 校正 REQUIREMENTS 基线 808，并入库 pytest.xml 证据 |
+| 2026-11-10 | chore: 重生成 status.json（808 passed / 81.52%，测试提交 7f9f949） |
+| 2026-11-10 | docs: 校正 Netlab 最终基线 808 passed / 81.52% |
+| 2026-11-10 | fix(status): status-only 判定纳入 D-5 shadow 报告 |
+| 2026-11-10 | chore(d5): 重生成 Newton/SCC 改动后的 shadow 报告 |
+| 2026-11-10 | chore: 重生成 status.json（808 passed / 1 skipped，coverage 81.52%，测试提交 016b11e） |
+| 2026-11-10 | fix(status): 生成器忽略 status 自身产物对 dirty 的影响 |
+| 2026-11-10 | chore(status): 允许 status-only 尾提交，status.head 绑定最后被测试提交 |
+| 2026-11-10 | chore: 重生成 status.json（808 passed / 1 skipped，coverage 81.53%） |
 
 <!-- END LAST 10 UPDATES -->
 

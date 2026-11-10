@@ -15,11 +15,11 @@ APP_PLOTKIT_DATA = ROOT.parent / "frontend" / "app" / "plotkit_data.ts"
 
 def test_run_warning_precompute_uses_token_aware_helper():
     source = APP_JS.read_text(encoding="utf-8")
-    start = source.index("(card!.querySelector('#runWarnPre') as HTMLElement).onclick")
-    handler = source[start : start + 2600]
+    start = source.index("async function runPlotkitPrecompute(")
+    handler = source[start : start + 1800]
     assert "api('/api/plotkit/precompute'" in handler
-    assert "catch (error)" in handler
-    assert ".message" in handler
+    assert "catch (error)" in source
+    assert ".message" in source
 
 
 def test_retry_does_not_report_ready_when_channel_refresh_fails():

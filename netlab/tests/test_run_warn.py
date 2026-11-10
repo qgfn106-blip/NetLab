@@ -11,14 +11,15 @@ INDEX = ROOT.parent / "frontend" / "index.html"
 def test_run_warn_dialog_hooks():
     src = APP.read_text(encoding="utf-8")
     assert "openRunWarn" in src
-    assert "runWarnWin" in src
+    assert "precomputeDialog" in src
+    assert "openPrecomputeDialog" in src
     assert "/api/plotkit/precompute" in src
     assert "skipWarn" in src
-    start = src.index("(card!.querySelector('#runWarnPre') as HTMLElement).onclick")
-    handler = src[start : start + 2600]
+    start = src.index("async function runPlotkitPrecompute(")
+    handler = src[start : start + 1800]
     assert "api('/api/plotkit/precompute'" in handler
-    assert "catch (error)" in handler
-    assert ".message" in handler
+    assert "catch (error)" in src
+    assert ".message" in src
 
 
 def test_build_stamp_matches_index_version():

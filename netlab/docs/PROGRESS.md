@@ -1,6 +1,6 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-10（事实同步；当前基线：全量 866 passed / 1 skipped，以 status.json 与本机实测为准；3.20.1）
+> 最后修改：2026-11-11（事实同步；当前基线：全量 872 passed / 1 skipped，以 status.json 与本机实测为准；3.20.1）
 
 <!-- BEGIN GENERATED: status -->
 | 项 | 内容 |
@@ -2780,3 +2780,9 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 同步入口：`README.md` 文档索引、`ARCHITECTURE.md` 数学入口、`netlab/docs/AGENT_GUIDE.md` 阅读顺序、`netlab/docs/DOCS_INDEX.md` 均改为「数学总览 + 三份专题」。
 - 如实记录：M0–M4 描述符分析已实现并有测试；`POST /api/analysis/tf` 支持 `mode="circuit"`（`server_analysis/__init__.py:30,160`），前端「小信号旁路」入口已接入（`frontend/app/ac_analysis.ts:575-587`），通用 `frontend/app/analysis.ts:108-112` 仍走 signal。
 - 范围：仅文档与图示，无 Python/TypeScript 源码改动；未改默认开关、未新增依赖。
+
+## §7.148 全量文档基线与入口同步（2026-11-11）
+
+- 本次仅文档与状态同步，未改任何源码。统一当前事实基线：Netlab 全量 872 passed / 1 skipped（2026-11-11 实测 204.51s，core line 覆盖率沿用 81.12%），PlotKit 562 passed。
+- 同步更新：`PROGRESS.md`、`REQUIREMENTS_AND_RULES.md`（头部基线 872、D1–D154）、`AGENT_GUIDE.md`（决策台账范围 D1–D154）、`DOCS_INDEX.md`（基线 872/1、数学专题入口）、`FRAMEWORK_CHEATSHEET.md`（验证命令 872）、`UI_SPEC.md`、`LESSONS.md`；`status.json` 由 `tools/gen_status.py` 按真实测试报告重新生成。
+- 历史章节中的旧数字（678/808/866 等）保留为历史记录，不追改。

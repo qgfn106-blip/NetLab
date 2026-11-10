@@ -735,7 +735,7 @@ window.dispatchEvent(new Event('netlab-desktop-ready'));
   `TypeError: int() argument must be a string, a bytes-like object or a real number, not '_NoValueType'`，
   栈底是 `netlab/core/compute/fem.py:239 _assemble` → `scipy/sparse/_coo.py:221 _check` → `numpy/_core/_methods.py:43 _amax`；
   同时有一条被淹掉的警告：`netlab/core/common/fastcopy.py:19: UserWarning: The NumPy module was reloaded`。
-  换成 `--cov=netlab` 或 `--cov=netlab/core` 则 678 passed。
+  换成 `--cov=netlab` 或 `--cov=netlab/core` 则当前 872 passed。
 - **根因**：点号形式让 pytest-cov/coverage 为了解析 source **提前 import `netlab.core`**，这条路径上的 numpy 与测试进程里后来用的 numpy 不是同一个实例（二次导入），
   `np._NoValue` 这个单例身份对不上，scipy 的 `idx.max()` 就返回 `_NoValueType` 而不是数字。
   所以这**不是**被测代码的 bug，是测量工具污染了被测进程——不要顺着 `fem.py` 去改。

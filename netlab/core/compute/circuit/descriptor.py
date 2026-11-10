@@ -25,6 +25,7 @@ import numpy as np
 from ...common.limits import ComputeError, ConflictError, ValidationError
 from .elements import CircuitElement
 from .stamps import CircuitNode
+from ..waveform import waveform_value
 
 #: 本模型支持装配的线性元件种类。
 SUPPORTED_KINDS = frozenset(
@@ -296,6 +297,43 @@ class DescriptorModel:
         if solver is None:
             raise ValidationError("Descriptor 模型仅支持电路模式")
         return cls.from_solver(solver)
+
+    def dc_solution(self) -> dict[str, Any]:
+        """求解直流工作点 ``A x = B``（电感理想短路、电容开路）。
+
+        与瞬态求解器的 ``operating_point()`` 不同，电感由独立支路电流和
+        ``v_L = 0`` 约束表达，不使用 ``DC_CONDUCTANCE`` 有限电导近似。
+        """
+        rhs = np.zeros(self.index.size, dtype=float)
+        for element in self.elements:
+            value = float(waveform_value(element.params, 0.0))
+            if element.kind == "vsource":
+                rhs[self.index.vsource_index[element.name]] += value
+            elif element.kind == "isource":
+                ai = self.index.node_index.get(element.a)
+                bi = self.index.node_index.get(element.b)
+                if ai is not None:
+                    rhs[ai] -= value
+                if bi is not None:
+                    rhs[bi] += value
+        solution = np.linalg.solve(self.A, rhs)
+        denominator = float(np.linalg.norm(self.A)) * float(np.linalg.norm(solution)) + float(np.linalg.norm(rhs)) + _EPS
+        residual = float(np.linalg.norm(self.A @ solution - rhs)) / denominator
+        node_voltages = {node_id: float(solution[position]) for node_id, position in self.index.node_index.items()}
+        branch_currents = {
+            name: float(solution[position])
+            for name, position in (
+                list(self.index.inductor_index.items())
+                + list(self.index.vsource_index.items())
+                + list(self.index.vcvs_index.items())
+            )
+        }
+        return {
+            "solution": solution,
+            "node_voltages": node_voltages,
+            "branch_currents": branch_currents,
+            "residual": residual,
+        }
 
     # ---- 矩阵装配 ---------------------------------------------------------
     def _assemble_matrices(self) -> tuple[np.ndarray, np.ndarray]:

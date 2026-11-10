@@ -84,6 +84,35 @@ def _tests() -> dict:
     }
 
 
+_STATUS_ONLY_PATHS = {
+    "netlab/docs/status.json",
+    "reports/test_status.json",
+    "tools/check_status_freshness.py",
+}
+
+
+def _status_artifact(path: str) -> bool:
+    return path in _STATUS_ONLY_PATHS or path.startswith("reports/shadow/")
+
+
+def _effective_head() -> str:
+    """HEAD，跳过尾随的纯状态提交。
+
+    status.json 无法在自身提交内引用自身 SHA；若最后一个提交只改状态产物，
+    status.git.head 应指向它覆盖的最后一个非状态提交，与 freshness 检查一致。
+    """
+    head = _git("rev-parse", "HEAD")
+    while True:
+        parent = _git("rev-parse", "--verify", f"{head}^")
+        if not parent:
+            return head
+        changed = {line for line in _git("diff", "--name-only", parent, head).splitlines() if line}
+        if changed and all(_status_artifact(path) for path in changed):
+            head = parent
+            continue
+        return head
+
+
 def _dirty() -> bool:
     """工作树脏状态，忽略 status 自身及其直接输入产物（生成物不应把自己算脏）。"""
     out = _git("status", "--porcelain", "--", ".", ":(exclude)netlab/docs/status.json", ":(exclude)reports/test_status.json", ":(exclude)reports/pytest.xml", ":(exclude)coverage.json")
@@ -97,7 +126,7 @@ def build() -> dict:
         "version": _version(),
         "git": {
             "branch": _git("branch", "--show-current"),
-            "head": _git("rev-parse", "HEAD"),
+            "head": _effective_head(),
             "dirty": _dirty(),
             "ahead_origin": ahead,
             "behind_origin": behind,

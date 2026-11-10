@@ -142,7 +142,7 @@ v_\text{peak}=
 \min_i v_i, & A<0,
 \end{cases}
 \qquad
-\text{overshoot}=\max\!(0,\ \frac{v_\text{peak}-v_\infty}{A}\cdot 100\%).
+\text{overshoot}=\max\!(0,\ \frac{v_\text{peak}-v_\infty}{A}\cdot 100).
 $$
 
 注意分母是**有符号幅度** $A$ 而非 $|v_\infty|$：当 $A>0$ 时 $(v_\text{peak}-v_\infty)>0$ 表示冲过终值；当 $A<0$ 时取最小值、$A$ 为负，比值仍为正。`max(0,·)` 保证欠阻尼不足（没有越过终值）时超调记为 0，而不是负数。
@@ -152,8 +152,10 @@ $$
 ### 2.3 上升时间（rise time，10%→90%）
 
 $$
-v_{10\%}=v_0+0.1A,\qquad v_{90\%}=v_0+0.9A,
+v_{10}=v_0+0.1A,\qquad v_{90}=v_0+0.9A,
 $$
+
+其中 $v_{10},v_{90}$ 分别为 10% 与 90% 幅度电平。
 
 用线性插值（`_crossing`，`analysis.py:96`）求首次穿越这两条水平线的时刻 $t_{10},t_{90}$，则
 
@@ -165,7 +167,7 @@ $$
 
 ### 2.4 调节时间（settling time）
 
-允许带 $=\,$`settle_band`（默认 $0.02$，即 $2\%$）乘以幅度绝对值：
+允许带 $=\,$`settle_band`（默认 0.02，即 2%）乘以幅度绝对值：
 
 $$
 \text{band}=|A|\cdot\mathrm{settle\_band},\qquad
@@ -228,7 +230,7 @@ y_\infty=y_{n-1},\qquad
 y_\text{peak}=
 \begin{cases}\max_i y_i,& y_\infty\ge0,\\ \min_i y_i,& y_\infty<0,\end{cases}
 \qquad
-\text{overshoot}=\max\!(0,\ \frac{y_\text{peak}-y_\infty}{|y_\infty|}\cdot100\%).
+\text{overshoot}=\max\!(0,\ \frac{y_\text{peak}-y_\infty}{|y_\infty|}\cdot 100).
 $$
 
 注意与 §2.2 的差异：这里分母用 $|y_\infty|$（无幅度概念，直接用终值绝对值），因此“相对终值”的超调更贴近相图中“是否冲过目标水平”的直观。

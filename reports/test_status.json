@@ -1,6 +1,6 @@
 {
-  "created_at": "2026-11-10T21:55:42+08:00",
-  "head": "c7d3406f9fd84c9292b2b2519ce07ce955fa783f",
+  "created_at": "2026-11-10T21:56:49+08:00",
+  "head": "395d8854e1b264d26b8ed5db934feec233d65dee",
   "command": "python -m pytest netlab/tests -q --junitxml=reports/pytest.xml --cov=netlab/core --cov-branch --cov-report=json:coverage.json",
   "source": "pytest junit + coverage.py json",
   "coverage_core_line": 81.12,

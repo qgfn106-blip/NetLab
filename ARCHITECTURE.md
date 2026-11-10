@@ -138,9 +138,9 @@ NetlabHome/
 **分析接口**：`operating_point()`（DC 工作点，电容开路、电感 `1e5 S`、源取 t=0，求完恢复检查点）；`ac_sweep(freqs, ...)`（工作点线性化后按 jω 构复数 MNA 逐频求解，含非线性器件会明确报错）。
 
 
-### 4.3 并网逆变器控制链（`core/compute/computes.py`，R31）
+### 4.3 示例应用（`MyProject/`）
 
-`MyProject/` 提供 P11-01…P11-07 示例：平均模型 `grid_inverter_avg.netlab`（三相电网 + `abc_dq` + 6 状态 LCL `state_space`）、`pll_template.netlab`（SRF-PLL）、`grid_inverter_current.netlab`（dq RL + 双 PI + 前馈解耦）、`grid_inverter_switch.netlab`（六开关三相桥趋势验证）。`sensor`/`actuator` 是跨域桥：`CircuitEngine` 在 MNA 解后采样节点电压，下一拍把执行器值写回受控源，显式一拍延迟。
+可运行示例位于 `MyProject/`，覆盖信号流、电路与跨域组合，供演示与验收（含并网逆变器示例工程）。示例不属于核心引擎能力；引擎能力见 4.1（信号流）、4.2（电路 MNA）、4.4（复数分析层）。
 
 ### 4.4 复数分析层（`core/compute/complex_support.py` + `analysis.frequency_response`，R39）
 

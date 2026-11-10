@@ -21,6 +21,9 @@ _STATUS_ONLY_PATHS = {
     "tools/check_status_freshness.py",
 }
 
+def _status_artifact(path: str) -> bool:
+    return path in _STATUS_ONLY_PATHS or path.startswith("reports/shadow/")
+
 def _effective_head() -> str:
     """HEAD, walking back over trailing status-only commits.
 
@@ -34,7 +37,7 @@ def _effective_head() -> str:
         if not parent:
             return head
         changed = {line for line in _git("diff", "--name-only", parent, head).splitlines() if line}
-        if changed and changed <= _STATUS_ONLY_PATHS:
+        if changed and all(_status_artifact(p) for p in changed):
             head = parent
             continue
         return head

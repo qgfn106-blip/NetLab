@@ -651,6 +651,136 @@ def descriptor_zeros(
     return analyze_zeros(system, C=C, D=D)
 
 
+def _complex_list(values: np.ndarray) -> list[list[float]]:
+    """把复数数组编码成 ``[[re, im], ...]``。"""
+    return [[float(np.real(item)), float(np.imag(item))] for item in np.asarray(values).reshape(-1)]
+
+
+def _format_coefficient(value: complex) -> str:
+    """把多项式系数格式化为紧凑的实数字符串；明显非实数时保留复数。"""
+    real = float(np.real(value))
+    imag = float(np.imag(value))
+    if abs(imag) <= 1.0e-10 * max(1.0, abs(real)):
+        if abs(real - round(real)) <= 1.0e-10 * max(1.0, abs(real)):
+            return str(int(round(real)))
+        return f"{real:.6g}"
+    return f"({real:.6g}{imag:+.6g}j)"
+
+
+def _poly_text(coefficients: np.ndarray, variable: str = "s") -> str:
+    """把降幂系数数组写成可读多项式，如 ``s^2 + 2*s + 1``。"""
+    values = np.asarray(coefficients, dtype=np.complex128).reshape(-1)
+    while values.size > 1 and abs(values[0]) <= 1.0e-12:
+        values = values[1:]
+    terms: list[str] = []
+    degree = values.size - 1
+    for index, value in enumerate(values):
+        power = degree - index
+        if abs(value) <= 1.0e-12:
+            continue
+        text = _format_coefficient(value)
+        if power >= 1 and text == "1":
+            text = ""
+        elif power >= 1 and text == "-1":
+            text = "-"
+        if power == 0:
+            terms.append(text)
+        elif power == 1:
+            terms.append(f"{text}{variable}")
+        else:
+            terms.append(f"{text}{variable}^{power}")
+    if not terms:
+        return "0"
+    result = terms[0]
+    for term in terms[1:]:
+        if term.startswith("-"):
+            result += " - " + term[1:]
+        else:
+            result += " + " + term
+    return result
+
+
+def descriptor_transfer_function(
+    model: DescriptorModel,
+    input_source: str | None = None,
+    output: str | None = None,
+) -> dict[str, Any]:
+    """从 SISO Descriptor 模型提取有理传递函数。
+
+    使用有限极点/零点构造 ``G(s) = k * prod(s-z_i) / prod(s-p_i)``。该方法
+    不依赖 ``E`` 可逆，因此同样适用于 index-1 的奇异描述符系统；阶数超过
+    64 时返回 ``supported=False``，避免把超大矩阵转成不可读的表达式。
+    """
+    if not isinstance(model, DescriptorModel):
+        raise ValidationError("descriptor_transfer_function 需要 DescriptorModel")
+    system = model.build(input_source)
+    probe = output
+    if probe is None:
+        if not model.index.node_index:
+            raise ValidationError("模型没有非接地节点，无法选择默认输出探针")
+        probe = next(iter(model.index.node_index))
+    c_matrix, d_matrix = build_output_matrices(
+        model, probe, input_source=system.input_source
+    )
+    order = int(system.A.shape[0])
+    if order > 64:
+        return {
+            "supported": False,
+            "reason": f"电路阶数 {order} 超过传递函数提取上限 64",
+            "order": order,
+        }
+
+    pole_result = analyze_poles(system)
+    zero_result = analyze_zeros(system, C=c_matrix, D=d_matrix)
+    poles = np.asarray(pole_result.finite_poles, dtype=np.complex128).reshape(-1)
+    zeros = np.asarray(zero_result.finite_zeros, dtype=np.complex128).reshape(-1)
+    denominator = np.poly(poles) if poles.size else np.asarray([1.0], dtype=complex)
+    numerator = np.poly(zeros) if zeros.size else np.asarray([1.0], dtype=complex)
+
+    def evaluate(point: complex) -> complex | None:
+        matrix = point * system.E + system.A
+        try:
+            state = np.linalg.solve(matrix, system.B)
+        except np.linalg.LinAlgError:
+            return None
+        return complex(np.asarray(c_matrix).reshape(1, -1) @ state + d_matrix)
+
+    sample = None
+    for candidate in (0.0, 1.0, 10.0j, -10.0j):
+        value = evaluate(complex(candidate))
+        if value is not None and np.isfinite(value):
+            denominator_value = np.polyval(denominator, candidate)
+            numerator_value = np.polyval(numerator, candidate)
+            if abs(numerator_value) > 1.0e-15 and np.isfinite(denominator_value):
+                sample = value * denominator_value / numerator_value
+                break
+    if sample is None:
+        raise UnsupportedAnalysisError("无法确定传递函数增益：所有采样点均落在极点或零点上")
+    numerator = numerator * sample
+    if np.allclose(numerator.imag, 0.0, atol=1.0e-10):
+        numerator = numerator.real
+    if np.allclose(denominator.imag, 0.0, atol=1.0e-10):
+        denominator = denominator.real
+
+    dc_value = evaluate(0.0)
+    dc_gain = None if dc_value is None or not np.isfinite(dc_value) else float(np.real(dc_value))
+    finite_order = int(pole_result.finite_count)
+    return {
+        "supported": True,
+        "expression": f"({_poly_text(numerator)}) / ({_poly_text(denominator)})",
+        "numerator": _poly_text(numerator),
+        "denominator": _poly_text(denominator),
+        "numerator_coeffs": [float(np.real(item)) if abs(np.imag(item)) < 1e-10 else [float(np.real(item)), float(np.imag(item))] for item in numerator],
+        "denominator_coeffs": [float(np.real(item)) if abs(np.imag(item)) < 1e-10 else [float(np.real(item)), float(np.imag(item))] for item in denominator],
+        "order": finite_order,
+        "relative_order": max(0, finite_order - int(zero_result.finite_count)),
+        "dc_gain": dc_gain,
+        "dc_gain_finite": bool(dc_gain is not None and np.isfinite(dc_gain)),
+        "poles": _complex_list(poles),
+        "zeros": _complex_list(zeros),
+    }
+
+
 __all__ = [
     "PoleResult",
     "ZeroResult",
@@ -660,6 +790,7 @@ __all__ = [
     "build_output_matrices",
     "check_pencil_regularity",
     "descriptor_poles",
+    "descriptor_transfer_function",
     "descriptor_zeros",
     "is_regular_pencil",
 ]

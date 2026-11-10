@@ -27,9 +27,18 @@ class AnalysisExportRequest(BaseModel):
 class AnalysisTFRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    mode: Literal["signal", "circuit"] = "signal"
     node: str | None = None
     input_node: str | None = None
     output_node: str | None = None
+    input_source: str | None = None
+    output: str | None = None
+    operating_point: dict[str, float] | None = None
+    step_dt: float = Field(default=1.0e-5, gt=0.0)
+    step_duration: float = Field(default=5.0e-3, gt=0.0)
+    f_start: float = Field(default=1.0, gt=0.0)
+    f_stop: float = Field(default=1_000_000.0, gt=0.0)
+    scale: Literal["log", "lin"] = "log"
     field: str | None = None
     expr: str | None = None
     numerator: list[float] | None = None
@@ -153,9 +162,18 @@ def analysis_tf(request: AnalysisTFRequest) -> dict[str, Any]:
     return _analysis_call(
         lambda: analysis.tf_analysis(
             _service.current,
+            mode=request.mode,
             node=request.node,
             input_node=request.input_node,
             output_node=request.output_node,
+            input_source=request.input_source,
+            output=request.output,
+            operating_point=request.operating_point,
+            step_dt=request.step_dt,
+            step_duration=request.step_duration,
+            f_start=request.f_start,
+            f_stop=request.f_stop,
+            scale=request.scale,
             field=request.field,
             expr=request.expr,
             numerator=request.numerator,

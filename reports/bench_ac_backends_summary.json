@@ -1,5 +1,6 @@
 {
   "sections": 180,
+  "matrix_size": 181,
   "frequencies_hz": [
     10.0,
     100.0,
@@ -8,15 +9,27 @@
     100000.0
   ],
   "median_ms": {
-    "off": 10.6,
-    "shadow": 38.072,
-    "on": 37.22,
-    "descriptor": 7.263
+    "off": 8.814,
+    "shadow": 56.127,
+    "on": 48.002,
+    "descriptor": 6.218
   },
   "max_abs_error_vs_descriptor": {
     "off": 0.0,
     "shadow": 0.0,
     "on": 0.0
   },
-  "decision": "Legacy 默认 off 保留；Descriptor 在本例更快且数值一致；Woodbury shadow/on 对此稠密 181 阶矩阵反而更慢，不并入 Descriptor。"
+  "math_accel_counters": {
+    "off": {},
+    "shadow": {
+      "p3.init": 1,
+      "p3.shadow": 5
+    },
+    "on": {
+      "p3.init": 1,
+      "p3.used": 5
+    },
+    "descriptor": {}
+  },
+  "decision": "Keep Legacy off as default. Descriptor matches Legacy numerically and is faster on this 181-node/5-reactive case; Woodbury shadow/on is slower here and remains a Legacy-only conditional path, not merged into Descriptor."
 }

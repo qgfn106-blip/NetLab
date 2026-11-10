@@ -1,4 +1,4 @@
-"""线性 RLC 电路的独立连续时间描述符（Descriptor）模型。
+"""电路的小信号描述符（Descriptor）模型。
 
 本模块不依赖 :class:`~netlab.core.compute.circuit.solver.CircuitSolver` 的 AC
 路径，直接装配描述符形式::
@@ -258,12 +258,17 @@ class DescriptorSystem:
 
 
 class DescriptorModel:
-    """线性 RLC 电路的独立连续时间描述符模型。
+    """电路的小信号描述符模型（线性 RLC，或给定工作点上的非线性器件）。
 
     用法::
 
         model = DescriptorModel(nodes, elements)
         data = model.frequency_response([100, 1000], input_source="V1", probes=["out"])
+
+    非线性器件需要提供直流工作点，例如::
+
+        model = DescriptorModel.from_scene(scene, operating_point=op)
+        # 或者手动调用 model.linearize(op)
 
     也可以从现有求解器/场景构造::
 
@@ -274,11 +279,12 @@ class DescriptorModel:
         self,
         nodes: Sequence[CircuitNode],
         elements: Sequence[CircuitElement],
-        *,
         operating_point: dict[str, Any] | None = None,
     ) -> None:
         self.nodes = list(nodes)
         self.elements = list(elements)
+        if operating_point is not None and not isinstance(operating_point, dict):
+            raise ValidationError("工作点必须是字典")
         if operating_point is None:
             self._validate_elements(self.elements)
         else:
@@ -295,6 +301,8 @@ class DescriptorModel:
         字典（含 ``node_voltages`` 子字典），也可以是 ``{节点 id 或节点名: 电压}``
         的直接映射。
         """
+        if not isinstance(operating_point, dict):
+            raise ValidationError("工作点必须是字典")
         self._validate_linearizable_elements(self.elements)
         self.index = DescriptorIndex(self.nodes, self.elements)
         self.A, self.E = self._assemble_matrices()
@@ -346,7 +354,6 @@ class DescriptorModel:
     def from_solver(
         cls,
         solver: Any,
-        *,
         operating_point: dict[str, Any] | None = None,
     ) -> "DescriptorModel":
         """从 ``CircuitSolver``（或任何带 ``nodes``/``elements`` 的对象）构造。
@@ -364,7 +371,6 @@ class DescriptorModel:
     def from_scene(
         cls,
         scene: Any,
-        *,
         operating_point: dict[str, Any] | None = None,
     ) -> "DescriptorModel":
         """从电路 ``Scene`` 构造（仅电路模式）。
@@ -571,8 +577,11 @@ class DescriptorModel:
                 if junction not in voltages:
                     terminal = node_voltage(element.a) - node_voltage(element.b)
                     if series > 0.0:
-                        voltages[junction] = self._solve_series_diode_voltage(
+                        junction_voltage = self._solve_series_diode_voltage(
                             element, terminal
+                        )
+                        voltages[junction] = (
+                            node_voltage(element.b) + junction_voltage
                         )
                     else:
                         voltages[junction] = node_voltage(element.a)

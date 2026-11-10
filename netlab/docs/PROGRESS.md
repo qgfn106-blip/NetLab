@@ -2750,3 +2750,14 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - PlotKit Phase 1（`b06be8b`、`3f9ca1b`）：`DataSet.values` 只读视图、PKF1 JSON 列 `byte_length`、`record_update` 保留 CRLF。
 - Phase 2（`f48db27`）：`tools/bench_scene_scale.py` 实测 100 节点/300 边 **6.92 ms/步（144.5 步/s）**、400 节点/1200 边 **29.24 ms/步（34.2 步/s）**，峰值 tracemalloc 0.388/1.547 MB；`MAX_NODES=400` 保持不变，500/1000/5000 档位标 `PENDING_USER_AUTHORIZATION`。
 - 当前全量：808 passed / 1 skipped / 233.42s；core 覆盖率 81.52%。
+
+## §7.145 电路小信号分析 M0–M4（2026-11-10）
+
+- M0（只读）：确认两套 AC 契约并存（`ac_sweep`/`#analWin` 与 `analysis.frequency`），`db` 保留为显示约定；Woodbury 为 Legacy 专用条件路径（1 次基础 LU + 每频 r×r 小修正）；DC 电感使用 `DC_CONDUCTANCE=1e5` 仅影响 OP；BJT/MOSFET/二极管解析导数已存在；`StampContext` 可复用为局部装配基础；单输入多输出已由 `ac_sweep(probes=[...])` 支持；真实基线改为 808 passed / 1 skipped。
+- M1（`937be4b`）：AC 契约固化测试 `test_ac_contract_m1.py`（194 行）覆盖 SISO 形状、多输出共享解、状态不变性与频率严格递增；`ac_sweep` 增严格递增校验。
+- M2（`0449e7f`）：新增 `circuit/descriptor.py`（`DescriptorIndex`/`DescriptorModel`/`DescriptorSystem`），支持 R/C/L、独立源、VCVS/VCCS、固定开关；`test_descriptor_rlc.py` 10 tests（RC 高/低通解析解、RLC 谐振、残差、Legacy parity）。
+- M2.1（`9027e81`）：`DescriptorModel.dc_solution()` 以理想电感短路/电容开路求 `A x = B`；`test_descriptor_dc.py` 2 tests 验证 RC 与 Legacy OP 一致、RL 电感电压严格 0，并量化 Legacy 有限电导残压。
+- M2.2（`46a2e2d`、`f2f6edd`）：`tools/bench_ac_backends.py`（181 阶、5 频点、warmup+3 次中位）实测 off 8.814 ms、shadow 56.127 ms、on 48.002 ms、descriptor 6.218 ms；max_abs_error 全 0；Woodbury 本例为负优化，保留 Legacy 条件路径、不并入 Descriptor。
+- M3（`b1de678`、`2cfac1d`）：`DescriptorModel.linearize(operating_point)` 使用现有解析导数对二极管/齐纳/BJT/MOSFET/运放/比较器在工作点线性化；新增 `test_descriptor_nonlinear.py`、`test_descriptor_linearization.py`。
+- M4（`3c24f7e`、`2af2475`、`e8a8e28`）：`descriptor_analysis.py` 提供极点、Rosenbrock 零点与阶跃分析；RC 低通极点 -1000 rad/s、RC 高通零点 0、RLC 极/零点与解析解一致；阶跃响应用隐式 Euler 对照 RC 解析解。
+- 当前测试：`test_descriptor_rlc.py`/`test_descriptor_dc.py`/`test_descriptor_poles_zeros.py`/`test_descriptor_step.py`/`test_descriptor_linearization.py`/`test_descriptor_nonlinear.py` 合计 57 passed；M1 契约测试 23 passed。未 push。

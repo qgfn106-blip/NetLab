@@ -114,6 +114,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-11 | docs(math): 修复 Mermaid 语法与图示文字遮挡，补充核心类定义源码 |
 | 2026-11-11 | docs(math): 拆分数学文档为总览与三专题并同步入口 |
 | 2026-11-10 | docs: 删除演示视频并移除 README 引用 |
 | 2026-11-10 | docs: 将并网逆变器从核心能力降级为示例应用（README/ARCHITECTURE） |
@@ -123,7 +124,6 @@ python -m netlab.desktop
 | 2026-11-10 | fix(status): gen_status 使用有效 HEAD，避免状态提交自引用 |
 | 2026-11-10 | chore(status): 对齐状态快照到 395d885 |
 | 2026-11-10 | chore(status): 刷新 872 passed / 81.12% 基线 |
-| 2026-11-10 | test(shadow): 记录电路小信号旁路分析的 D-5 三态报告 |
 
 <!-- END LAST 10 UPDATES -->
 

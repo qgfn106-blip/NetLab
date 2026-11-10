@@ -69,9 +69,9 @@ from .descriptor import DescriptorModel, DescriptorSystem
 
 _EPS = float(np.finfo(float).eps)
 
-#: 齐次特征值中 ``beta`` 相对 ``alpha`` 的判定阈值。``eig`` 返回的
-#: ``(alpha, beta)`` 已归一化，因此固定的小阈值即可区分有限/无穷。
-_FINITE_BETA_TOL = 1.0e-9
+#: 齐次特征值中 ``beta`` 相对 ``max(|alpha|, |beta|)`` 的判定阈值。使用
+#: 相对阈值可避免电路参数整体缩放（例如 pF/nH 量级）被误判为无穷远特征值。
+_FINITE_BETA_TOL = 100.0 * float(np.finfo(float).eps)
 
 #: 正则性检查的容差放大系数（相对机器精度）。
 _REGULARITY_FACTOR = 100.0
@@ -264,7 +264,7 @@ def is_regular_pencil(source: Any, E: Any | None = None) -> bool:
 
     diagonal_a = np.abs(np.diag(AA))
     diagonal_b = np.abs(np.diag(BB))
-    scale = max(1.0, _matrix_norm(A), _matrix_norm(E_matrix))
+    scale = max(_matrix_norm(A), _matrix_norm(E_matrix))
     tolerance = _REGULARITY_FACTOR * A.shape[0] * np.finfo(float).eps * scale
     singular_pairs = (diagonal_a <= tolerance) & (diagonal_b <= tolerance)
     return not bool(np.any(singular_pairs))
@@ -311,7 +311,8 @@ def analyze_poles(source: Any, E: Any | None = None) -> PoleResult:
 
     alpha = homogeneous[0]
     beta = homogeneous[1]
-    finite_mask = np.abs(beta) > _FINITE_BETA_TOL
+    beta_scale = np.maximum(np.abs(alpha), np.abs(beta))
+    finite_mask = np.abs(beta) > _FINITE_BETA_TOL * beta_scale
     finite_count = int(np.count_nonzero(finite_mask))
     infinite_count = int(A.shape[0] - finite_count)
 
@@ -515,7 +516,8 @@ def analyze_zeros(
 
     alpha = homogeneous[0]
     beta = homogeneous[1]
-    finite_mask = np.abs(beta) > _FINITE_BETA_TOL
+    beta_scale = np.maximum(np.abs(alpha), np.abs(beta))
+    finite_mask = np.abs(beta) > _FINITE_BETA_TOL * beta_scale
     finite_count = int(np.count_nonzero(finite_mask))
     infinite_count = int(P0.shape[0] - finite_count)
 

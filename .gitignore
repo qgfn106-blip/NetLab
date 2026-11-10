@@ -64,4 +64,5 @@ reports/*
 !reports/shadow/**
 !reports/bench_scale.json
 !reports/test_status.json
+!reports/pytest.xml
 CON

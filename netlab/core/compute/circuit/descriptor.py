@@ -24,7 +24,7 @@ import numpy as np
 
 from ...common.limits import ComputeError, ConflictError, ValidationError
 from .elements import CircuitElement
-from .stamps import CircuitNode
+from .stamps import CircuitNode, StampContext
 from ..waveform import waveform_value
 
 #: 本模型支持装配的线性元件种类。
@@ -58,6 +58,21 @@ NONLINEAR_KINDS = frozenset(
     }
 )
 
+#: 可在给定直流工作点处线性化的非线性器件（使用各自已有的解析小信号模型）。
+LINEARIZABLE_NONLINEAR_KINDS = frozenset(
+    {
+        "diode",
+        "zener",
+        "led",
+        "opamp",
+        "comparator",
+        "npn",
+        "pnp",
+        "nmos",
+        "pmos",
+    }
+)
+
 _EPS = float(np.finfo(float).eps)
 
 
@@ -84,6 +99,7 @@ class DescriptorIndex:
         "inductor_index",
         "vsource_index",
         "vcvs_index",
+        "opamp_index",
         "element_by_name",
         "node_by_id",
         "node_name_to_id",
@@ -160,15 +176,22 @@ class DescriptorIndex:
             element for element in elements if element.kind == "vsource"
         ]
         vcvs = [element for element in elements if element.kind == "vcvs"]
+        opamps = [
+            element
+            for element in elements
+            if element.kind in ("opamp", "comparator")
+        ]
         self.inductor_index: dict[str, int] = {}
         self.vsource_index: dict[str, int] = {}
         self.vcvs_index: dict[str, int] = {}
+        self.opamp_index: dict[str, int] = {}
         ordered_branches: list[CircuitElement] = []
         position = self.node_count
         for group, target in (
             (inductors, self.inductor_index),
             (voltage_sources, self.vsource_index),
             (vcvs, self.vcvs_index),
+            (opamps, self.opamp_index),
         ):
             for element in group:
                 if element.a == element.b:
@@ -250,12 +273,32 @@ class DescriptorModel:
         self,
         nodes: Sequence[CircuitNode],
         elements: Sequence[CircuitElement],
+        *,
+        operating_point: dict[str, Any] | None = None,
     ) -> None:
         self.nodes = list(nodes)
         self.elements = list(elements)
-        self._validate_elements(self.elements)
+        if operating_point is None:
+            self._validate_elements(self.elements)
+        else:
+            self._validate_linearizable_elements(self.elements)
         self.index = DescriptorIndex(self.nodes, self.elements)
         self.A, self.E = self._assemble_matrices()
+        if operating_point is not None:
+            self._apply_operating_point(operating_point)
+
+    def linearize(self, operating_point: dict[str, Any]) -> "DescriptorModel":
+        """按给定直流工作点重新线性化本模型并返回自身。
+
+        ``operating_point`` 可以是 :meth:`CircuitSolver.operating_point` 返回的
+        字典（含 ``node_voltages`` 子字典），也可以是 ``{节点 id 或节点名: 电压}``
+        的直接映射。
+        """
+        self._validate_linearizable_elements(self.elements)
+        self.index = DescriptorIndex(self.nodes, self.elements)
+        self.A, self.E = self._assemble_matrices()
+        self._apply_operating_point(operating_point)
+        return self
 
     # ---- 构造辅助 ---------------------------------------------------------
     @staticmethod
@@ -280,23 +323,79 @@ class DescriptorModel:
                 "仅支持线性 R/C/L、独立源、VCVS/VCCS 与固定状态开关"
             )
 
+    @staticmethod
+    def _validate_linearizable_elements(elements: Sequence[CircuitElement]) -> None:
+        """校验元素集合能否在工作点处线性化。"""
+        unsupported: list[CircuitElement] = []
+        for element in elements:
+            if element.kind in SUPPORTED_KINDS:
+                continue
+            if element.kind in LINEARIZABLE_NONLINEAR_KINDS:
+                continue
+            unsupported.append(element)
+        if unsupported:
+            names = "、".join(element.name for element in unsupported[:3])
+            raise ComputeError(
+                f"Descriptor 模型无法线性化元件 {names!r}"
+                f"（{unsupported[0].kind}）：仅支持 R/C/L、独立源、VCVS/VCCS、"
+                "固定状态开关以及二极管、BJT、MOSFET、运放"
+            )
+
     @classmethod
-    def from_solver(cls, solver: Any) -> "DescriptorModel":
-        """从 ``CircuitSolver``（或任何带 ``nodes``/``elements`` 的对象）构造。"""
+    def from_solver(
+        cls,
+        solver: Any,
+        *,
+        operating_point: dict[str, Any] | None = None,
+    ) -> "DescriptorModel":
+        """从 ``CircuitSolver``（或任何带 ``nodes``/``elements`` 的对象）构造。
+
+        给出 ``operating_point`` 时按该直流工作点线性化非线性器件；否则要求
+        全部元件均为线性元件（保持原有行为）。
+        """
         nodes = getattr(solver, "nodes", None)
         elements = getattr(solver, "elements", None)
         if nodes is None or elements is None:
             raise ValidationError("Descriptor 模型需要提供 nodes 与 elements")
-        return cls(nodes, elements)
+        return cls(nodes, elements, operating_point=operating_point)
 
     @classmethod
-    def from_scene(cls, scene: Any) -> "DescriptorModel":
-        """从电路 ``Scene`` 构造（仅电路模式）。"""
+    def from_scene(
+        cls,
+        scene: Any,
+        *,
+        operating_point: dict[str, Any] | None = None,
+    ) -> "DescriptorModel":
+        """从电路 ``Scene`` 构造（仅电路模式）。
+
+        给出 ``operating_point`` 时按该直流工作点线性化非线性器件。
+        """
         engine = scene.ensure_engine()
         solver = getattr(engine, "solver", None)
         if solver is None:
             raise ValidationError("Descriptor 模型仅支持电路模式")
-        return cls.from_solver(solver)
+        return cls.from_solver(solver, operating_point=operating_point)
+
+    @classmethod
+    def from_operating_point(
+        cls,
+        nodes: Sequence[CircuitNode],
+        elements: Sequence[CircuitElement],
+        operating_point: dict[str, Any],
+    ) -> "DescriptorModel":
+        """在给定直流工作点处线性化并构造 Descriptor 模型。
+
+        ``operating_point`` 支持两种形式：
+
+        * :meth:`CircuitSolver.operating_point` 的返回字典（含 ``node_voltages``）；
+        * 直接给出 ``{节点 id 或节点名: 直流电压}``。
+
+        二极管（含串联电阻内部节点）、BJT、MOSFET 与运放分别复用各自已有的
+        解析导数/工作点模型；线性元件与独立源按原有方式装配。
+        """
+        if not isinstance(operating_point, dict):
+            raise ValidationError("工作点必须是字典")
+        return cls(nodes, elements, operating_point=operating_point)
 
     def dc_solution(self) -> dict[str, Any]:
         """求解直流工作点 ``A x = B``（电感理想短路、电容开路）。
@@ -431,6 +530,179 @@ class DescriptorModel:
                 # 独立电流源只进入 B 向量，不改变 A/E。
                 continue
         return A, E
+
+    # ---- 工作点线性化 -----------------------------------------------------
+    def _apply_operating_point(self, operating_point: dict[str, Any]) -> None:
+        """把各非线性器件在当前直流工作点的解析 Jacobian 叠加到 A 矩阵。
+
+        小信号 AC 分析只需要增量电导/跨导，不需要直流偏置电流，因此不向
+        ``rhs`` 写入任何 offset。
+        """
+        voltages = self._operating_point_voltages(operating_point)
+        index = self.index
+        A = self.A
+
+        def node_voltage(node_id: str) -> float:
+            if node_id not in index.node_index:
+                return 0.0
+            return voltages.get(node_id, 0.0)
+
+        def stamp_conductance(a: str, b: str, conductance: float) -> None:
+            g = float(conductance)
+            ai = index.node_index.get(a)
+            bi = index.node_index.get(b)
+            if ai is not None:
+                A[ai, ai] += g
+            if bi is not None:
+                A[bi, bi] += g
+            if ai is not None and bi is not None:
+                A[ai, bi] -= g
+                A[bi, ai] -= g
+
+        for element in self.elements:
+            # 二极管（含 Zener/LED）的解析小信号电导；串联电阻形成内部节点时
+            # 先串联 1/rs，再在结节点与阴极之间 stamp gd。
+            if element.kind in ("diode", "zener", "led") and hasattr(
+                element, "_conductance"
+            ):
+                junction = getattr(element, "junction", element.a)
+                series = float(getattr(element, "series_resistance", 0.0) or 0.0)
+                if junction not in voltages:
+                    terminal = node_voltage(element.a) - node_voltage(element.b)
+                    if series > 0.0:
+                        voltages[junction] = self._solve_series_diode_voltage(
+                            element, terminal
+                        )
+                    else:
+                        voltages[junction] = node_voltage(element.a)
+                vd = node_voltage(junction) - node_voltage(element.b)
+                _, conductance = element._conductance(vd)
+                if series > 0.0:
+                    stamp_conductance(element.a, junction, 1.0 / series)
+                stamp_conductance(junction, element.b, float(conductance))
+                continue
+
+            # BJT/MOSFET：直接调用其自身 stamp —— 其中 A 矩阵部分正是非线性
+            # 电流对节点电压的解析 Jacobian，rhs 只是直流偏置项，这里丢弃。
+            if element.kind in ("npn", "pnp", "nmos", "pmos"):
+                context = self._linearization_context(voltages)
+                element.stamp(context)
+                continue
+
+            # 运放/比较器：输出支路在现有模型中是受控电压源，工作点处取
+            # value + slope * (u - u0)，小信号方程只保留 slope。
+            if element.kind in ("opamp", "comparator"):
+                self._linearize_opamp(element, node_voltage)
+                continue
+
+    def _linearization_context(self, voltages: dict[str, float]) -> StampContext:
+        solution = np.zeros(self.index.size, dtype=float)
+        for node_id, position in self.index.node_index.items():
+            solution[position] = voltages.get(node_id, 0.0)
+        return StampContext(
+            A=self.A,
+            rhs=np.zeros(self.index.size, dtype=float),
+            index=self.index.node_index,
+            solution=solution,
+            dt=0.0,
+            time=0.0,
+            iteration=0,
+            mode="dc",
+            omega=0.0,
+        )
+
+    def _linearize_opamp(
+        self,
+        element: CircuitElement,
+        node_voltage: Any,
+    ) -> None:
+        index = self.index
+        A = self.A
+        row = index.opamp_index[element.name]
+        for node, sign in ((element.a, 1.0), (element.b, -1.0)):
+            position = index.node_index.get(node)
+            if position is not None:
+                A[position, row] += sign
+                A[row, position] += sign
+        context = self._linearization_context(
+            {node_id: node_voltage(node_id) for node_id in index.node_ids}
+        )
+        u = node_voltage(element.vp) - node_voltage(element.vn)
+        _, slope = element._evaluate(context, u)
+        slope = float(slope)
+        if not math.isfinite(slope):
+            raise ComputeError(f"运放 {element.name!r} 的工作点跨导不是有限数")
+        vp = index.node_index.get(element.vp)
+        vn = index.node_index.get(element.vn)
+        if vp is not None:
+            A[row, vp] -= slope
+        if vn is not None:
+            A[row, vn] += slope
+
+    def _operating_point_voltages(
+        self, operating_point: dict[str, Any]
+    ) -> dict[str, float]:
+        """把工作点归一化为 ``{节点 id: 电压}``，同时兼容节点名键。"""
+        raw = (
+            operating_point["node_voltages"]
+            if "node_voltages" in operating_point
+            else operating_point
+        )
+        if not isinstance(raw, dict):
+            raise ValidationError("工作点的 node_voltages 必须是字典")
+
+        name_to_id: dict[str, str] = {}
+        for node in self.nodes:
+            name = str(node.name)
+            if name and name not in name_to_id:
+                name_to_id[name] = node.id
+
+        voltages: dict[str, float] = {}
+        for key, value in raw.items():
+            try:
+                voltage = float(value)
+            except (TypeError, ValueError) as error:
+                raise ValidationError(f"工作点电压不是数值：{key!r}") from error
+            if not math.isfinite(voltage):
+                raise ValidationError(f"工作点电压不是有限数：{key!r}")
+            text = str(key)
+            if text in self.index.node_index:
+                voltages[text] = voltage
+                continue
+            node_id = name_to_id.get(text)
+            if node_id is not None and node_id in self.index.node_index:
+                voltages[node_id] = voltage
+
+        internal_ids = {
+            node_id
+            for element in self.elements
+            for node_id in getattr(element, "internal_nodes", ())
+        }
+        missing = [
+            node_id
+            for node_id in self.index.node_ids
+            if node_id not in internal_ids and node_id not in voltages
+        ]
+        if missing:
+            raise ComputeError(f"工作点缺少节点电压：{missing[0]!r}")
+        return voltages
+
+    @staticmethod
+    def _solve_series_diode_voltage(
+        element: CircuitElement, terminal_voltage: float
+    ) -> float:
+        """没有给出内部节点电压时，由串联电阻方程解出结电压。"""
+        series = float(getattr(element, "series_resistance", 0.0) or 0.0)
+        vd = min(float(terminal_voltage), 0.7)
+        for _ in range(100):
+            current, conductance = element._conductance(vd)
+            residual = vd + series * current - terminal_voltage
+            derivative = 1.0 + series * conductance
+            step = residual / derivative
+            vd -= step
+            if abs(step) <= 1e-13 * (1.0 + abs(vd)):
+                break
+        return vd
 
     # ---- 输入 -------------------------------------------------------------
     def _resolve_input_source(self, input_source: str | None) -> CircuitElement:

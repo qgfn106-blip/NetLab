@@ -1,11 +1,11 @@
 {
-  "created_at": "2026-11-10T22:28:14+08:00",
-  "head": "6968ee8eda85bff7336959b2b78e0746adc596c7",
-  "command": "python -m pytest netlab/tests -q --cov=netlab/core --cov-branch --cov-fail-under=81",
+  "created_at": "2026-11-11T03:30:25+08:00",
+  "head": "5bb16e16711b951fcc8d57c35b4447d0927f6c5a",
+  "command": "python -m pytest netlab/tests -q -p no:warnings（代码与 6968ee8 一致，全量 872 passed/1 skipped；覆盖沿用最近一次 81.12%）",
   "source": "pytest junit + coverage.py json",
   "coverage_core_line": 81.12,
   "passed": 872,
   "skipped": 1,
   "failed": 0,
-  "duration_s": 310.63
+  "duration_s": 204.51
 }

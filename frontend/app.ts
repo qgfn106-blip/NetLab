@@ -1367,6 +1367,10 @@ function setStatusHint(hint: string): void {
     items.push({ sep: true });
     items.push({ label: '适配视图', action: () => fitView(true) });
     items.push({ label: '自动布局', action: () => void autoLayout() });
+    if (state.mode === 'circuit') {
+      items.push({ sep: true });
+      items.push({ label: '导出原理图 SVG…', action: () => void exportSchematic() });
+    }
     openGenericMenu(ui.linkMenu, point.x, point.y, '画布', items);
   }
 
@@ -4158,7 +4162,7 @@ function setStatusHint(hint: string): void {
     const running = !!(state.sim && state.sim.running);
     if ((action === 'toggle' || action === 'run') && !running && !(opts && opts.skipWarn)
         && state.prefs.runWarn !== false && !hasPrecomputed()) {
-      openRunWarn();
+      openPrecomputeDialog('plotkit', () => void networkControl(action, steps));
       return;
     }
     await networkControl(action, steps);
@@ -4174,123 +4178,140 @@ function setStatusHint(hint: string): void {
     return span >= need * 0.9;
   }
 
-  // ---- 运行前「建议预计算」对话框 -------------------------------------------
-  function openRunWarn() {
-    if (document.getElementById('runWarnWin')) return;
+  // ---- 统一预计算入口 -------------------------------------------------------
+  type PrecomputeTarget = 'solve' | 'plotkit' | 'states';
+
+  async function runSolveWindowPrecompute(seconds: number) {
+    const response = await api('/api/solve-window', {
+      method: 'POST',
+      body: JSON.stringify({ duration: seconds }),
+      timeoutMs: 180000,
+    });
+    leaveReplay();
+    state.frames = [];
+    state.cursor = 0;
+    state.values.clear();
+    state.nodeValues.clear();
+    state.edgeValues.clear();
+    state.sim = response.sim;
+    state.replay.recordingRevision = state.scene?.revision ?? null;
+    await pollLive();
+    updateReplayUI();
+    scheduleChartDraw();
+    const result = response.result || {};
+    if (result.error) toast(`预计算中断：${result.error}`, 'error', 6000);
+    else toast(`预计算完成：${result.steps} 步 / ${result.frames} 帧`, 'ok', 3000);
+  }
+
+  async function runPlotkitPrecompute(seconds: number) {
+    const pre = await runPrecomputeWithProgress(
+      () => api('/api/plotkit/precompute', {
+        method: 'POST',
+        body: JSON.stringify({ seconds }),
+        timeoutMs: 180000,
+      }),
+      `正在计算 0→${seconds}s`,
+    );
+    if (!pre || pre.ok === false) {
+      toast(`预计算失败：${(pre && pre.error) || '未知错误'}`, 'error', 6000);
+      return;
+    }
+    if (pre.cancelled) {
+      toast(`已停止：保留前 ${pre.frames ?? '?'} 帧`, 'warn', 4200);
+      return;
+    }
+    state.precomputedSeconds = seconds;
+    state.precomputedRevision = state.scene?.revision ?? null;
+    await syncAfterPrecompute(pre);
+    toast(`预计算完成：${pre.frames ?? 0} 帧`, 'ok', 3000);
+  }
+
+  async function runStatesPrecompute(seconds: number) {
+    if (!wbCompareStateIds.length) {
+      toast('请先在信号窗勾选要预计算的状态', 'error');
+      return;
+    }
+    for (const id of wbCompareStateIds.slice()) {
+      const row = (wbCacheStatus?.states || []).find((item) => String(item.state_id) === id);
+      const label = `预计算 ${row?.name || id}…`;
+      try {
+        const result = (await runPrecomputeWithProgress(
+          () => api('/api/network/state/precompute', {
+            method: 'POST',
+            body: JSON.stringify({ state_id: id, seconds }),
+            timeoutMs: 600000,
+          }),
+          label,
+        )) as { ok?: boolean; error?: string; frames?: number } | null;
+        if (result && result.ok === false) toast(`${label}失败：${result.error || '未知错误'}`, 'error', 7000);
+      } catch (error) {
+        toast(`${label}失败：${(error as Error)?.message || error}`, 'error', 7000);
+      }
+    }
+    toast('预计算完成', 'ok', 2600);
+    await refreshWbAnalysis();
+  }
+
+  function openPrecomputeDialog(initial: PrecomputeTarget = 'solve', onRun?: () => void) {
+    if (document.getElementById('precomputeDialog')) return;
     const overlay = document.createElement('div');
-    overlay.id = 'runWarnWin';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(16,20,18,.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    overlay.id = 'precomputeDialog';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(16,20,18,.45);display:flex;align-items:center;justify-content:center;z-index:10000;';
     const card = document.createElement('div');
-    card.style.cssText = 'width:520px;max-width:92vw;background:var(--paper,#faf8f2);color:var(--text-primary,#080a08);border:1px solid var(--line,#cfc6b5);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.28);padding:22px 24px 18px;font:13px/1.7 "Microsoft YaHei UI",sans-serif;';
+    card.style.cssText = 'width:460px;max-width:92vw;background:var(--paper,#faf8f2);color:var(--text-primary,#080a08);border:1px solid var(--line,#cfc6b5);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.28);padding:20px 22px 16px;font:13px/1.7 "Microsoft YaHei UI",sans-serif;';
     card.innerHTML = `
-      <div style="font-size:16px;font-weight:700;margin-bottom:6px;">运行前建议先预计算</div>
-      <div style="color:var(--text-secondary,#7b7266);margin-bottom:14px;">
-        实时运行只登记探针，绘图面板不会边算边画。先用下面的时间窗把 0→T 整段算完，
-        之后在「绘图」页可以毫秒级回放、并直接接入为数据源。
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-        <span>预计算时间窗</span>
-        <input id="runWarnSec" type="number" min="1" max="120" step="1" value="${Math.max(1, Math.min(120, Math.round(Number((state.chart && state.chart.window) || 5))))}"
-          style="width:84px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:8px;background:var(--field-bg,#ffffff);color:var(--text-input,#111814);-webkit-text-fill-color:var(--text-input,#111814);font:600 14px/1.4 'Microsoft YaHei UI',sans-serif;" />
-        <span>s</span>
-        <span id="runWarnChips" style="display:flex;gap:6px;margin-left:6px;"></span>
-      </div>
-      <div id="runWarnInfo" style="color:var(--text-secondary,#7b7266);min-height:20px;margin-bottom:6px;"></div>
-      <label style="display:flex;align-items:center;gap:8px;margin:10px 0 16px;color:var(--text-secondary,#7b7266);">
-        <input id="runWarnNever" type="checkbox" /> 以后不再提示
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px;">运行预计算</div>
+      <div style="color:var(--text-secondary,#7b7266);margin-bottom:14px;">统一入口：把 0→T 整段算完后再回放或接入数据源。</div>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">目标
+        <select id="precomputeTarget" style="flex:1;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
+          <option value="solve">当前网络（0→T 录制）</option>
+          <option value="plotkit">PlotKit 数据源</option>
+          <option value="states">工作台对比状态</option>
+        </select>
       </label>
-      <div style="display:flex;justify-content:flex-end;gap:10px;">
-        <button id="runWarnCancel" class="ghost" style="padding:7px 14px;border:1px solid var(--line,#cfc6b5);border-radius:9px;background:transparent;color:inherit;cursor:pointer;">取消</button>
-        <button id="runWarnRun" class="ghost" style="padding:7px 14px;border:1px solid var(--line,#cfc6b5);border-radius:9px;background:transparent;color:inherit;cursor:pointer;">直接运行</button>
-        <button id="runWarnStop" class="ghost" style="display:none;padding:7px 14px;border:1px solid var(--red,#b75555);border-radius:9px;background:transparent;color:var(--text-button-danger,#b75555);cursor:pointer;">停止计算</button>
-        <button id="runWarnPre" class="primary" style="padding:7px 16px;border:1px solid var(--accent,#9b7247);border-radius:9px;background:var(--accent,#9b7247);color:var(--text-on-accent,#f7f4ee);cursor:pointer;">预计算并接入</button>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">时长（秒）
+        <input id="precomputeSeconds" type="number" min="1" max="120" step="1" value="5" style="width:110px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
+      </label>
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button id="precomputeSkip" type="button" style="display:none">直接运行（不预计算）</button>
+        <button id="precomputeCancel" type="button">取消</button>
+        <button id="precomputeRun" type="button" class="primary">开始预计算</button>
       </div>`;
     overlay.appendChild(card);
     document.body.appendChild(overlay);
-    const sec = card.querySelector('#runWarnSec');
-    const info = card.querySelector('#runWarnInfo');
-    const chips = card.querySelector('#runWarnChips');
-    [1, 5, 10, 30].forEach((v: number) => {
-      const b = document.createElement('button');
-      b.textContent = v + 's';
-      b.style.cssText = 'padding:3px 9px;border:1px solid var(--line,#cfc6b5);border-radius:999px;background:transparent;color:inherit;cursor:pointer;font:inherit;';
-      b.onclick = () => { (sec! as HTMLInputElement).value = String(v); };
-      chips!.appendChild(b);
-    });
+    const target = card.querySelector('#precomputeTarget') as HTMLSelectElement;
+    const secondsInput = card.querySelector('#precomputeSeconds') as HTMLInputElement;
+    if (target) target.value = initial;
     const close = () => overlay.remove();
-    overlay.onclick = (ev) => { if (ev.target === overlay) close(); };
-    (card!.querySelector('#runWarnCancel') as HTMLElement).onclick = close;
-    (card!.querySelector('#runWarnRun') as HTMLElement).onclick = () => {
-      if ((card!.querySelector('#runWarnNever') as HTMLInputElement).checked) void setPref('runWarn', false);
+    (card.querySelector('#precomputeCancel') as HTMLButtonElement).onclick = close;
+    const skip = card.querySelector('#precomputeSkip') as HTMLButtonElement;
+    if (onRun) {
+      skip.style.display = 'inline-block';
+      skip.onclick = () => { close(); onRun(); };
+    } else {
+      skip.remove();
+    }
+    overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
+    (card.querySelector('#precomputeRun') as HTMLButtonElement).onclick = async () => {
+      const seconds = Number(secondsInput.value);
+      if (!Number.isFinite(seconds) || seconds <= 0 || seconds > 120) {
+        toast('预计算时长必须在 (0, 120] s 内', 'error', 3000);
+        return;
+      }
+      const kind = target.value as PrecomputeTarget;
       close();
-      void control('toggle', ((undefined)), { skipWarn: true });
-    };
-    (card!.querySelector('#runWarnPre') as HTMLElement).onclick = async () => {
-      const seconds = Math.max(1, Math.min(120, Math.round(Number((sec! as HTMLInputElement).value) || 5)));
-      if ((card!.querySelector('#runWarnNever') as HTMLInputElement).checked) void setPref('runWarn', false);
-      const btn = card.querySelector('#runWarnPre');
-      const stopBtn = card.querySelector('#runWarnStop');
-      (btn! as HTMLButtonElement).disabled = true; btn!.textContent = '预计算中…'; info!.textContent = `正在计算 0→${seconds}s…`;
-      (stopBtn! as HTMLElement).style.display = 'inline-block'; (stopBtn! as HTMLButtonElement).disabled = false; stopBtn!.textContent = '停止计算';
-      (stopBtn! as HTMLElement).onclick = async () => {
-        (stopBtn! as HTMLButtonElement).disabled = true; stopBtn!.textContent = '正在停止…';
-        try {
-          await api('/api/control', { method: 'POST', body: JSON.stringify({ action: 'cancel_precompute' }) });
-        } catch (error) {
-          info!.textContent = `取消失败：${(error as Error).message || '请求失败'}`;
-        }
-      };
       try {
-        const pre = await runPrecomputeWithProgress(
-          () => api('/api/plotkit/precompute', {
-            method: 'POST',
-            body: JSON.stringify({ seconds }),
-            timeoutMs: 180000,
-          }),
-          `正在计算 0→${seconds}s`,
-        );
-        if (!pre || pre.ok === false) {
-          info!.textContent = '预计算失败：' + ((pre && pre.error) || '未知错误') + '，可直接运行或缩小时间窗重试。';
-          return;
-        }
-        if (pre.cancelled) {
-          info!.textContent = `已停止：保留前 ${pre.frames ?? '?'} 帧（${Number(pre.last_time || 0).toFixed(3)}s）。`;
-          return;
-        }
-        state.precomputedSeconds = seconds;
-        state.precomputedRevision = state.scene?.revision ?? null;
-        // 同步预计算产出的录制数据，让「分析·信号」等面板能列出并加载变量
-        await syncAfterPrecompute(pre);
-        // 2026-11-03：预计算现在按当前仿真 dt 采样，只有超过步数上限才会降级；
-        // 降级必须说清楚，否则用户会以为「调高精度没生效」。
-        const preNote = pre.degraded
-          ? `（步长受 20 万步上限限制：请求 ${Number(pre.requested_dt).toExponential(1)}s，实际 ${Number(pre.dt_used).toExponential(1)}s）`
-          : '';
-        info!.textContent = `完成：${seconds}s / ${pre.frames ?? '?'} 帧 / ${Math.round(pre.elapsed_ms || 0)} ms${preNote}`;
-        toast(
-          pre.degraded
-            ? `预计算完成但已降级步长（${Number(pre.dt_used).toExponential(1)}s）：${pre.frames ?? '?'} 帧，缩小时间窗可提高精度`
-            : `预计算完成：${pre.frames ?? '?'} 帧，去「绘图」页勾选探针后点「接入」`,
-          pre.degraded ? 'warn' : 'ok',
-          pre.degraded ? 5200 : 4200,
-        );
-        close();
-        const tab = document.querySelector('[data-sub="plotkit"]');
-        if (tab) (tab as HTMLElement).click();
-        setTimeout(() => refreshPkChannels(true), 400);
+        if (kind === 'solve') await runSolveWindowPrecompute(seconds);
+        else if (kind === 'plotkit') await runPlotkitPrecompute(seconds);
+        else await runStatesPrecompute(seconds);
       } catch (error) {
-        info!.textContent = `预计算失败：${(error as Error).message || '请求失败'}；可直接运行或检查桌面会话。`;
-      } finally {
-        (stopBtn! as HTMLElement).style.display = 'none';
-        (btn! as HTMLButtonElement).disabled = false; btn!.textContent = '预计算并接入';
+        toast(`预计算失败：${(error as Error).message}`, 'error', 6000);
       }
     };
-    (sec! as HTMLElement).focus();
   }
 
-  async function maybeAutostart() {
-    // R30-4：启动后任何模式都保持停止状态；运行必须由用户显式触发（空格/按钮）。
-    return;
+  function openRunWarn() {
+    openPrecomputeDialog('plotkit');
   }
 
   function showShutdownScreen() {
@@ -4360,6 +4381,7 @@ function setStatusHint(hint: string): void {
           { sep: true },
           { label: '恢复自动保存', action: () => void recoverAutosave() },
           { label: '导出场景 JSON', hint: 'Ctrl+Shift+E（下一票）', action: () => void exportScene() },
+          { label: '导出原理图 SVG…', hint: '电路场景导出当前视图', action: () => void exportSchematic() },
           { sep: true },
           { label: '退出服务', action: () => void shutdownApp() },
         ],
@@ -4413,10 +4435,15 @@ function setStatusHint(hint: string): void {
         ],
       },
       {
+        label: '运行',
+        items: [
+          { label: '预计算…', hint: '统一入口：当前网络 / PlotKit / 工作台状态', action: () => openPrecomputeDialog() },
+        ],
+      },
+      {
         label: '仿真',
         items: [
           { label: '运行 / 暂停', hint: '空格', action: () => void control('toggle') },
-          { label: '预计算数据…', hint: '先算 0→T，再在绘图页回放/接入', action: () => openRunWarn() },
           { label: '单步', hint: 'S', action: () => void control('step') },
           { label: '时间归零', hint: '只归零计时与录制，不清状态', action: () => void control('zero') },
           { label: '重置', hint: '清除状态与时间', action: () => void control('reset') },
@@ -6206,39 +6233,7 @@ function setStatusHint(hint: string): void {
   }
 
   async function wbPrecomputeSelected(): Promise<void> {
-    if (!wbCompareStateIds.length) {
-      toast('请先在信号窗勾选要预计算的状态', 'error');
-      return;
-    }
-    const input = window.prompt('预计算时长（秒，0 < 时长 ≤ 120）', '5');
-    if (input === null) return;
-    const seconds = Number(input);
-    if (!(seconds > 0)) {
-      toast('预计算时长需为正数', 'error');
-      return;
-    }
-    for (const id of wbCompareStateIds.slice()) {
-      const row = (wbCacheStatus?.states || []).find((item) => String(item.state_id) === id);
-      const label = `预计算 ${row?.name || id}…`;
-      try {
-        const result = (await runPrecomputeWithProgress(
-          () =>
-            api('/api/network/state/precompute', {
-              method: 'POST',
-              body: JSON.stringify({ state_id: id, seconds }),
-              timeoutMs: 600000,
-            }),
-          label,
-        )) as { ok?: boolean; error?: string; frames?: number } | null;
-        if (result && result.ok === false) {
-          toast(`${label}失败：${result.error || '未知错误'}`, 'error', 7000);
-        }
-      } catch (error) {
-        toast(`${label}失败：${(error as Error)?.message || error}`, 'error', 7000);
-      }
-    }
-    toast('预计算完成', 'ok', 2600);
-    await refreshWbAnalysis();
+    openPrecomputeDialog('states');
   }
 
   async function wbUnifySim(): Promise<void> {
@@ -7585,39 +7580,7 @@ function setStatusHint(hint: string): void {
       });
     }
     if (ui.btnPrecompute) {
-      ui.btnPrecompute.addEventListener('click', async () => {
-        const raw = window.prompt('预计算 0→T 的时长（秒，最大 120）', '5');
-        if (raw === null) return;
-        const duration = Number(raw);
-        if (!Number.isFinite(duration) || duration <= 0 || duration > 120) {
-          toast('预计算时长必须在 (0, 120] s 内', 'error', 3000);
-          return;
-        }
-        try {
-          toast(`正在预计算 0→${duration} s…`, 'info', 2400);
-          const response = await api('/api/solve-window', {
-            method: 'POST',
-            body: JSON.stringify({ duration }),
-            timeoutMs: 180000,
-          });
-          leaveReplay();
-          state.frames = [];
-          state.cursor = 0;
-          state.values.clear();
-          state.nodeValues.clear();
-          state.edgeValues.clear();
-          state.sim = response.sim;
-          state.replay.recordingRevision = state.scene?.revision ?? null;
-          await pollLive();
-          updateReplayUI();
-          scheduleChartDraw();
-          const result = response.result || {};
-          if (result.error) toast(`预计算中断：${result.error}`, 'error', 6000);
-          else toast(`预计算完成：${result.steps} 步 / ${result.frames} 帧`, 'ok', 3000);
-        } catch (error) {
-          toast(`预计算失败：${(error as Error).message}`, 'error', 6000);
-        }
-      });
+      ui.btnPrecompute.addEventListener('click', () => openPrecomputeDialog('solve'));
     }
     if (ui.btnLive) {
       ui.btnLive.addEventListener('click', () => {
@@ -7986,12 +7949,8 @@ function setStatusHint(hint: string): void {
   setAppearanceControlActions({ openIroColorPopover });
   setGeometryActions({ distance, circuitPinPath, wirePathPoints });
   setInstrumentActions({ scheduleChartDraw });
-  setProjectActions({
-    confirmModal, applySnapshot, syncProjectContext, applyProjectUi, renderScenePanel,
-    renderInspector, renderSignalList, fetchNetworks, fitView, chooseModeModal, task, showHelp,
-  });
+  setProjectActions({ confirmModal, applySnapshot, syncProjectContext, applyProjectUi, renderScenePanel, renderInspector, renderSignalList, fetchNetworks, fitView, chooseModeModal, task, showHelp });
   setWindowActions({ renderCompareGrid, setWbSignalDock, syncProjectContext, getWbComparePayload: () => wbComparePayload });
-
   loadUiProfile();
   boot();
   setTimeout(checkCacheQuietly, 6000);

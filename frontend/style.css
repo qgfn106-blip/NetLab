@@ -2099,6 +2099,12 @@ body { grid-template-columns: minmax(0, 1fr); }
   background: var(--panel, #f3efe8);
 }
 #analBypassPoles, #analBypassZeros { flex: none; max-height: 140px; }
+.anal-transfer { padding: 6px 10px 2px; font-size: calc(12px * var(--ui-font-scale, 1)); color: var(--text-primary); overflow-wrap: anywhere; }
+.anal-transfer code { font-family: ui-monospace, monospace; }
+.anal-metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; padding: 6px 10px; }
+.anal-metrics-grid > div { border: var(--ui-line, 1px) solid var(--line, #d9d3c7); border-radius: 8px; padding: 6px 8px; background: var(--panel, #f3efe8); }
+.anal-metrics-grid span { display: block; font-size: calc(10.5px * var(--ui-font-scale, 1)); color: var(--muted, #7b7266); }
+.anal-metrics-grid b { font-family: ui-monospace, monospace; font-weight: 600; font-size: calc(12px * var(--ui-font-scale, 1)); }
 
 
 /* ---- PlotKit 数据接入（探针通道选择） ---- */

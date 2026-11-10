@@ -29,6 +29,30 @@ export function analToken(name: string, fallback: string) {
     return (value || '').trim() || fallback;
   }
 
+export function niceAxisTicks(min: number, max: number, target = 5): { min: number; max: number; step: number; values: number[] } {
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+      return { min: 0, max: 1, step: 1, values: [0, 1] };
+    }
+    const rough = (max - min) / Math.max(2, target);
+    const magnitude = Math.pow(10, Math.floor(Math.log10(rough)));
+    const normalized = rough / magnitude;
+    const step = (normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10) * magnitude;
+    const low = Math.floor(min / step) * step;
+    const high = Math.ceil(max / step) * step;
+    const values: number[] = [];
+    for (let value = low, index = 0; value <= high + step * 0.5 && index < 100; value += step, index += 1) {
+      values.push(Number(value.toPrecision(12)));
+    }
+    return { min: low, max: high, step, values };
+  }
+
+export function niceAxisLabel(value: number): string {
+    if (!Number.isFinite(value)) return '';
+    const abs = Math.abs(value);
+    if (abs !== 0 && (abs < 1e-3 || abs >= 1e6)) return value.toExponential(2);
+    return String(Number(value.toPrecision(6)));
+  }
+
 export function analysisWarn() {
     // 用户要求：开始分析前弹提醒，但不阻止
     toast('分析会基于当前场景重新求解，期间实时播放会暂停；可随时关闭分析窗。', 'warn', 4200);
@@ -318,6 +342,40 @@ interface BypassStateSpaceRec {
   D?: number[][][];
 }
 
+interface BypassTransferRec {
+  supported?: boolean;
+  reason?: string;
+  expression?: string;
+  numerator?: string;
+  denominator?: string;
+  order?: number;
+  relative_order?: number;
+  dc_gain?: number | null;
+  dc_gain_finite?: boolean;
+}
+
+interface BypassPoleMetricRec {
+  real?: number;
+  imag?: number;
+  omega_n?: number | null;
+  zeta?: number | null;
+  time_constant?: number | null;
+}
+
+interface BypassMetricsRec {
+  final?: number | null;
+  overshoot_pct?: number | null;
+  rise_time?: number | null;
+  peak_time?: number | null;
+  peak_value?: number | null;
+  settling_time?: number | null;
+  steady_state_error?: number | null;
+  stable?: boolean;
+  dc_gain?: number | null;
+  poles?: BypassPoleMetricRec[];
+  bode?: { bandwidth_hz?: number | null; resonant_peak_db?: number | null; resonant_frequency_hz?: number | null };
+}
+
 interface BypassRec {
   input_source?: string;
   output?: string;
@@ -325,8 +383,10 @@ interface BypassRec {
   state_space?: BypassStateSpaceRec;
   poles?: BypassPoleZeroRec;
   zeros?: BypassPoleZeroRec;
+  transfer_function?: BypassTransferRec;
+  metrics?: BypassMetricsRec;
   step?: { probe?: string; times?: number[]; values?: number[]; dt?: number };
-  bode?: { frequencies?: number[]; probes?: Record<string, { db?: number[]; phase_deg?: number[] }> };
+  bode?: { frequencies?: number[]; probes?: Record<string, { frequencies?: number[]; db?: number[]; phase_deg?: number[] }> };
 }
 
 let bypassResult: BypassRec | null = null;
@@ -372,20 +432,62 @@ function bypassComplex(value: [number, number] | undefined): string {
     return `${real} ${im < 0 ? '−' : '+'} j${imag}`;
   }
 
-function bypassTable(target: string, label: string, data: BypassPoleZeroRec | undefined) {
+function bypassTable(target: string, label: string, data: BypassPoleZeroRec | undefined, poleMetrics?: BypassPoleMetricRec[]) {
     const host = $(target);
     if (!host) return;
     const values = data?.finite || [];
-    const rows = values.map((value, index) => (
-      `<tr><td>${index + 1}</td><td class="num">${bypassComplex(value)}</td></tr>`
-    )).join('');
+    const showPoleMetrics = Boolean(poleMetrics?.length);
+    const rows = values.map((value, index) => {
+      const metric = poleMetrics?.[index];
+      const extra = showPoleMetrics
+        ? `<td class="num">${analNum(metric?.omega_n)}</td><td class="num">${analNum(metric?.zeta)}</td><td class="num">${analNum(metric?.time_constant)}</td>`
+        : '';
+      return `<tr><td>${index + 1}</td><td class="num">${bypassComplex(value)}</td>${extra}</tr>`;
+    }).join('');
     const notes: string[] = [];
     if (data?.infinite_count) notes.push(`无穷模态 ${data.infinite_count}`);
     if (data?.max_residual !== undefined) notes.push(`残差 ${analNum(data.max_residual)}`);
     if (data?.regular === false) notes.push('QZ 非正则');
     if (data?.siso === false) notes.push('MIMO 未求零点');
     host.innerHTML = `<div class="anal-meta">${label}（${values.length} 个）${notes.length ? ` · ${notes.join(' · ')}` : ''}</div>`
-      + (rows ? `<table class="anal-table"><thead><tr><th>#</th><th>值</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="anal-empty">无有限值</div>');
+      + (rows
+        ? `<table class="anal-table"><thead><tr><th>#</th><th>值</th>${showPoleMetrics ? '<th>ωn (rad/s)</th><th>ζ</th><th>时间常数 (s)</th>' : ''}</tr></thead><tbody>${rows}</tbody></table>`
+        : '<div class="anal-empty">无有限值</div>');
+}
+
+function bypassSummary(result: BypassRec) {
+    const host = $('#analBypassSummary');
+    const transferHost = $('#analBypassTransfer');
+    if (!host || !transferHost) return;
+    const tf = result.transfer_function || {};
+    const metrics = result.metrics || {};
+    const fmtValue = (value: number | null | undefined, unit = '') => (
+      value === null || value === undefined || !Number.isFinite(Number(value))
+        ? '—'
+        : `${analNum(value)}${unit}`
+    );
+    if (tf.supported === false) {
+      transferHost.innerHTML = `<div class="anal-empty">传递函数：${analEscape(tf.reason || '当前电路阶数过高')}</div>`;
+    } else {
+      transferHost.innerHTML = `<div class="anal-transfer">G(s) = <code>${analEscape(tf.expression || '—')}</code>`
+        + `<span class="anal-meta"> · 阶数 ${tf.order ?? '—'} · 相对阶 ${tf.relative_order ?? '—'}</span></div>`;
+    }
+    const items: Array<[string, string]> = [
+      ['DC 增益', tf.dc_gain_finite === false ? '—（A 奇异）' : fmtValue(tf.dc_gain)],
+      ['上升时间', fmtValue(metrics.rise_time, ' s')],
+      ['峰值时间', fmtValue(metrics.peak_time, ' s')],
+      ['峰值', fmtValue(metrics.peak_value, ' V')],
+      ['超调', fmtValue(metrics.overshoot_pct, ' %')],
+      ['调节时间', fmtValue(metrics.settling_time, ' s')],
+      ['稳态误差', fmtValue(metrics.steady_state_error, ' V')],
+      ['稳定性', metrics.stable ? '稳定' : '不稳定／无有限极点'],
+    ];
+    const bode = metrics.bode || {};
+    items.push(['Bode 带宽', fmtValue(bode.bandwidth_hz, ' Hz')]);
+    items.push(['谐振峰', fmtValue(bode.resonant_peak_db, ' dB')]);
+    host.innerHTML = `<div class="anal-metrics-grid">${items.map(([label, value]) => (
+      `<div><span>${label}</span><b>${analEscape(value)}</b></div>`
+    )).join('')}</div>`;
   }
 
 function bypassPlotFrame(canvasEl: HTMLCanvasElement, emptyText: string) {
@@ -447,21 +549,24 @@ export function drawBypassBode() {
       maxDb = Math.max(maxDb, value);
     }
     if (maxDb - minDb < 6) { maxDb += 3; minDb -= 3; } else { minDb -= 3; maxDb += 3; }
+    const magTicks = niceAxisTicks(minDb, maxDb, 5);
+    minDb = magTicks.min;
+    maxDb = magTicks.max;
     const yMag = (value: number) => padT + (1 - (value - minDb) / (maxDb - minDb || 1)) * magH;
     const yPhase = (value: number) => phaseTop + (1 - (value + 180) / 360) * phaseH;
     const line = analToken('--line', '#d9d3c7');
     const muted = analToken('--muted', '#7b7266');
     context.strokeStyle = line;
     context.lineWidth = 1;
-    for (let i = 0; i <= 4; i += 1) {
-      const y = padT + (magH * i) / 4;
+    for (const value of magTicks.values) {
+      const y = yMag(value);
       context.beginPath();
       context.moveTo(padL, y);
       context.lineTo(padL + plotW, y);
       context.stroke();
       context.fillStyle = muted;
       context.font = '10px ui-monospace, monospace';
-      context.fillText(`${analNum(maxDb - ((maxDb - minDb) * i) / 4, 3)} dB`, 4, y + 3);
+      context.fillText(`${niceAxisLabel(value)} dB`, 4, y + 3);
     }
     context.strokeStyle = PALETTE[0];
     context.lineWidth = 1.6;
@@ -528,15 +633,18 @@ export function drawBypassStep() {
     const muted = analToken('--muted', '#7b7266');
     context.strokeStyle = line;
     context.lineWidth = 1;
-    for (let i = 0; i <= 4; i += 1) {
-      const y = padT + (plotH * i) / 4;
+    const yTicks = niceAxisTicks(minV, maxV, 5);
+    minV = yTicks.min;
+    maxV = yTicks.max;
+    for (const value of yTicks.values) {
+      const y = padT + (1 - (value - minV) / (maxV - minV || 1)) * plotH;
       context.beginPath();
       context.moveTo(padL, y);
       context.lineTo(padL + plotW, y);
       context.stroke();
       context.fillStyle = muted;
       context.font = '10px ui-monospace, monospace';
-      context.fillText(analNum(maxV - ((maxV - minV) * i) / 4, 3), 4, y + 3);
+      context.fillText(niceAxisLabel(value), 4, y + 3);
     }
     context.strokeStyle = PALETTE[2] || PALETTE[0];
     context.lineWidth = 1.6;
@@ -597,12 +705,17 @@ export async function runCircuitBypass() {
             + `${result.operating_point_supplied ? ' · 工作点线性化' : ''}`
           : '无结果';
       }
-      bypassTable('#analBypassPoles', '极点', result?.poles);
+      bypassTable('#analBypassPoles', '极点', result?.poles, result?.metrics?.poles);
       bypassTable('#analBypassZeros', '零点', result?.zeros);
+      bypassSummary(result || {});
       drawBypassCharts();
     } catch (error) {
       bypassResult = null;
       if (meta) meta.textContent = '旁路分析失败';
+      const transferHost = $('#analBypassTransfer');
+      if (transferHost) transferHost.innerHTML = '';
+      const summaryHost = $('#analBypassSummary');
+      if (summaryHost) summaryHost.innerHTML = '';
       toast(`旁路分析失败：${(error as Error).message}`, 'error', 7000);
       bypassTable('#analBypassPoles', '极点', undefined);
       bypassTable('#analBypassZeros', '零点', undefined);

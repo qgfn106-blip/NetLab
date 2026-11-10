@@ -4,6 +4,7 @@ import { toast } from "./desktop.js";
 import { fmt } from "../app.utils.js";
 import { $ } from "./dom.js";
 import { nodeByName } from "./model.js";
+import { openAnalysis, niceAxisTicks, niceAxisLabel } from "./ac_analysis.js";
 const analysisActions = {};
 function setAnalysisActions(actions) {
   Object.assign(analysisActions, actions);
@@ -94,6 +95,11 @@ async function runAnalysisMath() {
   setAnalysisOutput([`\u6570\u5B66\u5F62\u5F0F\uFF08${(response.rows || []).length} \u4E2A\u8282\u70B9\uFF09`, ...lines, `\u6765\u6E90\uFF1A${response.source}`].join("\n"));
 }
 async function runAnalysisTransfer() {
+  if ((state.scene?.mode || state.mode) === "circuit") {
+    toast("\u7535\u8DEF\u573A\u666F\u8BF7\u4F7F\u7528\u300C\u5C0F\u4FE1\u53F7\u5206\u6790\uFF08\u65C1\u8DEF\uFF09\u300D\u7684 G(s) / \u96F6\u6781\u70B9 / \u9636\u8DC3\u7ED3\u679C\u3002", "info", 4200);
+    openAnalysis("bypass");
+    return;
+  }
   const input = $("#analysisInputNode")?.value?.trim();
   const output = $("#analysisOutputNode")?.value?.trim();
   if (!input || !output) return toast("\u586B\u5199\u8F93\u5165/\u8F93\u51FA\u8282\u70B9\u540D", "info", 2400);
@@ -231,17 +237,20 @@ function drawTFBode(ctx, data, width, height) {
   const axis = analysisTokens().tfAxis;
   ctx.font = '9px "Cascadia Code", Consolas, monospace';
   const panel = (base, values, color, unit) => {
-    const [low, high] = tfRange(values);
+    const [rawLow, rawHigh] = tfRange(values);
+    const ticks = niceAxisTicks(rawLow, rawHigh, 4);
+    const low = ticks.min;
+    const high = ticks.max;
     ctx.strokeStyle = grid;
     ctx.fillStyle = analysisC("#7b7266");
     ctx.textAlign = "right";
-    for (let index = 0; index <= 3; index += 1) {
-      const y = base + plotHeight * index / 3;
+    for (const value of ticks.values) {
+      const y = base + plotHeight * (1 - (value - low) / Math.max(high - low, 1e-9));
       ctx.beginPath();
       ctx.moveTo(left, y);
       ctx.lineTo(left + plotWidth, y);
       ctx.stroke();
-      ctx.fillText(fmt(high - (high - low) * index / 3, 2), left - 4, y + 3);
+      ctx.fillText(niceAxisLabel(value), left - 4, y + 3);
     }
     ctx.textAlign = "left";
     ctx.fillText(unit, 3, base + 8);
@@ -430,7 +439,10 @@ function drawTFStep(ctx, data, width, height) {
   const bottom = 20;
   const plotWidth = Math.max(24, width - left - right);
   const plotHeight = Math.max(24, height - top - bottom);
-  const [low, high] = tfRange(values);
+  const [rawLow, rawHigh] = tfRange(values);
+  const ticks = niceAxisTicks(rawLow, rawHigh, 4);
+  const low = ticks.min;
+  const high = ticks.max;
   const xAt = (index) => left + plotWidth * ((time[index] - time[0]) / Math.max(time[time.length - 1] - time[0], 1e-9));
   const yAt = (value) => top + plotHeight * (1 - (value - low) / Math.max(high - low, 1e-9));
   const grid = analysisTokens().tfGrid;
@@ -439,13 +451,13 @@ function drawTFStep(ctx, data, width, height) {
   ctx.strokeStyle = grid;
   ctx.fillStyle = analysisC("#7b7266");
   ctx.textAlign = "right";
-  for (let index = 0; index <= 3; index += 1) {
-    const y = top + plotHeight * index / 3;
+  for (const value of ticks.values) {
+    const y = yAt(value);
     ctx.beginPath();
     ctx.moveTo(left, y);
     ctx.lineTo(left + plotWidth, y);
     ctx.stroke();
-    ctx.fillText(fmt(high - (high - low) * index / 3, 3), left - 4, y + 3);
+    ctx.fillText(niceAxisLabel(value), left - 4, y + 3);
   }
   ctx.strokeStyle = axis;
   ctx.beginPath();

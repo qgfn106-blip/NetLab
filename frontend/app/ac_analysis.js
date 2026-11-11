@@ -293,12 +293,18 @@ function fillBypassSources() {
     const sources = Array.from(/* @__PURE__ */ new Set([...edgeSources, ...nodeSources]));
     input.innerHTML = '<option value="">\u81EA\u52A8</option>' + sources.map((name) => `<option value="${analEscape(name)}">${analEscape(name)}</option>`).join("");
     if (sources.includes(previous)) input.value = previous;
+    else if (sources.length) input.value = sources[0];
   }
   if (output) {
     const previous = output.value;
     const probes = nodes.filter((node) => node.kind !== "ground");
+    const selectedSource = (input?.value || "").trim();
+    const sourceEdge = edges.find((edge) => edge.name === selectedSource && ["vsource", "isource"].includes(edge.kind));
+    const sourceNodes = new Set(sourceEdge ? [sourceEdge.source, sourceEdge.target] : []);
+    const preferred = probes.find((node) => !sourceNodes.has(node.id)) || probes[0];
     output.innerHTML = probes.map((node) => `<option value="${analEscape(node.name)}">${analEscape(node.name)}</option>`).join("");
     if (probes.some((node) => node.name === previous)) output.value = previous;
+    else if (preferred) output.value = preferred.name;
   }
 }
 function bypassComplex(value) {

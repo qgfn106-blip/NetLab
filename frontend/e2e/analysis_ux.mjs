@@ -129,11 +129,13 @@ try {
   await page.locator('#menuItems .menu > button').filter({ hasText: '文件' }).click();
   const exportItem = page.locator('.menu.open .menu-item').filter({ hasText: '导出原理图 SVG…' });
   await exportItem.waitFor({ state: 'visible', timeout: 3000 });
-  const [download] = await Promise.all([
-    page.waitForEvent('download', { timeout: 10000 }),
+  const [exportResponse] = await Promise.all([
+    page.waitForResponse((response) => response.url().includes('/api/export/schematic') && response.status() === 200, { timeout: 10000 }),
     exportItem.click(),
   ]);
-  assert((await download.suggestedFilename()).toLowerCase().includes('.svg'), '导出文件名不是 SVG');
+  const exportPayload = await exportResponse.json();
+  assert(exportPayload.ok === true && String(exportPayload.svg || '').includes('<svg'), '原理图导出响应不是 SVG');
+  assert(String(exportPayload.filename || '').toLowerCase().endsWith('.svg'), '导出文件名不是 SVG');
   await page.keyboard.press('Escape');
 
   // 5) 画布右键也应提供同一导出入口。

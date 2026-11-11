@@ -10,8 +10,9 @@
 ## 0. 代码规范（强制，开工必读）
 
 > 任何改代码（人类或 agent）前，先读并遵守 **[CODE_STANDARDS.md](CODE_STANDARDS.md)**（TS/JS + Python + 测试 + 提交 + 文档规范；三条铁律：**改代码必须遵守规范、只做等价改进、改代码必须同步文档**）。
+> 编码 Agent 行为硬约束（复用优先、禁止平行实现、测试性并行实现例外、共享状态、过测红线）见 **[CODING_CONSTRAINTS.md](CODING_CONSTRAINTS.md)**。
 
-**文档阅读顺序（避免混乱）**：本指南 `AGENT_GUIDE.md` → 需求与决策 `REQUIREMENTS_AND_RULES.md`（R/D 台账、§5 分期、§6 不做）→ 进度 `PROGRESS.md` → 主线待办 `BACKLOG.md` → 代码导读 `CODE_GUIDE.md` / 数学入口 `MATH.md`（再按入口进入 `math/ARCHITECTURE_MATH.md`、`math/ELEMENT_MATH.md`、`math/ANALYSIS_MATH.md`）；全部文档导航见 **[DOCS_INDEX.md](DOCS_INDEX.md)**。同一事实只在「单一事实来源」维护一处，其余一律**链接引用、不复制**。
+**文档阅读顺序（避免混乱）**：本指南 `AGENT_GUIDE.md` → 需求与决策 `REQUIREMENTS_AND_RULES.md`（R/D 台账、§5 分期、§6 不做）→ 进度 `PROGRESS.md` → 主线待办 `BACKLOG.md` → 代码导读 `CODE_GUIDE.md` / 数学入口 `MATH.md`（再按入口进入 `math/ARCHITECTURE_MATH.md`、`math/ELEMENT_MATH.md`、`math/ANALYSIS_MATH.md`）；全部文档导航见 **[DOCS_INDEX.md](DOCS_INDEX.md)**；V2 架构演进见 [CORE_ARCHITECTURE_V2.md](CORE_ARCHITECTURE_V2.md) 与 [CORE_ARCHITECTURE_V2_ROADMAP.md](CORE_ARCHITECTURE_V2_ROADMAP.md)。同一事实只在「单一事实来源」维护一处，其余一律**链接引用、不复制**。
 
 ---
 
@@ -19,7 +20,7 @@
 
 1. **这条需求是第几号？** 在 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) §3 找到 `R01–R43` 里对应那条，读它的「原话 / 解读 / 验收 / 现状」。
 2. **当前阶段是什么？** 读 [PROGRESS.md](PROGRESS.md) 头部表格（阶段 + 测试数 + 备份位置）与 §7（P0–P6 进度）。
-3. **这个决定定过没有？** 在 REQUIREMENTS §2 的 `D1–D154` 台账里搜关键词；定过就照台账做，不要再自己拍。
+3. **这个决定定过没有？** 在 REQUIREMENTS §2 的 `D1–D156` 台账里搜关键词；定过就照台账做，不要再自己拍。
 
 **完成判据**：你能说出「R 编号 + P 期次 + 相关 D 编号 + 现状里哪几条是已核实事实」。说不出来就别改代码。
 
@@ -118,7 +119,7 @@ grep -n "^   \* [0-9]" ../frontend/app.js         # 定位前端分区
 
 ### 4.2 检查清单（逐条过，每条给结论：一致 / 已改 / 待确认）
 
-1. 新增内容是否与 `D1–D154` 台账里已有决定冲突？
+1. 新增内容是否与 `D1–D156` 台账里已有决定冲突？
 2. 是否落进 §6「不做清单」？（落进去就停，先问）
 3. 是否与 PROGRESS 里已核实的事实冲突（测试数、已完成能力）？
 4. 是否与代码实际行为冲突？（以代码为准，改文档；若代码错，登记到 PROGRESS §7 的待办，而不是直接改需求）
@@ -181,7 +182,7 @@ python -m netlab.desktop --selftest       # 期望 status 200 / shim_injected tr
 | 模块 | 封装成可复用功能节点的子网络（`*.block`） | 功能块节点 |
 | 占位块 | 库文件缺失时的降级替身，带标记 | default 模板 |
 | 口径 | 需求与决策的唯一表述来源 | — |
-| 台账 | REQUIREMENTS §2 的 D1–D154 决策表 | — |
+| 台账 | REQUIREMENTS §2 的 D1–D156 决策表 | — |
 | 闸门 | 每期做完必须停下的批准点 | — |
 | 票号 | `P<期>-<序号>`（如 P1-03）；正文括号里的 `R**` 才是需求编号，两者不可混用 | — |
 

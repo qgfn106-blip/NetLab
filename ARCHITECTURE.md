@@ -10,6 +10,8 @@ Netlab 是**单进程**应用：一个 Python 后端（FastAPI 服务 + 常驻�
 
 > 结构图：[docs/assets/netlab-architecture.svg](docs/assets/netlab-architecture.svg)（2026-11-06 分层版）
 
+> **V2 长远架构路线**：[CORE_ARCHITECTURE_V2.md](netlab/docs/CORE_ARCHITECTURE_V2.md)（需求、目标能力、当前差距） / [CORE_ARCHITECTURE_V2_ROADMAP.md](netlab/docs/CORE_ARCHITECTURE_V2_ROADMAP.md)（P1–P5 路线）。当前实现不等于 V2 目标，规划文档中标注了差距。
+
 ## 1. 目录即分层
 
 ```

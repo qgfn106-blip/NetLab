@@ -1,6 +1,6 @@
 # Netlab 文档索引（DOCS INDEX）
 
-> 最后核对：2026-11-11（全量文档基线同步 + 审计 A 阶段后复核 + D125 PlotKit 插件封装 + D129 测试配置 + D130 N-36 步骤事务 + D131 records 拆分 + D132 文档隐私清理 + D133 端到端控制实验 + D134 文档分层与会话日志 + D135 求解器影子门 + D136 影子门 CI 接入 + D137 插件路由拆分、D138 帮助检索路由拆分、D139 二维有限元路由拆分、D140 块库路由拆分、D141 分析路由拆分、D142 文档基线同步、D143 偏好/布局路由拆分、D144 BACKLOG 基线清理、D145 缓存/文档/加速路由拆分、D146 应用内扩展路由拆分、D147 仿真控制路由拆分、D148 工作区路由拆分、D149 多网络管理路由拆分、D150 PlotKit 接入/预计算路由拆分、D151 场景/模板路由拆分、D152 页面/UI/状态/诊断路由拆分、D153 工程文件路由拆分；本轮新增 VISION 草案、HASH_TABLE_OPTIMIZATION_RESEARCH、extensions/plugins/netlab.plotkit 官方插件、sessions 会话日志，更新 PROGRESS/DOCS_INDEX）· 当前基线：静态 3.20.1 / 872 passed / 1 skipped / R01–R43 / D1–D154；新增 **CODE_STANDARDS.md（代码规范，强制）**
+> 最后核对：2026-11-11（全量文档基线同步 + 审计 A 阶段后复核 + D125 PlotKit 插件封装 + D129 测试配置 + D130 N-36 步骤事务 + D131 records 拆分 + D132 文档隐私清理 + D133 端到端控制实验 + D134 文档分层与会话日志 + D135 求解器影子门 + D136 影子门 CI 接入 + D137 插件路由拆分、D138 帮助检索路由拆分、D139 二维有限元路由拆分、D140 块库路由拆分、D141 分析路由拆分、D142 文档基线同步、D143 偏好/布局路由拆分、D144 BACKLOG 基线清理、D145 缓存/文档/加速路由拆分、D146 应用内扩展路由拆分、D147 仿真控制路由拆分、D148 工作区路由拆分、D149 多网络管理路由拆分、D150 PlotKit 接入/预计算路由拆分、D151 场景/模板路由拆分、D152 页面/UI/状态/诊断路由拆分、D153 工程文件路由拆分；本轮新增 VISION 草案、HASH_TABLE_OPTIMIZATION_RESEARCH、extensions/plugins/netlab.plotkit 官方插件、sessions 会话日志，更新 PROGRESS/DOCS_INDEX）· 当前基线：静态 3.20.1 / 872 passed / 1 skipped / R01–R43 / D1–D156；新增 **CODE_STANDARDS.md（代码规范，强制）**
 > 目的：先在这里找文档，不要凭文件名猜新旧。**历史文档保留原文，但不得作为当前实现口径。**
 
 ## 0. 文档分层（D-3 / N-30）
@@ -20,6 +20,7 @@
 | 第一次使用 | [README.md](../../README.md) | [OPERATION.md](../../OPERATION.md) |
 | 想安装/离线部署 | [INSTALL.md](../../INSTALL.md) | [user/quickstart.md](user/quickstart.md) |
 | 想理解整体架构 | [ARCHITECTURE.md](../../ARCHITECTURE.md) | [ARCHITECTURE.md](ARCHITECTURE.md)（详细版） |
+| 想推进 V2 架构演进 | [CORE_ARCHITECTURE_V2.md](CORE_ARCHITECTURE_V2.md)（需求/差距） | [CORE_ARCHITECTURE_V2_ROADMAP.md](CORE_ARCHITECTURE_V2_ROADMAP.md)（P1–P5 路线） |
 | 想查数学公式 | [MATH.md](MATH.md)（总览） | [math/ARCHITECTURE_MATH.md](math/ARCHITECTURE_MATH.md) / [math/ELEMENT_MATH.md](math/ELEMENT_MATH.md) / [math/ANALYSIS_MATH.md](math/ANALYSIS_MATH.md) |
 | 想写插件/扩展 | [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md) | [PLUGIN_GUIDE.md](PLUGIN_GUIDE.md) + [CODE_STANDARDS.md](CODE_STANDARDS.md)（Python 规范） |
 | 想改前端/UI | [UI_SPEC.md](UI_SPEC.md) | [APPEARANCE_ENGINE_DESIGN.md](APPEARANCE_ENGINE_DESIGN.md)（外观引擎/令牌/色板/§12 实施进度，改色改 UI 必读）+ [CODE_STANDARDS.md](CODE_STANDARDS.md)（TS/JS 规范）+ [FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md) |
@@ -44,6 +45,8 @@
 | 文档 | 用途 | 状态 |
 | --- | --- | --- |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 详细架构与运作原理（含 R31/R39/R40） | 当前 |
+| [CORE_ARCHITECTURE_V2.md](CORE_ARCHITECTURE_V2.md) | V2 平台架构需求、目标能力与当前实现差距（规划口径，不是现状） | 规划 |
+| [CORE_ARCHITECTURE_V2_ROADMAP.md](CORE_ARCHITECTURE_V2_ROADMAP.md) | V2 执行路线：P1 审计→P2 Core Model/Typed Port→P3 Equation/Compiler→P4 Runtime/Plugin→P5 Validation/机械/多物理场 | 规划 |
 | [CODE_GUIDE.md](CODE_GUIDE.md) | 目录地图、模块职责、关键符号、调用链 | 当前 |
 | [MATH.md](MATH.md) | 数学入口与全局地图；专题见 [math/ARCHITECTURE_MATH.md](math/ARCHITECTURE_MATH.md)、[math/ELEMENT_MATH.md](math/ELEMENT_MATH.md)、[math/ANALYSIS_MATH.md](math/ANALYSIS_MATH.md) | 当前 |
 | [FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md) | 机制速查、常见坑、token 节约 | 当前 |
@@ -84,7 +87,7 @@
 
 | 文档 | 用途 | 状态 |
 | --- | --- | --- |
-| [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) | R01–R43 需求、D1–D154 决策、分期、不做清单 | 当前 |
+| [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) | R01–R43 需求、D1–D156 决策、分期、不做清单 | 当前 |
 | [MILESTONES.md](MILESTONES.md) | 精简里程碑（可对外复述的阶段结果与复现命令） | 当前 |
 | [PROGRESS.md](PROGRESS.md) | 执行证据与验收记录（含 §7.70–§7.121；逐轮执行日志） | 当前 |
 | [BACKLOG.md](BACKLOG.md) | 当前主线、剩余项、待拍板决定 | 当前 |

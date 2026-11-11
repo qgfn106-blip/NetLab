@@ -2795,3 +2795,10 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 验证：全量 `pytest` **873 tests / 872 passed / 1 skipped / 0 failed**（777.8s），core 覆盖率 **81.106%**；前端 `npm run typecheck`/`build`/`test` **22 passed**；`PARITY_ALLOW_BODY_CHANGES=1 npm run verify:parity`（49 TS / 597 declarations / 43 runtime）、`npm run check:sections`（app.ts 7959 行）通过；`node e2e/circuit_bypass.mjs` 与 `npm run e2e`（L1 smoke，menu=10）通过。
 - 未改默认开关、未新增依赖、未触碰 `graph.py`/`scene.py` 冻结区；用户未提交的 `netlab/docs/math/ANALYSIS_MATH.md` 未纳入本次改动。
 - 涉及文件：`netlab/core/compute/circuit/descriptor_analysis.py`、`netlab/core/compute/analysis.py`、`frontend/app/ac_analysis.ts`、`frontend/app/analysis.ts`、`frontend/app.ts`、`frontend/index.html`、`frontend/style.css`、`netlab/tests/test_analysis_circuit_bypass.py`、`netlab/tests/test_ui_analysis_entry.py`、`netlab/tests/test_run_warn.py`、`netlab/tests/test_plotkit_frontend_auth.py`。
+
+## §7.150 NetLab Core Architecture V2 需求与路线规划文档化（2026-11-11）
+
+- 新增 `netlab/docs/CORE_ARCHITECTURE_V2.md`：将《NetLab Core Architecture V2》12 阶段任务书整理为项目需求/目标能力文档，并明确「文档目标 vs 当前实现」差距；当前 Core Model、Typed Port、Equation/Constraint、Model Compiler、Runtime 三层、Plugin V2、机械动力学、多物理场均未达到 V2 目标。
+- 新增 `netlab/docs/CORE_ARCHITECTURE_V2_ROADMAP.md`：P1 架构审计 → P2 Core Model V2 + Typed Port → P3 Equation + Model Compiler → P4 Runtime + Plugin V2 → P5 Validation/机械/多物理场，含每阶段目标、交付物、验收标准、依赖关系与 P1 启动指令。
+- 同步 `DOCS_INDEX.md`、`BACKLOG.md`、`REQUIREMENTS_AND_RULES.md`（新增 D155）、`ARCHITECTURE.md` 指针；本次仅新增/修改文档，无源码改动，不改变 872 passed / 1 skipped 基线。
+- 结论：P1 只读架构审计先做，不重写稳定模块；V2 目标不得当作已实现能力。

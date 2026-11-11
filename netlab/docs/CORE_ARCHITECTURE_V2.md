@@ -2,7 +2,7 @@
 
 > **状态：规划文档（目标口径，不是当前实现口径）**
 > 依据：用户提供的《NetLab Core Architecture V2》786 行任务书（12 阶段；本地副本由会话转交，未入库）。
-> 当前事实基线（2026-11-11）：Netlab HEAD `8e6ed222cbbfcf33f1598d7d07408a1223795474`，origin/main 同步，ahead 0 / behind 0；872 passed / 1 skipped，core 覆盖率 81.11%；三条 CI 全绿（python-tests `42950221580`、frontend-ts-build `42950221592`、container `42950221772`）。
+> 当前事实基线（2026-11-12，阶段 3 后）：Netlab 代码基线 `b667e517450b5f050424fe76d623af0cdeaf4eb1`，origin/main 同 SHA，ahead 0 / behind 0；909 passed / 1 skipped，core 覆盖率 81.404692%；三条 CI success（python-tests `43115278340`、frontend-ts-build `43115278356`、container `43115278600`）；精确 HEAD 见 `PROJECT_STATUS.md` / `status.json`。历史基线（旧）：`8e6ed222...` / 872 / 81.11%，仅作历史保留。
 > **使用规则：本文描述的是目标；任何“已具备”的说法必须以当前代码和测试为准。目标能力与当前实现的差距见 §3。**
 
 ## 1. 总目标与核心原则

@@ -1,6 +1,6 @@
 # Netlab 文档索引（DOCS INDEX）
 
-> 最后核对：2026-11-11（全量文档基线同步 + 审计 A 阶段后复核 + D125 PlotKit 插件封装 + D129 测试配置 + D130 N-36 步骤事务 + D131 records 拆分 + D132 文档隐私清理 + D133 端到端控制实验 + D134 文档分层与会话日志 + D135 求解器影子门 + D136 影子门 CI 接入 + D137 插件路由拆分、D138 帮助检索路由拆分、D139 二维有限元路由拆分、D140 块库路由拆分、D141 分析路由拆分、D142 文档基线同步、D143 偏好/布局路由拆分、D144 BACKLOG 基线清理、D145 缓存/文档/加速路由拆分、D146 应用内扩展路由拆分、D147 仿真控制路由拆分、D148 工作区路由拆分、D149 多网络管理路由拆分、D150 PlotKit 接入/预计算路由拆分、D151 场景/模板路由拆分、D152 页面/UI/状态/诊断路由拆分、D153 工程文件路由拆分；本轮新增 VISION 草案、HASH_TABLE_OPTIMIZATION_RESEARCH、extensions/plugins/netlab.plotkit 官方插件、sessions 会话日志，更新 PROGRESS/DOCS_INDEX）· 当前基线：静态 3.20.1 / 872 passed / 1 skipped / R01–R43 / D1–D156；新增 **CODE_STANDARDS.md（代码规范，强制）**
+> 最后核对：2026-11-12（全量文档基线同步 + 审计 A 阶段后复核 + D125 PlotKit 插件封装 + D129 测试配置 + D130 N-36 步骤事务 + D131 records 拆分 + D132 文档隐私清理 + D133 端到端控制实验 + D134 文档分层与会话日志 + D135 求解器影子门 + D136 影子门 CI 接入 + D137 插件路由拆分、D138 帮助检索路由拆分、D139 二维有限元路由拆分、D140 块库路由拆分、D141 分析路由拆分、D142 文档基线同步、D143 偏好/布局路由拆分、D144 BACKLOG 基线清理、D145 缓存/文档/加速路由拆分、D146 应用内扩展路由拆分、D147 仿真控制路由拆分、D148 工作区路由拆分、D149 多网络管理路由拆分、D150 PlotKit 接入/预计算路由拆分、D151 场景/模板路由拆分、D152 页面/UI/状态/诊断路由拆分、D153 工程文件路由拆分；本轮新增 VISION 草案、HASH_TABLE_OPTIMIZATION_RESEARCH、extensions/plugins/netlab.plotkit 官方插件、sessions 会话日志，更新 PROGRESS/DOCS_INDEX）· 当前基线：静态 3.20.1 / 909 passed / 1 skipped / R01–R43 / D1–D156；新增 **CODE_STANDARDS.md（代码规范，强制）**
 > 目的：先在这里找文档，不要凭文件名猜新旧。**历史文档保留原文，但不得作为当前实现口径。**
 
 ## 0. 文档分层（D-3 / N-30）
@@ -47,6 +47,8 @@
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 详细架构与运作原理（含 R31/R39/R40） | 当前 |
 | [CORE_ARCHITECTURE_V2.md](CORE_ARCHITECTURE_V2.md) | V2 平台架构需求、目标能力与当前实现差距（规划口径，不是现状） | 规划 |
 | [CORE_ARCHITECTURE_V2_ROADMAP.md](CORE_ARCHITECTURE_V2_ROADMAP.md) | V2 执行路线：P1 审计→P2 Core Model/Typed Port→P3 Equation/Compiler→P4 Runtime/Plugin→P5 Validation/机械/多物理场 | 规划 |
+| [PROJECT_STATUS.md](PROJECT_STATUS.md) | 当前状态唯一事实源：HEAD/分支/同步状态、当前阶段、已完成/进行中阶段、下一项授权、最近 CI 证据、文档冲突 | 当前（2026-11-11 建立） |
+| [adr/README.md](adr/README.md) | ADR 索引：ADR-001..007 与历史 ADR 0001–0003 的编号/状态说明 | 当前 |
 | [CODE_GUIDE.md](CODE_GUIDE.md) | 目录地图、模块职责、关键符号、调用链 | 当前 |
 | [MATH.md](MATH.md) | 数学入口与全局地图；专题见 [math/ARCHITECTURE_MATH.md](math/ARCHITECTURE_MATH.md)、[math/ELEMENT_MATH.md](math/ELEMENT_MATH.md)、[math/ANALYSIS_MATH.md](math/ANALYSIS_MATH.md) | 当前 |
 | [FRAMEWORK_CHEATSHEET.md](FRAMEWORK_CHEATSHEET.md) | 机制速查、常见坑、token 节约 | 当前 |

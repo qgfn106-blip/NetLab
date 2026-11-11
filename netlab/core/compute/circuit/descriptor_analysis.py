@@ -700,6 +700,17 @@ def _poly_text(coefficients: np.ndarray, variable: str = "s") -> str:
     return result
 
 
+def _real_if_close(values: np.ndarray) -> np.ndarray:
+    """把数值噪声范围内的复数系数还原为实数数组。"""
+    array = np.asarray(values, dtype=np.complex128)
+    if not array.size:
+        return array.real
+    scale = max(1.0, float(np.max(np.abs(array))))
+    if np.all(np.abs(array.imag) <= 1.0e-9 * scale):
+        return array.real
+    return array
+
+
 def descriptor_transfer_function(
     model: DescriptorModel,
     input_source: str | None = None,
@@ -758,10 +769,8 @@ def descriptor_transfer_function(
     if sample is None:
         raise UnsupportedAnalysisError("无法确定传递函数增益：所有采样点均落在极点或零点上")
     numerator = numerator * sample
-    if np.allclose(numerator.imag, 0.0, atol=1.0e-10):
-        numerator = numerator.real
-    if np.allclose(denominator.imag, 0.0, atol=1.0e-10):
-        denominator = denominator.real
+    numerator = _real_if_close(numerator)
+    denominator = _real_if_close(denominator)
 
     dc_value = evaluate(0.0)
     dc_gain = None if dc_value is None or not np.isfinite(dc_value) else float(np.real(dc_value))

@@ -4,7 +4,19 @@ export interface SizeRec { w: number; h: number; dpr: number }
 export interface ViewRec { x: number; y: number; k: number }
 export interface PointerRec { x: number; y: number; wx?: number; wy?: number }
 export interface SelectionRec { type: string | null; id: string | null }
-export interface AppearanceRec { color?: string; opacity?: number; lineWidth?: number; fontSize?: number }
+export type AppearanceLineStyle = 'solid' | 'dashed' | 'dotted';
+export interface AppearanceRec {
+  color?: string;
+  fillColor?: string;
+  strokeColor?: string;
+  textColor?: string;
+  portColor?: string;
+  tickColor?: string;
+  opacity?: number;
+  lineWidth?: number;
+  fontSize?: number;
+  lineStyle?: AppearanceLineStyle;
+}
 export interface HoverRec { id?: string; [k: string]: unknown }
 export interface HoverWaypointRec { edgeId: string; index: number }
 export interface WireToolRec { first?: { kind?: string; nodeId: string; pin?: string } | null; [k: string]: unknown }

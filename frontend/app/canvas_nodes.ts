@@ -36,7 +36,12 @@ export function drawNodes() {
       const isHovered = state.hover?.type === 'node' && state.hover.id === node.id;
       const ap = appearanceOf(node);
       const fontOverride = ap.fontSize;
-      const accent = ap.color ? ap.color : nodeColor(node);
+      const strokeColor = ap.strokeColor || ap.color;
+      const fillColor = ap.fillColor;
+      const textColor = ap.textColor;
+      const portColor = ap.portColor;
+      const tickColor = ap.tickColor;
+      const accent = strokeColor || nodeColor(node);
       const cx = rect.cx;
       const cy = rect.cy;
       const radius = rect.r;
@@ -48,21 +53,21 @@ export function drawNodes() {
       let customLabel = false;
       if (isDeviceNode) {
         customLabel = true;
-        drawGbDeviceNode(ctx, node, rect, accent, isSelected, isHovered, k);
+        drawGbDeviceNode(ctx, node, rect, accent, isSelected, isHovered, k, ap);
       } else if (gbStyle) {
         customLabel = true;
         const isCircuitTerminal = state.scene?.mode === 'circuit'
           && (node.kind === 'node' || node.kind === 'ground');
         if (isCircuitTerminal) {
-          drawGbCircuitNode(ctx, node, cx, cy, radius, accent, isSelected, isHovered, k);
+          drawGbCircuitNode(ctx, node, cx, cy, radius, accent, isSelected, isHovered, k, ap);
         } else {
-          drawGbFunctionGlyph(ctx, node, cx, cy, radius, accent, isSelected, isHovered, k);
+          drawGbFunctionGlyph(ctx, node, cx, cy, radius, accent, isSelected, isHovered, k, ap);
         }
       } else {
         // 外圈与纸面圆盘
         ctx.beginPath();
         ctx.arc(cx, cy, radius + 5, 0, Math.PI * 2);
-        ctx.strokeStyle = isSelected ? C('#a8541f') : isHovered ? tokens().nodeRingHover : C('#cfc6b5');
+        ctx.strokeStyle = strokeColor || (isSelected ? C('#a8541f') : isHovered ? tokens().nodeRingHover : C('#cfc6b5'));
         ctx.lineWidth = isSelected ? 1.6 : 1;
         if (!isSelected && !isHovered) ctx.setLineDash([2, 4]);
         ctx.stroke();
@@ -70,10 +75,10 @@ export function drawNodes() {
 
         ctx.beginPath();
         ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.fillStyle = isSelected ? tokens().nodeFillSelected : C('#faf8f2');
+        ctx.fillStyle = fillColor || (isSelected ? tokens().nodeFillSelected : C('#faf8f2'));
         ctx.fill();
         if (isSelected) { ctx.shadowColor = tokens().nodeShadow; ctx.shadowBlur = Math.max(6, 9 * k); }
-        ctx.strokeStyle = ap.color ? ap.color : isSelected ? C('#a8541f') : C('#bcb3a1');
+        ctx.strokeStyle = strokeColor || (isSelected ? C('#a8541f') : C('#bcb3a1'));
         ctx.lineWidth = ap.lineWidth !== undefined ? ap.lineWidth : isSelected ? 2.2 : 1;
         ctx.stroke();
         ctx.shadowBlur = 0;
@@ -115,11 +120,11 @@ export function drawNodes() {
         const pad = radius * 0.3;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = isSelected ? tokens().nodeMetaSel : accent;
+        ctx.fillStyle = textColor || (isSelected ? tokens().nodeMetaSel : accent);
         ctx.font = `600 ${metaSize}px "Cascadia Code", Consolas, monospace`;
         ctx.fillText(nodeKindLabel(node), cx, cy - radius * 0.56, radius * 1.42);
 
-        ctx.fillStyle = isSelected ? tokens().nodeNameSel : C('#11100e');
+        ctx.fillStyle = textColor || (isSelected ? tokens().nodeNameSel : C('#11100e'));
         ctx.font = `700 ${fontOverride ?? nameSize}px "Segoe UI", "Microsoft YaHei", sans-serif`;
         const maxNameWidth = radius * 1.55;
         let name = node.name;
@@ -130,7 +135,7 @@ export function drawNodes() {
         ctx.fillText(name, cx, cy - radius * 0.06);
 
         if (showValue) {
-          ctx.fillStyle = isSelected ? tokens().nodeValueSel : C('#6f695f');
+          ctx.fillStyle = textColor || (isSelected ? tokens().nodeValueSel : C('#6f695f'));
           ctx.font = `${fontOverride ?? valueSize}px "Cascadia Code", Consolas, monospace`;
           const text = node.kind === 'ground' ? '0 V · REF' : nodeValueText(node);
           ctx.fillText(text, cx, cy + radius * 0.38, radius * 1.55);
@@ -152,11 +157,11 @@ export function drawNodes() {
           : cy + (radius < 20 ? Math.max(14, radius + 8) : radius * 0.62);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = C('#11100e');
+        ctx.fillStyle = textColor || C('#11100e');
         ctx.font = `600 ${fontOverride ?? nameSize2}px "Segoe UI", "Microsoft YaHei", sans-serif`;
         ctx.fillText(node.name, cx, labelY, 96);
         if (showValue && state.scene?.mode !== 'circuit') {
-          ctx.fillStyle = C('#6f695f');
+          ctx.fillStyle = textColor || C('#6f695f');
           ctx.font = `${fontOverride ?? valueSize2}px "Cascadia Code", Consolas, monospace`;
           const text = node.kind === 'ground' ? '0 V · REF' : nodeValueText(node);
           ctx.fillText(text, cx, labelY + (fontOverride ?? nameSize2) + 3, 96);
@@ -172,7 +177,7 @@ export function drawNodes() {
 
       if (isSelected) {
         const tick = 6;
-        ctx.strokeStyle = C('#a8541f');
+        ctx.strokeStyle = tickColor || C('#a8541f');
         ctx.lineWidth = 1;
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
           ctx.beginPath();
@@ -205,9 +210,9 @@ export function drawNodes() {
         for (const point of points) {
           ctx.beginPath();
           ctx.arc(point.x, point.y, portRadius - 0.4, 0, Math.PI * 2);
-          ctx.fillStyle = C('#faf8f2');
+          ctx.fillStyle = fillColor || C('#faf8f2');
           ctx.fill();
-          ctx.strokeStyle = C('#8e8477');
+          ctx.strokeStyle = portColor || C('#8e8477');
           ctx.lineWidth = 1;
           ctx.stroke();
         }
@@ -217,8 +222,8 @@ export function drawNodes() {
       const inPoint = { x: cx - radius, y: cy };
       const outPoint = { x: cx + radius, y: cy };
       const linkingSource = state.drag?.type === 'link' && state.drag.sourceId === node.id;
-      ctx.fillStyle = C('#faf8f2');
-      ctx.strokeStyle = C('#8e8477');
+      ctx.fillStyle = fillColor || C('#faf8f2');
+      ctx.strokeStyle = portColor || C('#8e8477');
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.arc(inPoint.x, inPoint.y, portRadius - 0.6, 0, Math.PI * 2);
@@ -227,8 +232,8 @@ export function drawNodes() {
 
       ctx.beginPath();
       ctx.arc(outPoint.x, outPoint.y, linkingSource ? portRadius + 1.5 : portRadius, 0, Math.PI * 2);
-      ctx.fillStyle = linkingSource ? C('#a8541f') : C('#faf8f2');
-      ctx.strokeStyle = linkingSource ? C('#a8541f') : accent;
+      ctx.fillStyle = linkingSource ? C('#a8541f') : (fillColor || C('#faf8f2'));
+      ctx.strokeStyle = linkingSource ? C('#a8541f') : (portColor || accent);
       ctx.lineWidth = 1.2;
       ctx.fill();
       ctx.stroke();

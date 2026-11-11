@@ -6,14 +6,14 @@ import { clamp } from '../app.utils.js';
 import { deviceImplicitGroundPin, deviceInactive, devicePinLocal, deviceSupplyLabel } from './geometry.js';
 import { deviceElementSpec, devicePins } from './device_pins.js';
 import { nodeKindLabel } from './canvas_base.js';
-import type { BoxRec, NodeItem, PortSpec } from './types.js';
+import type { AppearanceRec, BoxRec, NodeItem, PortSpec } from './types.js';
 
-export function drawGbCircuitNode(ctx: CanvasRenderingContext2D, node: NodeItem, cx: number, cy: number, radius: number, accent: string, isSelected: boolean, isHovered: boolean, k: number) {
+export function drawGbCircuitNode(ctx: CanvasRenderingContext2D, node: NodeItem, cx: number, cy: number, radius: number, accent: string, isSelected: boolean, isHovered: boolean, k: number, appearance: AppearanceRec = {}) {
     const style = state.ui?.nodeStyle || 'circle';
-    const color = isSelected ? C('#a8541f') : isHovered ? tokens().edgeHover : tokens().labelText;
+    const color = appearance.strokeColor || (isSelected ? C('#a8541f') : isHovered ? tokens().edgeHover : tokens().labelText);
     ctx.save();
     ctx.strokeStyle = color;
-    ctx.fillStyle = C('#faf8f2');
+    ctx.fillStyle = appearance.fillColor || C('#faf8f2');
     ctx.lineWidth = isSelected ? 1.8 : 1.2;
     if (node.kind === 'ground') {
       const top = cy - radius * 0.5;
@@ -63,13 +63,13 @@ export function drawGbCircuitNode(ctx: CanvasRenderingContext2D, node: NodeItem,
     ctx.restore();
   }
 
-export function drawGbFunctionGlyph(ctx: CanvasRenderingContext2D, node: NodeItem, cx: number, cy: number, radius: number, accent: string, isSelected: boolean, isHovered: boolean, k: number) {
-    const color = isSelected ? C('#a8541f') : isHovered ? tokens().edgeHover : accent;
+export function drawGbFunctionGlyph(ctx: CanvasRenderingContext2D, node: NodeItem, cx: number, cy: number, radius: number, accent: string, isSelected: boolean, isHovered: boolean, k: number, appearance: AppearanceRec = {}) {
+    const color = appearance.strokeColor || (isSelected ? C('#a8541f') : isHovered ? tokens().edgeHover : accent);
     const R = radius * 0.92;
     const fontPx = Math.max(10, Math.round(R * 0.8));
     ctx.save();
     ctx.strokeStyle = color;
-    ctx.fillStyle = color;
+    ctx.fillStyle = appearance.textColor || color;
     ctx.lineWidth = isSelected ? 1.8 : clamp(1.15 * k, 0.9, 1.8);
     ctx.lineJoin = 'round';
     ctx.textAlign = 'center';
@@ -124,13 +124,13 @@ export function drawGbFunctionGlyph(ctx: CanvasRenderingContext2D, node: NodeIte
     ctx.restore();
   }
 
-export function drawGbDeviceNode(ctx: CanvasRenderingContext2D, node: NodeItem, rect: BoxRec, accent: string, isSelected: boolean, isHovered: boolean, k: number) {
-    const color = isSelected ? C('#a8541f') : isHovered ? tokens().edgeHover : accent;
+export function drawGbDeviceNode(ctx: CanvasRenderingContext2D, node: NodeItem, rect: BoxRec, accent: string, isSelected: boolean, isHovered: boolean, k: number, appearance: AppearanceRec = {}) {
+    const color = appearance.strokeColor || (isSelected ? C('#a8541f') : isHovered ? tokens().edgeHover : accent);
     const inactive = Boolean(state.sim?.running) && deviceInactive(node);
     ctx.save();
     ctx.strokeStyle = color;
     ctx.lineWidth = isSelected ? 1.8 : 1.2;
-    ctx.fillStyle = C('#faf8f2');
+    ctx.fillStyle = appearance.fillColor || C('#faf8f2');
     if (inactive) {
       // R21/D43：运行中未参与求解的器件红色辉光（停止后恢复）。
       ctx.save();
@@ -150,7 +150,7 @@ export function drawGbDeviceNode(ctx: CanvasRenderingContext2D, node: NodeItem, 
     const spec = deviceElementSpec(node);
     const cx = rect.cx as number;
     const cy = rect.cy as number;
-    ctx.fillStyle = color;
+    ctx.fillStyle = appearance.textColor || color;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `600 ${clamp(9 * k, 7, 12)}px "Cascadia Code", Consolas, monospace`;

@@ -44,7 +44,8 @@ export function drawEdges(now: number) {
       if (selected) color = C('#a8541f');
       else if (hovered) color = tokens().edgeHover;
       const ap = appearanceOf(edge);
-      if (ap.color) color = ap.color;
+      const strokeColor = ap.strokeColor || ap.color;
+      if (strokeColor) color = strokeColor;
 
       ctx.save();
       if (ap.opacity !== undefined) ctx.globalAlpha = clamp(ap.opacity, 0.05, 1);
@@ -54,6 +55,9 @@ export function drawEdges(now: number) {
       ctx.lineWidth = ap.lineWidth !== undefined ? ap.lineWidth : selected ? 2.1 : hovered ? 1.7 : state.ui?.drawingMode ? (edge.kind === 'wire' ? 1.75 : 1.3) : 1.15;
       if (!edge.enabled) ctx.setLineDash([3, 5]);
       else if (edge.delay) ctx.setLineDash([7, 5]);
+      if (ap.lineStyle === 'dashed') ctx.setLineDash([7, 5]);
+      else if (ap.lineStyle === 'dotted') ctx.setLineDash([2, 4]);
+      else if (ap.lineStyle === 'solid') ctx.setLineDash([]);
       const circuitGb = state.scene?.mode === 'circuit' && state.ui?.symbol === 'gb';
       const multiPin = circuitGb && elementPins(edge).length > 2;
       if (!multiPin) {
@@ -126,7 +130,7 @@ export function drawEdges(now: number) {
         const boxLeft = labelRect.x;
         ctx.fillStyle = tokens().labelBg;
         ctx.fillRect(boxLeft, labelY - 6, boxW, 12);
-        ctx.fillStyle = selected ? C('#a8541f') : tokens().labelText;
+        ctx.fillStyle = ap.textColor || (selected ? C('#a8541f') : tokens().labelText);
         ctx.fillText(label, labelX, labelY);
         if (selected && !circuitGb) {
           const value = edgeValueText(edge);

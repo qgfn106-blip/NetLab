@@ -6,6 +6,7 @@ import { el, div, button, clone, isFormTarget } from "./app/ui.js";
 import { toast, showBanner, hideBanner } from "./app/desktop.js";
 import { api, jsonRequest } from "./app/net.js";
 import { openCacheDialog, checkCacheQuietly } from "./app/cache.js";
+import { appearancePanelTitle, collectAppearanceTargets, renderAppearancePanel } from "./app/appearance_panel.js";
 import { placeFloatWindow, raiseFloatWindow, initFloatWindow } from "./app/float.js";
 import { chartPalette } from "./app/theme.js";
 import { C, tokens } from "./app/colors.js";
@@ -4013,6 +4014,7 @@ function setStatusHint(hint) {
           { label: "\u81EA\u52A8\u5E03\u5C40", action: () => void autoLayout() },
           { label: "\u5207\u6362\u7F51\u683C\u5438\u9644", hint: "Alt \u62D6\u52A8\u53EF\u4E34\u65F6\u6682\u505C", action: () => toggleSnap() },
           { label: "\u5207\u6362\u7B26\u53F7\u98CE\u683C", hint: "\u7ECF\u5178\u5706\u5F62 / GB \u77E9\u5F62\uFF08\u5DE5\u7A0B\u7EA7\uFF09", action: () => toggleSymbol() },
+          { label: "\u89C6\u56FE\u8BBE\u8BA1\u2026", hint: "\u4E3B\u9898\u3001\u5E03\u5C40\u4E0E\u5143\u7D20\u5916\u89C2", action: () => void openViewDesigner() },
           { label: "\u663E\u793A / \u9690\u85CF\u5F15\u811A\u540D", hint: "\u5668\u4EF6\u6846\u5F15\u811A\u6807\u6CE8", action: () => {
             state.ui.showPins = state.ui.showPins === false;
             requestDraw();
@@ -6111,11 +6113,18 @@ function setStatusHint(hint) {
     item.appearance = { ...appearance };
     requestDraw();
   }
-  async function persistElementAppearance(kind, id, appearance) {
-    const path = kind === "node" ? `/api/nodes/${encodeURIComponent(id)}` : `/api/edges/${encodeURIComponent(id)}`;
-    const response = await task(() => jsonRequest(path, "PATCH", { appearance: appearance ?? {} }));
+  async function persistElementAppearanceBatch(items) {
+    if (!items.length) return;
+    const payload = {
+      nodes: items.filter((item) => item.kind === "node").map((item) => ({ id: item.id, appearance: item.appearance ?? {} })),
+      edges: items.filter((item) => item.kind === "edge").map((item) => ({ id: item.id, appearance: item.appearance ?? {} }))
+    };
+    const response = await task(() => jsonRequest("/api/scene/appearance", "PATCH", payload));
     if (!response) return;
     renderInspector();
+  }
+  async function persistElementAppearance(kind, id, appearance) {
+    await persistElementAppearanceBatch([{ kind, id, appearance }]);
   }
   async function openViewDesigner() {
     try {
@@ -6210,62 +6219,15 @@ function setStatusHint(hint) {
       addNodeToggle("show_detail", "\u663E\u793A\u8282\u70B9\u7C7B\u578B/\u7AEF\u53E3");
       addNodeToggle("show_value", "\u663E\u793A\u8282\u70B9\u6570\u503C");
       const appearanceRows = div("ui-layout-rows");
-      const appearanceNode = selectedNode();
-      const appearanceEdge = appearanceNode ? null : selectedEdge();
-      const appearanceItem = appearanceNode || appearanceEdge;
-      const appearanceKind = appearanceNode ? "node" : appearanceEdge ? "edge" : null;
-      if (!appearanceItem || !appearanceKind) {
-        appearanceRows.appendChild(div("help", "\u5148\u5728\u753B\u5E03\u4E0A\u9009\u4E2D\u4E00\u4E2A\u8282\u70B9\u6216\u8FDE\u7EBF\uFF0C\u518D\u56DE\u5230\u8FD9\u91CC\u8BBE\u7F6E\u5143\u7D20\u5916\u89C2\u3002"));
-      } else {
-        const app = { ...appearanceItem.appearance || {} };
-        const commit = () => {
-          previewElementAppearance(appearanceItem, app);
-        };
-        const persist = () => {
-          void persistElementAppearance(appearanceKind, appearanceItem.id, app);
-        };
-        const colorField = div("ui-field wide");
-        colorField.appendChild(el("span", null, "\u989C\u8272"));
-        const colorInput = el("input");
-        colorInput.type = "color";
-        colorInput.value = app.color || tokens().edgeDefault;
-        colorInput.addEventListener("input", () => {
-          app.color = colorInput.value;
-          commit();
-        });
-        colorInput.addEventListener("change", persist);
-        colorField.appendChild(colorInput);
-        appearanceRows.appendChild(colorField);
-        const addRange = (key, labelText, min, max, step, fallback) => {
-          const field = div("ui-field wide");
-          field.appendChild(el("span", null, labelText));
-          const input = el("input");
-          input.type = "range";
-          input.min = String(min);
-          input.max = String(max);
-          input.step = String(step);
-          const currentValue = app[key];
-          input.value = String(currentValue !== void 0 ? currentValue : fallback);
-          input.addEventListener("input", () => {
-            app[key] = Number(input.value);
-            commit();
-          });
-          input.addEventListener("change", persist);
-          field.appendChild(input);
-          appearanceRows.appendChild(field);
-        };
-        addRange("opacity", "\u900F\u660E\u5EA6", 0.05, 1, 0.05, 1);
-        addRange("lineWidth", "\u7EBF\u5BBD", 0.5, 12, 0.1, appearanceKind === "node" ? 1 : 1.15);
-        addRange("fontSize", "\u6807\u7B7E\u5B57\u53F7", 6, 48, 0.5, 12);
-        const clearRow = div("modal-actions");
-        clearRow.appendChild(button("\u6E05\u9664\u8BE5\u5143\u7D20\u5916\u89C2\u8986\u76D6", "btn tiny", () => {
-          appearanceItem.appearance = {};
-          requestDraw();
-          void persistElementAppearance(appearanceKind, appearanceItem.id, null);
-          toast("\u5DF2\u6E05\u9664\u8BE5\u5143\u7D20\u7684\u5916\u89C2\u8986\u76D6", "ok");
-        }));
-        appearanceRows.appendChild(clearRow);
-      }
+      const appearanceTargets = collectAppearanceTargets();
+      const appearanceTitle = appearancePanelTitle(appearanceTargets);
+      renderAppearancePanel(appearanceRows, appearanceTargets, {
+        pushUndo: () => {
+          void pushUndoSnapshot();
+        },
+        persist: persistElementAppearance,
+        persistElements: (items) => persistElementAppearanceBatch(items)
+      });
       ui.modalCard.replaceChildren();
       ui.modalCard.append(
         el("h3", null, "\u89C6\u56FE\u8BBE\u8BA1"),
@@ -6276,7 +6238,7 @@ function setStatusHint(hint) {
         layoutRows,
         el("h4", null, "\u8282\u70B9\u5361\u7247\u5B57\u6BB5"),
         nodeRows,
-        el("h4", null, "\u5143\u7D20\u5916\u89C2\uFF08\u5F53\u524D\u9009\u4E2D\u9879\uFF09"),
+        el("h4", null, appearanceTitle),
         appearanceRows
       );
       const actions = div("modal-actions");

@@ -4,12 +4,12 @@ import { clamp } from "../app.utils.js";
 import { deviceImplicitGroundPin, deviceInactive, devicePinLocal, deviceSupplyLabel } from "./geometry.js";
 import { deviceElementSpec, devicePins } from "./device_pins.js";
 import { nodeKindLabel } from "./canvas_base.js";
-function drawGbCircuitNode(ctx2, node, cx, cy, radius, accent, isSelected, isHovered, k) {
+function drawGbCircuitNode(ctx2, node, cx, cy, radius, accent, isSelected, isHovered, k, appearance = {}) {
   const style = state.ui?.nodeStyle || "circle";
-  const color = isSelected ? C("#a8541f") : isHovered ? tokens().edgeHover : tokens().labelText;
+  const color = appearance.strokeColor || (isSelected ? C("#a8541f") : isHovered ? tokens().edgeHover : tokens().labelText);
   ctx2.save();
   ctx2.strokeStyle = color;
-  ctx2.fillStyle = C("#faf8f2");
+  ctx2.fillStyle = appearance.fillColor || C("#faf8f2");
   ctx2.lineWidth = isSelected ? 1.8 : 1.2;
   if (node.kind === "ground") {
     const top = cy - radius * 0.5;
@@ -58,13 +58,13 @@ function drawGbCircuitNode(ctx2, node, cx, cy, radius, accent, isSelected, isHov
   }
   ctx2.restore();
 }
-function drawGbFunctionGlyph(ctx2, node, cx, cy, radius, accent, isSelected, isHovered, k) {
-  const color = isSelected ? C("#a8541f") : isHovered ? tokens().edgeHover : accent;
+function drawGbFunctionGlyph(ctx2, node, cx, cy, radius, accent, isSelected, isHovered, k, appearance = {}) {
+  const color = appearance.strokeColor || (isSelected ? C("#a8541f") : isHovered ? tokens().edgeHover : accent);
   const R = radius * 0.92;
   const fontPx = Math.max(10, Math.round(R * 0.8));
   ctx2.save();
   ctx2.strokeStyle = color;
-  ctx2.fillStyle = color;
+  ctx2.fillStyle = appearance.textColor || color;
   ctx2.lineWidth = isSelected ? 1.8 : clamp(1.15 * k, 0.9, 1.8);
   ctx2.lineJoin = "round";
   ctx2.textAlign = "center";
@@ -130,13 +130,13 @@ function drawGbFunctionGlyph(ctx2, node, cx, cy, radius, accent, isSelected, isH
   }
   ctx2.restore();
 }
-function drawGbDeviceNode(ctx2, node, rect, accent, isSelected, isHovered, k) {
-  const color = isSelected ? C("#a8541f") : isHovered ? tokens().edgeHover : accent;
+function drawGbDeviceNode(ctx2, node, rect, accent, isSelected, isHovered, k, appearance = {}) {
+  const color = appearance.strokeColor || (isSelected ? C("#a8541f") : isHovered ? tokens().edgeHover : accent);
   const inactive = Boolean(state.sim?.running) && deviceInactive(node);
   ctx2.save();
   ctx2.strokeStyle = color;
   ctx2.lineWidth = isSelected ? 1.8 : 1.2;
-  ctx2.fillStyle = C("#faf8f2");
+  ctx2.fillStyle = appearance.fillColor || C("#faf8f2");
   if (inactive) {
     ctx2.save();
     ctx2.shadowColor = tokens().dangerShadow;
@@ -155,7 +155,7 @@ function drawGbDeviceNode(ctx2, node, rect, accent, isSelected, isHovered, k) {
   const spec = deviceElementSpec(node);
   const cx = rect.cx;
   const cy = rect.cy;
-  ctx2.fillStyle = color;
+  ctx2.fillStyle = appearance.textColor || color;
   ctx2.textAlign = "center";
   ctx2.textBaseline = "middle";
   ctx2.font = `600 ${clamp(9 * k, 7, 12)}px "Cascadia Code", Consolas, monospace`;

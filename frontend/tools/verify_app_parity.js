@@ -1,7 +1,7 @@
 // TS 搬运轮等价检查：对比 HEAD 与工作树的顶层声明，确认无符号丢失、无重复定义、
 // 每个运行时 app/*.ts 都有 git-tracked 的 .js 产物，并对比函数/类/变量初始化的体哈希。
 // 用法：node tools/verify_app_parity.js [base]
-// 若本轮确实需要改函数体，显式设置 PARITY_ALLOW_BODY_CHANGES=1 并在提交说明中列出。
+// 若本轮确实需要改函数体，把函数名加入 tools/parity_body_allowlist.json（随代码走 code review）。
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
@@ -115,15 +115,19 @@ const changedBodies = [...currentBodies.entries()]
   .filter(([name, hash]) => baseBodies.has(name) && baseBodies.get(name) !== hash)
   .map(([name]) => name);
 
-const allowBodyChanges = process.env.PARITY_ALLOW_BODY_CHANGES === '1';
-if (missing.length || duplicates.length || missingJs.length || untrackedJs.length || (changedBodies.length && !allowBodyChanges)) {
+const allowlistPath = path.join(frontendDir, 'tools', 'parity_body_allowlist.json');
+const allowlist = JSON.parse(readFileSync(allowlistPath, 'utf8'));
+const allowedBodies = new Set(Array.isArray(allowlist.allowed_bodies) ? allowlist.allowed_bodies : []);
+const unexpectedBodies = changedBodies.filter((name) => !allowedBodies.has(name));
+if (missing.length || duplicates.length || missingJs.length || untrackedJs.length || unexpectedBodies.length) {
   if (missing.length) console.error(`MISSING declarations: ${missing.join(', ')}`);
   if (duplicates.length) console.error(`DUPLICATE declarations:\n${duplicates.join('\n')}`);
   if (missingJs.length) console.error(`MISSING built JS: ${missingJs.join(', ')}`);
   if (untrackedJs.length) console.error(`UNTRACKED built JS: ${untrackedJs.join(', ')}`);
-  if (changedBodies.length && !allowBodyChanges) console.error(`CHANGED bodies: ${changedBodies.join(', ')} (set PARITY_ALLOW_BODY_CHANGES=1 only with justification)`);
+  if (unexpectedBodies.length) console.error(`CHANGED bodies not in tracked allowlist: ${unexpectedBodies.join(', ')}`);
   process.exit(1);
 }
-if (changedBodies.length) console.error(`WARN changed bodies (allowed): ${changedBodies.join(', ')}`);
+const allowedChangedBodies = changedBodies.filter((name) => allowedBodies.has(name));
+if (allowedChangedBodies.length) console.error(`WARN changed bodies (tracked allowlist): ${allowedChangedBodies.join(', ')}`);
 
 console.log(`OK: app.ts parity passed (base=${base}, ${currentFiles.length} TS files, ${currentNames.size} top-level declarations, ${appTs.length - typeOnlyModules.size} runtime app modules, ${typeOnlyModules.size} type-only)`);

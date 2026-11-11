@@ -94,6 +94,20 @@ class PositionsUpdate(BaseModel):
     positions: list[PositionItem]
 
 
+class AppearanceItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    appearance: dict[str, Any] = Field(default_factory=dict)
+
+
+class AppearanceBatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nodes: list[AppearanceItem] = Field(default_factory=list)
+    edges: list[AppearanceItem] = Field(default_factory=list)
+
+
 class IntegrationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -197,6 +211,20 @@ def build_router(
     def delete_edge(edge_id: str) -> dict[str, Any]:
         service.mutate(lambda scene: scene.delete_edge(edge_id))
         return service.snapshot()
+
+    @router.patch("/api/scene/appearance")
+    def update_appearance(request: AppearanceBatch) -> dict[str, Any]:
+        """批量外观（ADR-005-lite §4）：一次校验、一次提交，失败不落任何写入。
+
+        外观属 Presentation 层：不改物理参数、不触发物理重编译。
+        """
+        counts = service.mutate(
+            lambda scene: scene.update_appearance_batch(
+                nodes=[item.model_dump() for item in request.nodes],
+                edges=[item.model_dump() for item in request.edges],
+            )
+        )
+        return {"ok": True, "updated": counts, "revision": service.scene.revision}
 
     @router.post("/api/positions")
     def update_positions(request: PositionsUpdate) -> dict[str, Any]:

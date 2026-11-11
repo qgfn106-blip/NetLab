@@ -7,6 +7,7 @@ import { isPinNode } from "./device_pins.js";
 import { appearanceOf, nodeById, selectedNode } from "./model.js";
 import { nodeColor, nodeKindLabel, nodeValueText } from "./canvas_base.js";
 import { drawGbCircuitNode, drawGbDeviceNode, drawGbFunctionGlyph } from "./canvas_glyphs.js";
+import { normalizeCardFields, cardFieldOffsets } from "./card_fields.js";
 function drawNodes() {
   const nodes = (state.scene?.nodes || []).slice();
   const selected = selectedNode();
@@ -23,6 +24,8 @@ function drawNodes() {
   const nameSize = clamp(12.5 * k, 6.5, 17);
   const metaSize = clamp(7.5 * k, 5, 11);
   const valueSize = clamp(8.6 * k, 5, 12);
+  const cardFields = normalizeCardFields(state.ui.cardFields);
+  const cardOffsets = cardFieldOffsets(cardFields.length);
   for (const node of nodes) {
     const rect = nodeRect(node);
     if (rect.x + rect.w < -50 || rect.y + rect.h < -50 || rect.x > state.canvasSize.w + 50 || rect.y > state.canvasSize.h + 50) {
@@ -112,7 +115,7 @@ function drawNodes() {
       ctx.textBaseline = "middle";
       ctx.fillStyle = textColor || (isSelected ? tokens().nodeMetaSel : accent);
       ctx.font = `600 ${metaSize}px "Cascadia Code", Consolas, monospace`;
-      ctx.fillText(nodeKindLabel(node), cx, cy - radius * 0.56, radius * 1.42);
+      if (cardFields.includes("kind")) ctx.fillText(nodeKindLabel(node), cx, cy + radius * cardOffsets[cardFields.indexOf("kind")], radius * 1.42);
       ctx.fillStyle = textColor || (isSelected ? tokens().nodeNameSel : C("#11100e"));
       ctx.font = `700 ${fontOverride ?? nameSize}px "Segoe UI", "Microsoft YaHei", sans-serif`;
       const maxNameWidth = radius * 1.55;
@@ -121,12 +124,17 @@ function drawNodes() {
         while (name.length > 2 && ctx.measureText(`${name}\u2026`).width > maxNameWidth) name = name.slice(0, -1);
         name += "\u2026";
       }
-      ctx.fillText(name, cx, cy - radius * 0.06);
-      if (showValue) {
+      if (cardFields.includes("name")) ctx.fillText(name, cx, cy + radius * cardOffsets[cardFields.indexOf("name")]);
+      if (showValue && cardFields.includes("value")) {
         ctx.fillStyle = textColor || (isSelected ? tokens().nodeValueSel : C("#6f695f"));
         ctx.font = `${fontOverride ?? valueSize}px "Cascadia Code", Consolas, monospace`;
         const text = node.kind === "ground" ? "0 V \xB7 REF" : nodeValueText(node);
-        ctx.fillText(text, cx, cy + radius * 0.38, radius * 1.55);
+        ctx.fillText(text, cx, cy + radius * cardOffsets[cardFields.indexOf("value")], radius * 1.55);
+      }
+      if (cardFields.includes("id")) {
+        ctx.fillStyle = textColor || C("#7b7266");
+        ctx.font = `${metaSize}px "Cascadia Code", Consolas, monospace`;
+        ctx.fillText(node.id.slice(-4), cx, cy + radius * cardOffsets[cardFields.indexOf("id")], radius * 1.42);
       }
       if (isSelected) {
         ctx.fillStyle = C("#a8541f");
@@ -144,8 +152,8 @@ function drawNodes() {
       ctx.textBaseline = "middle";
       ctx.fillStyle = textColor || C("#11100e");
       ctx.font = `600 ${fontOverride ?? nameSize2}px "Segoe UI", "Microsoft YaHei", sans-serif`;
-      ctx.fillText(node.name, cx, labelY, 96);
-      if (showValue && state.scene?.mode !== "circuit") {
+      if (cardFields.includes("name")) ctx.fillText(node.name, cx, labelY, 96);
+      if (showValue && cardFields.includes("value") && state.scene?.mode !== "circuit") {
         ctx.fillStyle = textColor || C("#6f695f");
         ctx.font = `${fontOverride ?? valueSize2}px "Cascadia Code", Consolas, monospace`;
         const text = node.kind === "ground" ? "0 V \xB7 REF" : nodeValueText(node);

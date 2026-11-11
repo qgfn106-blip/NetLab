@@ -10,6 +10,7 @@ import { $, $$, stage, canvas, ctx, chartCanvas, chartCtx, phaseCanvas, phaseCtx
 import { state, ui } from './app/state.js';
 import type { ApiOptions } from './app/net.js';
 import { el, div, button, clone, isFormTarget } from './app/ui.js';
+import { normalizeCardFields } from './app/card_fields.js';
 import { desktopBridge, isDesktop, callBridge, toast, showBanner, hideBanner } from './app/desktop.js';
 import { api, jsonRequest, plotkitFrameUrl } from './app/net.js';
 import { openCacheDialog, checkCacheQuietly } from './app/cache.js';
@@ -4956,6 +4957,12 @@ function setStatusHint(hint: string): void {
     if (Number.isFinite(Number(uiSettings.drawingPage))) state.ui.drawingPage = Math.max(1, Math.min(9, Number(uiSettings.drawingPage)));
     if (typeof uiSettings.cardDetail === 'boolean') state.ui.cardDetail = uiSettings.cardDetail;
     if (typeof uiSettings.cardValue === 'boolean') state.ui.cardValue = uiSettings.cardValue;
+    if (Array.isArray(uiSettings.cardFields)) {
+      const next = normalizeCardFields(uiSettings.cardFields);
+      state.ui.cardFields = next;
+      state.ui.cardDetail = next.length > 0;
+      state.ui.cardValue = next.includes('value');
+    }
     if (Number.isFinite(Number(uiSettings.symbolScale))) state.ui.symbolScale = clamp(Number(uiSettings.symbolScale), 0.6, 2.5);
     if (typeof uiSettings.glyphColor === 'string') state.ui.glyphColor = uiSettings.glyphColor;
     requestDraw();
@@ -6862,6 +6869,7 @@ function setStatusHint(hint: string): void {
       let current = response.current || response.defaults;
       state.ui.cardDetail = current.node?.show_detail !== false;
       state.ui.cardValue = current.node?.show_value !== false;
+      state.ui.cardFields = normalizeCardFields(current.node?.card_fields);
       const tokenLabels = {
         background: '背景', surface: '表面', panel: '面板', text: '文字', muted: '次要文字',
         accent: '强调色', grid: '网格', edge: '连线', node: '节点', danger: '警示', success: '成功',
@@ -6918,24 +6926,53 @@ function setStatusHint(hint: string): void {
         layoutRows.appendChild(label);
       }
       const nodeRows = div('ui-layout-rows');
-      const addNodeToggle = (key: 'show_detail' | 'show_value', labelText: string) => {
-        const label = div('ui-field wide');
-        label.appendChild(el('span', null, labelText));
-        const input = el('input');
-        input.type = 'checkbox';
-        input.checked = current.node?.[key] !== false;
-        input.addEventListener('change', () => {
-          current.node = current.node || {};
-          current.node[key] = input.checked;
-          if (key === 'show_detail') state.ui.cardDetail = input.checked;
-          else state.ui.cardValue = input.checked;
-          requestDraw();
-        });
-        label.appendChild(input);
-        nodeRows.appendChild(label);
+      const fieldCatalog: Array<{ id: string; label: string }> = Array.isArray(response.card_fields)
+        ? response.card_fields : [];
+      let cardFields = normalizeCardFields(current.node?.card_fields);
+      const syncCardFields = () => {
+        current.node = current.node || {};
+        current.node.card_fields = cardFields.slice();
+        current.node.show_detail = cardFields.length > 0;
+        current.node.show_value = cardFields.includes('value');
+        state.ui.cardFields = cardFields.slice();
+        state.ui.cardDetail = cardFields.length > 0;
+        state.ui.cardValue = cardFields.includes('value');
+        requestDraw();
       };
-      addNodeToggle('show_detail', '显示节点类型/端口');
-      addNodeToggle('show_value', '显示节点数值');
+      const renderCardRows = () => {
+        nodeRows.replaceChildren();
+        const ordered = [...cardFields, ...fieldCatalog.map((entry) => entry.id)
+          .filter((id) => !cardFields.includes(id))];
+        for (const [index, id] of ordered.entries()) {
+          const entry = fieldCatalog.find((item) => item.id === id);
+          const row = div('ui-field wide');
+          const input = el('input');
+          input.type = 'checkbox';
+          input.checked = cardFields.includes(id);
+          input.dataset.cardField = id;
+          input.addEventListener('change', () => {
+            cardFields = input.checked ? normalizeCardFields([...cardFields, id])
+              : cardFields.filter((item) => item !== id);
+            syncCardFields(); renderCardRows();
+          });
+          row.appendChild(input);
+          row.appendChild(el('span', null, entry ? entry.label : id));
+          for (const [delta, text, dir] of [[-1, '↑', 'up'], [1, '↓', 'down']] as const) {
+            const move = button(text, 'btn tiny', () => {
+              const from = cardFields.indexOf(id);
+              const to = from + delta;
+              if (from < 0 || to < 0 || to >= cardFields.length) return;
+              const next = cardFields.slice();
+              [next[from], next[to]] = [next[to], next[from]];
+              cardFields = next; syncCardFields(); renderCardRows();
+            });
+            move.dataset.cardMove = dir;
+            row.appendChild(move);
+          }
+          nodeRows.appendChild(row);
+        }
+      };
+      renderCardRows();
       // P-B 元素外观：单选或多选节点/连线，统一设置覆盖（仅设置过的项才覆盖）。
       const appearanceRows = div('ui-layout-rows');
       const appearanceTargets = collectAppearanceTargets();

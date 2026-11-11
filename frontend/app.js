@@ -3,6 +3,7 @@ import { NODE_W, NODE_H, CHART_KEYS, MAX_IMPORT_BYTES, MAX_FRAMES } from "./app/
 import { $, $$, stage, canvas, chartCanvas, chartCtx } from "./app/dom.js";
 import { state, ui } from "./app/state.js";
 import { el, div, button, clone, isFormTarget } from "./app/ui.js";
+import { normalizeCardFields } from "./app/card_fields.js";
 import { toast, showBanner, hideBanner } from "./app/desktop.js";
 import { api, jsonRequest } from "./app/net.js";
 import { openCacheDialog, checkCacheQuietly } from "./app/cache.js";
@@ -4524,6 +4525,12 @@ function setStatusHint(hint) {
     if (Number.isFinite(Number(uiSettings.drawingPage))) state.ui.drawingPage = Math.max(1, Math.min(9, Number(uiSettings.drawingPage)));
     if (typeof uiSettings.cardDetail === "boolean") state.ui.cardDetail = uiSettings.cardDetail;
     if (typeof uiSettings.cardValue === "boolean") state.ui.cardValue = uiSettings.cardValue;
+    if (Array.isArray(uiSettings.cardFields)) {
+      const next = normalizeCardFields(uiSettings.cardFields);
+      state.ui.cardFields = next;
+      state.ui.cardDetail = next.length > 0;
+      state.ui.cardValue = next.includes("value");
+    }
     if (Number.isFinite(Number(uiSettings.symbolScale))) state.ui.symbolScale = clamp(Number(uiSettings.symbolScale), 0.6, 2.5);
     if (typeof uiSettings.glyphColor === "string") state.ui.glyphColor = uiSettings.glyphColor;
     requestDraw();
@@ -6133,6 +6140,7 @@ function setStatusHint(hint) {
       let current = response.current || response.defaults;
       state.ui.cardDetail = current.node?.show_detail !== false;
       state.ui.cardValue = current.node?.show_value !== false;
+      state.ui.cardFields = normalizeCardFields(current.node?.card_fields);
       const tokenLabels = {
         background: "\u80CC\u666F",
         surface: "\u8868\u9762",
@@ -6200,24 +6208,53 @@ function setStatusHint(hint) {
         layoutRows.appendChild(label);
       }
       const nodeRows = div("ui-layout-rows");
-      const addNodeToggle = (key, labelText) => {
-        const label = div("ui-field wide");
-        label.appendChild(el("span", null, labelText));
-        const input = el("input");
-        input.type = "checkbox";
-        input.checked = current.node?.[key] !== false;
-        input.addEventListener("change", () => {
-          current.node = current.node || {};
-          current.node[key] = input.checked;
-          if (key === "show_detail") state.ui.cardDetail = input.checked;
-          else state.ui.cardValue = input.checked;
-          requestDraw();
-        });
-        label.appendChild(input);
-        nodeRows.appendChild(label);
+      const fieldCatalog = Array.isArray(response.card_fields) ? response.card_fields : [];
+      let cardFields = normalizeCardFields(current.node?.card_fields);
+      const syncCardFields = () => {
+        current.node = current.node || {};
+        current.node.card_fields = cardFields.slice();
+        current.node.show_detail = cardFields.length > 0;
+        current.node.show_value = cardFields.includes("value");
+        state.ui.cardFields = cardFields.slice();
+        state.ui.cardDetail = cardFields.length > 0;
+        state.ui.cardValue = cardFields.includes("value");
+        requestDraw();
       };
-      addNodeToggle("show_detail", "\u663E\u793A\u8282\u70B9\u7C7B\u578B/\u7AEF\u53E3");
-      addNodeToggle("show_value", "\u663E\u793A\u8282\u70B9\u6570\u503C");
+      const renderCardRows = () => {
+        nodeRows.replaceChildren();
+        const ordered = [...cardFields, ...fieldCatalog.map((entry) => entry.id).filter((id) => !cardFields.includes(id))];
+        for (const [index, id] of ordered.entries()) {
+          const entry = fieldCatalog.find((item) => item.id === id);
+          const row = div("ui-field wide");
+          const input = el("input");
+          input.type = "checkbox";
+          input.checked = cardFields.includes(id);
+          input.dataset.cardField = id;
+          input.addEventListener("change", () => {
+            cardFields = input.checked ? normalizeCardFields([...cardFields, id]) : cardFields.filter((item) => item !== id);
+            syncCardFields();
+            renderCardRows();
+          });
+          row.appendChild(input);
+          row.appendChild(el("span", null, entry ? entry.label : id));
+          for (const [delta, text, dir] of [[-1, "\u2191", "up"], [1, "\u2193", "down"]]) {
+            const move = button(text, "btn tiny", () => {
+              const from = cardFields.indexOf(id);
+              const to = from + delta;
+              if (from < 0 || to < 0 || to >= cardFields.length) return;
+              const next = cardFields.slice();
+              [next[from], next[to]] = [next[to], next[from]];
+              cardFields = next;
+              syncCardFields();
+              renderCardRows();
+            });
+            move.dataset.cardMove = dir;
+            row.appendChild(move);
+          }
+          nodeRows.appendChild(row);
+        }
+      };
+      renderCardRows();
       const appearanceRows = div("ui-layout-rows");
       const appearanceTargets = collectAppearanceTargets();
       const appearanceTitle = appearancePanelTitle(appearanceTargets);

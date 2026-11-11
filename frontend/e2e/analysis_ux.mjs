@@ -83,6 +83,15 @@ try {
     browser = await chromium.launch({ channel: 'msedge' });
   }
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, acceptDownloads: true });
+  let exportCalls = 0;
+  await page.route('**/api/export/schematic*', async (route) => {
+    exportCalls += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, svg: '<svg xmlns="http://www.w3.org/2000/svg"></svg>', filename: 'E2E.svg' }),
+    });
+  });
   page.on('pageerror', (error) => errors.push(String(error)));
   page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
   await page.addInitScript(() => {
@@ -129,14 +138,10 @@ try {
   await page.locator('#menuItems .menu > button').filter({ hasText: '文件' }).click();
   const exportItem = page.locator('.menu.open .menu-item').filter({ hasText: '导出原理图 SVG…' });
   await exportItem.waitFor({ state: 'visible', timeout: 3000 });
+  await page.waitForTimeout(600);
   await exportItem.click();
-  const exportResult = await page.evaluate(async () => {
-    const response = await fetch('/api/export/schematic?name=E2E&network=RC');
-    const payload = await response.json();
-    return { status: response.status, ...payload };
-  });
-  assert(exportResult.status === 200 && exportResult.ok === true && String(exportResult.svg || '').includes('<svg'), '原理图导出响应不是 SVG');
-  assert(String(exportResult.filename || '').toLowerCase().endsWith('.svg'), '导出文件名不是 SVG');
+  await page.waitForTimeout(400);
+  assert(exportCalls === 1, `文件菜单导出未调用 API: ${exportCalls}`);
   await page.keyboard.press('Escape');
 
   // 5) 画布右键也应提供同一导出入口。
@@ -145,7 +150,11 @@ try {
     button: 'right',
     position: { x: Math.max(20, (graphBox?.width || 800) - 40), y: Math.max(20, (graphBox?.height || 600) - 40) },
   });
-  await page.locator('#linkMenu .popup-item').filter({ hasText: '导出原理图 SVG…' }).waitFor({ state: 'visible', timeout: 3000 });
+  const contextExport = page.locator('#linkMenu .popup-item').filter({ hasText: '导出原理图 SVG…' });
+  await contextExport.waitFor({ state: 'visible', timeout: 3000 });
+  await contextExport.click();
+  await page.waitForTimeout(400);
+  assert(exportCalls === 2, `画布右键导出未调用 API: ${exportCalls}`);
   await page.keyboard.press('Escape');
 
   // 6) 顶部「运行 → 预计算…」打开统一弹窗。

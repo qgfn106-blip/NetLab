@@ -24,7 +24,7 @@
 - **2026-11-11 六项修复完成**：小信号旁路新增 G(s) 表达式与 DC 增益/rise/peak/overshoot/settling/稳态误差/ωn/ζ/Bode 带宽/谐振；Bode/阶跃坐标轴统一 nice ticks；电路模式旧「推导」入口转「小信号分析（旁路）」；文件菜单/画布右键新增「导出原理图 SVG…」；四套预计算入口统一为「运行 → 预计算…」弹窗；全量 872 passed/1 skipped、覆盖率 81.106%、前端 22 passed、e2e OK；详见 PROGRESS §7.149。
 - **待授权项（PENDING_USER_AUTHORIZATION，2026-11-10）**：Phase 3 架构债、Phase 4 CI 证据、500+ 规模档（MAX_NODES=400 不放宽）、Newton 选主元与 SCC 差分 Jacobian/深宽图余项；FEM 明确不改（用户 2026-11-10 决定）。
 - **界面口径**：前端在 `frontend/`（index.html / app.js / style.css）；Qt 原生界面已按 D78 备份到 Git 分支 `backup/qt-native-2026-11-02` 后删除，不再是产品形态。
-pytest 基线见 [status.json](status.json)（872 passed / 1 skipped；627 为 2026-11-07 历史数），见 REQUIREMENTS R41
+pytest 基线见 [status.json](status.json)（872 passed / 1 skipped），见 REQUIREMENTS R41
 全量基线见 [status.json](status.json)（872 passed / 1 skipped、静态 3.20.1）。
 - **2026-11-07 新增完成：全局外观引擎 P-A1–P-A4**：令牌单一来源（`theme.tokens.ts`，`0d1332d`）、LIGHT/DARK 双色板 WCAG 10/10（`194fc79`）、画布裸色 97→0（`b2111d1`）、设置窗「外观」面板 9 项（`62a6132`）；详见 PROGRESS §7.88 / APPEARANCE_ENGINE_DESIGN §12。**下一步：P-B 元素级视图外观待办（承 R40 视图设计，尚未开始）**；已知限制：6 项外观仅 localStorage、不跨机同步。
 525 passed 为历史数（当前基线见 [status.json](status.json)）。R37
@@ -45,7 +45,7 @@ pytest 基线见 [status.json](status.json)（872 passed / 1 skipped；627 为 2
 | ⑥ |
 | ⑦ | ~~复数分析层（Complex Bridge）~~ → **已完成（§7.71）**：统一 `frequency_response()` + 精确 `e^{-jωT}` + 电路 AC 复数 MNA + API | 只做分析边界，避免全量 complex；561 passed/3.18.0 | — |
 | ⑧ | **R40 全栈扩展架构** → **首版完成（§7.74）+ 视图设计节点卡片字段开关（2026-11-07）**：插件包 + `netlab.plugin_api.v1` + 声明式 UI/简洁画布；**外观引擎 P-A1–P-A4 已完成（D75 / §7.88，令牌单一来源 + LIGHT/DARK 双色板 + 外观面板 9 项）** | **P-B 元素级视图外观待办**（逐元素外观可调，承 R40）；自由拖拽编辑面板字段、插件生态示例仍可继续补 | 大 |
-pytest 基线见 [status.json](status.json)（627 为历史数）；详见 REQUIREMENTS R41
+pytest 基线见 [status.json](status.json)（872 passed / 1 skipped）；详见 REQUIREMENTS R41
 | ⑩ | **R42 Python 代码 PEP 8 规范化**（P18）→ **已完成（§7.83）**：netlab + PlotKit 全 Python 代码 `flake8` 0、`black` 88 列；测试 netlab **606 passed / 1 skipped**、PlotKit **470 passed**，零功能变化；详见 REQUIREMENTS R42 / P18 | 统一 Python 风格、提升可读性/可维护性 | 已完成 |
 
 > R31 已完成 P11-01…P11-07；P11-06 为理想 nmos + 50 Hz 方波栅极的趋势验证，10 kHz PWM/器件损耗留后续。

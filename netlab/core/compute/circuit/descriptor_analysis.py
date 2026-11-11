@@ -743,7 +743,8 @@ def descriptor_transfer_function(
             state = np.linalg.solve(matrix, system.B)
         except np.linalg.LinAlgError:
             return None
-        return complex(np.asarray(c_matrix).reshape(1, -1) @ state + d_matrix)
+        value = np.asarray(c_matrix).reshape(1, -1) @ state + d_matrix
+        return complex(np.asarray(value).reshape(-1)[0])
 
     sample = None
     for candidate in (0.0, 1.0, 10.0j, -10.0j):

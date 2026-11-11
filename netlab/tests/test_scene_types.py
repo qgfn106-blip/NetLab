@@ -37,6 +37,46 @@ def test_full_appearance_normalized() -> None:
     assert result == {"color": "#aabbcc", "opacity": 0.5, "lineWidth": 2.0, "fontSize": 12.0}
 
 
+def test_extended_appearance_normalized() -> None:
+    result = normalize_appearance(
+        {
+            "color": "#AABBCC",
+            "fillColor": "#FFFFFF",
+            "strokeColor": "#112233",
+            "textColor": "#11100E",
+            "portColor": "#445566",
+            "tickColor": "#A8541F",
+            "lineStyle": "dashed",
+            "opacity": 0.5,
+            "lineWidth": 2,
+            "fontSize": 12,
+        }
+    )
+    assert result == {
+        "color": "#aabbcc",
+        "fillColor": "#ffffff",
+        "strokeColor": "#112233",
+        "textColor": "#11100e",
+        "portColor": "#445566",
+        "tickColor": "#a8541f",
+        "lineStyle": "dashed",
+        "opacity": 0.5,
+        "lineWidth": 2.0,
+        "fontSize": 12.0,
+    }
+
+
+def test_appearance_rejects_bad_line_style() -> None:
+    with pytest.raises(ValidationError):
+        normalize_appearance({"lineStyle": "wavy"})
+
+
+@pytest.mark.parametrize("key", ["fillColor", "strokeColor", "textColor", "portColor", "tickColor"])
+def test_appearance_rejects_bad_extended_color(key: str) -> None:
+    with pytest.raises(ValidationError):
+        normalize_appearance({key: "red"})
+
+
 def test_appearance_rejects_unknown_key() -> None:
     with pytest.raises(ValidationError):
         normalize_appearance({"glow": 1})

@@ -16,6 +16,7 @@ from typing import Any
 
 from .blocks import BlockRuntime, BlockStore
 from .records import EdgeRecord, NodeRecord
+from .scene_types import normalize_appearance
 from ..compute.clock import SimClock
 from ..compute.computes import (
     compute_catalog,
@@ -145,8 +146,51 @@ class _SceneEditMixin:
             record.size = self._node_size(payload["size"])
         if "appearance" in payload:
             record.appearance = normalize_appearance(payload["appearance"])
-        self._touch()
+        if set(payload) == {"appearance"}:
+            # 仅外观变化不需要重建引擎（ADR-005-lite §1）。
+            self.revision += 1
+        else:
+            self._touch()
         return record
+
+    def update_appearance_batch(
+        self,
+        *,
+        nodes: list[dict[str, Any]] | None = None,
+        edges: list[dict[str, Any]] | None = None,
+    ) -> dict[str, int]:
+        """批量外观（ADR-005-lite §4）：先全部校验再统一写入。
+
+        外观只属 Presentation：不改物理参数、不重建引擎、不触发重编译；
+        中途任何一项不合法都抛错且不落任何写入，保证一次提交要么全成要么全无。
+        """
+        node_items = nodes or []
+        edge_items = edges or []
+        total = len(node_items) + len(edge_items)
+        if total > MAX_NODES + MAX_EDGES:
+            raise LimitError("外观批量修改的条目过多")
+        staged_nodes: list[tuple[NodeRecord, dict[str, Any]]] = []
+        staged_edges: list[tuple[EdgeRecord, dict[str, Any]]] = []
+        for item in node_items:
+            if not isinstance(item, dict):
+                raise ValidationError("外观项必须是对象")
+            record = self.nodes.get(check_id(item.get("id"), "节点 id"))
+            if record is None:
+                raise NotFoundError("节点不存在")
+            staged_nodes.append((record, normalize_appearance(item.get("appearance") or {})))
+        for item in edge_items:
+            if not isinstance(item, dict):
+                raise ValidationError("外观项必须是对象")
+            record = self.edges.get(check_id(item.get("id"), "连线 id"))
+            if record is None:
+                raise NotFoundError("连线不存在")
+            staged_edges.append((record, normalize_appearance(item.get("appearance") or {})))
+        for record, appearance in staged_nodes + staged_edges:
+            record.appearance = appearance
+        if total:
+            # 外观只属 Presentation，不进入物理编译缓存键（ADR-005-lite §1/§4）。
+            self.revision += 1
+        return {"nodes": len(staged_nodes), "edges": len(staged_edges)}
 
     def update_positions(self, items: list[dict[str, Any]]) -> None:
         if not isinstance(items, list) or len(items) > MAX_NODES:
@@ -452,7 +496,11 @@ class _SceneEditMixin:
             record.layout = self._edge_layout(payload["layout"])
         if "appearance" in payload:
             record.appearance = normalize_appearance(payload["appearance"])
-        self._touch()
+        if set(payload) == {"appearance"}:
+            # 仅外观变化不需要重建引擎（ADR-005-lite §1）。
+            self.revision += 1
+        else:
+            self._touch()
         return record
 
     def delete_edge(self, edge_id: str) -> None:

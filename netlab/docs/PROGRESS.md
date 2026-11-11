@@ -2802,3 +2802,12 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 新增 `netlab/docs/CORE_ARCHITECTURE_V2_ROADMAP.md`：P1 架构审计 → P2 Core Model V2 + Typed Port → P3 Equation + Model Compiler → P4 Runtime + Plugin V2 → P5 Validation/机械/多物理场，含每阶段目标、交付物、验收标准、依赖关系与 P1 启动指令。
 - 同步 `DOCS_INDEX.md`、`BACKLOG.md`、`REQUIREMENTS_AND_RULES.md`（新增 D155）、`ARCHITECTURE.md` 指针；本次仅新增/修改文档，无源码改动，不改变 872 passed / 1 skipped 基线。
 - 结论：P1 只读架构审计先做，不重写稳定模块；V2 目标不得当作已实现能力。
+
+## §7.151 P1/P2：parity 去环境变量、描述符传函边界测试与六项前端 e2e（2026-11-11）
+
+- 描述符传递函数：`descriptor_transfer_function()` 对有限极点/零点重构 SISO G(s)，对数值噪声虚部做相对 1e-9 实系数还原；新增 `test_descriptor_transfer_function.py` 9 tests（RC/RLC 解析对拍、重根、纯积分器、近零极点对消、64/65 阶边界、坏输入输出、非 DescriptorModel、MIMO 拒绝）。
+- 前端：电路模式旧「推导」入口转「小信号分析（旁路）」；旁路默认自动选第一个激励源与响应节点；G(s)/DC 增益/rise/peak/overshoot/settling/稳态误差/ωn/ζ/Bode 带宽/谐振展示；Bode/Step 坐标轴统一 nice ticks；文件菜单/画布右键导出原理图 SVG；四套预计算统一为「运行 → 预计算…」弹窗。
+- Parity：`frontend/tools/verify_app_parity.js` 改为读取 tracked `parity_body_allowlist.json`，不再依赖 `PARITY_ALLOW_BODY_CHANGES` 环境变量；`npm run verify:parity` OK（仅 warning 列出 allowlist 内函数）。
+- E2E：新增 `frontend/e2e/analysis_ux.mjs`（mode、metrics、ticks、导出、右键导出、预计算六项），`npm run e2e` = smoke + analysis_ux 全过。
+- 验证：全量后端 **881 passed / 1 skipped / 4 warnings / 624.62s**，core 覆盖率 **81.311998%**（12408/14583，missing 2175，≥81.3%）；前端 typecheck/build/test 22 passed、check:sections 7959 行、e2e 全过。
+- 边界：不碰 `graph.py`/`scene.py` 冻结区；不改默认开关；不新增依赖；D-5 无数字 compute 变更，无需 shadow 报告。

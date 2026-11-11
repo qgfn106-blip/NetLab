@@ -15,6 +15,17 @@ from ..common.limits import ValidationError
 UI_PROFILE = "netlab-ui/1"
 HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
+# R40 阶段 3：节点卡片字段（声明式白名单）。字段 id 固定，前端只能选择显示哪些、
+# 以及它们的上下顺序；不允许携带任意 HTML/CSS/JS 或表达式。
+CARD_FIELDS: tuple[str, ...] = ("kind", "name", "value", "id")
+CARD_FIELD_LABELS: dict[str, str] = {
+    "kind": "节点类型",
+    "name": "节点名称",
+    "value": "节点数值",
+    "id": "编号尾号",
+}
+DEFAULT_CARD_FIELDS: list[str] = ["kind", "name", "value"]
+
 DEFAULT_TOKENS: dict[str, str] = {
     "background": "#0b1220",
     "surface": "#111a2c",
@@ -49,9 +60,26 @@ DEFAULT_UI: dict[str, Any] = {
         "show_values": True,
         "show_detail": True,
         "show_value": True,
+        "card_fields": list(DEFAULT_CARD_FIELDS),
     },
     "edge": {"route": "orthogonal", "arrow": True},
 }
+
+
+def _normalize_card_fields(value: Any) -> list[str]:
+    """校验节点卡片字段：有序、白名单、去重、限量；不执行任何表达式。"""
+    if not isinstance(value, list):
+        raise ValidationError("ui.node.card_fields 必须是字段数组")
+    fields: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or item not in CARD_FIELDS:
+            raise ValidationError(f"未知节点卡片字段：{item!r}")
+        if item in fields:
+            raise ValidationError(f"节点卡片字段重复：{item}")
+        fields.append(item)
+    if len(fields) > len(CARD_FIELDS):
+        raise ValidationError("节点卡片字段过多")
+    return fields
 
 
 def default_ui() -> dict[str, Any]:
@@ -101,12 +129,21 @@ def normalize_ui(payload: dict[str, Any] | None) -> dict[str, Any]:
         for key, value in values.items():
             if key not in result[section]:
                 raise ValidationError(f"未知 ui.{section} 项：{key}")
+            if section == "node" and key == "card_fields":
+                result[section][key] = _normalize_card_fields(value)
+                continue
             result[section][key] = value
     return result
 
 
 def ui_catalog() -> dict[str, Any]:
-    return {"profile": UI_PROFILE, "defaults": default_ui()}
+    return {
+        "profile": UI_PROFILE,
+        "defaults": default_ui(),
+        "card_fields": [
+            {"id": field, "label": CARD_FIELD_LABELS[field]} for field in CARD_FIELDS
+        ],
+    }
 
 
-__all__ = ["UI_PROFILE", "DEFAULT_UI", "default_ui", "normalize_ui", "ui_catalog"]
+__all__ = ["UI_PROFILE", "DEFAULT_UI", "CARD_FIELDS", "CARD_FIELD_LABELS", "DEFAULT_CARD_FIELDS", "default_ui", "normalize_ui", "ui_catalog"]

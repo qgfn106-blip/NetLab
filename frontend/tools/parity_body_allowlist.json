@@ -1,5 +1,5 @@
 {
-  "reason": "2026-11-11 电路小信号旁路二期：这些函数体随功能实现发生了预期的等价迁移变更，由代码审查与测试覆盖，不再通过环境变量放行。",
+  "reason": "2026-11-11 电路小信号旁路二期与 R40 P-B 元素外观：这些函数体随功能实现发生了预期的等价迁移/渲染扩展，由代码审查与测试覆盖，不再通过环境变量放行。",
   "allowed_bodies": [
     "bypassTable",
     "drawBypassBode",
@@ -8,6 +8,11 @@
     "runAnalysisTransfer",
     "drawTFBode",
     "drawTFStep",
-    "fillBypassSources"
+    "fillBypassSources",
+    "drawEdges",
+    "drawGbCircuitNode",
+    "drawGbFunctionGlyph",
+    "drawGbDeviceNode",
+    "drawNodes"
   ]
 }

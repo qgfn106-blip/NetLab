@@ -13,6 +13,7 @@ import { el, div, button, clone, isFormTarget } from './app/ui.js';
 import { desktopBridge, isDesktop, callBridge, toast, showBanner, hideBanner } from './app/desktop.js';
 import { api, jsonRequest, plotkitFrameUrl } from './app/net.js';
 import { openCacheDialog, checkCacheQuietly } from './app/cache.js';
+import { appearancePanelTitle, collectAppearanceTargets, renderAppearancePanel } from './app/appearance_panel.js';
 import { placeFloatWindow, placeDocWindow, raiseFloatWindow, toggleFloatMaximize, initFloatWindow } from './app/float.js';
 import { CHART_PALETTE, chartPalette, themeKey } from './app/theme.js';
 import { hexToRgb, hexToRgbString, mixHex } from './app/color.js';
@@ -4411,6 +4412,7 @@ function setStatusHint(hint: string): void {
           { label: '自动布局', action: () => void autoLayout() },
           { label: '切换网格吸附', hint: 'Alt 拖动可临时暂停', action: () => toggleSnap() },
           { label: '切换符号风格', hint: '经典圆形 / GB 矩形（工程级）', action: () => toggleSymbol() },
+          { label: '视图设计…', hint: '主题、布局与元素外观', action: () => void openViewDesigner() },
           { label: '显示 / 隐藏引脚名', hint: '器件框引脚标注', action: () => {
             state.ui.showPins = state.ui.showPins === false;
             requestDraw();
@@ -6834,14 +6836,23 @@ function setStatusHint(hint: string): void {
     requestDraw();
   }
 
-  // 覆盖持久化：轻量 PATCH 到现有节点/连线端点，写回 scene 记录并随工程保存。
-  async function persistElementAppearance(kind: 'node' | 'edge', id: string, appearance: AppearanceRec | null): Promise<void> {
-    const path = kind === 'node'
-      ? `/api/nodes/${encodeURIComponent(id)}`
-      : `/api/edges/${encodeURIComponent(id)}`;
-    const response = await task(() => jsonRequest(path, 'PATCH', { appearance: appearance ?? {} }));
+  // 覆盖持久化：批量外观统一走 SceneEdit 事务端点（ADR-005-lite §4），一次校验一次提交，
+  // 不逐条 PATCH、不另造 undo 栈；外观只属 Presentation，不触发物理重编译。
+  async function persistElementAppearanceBatch(
+    items: Array<{ kind: 'node' | 'edge'; id: string; appearance: AppearanceRec | null }>,
+  ): Promise<void> {
+    if (!items.length) return;
+    const payload = {
+      nodes: items.filter((item) => item.kind === 'node').map((item) => ({ id: item.id, appearance: item.appearance ?? {} })),
+      edges: items.filter((item) => item.kind === 'edge').map((item) => ({ id: item.id, appearance: item.appearance ?? {} })),
+    };
+    const response = await task(() => jsonRequest('/api/scene/appearance', 'PATCH', payload));
     if (!response) return;
     renderInspector();
+  }
+
+  async function persistElementAppearance(kind: 'node' | 'edge', id: string, appearance: AppearanceRec | null): Promise<void> {
+    await persistElementAppearanceBatch([{ kind, id, appearance }]);
   }
 
   async function openViewDesigner() {
@@ -6925,54 +6936,15 @@ function setStatusHint(hint: string): void {
       };
       addNodeToggle('show_detail', '显示节点类型/端口');
       addNodeToggle('show_value', '显示节点数值');
-      // P-B 元素外观：针对画布当前选中的节点或连线设置覆盖（仅设置过的项才覆盖）。
+      // P-B 元素外观：单选或多选节点/连线，统一设置覆盖（仅设置过的项才覆盖）。
       const appearanceRows = div('ui-layout-rows');
-      const appearanceNode = selectedNode();
-      const appearanceEdge = appearanceNode ? null : selectedEdge();
-      const appearanceItem: NodeItem | EdgeItem | null = appearanceNode || appearanceEdge;
-      const appearanceKind: 'node' | 'edge' | null = appearanceNode ? 'node' : appearanceEdge ? 'edge' : null;
-      if (!appearanceItem || !appearanceKind) {
-        appearanceRows.appendChild(div('help', '先在画布上选中一个节点或连线，再回到这里设置元素外观。'));
-      } else {
-        const app: AppearanceRec = { ...(appearanceItem.appearance || {}) };
-        const commit = (): void => { previewElementAppearance(appearanceItem, app); };
-        const persist = (): void => { void persistElementAppearance(appearanceKind, appearanceItem.id, app); };
-        const colorField = div('ui-field wide');
-        colorField.appendChild(el('span', null, '颜色'));
-        const colorInput = el('input');
-        colorInput.type = 'color';
-        colorInput.value = app.color || tokens().edgeDefault;
-        colorInput.addEventListener('input', () => { app.color = colorInput.value; commit(); });
-        colorInput.addEventListener('change', persist);
-        colorField.appendChild(colorInput);
-        appearanceRows.appendChild(colorField);
-        const addRange = (key: 'opacity' | 'lineWidth' | 'fontSize', labelText: string, min: number, max: number, step: number, fallback: number): void => {
-          const field = div('ui-field wide');
-          field.appendChild(el('span', null, labelText));
-          const input = el('input');
-          input.type = 'range';
-          input.min = String(min);
-          input.max = String(max);
-          input.step = String(step);
-          const currentValue = app[key];
-          input.value = String(currentValue !== undefined ? currentValue : fallback);
-          input.addEventListener('input', () => { app[key] = Number(input.value); commit(); });
-          input.addEventListener('change', persist);
-          field.appendChild(input);
-          appearanceRows.appendChild(field);
-        };
-        addRange('opacity', '透明度', 0.05, 1, 0.05, 1);
-        addRange('lineWidth', '线宽', 0.5, 12, 0.1, appearanceKind === 'node' ? 1 : 1.15);
-        addRange('fontSize', '标签字号', 6, 48, 0.5, 12);
-        const clearRow = div('modal-actions');
-        clearRow.appendChild(button('清除该元素外观覆盖', 'btn tiny', () => {
-          appearanceItem.appearance = {};
-          requestDraw();
-          void persistElementAppearance(appearanceKind, appearanceItem.id, null);
-          toast('已清除该元素的外观覆盖', 'ok');
-        }));
-        appearanceRows.appendChild(clearRow);
-      }
+      const appearanceTargets = collectAppearanceTargets();
+      const appearanceTitle = appearancePanelTitle(appearanceTargets);
+      renderAppearancePanel(appearanceRows, appearanceTargets, {
+        pushUndo: () => { void pushUndoSnapshot(); },
+        persist: persistElementAppearance,
+        persistElements: (items) => persistElementAppearanceBatch(items),
+      });
       ui.modalCard.replaceChildren();
       ui.modalCard.append(
         el('h3', null, '视图设计'),
@@ -6983,7 +6955,7 @@ function setStatusHint(hint: string): void {
         layoutRows,
         el('h4', null, '节点卡片字段'),
         nodeRows,
-        el('h4', null, '元素外观（当前选中项）'),
+        el('h4', null, appearanceTitle),
         appearanceRows,
       );
       const actions = div('modal-actions');

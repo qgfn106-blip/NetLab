@@ -13,6 +13,9 @@
     "drawGbCircuitNode",
     "drawGbFunctionGlyph",
     "drawGbDeviceNode",
-    "drawNodes"
+    "drawNodes",
+    "openViewDesigner",
+    "applyProjectUi",
+    "buildProjectPayload"
   ]
 }

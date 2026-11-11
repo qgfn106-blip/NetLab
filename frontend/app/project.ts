@@ -6,6 +6,7 @@ import { api, jsonRequest } from './net.js';
 import { desktopBridge, callBridge, isDesktop, showBanner, toast } from './desktop.js';
 import { baseName } from '../app.utils.js';
 import { activeTab } from './model.js';
+import { normalizeCardFields } from './card_fields.js';
 
 type ProjectAction = (...args: any[]) => any;
 const projectActions: Record<string, ProjectAction> = {};
@@ -167,6 +168,7 @@ export async function buildProjectPayload() {
           drawingPage: Math.max(1, Math.min(9, Number(state.ui.drawingPage) || 1)),
           cardDetail: state.ui.cardDetail !== false,
           cardValue: state.ui.cardValue !== false,
+          cardFields: normalizeCardFields(state.ui.cardFields),
           symbolScale: Number(state.ui.symbolScale) || 1.2,
           glyphColor: state.ui.glyphColor || '#1f5f5b',
         },

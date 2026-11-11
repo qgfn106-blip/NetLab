@@ -76,6 +76,7 @@ export interface UiPrefsRec {
   drawingPage?: number;
   cardDetail?: boolean;
   cardValue?: boolean;
+  cardFields?: string[];
   showPins?: boolean;
   [k: string]: unknown;
 }

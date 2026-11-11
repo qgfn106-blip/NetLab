@@ -13,7 +13,14 @@ from netlab.core.model.project import (
 )
 from netlab.core.model.project import make_network
 from netlab.core.model.templates import build_template
-from netlab.core.model.ui_profile import default_ui, normalize_ui
+from netlab.core.model.ui_profile import (
+    CARD_FIELDS,
+    CARD_FIELD_LABELS,
+    DEFAULT_CARD_FIELDS,
+    default_ui,
+    normalize_ui,
+    ui_catalog,
+)
 from netlab.core.compute.simulation import Simulation
 from netlab.core.common.limits import ValidationError
 import pytest
@@ -89,3 +96,41 @@ def test_ui_api_roundtrip(client) -> None:
     assert saved.status_code == 200
     assert saved.json()["current"]["tokens"]["accent"] == "#123abc"
     assert saved.json()["current"]["layout"]["panel_width"] == 360.0
+def test_card_fields_catalog_and_defaults() -> None:
+    catalog = ui_catalog()
+    assert [item["id"] for item in catalog["card_fields"]] == list(CARD_FIELDS)
+    assert all(item["label"] for item in catalog["card_fields"])
+    assert default_ui()["node"]["card_fields"] == list(DEFAULT_CARD_FIELDS)
+    assert normalize_ui({})["node"]["card_fields"] == list(DEFAULT_CARD_FIELDS)
+
+
+def test_card_fields_normalize_preserves_order() -> None:
+    payload = {"node": {"card_fields": ["value", "name", "id"]}}
+    assert normalize_ui(payload)["node"]["card_fields"] == ["value", "name", "id"]
+    payload = {"node": {"card_fields": ["id", "kind"]}}
+    assert normalize_ui(payload)["node"]["card_fields"] == ["id", "kind"]
+
+
+def test_card_fields_rejects_invalid_values() -> None:
+    for bad in ("kind", 3, {"a": 1}, ["kind", "bogus"], ["kind", "kind"],
+                ["kind", "name", "value", "id", "extra"]):
+        with pytest.raises(ValidationError):
+            normalize_ui({"node": {"card_fields": bad}})
+
+
+def test_card_fields_empty_list_allowed() -> None:
+    assert normalize_ui({"node": {"card_fields": []}})["node"]["card_fields"] == []
+
+
+def test_ui_api_card_fields_roundtrip(client) -> None:
+    got = client.get("/api/ui")
+    assert got.status_code == 200
+    body = got.json()
+    assert [item["id"] for item in body["card_fields"]] == list(CARD_FIELDS)
+    payload = body["current"]
+    payload["node"]["card_fields"] = ["id", "value"]
+    saved = client.post("/api/ui", json=payload)
+    assert saved.status_code == 200
+    assert saved.json()["current"]["node"]["card_fields"] == ["id", "value"]
+    again = client.get("/api/ui")
+    assert again.json()["current"]["node"]["card_fields"] == ["id", "value"]

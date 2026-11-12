@@ -34,7 +34,7 @@
 - `python tools/check_stage4_docs.py` → `STAGE4 DOC CHECK PASSED`（并打印 `MANUAL: semantic review ...`）。
 - `python -m pytest netlab/tests/test_stage4_document_contracts.py -q` → 3 passed（含 checker 反例测试与 deepcopy 隔离测试）。
 - 9 份文档逐份 `ast.parse` / `json.loads` / Mermaid 裸竖线检查：由 `tools/check_stage4_docs.py` 覆盖核心契约；完整语法检查沿用阶段 4 的 `_stage4_validate.py`（仓库根，非提交物）。
-- 未重跑全量 pytest/npm/e2e：本次为 docs/tools/tests-only 改动，不触碰生产代码；沿用阶段 5 基线 `942 passed / 1 skipped / 81.3808%`，但**不作为阶段 4 新结果**（按任务书 P2-02 要求区分）。
+- 全量 `python -m pytest netlab/tests -q --junitxml=reports/pytest.xml --cov=netlab/core --cov-branch --cov-report=json:coverage.json` → **945 passed / 1 skipped / 0 failed / 236.37s**，core 覆盖率 **81.380784%**（12445/14619）；新增 3 个契约测试。阶段 5 的 942 基线保留为历史，本结果为本轮整改实测。
 
 ## 5. 仍未解决问题
 

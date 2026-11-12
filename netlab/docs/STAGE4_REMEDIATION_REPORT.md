@@ -7,6 +7,7 @@
 - 整改前基线：`eaec04af31c7fe1e9aa2488e7a09c183c603688c`（阶段 5 P1-R1 已交付并 push；该阶段在任务书到达前完成，见 §7）。
 - 9 份设计文档原提交 `ad2e481`；任务书核查时自该提交后零改动，P0 缺陷全部存在。
 - 本次整改在任务书之后新增改动（提交见 `git log` 与 §4）；工作树只含 `netlab/docs/*`、`netlab/tools/*`、`netlab/tests/*`、`adr/*`，无生产核心代码。
+- 证据订正（2026-11-12 11:31 审批补充）：P1-R2 已有窄范围 parity 测试 `netlab/tests/test_descriptor_rlc.py:174`（单一 RC/4 频点，`rtol=1e-8`），任务书「无任何等价测试」不准确；P1-07 的导出路径 `records.py:29-50 NodeRecord.snapshot()` 已 `copy.deepcopy`，真正风险是 `scene_engines.py:101-107`/`graph.py:190-192/:200` 运行时共享可变 dict；「冻结区不改生产核心代码」是前向约束，不代表 `netlab/core/compute/circuit/` 历史零提交。
 
 ## 2. 整改统计
 

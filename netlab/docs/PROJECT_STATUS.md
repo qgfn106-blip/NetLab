@@ -1,7 +1,7 @@
 # NetLab 项目状态（唯一事实源 · PROJECT_STATUS）
 
-- **状态**：当前状态的唯一事实源（2026-11-11 建立，2026-11-12 阶段 4 P1-A 设计冻结后刷新）。
-- **最后刷新**：2026-11-12（Asia/Shanghai），随「阶段 4 P1-A 全量设计冻结」docs 提交更新。
+- **状态**：当前状态的唯一事实源（2026-11-11 建立，2026-11-12 阶段 4 P1-A 设计冻结后建立，阶段 2 重报复核（m31329）收口后校准）。
+- **最后刷新**：2026-11-12（Asia/Shanghai），随「阶段 2 重报复核（m31329）收口」独立 docs 提交更新。
 - **维护规则**：本文件只记当前事实；路线/阶段表见 `CORE_ARCHITECTURE_V2_ROADMAP.md`，目标口径见 `CORE_ARCHITECTURE_V2.md`，执行约束见 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md`（该文件为 2026-11-11 快照，动态状态委托本文件），架构决策见 `docs/adr/`，历史完成记录见 `PROGRESS.md`。机器可读字段以 `status.json` / `reports/test_status.json` 为准。
 
 ## 1. 当前基线事实（四类事实分离）
@@ -9,9 +9,9 @@
 | 项 | 当前事实 |
 |---|---|
 | 仓库 | `NetlabHome/`，分支 `main` |
-| 代码基线 HEAD | `b667e517450b5f050424fe76d623af0cdeaf4eb1`（阶段 3 交付，已 push） |
+| 代码基线 HEAD | `b667e517450b5f050424fe76d623af0cdeaf4eb1`（最后一次改动代码的提交；阶段 4 与本轮收口均为 docs-only，已 push） |
 | 精确 HEAD / ahead | 文档收口提交后以 `git rev-parse HEAD` 与 `status.json` 为准；提交自身无法自引用 |
-| origin/main | 与本地 `main` 同步（push 已授权并执行；ahead 0 / behind 0，截至阶段 3 交付） |
+| origin/main | 与本地 `main` 同步（push 已授权并执行；ahead 0 / behind 0，截至本轮收口提交） |
 | 版本 | 3.20.1 |
 | 测试基线 | 909 passed / 1 skipped / 0 failed；core 覆盖率 81.404692%（12469/14643） |
 | 前端门禁 | typecheck / build / test（27 passed）/ verify:parity / check:sections（app.ts 7968 行）/ e2e 四脚本全过 |

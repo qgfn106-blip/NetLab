@@ -1,7 +1,8 @@
 # NetLab 项目状态（唯一事实源 · PROJECT_STATUS）
 
-- **状态**：当前状态的唯一事实源（2026-11-11 建立，2026-11-12 阶段 4 P1-A 设计冻结后建立，阶段 2 重报复核（m31329）收口后校准）。
-- **最后刷新**：2026-11-12（Asia/Shanghai），随「阶段 2 重报复核（m31329）收口」独立 docs 提交更新。
+- **状态**：当前状态的唯一事实源（2026-11-11 建立；2026-11-12 阶段 5 P1-R1 元件 Stamp 单一化交付后刷新）。
+- **最后刷新**：2026-11-12（Asia/Shanghai），随「阶段 5 P1-R1 元件 Stamp 单一化」交付更新。
+- **阶段 5（P1-R1）**：元件 Stamp 单一化零数值回归收敛已交付，收敛方案 `P1_R1_STAMP_CONVERGENCE.md` 为 Proposed；设计评审通过前不实施 formulation 级替换；完成报告与三条 CI 证据见本阶段 §8 报告。
 - **维护规则**：本文件只记当前事实；路线/阶段表见 `CORE_ARCHITECTURE_V2_ROADMAP.md`，目标口径见 `CORE_ARCHITECTURE_V2.md`，执行约束见 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md`（该文件为 2026-11-11 快照，动态状态委托本文件），架构决策见 `docs/adr/`，历史完成记录见 `PROGRESS.md`。机器可读字段以 `status.json` / `reports/test_status.json` 为准。
 
 ## 1. 当前基线事实（四类事实分离）
@@ -13,7 +14,7 @@
 | 精确 HEAD / ahead | 文档收口提交后以 `git rev-parse HEAD` 与 `status.json` 为准；提交自身无法自引用 |
 | origin/main | 与本地 `main` 同步（push 已授权并执行；ahead 0 / behind 0，截至本轮收口提交） |
 | 版本 | 3.20.1 |
-| 测试基线 | 909 passed / 1 skipped / 0 failed；core 覆盖率 81.404692%（12469/14643） |
+| 测试基线 | 942 passed / 1 skipped / 0 failed；core 覆盖率 81.3808%（12445/14619，含 33 条新增 stamp 对拍用例） |
 | 前端门禁 | typecheck / build / test（27 passed）/ verify:parity / check:sections（app.ts 7968 行）/ e2e 四脚本全过 |
 | 阶段 3 三条 CI（绑 `b667e51`） | python-tests `43115278340`、frontend-ts-build `43115278356`、container `43115278600`，均 success |
 | 阶段 2 三条 CI（绑 `8e7f583`） | container `43098331619`、python-tests `43098331551`、frontend-ts-build `43098331562`，GitHub runner 排队（status=queued / conclusion=null / jobs=[]），不作通过证据 |
@@ -55,7 +56,7 @@
 | R25（完整电路级内部结构） | 暂停（用户 2026-11-11 裁决先做 P-B） |
 | R43（M2） | 仅 opt-in |
 | R19（参考级图纸） | 暂停 |
-| Phase 3 架构债 / Phase 4 CI 证据 | `PENDING_USER_AUTHORIZATION` |
+| Phase 3 架构债 / Phase 4 CI 证据 | `PENDING_USER_AUTHORIZATION`（注：阶段 5–9 的 P1-R1/R2/S1/S2/S3 属已授权的阶段 0–13 收敛序列，**不等于**旧 5-phase 计划里未授权的「Phase 3 架构债」；P1-R1 的实施不触碰该 PENDING 边界） |
 | 500 / 1000 / 5000 规模档 | `PENDING_USER_AUTHORIZATION`；`MAX_NODES=400` 默认不放宽 |
 | Newton 选主元 / SCC 差分 Jacobian | `PENDING_USER_AUTHORIZATION` |
 | `NETLAB_MATH_ACCEL` | 默认 off，不擅自放量 |

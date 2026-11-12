@@ -72,16 +72,39 @@ class StampContext:
         return 0.0 if position is None else float(self.solution[position])
 
 
-def _stamp_conductance(ctx: StampContext, a: str, b: str, g: float) -> None:
-    ai = ctx.index.get(a)
-    bi = ctx.index.get(b)
+def stamp_laplacian(
+    matrix: Any, index: Any, a: str, b: str, weight: Any
+) -> None:
+    """P1-R1: the single implementation of a two-terminal Laplacian stamp.
+
+    Adds ``weight * [[1, -1], [-1, 1]]`` to the ``a``/``b`` rows and columns
+    of ``matrix``. ``index`` maps node ids to row positions; a node missing
+    from ``index`` is a ground node and its row/column is skipped.
+
+    Both the Legacy MNA companion-model path
+    (:mod:`netlab.core.compute.circuit.elements`) and the descriptor
+    ``A + sE`` path (:mod:`netlab.core.compute.circuit.descriptor`) call this
+    function. ``weight`` is deliberately NOT cast to float so that the Legacy
+    AC path keeps complex admittances such as ``1j * omega * C``. Callers that
+    write into a float matrix cast at the call site, exactly as before.
+
+    This is a pure refactor: the four updates and their order are identical to
+    the pre-convergence inline bodies. See P1_R1_STAMP_CONVERGENCE.md.
+    """
+    ai = index.get(a)
+    bi = index.get(b)
     if ai is not None:
-        ctx.A[ai, ai] += g
+        matrix[ai, ai] += weight
     if bi is not None:
-        ctx.A[bi, bi] += g
+        matrix[bi, bi] += weight
     if ai is not None and bi is not None:
-        ctx.A[ai, bi] -= g
-        ctx.A[bi, ai] -= g
+        matrix[ai, bi] -= weight
+        matrix[bi, ai] -= weight
+
+
+def _stamp_conductance(ctx: StampContext, a: str, b: str, g: float) -> None:
+    """P0 compatibility entry point; delegates to :func:`stamp_laplacian`."""
+    stamp_laplacian(ctx.A, ctx.index, a, b, g)
 
 
 def _stamp_current(ctx: StampContext, a: str, b: str, value: float) -> None:

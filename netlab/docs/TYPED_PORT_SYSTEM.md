@@ -13,7 +13,7 @@
 | `domain` | `str` | 领域标识 | `circuit`、`mechanical`、`signal` |
 | `quantity` | `str` | 物理量/信号量名 | `voltage`、`current`、`force`、`velocity`、`signal` |
 | `unit` | `str` | 单位符号（可换算） | `V`、`A`、`N`、`m/s` |
-| `dimension` | 4 元组整数 | 量纲指数向量，顺序 `[L, M, T, I]` | 电压 `[2, 1, -3, -1]` |
+| `dimension` | 7 元组整数 | 量纲指数向量，顺序 `[L, M, T, I, Θ, N, J]` | 电压 `[2, 1, -3, -1, 0, 0, 0]` |
 | `direction` | `str` | `input` / `output` / `bidirectional` | `bidirectional` |
 | `cardinality` | `str` | `one` / `many` | `one` |
 | `shape` | 整数元组 | 数据结构形状，标量为空元组 | `()`、`(3,)` |
@@ -26,16 +26,16 @@
 
 ## 2. 最小 4 类物理量（Circuit + 最小机械域）
 
-| 量 | domain | unit | dimension `[L,M,T,I]` | 典型方向 | 语义 |
+| 量 | domain | unit | dimension `[L,M,T,I,Θ,N,J]` | 典型方向 | 语义 |
 | --- | --- | --- | --- | --- | --- |
-| `voltage` | `circuit` | `V` | `[2, 1, -3, -1]` | bidirectional | 节点势，Physical Conserving |
-| `current` | `circuit` | `A` | `[0, 0, 0, 1]` | bidirectional | 支路流量，Physical Conserving |
-| `force` | `mechanical` | `N` | `[1, 1, -2, 0]` | bidirectional | 力，Physical Conserving |
-| `velocity` | `mechanical` | `m/s` | `[1, 0, -1, 0]` | bidirectional | 速度，Physical Conserving |
+| `voltage` | `circuit` | `V` | `[2, 1, -3, -1, 0, 0, 0]` | bidirectional | 节点势，Physical Conserving |
+| `current` | `circuit` | `A` | `[0, 0, 0, 1, 0, 0, 0]` | bidirectional | 支路流量，Physical Conserving |
+| `force` | `mechanical` | `N` | `[1, 1, -2, 0, 0, 0, 0]` | bidirectional | 力，Physical Conserving |
+| `velocity` | `mechanical` | `m/s` | `[1, 0, -1, 0, 0, 0, 0]` | bidirectional | 速度，Physical Conserving |
 
 设计目标（ROADMAP §2 验收）：先用 Circuit + 一个最小机械域验证 Typed Port，不要求全平台铺开。机械域最小例见 `MINIMAL_DATA_MODEL_EXAMPLE.md` §4。
 
-量纲向量维数固定为 4，便于 `UnitRegistry` 用整数向量做兼容判定，避免浮点比较。
+量纲向量维数固定为 7 个基本量纲 `[L, M, T, I, Θ, N, J]`，便于 `UnitRegistry` 用整数向量做兼容判定，避免浮点比较。
 
 ## 3. 连接语义
 

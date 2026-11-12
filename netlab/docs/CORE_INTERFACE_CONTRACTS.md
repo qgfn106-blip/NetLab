@@ -88,16 +88,19 @@ class EngineSpec:
     supported_node_kinds: tuple[str, ...] = ()
     supported_edge_kinds: tuple[str, ...] = ()
     supported_port_types: tuple[str, ...] = ()
+    factory: Callable[["EngineSpec"], "Engine"] | None = None
     plugin_id: str | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
 ```
+
+> 不可变契约（P1-02）：所有 `Mapping` 字段在构造时必须 `copy.deepcopy` 传入，禁止把外部可变容器直接挂进 `frozen` 对象；`test_stage4_document_contracts.py` 的 `test_runtime_state_isolation` 用两个 Runtime 实例验证状态互不污染。
 
 ## 3. 精确 Protocol 签名
 
 ```python
 from __future__ import annotations
 
-from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
+from typing import Any, Callable, Mapping, Protocol, Sequence, runtime_checkable
 
 
 @runtime_checkable
@@ -110,7 +113,7 @@ class UnitRegistry(Protocol):
         """显式换算；量纲不同抛 UnitMismatchError。"""
         ...
 
-    def register(self, unit: str, dimension: tuple[int, int, int, int], scale: float) -> None:
+    def register(self, unit: str, dimension: tuple[int, int, int, int, int, int, int], scale: float) -> None:
         """注册单位；重复注册抛 ModelValidationError。"""
         ...
 
@@ -205,6 +208,13 @@ class PluginFacade(Protocol):
         ...
 
     def register_node_kind(self, kind: str, spec: Mapping[str, Any]) -> None:
+        ...
+
+    def register_edge_kind(self, kind: str, spec: Mapping[str, Any]) -> None:
+        ...
+
+    def read_compiled_summary(self) -> Mapping[str, Any]:
+        """只读编译摘要（变量/方程/计划摘要），不含运行态。"""
         ...
 
     def read_probe(self, name: str) -> float:

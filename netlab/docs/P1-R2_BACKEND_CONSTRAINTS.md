@@ -30,26 +30,33 @@
 | 源归一化 | 选中独立源取单位激励（1V/1A），其余置零 | 同 | **等价** | #7/#11 MATCH |
 | 数值稳定性 | 每频点 MNA 直接解；病态→奇异报错 | 状态空间矩阵(solve)，病态→LinAlgError/Warning；本次 singular 触发 scipy `LinAlgWarning: Diagonal number 3 is exactly zero` | 共同支持域一致到 3.4e-14；病态边界行为不同 | 实测 |
 | 运行时状态副作用 | `ac_sweep` 不改变瞬态时间轴/节点电压/历史状态（docstring 声明；state_invariance 两次全等） | `from_scene` 新建模型、`frequency_response` 不写回 solver 状态；两次全等 | **等价**（无副作用） | state_invariance |
-| 性能与资源 | 每调用重建/求解 MNA；5 频点 ~0.4–0.6ms（稳态），首调 ~361ms 预热 | 每调用 build+逐频 solve；5 频点 ~0.12–0.17ms，约 3–4× 快 | 量级相近，Descriptor 更快（小规模） | §4 PARITY_MATRIX |
+| 性能与资源 | 每调用重建/求解 MNA；5 频点 median ~0.604ms（稳态），首调 ~361ms 预热 | 每调用 build+逐频 solve；5 频点 median ~0.288ms，约 2.1× 快（中位数法，见 PARITY §4） | 量级相近，Descriptor 更快（小规模） | §4 PARITY_MATRIX |
 
 ## 3. Descriptor 奇异 E 矩阵与代数约束（专项检查）
 
-- Descriptor 采用 `A + sE` 形式（`descriptor.py` 状态空间构造）。E 矩阵对应储能/代数约束（电容、电感、电压源/VCVS 的理想约束支路）。当存在理想电压源并联、悬空代数约束互斥等情形时，`E`（或其组合 `A+sE`）在个别频点退化，`scipy.linalg` 直接抛 `LinAlgError: Singular matrix` 或发 `LinAlgWarning`（本次 singular 场景出现 `LinAlgWarning: Diagonal number 3 is exactly zero`）。
+- Descriptor 采用 `(A + sE)·x = b`（s=jω；`descriptor.py` 状态空间构造）。**E 奇异本身是描述符系统（DAE）的正常性质**：理想电压源/VCVS 等代数约束在 E 中贡献零行，rank(E)<n 是设计使然、不是错误。真正的奇异性来自 **`A + sE` 在给定频点 s=jω 处不可逆/秩亏**——例如两个理想电压源并联使约束行线性相关，导致该约束块在任意 ω 都不满秩，`A+sE` 恒奇异；此时 `scipy.linalg` 抛 `LinAlgError: Singular matrix`（或发 `LinAlgWarning: Diagonal number 3 is exactly zero`）。故不能把失败归因于「E 退化」，而是 `A+sE` 秩亏，根因多为拓扑级约束冗余/互斥。
 - 现状：Descriptor 层**未把该底层异常转译为 `ComputeError`**，也未附支路/节点定位信息；Legacy 则给出"零主元 + 支路名 + 排查提示"。这是两后端在"病态系统"上最实质的契约差异，必须在统一方案中收敛（见 CONVERGENCE_PLAN §2）。
 - 代数约束处理：Descriptor 通过把电压源/VCVS/电感作为独立支路电流未知量处理理想约束；若约束冗余/互斥则系统奇异，当前无预检（如"并联理想压源"检测），仅靠求解期异常暴露。
 
 ## 4. 结论（对统一方案的输入）
 
-1. **能力子集关系**：两后端在 `{R,C,L,V,I,VCVS,VCCS}` + 多源 + 悬空 + 元件电流探针上**数值等价**（机器精度）。Descriptor 额外可建 opamp 分母但 AC 域双方都拒绝；Legacy 有 `switch` 在 `AC_KINDS` 而 Descriptor 未在本轮覆盖 switch（列为待验证项）。
-2. **必须收敛的三处不等价**：
+1. **能力子集关系**：两后端在 `{R,C,L,V,I,VCVS,VCCS}` + 多源 + 悬空 + 元件电流探针上**数值等价**（机器精度）。Descriptor 额外可建 opamp 分母但 AC 域双方都拒绝；switch 在 Legacy `AC_KINDS` 内、Descriptor 经通用 conductance stamp，本轮实测**两端一致（max_rel=0，见 PARITY #13/#14）**。
+2. **必须收敛的不等价（switch 已消解，剩两处）**：
    - (a) 奇异/病态：Descriptor 泄漏 `LinAlgError`，需包装为与 Legacy 同构的 `ComputeError`（含编号、支路、提示）。
    - (b) 不支持元件报错文案：opamp 等双方均拒但消息不同，需统一错误码/措辞。
-   - (c) `switch` 在 Legacy `AC_KINDS` 内、Descriptor 未验证——列为**待验证差异**（本审计未构建 switch 场景，因缺参数契约证据，不作结论，明确标为未覆盖）。
+   - (c) ~~switch 待验证~~ **已消解**：switch（closed ron=1mΩ / open roff=1GΩ）两后端实测一致（PARITY #13/#14，max_rel=0；参数契约见 `catalog.py:190`）。
 3. **可选共享点**：两后端对 R/C/L/独立源/VCVS/VCCS 的 stamp 语义一致，是否存在可共用的"交流 stamp 原语层"需在统一方案评估（不得在本只读阶段改码）。
 
 ## 5. 未覆盖/待验证清单（诚实边界）
 
-- `switch` 元件在 AC 域的 Descriptor 侧行为（Legacy 白名单含 switch）。
+- ~~`switch` 元件 AC 行为~~（本轮已补测：两端一致，#13/#14）。
 - 大规模电路（>500 网络）性能与内存门槛。
 - 非线性器件的 AC 线性化工作点一致性（当前 opamp 双方均整体拒绝，未进 AC 小信号）。
 - 复数探针的相位缠绕/符号约定在极端频点（本矩阵 5 频点相对误差已达 1e-14，未见异常）。
+
+## 6. 修订记录（2026-11-13，C 块整改）
+- switch 已补测（#13/#14，max_rel=0）；「三处不等价」修正为「两处（奇异错误语义 + 不支持元件文案），switch 已消解」。
+- §3 奇异 E 表述纠正：E 奇异是 DAE 正常性质，真奇异是 `A+sE` 秩亏（拓扑约束冗余/互斥），非「E 退化」。
+- §2 性能改为中位数法（Legacy 0.604ms / Descriptor 0.288ms ≈ 2.1×）。
+- 未改任何生产代码。
+- **输出探针补充（2026-11-13）**：switch 元件电流探针——Legacy `ac_sweep` 报「AC 探针 'S1' 的电流暂不支持」，Descriptor `frequency_response` 可返回该电流；此为「输出探针映射」维度的一处能力差异，统一时须收敛探针契约。

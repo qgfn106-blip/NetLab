@@ -74,6 +74,10 @@
 | [V2_IMPLEMENTATION_GAP_ANALYSIS.md](V2_IMPLEMENTATION_GAP_ANALYSIS.md) | 阶段 4 整改：P1-03–P1-13/P2-02 差距与迁移方案 | 规划（Proposed） |
 | [STAGE4_REMEDIATION_REPORT.md](STAGE4_REMEDIATION_REPORT.md) | 阶段 4 设计冻结整改报告（P0/P1/P2 证据与验收判定） | 规划（Proposed） |
 | [P1_R1_STAMP_CONVERGENCE.md](P1_R1_STAMP_CONVERGENCE.md) | 阶段 5 P1-R1 元件 Stamp 单一化收敛方案（Proposed） | 阶段 5 |
+| [P1-R2_PARITY_MATRIX.md](P1-R2_PARITY_MATRIX.md) | 阶段 6 P1-R2 双 AC 后端一致性矩阵（只读审计，12 拓扑复数域对比） | 阶段 6 |
+| [P1-R2_BACKEND_CONSTRAINTS.md](P1-R2_BACKEND_CONSTRAINTS.md) | 阶段 6 P1-R2 双后端约束表（元件/源/探针/数值/错误逐项对照 + 奇异 E 专项） | 阶段 6 |
+| [P1-R2_CONVERGENCE_PLAN.md](P1-R2_CONVERGENCE_PLAN.md) | 阶段 6 P1-R2 收敛方案（准入闸门 + 统一提案 + 风险/验证，只读设计） | 阶段 6 |
+| [P0-2_PORT_SCHEMA_DECISION.md](P0-2_PORT_SCHEMA_DECISION.md) | P0-2 决策：PortDesc 内嵌（方案 A）依赖审计、差距与最小迁移提案 | 阶段 6 |
 
 ### 2.3 扩展体系
 

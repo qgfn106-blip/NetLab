@@ -95,3 +95,41 @@
 | Causal/Acausal/Physical Conserving/Multi-port | §3 |
 | 旧工程适配层可读 | §8 + `MIGRATION_AND_COMPATIBILITY.md` |
 | Plugin 注册自定义类型 | §6 |
+
+## 10. P1-04 物理守恒语义：across/through 与三域完整示例
+
+### 10.1 通用约定
+
+- **across 变量**：端口两端的“势差”变量（电压、速度、温度），连接后同一条理想连接上 across 相等。
+- **through 变量**：流过端口的“流量”变量（电流、力、热流率），连接后同一节点的 through 代数和为零（符号按端口参考方向）。
+- **端口参考方向**：每个端口声明 `reference` 为 `node` 或 `ground`；through 正方向定义为“流入节点为正”。
+- **符号约定**：端口 `direction=input` 时 through 取正号，`output` 取负号；双向端口由连接语义决定，默认按“流入为正”。
+- **参考节点**：每个物理域必须有且仅有一个参考节点（电学 ground、机械固定地、热学参考温度），其 across 固定为 0。
+- **多端口元件**：`cardinality=many` 的端口在编译时展开为多个 `PortDesc`，共享同一 `component_id`。
+- **连接约束**：`physical_conserving` 连接生成“across 相等 + through 代数和为零”；`causal` 连接只生成有向赋值；`multi_port` 连接生成端口映射与守恒矩阵。
+- **本构方程**：由元件类型提供，端口系统只负责把端口变量绑定到方程变量，不替代本构。
+
+### 10.2 电学完整示例
+
+端口定义：`R1.p1`（domain=circuit, quantity=voltage/current, reference=node vin, direction=bidirectional）；`R1.p2`（reference=node vout）。连接关系：`p1` 接 `vin`，`p2` 接 `vout`，`vin` 为参考地以上的节点。
+
+符号约定：电流从 `vin` 经 `R1` 流向 `vout` 为正。守恒方程（vout 节点 KCL）：`i_R1 - i_C1 = 0`。本构关系：`i_R1 = (v_vin - v_vout)/R`。最终方程：`(v_vin - v_vout)/R - C*d(v_vout)/dt = 0`。
+
+### 10.3 机械平动完整示例
+
+端口定义：`Mass.p_force`（domain=mechanical, quantity=force, reference=node body, direction=input）；`Mass.p_velocity`（quantity=velocity, reference=node body, direction=output）；`Damper.p1/p2`（force/velocity 双向，reference=body/ground）。
+
+符号约定：力沿 `+x` 为正，速度沿 `+x` 为正。守恒方程（body 节点力平衡）：`F_ext - F_damper - F_mass = 0`。本构关系：`F_damper = b*v_body`、`F_mass = m*d(v_body)/dt`。最终方程：`m*d(v_body)/dt + b*v_body = F_ext`，即 `m*dv/dt + b*v = F(t)`；无外力时 `v(t)=v0*exp(-b*t/m)`。
+
+### 10.4 热学完整示例
+
+端口定义：`Wall.p_hot/p_cold`（domain=thermal, quantity=temperature/heat_flow, reference=node hot/cold, direction=bidirectional）；`ThermalMass.p`（quantity=temperature/heat_flow, reference=node mass）。
+
+符号约定：热流从 hot 流向 cold 为正。守恒方程（mass 节点热流守恒）：`q_in - q_out = 0`。本构关系：`q = (T_hot - T_cold)/R_th`、`q = C_th*dT/dt`。最终方程：`(T_hot - T_cold)/R_th - C_th*dT/dt = 0`。
+
+### 10.5 从连接关系生成守恒方程的规则
+
+1. 对每个 `physical_conserving` 连接，收集两端端口的 across 变量，生成 `across_left - across_right = 0`（参考节点为 0 时退化为 `across = 0`）。
+2. 对每个节点，收集所有 incident 端口的 through 变量，按参考方向求和，生成 `sum(sign_i * through_i) = 0`。
+3. 将元件本构方程代入 through/across 变量，得到最终方程组；不得在端口层重复生成本构。
+4. 三域共用同一规则，只替换 across/through 的物理量名与单位；跨域必须经 `multi_port` 或显式转换器，禁止隐式换算。

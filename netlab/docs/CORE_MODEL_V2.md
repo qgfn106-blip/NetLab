@@ -281,3 +281,83 @@ flowchart TD
 3. 兼容窗口是否必须支持 v6 旧工程：见 `MIGRATION_AND_COMPATIBILITY.md` §3。影响迁移器范围与 golden fixtures 数量。
 
 在用户裁定前，三项均不进入实现，不写入 ADR 状态，不改变 `ADR-001/002/003/004/006/007 = Proposed` 的事实。
+
+## 12. P1-05 三型边独立数据结构（整改补充）
+
+> 说明：§4 的 `EdgeDesc` 仅作为旧工程兼容容器，不参与新代码内部表示；新代码必须使用以下三个独立类型。三者共享 `EdgeBase`，但验证规则、编译参与度和 Presentation 影响不同。
+
+### 12.1 数据类定义
+
+```python
+from dataclasses import dataclass, field
+from typing import Any, Mapping, Tuple
+
+@dataclass(frozen=True)
+class EdgeBase:
+    id: str
+    source: str
+    target: str
+
+@dataclass(frozen=True)
+class DependencyEdge(EdgeBase):
+    kind: str = "dependency"
+    delay: float = 0.0
+    enabled: bool = True
+    params: Mapping[str, Any] = field(default_factory=dict)
+
+@dataclass(frozen=True)
+class PhysicalEdge(EdgeBase):
+    kind: str = "physical"
+    source_port: str | None = None
+    target_port: str | None = None
+    params: Mapping[str, Any] = field(default_factory=dict)
+
+@dataclass(frozen=True)
+class LayoutEdge(EdgeBase):
+    kind: str = "layout"
+    points: Tuple[Tuple[float, float], ...] = ()
+    style: Mapping[str, Any] = field(default_factory=dict)
+```
+
+### 12.2 三种 Edge 的 JSON 示例
+
+```json
+[
+  {"type": "dependency", "id": "d1", "source": "counter4.out", "target": "dff.d", "delay": 0.0, "enabled": true},
+  {"type": "physical", "id": "R1", "source": "vin", "target": "vout", "source_port": "p1", "target_port": "p2", "params": {"R": 1000.0}},
+  {"type": "layout", "id": "l1", "source": "vin", "target": "vout", "points": [[80, 120], [240, 120]], "style": {"stroke": "#3366ff"}}
+]
+```
+
+### 12.3 校验逻辑
+
+```python
+def validate_edge(value: dict) -> str:
+    kind = value.get("kind")
+    if kind == "dependency":
+        if not value.get("source") or not value.get("target"):
+            raise ValueError("DependencyEdge 需要 source/target")
+        if float(value.get("delay", 0.0)) < 0:
+            raise ValueError("DependencyEdge.delay 不能为负")
+        return "dependency"
+    if kind == "physical":
+        if not value.get("source_port") or not value.get("target_port"):
+            raise ValueError("PhysicalEdge 需要 source_port/target_port")
+        return "physical"
+    if kind == "layout":
+        return "layout"
+    raise ValueError(f"未知边类型：{kind!r}")
+```
+
+### 12.4 判定规则
+
+| 问题 | DependencyEdge | PhysicalEdge | LayoutEdge |
+| --- | --- | --- | --- |
+| 参与拓扑排序 | 是 | 否 | 否 |
+| 参与方程构建 | 否（只定顺序） | 是（守恒/本构） | 否 |
+| 参与编译 | 是 | 是 | 否 |
+| 影响 Presentation | 否 | 可显示 | 是（唯一职责） |
+| 允许延迟 | 是（`delay`） | 否 | 否 |
+| 允许多对多 | 否（单 source→target） | 由端口 cardinality 决定 | 是（纯画布） |
+
+**禁止**：`LayoutEdge` 不得被当作 `PhysicalEdge` 参与方程；`PhysicalEdge` 不得自动当作 `DependencyEdge` 进入拓扑排序；三者转换必须显式经过迁移/校验工具并记录原因。

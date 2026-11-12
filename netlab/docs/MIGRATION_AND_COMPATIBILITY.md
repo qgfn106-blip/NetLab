@@ -84,3 +84,88 @@ save_project(desc)
 3. **Plugin 权限边界（只读/可写哪些层）**：见 `ARCHITECTURE_BOUNDARIES.md` §6。
 
 三项均标为 `PENDING_USER_AUTHORIZATION`，本阶段不代替用户裁定；`ADR-001/002/003/004/006/007` 保持 `Proposed`。
+
+## 7. P1-03 逐字段迁移映射（完整表）
+
+| V1 字段 | 类别 | V2 目标 | 默认值 | 转换规则 | 是否计算 | 可能丢失 | 无法迁移处理 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `NodeRecord.id` | 标识 | `NodeDesc.id` | 必填 | 原样复制 | 否 | 否 | 拒绝导入 |
+| `NodeRecord.kind` | 类型 | `NodeDesc.kind` | `"node"` | 原样复制；未知 kind 转 `"unknown"` 并记 warning | 否 | 否 | 保留原值到 `compat.raw_kind` |
+| `NodeRecord.params` | 工程参数 | `NodeDesc.params` | `{}` | 深拷贝为只读映射 | 否 | 否 | 抛 `ModelValidationError` |
+| `NodeRecord.data` | 工程/初始数据 | `NodeDesc.initial_data` + `NodeRuntime.inputs` | `{}` | 声明式数据进 Desc，运行期输入进 Runtime | 否 | 可能（运行期覆盖） | 保留原值到 `compat.legacy_data` |
+| `NodeRecord.state` | Runtime State | `NodeRuntime.state` | `{}` | 不进入 Desc，创建 Runtime 时深拷贝 | 是 | 可能（旧值过期） | 丢弃并记审计日志 |
+| `NodeRecord.inputs` | 计算输出/输入缓存 | `NodeRuntime.inputs` | `{}` | 仅作为缓存，不参与 Desc 等价判断 | 是 | 是（可重算） | 丢弃并重算 |
+| `NodeRecord.position` | Presentation | `presentation.node_layout[id].position` | `[0,0]` | 原样复制 | 否 | 否 | 使用默认布局 |
+| `NodeRecord.size` | Presentation | `presentation.node_layout[id].size` | `[120,48]` | 原样复制 | 否 | 否 | 使用默认尺寸 |
+| `NodeRecord.appearance` | Presentation | `presentation.node_styles[id]` | `{}` | 移入 Presentation，按 id 关联 | 否 | 否 | 使用默认样式 |
+| `EdgeRecord.id` | 标识 | `EdgeDesc.id` | 必填 | 原样复制 | 否 | 否 | 拒绝导入 |
+| `EdgeRecord.source/target` | 连接关系 | `PhysicalEdge/DependencyEdge.source/target` | 必填 | 按 kind 分流；`wire`→Physical，`signal`→Dependency | 否 | 否 | 抛 `ModelValidationError` |
+| `EdgeRecord.kind` | 类型 | `EdgeDesc.kind` | `"physical"` | `wire`→`physical`，`signal`→`dependency`，`layout`→`layout` | 否 | 否 | 未知 kind 归 `layout` |
+| `EdgeRecord.params` | 工程参数 | `EdgeDesc.params` | `{}` | 深拷贝为只读映射 | 否 | 否 | 抛 `ModelValidationError` |
+| `EdgeRecord.state` | Runtime State | `ConnectionRuntime.state` | `{}` | 不进入 Desc，创建 Runtime 时深拷贝 | 是 | 可能（旧值过期） | 丢弃并记审计日志 |
+| `EdgeRecord.delay` | 计算元数据 | `DependencyEdge.delay` | `0.0` | 仅 Dependency 边保留 | 否 | 否 | 物理边忽略 |
+| `EdgeRecord.enabled` | 计算元数据 | `DependencyEdge.enabled` / 物理边默认启用 | `true` | 原样复制 | 否 | 否 | 默认 true |
+| `EdgeRecord.route/waypoints/anchors` | Presentation | `presentation.edge_layout[id]` | `[]` | 原样复制，不参与编译 | 否 | 否 | 使用默认折线 |
+| `EdgeRecord.layout` | Presentation | `presentation.edge_layout[id]` | `{}` | 原样复制 | 否 | 否 | 使用默认布局 |
+| `EdgeRecord.appearance` | Presentation | `presentation.edge_styles[id]` | `{}` | 移入 Presentation，按 id 关联 | 否 | 否 | 使用默认样式 |
+
+**类别纪律**：工程参数只进 Desc；初始数据进 Desc 的 `initial_data`；Runtime State 只在 Runtime；计算输出/中间数据可重算、不进入 Desc 等价比较；Presentation 数据只进 Presentation 层；连接关系按三型边分流；兼容性元数据只进 `compat` 块。
+
+## 8. P1-03 完整 V1 JSON → V2 JSON 迁移示例
+
+V1 输入（节选，完整字段语义见 §7）：
+
+```json
+{
+  "format": "netlab-project",
+  "version": 7,
+  "scenes": [{
+    "id": "scene-1",
+    "mode": "circuit",
+    "nodes": [
+      {"id": "vin", "name": "vin", "kind": "node", "params": {}, "data": {}, "state": {}, "inputs": {}, "position": [80, 120], "size": [80, 40], "appearance": {"color": "#3366ff"}},
+      {"id": "vout", "name": "vout", "kind": "node", "params": {}, "data": {}, "state": {"v": 0.63}, "inputs": {}, "position": [240, 120], "size": [80, 40], "appearance": {}}
+    ],
+    "edges": [
+      {"id": "R1", "source": "vin", "target": "vout", "kind": "wire", "params": {"R": 1000.0}, "state": {"i": 0.0003678794}, "delay": 0.0, "enabled": true, "route": [], "waypoints": [], "anchors": [], "layout": {}, "appearance": {}}
+    ]
+  }]
+}
+```
+
+V2 输出（同一工程，按 §7 转换）：
+
+```json
+{
+  "format": "netlab-project-v2-draft",
+  "version": 8,
+  "scenes": [{
+    "id": "scene-1",
+    "mode": "circuit",
+    "nodes": [
+      {"id": "vin", "kind": "node", "params": {}, "initial_data": {}},
+      {"id": "vout", "kind": "node", "params": {}, "initial_data": {}}
+    ],
+    "edges": [
+      {"id": "R1", "kind": "physical", "source": "vin", "target": "vout", "params": {"R": 1000.0}}
+    ],
+    "presentation": {
+      "node_layout": {"vin": {"position": [80, 120], "size": [80, 40]}, "vout": {"position": [240, 120], "size": [80, 40]}},
+      "node_styles": {"vin": {"color": "#3366ff"}, "vout": {}},
+      "edge_layout": {"R1": {"route": [], "waypoints": [], "anchors": [], "layout": {}}},
+      "edge_styles": {"R1": {}}
+    },
+    "compat": {"legacy_data": {"vout": {}}, "raw_kind": {"R1": "wire"}}
+  }]
+}
+```
+
+转换解释：`NodeRecord.state`/`EdgeRecord.state` 只进入 Runtime，不写入 V2 JSON；`data`/`inputs` 按“初始数据/可重算缓存”拆分；`appearance`、`position`、`size`、`route`、`waypoints`、`anchors`、`layout` 全部进入 Presentation；`kind="wire"` 转 `physical`。丢失项只有可重算缓存与过期运行态，均在 `compat.legacy_data` 留痕。
+
+## 9. P1-13 v6/v7/v8 兼容策略
+
+- v6 → v7：调用既有 `migrate_project`，不改旧文件；迁移结果写入新文件，原文件只读备份。
+- v7 → v8：`appearance` → `presentation.node_styles/edge_styles`；`PortSpec/PinSpec` → `PortDesc/PortType`；`EdgeRecord.kind="wire"` → `PhysicalEdge`、`"signal"` → `DependencyEdge`。
+- 字段只加不删；未知字段进入 `compat.extensions` 原样保留，保证 round-trip 不丢数据。
+- 兼容窗口是否必须支持 v6 是 `PENDING_USER_AUTHORIZATION`（ADR-008 决策 C）；在裁定前默认“能读 v7、v6 走显式迁移工具并提示用户确认”。
+- 回滚：V2 写出的 `version: 8` 工程不得被 V1 直接覆盖；V1 读取器遇到 v8 必须拒绝并提示使用 V2 或迁移工具。

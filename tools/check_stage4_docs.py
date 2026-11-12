@@ -103,6 +103,22 @@ def check_docs() -> list[str]:
     if "[2, 1, -3, -1, 0, 0, 0]" not in typed:
         errors.append("TYPED_PORT_SYSTEM.md: voltage dimension not 7-element")
 
+    # P1-03: full field migration map and JSON example.
+    migration = read("MIGRATION_AND_COMPATIBILITY.md")
+    for token in ("NodeRecord.data", "NodeRecord.state", "EdgeRecord.state", "V1 输入", "V2 输出"):
+        if token not in migration:
+            errors.append(f"MIGRATION_AND_COMPATIBILITY.md: P1-03 token missing {token!r}")
+
+    # P1-04: across/through conservation examples for three domains.
+    for token in ("across", "through", "电学完整示例", "机械平动完整示例", "热学完整示例", "守恒方程"):
+        if token not in typed:
+            errors.append(f"TYPED_PORT_SYSTEM.md: P1-04 token missing {token!r}")
+
+    # P1-05: three independent edge dataclasses and validation.
+    for token in ("class DependencyEdge", "class PhysicalEdge", "class LayoutEdge", "def validate_edge"):
+        if token not in core_model:
+            errors.append(f"CORE_MODEL_V2.md: P1-05 token missing {token!r}")
+
     return errors
 
 

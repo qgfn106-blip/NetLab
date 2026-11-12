@@ -13,7 +13,7 @@
 | 级别 | 总数 | 已修复 | 已登记/文档方案 | 未修复 |
 | --- | --- | --- | --- | --- |
 | P0 | 4 | 4 | 0 | 0 |
-| P1 | 13 | 3（P1-01/P1-02/P1-06） | 10（P1-03/04/05/07/08/09/10/11/12/13） | 0 |
+| P1 | 13 | 6（P1-01/P1-02/P1-03/P1-04/P1-05/P1-06） | 7（P1-07/08/09/10/11/12/13） | 0 |
 | P2 | 2 | 1（P2-01） | 1（P2-02 测试计划） | 0 |
 
 ## 3. 关键设计修改
@@ -24,9 +24,12 @@
 - **P0-04 外观归属**：`CORE_MODEL_V2.md` 的 `NodeDesc` 删除 `appearance`；`MINIMAL_DATA_MODEL_EXAMPLE.md` 把颜色放入 `presentation.node_styles`（按节点 id 关联），不进物理模型/编译缓存键。
 - **P1-01 机械示例**：`m·dv_body/dt = F - b·v_body`，`ground` 固定，`v_body(t)=v0·exp(-bt/m)`；`t=0.5 s` 得 `0.3678794412 m/s`，不再把 `v_body` 置零。
 - **P1-02 不可变契约**：`CORE_INTERFACE_CONTRACTS.md` 增加 `Mapping` 字段构造时 `copy.deepcopy` 契约；`test_runtime_state_isolation` 用两个 Runtime 实例验证状态互不污染。
+- **P1-03 字段迁移**：`MIGRATION_AND_COMPATIBILITY.md` 增 §7 逐字段表（NodeRecord/EdgeRecord 全字段、默认值/转换/是否计算/丢失处理）与 §8 完整 V1 JSON → V2 JSON 示例（含 state 入 Runtime、appearance/layout 入 Presentation 的解释）。
+- **P1-04 物理守恒**：`TYPED_PORT_SYSTEM.md` 增 §10 across/through 定义、参考方向与符号约定，以及电学/机械平动/热学三套完整端口-连接-守恒-本构方程示例。
+- **P1-05 三型边**：`CORE_MODEL_V2.md` 增 §12 `DependencyEdge`/`PhysicalEdge`/`LayoutEdge` 独立 dataclass、JSON 示例、`validate_edge` 校验逻辑与参与编译/布局判定表。
 - **P1-06 可复现工具**：新增 `tools/check_stage4_docs.py`（真实检查，非空检查）与 `netlab/tests/test_stage4_document_contracts.py`；检查失败返回非 0，语义项显式标记 `MANUAL`。
 - **P2-01 SI 量纲**：`TYPED_PORT_SYSTEM.md` 与 `CORE_INTERFACE_CONTRACTS.md` 统一为 7 基本量纲 `[L, M, T, I, Θ, N, J]`，四类物理量向量均改 7 元。
-- **P1-03–P1-13、P2-02**：全部写入 `V2_IMPLEMENTATION_GAP_ANALYSIS.md`（逐字段迁移、三域守恒、三型边、Description/Runtime 隔离方案、PortSpec 差距、EdgeRecord 拆分、全局注册表隔离、插件信任边界、load_payload 流程、v6/v7 兼容、测试计划）。
+- **P1-07–P1-13、P2-02**：全部写入 `V2_IMPLEMENTATION_GAP_ANALYSIS.md`（Description/Runtime 隔离方案、PortSpec 差距、EdgeRecord 拆分、全局注册表隔离、插件信任边界、load_payload 流程、v6/v7 兼容、测试计划）；P1-03/04/05 的正式设计正文已回写对应主文档。
 - **争议项 ADR**：新增 `adr/ADR-008-stage4-open-decisions.md`，把决策 A/B/C 列为 Open Decision（选项/后果/推荐，Proposed，不代替用户裁定）。
 
 ## 4. 验证结果
@@ -48,7 +51,7 @@
 **当前判定：有条件通过（待第④轮独立评审确认）**。
 
 - P0-01–P0-04：全部修复，有 file:line 证据与 checker 断言。
-- 关键 P1-01/P1-02/P1-06：已修复并有测试。
+- 关键 P1-01/P1-02/P1-03/P1-04/P1-05/P1-06：已修复并有测试或文档正文。
 - P1-03–P1-13/P2-02：已形成可评审的差距分析与方案文档，无遗漏。
 - 不判「通过」的唯一原因：第④轮独立评审尚未进行；按任务书定义，`通过 = 所有 P0 + 关键 P1 + 独立评审通过`。
 

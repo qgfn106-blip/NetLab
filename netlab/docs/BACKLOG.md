@@ -23,12 +23,12 @@
 - **2026-11-10 电路小信号旁路分析完成**：`POST /api/analysis/tf` 支持 `mode=circuit`（Descriptor 状态空间、零极点、阶跃、同源 Bode），前端新增「小信号旁路」tab 与菜单；全量 872 passed/1 skipped、覆盖率 81.12%、前端 22 passed、Playwright e2e OK；详见 PROGRESS §7.146。
 - **2026-11-11 六项修复完成**：小信号旁路新增 G(s) 表达式与 DC 增益/rise/peak/overshoot/settling/稳态误差/ωn/ζ/Bode 带宽/谐振；Bode/阶跃坐标轴统一 nice ticks；电路模式旧「推导」入口转「小信号分析（旁路）」；文件菜单/画布右键新增「导出原理图 SVG…」；四套预计算入口统一为「运行 → 预计算…」弹窗；全量 872 passed/1 skipped、覆盖率 81.106%、前端 22 passed、e2e OK；详见 PROGRESS §7.149。
 - **2026-11-11 阶段 B（P1/P2）完成**：`verify_app_parity` 去 `PARITY_ALLOW_BODY_CHANGES` 环境变量、改 tracked allowlist；`descriptor_transfer_function` 补 9 项边界测试；新增 `analysis_ux.mjs` 六项 UX e2e；全量 **881 passed / 1 skipped**、覆盖率 **81.312%**、前端 22 passed、e2e 全过；详见 PROGRESS §7.151。
-- **V2 架构演进（规划中，2026-11-11）**：需求与当前差距见 [CORE_ARCHITECTURE_V2.md](CORE_ARCHITECTURE_V2.md)；执行路线见 [CORE_ARCHITECTURE_V2_ROADMAP.md](CORE_ARCHITECTURE_V2_ROADMAP.md)。P1 架构审计已完成（[CORE_ARCHITECTURE_AUDIT.md](CORE_ARCHITECTURE_AUDIT.md)，2026-11-11，448 行）；阶段 0（项目事实与文档基线）、阶段 1（P1-A-lite）、阶段 2（P-B 完整版）、阶段 3（R40 节点卡片自由字段）已完成并 push；阶段 4（P1-A 全量设计冻结）待「项目审批」复核后启动；P2 Core Model/Typed Port、P3 Equation/Compiler、P4 Runtime/Plugin、P5 Validation/机械/多物理场均未开工。（历史原文：P1 架构审计待启动。）**P1 审计必答收敛项（2026-11-11 补注）**：①元件 Stamp 双轨（`circuit/elements.py` 各元件 `stamp()` vs `circuit/descriptor.py:445 _assemble_matrices()`）；②AC/Bode 双后端（`circuit/solver.py:969 ac_sweep()` vs `circuit/descriptor.py:844 frequency_response()`）；收敛方案与验收见 [CORE_ARCHITECTURE_V2_ROADMAP.md](CORE_ARCHITECTURE_V2_ROADMAP.md) P1-R1/P1-R2。
+- **V2 架构演进（规划中，2026-11-11）**：需求与当前差距见 [CORE_ARCHITECTURE_V2.md](CORE_ARCHITECTURE_V2.md)；执行路线见 [CORE_ARCHITECTURE_V2_ROADMAP.md](CORE_ARCHITECTURE_V2_ROADMAP.md)。P1 架构审计已完成（[CORE_ARCHITECTURE_AUDIT.md](CORE_ARCHITECTURE_AUDIT.md)，2026-11-11，448 行）；阶段 0（项目事实与文档基线）、阶段 1（P1-A-lite）、阶段 2（P-B 完整版）、阶段 3（R40 节点卡片自由字段）已完成并 push；阶段 4（P1-A 全量设计冻结）已获「项目审批」2026-11-12 评估批准（允许进入），前置收口以独立 docs 提交完成后启动；P2 Core Model/Typed Port、P3 Equation/Compiler、P4 Runtime/Plugin、P5 Validation/机械/多物理场均未开工。（历史原文：P1 架构审计待启动。）**P1 审计必答收敛项（2026-11-11 补注）**：①元件 Stamp 双轨（`circuit/elements.py` 各元件 `stamp()` vs `circuit/descriptor.py:445 _assemble_matrices()`）；②AC/Bode 双后端（`circuit/solver.py:969 ac_sweep()` vs `circuit/descriptor.py:844 frequency_response()`）；收敛方案与验收见 [CORE_ARCHITECTURE_V2_ROADMAP.md](CORE_ARCHITECTURE_V2_ROADMAP.md) P1-R1/P1-R2。
 - **待授权项（PENDING_USER_AUTHORIZATION，2026-11-10）**：Phase 3 架构债、Phase 4 CI 证据、500+ 规模档（MAX_NODES=400 不放宽）、Newton 选主元与 SCC 差分 Jacobian/深宽图余项；FEM 明确不改（用户 2026-11-10 决定）。
 - **界面口径**：前端在 `frontend/`（index.html / app.js / style.css）；Qt 原生界面已按 D78 备份到 Git 分支 `backup/qt-native-2026-11-02` 后删除，不再是产品形态。
 pytest 基线见 [status.json](status.json)（909 passed / 1 skipped），见 REQUIREMENTS R41
 全量基线见 [status.json](status.json)（909 passed / 1 skipped、静态 3.20.1）。
-- **2026-11-07 新增完成：全局外观引擎 P-A1–P-A4**：令牌单一来源（`theme.tokens.ts`，`0d1332d`）、LIGHT/DARK 双色板 WCAG 10/10（`194fc79`）、画布裸色 97→0（`b2111d1`）、设置窗「外观」面板 9 项（`62a6132`）；详见 PROGRESS §7.88 / APPEARANCE_ENGINE_DESIGN §12。**下一步：P-B 元素级视图外观待办（承 R40 视图设计，尚未开始）**；已知限制：6 项外观仅 localStorage、不跨机同步。
+- **2026-11-07 新增完成：全局外观引擎 P-A1–P-A4**：令牌单一来源（`theme.tokens.ts`，`0d1332d`）、LIGHT/DARK 双色板 WCAG 10/10（`194fc79`）、画布裸色 97→0（`b2111d1`）、设置窗「外观」面板 9 项（`62a6132`）；详见 PROGRESS §7.88 / APPEARANCE_ENGINE_DESIGN §12。**下一步：P-B 元素级视图外观待办（承 R40 视图设计，尚未开始）**；已知限制：6 项外观仅 localStorage、不跨机同步。（2026-11-12 补注：P-B 已于阶段 2 完成 §7.152、节点卡片字段编辑已于阶段 3 完成 §7.153，外观改由 `PATCH /api/scene/appearance` 随工程持久化；本行「下一步 / 已知限制」为 2026-11-07 时点口径。）
 525 passed 为历史数（当前基线见 [status.json](status.json)）。R37
 - **刚完成**：**控制链路补强与欠阻尼工程（§7.61：超调按最终值方向、离散 `1/z` 左补零、`reset_state` 初值快照、`output=auto`、非整数时间网格；交付 `MyProject/underdamped_control.netlab`）**、**PlotKit 导入优先级 + 多工作树规范（§7.60：内置副本优先、`NETLAB_PLOTKIT_SRC` 覆盖、gmpy2 坏包清理、`tools/new_worktree.sh` + `docs/WORKTREE_RULES.md`）**、**结构护栏补齐相对导入（§7.59：`test_structure_layout.py` 解析相对/`netlab.*` 越界导入，6→14 条）**、**预计算反馈环首拍修复（§7.58：延迟边空载荷按 0、pass 空 dict 不注入）**、**信号流右键「添加」菜单按节点组分类（§7.57：基础/动态/高级/矢量/模块/接口，矢量置顶）**、**R35 输入字段自动匹配（D91 / §7.56：value 优先、显式键兼容、块端口别名）**、**架构审计修复（§7.55：PlotKit 子应用鉴权 + 宿主 shim、记录器代次、通道上限、桥生命周期、precompute 契约、缓存 API 契约）**、**R34 s 域传递函数节点与分析（D90 / §7.54：表达式/系数/零极点三形态、Bode/阶跃/零极点三视图、`POST /api/analysis/tf`）**、R26 的 UI 入口（§7.37）、D80 数据通路优化（§7.36）、D81 PlotKit 面板卡顿修复（§7.38）。
 
@@ -38,7 +38,7 @@ pytest 基线见 [status.json](status.json)（909 passed / 1 skipped），见 RE
 
 | 顺序 | 事项 | 为什么排这里 | 体量 |
 | --- | --- | --- | --- |
-| ▶ 当前 | **真实未完成主线**：① **R25 完整电路级内部结构**（P7-09/10/11 仅做到宏模型）待后续；② **R41 推送 origin 合并**（本地与 origin 的领先/落后提交数见 [status.json](status.json)）；③ **R43 M2 放量评审**（默认 `NETLAB_MATH_ACCEL=off`，需工程 opt-in）；④ **R40 节点卡片自由字段编辑**（已知限制）；⑤ R19 参考级图纸继续暂停 | 本轮核对后仍真正未完成的主线，其余 ①–⑩ 均已闭环 | 大/中 |
+| ▶ 当前 | **真实未完成主线**：① **R25 完整电路级内部结构**（P7-09/10/11 仅做到宏模型）待后续；② **R41 推送 origin 合并**（本地与 origin 的领先/落后提交数见 [status.json](status.json)）；③ **R43 M2 放量评审**（默认 `NETLAB_MATH_ACCEL=off`，需工程 opt-in）；④ R19 参考级图纸继续暂停（R40 P-B 元素级视图外观已于阶段 2 完成 §7.152、节点卡片字段编辑已于阶段 3 完成 §7.153，均不再列为未完成） | 本轮核对后仍真正未完成的主线，其余 ①–⑩ 均已闭环 | 大/中 |
 | ① | ~~R33 收尾~~ → 已随 D78 关闭（原生壳下线，相关验收项作废） | — | — |
 | ② | ~~web 版去留~~ → 已定：保留 web（D78），Qt 只留备份分支 | — | — |
 | ③ | ~~R25 P7-09~~：opamp / comparator 内置只读内部结构 → **已完成（宏模型，§7.69）** | 只读内部/另存副本/空库回退已验证；电路级待后续 | — |
@@ -46,7 +46,7 @@ pytest 基线见 [status.json](status.json)（909 passed / 1 skipped），见 RE
 | ⑤ | ~~R25 P7-11~~：555 / LDO / ADC / DAC → **已完成（宏模型；结构仿真开关/行为对比已补，§7.70）** | 完整电路级明确留作后续 | — |
 | ⑥ |
 | ⑦ | ~~复数分析层（Complex Bridge）~~ → **已完成（§7.71）**：统一 `frequency_response()` + 精确 `e^{-jωT}` + 电路 AC 复数 MNA + API | 只做分析边界，避免全量 complex；561 passed/3.18.0 | — |
-| ⑧ | **R40 全栈扩展架构** → **首版完成（§7.74）+ 视图设计节点卡片字段开关（2026-11-07）**：插件包 + `netlab.plugin_api.v1` + 声明式 UI/简洁画布；**外观引擎 P-A1–P-A4 已完成（D75 / §7.88，令牌单一来源 + LIGHT/DARK 双色板 + 外观面板 9 项）** | **P-B 元素级视图外观待办**（逐元素外观可调，承 R40）；自由拖拽编辑面板字段、插件生态示例仍可继续补 | 大 |
+| ⑧ | **R40 全栈扩展架构** → **首版完成（§7.74）+ 视图设计节点卡片字段开关（2026-11-07）**：插件包 + `netlab.plugin_api.v1` + 声明式 UI/简洁画布；**外观引擎 P-A1–P-A4 已完成（D75 / §7.88，令牌单一来源 + LIGHT/DARK 双色板 + 外观面板 9 项）** | **P-B 元素级视图外观**（阶段 2 §7.152）与**节点卡片声明式字段编辑**（阶段 3 §7.153）均已完成；插件生态示例仍可继续补（非 R40 完成项） | 大 |
 pytest 基线见 [status.json](status.json)（872 passed / 1 skipped）；详见 REQUIREMENTS R41
 | ⑩ | **R42 Python 代码 PEP 8 规范化**（P18）→ **已完成（§7.83）**：netlab + PlotKit 全 Python 代码 `flake8` 0、`black` 88 列；测试 netlab **606 passed / 1 skipped**、PlotKit **470 passed**，零功能变化；详见 REQUIREMENTS R42 / P18 | 统一 Python 风格、提升可读性/可维护性 | 已完成 |
 
@@ -96,7 +96,7 @@ pytest 基线见 [status.json](status.json)（872 passed / 1 skipped）；详见
 | R25 | 内置内部结构 | **P7-09/10/11 三阶段完成**（9 块/虚拟注册表/只读保护/另存副本/行为快速模型/`internal_sim`/对比 API）；仅完整电路级内部结构待后续 | 见 §1 第 ③–⑤ 项与 §7.70 | 大 |
 | R26 | 求解器分析 | DC 工作点 / AC 扫频 UI 入口已在 `#analWin`；本次核对 | 与 R12 共用实现 | 已闭环 |
 | R31 | 并网逆变器 | **P11-01…P11-07 已完成**（§7.72）：平均模型、abc_dq、PLL、电流环、跨域桥、六开关示例、性能/中断 | P11-06 仅趋势验证；10 kHz PWM/损耗留后续 | 完成 |
-| R40 | 全栈可扩展架构 | **首版完成 + 2026-11-07 复核**：插件包、`netlab.plugin_api.v1`、compute/method/element/analysis/data-format/template/panel/engine 扩展点、工程 v6、简洁画布与视图设计；**外观引擎 P-A1–P-A4 完成（D75 / §7.88）** | **P-B 元素级视图外观待办**；视图设计仍只覆盖令牌/布局/模式；节点卡片自由字段编辑为已知限制 | 大 |
+| R40 | 全栈可扩展架构 | **首版完成 + 2026-11-07 复核**：插件包、`netlab.plugin_api.v1`、compute/method/element/analysis/data-format/template/panel/engine 扩展点、工程 v6、简洁画布与视图设计；**外观引擎 P-A1–P-A4 完成（D75 / §7.88）** | **P-B 元素级视图外观**（§7.152）与**节点卡片声明式有序字段白名单**（§7.153）均已完成；插件生态示例仍可继续补 | 大 |
 | R33 | 原生桌面外壳 | **已随 D78 关闭**：Qt 原生界面备份到 Git 分支 `backup/qt-native-2026-11-02` 后删除，界面恢复 `frontend/`；原 A5/A13/A14/A18/A21 验收随原生壳一并作废 | — | 已关闭 |
 | R34 | s 域传递函数节点与分析 | **已闭环 + 2026-11-07 补 Bode 光标**（表达式/系数/零极点、Bode/阶跃/零极点、端点） | 可选增强：零极点拖动、MIMO（明确不做） | 已闭环 |
 | R35 | 输入字段自动匹配 | —（value 优先、显式键兼容、块端口别名、22 条定向） | 可选增强：向量/矩阵跨类型自动换算（当前明确不做） | 已闭环 |

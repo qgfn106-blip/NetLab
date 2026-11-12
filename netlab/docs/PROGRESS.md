@@ -2935,3 +2935,10 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - A2：MINIMAL 根对象仅 format/version/scenes/metadata，presentation 在 scenes[0]；MIGRATION scene 含 domain/revision/presentation/compat；CORE_MODEL_V2 SceneDesc/ProjectDesc 覆盖两示例字段。
 - B6：CORE_INTERFACE_CONTRACTS:108 改为「等价 frozen dataclass 验证 deepcopy 契约，真实 Runtime/CompiledModel 类尚未实现」；C1 checker 已用 `json.loads` 与正则做字段级/封套断言。
 - 结论：阶段 4 为「有条件通过（无阻断）」，非阻断项已修，待再次独立复评与用户明确批准；批准前不得标正式验收完成。阶段 5 P1-R1 `eaec04a` 成果保留但不作放行依据，阶段 6–13 暂停 PENDING_USER_AUTHORIZATION。
+
+## 7.167 阶段 4 第④轮封口独立评审（通过·无阻断·无新增项）
+
+- 第三方独立评审 Agent `d65f7a81`（与 `13d009cb`/`a32ae825`/`3bc1afbf`/`901215bc` 不同）对 HEAD `78dc86f` 的工作树做只读字段级评审：`conditional_pass`、无 blocking、14 项中 13 pass；N1–N6 为非阻断（MIGRATION 物理边缺端口、MINIMAL `diagnostics` 缺省、示例字段子集、checker 浅层检查、`FakeCompiledModel` 替身、`validate_edge` 异常类型）。
+- 已修复 N1–N4/N6：MIGRATION 节点补 `name`/`ports`、物理边补 `source_port`/`target_port`；MINIMAL 节点补 `initial_data`、编译产物补 `diagnostics: []`；checker 收严 factory/9 个 register 方法/JSON 块 `type` 检查；`validate_edge` 改抛 `ModelValidationError`。N5 保持如实标注。
+- 另一独立复核 Agent `a25c3774` 对修复后工作树复评：**verdict: pass**，无 blocking、无 fail、无新增轮次；14 项全部 pass；数学/量纲复算一致；仅 2 项文案改善（机械节点 `initial_data`、TYPED 重复词），均已修。
+- 结论：阶段4第④轮封口评审已达成「通过·无阻断·无新增项」，评审记录、`STAGE4_REMEDIATION_REPORT.md` §6、`PROJECT_STATUS.md` 已同步；阶段4正式验收仍须审批四轮齐备性复核 + 用户明确批准（PENDING_USER_AUTHORIZATION）。

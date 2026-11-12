@@ -373,17 +373,17 @@ def validate_edge(value: dict) -> str:
     kind = value.get("kind")
     if kind == "dependency":
         if not value.get("source") or not value.get("target"):
-            raise ValueError("DependencyEdge 需要 source/target")
+            raise ModelValidationError("DependencyEdge 需要 source/target")
         if float(value.get("delay", 0.0)) < 0:
-            raise ValueError("DependencyEdge.delay 不能为负")
+            raise ModelValidationError("DependencyEdge.delay 不能为负")
         return "dependency"
     if kind == "physical":
         if not value.get("source_port") or not value.get("target_port"):
-            raise ValueError("PhysicalEdge 需要 source_port/target_port")
+            raise ModelValidationError("PhysicalEdge 需要 source_port/target_port")
         return "physical"
     if kind == "layout":
         return "layout"
-    raise ValueError(f"未知边类型：{kind!r}")
+    raise ModelValidationError(f"未知边类型：{kind!r}")
 ```
 
 ### 12.4 判定规则

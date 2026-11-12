@@ -152,11 +152,11 @@ V2 输出（同一工程，按 §7 转换）：
     "domain": "circuit",
     "revision": 1,
     "nodes": [
-      {"id": "vin", "kind": "node", "params": {}, "initial_data": {}},
-      {"id": "vout", "kind": "node", "params": {}, "initial_data": {}}
+      {"id": "vin", "kind": "node", "name": "vin", "ports": ["vin_p"], "params": {}, "initial_data": {}},
+      {"id": "vout", "kind": "node", "name": "vout", "ports": ["vout_p"], "params": {}, "initial_data": {}}
     ],
     "edges": [
-      {"id": "R1", "kind": "physical", "source": "vin", "target": "vout", "params": {"R": 1000.0}}
+      {"id": "R1", "kind": "physical", "source": "vin", "target": "vout", "source_port": "vin_p", "target_port": "vout_p", "params": {"R": 1000.0}}
     ],
     "presentation": {
       "node_layout": {"vin": {"position": [80, 120], "size": [80, 40]}, "vout": {"position": [240, 120], "size": [80, 40]}},

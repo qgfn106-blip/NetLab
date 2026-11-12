@@ -48,6 +48,7 @@
 | [CORE_ARCHITECTURE_V2.md](CORE_ARCHITECTURE_V2.md) | V2 平台架构需求、目标能力与当前实现差距（规划口径，不是现状） | 规划 |
 | [CORE_ARCHITECTURE_V2_ROADMAP.md](CORE_ARCHITECTURE_V2_ROADMAP.md) | V2 执行路线：P1 审计→P2 Core Model/Typed Port→P3 Equation/Compiler→P4 Runtime/Plugin→P5 Validation/机械/多物理场 | 规划 |
 | [PROJECT_STATUS.md](PROJECT_STATUS.md) | 当前状态唯一事实源：HEAD/分支/同步状态、当前阶段、已完成/进行中阶段、下一项授权、最近 CI 证据、文档冲突 | 当前（2026-11-11 建立） |
+| [NETLAB_REVIEW_AUDIT_2026-11-12.md](NETLAB_REVIEW_AUDIT_2026-11-12.md) | 2026-11-12 本轮复审 A–J 审计报告：P0/P1/P2 问题、插件 Engine 复现、P1-R1/R2 审计、补丁计划与 Open Decisions | 当前 |
 | [adr/README.md](adr/README.md) | ADR 索引：ADR-001..007 与历史 ADR 0001–0003 的编号/状态说明 | 当前 |
 | [CODE_GUIDE.md](CODE_GUIDE.md) | 目录地图、模块职责、关键符号、调用链 | 当前 |
 | [MATH.md](MATH.md) | 数学入口与全局地图；专题见 [math/ARCHITECTURE_MATH.md](math/ARCHITECTURE_MATH.md)、[math/ELEMENT_MATH.md](math/ELEMENT_MATH.md)、[math/ANALYSIS_MATH.md](math/ANALYSIS_MATH.md) | 当前 |

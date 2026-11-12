@@ -1,9 +1,9 @@
 # NetLab 项目状态（唯一事实源 · PROJECT_STATUS）
 
-- **状态**：当前状态的唯一事实源（2026-11-11 建立；2026-11-12 阶段 4 设计冻结整改后刷新）。
-- **最后刷新**：2026-11-12（Asia/Shanghai），随「阶段 4 设计冻结整改」更新。
+- **状态**：当前状态唯一事实源（2026-11-12 阶段 4 封口评审后刷新，含本轮复审基线纠偏）。
+- **最后刷新**：2026-11-12（Asia/Shanghai），按《NetLab 本轮复审与Agent修正任务书》P0-1 纠偏。
 - **阶段 4（P1-A）**：设计冻结整改已完成 P0-01–P0-04 与关键 P1，新增 `tools/check_stage4_docs.py` 与契约测试；全量 945 passed / 1 skipped / 81.380784%；第④轮封口评审已「通过（无阻断、无新增项）」；仍待审批四轮齐备性复核与用户明确批准（PENDING_USER_AUTHORIZATION），不得标正式验收完成。
-- **阶段 5（P1-R1）**：元件 Stamp 单一化已交付并 push `eaec04a`（三条 CI success、942 passed/81.3808%）；审批 2026-11-12 评估判「不允许进入阶段 6 · 需用户授权 · 暂停」，阶段 5 成果保留但不作放行依据，阶段 6–13 均 `PENDING_USER_AUTHORIZATION`。
+- **阶段 5（P1-R1）**：两端口 Laplacian stamping primitive 已统一并 push `eaec04a`（三条 CI success、942 passed/81.3808%）；**完整 CircuitElement 元件模型统一未完成**（Descriptor 仍是 A+sE、Legacy 仍是伴随 MNA）。审批 2026-11-12 评估判「不允许进入阶段 6 · 需用户授权 · 暂停」，阶段 5 成果保留但不作放行依据，阶段 6–13 均 `PENDING_USER_AUTHORIZATION`。
 - **维护规则**：本文件只记当前事实；路线/阶段表见 `CORE_ARCHITECTURE_V2_ROADMAP.md`，目标口径见 `CORE_ARCHITECTURE_V2.md`，执行约束见 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md`（该文件为 2026-11-11 快照，动态状态委托本文件），架构决策见 `docs/adr/`，历史完成记录见 `PROGRESS.md`。机器可读字段以 `status.json` / `reports/test_status.json` 为准。
 
 ## 1. 当前基线事实（四类事实分离）
@@ -11,15 +11,18 @@
 | 项 | 当前事实 |
 |---|---|
 | 仓库 | `NetlabHome/`，分支 `main` |
-| 代码基线 HEAD | `b667e517450b5f050424fe76d623af0cdeaf4eb1`（最后一次改动代码的提交；阶段 4 与本轮收口均为 docs-only，已 push） |
+| 最新 main 提交 | `4dc7bdd815477b63d51f683edc3af3c2765ba72b`（GitHub refs/heads/main 实测） |
+| 测试报告绑定 HEAD | `1df4934f7dec861aa96bdf813d688516696753ee`（status.json / reports/test_status.json） |
+| 最后生产代码提交 | `e41160f300393889c1b9539ebab73ed5280f2796`（P1-R1 Stamp 共享原语；其后到 1df4934 为 docs-only） |
 | 精确 HEAD / ahead | 文档收口提交后以 `git rev-parse HEAD` 与 `status.json` 为准；提交自身无法自引用 |
 | origin/main | 精确远端以 GitHub `branches/main` API 为准；Git Data API 推送不更新本地 `origin/main` 跟踪引用（当前本地引用可能陈旧，ahead/behind 不作远端依据） |
 | 版本 | 3.20.1 |
-| 测试基线 | 945 passed / 1 skipped / 0 failed；core 覆盖率 81.380784%（12445/14619，阶段4整改实测；942 为阶段5历史基线） |
+| 测试基线 | 945 passed / 1 skipped / 0 failed；core 覆盖率 81.380784%（12445/14619，2026-11-12 16:34 报告） |
+| CI 证据 | `4dc7bdd` 的 5 个 check-run（desktop-l2/build/test/e2e-l1/docker）均 completed/success；legacy commit status API 为 pending/total 0，以 check-runs 为准；`1df4934` 无 check-run（仅测试报告绑定） |
 | 前端门禁 | typecheck / build / test（27 passed）/ verify:parity / check:sections（app.ts 7968 行）/ e2e 四脚本全过 |
 | 阶段 3 三条 CI（绑 `b667e51`） | python-tests `43115278340`、frontend-ts-build `43115278356`、container `43115278600`，均 success |
 | 阶段 2 三条 CI（绑 `8e7f583`） | container `43098331619`、python-tests `43098331551`、frontend-ts-build `43098331562`，GitHub runner 排队（status=queued / conclusion=null / jobs=[]），不作通过证据 |
-| P1 架构审计 | `CORE_ARCHITECTURE_AUDIT.md`（448 行，2026-11-11），已随本轮文档收口提交入库 |
+| P1 架构审计 | `CORE_ARCHITECTURE_AUDIT.md`（2026-11-11 历史快照，加注历史说明），已随本轮文档收口提交入库 |
 | 工作树 | 文档收口提交后仅余 `status.json` / `reports/test_status.json` 状态尾提交；`dirty` 标记为生成时刻快照，门禁不校验该字段 |
 
 ## 2. 阶段进度（用户 2026-11-11 正式裁决的阶段 0–13 顺序）

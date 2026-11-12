@@ -89,7 +89,7 @@ Plugin v1 是**进程内受信任 Python 代码，不是 OS 沙箱**：`netlab/c
 ## 11. P1-R1 / P1-R2 状态
 
 - P1-R1：已收敛 `stamp_laplacian` 共享原语（阶段 5，`stamps.py` + `descriptor.py` 三处委托 + 33 测试 + D-5 影子报告），见 `P1_R1_STAMP_CONVERGENCE.md`。
-- P1-R2：canonical AC/Bode 仍定 `CircuitSolver.ac_sweep()`（`netlab/core/compute/circuit/solver.py:969`），`DescriptorModel.frequency_response()`（`descriptor.py:844`，:850 docstring 自述返回兼容 Bode 数据）为兼容包装；阶段 6 再统一。**已有窄范围 parity**：`netlab/tests/test_descriptor_rlc.py:174 test_frequency_response_shape_and_legacy_parity`，:178-181 同时调两后端，:188-194 对 real/imag/magnitude/phase_deg/db 做 `assert_allclose(rtol=1e-8, atol=1e-10)`；仅单一 RC 低通/4 频点，缺全面跨拓扑等价证据，不能表述为「无任何等价测试」。
+- P1-R2：`CircuitSolver.ac_sweep()`（`netlab/core/compute/circuit/solver.py:969`）与 `DescriptorModel.frequency_response()`（`descriptor.py:844`）是**两条独立实现**：前者独立执行 DC 工作点/频率检查/AC 组装/探针，后者自己 build system 并逐频率 `system.solve(omega)`；**`frequency_response` 不是 `ac_sweep` 的兼容包装**，2026-11-12 复审已纠正。阶段 6 再统一。**已有窄范围 parity**：`netlab/tests/test_descriptor_rlc.py:174 test_frequency_response_shape_and_legacy_parity`，:178-181 同时调两后端，:188-194 对 real/imag/magnitude/phase_deg/db 做 `assert_allclose(rtol=1e-8, atol=1e-10)`；仅单一 RC 低通/4 频点，缺全面跨拓扑等价证据，不能表述为「无任何等价测试」。
 
 ## 12. P2-02 V2 专项测试计划
 

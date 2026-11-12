@@ -1,6 +1,7 @@
 # NetLab Core Architecture V2 · P1 架构审计
 
 > **状态：P1 只读审计报告（不是实施方案）**
+> **历史快照说明**：本文为 2026-11-11 P1 只读审计快照（基线 `e56d443` / 881 passed / 81.312%），不代表当前基线；当前唯一基线见 `PROJECT_STATUS.md` 与 `status.json`。
 > 审计日期：2026-11-11
 > 审计范围：NetLabHome 当前工作树（只读）
 > 代码事实基线：HEAD `eb27dedc15a3f2fa061310cb5f5b33cf521f039b`（阶段 B status-only），代码提交 `e56d4431edf045b793d6f4c6c8a54a4ffca21794`；`origin/main` 同步，ahead 0 / behind 0。

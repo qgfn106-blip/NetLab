@@ -3,7 +3,7 @@
 - **状态**：执行约束文档（2026-11-11 按用户正式裁决重写；不是已完成阶段，也不代表任何阶段已获代码实施授权）
 - **审查依据**：`NetlabHome/netlab/docs/NETLAB_V2_PLANNING_REVIEW.md`
 - **当前事实源**：`NetlabHome/netlab/docs/PROJECT_STATUS.md`
-- **事实基线**：Netlab HEAD `eb27dedc15a3f2fa061310cb5f5b33cf521f039b`，origin/main 同 SHA，ahead 0 / behind 0；`status.json` 881 passed / 1 skipped / core 81.312%，代码提交 `e56d443`；P1 审计见 `CORE_ARCHITECTURE_AUDIT.md`。
+- **事实基线（规划创建时快照，2026-11-11）**：Netlab HEAD `eb27ded...`、881 passed / 1 skipped、core 81.312%；**当前基线见 `PROJECT_STATUS.md` / `status.json`，本文不重复维护动态数字**。
 - **当前阶段**：阶段 0（项目事实与文档基线）已完成文档部分；阶段 1 P1-A-lite 的 ADR-005-lite 已产出。不得提前启动 P-B 代码实现。
 
 ## 1. 唯一允许的执行顺序（阶段 0–13）

@@ -2942,3 +2942,15 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 已修复 N1–N4/N6：MIGRATION 节点补 `name`/`ports`、物理边补 `source_port`/`target_port`；MINIMAL 节点补 `initial_data`、编译产物补 `diagnostics: []`；checker 收严 factory/9 个 register 方法/JSON 块 `type` 检查；`validate_edge` 改抛 `ModelValidationError`。N5 保持如实标注。
 - 另一独立复核 Agent `a25c3774` 对修复后工作树复评：**verdict: pass**，无 blocking、无 fail、无新增轮次；14 项全部 pass；数学/量纲复算一致；仅 2 项文案改善（机械节点 `initial_data`、TYPED 重复词），均已修。
 - 结论：阶段4第④轮封口评审已达成「通过·无阻断·无新增项」，评审记录、`STAGE4_REMEDIATION_REPORT.md` §6、`PROJECT_STATUS.md` 已同步；阶段4正式验收仍须审批四轮齐备性复核 + 用户明确批准（PENDING_USER_AUTHORIZATION）。
+
+
+## 7.168 2026-11-12 本轮复审与 P0-1 基线纠偏
+
+- 来源：用户 2026-11-12 16:52《NetLab 本轮复审与 Agent 修正任务书》；执行「立即开工、不排队、先只读审计」，不把任务书当作阶段 4 正式验收或阶段 5/6 放行。
+- P0-1 已修（仅文档）：`PROJECT_STATUS.md` 建立 latest main=`4dc7bdd` / tested_head=`1df4934` / last_code_commit=`e41160f` / 945 passed / 81.380784% / CI 证据=`4dc7bdd` 五 check-run 的唯一基线表；`BACKLOG.md` 942→945；`CORE_ARCHITECTURE_V2.md`、`ROADMAP.md` 当前基线改为引用 + 阶段 3 历史；`CORE_ARCHITECTURE_AUDIT.md` 标注 2026-11-11 历史快照；`PROJECT_OPTIMIZATION_EXECUTION_PLAN.md` 明确规划时快照。
+- P0-2 未改：`CORE_MODEL_V2.md` 的 `PortDesc` 对象与 `MINIMAL_DATA_MODEL_EXAMPLE.md` 的 `ports:["vin_p"]` 字符串列表仍不一致；已在审计报告给出方案 A（对象内嵌）/ 方案 B（port_id + registry），等待用户裁决，不擅自统一。
+- P1-1 已复现：注册插件 `EngineSpec(mode="repro-plugin")` 后 `Scene(mode)` 成功，但 `scene_io.py:84-86 load_payload` 抛 `ValidationError 未知模式`；`project.py:829` 允许插件 mode 后又调用同一 `load_payload`，链路自相矛盾。仅记录，不改生产代码。
+- P1-2～P1-6、P2 已完成只读审计与补丁计划，详见新增 `NETLAB_REVIEW_AUDIT_2026-11-12.md`（A–J：现状、阶段表、P0/P1/P2 清单、三方一致性矩阵、插件最小复现、P1-R1/R2 数值审计、Runtime/Project 安全、补丁计划、Open Decisions、可立即修 vs 等授权）。
+- P1-2/P1-3 文档措辞已纠偏：`P1_R1_STAMP_CONVERGENCE.md` 标题改为「两端口 Laplacian Stamp 原语收敛与边界」并加范围澄清；`PROJECT_STATUS.md` 阶段 5 改「primitive 已统一、完整 CircuitElement 模型未统一」；`V2_IMPLEMENTATION_GAP_ANALYSIS.md` 改「frequency_response 不是 ac_sweep 兼容包装，是两条独立实现」。
+- 验证：全量 pytest 945 passed / 1 skipped / 0 failed / 111.70s；`render_docs.py --check`、docs 隐私/SSOT/契约 6 passed、`check_version`、`check_architecture`、`gen_contracts --check`、`update_readme_changelog --check`、`check_status_freshness`、`frontend npm run check:sections` 均通过。
+- 边界：未改生产代码；阶段 4 仍待用户正式批准，阶段 5 `eaec04a` 冻结、阶段 6–13 `PENDING_USER_AUTHORIZATION`；未 push。

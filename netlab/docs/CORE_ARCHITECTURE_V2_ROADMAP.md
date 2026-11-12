@@ -1,7 +1,7 @@
 # NetLab Core Architecture V2 · 执行路线图
 
 > **状态：规划基线；P1 架构审计已完成（`CORE_ARCHITECTURE_AUDIT.md`，2026-11-11），当前按用户 2026-11-11 正式裁决的阶段 0–13 顺序推进。** 目标能力与当前实现差距见 [CORE_ARCHITECTURE_V2.md](CORE_ARCHITECTURE_V2.md)。
-> 当前事实基线（2026-11-12，阶段 3 后）：代码基线 `b667e517450b5f050424fe76d623af0cdeaf4eb1`，origin/main 同 SHA，ahead 0 / behind 0；909 passed / 1 skipped，core 覆盖率 81.404692%；三条 CI success（python-tests `43115278340`、frontend-ts-build `43115278356`、container `43115278600`）；精确 HEAD 见 `PROJECT_STATUS.md` / `status.json`。历史基线（旧）：`8e6ed222...` / 872 / 81.11%，仅作历史保留。
+> 当前事实基线（2026-11-12 复审纠偏）：latest main `4dc7bdd815477b63d51f683edc3af3c2765ba72b`；tested_head `1df4934f7dec861aa96bdf813d688516696753ee`；最后生产代码提交 `e41160f300393889c1b9539ebab73ed5280f2796`；945 passed / 1 skipped、core 81.380784%；CI 证据（`4dc7bdd` 的 5 个 check-run 全 success）见 `PROJECT_STATUS.md`。阶段 3 历史基线（`b667e517...` / 909 / 81.404692%）仅作历史引用。
 
 ## 0. 路线总览
 

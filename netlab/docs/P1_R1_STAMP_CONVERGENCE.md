@@ -1,4 +1,6 @@
-# P1-R1 元件 Stamp 单一化收敛方案（阶段 5）
+# P1-R1 两端口 Laplacian Stamp 原语收敛与边界（阶段 5）
+
+> **范围澄清（2026-11-12 复审）**：本阶段只统一 `stamps.stamp_laplacian` 两端口 Laplacian 盖章原语；**完整 `CircuitElement` 元件模型（Legacy 伴随 MNA vs Descriptor A+sE）未统一**。不得把本阶段表述为「元件 Stamp 单一化完成」。
 
 > **状态：Proposed（设计冻结草案）** · 2026-11-12 · 阶段 5 / P1-R1
 > 本文件回答 `CORE_ARCHITECTURE_V2_ROADMAP.md:40` 的「必答收敛方案」。

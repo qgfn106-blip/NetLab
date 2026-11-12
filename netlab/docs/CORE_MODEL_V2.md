@@ -86,6 +86,8 @@ class PortDesc:
     direction: PortDirection
     port_type: PortType
     cardinality: str = "one"  # one | many
+    reference: str = "node"  # node | ground
+    component_id: str = ""
     coordinate_frame: str = ""
     metadata: Mapping[str, Any] = field(default_factory=dict)
 

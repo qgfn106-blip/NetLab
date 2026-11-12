@@ -60,9 +60,9 @@ flowchart TD
 
 | Desc 字段 | Runtime 字段 | 说明 |
 | --- | --- | --- |
-| `NodeDesc.id/kind/ports/params` | `NodeRuntime.state`、`value` | 描述静态，状态动态 |
+| `NodeDesc.id/kind/ports/params` | `NodeRuntime.state["value"]` | 描述静态，状态动态 |
 | `Presentation.node_styles[id]`（`NodeDesc` 不含 `appearance`） | 不进入 Runtime | Presentation 层，只增 `revision` |
-| `EdgeDesc.kind/source/target/source_port/target_port` | `ConnectionRuntime.current`、`delay_state` | 描述拓扑，状态为支路量/延迟历史 |
+| `EdgeDesc.kind/source/target/source_port/target_port` | `ConnectionRuntime.state["current"]`、`delay_state` | 描述拓扑，状态为支路量/延迟历史 |
 | `Presentation.edge_styles[id]`（`EdgeDesc` 不含 `appearance`） | 不进入 Runtime | 同上 |
 | `LayoutEdge` | 不进入 Runtime | 纯布局，不进方程、不进缓存键 |
 

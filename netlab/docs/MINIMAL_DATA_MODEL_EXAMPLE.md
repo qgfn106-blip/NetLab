@@ -32,9 +32,9 @@
       ],
       "edges": [
         {"id": "R1", "kind": "physical", "source": "vin", "target": "vout",
-         "source_port": "vin_p", "target_port": "vout_p", "params": {"resistance": 1000.0}},
+         "source_port": "vin_p", "target_port": "vout_p", "params": {"R": 1000.0}},
         {"id": "C1", "kind": "physical", "source": "vout", "target": "gnd",
-         "source_port": "vout_p", "target_port": "gnd_p", "params": {"capacitance": 1.0e-6}}
+         "source_port": "vout_p", "target_port": "gnd_p", "params": {"C": 1.0e-6}}
       ],
       "variables": [
         {"id": "v_vin", "quantity": "voltage", "unit": "V", "dimension": [2, 1, -3, -1, 0, 0, 0]},
@@ -60,6 +60,7 @@
       "boundary_conditions": [
         {"variable": "v_vin", "expression": "1.0"}
       ],
+      "compat": {},
       "presentation": {
         "node_styles": {
           "vin": {"color": "#2563eb"},

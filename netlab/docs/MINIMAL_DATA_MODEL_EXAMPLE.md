@@ -26,9 +26,9 @@
       "revision": 1,
       "domain": "circuit",
       "nodes": [
-        {"id": "vin", "kind": "junction", "ports": ["vin_p"], "params": {}},
-        {"id": "vout", "kind": "junction", "ports": ["vout_p"], "params": {}},
-        {"id": "gnd", "kind": "ground", "ports": ["gnd_p"], "params": {}}
+        {"id": "vin", "kind": "junction", "ports": ["vin_p"], "params": {}, "initial_data": {}},
+        {"id": "vout", "kind": "junction", "ports": ["vout_p"], "params": {}, "initial_data": {}},
+        {"id": "gnd", "kind": "ground", "ports": ["gnd_p"], "params": {}, "initial_data": {}}
       ],
       "edges": [
         {"id": "R1", "kind": "physical", "source": "vin", "target": "vout",
@@ -128,8 +128,8 @@ class EdgeDesc:
   "compat": {},
   "presentation": {},
   "nodes": [
-    {"id": "body", "kind": "mass", "ports": ["body_v"], "params": {}},
-    {"id": "ground", "kind": "ground", "ports": ["ground_v"], "params": {}}
+    {"id": "body", "kind": "mass", "ports": ["body_v"], "params": {}, "initial_data": {}},
+    {"id": "ground", "kind": "ground", "ports": ["ground_v"], "params": {}, "initial_data": {}}
   ],
   "edges": [
     {"id": "damper", "kind": "physical", "source": "body", "target": "ground",
@@ -170,6 +170,7 @@ class EdgeDesc:
     "equations": ["R1-constitutive", "C1-constitutive", "kcl-vout"],
     "execution_plan": {"backend": "descriptor", "order": ["assemble", "solve"]},
     "sparse_structure": {"nnz": 8},
+    "diagnostics": [],
     "cache_key_excludes": ["appearance", "card_fields", "layout_edge", "runtime_state", "ui_state"]
   },
   "result": {

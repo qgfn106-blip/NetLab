@@ -62,13 +62,13 @@ def check_docs() -> list[str]:
     core_model = read("CORE_MODEL_V2.md")
 
     # P0-02: one complete EngineSpec definition, factory present in both.
-    if "factory" not in engine:
+    if "| `factory` |" not in engine:
         errors.append("ENGINE_SPI_V2.md: EngineSpec.factory missing")
     if "factory: Callable" not in contracts:
         errors.append("CORE_INTERFACE_CONTRACTS.md: EngineSpec.factory missing")
 
     # P0-02: PluginFacade must expose every method used elsewhere.
-    for method in ("register_edge_kind", "read_compiled_summary", "register_port_type", "register_node_kind"):
+    for method in ("register_edge_kind", "read_compiled_summary", "register_port_type", "register_node_kind", "register_analysis_spec", "register_data_format", "register_panel", "register_visual", "register_template", "register_engine_spec"):
         if f"def {method}" not in contracts:
             errors.append(f"CORE_INTERFACE_CONTRACTS.md: PluginFacade.{method} missing")
 
@@ -177,7 +177,16 @@ def check_docs() -> list[str]:
     ):
         errors.append("MIGRATION_AND_COMPATIBILITY.md: scene envelope missing domain/presentation")
 
-    if re.search(r'"type"\s*:', core_model):
+    def _has_type_key(value):
+        if isinstance(value, dict):
+            if "type" in value:
+                return True
+            return any(_has_type_key(v) for v in value.values())
+        if isinstance(value, list):
+            return any(_has_type_key(v) for v in value)
+        return False
+
+    if any(_has_type_key(block) for block in json_blocks(core_model)):
         errors.append("CORE_MODEL_V2.md: edge JSON still uses type instead of kind")
 
     # A3 field-level: edge JSON examples must expose kind/source_port/target_port.

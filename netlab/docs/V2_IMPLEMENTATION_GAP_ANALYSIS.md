@@ -34,7 +34,7 @@
 
 ## 4. P1-07 Description / Runtime 隔离（只形成整改方案，不改代码）
 
-- 现状风险：`netlab/core/model/records.py` 的 `NodeRecord/EdgeRecord` 与 `netlab/core/model/graph.py` 的 `Node/Connection` 共享可变 `data/state` 字典；`netlab/core/model/scene_engines.py:101-107` 运行时仍引用同一 dict。
+- 现状风险（订正后表述）：**导出路径并非未深拷贝**——`netlab/core/model/records.py:29-50` 的 `NodeRecord.snapshot()` 在 `include_state=True` 时对 `params/data/state/inputs` 用 `copy.deepcopy`（`include_state=False` 是只读视图的显式性能取舍，`:32-34` 有注释）。真正的隔离缺口在运行时：`netlab/core/model/scene_engines.py:101-107` 直接把 `record.data`/`record.state`/`record.inputs` 按引用传给 `Node(...)`；`netlab/core/model/graph.py:190-192` 注释明写「data 与 state 保持引用语义：场景记录与运行时对象共享同一份字典」，`:200` 的 `MappingProxyType(self.data)` 只锁视图不锁内容。
 - 整改方案（设计层）：`SceneDocument` 只保存 `NodeDesc/EdgeDesc/SceneDesc`（frozen，深拷贝边界）；`SceneRuntime` 由 Engine 从 `CompiledModel` 创建，持有独立状态；两者通过 `generation`/`revision` 校验，禁止互相写回。
 - 本阶段不修改上述源码，只登记为 P1-07 设计输入；`test_stage4_document_contracts.py::test_runtime_state_isolation` 先证明契约层深拷贝语义。
 
@@ -42,13 +42,13 @@
 
 | V1 `PortSpec`/`PinSpec` | V2 `PortDesc`/`PortType` | 差距 |
 | --- | --- | --- |
-| `name/direction/fields/dtype/default/net` | `port_id/port_type/direction/quantity/unit/dimension/cardinality/shape/connection_semantics/coordinate_frame` | V1 无物理量/单位/量纲/连接语义/坐标框架；V2 必须补 |
+| `name/role/required/order`（实际 `netlab/core/model/ports.py:20-45` 的 `PortSpec/PinSpec`，另有 `dx/dy` 布局字段） | `port_id/port_type/direction/quantity/unit/dimension/cardinality/shape/connection_semantics/coordinate_frame` | V1 无 domain/unit/dimension/direction/cardinality/连接语义/坐标框架；V2 必须补 |
 | `fields: dict` 无单位 | `PortType.unit/dimension` | 需要 `UnitRegistry` 显式换算 |
 | 无 `cardinality` | `one/many` | 需支持 fan-in/fan-out 与 multi_port 展开 |
 
 ## 6. P1-09 EdgeRecord 职责混合拆分
 
-`EdgeRecord` 当前同时承载：物理连接、计算依赖、画布布局、外观。拆分目标：
+`EdgeRecord` 当前同时承载：物理连接、计算依赖、画布布局、外观（`netlab/core/model/records.py:54-79` 单一 dataclass 同时含连接语义/state/几何/layout/引脚/appearance）。另：`netlab/core/model/scene_io.py:84-86` 的 `load_payload` 只认静态 `MODES`、拒绝插件 mode，而 `netlab/core/model/scene.py:82-88` 的 `Scene.__init__` 反而允许 `ENGINE_SPECS` 中的插件 mode——两处口径不一致，必须纳入差距表。拆分目标：
 - `PhysicalEdge`：source/target/source_port/target_port/params；
 - `DependencyEdge`：求值依赖与 lag；
 - `LayoutEdge`：仅 UI 坐标/走线；
@@ -57,12 +57,12 @@
 
 ## 7. P1-10 ENGINE_SPECS / ENGINE_OWNERS 全局字典 Project 隔离
 
-- 现状：`netlab/core/model/engine_registry.py` 的 `ENGINE_SPECS`/`ENGINE_OWNERS` 是模块级全局字典，插件注册跨 Project 泄漏。
+- 现状：`netlab/core/model/engine_registry.py:14-15` 的 `ENGINE_SPECS`/`ENGINE_OWNERS` 是进程级全局字典，插件注册跨 Project 泄漏、无 project 隔离。
 - 方案：改为 `ProjectEngineRegistry`，生命周期随 `ProjectDesc`；全局只保留内建只读基表；插件注册写项目级副本；卸载 Project 时释放。
 
 ## 8. P1-11 插件信任边界
 
-Plugin v1 是**进程内受信任 Python 代码，不是 OS 沙箱**。权限边界：
+Plugin v1 是**进程内受信任 Python 代码，不是 OS 沙箱**：`netlab/core/plugins.py:3/210-216` 用进程内 `importlib` 直接加载，`netlab/core/extensions.py:403` 用 `exec(..., namespace)`；AST 黑名单只是表达式层缓解，不是沙箱。权限边界：
 - 只读：`PortTypeRegistry`、`EngineSpec` 元数据、`read_compiled_summary()`；
 - 可写：白名单 `Parameter`（`writable=True`）、`SceneEdit` 事务；
 - 禁止：直接访问 `Runtime` 内部、替换内建 Engine、写 `graph.py`/`scene.py` 冻结区。
@@ -76,7 +76,7 @@ Plugin v1 是**进程内受信任 Python 代码，不是 OS 沙箱**。权限边
 3. `EngineSpec.factory()` 创建 Engine；
 4. `Engine.create_runtime(compiled)`；
 5. `RuntimeManager` 负责 snapshot/restore/destroy。
-现状 `scene_io.py:85` 直接拒绝插件 mode、`Scene.ensure_engine()` 懒加载，需按上述顺序解耦。
+现状 `netlab/core/model/scene_io.py:84-86` 的 `load_payload` 直接拒绝插件 mode、无 domain 概念；而 `netlab/core/model/scene.py:82-88` 的 `Scene.__init__` 允许 `ENGINE_SPECS` 插件 mode，两处口径不一致；`Scene.ensure_engine()` 仍懒加载，需按上述顺序解耦。
 
 ## 10. P1-13 v6/v7 工程兼容策略
 
@@ -87,7 +87,7 @@ Plugin v1 是**进程内受信任 Python 代码，不是 OS 沙箱**。权限边
 ## 11. P1-R1 / P1-R2 状态
 
 - P1-R1：已收敛 `stamp_laplacian` 共享原语（阶段 5，`stamps.py` + `descriptor.py` 三处委托 + 33 测试 + D-5 影子报告），见 `P1_R1_STAMP_CONVERGENCE.md`。
-- P1-R2：canonical AC/Bode 仍定 `CircuitSolver.ac_sweep()`，`DescriptorModel.frequency_response()` 为兼容包装；阶段 6 再统一。设计文档保持 Proposed。
+- P1-R2：canonical AC/Bode 仍定 `CircuitSolver.ac_sweep()`（`netlab/core/compute/circuit/solver.py:969`），`DescriptorModel.frequency_response()`（`descriptor.py:844`，:850 docstring 自述返回兼容 Bode 数据）为兼容包装；阶段 6 再统一。**已有窄范围 parity**：`netlab/tests/test_descriptor_rlc.py:174 test_frequency_response_shape_and_legacy_parity`，:178-181 同时调两后端，:188-194 对 real/imag/magnitude/phase_deg/db 做 `assert_allclose(rtol=1e-8, atol=1e-10)`；仅单一 RC 低通/4 频点，缺全面跨拓扑等价证据，不能表述为「无任何等价测试」。
 
 ## 12. P2-02 V2 专项测试计划
 
@@ -102,3 +102,10 @@ Plugin v1 是**进程内受信任 Python 代码，不是 OS 沙箱**。权限边
 ## 13. 结论
 
 本文件补齐任务书 P1-03–P1-13、P2-02 的差距与方案。未实施任何 V2 迁移或生产代码修改；所有未定项集中在 ADR-008（三项 `PENDING_USER_AUTHORIZATION`）。
+
+
+## 13. 来源订正与口径提醒（2026-11-12 11:31 审批补充）
+
+- 订正 1：P1-R2 不是「无测试证明两后端等价」，而是已有窄范围 parity（`test_descriptor_rlc.py:174`、单一 RC 低通/4 频点），缺全面等价/跨拓扑证据。
+- 订正 2：P1-07 不是「to_dict/导出未用 copy.deepcopy」，而是导出路径 `records.py:29-50 NodeRecord.snapshot()` 已 deepcopy；真正风险是 `scene_engines.py:101-107` 与 `graph.py:190-192/:200` 的运行时共享可变 dict。
+- 口径提醒：「冻结区不改生产核心代码」是本轮整改的前向约束，不代表 `netlab/core/compute/circuit/` 历史零提交（此前已有 736f2f8/dc78a6c/c8de1ec 等阶段 5 提交）；报告不得写「冻结区零提交」。

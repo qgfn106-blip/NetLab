@@ -91,6 +91,35 @@ Plugin v1 是**进程内受信任 Python 代码，不是 OS 沙箱**：`netlab/c
 - P1-R1：已收敛 `stamp_laplacian` 共享原语（阶段 5，`stamps.py` + `descriptor.py` 三处委托 + 33 测试 + D-5 影子报告），见 `P1_R1_STAMP_CONVERGENCE.md`。
 - P1-R2：`CircuitSolver.ac_sweep()`（`netlab/core/compute/circuit/solver.py:969`）与 `DescriptorModel.frequency_response()`（`descriptor.py:844`）是**两条独立实现**：前者独立执行 DC 工作点/频率检查/AC 组装/探针，后者自己 build system 并逐频率 `system.solve(omega)`；**`frequency_response` 不是 `ac_sweep` 的兼容包装**，2026-11-12 复审已纠正。阶段 6 再统一。**已有窄范围 parity**：`netlab/tests/test_descriptor_rlc.py:174 test_frequency_response_shape_and_legacy_parity`，:178-181 同时调两后端，:188-194 对 real/imag/magnitude/phase_deg/db 做 `assert_allclose(rtol=1e-8, atol=1e-10)`；仅单一 RC 低通/4 频点，缺全面跨拓扑等价证据，不能表述为「无任何等价测试」。
 
+#### 11.1 后端约束表（AC/Bode 两后端，读源码，2026-11-12 收口补）
+
+| 维度 | `CircuitSolver.ac_sweep()`（`solver.py:969`） | `DescriptorModel.frequency_response()`（`descriptor.py:844`） |
+| --- | --- | --- |
+| 组装路径 | MNA；`AC_KINDS` 白名单，拒绝非线性元件 | 自建 `A + jωE` 系统，逐频率 `system.solve(omega)` |
+| 未知量 | 节点电压（支路电流按元件） | 节点电压 + 电感/电压源支路电流 |
+| DC 语义 | Legacy 伴随（电感 `DC_CONDUCTANCE=1e5`） | 描述符（理想电感 `v_L=0`，见 `test_descriptor_dc.py`） |
+| 现行调用 | 有用户契约，API 走它 | `analysis.py:1176 _circuit_frequency_response` 走它 |
+| 定位（建议，未实施） | canonical AC/Bode 唯一后端 | 降级为兼容包装（保持 `omega_rad_s`/`omega` 与 probe 字段） |
+
+> 「定位」一行是 `CORE_ARCHITECTURE_AUDIT.md:252-254` 的**建议**，非当前事实；阶段 6 授权前不改任一后端生产代码。
+
+#### 11.2 跨拓扑 parity matrix（现状 vs 待补，2026-11-12 收口补）
+
+只记录**现有文档/测试已列明**的覆盖与**尚未覆盖**的项目；未跑测者标「待补（阶段 6 授权后）」，**不编造通过结论**。
+
+| 拓扑/场景 | parity 覆盖现状 | 状态 |
+| --- | --- | --- |
+| RC 低通（单拓扑 / 4 频点） | `test_descriptor_rlc.py:174`，real/imag/magnitude/phase_deg/db `rtol=1e-8, atol=1e-10` | 已覆盖（窄） |
+| RL / RLC | 现有文档未列双后端对拍 | 待补 |
+| 受控源（VCVS/VCCS） | 现有文档未列 | 待补 |
+| 多输入源 / 源归一化 | 现有文档未列 | 待补 |
+| 浮置节点 / 混合接地 | 现有文档未列 | 待补 |
+| 奇异 / 病态 E 矩阵 | 现有文档未列 | 待补 |
+| 多探针输出 | 现有文档未列 | 待补 |
+| 状态不变性（频响不改 state） | 现有文档未列 | 待补 |
+| 全量复数误差带（跨拓扑） | 仅单点 `rtol=1e-8` | 待补 |
+| 两后端性能对比 | 存在 `tools/bench_ac_backends.py`（本轮未核对其口径） | 部分（脚本存在，待核） |
+
 ## 12. P2-02 V2 专项测试计划
 
 | 测试层 | 内容 | 基线 |

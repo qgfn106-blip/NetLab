@@ -9,7 +9,7 @@
 - 测试报告绑定 HEAD：`1df4934f7dec861aa96bdf813d688516696753ee`；报告为 945 passed / 1 skipped / 0 failed，232.4s，core line coverage 81.38%，生成时间 2026-11-12 16:34:31 +08:00。
 - 最后生产代码提交：`e41160f300393889c1b9539ebab73ed5280f2796`（P1-R1 Stamp 共享原语）。`b667e517...e41160f` 的 compare 确认含 `netlab/core/compute/circuit/descriptor.py`（+9/−30）与 `netlab/core/compute/circuit/stamps.py`（+30/−7）；因此 `PROJECT_STATUS.md` 原「代码基线 b667e517」已过期。
 - CI：`4dc7bdd` 的 5 个 check-run（desktop-l2/build/test/e2e-l1/docker）均 `completed/success`；GitHub legacy commit status API 返回 `pending/total 0`，应写「check-runs 有证据、legacy status 无记录」，不可写成「CI 全绿」或「CI 失败」。`1df4934` 的 check-runs 为 0（其 945 结果是测试报告绑定，不是 CI 运行）。
-- 阶段：0–3 已完成；阶段 4 设计冻结第三方封口评审 `a25c3774` 14/14 pass，但正式验收仍待用户批准；阶段 5 P1-R1 代码已提交 `eaec04a` 但授权冲突、暂停；阶段 6–13 未开始。**阶段 4 评审 pass ≠ 用户正式批准，阶段 5 已提交代码 ≠ 阶段 6 获准。**
+- 阶段：0–3 已完成；阶段 4 设计冻结第三方封口评审 `a25c3774` 14/14 pass，正式验收已于 2026-11-12 获用户明确批准（用户授权）；阶段 5 P1-R1 代码已提交 `eaec04a` 但授权冲突、暂停；阶段 6–13 未开始。**阶段 5 已提交代码 ≠ 阶段 6 获准。**
 - 本轮可立即做：P0-1 文档/状态基线纠偏（已完成）；P0-2 schema 契约需用户裁决，先给方案不擅自统一；P1-1～P1-6 只读审计与补丁设计已完成，未改生产代码；P2 仅给基准/拆分建议。
 
 ## B. 阶段 0–13 状态表
@@ -20,9 +20,9 @@
 | 1 P1-A-lite | 已完成 | — |
 | 2 P-B | 已完成（§7.152） | — |
 | 3 R40 收尾 | 已完成（§7.153） | — |
-| 4 P1-A 设计冻结 | 9 份设计文档 + 第三方封口评审 `a25c3774` pass；正式验收待用户批准，仍 `PENDING_USER_AUTHORIZATION` | 可继续修订文档/修复评审问题；不得标「正式验收完成」 |
-| 5 P1-R1 Stamp 统一 | `eaec04a` 已提交；实际只统一两端口 Laplacian primitive，完整 CircuitElement 模型未统一；审批判暂停 | 只可修正状态/文档/测试措辞；不得作阶段 6 自动放行 |
-| 6 P1-R2 AC/Bode 统一 | 未开始；双后端审计只可只读 | 阶段 6 授权前不得改求解器生产代码 |
+| 4 P1-A 设计冻结 | 9 份设计文档 + 第三方封口评审 `a25c3774` pass；2026-11-12 获用户明确批准，正式验收通过（用户授权） | 阶段 6+ 仍需用户单独授权；不得据本表推定后续阶段获准 |
+| 5 P1-R1 Stamp 统一 | 代码提交 `e41160f`（状态刷新 `eaec04a`）；实际只统一两端口 Laplacian primitive，完整 CircuitElement 模型未统一；审批判暂停。P1-2 措辞已纠偏（`P1_R1_STAMP_CONVERGENCE.md`、`PROJECT_STATUS.md`）并补覆盖矩阵（2026-11-12 收口） | 只可修正状态/文档/测试措辞；不得作阶段 6 自动放行 |
+| 6 P1-R2 AC/Bode 统一 | 未开始；双后端为两条独立实现（`V2_IMPLEMENTATION_GAP_ANALYSIS.md:92` 已纠正「兼容包装」误述）；P1-3 已补后端约束表 + 跨拓扑 parity matrix（2026-11-12 收口，仅文档） | 阶段 6 授权前不得改求解器生产代码 |
 | 7–9 P1-S1/S2/S3 | 未开始 | 未授权不启动 |
 | 10–13 P2–P5 | 未开始 | 未授权不启动 |
 
@@ -108,10 +108,10 @@
 
 | 主题 | 代码事实 | 文档说法 | 测试覆盖 | 一致性 |
 |---|---|---|---|---|
-| P1-1 插件 Engine 加载 | `Scene` 接受插件 mode；`scene_io.load_payload` 拒绝 | 设计文档称插件 Engine 可注册 | 无端到端测试；本次 inline repro 复现拒绝 | **不一致（阻断）** |
+| P1-1 插件 Engine 加载 | 修复前：`scene_io.load_payload` 拒绝插件 mode（`Scene` 本已接受） | 设计文档称插件 Engine 可注册 | 曾 inline repro 复现拒绝；已补 `test_p1_1_plugin_mode_loading.py`（8 例） | **已修复（提交 212a890，见 §L）** |
 | P0-2 Typed Port | `NodeDesc.ports=tuple[PortDesc]` | MINIMAL JSON `ports: ["vin_p"]` | checker 把 list[str] 当正确 | **不一致（需裁决）** |
-| P1-2 P1-R1 | 只统一 `stamp_laplacian`；`elements.stamp()` 仍是 Legacy MNA | 报告/ROADMAP 称 Stamp 单一化 | `test_stamp_unification.py` 33 例仅 primitive/RC | **部分一致（措辞高估）** |
-| P1-3 P1-R2 | 两条独立 AC 后端 | Gap 文档称 frequency_response 为兼容包装 | 仅单一 RC/4 频点 parity | **不一致（文档错）** |
+| P1-2 P1-R1 | 只统一 `stamp_laplacian`；`elements.stamp()` 仍是 Legacy MNA | 已纠偏为「仅 primitive 收敛、完整模型未统一」；覆盖矩阵已补 | `test_stamp_unification.py` 33 例仅 primitive/RC | **已纠偏（措辞正确定性）；模型未统一仍属实** |
+| P1-3 P1-R2 | 两条独立 AC 后端 | Gap 文档已纠正为「两条独立实现、非兼容包装」；后端约束表/parity matrix 已补 | 仅单一 RC/4 频点 parity | **已纠偏（文档错已改）；跨拓扑 parity 待阶段 6 补** |
 | P1-4 Runtime 隔离 | records/graph 共享可变 dict | 文档称 Desc/Runtime 分离 | 只有 FakeCompiledModel 测试 | **不一致（目标 vs 现状）** |
 | P1-5 Plugin API | core 内部 import 进 plugin_api；全局 registry | 文档称公开 Engine API | 无隔离/回滚测试 | **不一致（架构债）** |
 | P1-6 Project 安全 | v7；checksum 缺失返回 True；先解压后限 8MB | 文档称 V2 版本 8/严格校验 | 未覆盖压缩炸弹/缺失 checksum | **不一致（待修）** |
@@ -152,7 +152,7 @@ ACTUAL: load_payload rejected -> ValidationError 未知模式：'repro-plugin'
 
 ## I. 需用户裁决的 Open Decisions
 
-1. **阶段 4 正式验收批准**：第三方封口评审 `a25c3774` 14/14 pass，但是否批准正式验收？`PENDING_USER_AUTHORIZATION`。
+1. **阶段 4 正式验收批准**：第三方封口评审 `a25c3774` 14/14 pass；已于 2026-11-12 获用户明确批准正式验收（用户授权）——本项已解决。
 2. **P0-2 Port schema**：方案 A（PortDesc 内嵌）还是方案 B（port_id + registry）？未定前不统一。
 3. **ADR-008 三项**：A 显式 Runtime 快照是否入 Project Save；B Plugin 权限边界（只读/可写哪些层）；C 兼容窗口是否必须支持 v6。均 `PENDING_USER_AUTHORIZATION`。
 4. **阶段 5 `eaec04a`**：恢复、保持冻结、或回退？按审批 13:10「不允许进入阶段6·需用户授权·暂停」保持冻结。
@@ -165,6 +165,17 @@ ACTUAL: load_payload rejected -> ValidationError 未知模式：'repro-plugin'
 - **必须等待授权**：P0-2 最终 schema 选择与全链路改造；P1-1 生产代码补丁（若触及冻结/阶段 8 范围）；阶段 4 正式验收；阶段 5 恢复/回退；阶段 6–13；ADR-008 三项；V2 生产实现与外部 JSON 变更；FEM/graph.py/scene.py 大规模重构；MAX_NODES=400、NETLAB_MATH_ACCEL、500+、Newton/SCC。
 - **不得声称**：Proposed 设计 = 实现；Fake 测试 = 真实 Runtime 隔离；返回结构兼容 = 数值后端统一；旧 SHA CI 绿灯 = 当前 HEAD 证据。
 
+## K. P1-2 / P1-3 收口记录（2026-11-12）
+
+- P1-2（P1-R1 措辞高估）：`P1_R1_STAMP_CONVERGENCE.md` 标题/范围澄清与 `PROJECT_STATUS.md` 阶段 5 已把口径定为「仅 `stamp_laplacian` 两端口原语收敛、完整 `CircuitElement` 模型未统一」；本报告同日在 `P1_R1_STAMP_CONVERGENCE.md §3.1` 补**覆盖矩阵**（已覆盖 vs 未覆盖）。**不含生产代码改动。**
+- P1-3（P1-R2 文档错）：`V2_IMPLEMENTATION_GAP_ANALYSIS.md:92` 已纠正「兼容包装」误述为「两条独立实现」；本报告同日在 `V2_IMPLEMENTATION_GAP_ANALYSIS.md §11.1/§11.2` 补**后端约束表 + 跨拓扑 parity matrix**（标「待补」者阶段 6 授权后测，不编造通过结论）。**不含求解器生产代码改动。**
+- 状态：P1-2/P1-3 的「措辞/文档」缺陷视为**已收口**；「跨拓扑全量等价证据」属阶段 6 执行范围，仍 `PENDING`。
+
 ---
 
-*本报告仅记录审计与 P0-1 文档纠偏；未改任何生产代码，未 push。*
+*本报告记录审计与 P0-1 文档纠偏，以及 P1-2/P1-3（2026-11-12）措辞/矩阵收口；未改任何生产代码，未 push。*
+
+## L. 其他状态同步（2026-11-12 晚）
+
+- **P1-1 已修复**：提交 `212a890`（代码 + 测试；全量 `pytest netlab/tests` → 953 passed / 1 skipped），提交 `1246ee3` 记录于 `PROJECT_STATUS.md §6`；补丁仅动运行时代码 `scene_types.py`/`scene_io.py`/`networks.py`（新增 `is_known_mode`、`_blank_scene_payload`），不触阶段 4 冻结边界。
+- **阶段 4 正式验收已批准**：2026-11-12 获用户明确批准（见 `PROJECT_STATUS.md`）；阶段 6+ 仍需用户单独授权。

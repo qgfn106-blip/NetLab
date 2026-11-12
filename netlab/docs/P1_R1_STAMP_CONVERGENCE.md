@@ -77,6 +77,17 @@
 既有 `test_descriptor_rlc.py` / `test_ac_contract_m1.py` /
 `test_descriptor_transfer_function.py` 作为回归网继续生效。
 
+### 3.1 覆盖矩阵（已覆盖 vs 未覆盖，2026-11-12 收口补）
+
+| 维度 | 已覆盖 | 未覆盖（本阶段不承诺，登记为观察项） |
+| --- | --- | --- |
+| 原语级 | 5 种索引/接地组合 × 5 种权重（含复数 `1j*omega*C`）逐元素对拍；`_stamp_conductance` 委托保真 | — |
+| 元件级 | `Resistor.stamp` 与共享原语对拍 | 电感/电容/开关/二极管小信号等其余 `CircuitElement.stamp()` 未逐一与原语对拍 |
+| 整机级 | RC 低通 `frequency_response` 对解析解 `1/(1+j*omega*RC)`；`A` 电阻块、`E` 单端接地电容块、浮置电容 `E` 非对角 `-C` 结构断言 | RLC/受控源/多输入源/浮置与接地混合/奇异病态/多探针/源归一化/状态不变性/全量复数误差/性能 未纳入本阶段验收 |
+| 模型完整性 | 两端口 Laplacian 盖章原语唯一化 | 完整 `CircuitElement` 模型（Legacy 伴随 MNA vs Descriptor A+sE）未统一；`elements.py` 与 `descriptor._assemble_matrices()` 仍各自按 kind 分派一次 |
+
+> 整机级「RC 低通单点对拍」只证明该拓扑下两路数值一致，**不外推为全拓扑等价**；全量跨拓扑证据属 P1-R2（见 `V2_IMPLEMENTATION_GAP_ANALYSIS.md §11.2`）。
+
 ## 4. 迁移与兼容风险（ROADMAP:40 第 4 问）
 
 | 编号 | 风险 | 处置 |

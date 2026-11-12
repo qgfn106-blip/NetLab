@@ -15,7 +15,7 @@
 | 精确 HEAD / ahead | 文档收口提交后以 `git rev-parse HEAD` 与 `status.json` 为准；提交自身无法自引用 |
 | origin/main | 与本地 `main` 同步（push 已授权并执行；ahead 0 / behind 0，截至本轮收口提交） |
 | 版本 | 3.20.1 |
-| 测试基线 | 942 passed / 1 skipped / 0 failed；core 覆盖率 81.3808%（12445/14619，含 33 条新增 stamp 对拍用例） |
+| 测试基线 | 945 passed / 1 skipped / 0 failed；core 覆盖率 81.380784%（12445/14619，阶段4整改实测；942 为阶段5历史基线） |
 | 前端门禁 | typecheck / build / test（27 passed）/ verify:parity / check:sections（app.ts 7968 行）/ e2e 四脚本全过 |
 | 阶段 3 三条 CI（绑 `b667e51`） | python-tests `43115278340`、frontend-ts-build `43115278356`、container `43115278600`，均 success |
 | 阶段 2 三条 CI（绑 `8e7f583`） | container `43098331619`、python-tests `43098331551`、frontend-ts-build `43098331562`，GitHub runner 排队（status=queued / conclusion=null / jobs=[]），不作通过证据 |
@@ -97,7 +97,7 @@
 ## 6. 未解决事项
 
 - 阶段 2 的 `8e7f583` 三条 CI 仍 queued（GitHub runner 未分配），如实标注，不作通过证据。
-- 阶段 3 完成报告已获审批会话 2026-11-12 08:10 只读评估（结论：允许进入阶段 4；无阻塞项）；前置收口见 `PROGRESS.md §7.155`。阶段 4 完成报告已评估并批准进入阶段 5；后因阶段 4 任务书重定向，阶段 4 整改第④轮复评已通过，待用户批准正式验收。
+- 阶段 3 完成报告已获审批会话 2026-11-12 08:10 只读评估（结论：允许进入阶段 4；无阻塞项）；前置收口见 `PROGRESS.md §7.155`。阶段 4 完成报告已评估并批准进入阶段 5；后因阶段 4 任务书重定向，阶段 4 整改第④轮复评「有条件通过（无阻断）」，非阻断项已修，待最终复评/用户批准，待用户批准正式验收。
 - 阶段 4 整改已修复 P0-01–P0-04 与关键 P1，新增可复现 checker/测试；第④轮独立评审已执行：初评不通过→修复→复评「有条件通过（无阻断）」；非阻断项已修，待再次复评/用户批准后才可标正式验收完成。
 - 阶段 5 P1-R1 已在任务书到达前完成并 push（`eaec04a`）；阶段 4 验收前不再推进阶段 6+，是否回退由用户裁定。
 - ADR-001/002/003/004/006/007/008 仍 Proposed（ADR-008 为 Open Decision），不自行升格 Accepted；三项需用户决策标 `PENDING_USER_AUTHORIZATION`。

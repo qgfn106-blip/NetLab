@@ -1,7 +1,7 @@
 # Core Model V2 设计冻结（阶段 4 / P1-A）
 
 > 状态：`Proposed`（设计冻结草案，待评审）。本文是**目标设计口径**，不是当前实现；ADR 不是实施授权，Proposed 不得伪装 Accepted。
-> 阶段 4 开工时基线：代码 HEAD `b667e517450b5f050424fe76d623af0cdeaf4eb1`，文档收口 HEAD `1f9689617e3b7ce95046da1ef51750a7d773ad74`，909 passed / 1 skipped、core 81.404692%、版本 3.20.1。精确 HEAD 以 `git rev-parse HEAD`、`status.json` 与 GitHub branches/main 为准；本文不写死运行态数字。
+> 阶段 4 开工时基线以 `git rev-parse HEAD`、`status.json` 与 GitHub branches/main 为准；本文不写死运行态数字，避免旧基线残留。
 > 依据：`PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:44`、`NETLAB_V2_PLANNING_REVIEW.md:97-136`、`CORE_ARCHITECTURE_V2_ROADMAP.md:54-66`、`CORE_ARCHITECTURE_AUDIT.md:385`、`CORE_ARCHITECTURE_AUDIT.md:394-400`。
 > 边界：本阶段不写任何生产代码；不改 `netlab/core/model/graph.py`、`netlab/core/model/scene.py` 冻结区；不迁移旧工程；不放宽 `MAX_NODES=400`；不改 FEM；不擅自放量 `NETLAB_MATH_ACCEL`。
 
@@ -36,11 +36,11 @@
 | `Connection` / `EdgeDesc` | 三型边（见 §7）的描述，含端点与端口绑定 | Description | 事务改 | 工程 JSON |
 | `Equation` | 方程声明（线性/非线性、关联变量、源节点） | Description | 事务改 | 工程 JSON |
 | `Constraint` | 约束声明（接地、初值约束、代数约束） | Description | 事务改 | 工程 JSON |
-| `Variable` | 变量声明：名称、类型、单位、量纲、所属节点/边 | Description | 事务改 | 工程 JSON |
+| `Variable` | 变量声明：名称、类型、单位、量纲；归属由 Equation/Constraint 的引用表达 | Description | 事务改 | 工程 JSON |
 | `Parameter` | 参数声明：名称、值、单位、可写性 | Description | 事务改 | 工程 JSON |
 | `InitialCondition` | 初值声明（关联变量与取值） | Description | 事务改 | 工程 JSON |
 | `BoundaryCondition` | 边值/激励声明（电压源、力源、速度源等） | Description | 事务改 | 工程 JSON |
-| `Scene` / `SceneDesc` | 场景：mode、Node/Edge 集合、方程集合、时钟、revision | Description | 事务改 | 工程 JSON |
+| `Scene` / `SceneDesc` | 场景：mode、id、domain、Node/Edge 集合、方程集合、revision | Description | 事务改 | 工程 JSON |
 
 补充对象（不属于 13 类但为设计必要）：`CompiledModel`、`VariableRegistry`、`ExecutionPlan`、`Diagnostic`、`RuntimeSnapshot`、`EngineSpec`、`NodeRuntime`、`ConnectionRuntime`、`Block`。精确签名见 [CORE_INTERFACE_CONTRACTS.md](CORE_INTERFACE_CONTRACTS.md)。
 

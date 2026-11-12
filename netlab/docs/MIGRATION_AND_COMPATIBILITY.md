@@ -103,10 +103,10 @@ save_project(desc)
 | `EdgeRecord.name` | 标识 | `EdgeDesc.name` | `""` | 原样复制；空则回退 id | 否 | 否 | 回退 id |
 | `EdgeRecord.source/target` | 连接关系 | `PhysicalEdge/DependencyEdge.source/target` | 必填 | 按 kind 分流；`wire`→Physical，`signal`→Dependency | 否 | 否 | 抛 `ModelValidationError` |
 | `EdgeRecord.kind` | 类型 | `EdgeDesc.kind` | `"physical"` | `wire`→`physical`，`signal`→`dependency`，`layout`→`layout` | 否 | 否 | 未知 kind 归 `layout` |
-| `EdgeRecord.source_pin` / `target_pin` | 连接绑定 | `EdgeDesc.source_pin` / `target_pin` | `""` | 原样复制，仅 `kind=="wire"` 使用 | 否 | 否 | 空串 |
+| `EdgeRecord.source_pin` / `target_pin` | 连接绑定 | `EdgeDesc.source_port` / `target_port` | `""` | 旧字段是端口绑定别名；映射到 source_port/target_port，仅 `kind=="wire"` 使用 | 否 | 否 | 空串 |
 | `EdgeRecord.params` | 工程参数 | `EdgeDesc.params` | `{}` | 深拷贝为只读映射 | 否 | 否 | 抛 `ModelValidationError` |
 | `EdgeRecord.state` | Runtime State | `ConnectionRuntime.state` | `{}` | 不进入 Desc，创建 Runtime 时深拷贝 | 是 | 可能（旧值过期） | 丢弃并记审计日志 |
-| `EdgeRecord.delay` | 计算元数据 | `DependencyEdge.delay` | `false` | bool 标志原样复制；仅 Dependency 边保留 | 否 | 否 | 物理边忽略 |
+| `EdgeRecord.delay` | 计算元数据 | `DependencyEdge.delay` | `0.0` | V1 bool 标志映射为 V2 数值秒（false→0.0，true 保留 0.0 并记迁移告警）；仅 Dependency 边保留 | 否 | 否 | 物理边忽略 |
 | `EdgeRecord.auto_delay` | 计算元数据 | `DependencyEdge.auto_delay` | `false` | bool 原样复制 | 否 | 否 | 默认 false |
 | `EdgeRecord.source_port` / `target_port` | 连接绑定 | `EdgeDesc.source_port` / `target_port` | `""` | 原样复制 | 否 | 否 | 空串 |
 | `EdgeRecord.enabled` | 计算元数据 | `DependencyEdge.enabled` / 物理边默认启用 | `true` | 原样复制 | 否 | 否 | 默认 true |

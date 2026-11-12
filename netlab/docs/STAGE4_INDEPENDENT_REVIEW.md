@@ -17,7 +17,7 @@
 
 评审方：独立只读评审 Agent `a32ae825`。结论：**有条件通过**。A1/A3/A4/B1–B5 已修；A2 封套、B6 表述、C1 字段级仍待收口。
 
-## 3. 最终复评（2026-11-12，HEAD a38fd6b）
+## 3. 复评二（2026-11-12，HEAD a38fd6b，Agent 3bc1afbf）
 
 评审方：独立只读评审 Agent `3bc1afbf`。结论：**有条件通过（无阻断问题）**。A1–A4 主缺陷闭环、B1–B5/C2/C3 闭环；非阻断问题 7 项，已处置：
 
@@ -29,16 +29,16 @@
 6. `tools/check_stage4_docs.py` 的 A3/A4 仅 token 级 → 已增加 `json.loads` 后 Edge JSON `kind/source_port/target_port` 字段级断言，以及 MINIMAL node `ports` 为 `list[str]`、CORE `ports: tuple[PortDesc,...]` 的断言。
 7. STAGE4 §8 自证表述 → 已改为「本记录仅登记独立评审输入，不构成阶段4验收结论」。
 
-## 4. 数学物理核验
+## 5. 数学物理核验
 
 RC：`R=1000Ω, C=1µF ⇒ τ=1e-3s`，`v_out(τ)=0.6321205588V`，`i_R1=i_C1=3.678794e-4A`，KCL 自洽。机械：`m dv/dt = F - b v`，`v(0.5)=e^-1=0.3678794412m/s`。七维量纲 `[L,M,T,I,Θ,N,J]` 与三域守恒正确。
 
-## 5. 结论与残余风险
+## 6. 结论与残余风险
 
 - 本轮复评为「有条件通过（无阻断）」；非阻断问题已修，仍须按任务书安排再次独立复评，并由用户明确批准后才可标阶段 4 正式验收完成。
 - 残余：`type/kind` 负向守卫目前仅覆盖 CORE_MODEL_V2；MINIMAL/MIGRATION 为示意子集，字段以 CORE_MODEL_V2 §4 为准。
 
-## 10. 第二轮最终复评（2026-11-12，HEAD 501ae78 + 文档一致性修复）
+## 4. 复评三（2026-11-12，HEAD 501ae78 + 文档一致性修复，Agent 901215bc）
 
 评审方：独立只读评审 Agent `901215bc`。结论：**有条件通过（无阻断问题）**；A1–A4、B1–B6、C1–C3 均闭环，数学物理正确；另有 9 项非阻断字段级/文档卫生问题。已全部处置：
 1. `MIGRATION_AND_COMPATIBILITY.md:106` 的 `source_pin/target_pin` 映射改为 `EdgeDesc.source_port/target_port`；
@@ -52,3 +52,16 @@ RC：`R=1000Ω, C=1µF ⇒ τ=1e-3s`，`v_out(τ)=0.6321205588V`，`i_R1=i_C1=3.
 9. `TYPED_PORT_SYSTEM.md` 的 `reference=node vin` 改为 `reference=node（节点 id=vin）`。
 
 验证：`check_stage4_docs.py` PASS；契约/隐私/SSOT 6 passed。最终结论仍以「有条件通过（无阻断）」记录，待最终复评/用户批准，不自行标正式验收。
+
+## 7. 最终复评停止规则与评审汇总
+
+评审汇总：
+
+| 阶段 | Agent | 评审 HEAD | 结论 | 遗留项处理 |
+| --- | --- | --- | --- | --- |
+| 初评 | `13d009cb` | a38fd6b | 不通过 | A1–A4/B1–B6/C1–C3 |
+| 复评一 | `a32ae825` | a38fd6b | 有条件通过 | A2/B6/C1 |
+| 复评二 | `3bc1afbf` | a38fd6b | 有条件通过（无阻断） | 7 项非阻断 |
+| 复评三 | `901215bc` | 501ae78 | 有条件通过（无阻断） | 9 项非阻断 |
+
+停止规则（2026-11-12 冻结）：评审对象冻结为当前 HEAD 的九份文档 + `tools/check_stage4_docs.py` + `test_stage4_document_contracts.py`；由与上述四个 Agent 不同的第三方独立 Agent 按字段级检查表评审一次。若结论为「通过·无阻断·无新增项」，即封口，不再因非阻断文字项追加新一轮；非阻断项记入待办但不阻塞封口。最终阶段 4 正式验收仍须用户明确批准（PENDING_USER_AUTHORIZATION），审批方只读不代替。

@@ -2903,3 +2903,9 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - P1-03–P1-13/P2-02：写入 `V2_IMPLEMENTATION_GAP_ANALYSIS.md`；P2-01 统一 7 基本量纲 `[L,M,T,I,Θ,N,J]`；ADR-008 记录三项 Open Decision。
 - 验证：`_stage4_validate.py` ALL PASS、`check_stage4_docs.py` PASS、docs 隐私/SSOT/契约 6 passed、`render_docs --check` OK；全量 pytest **945 passed / 1 skipped / 0 failed / 236.37s**、core **81.380784%**（12445/14619）。
 - 验收：当前「有条件通过」，待第④轮独立评审；阶段 5 已交付 `eaec04a` 但按任务书冻结，阶段 6–13 暂停。
+## 7.160 阶段 4 整改第 2 轮（P1-03/04/05 正文补齐）
+
+- `MIGRATION_AND_COMPATIBILITY.md` 增 §7 逐字段迁移表（NodeRecord/EdgeRecord 全字段、默认值/转换/计算/丢失处理）与 §8 完整 V1 JSON→V2 JSON 示例，§9 记录 v6/v7/v8 兼容策略。
+- `TYPED_PORT_SYSTEM.md` 增 §10 across/through 变量、参考方向/符号约定，以及电学/机械平动/热学三套端口-连接-守恒-本构完整方程。
+- `CORE_MODEL_V2.md` 增 §12 `DependencyEdge`/`PhysicalEdge`/`LayoutEdge` 独立 dataclass、JSON 示例、`validate_edge` 校验与参与编译/布局判定表，明确 §4 `EdgeDesc` 仅为旧工程兼容容器。
+- `tools/check_stage4_docs.py` 增加 P1-03/04/05 契约断言；`STAGE4_REMEDIATION_REPORT.md` 统计更新为 P1 已修复 6 项（P1-01/02/03/04/05/06）、其余 7 项为已登记设计差距。

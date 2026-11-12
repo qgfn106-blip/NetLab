@@ -422,6 +422,8 @@ class DataFormatSpec:
 
 ### 6.6 自定义求解引擎（engine）
 
+> 说明：下列 `EngineSpec` 为 **V1 插件实现说明中的历史示意**，不是阶段 4 V2 接口定义；V2 唯一完整定义见 `CORE_INTERFACE_CONTRACTS.md`，字段以该文档为准。
+
 ```python
 @dataclass(frozen=True)
 class EngineSpec:

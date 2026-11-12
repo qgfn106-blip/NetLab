@@ -31,7 +31,7 @@
 | `Project` / `ProjectDesc` | 工程根：版本、Scene 集合、库引用、元信息 | Description | 事务改 | 工程 JSON |
 | `Model` | 一个可编译的领域模型单元：Desc + 领域声明 | Description | 事务改 | 工程 JSON |
 | `Domain` | 领域标识与能力声明（signal / circuit / mechanical 及插件域） | Description | 注册表 | manifest |
-| `Node` / `NodeDesc` | 物理或功能节点描述：id、kind、ports、params、外观 | Description | 事务改 | 工程 JSON |
+| `Node` / `NodeDesc` | 物理或功能节点描述：id、kind、ports、params（外观不入 Description） | Description | 事务改 | 工程 JSON |
 | `Port` / `PortDesc` | 端口描述：名称、方向、`PortType`、cardinality | Description | 事务改 | 工程 JSON |
 | `Connection` / `EdgeDesc` | 三型边（见 §7）的描述，含端点与端口绑定 | Description | 事务改 | 工程 JSON |
 | `Equation` | 方程声明（线性/非线性、关联变量、源节点） | Description | 事务改 | 工程 JSON |
@@ -77,12 +77,27 @@ class PortType:
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
 
+PortDirection = Literal["input", "output", "bidirectional"]
+
+
+@dataclass(frozen=True)
+class PortDesc:
+    port_id: str
+    direction: PortDirection
+    port_type: PortType
+    cardinality: str = "one"  # one | many
+    coordinate_frame: str = ""
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+
 @dataclass(frozen=True)
 class NodeDesc:
     id: str
     kind: str
+    name: str = ""
     ports: tuple["PortDesc", ...] = ()
     params: Mapping[str, Any] = field(default_factory=dict)
+    initial_data: Mapping[str, Any] = field(default_factory=dict)
     # 外观不在 Description：Presentation 层按 id 关联，见 ARCHITECTURE_BOUNDARIES.md
 
 
@@ -145,6 +160,10 @@ class BoundaryCondition:
 @dataclass(frozen=True)
 class SceneDesc:
     mode: str
+    id: str = ""
+    domain: str = ""
+    presentation: Mapping[str, Any] = field(default_factory=dict)
+    compat: Mapping[str, Any] = field(default_factory=dict)
     nodes: tuple[NodeDesc, ...] = ()
     edges: tuple[EdgeDesc, ...] = ()
     equations: tuple[Equation, ...] = ()
@@ -161,6 +180,22 @@ class ProjectDesc:
     version: int
     scenes: tuple[SceneDesc, ...] = ()
     metadata: Mapping[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class NodeRuntime:
+    """运行时节点：持有可变状态，不反向修改 NodeDesc。"""
+    desc: NodeDesc
+    inputs: dict[str, float] = field(default_factory=dict)
+    state: dict[str, float] = field(default_factory=dict)
+
+
+@dataclass
+class ConnectionRuntime:
+    """运行时连接：持有连接状态，不反向修改 EdgeDesc。"""
+    desc: EdgeDesc
+    state: dict[str, float] = field(default_factory=dict)
+    delay_state: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -323,9 +358,9 @@ class LayoutEdge(EdgeBase):
 
 ```json
 [
-  {"type": "dependency", "id": "d1", "source": "counter4.out", "target": "dff.d", "delay": 0.0, "enabled": true},
-  {"type": "physical", "id": "R1", "source": "vin", "target": "vout", "source_port": "p1", "target_port": "p2", "params": {"R": 1000.0}},
-  {"type": "layout", "id": "l1", "source": "vin", "target": "vout", "points": [[80, 120], [240, 120]], "style": {"stroke": "#3366ff"}}
+  {"kind": "dependency", "id": "d1", "source": "counter4.out", "target": "dff.d", "delay": 0.0, "enabled": true},
+  {"kind": "physical", "id": "R1", "source": "vin", "target": "vout", "source_port": "p1", "target_port": "p2", "params": {"R": 1000.0}},
+  {"kind": "layout", "id": "l1", "source": "vin", "target": "vout", "points": [[80, 120], [240, 120]], "style": {"stroke": "#3366ff"}}
 ]
 ```
 

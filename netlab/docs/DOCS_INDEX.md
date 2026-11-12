@@ -68,7 +68,8 @@
 | [ENGINE_LIFECYCLE.md](ENGINE_LIFECYCLE.md) | create→validate→compile→run→snapshot→restore→destroy、快照契约与回滚 | 规划（Proposed） |
 | [CORE_INTERFACE_CONTRACTS.md](CORE_INTERFACE_CONTRACTS.md) | Python Protocol/ABC 精确签名、参数/返回/异常总表 | 规划（Proposed） |
 | [MIGRATION_AND_COMPATIBILITY.md](MIGRATION_AND_COMPATIBILITY.md) | 旧记录/工程 v6·v7 字段映射、兼容窗口、风险 R1–R6、回滚 | 规划（Proposed） |
-| [MINIMAL_DATA_MODEL_EXAMPLE.md](MINIMAL_DATA_MODEL_EXAMPLE.md) | 2 节点+1 边最小领域：JSON/内存对象/编译产物/运行结果 + 最小机械域 | 规划（Proposed） |
+| [MINIMAL_DATA_MODEL_EXAMPLE.md](MINIMAL_DATA_MODEL_EXAMPLE.md) | 最小领域示例：RC 3 节点+2 边、机械 2 节点+1 边；JSON/内存对象/编译产物/运行结果 | 规划（Proposed） |\
+| [STAGE4_INDEPENDENT_REVIEW.md](STAGE4_INDEPENDENT_REVIEW.md) | 阶段 4 第④轮独立评审记录（初评不通过、问题与整改状态） | 规划（Proposed） |
 | [V2_IMPLEMENTATION_GAP_ANALYSIS.md](V2_IMPLEMENTATION_GAP_ANALYSIS.md) | 阶段 4 整改：P1-03–P1-13/P2-02 差距与迁移方案 | 规划（Proposed） |
 | [STAGE4_REMEDIATION_REPORT.md](STAGE4_REMEDIATION_REPORT.md) | 阶段 4 设计冻结整改报告（P0/P1/P2 证据与验收判定） | 规划（Proposed） |
 | [P1_R1_STAMP_CONVERGENCE.md](P1_R1_STAMP_CONVERGENCE.md) | 阶段 5 P1-R1 元件 Stamp 单一化收敛方案（Proposed） | 阶段 5 |

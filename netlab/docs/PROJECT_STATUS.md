@@ -2,7 +2,7 @@
 
 - **状态**：当前状态的唯一事实源（2026-11-11 建立；2026-11-12 阶段 4 设计冻结整改后刷新）。
 - **最后刷新**：2026-11-12（Asia/Shanghai），随「阶段 4 设计冻结整改」更新。
-- **阶段 4（P1-A）**：设计冻结整改已完成 P0-01–P0-04 与关键 P1，新增 `tools/check_stage4_docs.py` 与契约测试；全量 945 passed / 1 skipped / 81.380784%；当前「有条件通过」，待第④轮独立评审。
+- **阶段 4（P1-A）**：设计冻结整改已完成 P0-01–P0-04 与关键 P1，新增 `tools/check_stage4_docs.py` 与契约测试；全量 945 passed / 1 skipped / 81.380784%；当前「不通过（验收未完成）」，待第④轮独立评审并复核残留。
 - **阶段 5（P1-R1）**：元件 Stamp 单一化已交付并 push `eaec04a`（三条 CI success、942 passed/81.3808%）；审批 2026-11-12 评估判「不允许进入阶段 6 · 需用户授权 · 暂停」，阶段 5 成果保留但不作放行依据，阶段 6–13 均 `PENDING_USER_AUTHORIZATION`。
 - **维护规则**：本文件只记当前事实；路线/阶段表见 `CORE_ARCHITECTURE_V2_ROADMAP.md`，目标口径见 `CORE_ARCHITECTURE_V2.md`，执行约束见 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md`（该文件为 2026-11-11 快照，动态状态委托本文件），架构决策见 `docs/adr/`，历史完成记录见 `PROGRESS.md`。机器可读字段以 `status.json` / `reports/test_status.json` 为准。
 
@@ -28,7 +28,7 @@
 - 阶段 1（P1-A-lite）：已完成 —— `ADR-005` Presentation 外观归属 = Accepted（lite）；其余 ADR 仍 Proposed，ADR≠代码实施授权。
 - 阶段 2（P-B 元素级视图外观完整版）：已完成并 push 到 `8e7f583` —— 900 passed / 1 skipped / 81.376055%；评估整改见 `PROGRESS.md §7.154`。
 - 阶段 3（R40 收尾：节点卡片自由字段编辑）：已完成并 push 到 `b667e51` —— 909 passed / 1 skipped / 81.404692%，三条 CI success；详见 `PROGRESS.md §7.153`。
-- 阶段 4（P1-A 全量设计冻结）：9 份 Proposed 文档已交付；**2026-11-12 任务书整改完成**：P0-01–P0-04 全修复、P1-01/P1-02/P1-06 修复、P1-03–P1-13/P2-02 差距分析文档化，新增 `tools/check_stage4_docs.py` + `test_stage4_document_contracts.py`；验收判定「有条件通过」，待第④轮独立评审。详见 `PROGRESS.md §7.159`、`STAGE4_REMEDIATION_REPORT.md`。
+- 阶段 4（P1-A 全量设计冻结）：9 份 Proposed 文档已交付；**2026-11-12 任务书整改完成**：P0-01–P0-04 全修复、P1-01/P1-02/P1-06 修复、P1-03–P1-13/P2-02 差距分析文档化，新增 `tools/check_stage4_docs.py` + `test_stage4_document_contracts.py`；验收判定「不通过（验收未完成）」，待第④轮独立评审并复核残留。详见 `PROGRESS.md §7.159`、`STAGE4_REMEDIATION_REPORT.md`。
 - 阶段 5（P1-R1 Stamp 统一）：已于任务书前交付并 push `eaec04a`（三条 CI success、942 passed/81.3808%）；审批评估判「不允许进入阶段 6 · 需用户授权 · 暂停」，成果保留、不作放行依据。
 - 阶段 6–13（P1-R2 / P1-S1 / P1-S2 / P1-S3 / P2 / P3 / P4 / P5）：未开始，保持 `PENDING_USER_AUTHORIZATION`。
 
@@ -38,7 +38,7 @@
 | 1 | P1-A-lite（ADR-005-lite） | 已完成（Accepted） |
 | 2 | P-B 元素级视图外观完整版 | 已完成（`8e7f583`） |
 | 3 | R40 收尾：节点卡片自由字段 | 已完成（`b667e51`） |
-| 4 | P1-A 全量设计冻结 | 整改完成（有条件通过，待第④轮独立评审） |
+| 4 | P1-A 全量设计冻结 | 整改完成但验收未完成（第④轮独立评审未执行，判不通过） |
 | 5 | P1-R1 Stamp 统一 | 已交付 `eaec04a`，按任务书冻结待复核 |
 | 6 | P1-R2 AC/Bode 统一 | 未开始 |
 | 7 | P1-S1 Project/DTO | 未开始 |
@@ -98,7 +98,7 @@
 
 - 阶段 2 的 `8e7f583` 三条 CI 仍 queued（GitHub runner 未分配），如实标注，不作通过证据。
 - 阶段 3 完成报告已获审批会话 2026-11-12 08:10 只读评估（结论：允许进入阶段 4；无阻塞项）；前置收口见 `PROGRESS.md §7.155`。阶段 4 完成报告待审批会话评估。
-- 阶段 4 整改已修复 P0-01–P0-04 与关键 P1，新增可复现 checker/测试；第④轮独立评审尚未执行，故当前为「有条件通过」而非「通过」。
+- 阶段 4 整改已修复 P0-01–P0-04 与关键 P1，新增可复现 checker/测试；第④轮独立评审尚未执行，且第①轮残留刚修复，故当前为「不通过（验收未完成）」而非「通过」。
 - 阶段 5 P1-R1 已在任务书到达前完成并 push（`eaec04a`）；阶段 4 验收前不再推进阶段 6+，是否回退由用户裁定。
 - ADR-001/002/003/004/006/007/008 仍 Proposed（ADR-008 为 Open Decision），不自行升格 Accepted；三项需用户决策标 `PENDING_USER_AUTHORIZATION`。
 - 所有 `PENDING_USER_AUTHORIZATION` 项保持挂起，未获新授权不启动。

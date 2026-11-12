@@ -22,10 +22,10 @@
 
 - **P0-01 RC 示例物理修正**：`MINIMAL_DATA_MODEL_EXAMPLE.md` 增加 `C1`（1 µF），接地约束改为 `target: gnd`，方程改为 `R1` 本构 + `C1` 本构 + `vout` KCL，`RC=1e-3 s`，`t=RC` 时 `v_vout=0.6321205588 V`，`i_R1=i_C1=0.0003678794 A`。拓扑/方程/约束/数值四者一致。
 - **P0-02 接口统一**：`CORE_INTERFACE_CONTRACTS.md` 的 `EngineSpec` 增 `factory: Callable[["EngineSpec"], "Engine"] | None`；`PluginFacade` 补齐 `register_edge_kind()`、`read_compiled_summary()`；`ENGINE_SPI_V2.md` 的字段表与之一致。
-- **P0-03 对象关系**：`MINIMAL_DATA_MODEL_EXAMPLE.md` 新增独立 `PortDesc`（含 `port_id/port_type/direction/quantity/unit/dimension/cardinality/shape/connection_semantics/coordinate_frame`），`NodeDesc.ports: tuple[PortDesc, ...]`；`EdgeDesc` 以 port id 关联并区分 `kind`。
+- **P0-03 对象关系**：权威 `PortDesc` 定义在 `CORE_MODEL_V2.md` §4（port_id/direction/port_type 等），`MINIMAL_DATA_MODEL_EXAMPLE.md` 明确声明为示意子集并只引用、不重复定义；`NodeDesc.ports` 为 `tuple[PortDesc, ...]`，JSON 的 `ports` 为 port_id 字符串列表并在加载时转换；`NodeDesc` 增 `name`/`initial_data`，`SceneDesc` 增 `id/domain/presentation/compat`，运行时类 `NodeRuntime`/`ConnectionRuntime` 已定义。
 - **P0-04 外观归属**：`CORE_MODEL_V2.md` 的 `NodeDesc` 删除 `appearance`；`MINIMAL_DATA_MODEL_EXAMPLE.md` 把颜色放入 `presentation.node_styles`（按节点 id 关联），不进物理模型/编译缓存键。
 - **P1-01 机械示例**：`m·dv_body/dt = F - b·v_body`，`ground` 固定，`v_body(t)=v0·exp(-bt/m)`；`t=0.5 s` 得 `0.3678794412 m/s`，不再把 `v_body` 置零。
-- **P1-02 不可变契约**：`CORE_INTERFACE_CONTRACTS.md` 增加 `Mapping` 字段构造时 `copy.deepcopy` 契约；`test_runtime_state_isolation` 用两个 Runtime 实例验证状态互不污染。
+- **P1-02 不可变契约**：`CORE_INTERFACE_CONTRACTS.md` 增加 `Mapping` 字段构造时 `copy.deepcopy` 契约；当前 V2 `Runtime` 类尚未实现，`test_runtime_state_isolation` 以深拷贝映射验证契约，真实 Runtime 类隔离待实现阶段补测（本报告如实标注该证据强度限制）。
 - **P1-03 字段迁移**：`MIGRATION_AND_COMPATIBILITY.md` 增 §7 逐字段表（NodeRecord/EdgeRecord 全字段、默认值/转换/是否计算/丢失处理）与 §8 完整 V1 JSON → V2 JSON 示例（含 state 入 Runtime、appearance/layout 入 Presentation 的解释）。
 - **P1-04 物理守恒**：`TYPED_PORT_SYSTEM.md` 增 §10 across/through 定义、参考方向与符号约定，以及电学/机械平动/热学三套完整端口-连接-守恒-本构方程示例。
 - **P1-05 三型边**：`CORE_MODEL_V2.md` 增 §12 `DependencyEdge`/`PhysicalEdge`/`LayoutEdge` 独立 dataclass、JSON 示例、`validate_edge` 校验逻辑与参与编译/布局判定表。
@@ -44,18 +44,19 @@
 ## 5. 仍未解决问题
 
 - 第④轮「另一 Agent 独立评审」尚未执行（任务书 §九明确要求，审批会话只读不能代替）。本报告不能自称「通过」。
+- 第①轮审查残留已修复：`MINIMAL_DATA_MODEL_EXAMPLE.md` 标题/章节的节点计数改为 RC 3 节点+2 边、机械 2 节点+1 边；`CORE_MODEL_V2.md` 13 类对象表删除 NodeDesc 的「外观」并新增独立 `class PortDesc`；`CORE_INTERFACE_CONTRACTS.md` 的 `RuntimeManager.create` 明确 `spec.factory` 创建 Engine；`EXTENSIBILITY_ARCHITECTURE.md:427` 的第三处 `EngineSpec` 标注为 V1 历史示意、以 `CORE_INTERFACE_CONTRACTS.md` 为唯一 V2 定义。以上均纳入 `tools/check_stage4_docs.py` 回归断言。
 - 决策 A（显式 Runtime 快照）、B（Plugin 权限边界）、C（v6 兼容窗口）仍 `PENDING_USER_AUTHORIZATION`，见 ADR-008。
 - P1-07/P1-09/P1-10/P1-12 的代码级整改方案已设计，但按任务书「只形成整改方案不改代码」未实施。
 - 阶段 5 P1-R1 已在任务书到达前完成并 push（`eaec04a`）；是否需要回退/保留由用户在阶段 4 验收后裁定，本报告不擅自回退。
 
 ## 6. 阶段 4 是否可验收
 
-**当前判定：有条件通过（待第④轮独立评审确认）**。
+**当前判定：不通过（验收未完成）**。任务书要求四轮验收，第④轮「另一 Agent 独立评审」尚未执行，且第①轮残留刚完成修复，不能标阶段 4 正式验收完成。
 
 - P0-01–P0-04：全部修复，有 file:line 证据与 checker 断言。
 - 关键 P1-01/P1-02/P1-03/P1-04/P1-05/P1-06：已修复并有测试或文档正文。
 - P1-03–P1-13/P2-02：已形成可评审的差距分析与方案文档，无遗漏。
-- 不判「通过」的唯一原因：第④轮独立评审尚未进行；按任务书定义，`通过 = 所有 P0 + 关键 P1 + 独立评审通过`。
+- 判定依据：四轮验收未齐（第④轮独立评审未执行），按任务书定义 `通过 = 所有 P0 + 关键 P1 + 独立评审通过`；完成独立评审并复核残留后才可重评。
 
 ## 7. 阶段 5 建议
 

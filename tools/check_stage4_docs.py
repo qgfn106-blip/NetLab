@@ -86,8 +86,8 @@ def check_docs() -> list[str]:
         errors.append("MINIMAL_DATA_MODEL_EXAMPLE.md: mechanical ODE missing")
 
     # P0-03: independent PortDesc with coordinate_frame; NodeDesc has ports.
-    if "class PortDesc" not in minimal or "coordinate_frame" not in minimal:
-        errors.append("MINIMAL_DATA_MODEL_EXAMPLE.md: PortDesc/coordinate_frame missing")
+    if "PortType/PortDesc 的权威定义见" not in minimal:
+        errors.append("MINIMAL_DATA_MODEL_EXAMPLE.md: PortType/PortDesc 权威定义声明缺失")
     if "ports: tuple[PortDesc" not in minimal and "ports: tuple[\"PortDesc\"" not in minimal:
         errors.append("MINIMAL_DATA_MODEL_EXAMPLE.md: NodeDesc.ports not typed as PortDesc")
 
@@ -119,6 +119,26 @@ def check_docs() -> list[str]:
         if token not in core_model:
             errors.append(f"CORE_MODEL_V2.md: P1-05 token missing {token!r}")
 
+    # Round-1 residual consistency checks.
+    if "这是 2 节点 + 1 边" in minimal or "各 3 个节点" in minimal:
+        errors.append("MINIMAL_DATA_MODEL_EXAMPLE.md: 标题/章节仍写 2 节点+1 边或「各 3 节点」，与 RC 3 节点+2 边/机械 2 节点+1 边不一致")
+    if "RC 低通（3 节点 + 2 边）" not in minimal or "质量-阻尼（2 节点 + 1 边）" not in minimal:
+        errors.append("MINIMAL_DATA_MODEL_EXAMPLE.md: 未明确 RC 3 节点+2 边与机械 2 节点+1 边")
+    if "class PortDesc:" not in core_model:
+        errors.append("CORE_MODEL_V2.md: 缺少独立 class PortDesc")
+    if "port_id: str" not in core_model or "PortDirection = Literal" not in core_model:
+        errors.append("CORE_MODEL_V2.md: PortDesc 未使用 port_id/PortDirection 统一签名")
+    if "class PortDesc:" in minimal:
+        errors.append("MINIMAL_DATA_MODEL_EXAMPLE.md: 不应重复定义 PortDesc，权威定义在 CORE_MODEL_V2.md")
+    if "def __post_init__" not in contracts:
+        errors.append("CORE_INTERFACE_CONTRACTS.md: 缺少 frozen Mapping 的 __post_init__ deepcopy 契约")
+    for field in ("NodeRecord.name", "EdgeRecord.name", "EdgeRecord.auto_delay", "source_pin", "target_pin", "source_port", "target_port"):
+        if field not in (DOCS / "MIGRATION_AND_COMPATIBILITY.md").read_text(encoding="utf-8"):
+            errors.append(f"MIGRATION_AND_COMPATIBILITY.md: 逐字段表缺少 {field}")
+    if "| `Node` / `NodeDesc` | 物理或功能节点描述：id、kind、ports、params、外观 |" in core_model:
+        errors.append("CORE_MODEL_V2.md: 13 类对象表 NodeDesc 仍含外观")
+    if "spec.factory" not in contracts:
+        errors.append("CORE_INTERFACE_CONTRACTS.md: RuntimeManager.create 未声明通过 spec.factory 创建 Engine")
     return errors
 
 

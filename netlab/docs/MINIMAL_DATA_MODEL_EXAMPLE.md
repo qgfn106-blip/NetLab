@@ -1,12 +1,12 @@
 # 最小数据模型示例（阶段 4 / P1-A）
 
-> 状态：`Proposed`（设计冻结草案，待评审）。本文是 2 节点 + 1 边的**完整示例**：工程 JSON、内存对象、编译产物、运行结果。全部为设计草案，**不是当前实现的输出格式**，不是可执行生产代码；ADR 不是实施授权。
+> 状态：`Proposed`（设计冻结草案，待评审）。本文给出两个最小领域的**完整示例**：RC 低通（3 节点 + 2 边）与质量-阻尼（2 节点 + 1 边），涵盖工程 JSON、内存对象、编译产物、运行结果。全部为设计草案，**不是当前实现的输出格式**，不是可执行生产代码；ADR 不是实施授权。
 > 依据：`NETLAB_V2_PLANNING_REVIEW.md:100-108`（补 6 份文档第 6 份：最小领域完整 JSON/内存对象/编译产物/运行结果）、`:136`（建议先写本示例再写实现）、`CORE_ARCHITECTURE_V2_ROADMAP.md:58-60`（Circuit + 最小机械域验证、4 类物理量）。
 > 边界：不写生产代码、不改外部工程 JSON、不迁移旧工程、不改 FEM。本示例已按数学物理自洽修订（见 `STAGE4_REMEDIATION_REPORT.md` P0-01/P1-01）。
 
 ## 1. 场景选择
 
-两个最小领域，各 3 个节点（含参考地）+ 2 条边：
+两个最小领域：RC 低通为 3 个节点（含参考地）+ 2 条边；质量-阻尼为 2 个节点（含参考地）+ 1 条边：
 
 - **Circuit（RC 低通）**：节点 `vin`（激励 voltage）、`vout`（输出 voltage）、`gnd`（ground 参考）；边 `R1`（resistor）、`C1`（capacitor）。方程为 `(v_vin-v_vout)/R = C·dv_vout/dt`，即 `RC·dv_vout/dt + v_vout = v_vin`，解析解 `v_vout(t)=1-exp(-t/RC)`。
 - **Mechanical（质量-阻尼）**：节点 `body`（velocity）、`ground`（固定参考）；边 `damper`（damper）。方程为 `m·dv_body/dt = F - b·v_body`，解析解 `v_body(t)=v0·exp(-b·t/m)`。
@@ -58,7 +58,7 @@
         {"variable": "v_vout", "value": 0.0}
       ],
       "boundary_conditions": [
-        {"variable": "v_vin", "value": 1.0}
+        {"variable": "v_vin", "expression": "1.0"}
       ]
     }
   ],
@@ -73,7 +73,7 @@
 }
 ```
 
-注：`runtime_snapshot: null` 表示普通保存不含运行态；是否允许显式快照是 `PENDING_USER_AUTHORIZATION`（见 `ENGINE_LIFECYCLE.md` §5）。**外观（`presentation`）属于 Presentation 层，通过节点 id 关联，不进入 `NodeDesc`/物理模型/编译缓存键**（P0-04）。
+注：`runtime_snapshot: null` 表示普通保存不含运行态；是否允许显式快照是 `PENDING_USER_AUTHORIZATION`（见 `ENGINE_LIFECYCLE.md` §5）。**外观（`presentation`）属于 Presentation 层，通过节点 id 关联，不进入 `NodeDesc`/物理模型/编译缓存键**（P0-04）。 `ports` 的 JSON 形式为 port_id 字符串列表，加载时由 `PortTypeRegistry` 按 `PortDesc` 定义转换为 `tuple[PortDesc, ...]`；别名 `port_type` 引用 `PortType`。
 
 RC 校验：`R=1000 Ω`、`C=1e-6 F` ⇒ 时间常数 `RC=1e-3 s`。在 `t=RC` 时 `v_vout=1-e^{-1}=0.6321205588 V`，`i_R1=(1-0.6321205588)/1000=0.0003678794 A`，`i_C1=i_R1`。拓扑、方程、约束、数值四者一致。
 
@@ -86,38 +86,20 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 
-@dataclass(frozen=True)
-class PortType:
-    domain: str
-    quantity: str
-    unit: str
-    dimension: tuple[int, int, int, int, int, int, int]
-    direction: str = "bidirectional"
-    cardinality: str = "one"
-    shape: tuple[int, ...] = ()
-    connection_semantics: str = "physical_conserving"
+# PortType/PortDesc 的权威定义见 `CORE_MODEL_V2.md` §4；本示例不重复定义，仅展示对象关系。
 
-
-@dataclass(frozen=True)
-class PortDesc:
-    port_id: str
-    port_type: str
-    direction: str
-    quantity: str
-    unit: str
-    dimension: tuple[int, int, int, int, int, int, int]
-    cardinality: str = "one"
-    shape: tuple[int, ...] = ()
-    connection_semantics: str = "physical_conserving"
-    coordinate_frame: str = "global"
+# PortDesc 的唯一完整定义见 `CORE_MODEL_V2.md` §4；本示例不重复定义，
+# 下面的 NodeDesc 仅用于展示对象关系（其中 PortDesc 为类型引用）。
 
 
 @dataclass(frozen=True)
 class NodeDesc:
     id: str
     kind: str
+    name: str = ""
     ports: tuple[PortDesc, ...] = ()
     params: Mapping[str, Any] = field(default_factory=dict)
+    initial_data: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

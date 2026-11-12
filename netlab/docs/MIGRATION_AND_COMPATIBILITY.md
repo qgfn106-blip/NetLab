@@ -90,6 +90,7 @@ save_project(desc)
 | V1 字段 | 类别 | V2 目标 | 默认值 | 转换规则 | 是否计算 | 可能丢失 | 无法迁移处理 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `NodeRecord.id` | 标识 | `NodeDesc.id` | 必填 | 原样复制 | 否 | 否 | 拒绝导入 |
+| `NodeRecord.name` | 标识 | `NodeDesc.name` | `""` | 原样复制；空则回退 id | 否 | 否 | 回退 id |
 | `NodeRecord.kind` | 类型 | `NodeDesc.kind` | `"node"` | 原样复制；未知 kind 转 `"unknown"` 并记 warning | 否 | 否 | 保留原值到 `compat.raw_kind` |
 | `NodeRecord.params` | 工程参数 | `NodeDesc.params` | `{}` | 深拷贝为只读映射 | 否 | 否 | 抛 `ModelValidationError` |
 | `NodeRecord.data` | 工程/初始数据 | `NodeDesc.initial_data` + `NodeRuntime.inputs` | `{}` | 声明式数据进 Desc，运行期输入进 Runtime | 否 | 可能（运行期覆盖） | 保留原值到 `compat.legacy_data` |
@@ -99,13 +100,17 @@ save_project(desc)
 | `NodeRecord.size` | Presentation | `presentation.node_layout[id].size` | `[120,48]` | 原样复制 | 否 | 否 | 使用默认尺寸 |
 | `NodeRecord.appearance` | Presentation | `presentation.node_styles[id]` | `{}` | 移入 Presentation，按 id 关联 | 否 | 否 | 使用默认样式 |
 | `EdgeRecord.id` | 标识 | `EdgeDesc.id` | 必填 | 原样复制 | 否 | 否 | 拒绝导入 |
+| `EdgeRecord.name` | 标识 | `EdgeDesc.name` | `""` | 原样复制；空则回退 id | 否 | 否 | 回退 id |
 | `EdgeRecord.source/target` | 连接关系 | `PhysicalEdge/DependencyEdge.source/target` | 必填 | 按 kind 分流；`wire`→Physical，`signal`→Dependency | 否 | 否 | 抛 `ModelValidationError` |
 | `EdgeRecord.kind` | 类型 | `EdgeDesc.kind` | `"physical"` | `wire`→`physical`，`signal`→`dependency`，`layout`→`layout` | 否 | 否 | 未知 kind 归 `layout` |
+| `EdgeRecord.source_pin` / `target_pin` | 连接绑定 | `EdgeDesc.source_pin` / `target_pin` | `""` | 原样复制，仅 `kind=="wire"` 使用 | 否 | 否 | 空串 |
 | `EdgeRecord.params` | 工程参数 | `EdgeDesc.params` | `{}` | 深拷贝为只读映射 | 否 | 否 | 抛 `ModelValidationError` |
 | `EdgeRecord.state` | Runtime State | `ConnectionRuntime.state` | `{}` | 不进入 Desc，创建 Runtime 时深拷贝 | 是 | 可能（旧值过期） | 丢弃并记审计日志 |
-| `EdgeRecord.delay` | 计算元数据 | `DependencyEdge.delay` | `0.0` | 仅 Dependency 边保留 | 否 | 否 | 物理边忽略 |
+| `EdgeRecord.delay` | 计算元数据 | `DependencyEdge.delay` | `false` | bool 标志原样复制；仅 Dependency 边保留 | 否 | 否 | 物理边忽略 |
+| `EdgeRecord.auto_delay` | 计算元数据 | `DependencyEdge.auto_delay` | `false` | bool 原样复制 | 否 | 否 | 默认 false |
+| `EdgeRecord.source_port` / `target_port` | 连接绑定 | `EdgeDesc.source_port` / `target_port` | `""` | 原样复制 | 否 | 否 | 空串 |
 | `EdgeRecord.enabled` | 计算元数据 | `DependencyEdge.enabled` / 物理边默认启用 | `true` | 原样复制 | 否 | 否 | 默认 true |
-| `EdgeRecord.route/waypoints/anchors` | Presentation | `presentation.edge_layout[id]` | `[]` | 原样复制，不参与编译 | 否 | 否 | 使用默认折线 |
+| `EdgeRecord.route/waypoints/anchors` | Presentation | `presentation.edge_layout[id]` | `"auto"` / `[]` / `{}` | 原样复制，不参与编译 | 否 | 否 | 使用默认折线 |
 | `EdgeRecord.layout` | Presentation | `presentation.edge_layout[id]` | `{}` | 原样复制 | 否 | 否 | 使用默认布局 |
 | `EdgeRecord.appearance` | Presentation | `presentation.edge_styles[id]` | `{}` | 移入 Presentation，按 id 关联 | 否 | 否 | 使用默认样式 |
 
@@ -122,12 +127,14 @@ V1 输入（节选，完整字段语义见 §7）：
   "scenes": [{
     "id": "scene-1",
     "mode": "circuit",
+    "domain": "circuit",
+    "revision": 1,
     "nodes": [
       {"id": "vin", "name": "vin", "kind": "node", "params": {}, "data": {}, "state": {}, "inputs": {}, "position": [80, 120], "size": [80, 40], "appearance": {"color": "#3366ff"}},
       {"id": "vout", "name": "vout", "kind": "node", "params": {}, "data": {}, "state": {"v": 0.63}, "inputs": {}, "position": [240, 120], "size": [80, 40], "appearance": {}}
     ],
     "edges": [
-      {"id": "R1", "source": "vin", "target": "vout", "kind": "wire", "params": {"R": 1000.0}, "state": {"i": 0.0003678794}, "delay": 0.0, "enabled": true, "route": [], "waypoints": [], "anchors": [], "layout": {}, "appearance": {}}
+      {"id": "R1", "source": "vin", "target": "vout", "kind": "wire", "params": {"R": 1000.0}, "state": {"i": 0.0003678794}, "delay": false, "auto_delay": false, "enabled": true, "route": "auto", "waypoints": [], "anchors": {}, "layout": {}, "appearance": {}}
     ]
   }]
 }
@@ -152,7 +159,7 @@ V2 输出（同一工程，按 §7 转换）：
     "presentation": {
       "node_layout": {"vin": {"position": [80, 120], "size": [80, 40]}, "vout": {"position": [240, 120], "size": [80, 40]}},
       "node_styles": {"vin": {"color": "#3366ff"}, "vout": {}},
-      "edge_layout": {"R1": {"route": [], "waypoints": [], "anchors": [], "layout": {}}},
+      "edge_layout": {"R1": {"route": "auto", "waypoints": [], "anchors": {}, "layout": {}}},
       "edge_styles": {"R1": {}}
     },
     "compat": {"legacy_data": {"vout": {}}, "raw_kind": {"R1": "wire"}}

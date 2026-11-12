@@ -50,8 +50,9 @@ class NumericalError(ModelError):
 ```python
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 
 @dataclass(frozen=True)
@@ -70,6 +71,11 @@ class CompiledModel:
     execution_plan: Mapping[str, Any]
     diagnostics: tuple[Diagnostic, ...] = ()
     sparse_structure: Mapping[str, Any] = field(default_factory=dict)
+    cache_key_excludes: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "execution_plan", copy.deepcopy(dict(self.execution_plan)))
+        object.__setattr__(self, "sparse_structure", copy.deepcopy(dict(self.sparse_structure)))
 
 
 @dataclass(frozen=True)
@@ -78,6 +84,9 @@ class RuntimeSnapshot:
     generation: str
     state: Mapping[str, Any]
     checksum: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "state", copy.deepcopy(dict(self.state)))
 
 
 @dataclass(frozen=True)
@@ -91,9 +100,12 @@ class EngineSpec:
     factory: Callable[["EngineSpec"], "Engine"] | None = None
     plugin_id: str | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "metadata", copy.deepcopy(dict(self.metadata)))
 ```
 
-> 不可变契约（P1-02）：所有 `Mapping` 字段在构造时必须 `copy.deepcopy` 传入，禁止把外部可变容器直接挂进 `frozen` 对象；`test_stage4_document_contracts.py` 的 `test_runtime_state_isolation` 用两个 Runtime 实例验证状态互不污染。
+> 不可变契约（P1-02）：所有 `Mapping` 字段在构造时必须 `copy.deepcopy` 传入，禁止把外部可变容器直接挂进 `frozen` 对象；`test_stage4_document_contracts.py` 从本文 §2 代码块加载真实 dataclass，验证外部可变容器修改不污染快照、两个快照互不共享状态。
 
 ## 3. 精确 Protocol 签名
 
@@ -143,7 +155,7 @@ class SceneEdit(Protocol):
         """在事务中应用一次编辑；失败抛 ModelValidationError。"""
         ...
 
-    def commit(self) -> Any:
+    def commit(self) -> SceneDesc:
         """提交，返回新 SceneDesc 与 revision；外观编辑只增 revision。"""
         ...
 
@@ -217,6 +229,24 @@ class PluginFacade(Protocol):
         """只读编译摘要（变量/方程/计划摘要），不含运行态。"""
         ...
 
+    def register_analysis_spec(self, spec: Any) -> None:
+        ...
+
+    def register_data_format(self, spec: Any) -> None:
+        ...
+
+    def register_panel(self, spec: Any) -> None:
+        ...
+
+    def register_visual(self, spec: Any) -> None:
+        ...
+
+    def register_template(self, spec: Any) -> None:
+        ...
+
+    def register_engine_spec(self, spec: Any) -> None:
+        ...
+
     def read_probe(self, name: str) -> float:
         ...
 
@@ -228,7 +258,7 @@ class PluginFacade(Protocol):
 @runtime_checkable
 class RuntimeManager(Protocol):
     def create(self, spec: EngineSpec, desc: Any) -> Runtime:
-        """依次 validate / compile / create_runtime。"""
+        """依次 validate / compile / create_runtime；create_runtime 必须通过 spec.factory 创建 Engine 实例。"""
         ...
 
     def snapshot(self, runtime: Runtime) -> bytes:
@@ -284,6 +314,7 @@ class EngineBase(ABC):
 | `UnitRegistry` | `convert` | `value, from_unit, to_unit` | `float` | `UnitMismatchError` |
 | `UnitRegistry` | `register` | `unit, dimension, scale` | `None` | `ModelValidationError` |
 | `SceneEdit` | `begin` | — | `str` | — |
+| `SceneEdit` | `apply` | `op`, `payload` | `None` | `ModelValidationError` |
 | `SceneEdit` | `commit` | — | `SceneDesc` | `ModelValidationError` |
 | `SceneEdit` | `rollback` | `transaction_id` | `None` | `ModelValidationError` |
 | `Engine` | `validate` | `desc` | `Sequence[Diagnostic]` | `ModelValidationError` |

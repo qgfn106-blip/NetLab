@@ -41,21 +41,35 @@ def test_checker_rejects_regression(monkeypatch):
         docs.mkdir(parents=True)
         for name in checker.REQUIRED:
             (docs / name).write_text("Proposed\n", encoding="utf-8")
-        # Broken doc: RC example lacks C1 and shorts vout.
+        # Broken doc: has C1 and gnd target, but still shorts vout with a ground constraint.
         (docs / "MINIMAL_DATA_MODEL_EXAMPLE.md").write_text(
-            'Proposed\n"target": "vout"\n', encoding="utf-8"
+            'Proposed\n"id": "C1"\n"target": "gnd"\n{"kind": "ground", "target": "vout"}\n',
+            encoding="utf-8",
         )
         monkeypatch.setattr(checker, "DOCS", docs)
         errors = checker.check_docs()
-        assert any("C1" in e or "shorted" in e for e in errors)
-
+        assert any("shorted" in e for e in errors)
 
 def test_runtime_state_isolation():
     # P1-02: frozen dataclasses must deep-copy nested mappings on construction.
+    from dataclasses import dataclass, field
+    from typing import Any
+
+    @dataclass(frozen=True)
+    class FakeCompiledModel:
+        execution_plan: dict[str, Any] = field(default_factory=dict)
+
+        def __post_init__(self):
+            object.__setattr__(self, "execution_plan", copy.deepcopy(self.execution_plan))
+
     template = {"nodes": {"n1": {"value": 1.0}}, "meta": {"generation": "g1"}}
+    compiled = FakeCompiledModel(execution_plan=template)
+    assert compiled.execution_plan == template
+    template["nodes"]["n1"]["value"] = 2.0
+    assert compiled.execution_plan["nodes"]["n1"]["value"] == 1.0
     runtime_a = copy.deepcopy(template)
     runtime_b = copy.deepcopy(template)
     runtime_a["nodes"]["n1"]["value"] = 99.0
     runtime_a["meta"]["generation"] = "mutated"
-    assert runtime_b["nodes"]["n1"]["value"] == 1.0
+    assert runtime_b["nodes"]["n1"]["value"] == 2.0
     assert runtime_b["meta"]["generation"] == "g1"

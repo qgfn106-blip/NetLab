@@ -180,6 +180,39 @@ def check_docs() -> list[str]:
     if re.search(r'"type"\s*:', core_model):
         errors.append("CORE_MODEL_V2.md: edge JSON still uses type instead of kind")
 
+    # A3 field-level: edge JSON examples must expose kind/source_port/target_port.
+    core_json = json_blocks(core_model)
+    def walk_edges(value):
+        if isinstance(value, dict):
+            if "kind" in value and ("source_port" in value or "target_port" in value):
+                yield value
+            for child in value.values():
+                yield from walk_edges(child)
+        elif isinstance(value, list):
+            for child in value:
+                yield from walk_edges(child)
+    edge_examples = [edge for obj in core_json for edge in walk_edges(obj)]
+    if not edge_examples or not all("kind" in e and "source_port" in e and "target_port" in e for e in edge_examples):
+        errors.append("CORE_MODEL_V2.md: Edge JSON examples must include kind/source_port/target_port")
+    if edge_examples and any("type" in e and "kind" not in e for e in edge_examples):
+        errors.append("CORE_MODEL_V2.md: Edge JSON example uses type without kind")
+
+    # A4 field-level: NodeDesc.ports must be tuple[PortDesc,...], JSON ports are list[str].
+    if 'ports: tuple["PortDesc", ...]' not in core_model and "ports: tuple[PortDesc, ...]" not in core_model:
+        errors.append("CORE_MODEL_V2.md: NodeDesc.ports must be tuple[PortDesc, ...]")
+    node_ports_ok = False
+    for obj in minimal_json:
+        scenes = obj.get("scenes") if isinstance(obj, dict) else None
+        if not isinstance(scenes, list) or not scenes or not isinstance(scenes[0], dict):
+            continue
+        for node in scenes[0].get("nodes", []):
+            if isinstance(node, dict) and "ports" in node:
+                ports = node["ports"]
+                if isinstance(ports, list) and all(isinstance(x, str) for x in ports):
+                    node_ports_ok = True
+    if not node_ports_ok:
+        errors.append("MINIMAL_DATA_MODEL_EXAMPLE.md: node ports JSON must be list[str] (converted to tuple[PortDesc])")
+
     return errors
 
 

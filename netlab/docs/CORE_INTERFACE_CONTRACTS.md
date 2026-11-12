@@ -105,7 +105,7 @@ class EngineSpec:
         object.__setattr__(self, "metadata", copy.deepcopy(dict(self.metadata)))
 ```
 
-> 不可变契约（P1-02）：所有 `Mapping` 字段在构造时必须 `copy.deepcopy` 传入，禁止把外部可变容器直接挂进 `frozen` 对象；`test_stage4_document_contracts.py` 从本文 §2 代码块加载真实 dataclass，验证外部可变容器修改不污染快照、两个快照互不共享状态。
+> 不可变契约（P1-02）：所有 `Mapping` 字段在构造时必须 `copy.deepcopy` 传入，禁止把外部可变容器直接挂进 `frozen` 对象；`test_stage4_document_contracts.py` 用等价的 frozen dataclass 验证 deepcopy 契约（真实 Runtime/CompiledModel 类尚未实现），验证外部可变容器修改不污染快照、两个快照互不共享状态。
 
 ## 3. 精确 Protocol 签名
 

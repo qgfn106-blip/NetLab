@@ -149,6 +149,8 @@ V2 输出（同一工程，按 §7 转换）：
   "scenes": [{
     "id": "scene-1",
     "mode": "circuit",
+    "domain": "circuit",
+    "revision": 1,
     "nodes": [
       {"id": "vin", "kind": "node", "params": {}, "initial_data": {}},
       {"id": "vout", "kind": "node", "params": {}, "initial_data": {}}

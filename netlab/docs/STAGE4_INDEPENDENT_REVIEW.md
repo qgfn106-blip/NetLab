@@ -46,3 +46,13 @@
 3. `PluginFacade` 能力面已按 `ENGINE_SPI_V2.md` §4 补齐注册方法，后续实现须保持同步。
 4. checker 已加强字段级存在与关键字段断言，但仍需在 CI 中运行 `test_stage4_document_contracts.py` 防止浅门误报绿。
 5. P1-07 运行时共享可变 dict 仍只登记方案，阶段 5 若直接实现 Runtime 须先落隔离方案。
+## 8. 第④轮复评记录（2026-11-12）
+
+独立只读 Agent `a32ae825-2bf0-4b20-a0f9-eeac530eb57b` 对修复后的九份文档复评，结论：**有条件通过**。
+
+- 已确认修复：A1、A3、A4、B1–B5。
+- 复评仍指出：A2 两个示例的 SceneDesc 封套字段（project-level presentation、scene domain/revision）不一致；B6 `CORE_INTERFACE_CONTRACTS.md` 曾称测试加载真实 dataclass，实际为等价 frozen dataclass；C1 checker 仍偏 token 断言、未覆盖封套/kind；C3 测试未实例化真实契约类。
+- 随后修复：`MINIMAL_DATA_MODEL_EXAMPLE.md` 的 presentation 下沉进 scene；`MIGRATION_AND_COMPATIBILITY.md` scene 增 domain/revision；`CORE_INTERFACE_CONTRACTS.md` 改为「等价 frozen dataclass」措辞；`tools/check_stage4_docs.py` 增加封套 JSON 结构与 `type`→`kind` 回归断言。
+
+当前状态：上述可验证项已修，第④轮最终复评仍需执行；阶段 4 不标正式验收完成。
+

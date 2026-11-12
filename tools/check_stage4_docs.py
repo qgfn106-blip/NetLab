@@ -8,6 +8,7 @@ Semantic review items are reported as MANUAL (never silently passed).
 """
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -139,6 +140,46 @@ def check_docs() -> list[str]:
         errors.append("CORE_MODEL_V2.md: 13 类对象表 NodeDesc 仍含外观")
     if "spec.factory" not in contracts:
         errors.append("CORE_INTERFACE_CONTRACTS.md: RuntimeManager.create 未声明通过 spec.factory 创建 Engine")
+
+    # Semantic envelope/JSON checks (A2/A3 regression protection).
+    def json_blocks(text: str) -> list[object]:
+        blocks = re.findall(r"```json\s*\n(.*?)```", text, re.S)
+        parsed: list[object] = []
+        for block in blocks:
+            try:
+                parsed.append(json.loads(block))
+            except Exception:
+                continue
+        return parsed
+
+    minimal_json = json_blocks(minimal)
+    if not any(
+        isinstance(obj, dict)
+        and "presentation" not in obj
+        and isinstance(obj.get("scenes"), list)
+        and obj["scenes"]
+        and isinstance(obj["scenes"][0], dict)
+        and "presentation" in obj["scenes"][0]
+        and "domain" in obj["scenes"][0]
+        for obj in minimal_json
+    ):
+        errors.append("MINIMAL_DATA_MODEL_EXAMPLE.md: project-level presentation or scene envelope inconsistent")
+
+    migration_json = json_blocks((DOCS / "MIGRATION_AND_COMPATIBILITY.md").read_text(encoding="utf-8"))
+    if not any(
+        isinstance(obj, dict)
+        and isinstance(obj.get("scenes"), list)
+        and obj["scenes"]
+        and isinstance(obj["scenes"][0], dict)
+        and "presentation" in obj["scenes"][0]
+        and "domain" in obj["scenes"][0]
+        for obj in migration_json
+    ):
+        errors.append("MIGRATION_AND_COMPATIBILITY.md: scene envelope missing domain/presentation")
+
+    if re.search(r'"type"\s*:', core_model):
+        errors.append("CORE_MODEL_V2.md: edge JSON still uses type instead of kind")
+
     return errors
 
 

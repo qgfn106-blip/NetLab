@@ -124,13 +124,16 @@ class EdgeDesc:
   "id": "mass-damper",
   "mode": "mechanical",
   "domain": "mechanical",
+  "revision": 1,
+  "compat": {},
+  "presentation": {},
   "nodes": [
     {"id": "body", "kind": "mass", "ports": ["body_v"], "params": {}},
     {"id": "ground", "kind": "ground", "ports": ["ground_v"], "params": {}}
   ],
   "edges": [
     {"id": "damper", "kind": "physical", "source": "body", "target": "ground",
-     "source_port": "body_v", "target_port": "ground_v", "params": {"damping": 2.0}}
+     "source_port": "body_v", "target_port": "ground_v", "params": {"b": 2.0}}
   ],
   "variables": [
     {"id": "v_body", "quantity": "velocity", "unit": "m/s", "dimension": [1, 0, -1, 0, 0, 0, 0]},

@@ -111,13 +111,13 @@
 
 ### 10.2 电学完整示例
 
-端口定义：`R1.p1`（domain=circuit, quantity=voltage/current, reference=node vin, direction=bidirectional）；`R1.p2`（reference=node vout）。连接关系：`p1` 接 `vin`，`p2` 接 `vout`，`vin` 为参考地以上的节点。
+端口定义：`R1.p1`（domain=circuit, quantity=voltage/current, reference=node（节点 id=vin）, direction=bidirectional）；`R1.p2`（reference=node，节点 id=vout）。连接关系：`p1` 接 `vin`，`p2` 接 `vout`，`vin` 为参考地以上的节点。
 
 符号约定：电流从 `vin` 经 `R1` 流向 `vout` 为正。守恒方程（vout 节点 KCL）：`i_R1 - i_C1 = 0`。本构关系：`i_R1 = (v_vin - v_vout)/R`。最终方程：`(v_vin - v_vout)/R - C*d(v_vout)/dt = 0`。
 
 ### 10.3 机械平动完整示例
 
-端口定义：`Mass.p_force`（domain=mechanical, quantity=force, reference=node body, direction=input）；`Mass.p_velocity`（quantity=velocity, reference=node body, direction=output）；`Damper.p1/p2`（force/velocity 双向，reference=body/ground）。
+端口定义：`Mass.p_force`（domain=mechanical, quantity=force, reference=node（节点 id=body）, direction=input）；`Mass.p_velocity`（quantity=velocity, reference=node（节点 id=body）, direction=output）；`Damper.p1/p2`（force/velocity 双向，reference=node（节点 id=body/ground））。
 
 符号约定：力沿 `+x` 为正，速度沿 `+x` 为正。守恒方程（body 节点力平衡）：`F_ext - F_damper - F_mass = 0`。本构关系：`F_damper = b*v_body`、`F_mass = m*d(v_body)/dt`。最终方程：`m*d(v_body)/dt + b*v_body = F_ext`，即 `m*dv/dt + b*v = F(t)`；无外力时 `v(t)=v0*exp(-b*t/m)`。
 

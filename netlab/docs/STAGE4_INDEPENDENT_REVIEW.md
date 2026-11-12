@@ -37,3 +37,18 @@ RC：`R=1000Ω, C=1µF ⇒ τ=1e-3s`，`v_out(τ)=0.6321205588V`，`i_R1=i_C1=3.
 
 - 本轮复评为「有条件通过（无阻断）」；非阻断问题已修，仍须按任务书安排再次独立复评，并由用户明确批准后才可标阶段 4 正式验收完成。
 - 残余：`type/kind` 负向守卫目前仅覆盖 CORE_MODEL_V2；MINIMAL/MIGRATION 为示意子集，字段以 CORE_MODEL_V2 §4 为准。
+
+## 10. 第二轮最终复评（2026-11-12，HEAD 501ae78 + 文档一致性修复）
+
+评审方：独立只读评审 Agent `901215bc`。结论：**有条件通过（无阻断问题）**；A1–A4、B1–B6、C1–C3 均闭环，数学物理正确；另有 9 项非阻断字段级/文档卫生问题。已全部处置：
+1. `MIGRATION_AND_COMPATIBILITY.md:106` 的 `source_pin/target_pin` 映射改为 `EdgeDesc.source_port/target_port`；
+2. `EdgeRecord.delay` 迁移口径改为 V1 bool → V2 数值秒 `0.0`（true 保留 0.0 并记告警）；
+3. `PROJECT_STATUS.md` 测试基线统一为 945 passed / 81.380784%，942 标注为阶段5历史；
+4. `PROJECT_STATUS.md:100` 阶段4复评表述改为「有条件通过（无阻断），待最终复评/用户批准」；
+5. `MINIMAL_DATA_MODEL_EXAMPLE.md` 机械场景补 `revision`/`compat`/`presentation`；
+6. 机械边 params `damping` 改为 `b`，与方程一致；
+7. `CORE_MODEL_V2.md` §3 对象表 SceneDesc 去掉「时钟」、Variable 去掉「所属节点/边」，与 §4 dataclass 对齐；
+8. `CORE_MODEL_V2.md` 文件头删除旧测试基线数字，改为以 git rev-parse/status.json 为准；
+9. `TYPED_PORT_SYSTEM.md` 的 `reference=node vin` 改为 `reference=node（节点 id=vin）`。
+
+验证：`check_stage4_docs.py` PASS；契约/隐私/SSOT 6 passed。最终结论仍以「有条件通过（无阻断）」记录，待最终复评/用户批准，不自行标正式验收。

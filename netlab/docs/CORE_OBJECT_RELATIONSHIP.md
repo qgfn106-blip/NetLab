@@ -61,9 +61,9 @@ flowchart TD
 | Desc 字段 | Runtime 字段 | 说明 |
 | --- | --- | --- |
 | `NodeDesc.id/kind/ports/params` | `NodeRuntime.state`、`value` | 描述静态，状态动态 |
-| `NodeDesc.appearance` | 不进入 Runtime | Presentation 层，只增 `revision` |
+| `Presentation.node_styles[id]`（`NodeDesc` 不含 `appearance`） | 不进入 Runtime | Presentation 层，只增 `revision` |
 | `EdgeDesc.kind/source/target/source_port/target_port` | `ConnectionRuntime.current`、`delay_state` | 描述拓扑，状态为支路量/延迟历史 |
-| `EdgeDesc.appearance` | 不进入 Runtime | 同上 |
+| `Presentation.edge_styles[id]`（`EdgeDesc` 不含 `appearance`） | 不进入 Runtime | 同上 |
 | `LayoutEdge` | 不进入 Runtime | 纯布局，不进方程、不进缓存键 |
 
 现状 `netlab/core/model/graph.py:164-188` 的 `Node.__post_init__` 让 `data/state` 与 `NodeRecord` **共享同一个可变字典引用**（审计 §5 的 P1-H1），是双份状态的根因；V2 用不可变 `frozen=True` dataclass 作 Desc、可变对象单独放 Runtime，从结构上消除共享引用。

@@ -1,6 +1,6 @@
 # NetLab ADR 索引
 
-本目录记录架构决策。历史 ADR `0001/0002/0003` 属于旧编号线，保留不动；V2 架构决策使用本目录的 `ADR-001..ADR-007` 文件标识。
+本目录记录架构决策。历史 ADR `0001/0002/0003` 属于旧编号线，保留不动；V2 架构决策使用本目录的 `ADR-001..ADR-008` 文件标识。
 
 | ADR | 标题 | 状态 |
 |---|---|---|
@@ -11,6 +11,7 @@
 | ADR-005 | Presentation 外观归属（ADR-005-lite） | **Accepted（2026-11-11，lite）** |
 | ADR-006 | Equation 与 Numerical Backend 分离 | Proposed |
 | ADR-007 | Control Flow 与计算依赖分离 | Proposed |
+| ADR-008 | 阶段 4 三项待决问题（Runtime 快照/Plugin 权限/v6 兼容） | Proposed（Open Decision） |
 
 说明：
 

@@ -67,7 +67,7 @@ class PortType:
     domain: str
     quantity: str
     unit: str
-    dimension: tuple[int, int, int, int]
+    dimension: tuple[int, int, int, int, int, int, int]
     direction: str
     cardinality: str = "one"
     shape: tuple[int, ...] = ()
@@ -81,9 +81,9 @@ class PortType:
 class NodeDesc:
     id: str
     kind: str
-    ports: tuple[str, ...] = ()
+    ports: tuple["PortDesc", ...] = ()
     params: Mapping[str, Any] = field(default_factory=dict)
-    appearance: Mapping[str, Any] = field(default_factory=dict)
+    # 外观不在 Description：Presentation 层按 id 关联，见 ARCHITECTURE_BOUNDARIES.md
 
 
 @dataclass(frozen=True)
@@ -95,7 +95,7 @@ class EdgeDesc:
     source_port: str = ""
     target_port: str = ""
     params: Mapping[str, Any] = field(default_factory=dict)
-    appearance: Mapping[str, Any] = field(default_factory=dict)
+    # 外观不在 Description：Presentation 层按 id 关联，见 ARCHITECTURE_BOUNDARIES.md
 
 
 @dataclass(frozen=True)
@@ -119,7 +119,7 @@ class Variable:
     id: str
     quantity: str
     unit: str
-    dimension: tuple[int, int, int, int]
+    dimension: tuple[int, int, int, int, int, int, int]
 
 
 @dataclass(frozen=True)

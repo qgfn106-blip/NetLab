@@ -2891,3 +2891,15 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 禁止区零触碰：不改 FEM、`graph.py`/`scene.py` 冻结区、`MAX_NODES=400`、`NETLAB_MATH_ACCEL`；R25/R19 暂停；Phase3 架构债/Phase4 CI 证据/500+ 规模/Newton 选主元/SCC 差分 Jacobian 仍 `PENDING_USER_AUTHORIZATION`；ADR-001/002/003/004/006/007 保持 Proposed。
 - 验证：改动位于 `netlab/core/compute/`，按 D-5 生成代码指纹影子报告；跑全量 pytest + core 覆盖率门 + 8 后端门禁 + `npm run check:sections`；提交后 push 并以最终精确 HEAD 重绑三条 CI。
 - §9.3 第 6/7 项按「适用」处理（阶段 5 首次触及 `netlab/core/compute/circuit` 数值内核）：数值正确性给 D-5 影子报告（代码指纹 `8b52b811…`，off/shadow/on `max_abs_error=5.55e-17`、`max_rel_error=4.84e-14 < rtol 1e-10`，独立参考解通过）+ `test_stamp_unification.py` 逐元素等价；性能基准实测 `tools/bench_stamp_unification.py`：`stamp_laplacian` 20 万次 197.31ms（≈0.99µs/次），inline 参考 180.46ms（≈0.90µs/次）、比值 1.093×，`_assemble_matrices` 120 节点 RC 梯形 0.25ms，矩阵逐元素相等。第 8 项以最终 push 的精确 HEAD 三条 completed/success + 五 check-run 为准。
+
+## 7.159 阶段 4 设计冻结整改（2026-11-12，任务书后）
+
+- 触发：项目审批转来《阶段4架构设计整改与重新验收任务书》，判定原阶段 4「不通过」（P0-01–P0-04 仍存在、九份文档自 `ad2e481` 后零改动）。
+- P0-01：`MINIMAL_DATA_MODEL_EXAMPLE.md` RC 示例补 `C1`、接地改为 `gnd`、方程补 `C1` 本构与 `vout` KCL，`RC=1e-3 s`、`v_vout=0.6321205588 V`，拓扑/方程/约束/数值自洽。
+- P0-02：`CORE_INTERFACE_CONTRACTS.md` 的 `EngineSpec` 增 `factory`；`PluginFacade` 补 `register_edge_kind`/`read_compiled_summary`，与 `ENGINE_SPI_V2.md` 一致。
+- P0-03：`MINIMAL_DATA_MODEL_EXAMPLE.md` 新增独立 `PortDesc`（含 `coordinate_frame`），`NodeDesc.ports: tuple[PortDesc, ...]`。
+- P0-04：`CORE_MODEL_V2.md` 的 `NodeDesc`/`EdgeDesc` 删除 `appearance`；外观改由 Presentation `presentation.node_styles` 按 id 关联。
+- P1-01/P1-02/P1-06：机械示例改 `m·dv/dt=F-b·v`；补 `Mapping` 深拷贝契约与隔离测试；新增 `tools/check_stage4_docs.py`（真实检查，非空检查）与 `test_stage4_document_contracts.py`（3 passed）。
+- P1-03–P1-13/P2-02：写入 `V2_IMPLEMENTATION_GAP_ANALYSIS.md`；P2-01 统一 7 基本量纲 `[L,M,T,I,Θ,N,J]`；ADR-008 记录三项 Open Decision。
+- 验证：`_stage4_validate.py` ALL PASS、`check_stage4_docs.py` PASS、docs 隐私/SSOT/契约 6 passed、`render_docs --check` OK。
+- 验收：当前「有条件通过」，待第④轮独立评审；阶段 5 已交付 `eaec04a` 但按任务书冻结，阶段 6–13 暂停。

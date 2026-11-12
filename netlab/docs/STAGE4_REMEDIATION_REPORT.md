@@ -39,11 +39,11 @@
 - `python tools/check_stage4_docs.py` → `STAGE4 DOC CHECK PASSED`（并打印 `MANUAL: semantic review ...`）。
 - `python -m pytest netlab/tests/test_stage4_document_contracts.py -q` → 3 passed（含 checker 反例测试与 deepcopy 隔离测试）。
 - 9 份文档逐份 `ast.parse` / `json.loads` / Mermaid 裸竖线检查：由 `tools/check_stage4_docs.py` 覆盖核心契约；完整语法检查沿用阶段 4 的 `_stage4_validate.py`（仓库根，非提交物）。
-- 全量 `python -m pytest netlab/tests -q --junitxml=reports/pytest.xml --cov=netlab/core --cov-branch --cov-report=json:coverage.json` → **945 passed / 1 skipped / 0 failed / 236.37s**，core 覆盖率 **81.380784%**（12445/14619）；新增 3 个契约测试。阶段 5 的 942 基线保留为历史，本结果为本轮整改实测。
+- 全量 `python -m pytest netlab/tests -q --junitxml=reports/pytest.xml --cov=netlab/core --cov-branch --cov-report=json:coverage.json` → **945 passed / 1 skipped / 0 failed / 271.96s**，core 覆盖率 **81.380784%**（12445/14619）；新增 3 个契约测试。阶段 5 的 942 基线保留为历史，本结果为本轮整改实测。
 
 ## 5. 仍未解决问题
 
-- 第④轮「另一 Agent 独立评审」初评已执行（独立只读 Agent `13d009cb`），结论「不通过」；A1–A4/B1–B6/C1–C3 已按最小放行清单修复，详见 `STAGE4_INDEPENDENT_REVIEW.md`。复评尚未执行，本报告不能自称「通过」。
+- 第④轮「另一 Agent 独立评审」已执行：初评 Agent `13d009cb` 判「不通过」；A1–A4/B1–B6/C1–C3 已修复；复评 Agent `a32ae825` 判「有条件通过（无阻断）」；A2/B6/C1 再收口后**最终复评待执行**。详见 `STAGE4_INDEPENDENT_REVIEW.md`。本报告不能自称「通过」。
 - 第①轮审查残留已修复：`MINIMAL_DATA_MODEL_EXAMPLE.md` 标题/章节的节点计数改为 RC 3 节点+2 边、机械 2 节点+1 边；`CORE_MODEL_V2.md` 13 类对象表删除 NodeDesc 的「外观」并新增独立 `class PortDesc`；`CORE_INTERFACE_CONTRACTS.md` 的 `RuntimeManager.create` 明确 `spec.factory` 创建 Engine；`EXTENSIBILITY_ARCHITECTURE.md:427` 的第三处 `EngineSpec` 标注为 V1 历史示意、以 `CORE_INTERFACE_CONTRACTS.md` 为唯一 V2 定义。以上均纳入 `tools/check_stage4_docs.py` 回归断言。
 - 决策 A（显式 Runtime 快照）、B（Plugin 权限边界）、C（v6 兼容窗口）仍 `PENDING_USER_AUTHORIZATION`，见 ADR-008。
 - P1-07/P1-09/P1-10/P1-12 的代码级整改方案已设计，但按任务书「只形成整改方案不改代码」未实施。
@@ -51,12 +51,12 @@
 
 ## 6. 阶段 4 是否可验收
 
-**当前判定：第④轮独立评审最终复评通过（无阻断），待用户明确批准；不得标阶段 4 正式验收完成。** 任务书要求四轮验收；第④轮独立评审初评「不通过」后，A1–A4/B1–B6/C1–C3 已修复，最终复评确认无阻断（A2/B6/C1 已闭环）。
+**当前判定：第④轮独立评审复评「有条件通过（无阻断）」，非阻断项已修复，最终复评待执行；不得标阶段 4 正式验收完成。** 任务书要求四轮验收；初评「不通过」→修复→复评「有条件通过」→A2/B6/C1 收口，仍需第三方独立最终复评。
 
 - P0-01–P0-04：全部修复，有 file:line 证据与 checker 断言。
 - 关键 P1-01/P1-02/P1-03/P1-04/P1-05/P1-06：已修复并有测试或文档正文。
 - P1-03–P1-13/P2-02：已形成可评审的差距分析与方案文档，无遗漏。
-- 判定依据：四轮验收未齐（第④轮初评未通过、复评未执行），按任务书定义 `通过 = 所有 P0 + 关键 P1 + 独立评审通过`；完成独立复评并复核残留后才可重评。
+- 判定依据：四轮验收未齐（第④轮复评「有条件通过」、最终复评未执行），按任务书定义 `通过 = 所有 P0 + 关键 P1 + 独立评审通过`；完成第三方最终复评并复核残留后才可重评。
 
 ## 7. 阶段 5 建议
 

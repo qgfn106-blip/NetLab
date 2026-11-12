@@ -25,7 +25,7 @@ import numpy as np
 
 from ...common.limits import ComputeError, ConflictError, ValidationError
 from .elements import CircuitElement
-from .stamps import CircuitNode, StampContext
+from .stamps import CircuitNode, StampContext, stamp_laplacian
 from ..waveform import waveform_value
 
 #: 本模型支持装配的线性元件种类。
@@ -450,16 +450,9 @@ class DescriptorModel:
         index = self.index
 
         def stamp_conductance(a: str, b: str, conductance: float) -> None:
-            g = float(conductance)
-            ai = index.node_index.get(a)
-            bi = index.node_index.get(b)
-            if ai is not None:
-                A[ai, ai] += g
-            if bi is not None:
-                A[bi, bi] += g
-            if ai is not None and bi is not None:
-                A[ai, bi] -= g
-                A[bi, ai] -= g
+            # P1-R1: Laplacian stamping converges on stamps.stamp_laplacian.
+            # float() and the node-only index semantics are unchanged.
+            stamp_laplacian(A, index.node_index, a, b, float(conductance))
 
         for element in self.elements:
             kind = element.kind
@@ -469,15 +462,8 @@ class DescriptorModel:
                 stamp_conductance(element.a, element.b, element.conductance)
             elif kind == "capacitor":
                 capacitance = float(element.capacitance)
-                ai = index.node_index.get(element.a)
-                bi = index.node_index.get(element.b)
-                if ai is not None:
-                    E[ai, ai] += capacitance
-                if bi is not None:
-                    E[bi, bi] += capacitance
-                if ai is not None and bi is not None:
-                    E[ai, bi] -= capacitance
-                    E[bi, ai] -= capacitance
+                # P1-R1: E-matrix Laplacian uses the same shared primitive.
+                stamp_laplacian(E, index.node_index, element.a, element.b, capacitance)
             elif kind == "inductor":
                 row = index.branch_index[element.name]
                 ai = index.node_index.get(element.a)
@@ -555,16 +541,9 @@ class DescriptorModel:
             return voltages.get(node_id, 0.0)
 
         def stamp_conductance(a: str, b: str, conductance: float) -> None:
-            g = float(conductance)
-            ai = index.node_index.get(a)
-            bi = index.node_index.get(b)
-            if ai is not None:
-                A[ai, ai] += g
-            if bi is not None:
-                A[bi, bi] += g
-            if ai is not None and bi is not None:
-                A[ai, bi] -= g
-                A[bi, ai] -= g
+            # P1-R1: Laplacian stamping converges on stamps.stamp_laplacian.
+            # float() and the node-only index semantics are unchanged.
+            stamp_laplacian(A, index.node_index, a, b, float(conductance))
 
         for element in self.elements:
             # 二极管（含 Zener/LED）的解析小信号电导；串联电阻形成内部节点时

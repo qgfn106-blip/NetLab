@@ -2901,5 +2901,5 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - P0-04：`CORE_MODEL_V2.md` 的 `NodeDesc`/`EdgeDesc` 删除 `appearance`；外观改由 Presentation `presentation.node_styles` 按 id 关联。
 - P1-01/P1-02/P1-06：机械示例改 `m·dv/dt=F-b·v`；补 `Mapping` 深拷贝契约与隔离测试；新增 `tools/check_stage4_docs.py`（真实检查，非空检查）与 `test_stage4_document_contracts.py`（3 passed）。
 - P1-03–P1-13/P2-02：写入 `V2_IMPLEMENTATION_GAP_ANALYSIS.md`；P2-01 统一 7 基本量纲 `[L,M,T,I,Θ,N,J]`；ADR-008 记录三项 Open Decision。
-- 验证：`_stage4_validate.py` ALL PASS、`check_stage4_docs.py` PASS、docs 隐私/SSOT/契约 6 passed、`render_docs --check` OK。
+- 验证：`_stage4_validate.py` ALL PASS、`check_stage4_docs.py` PASS、docs 隐私/SSOT/契约 6 passed、`render_docs --check` OK；全量 pytest **945 passed / 1 skipped / 0 failed / 236.37s**、core **81.380784%**（12445/14619）。
 - 验收：当前「有条件通过」，待第④轮独立评审；阶段 5 已交付 `eaec04a` 但按任务书冻结，阶段 6–13 暂停。

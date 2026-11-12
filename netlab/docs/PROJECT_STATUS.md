@@ -2,7 +2,7 @@
 
 - **状态**：当前状态的唯一事实源（2026-11-11 建立；2026-11-12 阶段 4 设计冻结整改后刷新）。
 - **最后刷新**：2026-11-12（Asia/Shanghai），随「阶段 4 设计冻结整改」更新。
-- **阶段 4（P1-A）**：设计冻结整改已完成 P0-01–P0-04 与关键 P1，新增 `tools/check_stage4_docs.py` 与契约测试；当前「有条件通过」，待第④轮独立评审。
+- **阶段 4（P1-A）**：设计冻结整改已完成 P0-01–P0-04 与关键 P1，新增 `tools/check_stage4_docs.py` 与契约测试；全量 945 passed / 1 skipped / 81.380784%；当前「有条件通过」，待第④轮独立评审。
 - **阶段 5（P1-R1）**：元件 Stamp 单一化已交付并 push `eaec04a`（三条 CI success、942 passed/81.3808%），按最新任务书冻结，待阶段 4 验收后复核。
 - **维护规则**：本文件只记当前事实；路线/阶段表见 `CORE_ARCHITECTURE_V2_ROADMAP.md`，目标口径见 `CORE_ARCHITECTURE_V2.md`，执行约束见 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md`（该文件为 2026-11-11 快照，动态状态委托本文件），架构决策见 `docs/adr/`，历史完成记录见 `PROGRESS.md`。机器可读字段以 `status.json` / `reports/test_status.json` 为准。
 

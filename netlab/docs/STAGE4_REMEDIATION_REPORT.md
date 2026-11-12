@@ -7,6 +7,7 @@
 - 整改前基线：`eaec04af31c7fe1e9aa2488e7a09c183c603688c`（阶段 5 P1-R1 已交付并 push；该阶段在任务书到达前完成，见 §7）。
 - 9 份设计文档原提交 `ad2e481`；任务书核查时自该提交后零改动，P0 缺陷全部存在。
 - 本次整改在任务书之后新增改动（提交见 `git log` 与 §4）；工作树只含 `netlab/docs/*`、`netlab/tools/*`、`netlab/tests/*`、`adr/*`，无生产核心代码。
+- 证据订正（2026-11-12 11:58 审批文档组）：P1-03 并非「完全无映射」，原 `MIGRATION_AND_COMPATIBILITY.md:21-35` 已有 v7→V2 12 行表（但非 V1→V2、`:26` data/state/inputs 未拆分，v6 PENDING）；P2-01 并非「完全无 UnitRegistry」，原已有 4 元量纲 + mV↔V 换算，缺七基与 m/mm、J↔N·m；`_stage4_validate.py` 为仓库外、非 tracked、只查格式的辅助脚本，其 PASSED 不等同契约测试，本轮已另建 tracked `tools/check_stage4_docs.py` + `netlab/tests/test_stage4_document_contracts.py`。
 - 证据订正（2026-11-12 11:31 审批补充）：P1-R2 已有窄范围 parity 测试 `netlab/tests/test_descriptor_rlc.py:174`（单一 RC/4 频点，`rtol=1e-8`），任务书「无任何等价测试」不准确；P1-07 的导出路径 `records.py:29-50 NodeRecord.snapshot()` 已 `copy.deepcopy`，真正风险是 `scene_engines.py:101-107`/`graph.py:190-192/:200` 运行时共享可变 dict；「冻结区不改生产核心代码」是前向约束，不代表 `netlab/core/compute/circuit/` 历史零提交。
 
 ## 2. 整改统计

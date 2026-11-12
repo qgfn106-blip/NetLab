@@ -2913,3 +2913,6 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 
 - 按审批 2026-11-12 11:31 补充证据订正：`V2_IMPLEMENTATION_GAP_ANALYSIS.md` 的 P1-R2 改述为「已有窄范围 parity（`test_descriptor_rlc.py:174`，单一 RC/4 频点，rtol=1e-8）、缺全面跨拓扑等价」，P1-07 改述为「导出 `NodeRecord.snapshot()` 已 deepcopy，真正风险是 `scene_engines.py:101-107`/`graph.py:190-192/:200` 运行时共享 dict」，并补 P1-08/09/10/11/12 的精确 file:line 与 `scene_io.py:84-86` vs `scene.py:82-88` 的 mode 口径不一致。
 - `STAGE4_REMEDIATION_REPORT.md` 增加「证据订正」段；明确「冻结区不改生产代码」是前向约束，不代表历史零提交。
+## 7.162 阶段 4 整改第 2 轮文档组证据订正
+
+- 按审批 2026-11-12 11:58 文档组补充：P1-03 改述为「已有 v7→V2 12 行表、缺 V1→V2 逐字段与 data/state/inputs 拆分」；P2-01 改述为「已有 4 元量纲 UnitRegistry + mV↔V，缺七基与 m/mm·J↔N·m」；确认 `_stage4_validate.py` 为仓库外辅助格式脚本，不计交付，真实契约由已入库 `tools/check_stage4_docs.py` + `netlab/tests/test_stage4_document_contracts.py` 承担；并登记「设计冻结=文档基线冻结、非决策冻结」及 `ops_grep` 花括号 glob 假阴性避坑。

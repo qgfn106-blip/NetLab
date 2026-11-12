@@ -4,6 +4,8 @@
 
 ## 1. P1-03 V1 → V2 逐字段迁移映射
 
+> **部分存在订正（2026-11-12 11:58 审批文档组）**：整改前 `MIGRATION_AND_COMPATIBILITY.md:21-35` 已有 12 行映射表，但标题为 `## 2. 字段映射（V2 ← v7，只加不删）`（为 v7→V2，不是任务书要求的 V1→V2 全字段）；`:26` 把 `NodeRecord.data/state/inputs` 笼统压到 `NodeRuntime.state/value`，未逐字段拆分；v6 见 `:43/:47` 仍 `PENDING_USER_AUTHORIZATION`。故正确口径是「已有 v7→V2 表、缺 V1→V2 逐字段与 data/state/inputs 拆分」，不是「完全无映射表」；§7 为本轮新增的 V1→V2 全字段表。
+
 | V1 字段/对象 | V2 目标对象 | 迁移规则 | 兼容风险 |
 | --- | --- | --- | --- |
 | `NodeRecord.id/name/kind/params/appearance`（`netlab/core/model/records.py`） | `NodeDesc.id/kind/params` + Presentation `node_styles[id]` | `appearance` 整体移入 Presentation 层，按 id 关联 | 旧工程读取时保留 `appearance`，写出时转 `presentation.node_styles` |
@@ -109,3 +111,11 @@ Plugin v1 是**进程内受信任 Python 代码，不是 OS 沙箱**：`netlab/c
 - 订正 1：P1-R2 不是「无测试证明两后端等价」，而是已有窄范围 parity（`test_descriptor_rlc.py:174`、单一 RC 低通/4 频点），缺全面等价/跨拓扑证据。
 - 订正 2：P1-07 不是「to_dict/导出未用 copy.deepcopy」，而是导出路径 `records.py:29-50 NodeRecord.snapshot()` 已 deepcopy；真正风险是 `scene_engines.py:101-107` 与 `graph.py:190-192/:200` 的运行时共享可变 dict。
 - 口径提醒：「冻结区不改生产核心代码」是本轮整改的前向约束，不代表 `netlab/core/compute/circuit/` 历史零提交（此前已有 736f2f8/dc78a6c/c8de1ec 等阶段 5 提交）；报告不得写「冻结区零提交」。
+
+## 14. 来源订正（2026-11-12 11:58 审批文档组）
+
+- 订正 A（P1-03）：`MIGRATION_AND_COMPATIBILITY.md:21-35` 已有 v7→V2 12 行映射表（标题 `V2 ← v7`，`:26` 将 `NodeRecord.data/state/inputs` 压到 `NodeRuntime.state/value`，v6 见 `:43/:47` 仍 PENDING）；应写「部分存在/口径偏差」而非「完全缺失」。本轮 §1/§7 已补 V1→V2 逐字段拆分。
+- 订正 B（P2-01）：`TYPED_PORT_SYSTEM.md:55-60` 已有 `UnitRegistry`（单位→4 元量纲向量 + 比例因子、显式 `convert`、`mV↔V`、禁隐式跨维度），`CORE_INTERFACE_CONTRACTS.md:103-115` 已有 `class UnitRegistry(Protocol)`；但原量纲固定 4 元（`TYPED_PORT_SYSTEM.md:16`、`:38`、`CORE_INTERFACE_CONTRACTS.md:113`），缺 `[L,M,T,I,Θ,N,J]` 七基与 `m/mm`、`J↔N·m` 换算测试（原全库 0 命中）。正确口径：「4 元量纲 + UnitRegistry + V/mV 已有，缺 SI 七基与 m/mm·J↔N·m」；本轮已把文档量纲扩到 7 元。
+- 订正 C（P1-06）：`PROGRESS.md:2870` 的 `_stage4_validate.py` 确为仓库外脚本（仓库根下未入库的 `_stage4_validate.py`（68 行）），workspace root 非 git 仓、未被 tracked，只查 LF/隐私禁词/Proposed/ast.parse/json.loads/Mermaid，**不校验设计缺陷**；其 `ALL DESIGN DOC CHECKS PASSED` 不能等同于可复现契约测试。本轮另建并入库 `tools/check_stage4_docs.py` + `netlab/tests/test_stage4_document_contracts.py`（真实失败非 0、反例测试、语义项标 MANUAL），满足任务书要求；`_stage4_validate.py` 仅作辅助格式检查，不计入交付。
+- 治理口径：九份文档均 `Proposed`、三项 Open Decision 均 `PENDING_USER_AUTHORIZATION`/Open Question，ADR-001/002/003/004/006/007 未升格；「设计冻结」应理解为「文档基线冻结、非决策冻结」，阶段 10 P2 实现前须用户授权解决。
+- 工具避坑：`ops_grep` 花括号多文件 glob（`{A,B}.md`）会静默跳过全部文件，0 命中是假阴性；`ops_glob` 用 `NetlabHome/netlab/docs/*.md` 可能触发 10000 扫描上限；应改 `glob:["*.md"]` 或单文件 `path` 复核。

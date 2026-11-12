@@ -3,7 +3,7 @@
 - **状态**：当前状态的唯一事实源（2026-11-11 建立；2026-11-12 阶段 4 设计冻结整改后刷新）。
 - **最后刷新**：2026-11-12（Asia/Shanghai），随「阶段 4 设计冻结整改」更新。
 - **阶段 4（P1-A）**：设计冻结整改已完成 P0-01–P0-04 与关键 P1，新增 `tools/check_stage4_docs.py` 与契约测试；全量 945 passed / 1 skipped / 81.380784%；当前「有条件通过」，待第④轮独立评审。
-- **阶段 5（P1-R1）**：元件 Stamp 单一化已交付并 push `eaec04a`（三条 CI success、942 passed/81.3808%），按最新任务书冻结，待阶段 4 验收后复核。
+- **阶段 5（P1-R1）**：元件 Stamp 单一化已交付并 push `eaec04a`（三条 CI success、942 passed/81.3808%）；审批 2026-11-12 评估判「不允许进入阶段 6 · 需用户授权 · 暂停」，阶段 5 成果保留但不作放行依据，阶段 6–13 均 `PENDING_USER_AUTHORIZATION`。
 - **维护规则**：本文件只记当前事实；路线/阶段表见 `CORE_ARCHITECTURE_V2_ROADMAP.md`，目标口径见 `CORE_ARCHITECTURE_V2.md`，执行约束见 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md`（该文件为 2026-11-11 快照，动态状态委托本文件），架构决策见 `docs/adr/`，历史完成记录见 `PROGRESS.md`。机器可读字段以 `status.json` / `reports/test_status.json` 为准。
 
 ## 1. 当前基线事实（四类事实分离）
@@ -29,7 +29,7 @@
 - 阶段 2（P-B 元素级视图外观完整版）：已完成并 push 到 `8e7f583` —— 900 passed / 1 skipped / 81.376055%；评估整改见 `PROGRESS.md §7.154`。
 - 阶段 3（R40 收尾：节点卡片自由字段编辑）：已完成并 push 到 `b667e51` —— 909 passed / 1 skipped / 81.404692%，三条 CI success；详见 `PROGRESS.md §7.153`。
 - 阶段 4（P1-A 全量设计冻结）：9 份 Proposed 文档已交付；**2026-11-12 任务书整改完成**：P0-01–P0-04 全修复、P1-01/P1-02/P1-06 修复、P1-03–P1-13/P2-02 差距分析文档化，新增 `tools/check_stage4_docs.py` + `test_stage4_document_contracts.py`；验收判定「有条件通过」，待第④轮独立评审。详见 `PROGRESS.md §7.159`、`STAGE4_REMEDIATION_REPORT.md`。
-- 阶段 5（P1-R1 Stamp 统一）：已于任务书前交付并 push `eaec04a`（三条 CI success、942 passed/81.3808%），按最新任务书冻结、待阶段 4 验收后复核。
+- 阶段 5（P1-R1 Stamp 统一）：已于任务书前交付并 push `eaec04a`（三条 CI success、942 passed/81.3808%）；审批评估判「不允许进入阶段 6 · 需用户授权 · 暂停」，成果保留、不作放行依据。
 - 阶段 6–13（P1-R2 / P1-S1 / P1-S2 / P1-S3 / P2 / P3 / P4 / P5）：未开始，保持 `PENDING_USER_AUTHORIZATION`。
 
 | 阶段 | 内容 | 状态 |
@@ -58,7 +58,7 @@
 | R25（完整电路级内部结构） | 暂停（用户 2026-11-11 裁决先做 P-B） |
 | R43（M2） | 仅 opt-in |
 | R19（参考级图纸） | 暂停 |
-| Phase 3 架构债 / Phase 4 CI 证据 | `PENDING_USER_AUTHORIZATION`（注：阶段 5–9 的 P1-R1/R2/S1/S2/S3 属已授权的阶段 0–13 收敛序列，**不等于**旧 5-phase 计划里未授权的「Phase 3 架构债」；P1-R1 的实施不触碰该 PENDING 边界） |
+| Phase 3 架构债 / Phase 4 CI 证据 | `PENDING_USER_AUTHORIZATION`（阶段 5 P1-R1 已交付 `eaec04a`，但阶段 5 准入存在授权冲突，按 `PENDING_USER_AUTHORIZATION` 处理；阶段 6–13 未获用户明确授权，暂停；不得以本文件或历史提交自证授权） |
 | 500 / 1000 / 5000 规模档 | `PENDING_USER_AUTHORIZATION`；`MAX_NODES=400` 默认不放宽 |
 | Newton 选主元 / SCC 差分 Jacobian | `PENDING_USER_AUTHORIZATION` |
 | `NETLAB_MATH_ACCEL` | 默认 off，不擅自放量 |

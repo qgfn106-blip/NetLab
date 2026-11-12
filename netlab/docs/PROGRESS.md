@@ -2929,3 +2929,9 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 独立评审 Agent `13d009cb` 初评**不通过**：A1 PortType/PortDesc 双定义、A2 SceneDesc 封套字段不一致、A3 `type`/`kind` 不一致、A4 ports/initial_data 幻影字段；B1–B6、C1–C3 为次要/验证问题；数学物理与 V1 代码对应全绿。
 - 修复：删除 MINIMAL 重复 PortType 并声明权威定义在 `CORE_MODEL_V2.md` §4；`SceneDesc` 增 `id/domain/presentation/compat`；`NodeDesc` 增 `name/initial_data`；`CompiledModel` 增 `cache_key_excludes`；新增 `NodeRuntime`/`ConnectionRuntime`；`PluginFacade` 补齐 6 个注册方法；`SceneEdit` 补 `apply` 并统一 `commit -> SceneDesc`；boundary 改 `expression`；checker 增字段级断言；测试补短路反例与 frozen dataclass deepcopy。
 - 新增 `STAGE4_INDEPENDENT_REVIEW.md` 记录初评结论与整改状态；修复后需第④轮复评，复评通过前阶段 4 不得标正式验收完成。
+## 7.164 阶段 4 第④轮最终复评通过（待用户批准）
+
+- 独立只读评审 Agent `48c7a05c` 对 HEAD `a38fd6b` 做最终复评：**通过，无阻断问题**；A2/B6/C1 已核验闭环，checker PASS、契约/隐私/SSOT 6 passed。
+- A2：MINIMAL 根对象仅 format/version/scenes/metadata，presentation 在 scenes[0]；MIGRATION scene 含 domain/revision/presentation/compat；CORE_MODEL_V2 SceneDesc/ProjectDesc 覆盖两示例字段。
+- B6：CORE_INTERFACE_CONTRACTS:108 改为「等价 frozen dataclass 验证 deepcopy 契约，真实 Runtime/CompiledModel 类尚未实现」；C1 checker 已用 `json.loads` 与正则做字段级/封套断言。
+- 结论：阶段 4 可进入等待用户明确批准；批准前不得标正式验收完成。阶段 5 P1-R1 `eaec04a` 成果保留但不作放行依据，阶段 6–13 暂停 PENDING_USER_AUTHORIZATION。

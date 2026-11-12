@@ -59,16 +59,16 @@
       ],
       "boundary_conditions": [
         {"variable": "v_vin", "expression": "1.0"}
-      ]
+      ],
+      "presentation": {
+        "node_styles": {
+          "vin": {"color": "#2563eb"},
+          "vout": {"color": "#16a34a"},
+          "gnd": {"color": "#64748b"}
+        }
+      }
     }
   ],
-  "presentation": {
-    "node_styles": {
-      "vin": {"color": "#2563eb"},
-      "vout": {"color": "#16a34a"},
-      "gnd": {"color": "#64748b"}
-    }
-  },
   "metadata": {"author": "design-freeze-example", "runtime_snapshot": null}
 }
 ```
@@ -104,6 +104,7 @@ class NodeDesc:
 
 @dataclass(frozen=True)
 class EdgeDesc:
+    # 示例简化：真实 EdgeDesc 的 kind 为 EdgeKind（见 CORE_MODEL_V2.md §4）
     id: str
     kind: str
     source: str

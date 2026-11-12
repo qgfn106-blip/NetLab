@@ -12,7 +12,8 @@
 |---|---|
 | 仓库 | `NetlabHome/`，分支 `main` |
 | 最新 main 提交 | `4dc7bdd815477b63d51f683edc3af3c2765ba72b`（GitHub refs/heads/main 实测） |
-| 测试报告绑定 HEAD | `1df4934f7dec861aa96bdf813d688516696753ee`（status.json / reports/test_status.json） |
+| 本地复审文档提交（未 push） | `fadf651508051c1455641be77893e5f7f0289b5c`（11 docs +207/−18，无生产代码；不改变远端 main） |
+| 测试报告绑定 HEAD | `fadf651508051c1455641be77893e5f7f0289b5c`（本轮复审文档提交，测试代码与 `1df4934` 相同；945 passed / 1 skipped；reports/test_status.json） |
 | 最后生产代码提交 | `e41160f300393889c1b9539ebab73ed5280f2796`（P1-R1 Stamp 共享原语；其后到 1df4934 为 docs-only） |
 | 精确 HEAD / ahead | 文档收口提交后以 `git rev-parse HEAD` 与 `status.json` 为准；提交自身无法自引用 |
 | origin/main | 精确远端以 GitHub `branches/main` API 为准；Git Data API 推送不更新本地 `origin/main` 跟踪引用（当前本地引用可能陈旧，ahead/behind 不作远端依据） |

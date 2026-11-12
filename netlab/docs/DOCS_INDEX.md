@@ -1,6 +1,6 @@
 # Netlab 文档索引（DOCS INDEX）
 
-> 最后核对：2026-11-12（全量文档基线同步 + 审计 A 阶段后复核 + D125 PlotKit 插件封装 + D129 测试配置 + D130 N-36 步骤事务 + D131 records 拆分 + D132 文档隐私清理 + D133 端到端控制实验 + D134 文档分层与会话日志 + D135 求解器影子门 + D136 影子门 CI 接入 + D137 插件路由拆分、D138 帮助检索路由拆分、D139 二维有限元路由拆分、D140 块库路由拆分、D141 分析路由拆分、D142 文档基线同步、D143 偏好/布局路由拆分、D144 BACKLOG 基线清理、D145 缓存/文档/加速路由拆分、D146 应用内扩展路由拆分、D147 仿真控制路由拆分、D148 工作区路由拆分、D149 多网络管理路由拆分、D150 PlotKit 接入/预计算路由拆分、D151 场景/模板路由拆分、D152 页面/UI/状态/诊断路由拆分、D153 工程文件路由拆分；本轮新增 VISION 草案、HASH_TABLE_OPTIMIZATION_RESEARCH、extensions/plugins/netlab.plotkit 官方插件、sessions 会话日志，更新 PROGRESS/DOCS_INDEX；阶段 4 P1-A 新增 9 份设计冻结草案 Proposed，见 §2.2）· 当前基线：静态 3.20.1 / 942 passed / 1 skipped / R01–R43 / D1–D156；新增 **CODE_STANDARDS.md（代码规范，强制）**
+> 最后核对：2026-11-13（全量文档基线同步 + 审计 A 阶段后复核 + D125 PlotKit 插件封装 + D129 测试配置 + D130 N-36 步骤事务 + D131 records 拆分 + D132 文档隐私清理 + D133 端到端控制实验 + D134 文档分层与会话日志 + D135 求解器影子门 + D136 影子门 CI 接入 + D137 插件路由拆分、D138 帮助检索路由拆分、D139 二维有限元路由拆分、D140 块库路由拆分、D141 分析路由拆分、D142 文档基线同步、D143 偏好/布局路由拆分、D144 BACKLOG 基线清理、D145 缓存/文档/加速路由拆分、D146 应用内扩展路由拆分、D147 仿真控制路由拆分、D148 工作区路由拆分、D149 多网络管理路由拆分、D150 PlotKit 接入/预计算路由拆分、D151 场景/模板路由拆分、D152 页面/UI/状态/诊断路由拆分、D153 工程文件路由拆分；本轮新增 VISION 草案、HASH_TABLE_OPTIMIZATION_RESEARCH、extensions/plugins/netlab.plotkit 官方插件、sessions 会话日志，更新 PROGRESS/DOCS_INDEX；阶段 4 P1-A 新增 9 份设计冻结草案 Proposed，见 §2.2）· 当前基线：静态 3.20.1 / 942 passed / 1 skipped / R01–R43 / D1–D156；新增 **CODE_STANDARDS.md（代码规范，强制）**
 > 目的：先在这里找文档，不要凭文件名猜新旧。**历史文档保留原文，但不得作为当前实现口径。**
 
 ## 0. 文档分层（D-3 / N-30）
@@ -78,6 +78,9 @@
 | [P1-R2_BACKEND_CONSTRAINTS.md](P1-R2_BACKEND_CONSTRAINTS.md) | 阶段 6 P1-R2 双后端约束表（元件/源/探针/数值/错误逐项对照 + 奇异 E 专项） | 阶段 6 |
 | [P1-R2_CONVERGENCE_PLAN.md](P1-R2_CONVERGENCE_PLAN.md) | 阶段 6 P1-R2 收敛方案（准入闸门 + 统一提案 + 风险/验证，只读设计） | 阶段 6 |
 | [P0-2_PORT_SCHEMA_DECISION.md](P0-2_PORT_SCHEMA_DECISION.md) | P0-2 决策：PortDesc 内嵌（方案 A）依赖审计、差距与最小迁移提案 | 阶段 6 |
+| [P0-2_PORT_SCHEMA_UNIFICATION_DESIGN.md](P0-2_PORT_SCHEMA_UNIFICATION_DESIGN.md) | P0-2 Port Schema 统一设计（V1 PortDef/V2 PortDesc/PortType 字段映射、迁移、插件兼容；只读设计） | 阶段 6 |
+| [CORE_CODE_REMEDIATION_DESIGN.md](CORE_CODE_REMEDIATION_DESIGN.md) | 核心代码 8 项问题整改设计（file:line 依据/根因/失败测试/回归/风险；只读设计未实施） | 阶段 6 |
+| [NETLAB_CURRENT_STATE_AUDIT_2026-11-13.md](NETLAB_CURRENT_STATE_AUDIT_2026-11-13.md) | 当前状态复核与第一批整改报告（8 字段基线 + A/B/C/D 结论 + 修复状态分类） | 阶段 6 |
 
 ### 2.3 扩展体系
 

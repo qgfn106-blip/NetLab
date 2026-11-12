@@ -11,20 +11,30 @@
 | 项 | 当前事实 |
 |---|---|
 | 仓库 | `NetlabHome/`，分支 `main` |
-| 最新 main 提交 | `4dc7bdd815477b63d51f683edc3af3c2765ba72b`（GitHub refs/heads/main 实测） |
-| 本地复审文档提交（未 push） | `fadf651508051c1455641be77893e5f7f0289b5c`（11 docs +207/−18，无生产代码；不改变远端 main） |
-| 测试报告绑定 HEAD | `fadf651508051c1455641be77893e5f7f0289b5c`（本轮复审文档提交，测试代码与 `1df4934` 相同；945 passed / 1 skipped；reports/test_status.json） |
-| 最后生产代码提交 | `e41160f300393889c1b9539ebab73ed5280f2796`（P1-R1 Stamp 共享原语；其后到 1df4934 为 docs-only） |
+| 最新 main 提交 | `8f9344f67910caa3f738bbef5153f2aa897d3e5a`（GitHub refs/heads/main 实测，2026-11-13 复核） |
+| 复审/阶段6文档提交（已 push） | `fadf651`/`af444ac`/`073e422` 已随 `584f540` 推上；阶段6 P1-R2 四文档提交 `8f9344f` 已 push（origin/main=8f9344f） |
+| 测试报告绑定 HEAD | 本轮全量测试绑定 HEAD=`8f9344f`（生产码 212a890；953 passed / 1 skipped / 322.70s；reports/test_status.json） |
+| 最后生产代码提交 | `212a8908c190aa9fde018bda974b69413ea1e5bf`（P1-1 插件引擎加载链修复；其后至 8f9344f 为 docs-only，不含生产码） |
 | 精确 HEAD / ahead | 文档收口提交后以 `git rev-parse HEAD` 与 `status.json` 为准；提交自身无法自引用 |
 | origin/main | 精确远端以 GitHub `branches/main` API 为准；Git Data API 推送不更新本地 `origin/main` 跟踪引用（当前本地引用可能陈旧，ahead/behind 不作远端依据） |
 | 版本 | 3.20.1 |
-| 测试基线 | 945 passed / 1 skipped / 0 failed；core 覆盖率 81.380784%（12445/14619，2026-11-12 16:34 报告） |
-| CI 证据 | `4dc7bdd` 的 5 个 check-run（desktop-l2/build/test/e2e-l1/docker）均 completed/success；legacy commit status API 为 pending/total 0，以 check-runs 为准；`1df4934` 无 check-run（仅测试报告绑定） |
+| 测试基线 | 953 passed / 1 skipped / 0 failed；core 覆盖率 81.528757%（12474/14630，2026-11-13 01:12 报告） |
+| CI 证据 | `8f9344f` 于本次推送后待 GitHub 侧 check-run 产出（本轮未取得证据，如实标「待查」）；历史 `4dc7bdd` 的 5 个 check-run 均 success 仅作历史证据；legacy commit status API pending/total 0，以 check-runs 为准 |
 | 前端门禁 | typecheck / build / test（27 passed）/ verify:parity / check:sections（app.ts 7968 行）/ e2e 四脚本全过 |
 | 阶段 3 三条 CI（绑 `b667e51`） | python-tests `43115278340`、frontend-ts-build `43115278356`、container `43115278600`，均 success |
 | 阶段 2 三条 CI（绑 `8e7f583`） | container `43098331619`、python-tests `43098331551`、frontend-ts-build `43098331562`，GitHub runner 排队（status=queued / conclusion=null / jobs=[]），不作通过证据 |
 | P1 架构审计 | `CORE_ARCHITECTURE_AUDIT.md`（2026-11-11 历史快照，加注历史说明），已随本轮文档收口提交入库 |
 | 工作树 | 文档收口提交后仅余 `status.json` / `reports/test_status.json` 状态尾提交；`dirty` 标记为生成时刻快照，门禁不校验该字段 |
+
+### 1.1 本轮状态复核（2026-11-13，基于 GitHub `main` 实测，非旧 HEAD）
+- latest_main_sha：`8f9344f67910caa3f738bbef5153f2aa897d3e5a`
+- latest_production_code_sha：`212a8908c190aa9fde018bda974b69413ea1e5bf`（`e41160f` 之后唯一触及生产码的提交）
+- tested_sha：`8f9344f`（本轮全量 953 passed / 1 skipped / 322.70s，core 81.528757%，12474/14630）
+- test_count / coverage：953 passed / 1 skipped / 0 failed；core line 81.528757%
+- latest_ci_runs：`8f9344f` 刚 push，GitHub check-run 待产出（本轮未取得，标「待查」）
+- current_stage：阶段 6（P1-R2）**只读审计已完成**；AC/Bode **生产代码统一未实施**
+- stage_acceptance：阶段 4 正式验收已批准；阶段 5 子目标达成但整体 open（未标完成）
+- pending_authorization：阶段 6 AC/Bode 生产统一、阶段 7–13、ADR-008 升格落地、P0-2 全链路改造
 
 ## 2. 阶段进度（用户 2026-11-11 正式裁决的阶段 0–13 顺序）
 
@@ -34,7 +44,8 @@
 - 阶段 3（R40 收尾：节点卡片自由字段编辑）：已完成并 push 到 `b667e51` —— 909 passed / 1 skipped / 81.404692%，三条 CI success；详见 `PROGRESS.md §7.153`。
 - 阶段 4（P1-A 全量设计冻结）：9 份 Proposed 文档已交付；**2026-11-12 任务书整改完成**：P0-01–P0-04 全修复、P1-01/P1-02/P1-06 修复、P1-03–P1-13/P2-02 差距分析文档化，新增 `tools/check_stage4_docs.py` + `test_stage4_document_contracts.py`；第④轮封口评审已「通过（无阻断、无新增项）」；已于 2026-11-12 获用户明确批准正式验收；详见 `PROGRESS.md §7.159`、`STAGE4_REMEDIATION_REPORT.md`、`STAGE4_INDEPENDENT_REVIEW.md`。
 - 阶段 5（P1-R1 Stamp 统一）：代码 `e41160f`（状态 tip `eaec04a`，三条 CI success）已交付；2026-11-12 只读复核判「子目标达成、零数值回归」，但阶段 5 整体仍 open（元件模型完整统一未完成）；成果保留、不作阶段 5 整体完成依据，不进阶段 6。
-- 阶段 6–13（P1-R2 / P1-S1 / P1-S2 / P1-S3 / P2 / P3 / P4 / P5）：未开始，保持 `PENDING_USER_AUTHORIZATION`。
+- 阶段 6（P1-R2 AC/Bode 统一）：**只读审计已完成**（`P1-R2_PARITY_MATRIX`/`BACKEND_CONSTRAINTS`/`CONVERGENCE_PLAN` + `P0-2_PORT_SCHEMA_DECISION` 四文档，未改生产码）；**AC/Bode 生产代码统一尚未实施**（需用户授权后进入等价性测试设计与统一实现）。
+- 阶段 7–13（P1-S1 / P1-S2 / P1-S3 / P2 / P3 / P4 / P5）：未开始，保持 `PENDING_USER_AUTHORIZATION`。
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
@@ -44,7 +55,7 @@
 | 3 | R40 收尾：节点卡片自由字段 | 已完成（`b667e51`） |
 | 4 | P1-A 全量设计冻结 | **已完成（2026-11-12 用户批准正式验收）** |
 | 5 | P1-R1 Stamp 统一 | 子目标达成（共享 Laplacian 原语，2026-11-12 复核 PASS）；**阶段 5 整体 open，不标完成、不进阶段 6** |
-| 6 | P1-R2 AC/Bode 统一 | 未开始 |
+| 6 | P1-R2 AC/Bode 统一 | **只读审计已完成**（parity/约束/收敛 3 文档 + P0-2 schema 决策；未改生产码）；**生产代码统一未实施**（待授权） |
 | 7 | P1-S1 Project/DTO | 未开始 |
 | 8 | P1-S2 Engine SPI v2 | 未开始 |
 | 9 | P1-S3 前端拆分 | 未开始 |
@@ -105,5 +116,5 @@
 - 阶段 4 整改已修复 P0-01–P0-04 与关键 P1，新增可复现 checker/测试；第④轮独立评审已执行：初评不通过→修复→复评「有条件通过（无阻断）」→封口评审「通过（无阻断、无新增项）」；已于 2026-11-12 获用户明确批准，正式验收完成。
 - 阶段 5 P1-R1 代码 `e41160f`（状态 tip `eaec04a`）已交付；2026-11-12 复核判子目标达成、阶段 5 整体仍 open（保留成果、不回退），阶段 6+ 仍需用户单独授权方可推进。
 - P1-1（插件引擎注册↔场景加载断链，审计列阻断）已修复：新增 `scene_types.is_known_mode()`（内置 `MODES` ∪ 已注册 `ENGINE_SPECS`）单一判定，`scene_io.load_payload` / `networks.add_network` / `set_network_mode` 改用之，插件 mode 不再被误拒；提交 `212a890`，全量 953 passed / 1 skipped（GUI smoke 需 `NETLAB_GUI_SMOKE=1`）。
-- ADR-001/002/003/004/006/007/008 仍 Proposed（ADR-008 为 Open Decision），不自行升格 Accepted；三项需用户决策标 `PENDING_USER_AUTHORIZATION`。
+- ADR-001/002/003/004/006/007 仍 Proposed；ADR-008 已获用户 1112n 授权 A/B/C 升格（**授权已下、升格落地动作尚未执行**）；三项需用户决策标 `PENDING_USER_AUTHORIZATION`。
 - 所有 `PENDING_USER_AUTHORIZATION` 项保持挂起，未获新授权不启动。

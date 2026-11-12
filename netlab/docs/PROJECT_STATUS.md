@@ -13,7 +13,7 @@
 | 仓库 | `NetlabHome/`，分支 `main` |
 | 代码基线 HEAD | `b667e517450b5f050424fe76d623af0cdeaf4eb1`（最后一次改动代码的提交；阶段 4 与本轮收口均为 docs-only，已 push） |
 | 精确 HEAD / ahead | 文档收口提交后以 `git rev-parse HEAD` 与 `status.json` 为准；提交自身无法自引用 |
-| origin/main | 与本地 `main` 同步（push 已授权并执行；ahead 0 / behind 0，截至本轮收口提交） |
+| origin/main | 精确远端以 GitHub `branches/main` API 为准；Git Data API 推送不更新本地 `origin/main` 跟踪引用（当前本地引用可能陈旧，ahead/behind 不作远端依据） |
 | 版本 | 3.20.1 |
 | 测试基线 | 945 passed / 1 skipped / 0 failed；core 覆盖率 81.380784%（12445/14619，阶段4整改实测；942 为阶段5历史基线） |
 | 前端门禁 | typecheck / build / test（27 passed）/ verify:parity / check:sections（app.ts 7968 行）/ e2e 四脚本全过 |

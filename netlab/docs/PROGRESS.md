@@ -2924,12 +2924,12 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 
 - 审批第1轮四轮核对判「不通过（验收未完成）」：第④轮独立评审未执行 + 第①轮残留（MINIMAL 节点计数、CORE_MODEL_V2 表 NodeDesc 外观、核心文档缺 `class PortDesc`、RuntimeManager.create 未显式 `spec.factory`、EXTENSIBILITY_ARCHITECTURE 第三处 EngineSpec 同名歧义）。
 - 已修复上述残留并把断言加入 `tools/check_stage4_docs.py`；`STAGE4_REMEDIATION_REPORT.md` §5/§6 改为「不通过（验收未完成）」并如实标注 P1-02 真实 Runtime 类尚未实现、当前仅契约测试。
-## 7.166 阶段 4 第④轮独立评审（初评不通过）与 A/B/C 修复
+## 7.165 阶段 4 第④轮独立评审（初评不通过）与 A/B/C 修复
 
 - 独立评审 Agent `13d009cb` 初评**不通过**：A1 PortType/PortDesc 双定义、A2 SceneDesc 封套字段不一致、A3 `type`/`kind` 不一致、A4 ports/initial_data 幻影字段；B1–B6、C1–C3 为次要/验证问题；数学物理与 V1 代码对应全绿。
 - 修复：删除 MINIMAL 重复 PortType 并声明权威定义在 `CORE_MODEL_V2.md` §4；`SceneDesc` 增 `id/domain/presentation/compat`；`NodeDesc` 增 `name/initial_data`；`CompiledModel` 增 `cache_key_excludes`；新增 `NodeRuntime`/`ConnectionRuntime`；`PluginFacade` 补齐 6 个注册方法；`SceneEdit` 补 `apply` 并统一 `commit -> SceneDesc`；boundary 改 `expression`；checker 增字段级断言；测试补短路反例与 frozen dataclass deepcopy。
 - 新增 `STAGE4_INDEPENDENT_REVIEW.md` 记录初评结论与整改状态；修复后需第④轮复评，复评通过前阶段 4 不得标正式验收完成。
-## 7.165 阶段 4 第④轮复评「有条件通过（无阻断）」
+## 7.166 阶段 4 第④轮复评「有条件通过（无阻断）」
 
 - 独立只读评审 Agent `3bc1afbf` 对 HEAD `a38fd6b` 复评：**有条件通过（无阻断问题）**；A1–A4 主缺陷闭环、B1–B5/C2/C3 闭环；非阻断问题 7 项已处置（PortDesc 增 reference/component_id、Runtime 映射改 state 键、MINIMAL 补 compat、R/C params 统一、checker 补 A3/A4 字段级断言、移除敏感占位文件、评审记录去掉自证）。
 - A2：MINIMAL 根对象仅 format/version/scenes/metadata，presentation 在 scenes[0]；MIGRATION scene 含 domain/revision/presentation/compat；CORE_MODEL_V2 SceneDesc/ProjectDesc 覆盖两示例字段。

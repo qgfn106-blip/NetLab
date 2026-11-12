@@ -1,6 +1,6 @@
 # Netlab 文档索引（DOCS INDEX）
 
-> 最后核对：2026-11-12（全量文档基线同步 + 审计 A 阶段后复核 + D125 PlotKit 插件封装 + D129 测试配置 + D130 N-36 步骤事务 + D131 records 拆分 + D132 文档隐私清理 + D133 端到端控制实验 + D134 文档分层与会话日志 + D135 求解器影子门 + D136 影子门 CI 接入 + D137 插件路由拆分、D138 帮助检索路由拆分、D139 二维有限元路由拆分、D140 块库路由拆分、D141 分析路由拆分、D142 文档基线同步、D143 偏好/布局路由拆分、D144 BACKLOG 基线清理、D145 缓存/文档/加速路由拆分、D146 应用内扩展路由拆分、D147 仿真控制路由拆分、D148 工作区路由拆分、D149 多网络管理路由拆分、D150 PlotKit 接入/预计算路由拆分、D151 场景/模板路由拆分、D152 页面/UI/状态/诊断路由拆分、D153 工程文件路由拆分；本轮新增 VISION 草案、HASH_TABLE_OPTIMIZATION_RESEARCH、extensions/plugins/netlab.plotkit 官方插件、sessions 会话日志，更新 PROGRESS/DOCS_INDEX）· 当前基线：静态 3.20.1 / 909 passed / 1 skipped / R01–R43 / D1–D156；新增 **CODE_STANDARDS.md（代码规范，强制）**
+> 最后核对：2026-11-12（全量文档基线同步 + 审计 A 阶段后复核 + D125 PlotKit 插件封装 + D129 测试配置 + D130 N-36 步骤事务 + D131 records 拆分 + D132 文档隐私清理 + D133 端到端控制实验 + D134 文档分层与会话日志 + D135 求解器影子门 + D136 影子门 CI 接入 + D137 插件路由拆分、D138 帮助检索路由拆分、D139 二维有限元路由拆分、D140 块库路由拆分、D141 分析路由拆分、D142 文档基线同步、D143 偏好/布局路由拆分、D144 BACKLOG 基线清理、D145 缓存/文档/加速路由拆分、D146 应用内扩展路由拆分、D147 仿真控制路由拆分、D148 工作区路由拆分、D149 多网络管理路由拆分、D150 PlotKit 接入/预计算路由拆分、D151 场景/模板路由拆分、D152 页面/UI/状态/诊断路由拆分、D153 工程文件路由拆分；本轮新增 VISION 草案、HASH_TABLE_OPTIMIZATION_RESEARCH、extensions/plugins/netlab.plotkit 官方插件、sessions 会话日志，更新 PROGRESS/DOCS_INDEX；阶段 4 P1-A 新增 9 份设计冻结草案 Proposed，见 §2.2）· 当前基线：静态 3.20.1 / 909 passed / 1 skipped / R01–R43 / D1–D156；新增 **CODE_STANDARDS.md（代码规范，强制）**
 > 目的：先在这里找文档，不要凭文件名猜新旧。**历史文档保留原文，但不得作为当前实现口径。**
 
 ## 0. 文档分层（D-3 / N-30）
@@ -60,6 +60,15 @@
 | [UNIFIED_SIM_MATH_SPEC.md](UNIFIED_SIM_MATH_SPEC.md) | 统一仿真数学规范（§0–§17 完整；§0–§16 于 2026-11-06 从会话日志恢复） | 研究（完整） |
 | [WORKTREE_RULES.md](WORKTREE_RULES.md) | 多工作树/多会话规范 | 当前 |
 | [VSCODE_INTEGRATION.md](VSCODE_INTEGRATION.md) | VS Code 内嵌集成 | 当前 |
+| [CORE_MODEL_V2.md](CORE_MODEL_V2.md) | P1-A 核心模型 V2：13 类对象、四类关系图、三型边、Desc/Runtime 分层、渐进迁移 | 规划（阶段 4 设计冻结草案，Proposed） |
+| [TYPED_PORT_SYSTEM.md](TYPED_PORT_SYSTEM.md) | Typed Port：PortType/UnitRegistry、连接语义、4 类物理量、五问 | 规划（Proposed） |
+| [ENGINE_SPI_V2.md](ENGINE_SPI_V2.md) | Engine SPI V2：EngineSpec 能力声明、生命周期、Plugin 边界、五问 | 规划（Proposed） |
+| [ARCHITECTURE_BOUNDARIES.md](ARCHITECTURE_BOUNDARIES.md) | 六层边界与依赖方向、编译缓存键组成、ADR 与授权 | 规划（Proposed） |
+| [CORE_OBJECT_RELATIONSHIP.md](CORE_OBJECT_RELATIONSHIP.md) | 对象关系图与所有权、Desc/Runtime 五问 | 规划（Proposed） |
+| [ENGINE_LIFECYCLE.md](ENGINE_LIFECYCLE.md) | create→validate→compile→run→snapshot→restore→destroy、快照契约与回滚 | 规划（Proposed） |
+| [CORE_INTERFACE_CONTRACTS.md](CORE_INTERFACE_CONTRACTS.md) | Python Protocol/ABC 精确签名、参数/返回/异常总表 | 规划（Proposed） |
+| [MIGRATION_AND_COMPATIBILITY.md](MIGRATION_AND_COMPATIBILITY.md) | 旧记录/工程 v6·v7 字段映射、兼容窗口、风险 R1–R6、回滚 | 规划（Proposed） |
+| [MINIMAL_DATA_MODEL_EXAMPLE.md](MINIMAL_DATA_MODEL_EXAMPLE.md) | 2 节点+1 边最小领域：JSON/内存对象/编译产物/运行结果 + 最小机械域 | 规划（Proposed） |
 
 ### 2.3 扩展体系
 

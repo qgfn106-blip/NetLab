@@ -1,7 +1,7 @@
 # NetLab 项目状态（唯一事实源 · PROJECT_STATUS）
 
-- **状态**：当前状态的唯一事实源（2026-11-11 建立，2026-11-12 阶段 3 评估收口后刷新）。
-- **最后刷新**：2026-11-12（Asia/Shanghai），随「阶段 3 评估前置收口」独立 docs 提交更新。
+- **状态**：当前状态的唯一事实源（2026-11-11 建立，2026-11-12 阶段 4 P1-A 设计冻结后刷新）。
+- **最后刷新**：2026-11-12（Asia/Shanghai），随「阶段 4 P1-A 全量设计冻结」docs 提交更新。
 - **维护规则**：本文件只记当前事实；路线/阶段表见 `CORE_ARCHITECTURE_V2_ROADMAP.md`，目标口径见 `CORE_ARCHITECTURE_V2.md`，执行约束见 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md`（该文件为 2026-11-11 快照，动态状态委托本文件），架构决策见 `docs/adr/`，历史完成记录见 `PROGRESS.md`。机器可读字段以 `status.json` / `reports/test_status.json` 为准。
 
 ## 1. 当前基线事实（四类事实分离）
@@ -26,7 +26,7 @@
 - 阶段 1（P1-A-lite）：已完成 —— `ADR-005` Presentation 外观归属 = Accepted（lite）；其余 ADR 仍 Proposed，ADR≠代码实施授权。
 - 阶段 2（P-B 元素级视图外观完整版）：已完成并 push 到 `8e7f583` —— 900 passed / 1 skipped / 81.376055%；评估整改见 `PROGRESS.md §7.154`。
 - 阶段 3（R40 收尾：节点卡片自由字段编辑）：已完成并 push 到 `b667e51` —— 909 passed / 1 skipped / 81.404692%，三条 CI success；详见 `PROGRESS.md §7.153`。
-- 阶段 4（P1-A 全量设计冻结）：**已获「Netlab 项目审批」会话 2026-11-12 08:10 评估批准（允许进入）**；前置收口（H3 需求口径回写、九项第 7 项订正、L1 文件计数订正、M4 allowlist 边界说明、H2 责任归属）以独立 docs 提交完成并绑定新精确 HEAD 三条 CI 后启动，详见 `PROGRESS.md §7.155`。
+- 阶段 4（P1-A 全量设计冻结）：**设计冻结草案已交付（9 份 Proposed 文档，见 `PROGRESS.md §7.156`）**；三组五问、四类关系图、Protocol 精确签名、4 类物理量、最小示例齐备；仅文档、不改代码，不升格 ADR；三项需用户决策标为 `PENDING_USER_AUTHORIZATION`。完成报告与绑定精确 HEAD 的三条 CI 证据见本阶段 §8 报告，阶段 5 待评估批准。
 - 阶段 5–13（P1-R1 / P1-R2 / P1-S1 / P1-S2 / P1-S3 / P2 / P3 / P4 / P5）：未开始。
 
 | 阶段 | 内容 | 状态 |
@@ -35,7 +35,7 @@
 | 1 | P1-A-lite（ADR-005-lite） | 已完成（Accepted） |
 | 2 | P-B 元素级视图外观完整版 | 已完成（`8e7f583`） |
 | 3 | R40 收尾：节点卡片自由字段 | 已完成（`b667e51`） |
-| 4 | P1-A 全量设计冻结 | 已获批（前置收口独立提交后启动） |
+| 4 | P1-A 全量设计冻结 | 设计草案已完成（9 份 Proposed），待评估 |
 | 5 | P1-R1 Stamp 统一 | 未开始 |
 | 6 | P1-R2 AC/Bode 统一 | 未开始 |
 | 7 | P1-S1 Project/DTO | 未开始 |
@@ -94,6 +94,6 @@
 ## 6. 未解决事项
 
 - 阶段 2 的 `8e7f583` 三条 CI 仍 queued（GitHub runner 未分配），如实标注，不作通过证据。
-- 阶段 3 完成报告已获审批会话 2026-11-12 08:10 只读评估（结论：允许进入阶段 4；无阻塞项）；前置收口见 `PROGRESS.md §7.155`。
-- 阶段 4 已获批，仅做设计冻结文档（`CORE_MODEL_V2.md` / `TYPED_PORT_SYSTEM.md` / `ENGINE_SPI_V2.md`），不改代码；ADR-001/002/003/004/006/007 仍 Proposed，不自行升格 Accepted（需用户裁定）；阶段 5–13 未开始。
+- 阶段 3 完成报告已获审批会话 2026-11-12 08:10 只读评估（结论：允许进入阶段 4；无阻塞项）；前置收口见 `PROGRESS.md §7.155`。阶段 4 完成报告待审批会话评估。
+- 阶段 4 已交付 9 份设计冻结草案（三份主文档 + 六份补充章节），不改代码；ADR-001/002/003/004/006/007 仍 Proposed，不自行升格 Accepted（需用户裁定）；三项需用户决策标 `PENDING_USER_AUTHORIZATION`；阶段 5–13 未开始。
 - 所有 `PENDING_USER_AUTHORIZATION` 项保持挂起，未获新授权不启动。

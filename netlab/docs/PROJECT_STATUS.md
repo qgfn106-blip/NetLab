@@ -3,7 +3,7 @@
 - **状态**：当前状态唯一事实源（2026-11-12 阶段 4 封口评审后刷新，含本轮复审基线纠偏）。
 - **最后刷新**：2026-11-12（Asia/Shanghai），按《NetLab 本轮复审与Agent修正任务书》P0-1 纠偏。
 - **阶段 4（P1-A）**：设计冻结整改已完成 P0-01–P0-04 与关键 P1，新增 `tools/check_stage4_docs.py` 与契约测试；全量 945 passed / 1 skipped / 81.380784%；第④轮封口评审已「通过（无阻断、无新增项）」；**2026-11-12 获用户明确批准，正式验收通过（用户授权）**；阶段 5 转正式复核（进入阶段 6 仍需用户单独授权）。
-- **阶段 5（P1-R1）**：两端口 Laplacian stamping primitive 已统一并 push `eaec04a`（三条 CI success、942 passed/81.3808%）；**完整 CircuitElement 元件模型统一未完成**（Descriptor 仍是 A+sE、Legacy 仍是伴随 MNA）。审批 2026-11-12 评估判「不允许进入阶段 6 · 需用户授权 · 暂停」，阶段 5 成果保留但不作放行依据，阶段 6–13 均 `PENDING_USER_AUTHORIZATION`。
+- **阶段 5（P1-R1）**：共享 `stamp_laplacian` 两端口原语收敛已交付（代码 `e41160f`，状态 tip `eaec04a`，三条 CI success）；**2026-11-12 只读复核判「子目标达成（零数值回归、无回归、数值等价 max_abs≈5.55e-17）」但「阶段 5 整体仍 open、不标完成、不进阶段 6」**——完整 CircuitElement 元件模型统一未完成（Descriptor 仍 A+sE、Legacy 仍伴随 MNA，双 `kind` 分派尚在）；ROADMAP:40 原目标基线不可零回归实现，彻底合并需 CORE_MODEL_V2 `ElementAdmittance`（Proposed，3× PENDING）。阶段 6–13 均 `PENDING_USER_AUTHORIZATION`。
 - **维护规则**：本文件只记当前事实；路线/阶段表见 `CORE_ARCHITECTURE_V2_ROADMAP.md`，目标口径见 `CORE_ARCHITECTURE_V2.md`，执行约束见 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md`（该文件为 2026-11-11 快照，动态状态委托本文件），架构决策见 `docs/adr/`，历史完成记录见 `PROGRESS.md`。机器可读字段以 `status.json` / `reports/test_status.json` 为准。
 
 ## 1. 当前基线事实（四类事实分离）
@@ -33,7 +33,7 @@
 - 阶段 2（P-B 元素级视图外观完整版）：已完成并 push 到 `8e7f583` —— 900 passed / 1 skipped / 81.376055%；评估整改见 `PROGRESS.md §7.154`。
 - 阶段 3（R40 收尾：节点卡片自由字段编辑）：已完成并 push 到 `b667e51` —— 909 passed / 1 skipped / 81.404692%，三条 CI success；详见 `PROGRESS.md §7.153`。
 - 阶段 4（P1-A 全量设计冻结）：9 份 Proposed 文档已交付；**2026-11-12 任务书整改完成**：P0-01–P0-04 全修复、P1-01/P1-02/P1-06 修复、P1-03–P1-13/P2-02 差距分析文档化，新增 `tools/check_stage4_docs.py` + `test_stage4_document_contracts.py`；第④轮封口评审已「通过（无阻断、无新增项）」；已于 2026-11-12 获用户明确批准正式验收；详见 `PROGRESS.md §7.159`、`STAGE4_REMEDIATION_REPORT.md`、`STAGE4_INDEPENDENT_REVIEW.md`。
-- 阶段 5（P1-R1 Stamp 统一）：已于任务书前交付并 push `eaec04a`（三条 CI success、942 passed/81.3808%）；审批评估判「不允许进入阶段 6 · 需用户授权 · 暂停」，成果保留、不作放行依据。
+- 阶段 5（P1-R1 Stamp 统一）：代码 `e41160f`（状态 tip `eaec04a`，三条 CI success）已交付；2026-11-12 只读复核判「子目标达成、零数值回归」，但阶段 5 整体仍 open（元件模型完整统一未完成）；成果保留、不作阶段 5 整体完成依据，不进阶段 6。
 - 阶段 6–13（P1-R2 / P1-S1 / P1-S2 / P1-S3 / P2 / P3 / P4 / P5）：未开始，保持 `PENDING_USER_AUTHORIZATION`。
 
 | 阶段 | 内容 | 状态 |
@@ -43,7 +43,7 @@
 | 2 | P-B 元素级视图外观完整版 | 已完成（`8e7f583`） |
 | 3 | R40 收尾：节点卡片自由字段 | 已完成（`b667e51`） |
 | 4 | P1-A 全量设计冻结 | **已完成（2026-11-12 用户批准正式验收）** |
-| 5 | P1-R1 Stamp 统一 | 已交付 `eaec04a`，按任务书冻结待复核 |
+| 5 | P1-R1 Stamp 统一 | 子目标达成（共享 Laplacian 原语，2026-11-12 复核 PASS）；**阶段 5 整体 open，不标完成、不进阶段 6** |
 | 6 | P1-R2 AC/Bode 统一 | 未开始 |
 | 7 | P1-S1 Project/DTO | 未开始 |
 | 8 | P1-S2 Engine SPI v2 | 未开始 |
@@ -62,7 +62,7 @@
 | R25（完整电路级内部结构） | 暂停（用户 2026-11-11 裁决先做 P-B） |
 | R43（M2） | 仅 opt-in |
 | R19（参考级图纸） | 暂停 |
-| Phase 3 架构债 / Phase 4 CI 证据 | `PENDING_USER_AUTHORIZATION`（阶段 5 P1-R1 已交付 `eaec04a`，但阶段 5 准入存在授权冲突，按 `PENDING_USER_AUTHORIZATION` 处理；阶段 6–13 未获用户明确授权，暂停；不得以本文件或历史提交自证授权） |
+| Phase 3 架构债 / Phase 4 CI 证据 | `PENDING_USER_AUTHORIZATION`（阶段 5 P1-R1 代码 `e41160f` 已交付（子目标达成、阶段 5 整体 open），阶段 5 准入仍存授权边界，按 `PENDING_USER_AUTHORIZATION` 处理；阶段 6–13 未获用户明确授权，暂停；不得以本文件或历史提交自证授权） |
 | 500 / 1000 / 5000 规模档 | `PENDING_USER_AUTHORIZATION`；`MAX_NODES=400` 默认不放宽 |
 | Newton 选主元 / SCC 差分 Jacobian | `PENDING_USER_AUTHORIZATION` |
 | `NETLAB_MATH_ACCEL` | 默认 off，不擅自放量 |
@@ -103,6 +103,6 @@
 - 阶段 2 的 `8e7f583` 三条 CI 仍 queued（GitHub runner 未分配），如实标注，不作通过证据。
 - 阶段 3 完成报告已获审批会话 2026-11-12 08:10 只读评估（结论：允许进入阶段 4；无阻塞项）；前置收口见 `PROGRESS.md §7.155`。阶段 4 曾于 08:10 获评估允许进入阶段 5，后因 10:48 第 4 阶段整改任务书重定向，该放行已被覆盖；当前阶段 4 整改第④轮封口评审「通过（无阻断、无新增项）」，已于 2026-11-12 获用户明确批准，正式验收通过。
 - 阶段 4 整改已修复 P0-01–P0-04 与关键 P1，新增可复现 checker/测试；第④轮独立评审已执行：初评不通过→修复→复评「有条件通过（无阻断）」→封口评审「通过（无阻断、无新增项）」；已于 2026-11-12 获用户明确批准，正式验收完成。
-- 阶段 5 P1-R1 已在任务书到达前完成并 push（`eaec04a`）；阶段 4 已验收，阶段 6+ 仍需用户单独授权方可推进；阶段 5 是否回退由用户裁定。
+- 阶段 5 P1-R1 代码 `e41160f`（状态 tip `eaec04a`）已交付；2026-11-12 复核判子目标达成、阶段 5 整体仍 open（保留成果、不回退），阶段 6+ 仍需用户单独授权方可推进。
 - ADR-001/002/003/004/006/007/008 仍 Proposed（ADR-008 为 Open Decision），不自行升格 Accepted；三项需用户决策标 `PENDING_USER_AUTHORIZATION`。
 - 所有 `PENDING_USER_AUTHORIZATION` 项保持挂起，未获新授权不启动。

@@ -44,7 +44,7 @@ from ..compute.methods import (
     method_catalog,
     prepare_method,
 )
-from .scene_types import MODES, normalize_appearance
+from .scene_types import is_known_mode, normalize_appearance
 from ..compute.nodal import (
     CircuitNode,
     CircuitSolver,
@@ -82,7 +82,7 @@ class _SceneIOMixin:
         if not isinstance(payload, dict):
             raise ValidationError("场景必须是 JSON 对象")
         mode = payload.get("mode", self.mode)
-        if mode not in MODES:
+        if not is_known_mode(mode):
             raise ValidationError(f"未知模式：{mode!r}")
         integration = payload.get("integration", "trapezoidal")
         allowed_integration = {item["value"] for item in integration_methods()}

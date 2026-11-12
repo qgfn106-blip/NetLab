@@ -30,9 +30,22 @@ from ..common.limits import ConflictError, NotFoundError, ValidationError
 from .path_guard import ensure_allowed_path
 from .project import build_project_from_networks, project_scene_payload
 from .schematic import fill_missing_layout
-from .scene import MODES, Scene
+from .scene import Scene
+from .scene_types import is_known_mode
 from ..compute.simulation import Simulation
 from .templates import build_template
+
+
+def _blank_scene_payload(mode: str) -> dict[str, Any]:
+    """返回某工作模式的空白场景载荷：内置模式用模板，插件模式用空场景。"""
+    name = {
+        "signal": "blank_signal",
+        "circuit": "blank_circuit",
+        "vector": "blank_vector",
+    }.get(mode)
+    if name is not None:
+        return build_template(name)
+    return {"mode": mode, "nodes": [], "edges": [], "blocks": []}
 
 
 class NetworkContainer:
@@ -987,15 +1000,9 @@ class NetworkContainer:
         self._require_writable()
         # 每条网络独立保存自己的工作模式；未指定时沿用当前网络的模式（向后兼容）。
         chosen = str(mode).strip() if mode is not None else self.current.scene.mode
-        if chosen not in MODES:
+        if not is_known_mode(chosen):
             raise ValidationError(f"未知的工作模式：{chosen!r}")
-        template = build_template(
-            {
-                "signal": "blank_signal",
-                "circuit": "blank_circuit",
-                "vector": "blank_vector",
-            }[chosen]
-        )
+        template = _blank_scene_payload(chosen)
         simulation = Simulation(Scene(chosen))
         try:
             simulation.load_scene(template)
@@ -1014,18 +1021,12 @@ class NetworkContainer:
         """
         self._require_writable()
         clean = str(mode or "").strip()
-        if clean not in MODES:
+        if not is_known_mode(clean):
             raise ValidationError(f"未知的工作模式：{clean!r}")
         target = self._entry(network_id)
         if target.scene.mode == clean:
             return {"id": network_id, "mode": clean, "networks": self.list_networks()}
-        template = build_template(
-            {
-                "signal": "blank_signal",
-                "circuit": "blank_circuit",
-                "vector": "blank_vector",
-            }[clean]
-        )
+        template = _blank_scene_payload(clean)
         replacement = Simulation(Scene(clean))
         try:
             replacement.load_scene(template)

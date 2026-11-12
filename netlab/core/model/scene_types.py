@@ -8,6 +8,20 @@ from typing import Any
 from ..common.limits import ValidationError, as_float
 
 MODES = ("signal", "circuit", "vector")
+
+
+def is_known_mode(mode: Any) -> bool:
+    """判断模式是否已知：内置 ``MODES`` 或已注册的插件引擎模式（R40）。
+
+    局部导入 ``engine_registry``，避免模块级循环导入。
+    """
+    if mode in MODES:
+        return True
+    from .engine_registry import ENGINE_SPECS
+
+    return mode in ENGINE_SPECS
+
+
 MAX_POSITION = 10000.0
 ROUTE_MODES = ("auto", "straight", "orthogonal", "manual")
 ANCHOR_SIDES = ("auto", "left", "right", "top", "bottom")

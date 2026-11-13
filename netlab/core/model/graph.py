@@ -594,12 +594,18 @@ class Network:
             for node in component:
                 component_of[node] = component_index
 
+        breakpoint_component_indices = {component_of[node] for node in breakpoints}
         component_edges: set[tuple[int, int]] = set()
         for connection in enabled:
             source = component_of[connection.source]
             target = component_of[connection.target]
-            if source != target:
-                component_edges.add((source, target))
+            if source == target:
+                continue
+            # 真两阶段：断点当前输出只取上一拍状态、不依赖本拍输入，故指向断点
+            # 组件的依赖边不参与排序（断点先算=phase1，其余直接馈通=phase2）。
+            if target in breakpoint_component_indices:
+                continue
+            component_edges.add((source, target))
 
         indegree = [0] * len(components)
         outgoing: dict[int, list[int]] = {index: [] for index in range(len(components))}
@@ -615,9 +621,11 @@ class Network:
                 indegree[target] -= 1
                 if indegree[target] == 0:
                     ready.append(target)
-        if len(ordered) != len(components):  # 理论上已被断点消除；保留防御
-            ordered.extend(
-                index for index in range(len(components)) if index not in ordered
+        if len(ordered) != len(components):
+            missing = [index for index in range(len(components)) if index not in ordered]
+            raise AlgebraicLoopError(
+                f"求解计划组件依赖仍存在环（{len(missing)} 个组件无法排序）："
+                "断点应消除全部直接馈通环，请检查断点定义"
             )
 
         self_loops = {
@@ -625,7 +633,7 @@ class Network:
             for connection in enabled
             if connection.source is connection.target
         }
-        breakpoint_indices = {component_of[node] for node in breakpoints}
+        breakpoint_indices = breakpoint_component_indices
         stages: list[SolverStage] = []
         algebraic: list[tuple[str, ...]] = []
         for component_index in ordered:
@@ -842,6 +850,7 @@ class Network:
         values: np.ndarray,
         index: Mapping[Node, int],
         delayed_payloads: Mapping[Connection, NodeData],
+        external_payloads: Mapping[Connection, NodeData],
         dt: float,
     ) -> float:
         """按候选值评估 SCC 内一个无状态节点的输出（不写回 node）。"""
@@ -861,7 +870,9 @@ class Network:
                 source = connection.source
                 payload = {self._node_output_key(source): float(values[index[source]])}
             else:
-                payload = connection.evaluate(dt, time=self.time + dt)
+                payload = external_payloads.get(connection)
+                if payload is None:
+                    payload = connection.evaluate(dt, time=self.time + dt)
             inputs[connection.name] = payload
             if connection.target_port:
                 ports[connection.target_port] = payload
@@ -907,6 +918,18 @@ class Network:
                 raise AlgebraicLoopError(f"代数环引用了不存在的节点 {name!r}")
             nodes.append(node)
         index = {node: position for position, node in enumerate(nodes)}
+        # #5/批次1：外部（SCC 之外）非延迟入边每拍只求值一次，冻结复用给所有 Newton probe；
+        # 否则有状态输入会在每次 residual/雅可比探针里被重复推进。
+        _incoming = self._incoming_for_step()
+        external_payloads: dict[Connection, NodeData] = {}
+        for _node in nodes:
+            for _connection in _incoming.get(_node, ()):
+                if _connection.delay or _connection.source in index:
+                    continue
+                if _connection not in external_payloads:
+                    external_payloads[_connection] = _connection.evaluate(
+                        dt, time=self.time + dt
+                    )
         raw_initial = np.array(
             [float(node.data.get(self._node_output_key(node), 0.0)) for node in nodes],
             dtype=float,
@@ -918,7 +941,9 @@ class Network:
         def residual(values: np.ndarray) -> np.ndarray:
             return np.array(
                 [
-                    self._evaluate_node(node, values, index, delayed_payloads, dt)
+                    self._evaluate_node(
+                        node, values, index, delayed_payloads, external_payloads, dt
+                    )
                     - values[position]
                     for position, node in enumerate(nodes)
                 ],

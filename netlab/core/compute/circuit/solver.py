@@ -1245,6 +1245,8 @@ class CircuitSolver:
                 return complex(solution[element.branch_index])
             if element.kind == "isource":
                 return complex(element.value)
+            if element.kind == "switch":
+                return difference * float(element.conductance)
             raise ComputeError(f"AC 探针 {token!r} 的电流暂不支持")
         raise ComputeError(f"AC 探针不存在：{token!r}")
 

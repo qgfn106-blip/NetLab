@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "generated_at": "2026-11-13T18:24:22.914719+00:00",
+  "code_fingerprint": "b5d9c6504060d8f88d920dc6c869a4e1195c0f34aa4d25e9e797f9874b683fbf",
+  "files": [
+    "netlab/core/compute/circuit/descriptor.py",
+    "netlab/core/compute/circuit/solver.py"
+  ],
+  "modes": {
+    "off": {
+      "backend": "dense",
+      "sample": [
+        3.0,
+        1.145898034,
+        0.437694101,
+        0.16718427,
+        0.063858709,
+        0.024391856,
+        0.00931686,
+        0.003558724
+      ],
+      "max": 3.0
+    },
+    "shadow": {
+      "compared": "off vs on",
+      "max_abs_error": 5.551115123125783e-17,
+      "max_rel_error": 4.575416255531096e-14,
+      "rtol": 1e-10,
+      "passed": true
+    },
+    "on": {
+      "backend": "sparse",
+      "sample": [
+        3.0,
+        1.145898034,
+        0.437694101,
+        0.16718427,
+        0.063858709,
+        0.024391856,
+        0.00931686,
+        0.003558724
+      ],
+      "max": 3.0,
+      "max_abs_error": 5.551115123125783e-17,
+      "max_rel_error": 4.575416255531096e-14,
+      "rtol": 1e-10,
+      "passed": true
+    }
+  },
+  "reference": {
+    "kind": "numpy_dense_ladder_solve",
+    "max_abs_error": 1.1102230246251565e-16,
+    "max_rel_error": 1.0,
+    "passed": true
+  },
+  "pass": true
+}

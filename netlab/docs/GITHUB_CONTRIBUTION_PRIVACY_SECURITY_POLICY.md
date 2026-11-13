@@ -865,3 +865,54 @@ Review scope: <本次提交或推送范围>
 - [9] GitHub Docs — Coordinated disclosure of security vulnerabilities: https://docs.github.com/en/code-security/concepts/vulnerability-reporting-and-management/coordinated-disclosure
 
 - [10] GitHub Docs — Quickstart for securing your repository: https://docs.github.com/en/code-security/getting-started/quickstart-for-securing-your-repository
+
+---
+
+## 附则 A：Git 分支治理与多 Agent 协作规范（v1.1，2026-11-14）
+
+> 本附则并入本政策，适用于 NetLab 全部 Agent 与人类贡献者；与正文冲突时以更新、更严格者为准。原则：轻量、以 main 为唯一主线、每个保留分支都要有明确用途与可验证成果。
+
+### A.1 基本原则
+1. `main` 是唯一正式集成主线；禁止 Agent 直接向 main 提交或推送。
+2. 所有开发在独立分支进行；一个分支对应一个 Issue 或一项明确任务；一个任务原则上只允许一个主工作分支。
+3. 禁止对同一任务无约束地反复创建 `-b`/`-c`/`-v2`/`-final` 等替代分支；原任务有问题应优先在原分支修复。
+4. 正式合并必须通过 PR；CI 通过只是合并条件之一，不是批准。
+5. 分支清理必须保留必要历史追踪信息；未获用户明确授权，不得合并、删除或改写远程分支。
+
+### A.2 命名规范
+采用 `<类型>/<Issue编号>-<简短描述>`（小写英文、数字、连字符）。类型：`feat`/`fix`/`refactor`/`perf`/`test`/`docs`/`chore`/`ci`/`hotfix`/`release`/`backup`。
+禁止无意义后缀：`-b`/`-c`/`-v2`/`-final`/`-final2`/`temp`/`test2`/`agent-work`。
+任务有问题应回原分支修复；仅当（用户明确要求独立路线 / 原分支重大设计缺陷不能安全继续 / 需独立对比实验 / 需严格隔离验证）才允许新开分支，并记录新旧分支关系、独立目标与处理计划，旧分支标记待审查而非放任并存。
+
+### A.3 创建前检查
+确认：任务目标、是否已有 Issue、是否已有同任务分支、是否有其他 Agent 在处理、当前 main HEAD、涉及文件模块、是否属已授权阶段、是否触及 FEM 冻结、是否与其他任务有依赖。从最新稳定 main 创建，并记录：分支名、基准 main SHA、关联 Issue、目标功能、负责人/Agent、允许修改范围、预期测试、完成条件。
+
+### A.4 开发与提交
+- 单分支单一目标；最小改动；不无关重构；新增或更新测试；记录测试命令与实际结果；检查兼容性、阶段授权、冻结模块。
+- 采用 Conventional Commits：`<type>(<scope>): <description>`；一次提交表达一个逻辑修改；不得在 Commit Message 写入 Token、密码、私人路径或会话隐私。
+- 已推送或被其他 Agent 使用的共享分支，不得擅自 amend/rebase/force 改写历史，除非用户明确批准相关操作与影响范围。
+
+### A.5 PR 规范
+PR 必须包含：关联 Issue、任务背景、修改目标、主要改动、文件范围、设计说明、测试命令、测试结果、兼容性、风险、是否触及阶段边界、是否涉及冻结模块、是否涉及数据格式/架构变更。禁止只写「已完成/修复问题/测试通过」。审查须检查 diff、测试完整性、CI、无关改动、重复实现、安全、ADR、阶段授权、FEM 冻结。
+
+### A.6 合并前置与方式
+合并前必须确认：来源清晰、任务明确、与最新 main 差异已审、无重复实现、无未解冲突、必要测试通过、CI 对应当前提交、无阶段越权、无 FEM 违规、无隐私安全问题、用户已明确批准。不得仅凭 ahead 数、commit 数、CI 绿、分支名或 Agent 自述判定可合并。正式整合应从最新 main 新建集成分支，只挑选经审有效改动，记录每个改动的来源 SHA，运行目标与回归测试，走 PR 并经用户批准后合并。
+
+### A.7 生命周期与清理
+`创建 → 开发 → 自测 → PR 审查 → 用户审批 → 合并 → 确认 → 归档/删除`。
+- 合并后确认：PR 已合并、commit 已入 main、main 通过必要测试、无其他分支依赖，再纳入清理候选。
+- 超过 30/60/90 天未更新：分别 提醒检查 / 重新确认是否继续 / 评估归档或标记过期（仅管理提醒，不自动删除）。
+- 归档须记录：原名、原始 HEAD SHA、关联任务、不再开发原因、是否已被 main 替代、恢复价值。
+- 未获用户授权，不自动删除远程或本地分支。
+
+### A.8 多 Agent 协作
+同一任务只能有一个主工作分支；开工前查同 Issue 分支、其他 Agent、PR。多 Agent 须提前划分：目标、修改范围、文件归属、接口约定、分支归属、集成负责人；不得无协调地同时修改同一核心模块。同一任务有多实现方案时，须记录目的、区别、评价标准、测试结果，最终选一，其余标记未采用或归档。交接必须提供：分支名、HEAD SHA、基准 main SHA、已完成、未完成、修改文件、已运行测试、测试结果、已知问题、后续建议、其他 Agent 依赖。不得只说「任务完成」而不给可验证的提交与测试信息。
+
+### A.9 分支分类（审计与裁定用）
+KEEP_ACTIVE / MERGE_CANDIDATE / REWORK / SUPERSEDED / ARCHIVE / DELETE_CANDIDATE / NEEDS_USER_DECISION。每个分支须给出：分类结果、依据、核心修改、主要风险、与其他分支关系、是否已进入 main、推荐下一步；无法确认者一律 NEEDS_USER_DECISION，不得批量无证据分类。
+
+### A.10 只读审计边界
+分支审计默认严格只读：不合并、不删除、不建/关 PR、不 push、不改 main、不 rebase 已发布分支、不 cherry-pick、不 force push、不 reset/clean、不改代码/测试/文档/`.gitignore`、不改仓库设置与 Branch Protection、不把审计报告提交进仓库。禁用 `git add .`/`-A`/`-f`、`git commit -a`、`git push --force`、`git reset --hard`、`git clean`。历史授权、Agent 内部判断、CI 通过状态、分支名称均不能代替本次用户明确授权。
+
+### A.11 隐私与安全
+分支与 Commit 不得含 API Key/Token/密码、`.env`、Cookie/会话、私人路径、本地日志、数据库/缓存/临时文件；不得把私人信息写入 Commit Message；不得将已清理的会话文件重新提交；不得通过 Release/Gist/Actions Artifact 绕过安全门禁；发现疑似凭证只记录风险类型、位置与建议并脱敏，建议用户撤销或轮换。

@@ -35,13 +35,25 @@ def _git(*args: str) -> str:
     return subprocess.check_output(["git", *args], cwd=ROOT, text=True).strip()
 
 
+class GateError(RuntimeError):
+    """D-5 门禁失败（fail-closed）：无法确定是否改动计算代码时，必须显式失败而非放行。"""
+
+
 def changed_compute_files(base: str) -> list[str]:
-    if not base or set(base) == {"0"}:
+    if not base:
+        # 未提供基线（本地 --generate / 无 DIFF_BASE）：不比较，合法返回空。
+        return []
+    if set(base) == {"0"}:
+        # 全零哨兵（首提交 / 新分支 push 的 github.event.before）：无基线可比，合法返回空。
         return []
     try:
         out = _git("diff", "--name-only", f"{base}..HEAD")
-    except subprocess.CalledProcessError:
-        return []
+    except subprocess.CalledProcessError as exc:
+        # fail-closed：无效 base / diff 执行失败时绝不能当成“无计算改动”而放行。
+        raise GateError(
+            f"D-5: git diff against base '{base}' failed ({exc}); "
+            "refusing to treat as 'no compute changes' (fail-closed)."
+        ) from exc
     files = [line.strip() for line in out.splitlines() if line.strip()]
     return [p for p in files if p.startswith(COMPUTE_PREFIX) and p.endswith(".py")]
 
@@ -206,7 +218,31 @@ def _self_test() -> int:
         if not validate_report(bad):
             print(f"self-test FAILED: {name} did not turn red")
             return 1
-    print("OK: D-5 self-test passed (baseline green; delete/inflate modes turn red)")
+    # fail-closed：git diff 失败 / 无效 base 时 changed_compute_files 必须抛 GateError，
+    # 绝不能静默 return []（否则 D-5 闸门形同虚设）。
+    original_git = globals()["_git"]
+
+    def _raising_git(*_a: Any, **_k: Any) -> str:
+        raise subprocess.CalledProcessError(128, ["git", "diff"])
+
+    globals()["_git"] = _raising_git
+    try:
+        try:
+            changed_compute_files("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
+        except GateError:
+            blocked = True
+        else:
+            blocked = False
+    finally:
+        globals()["_git"] = original_git
+    if not blocked:
+        print("self-test FAILED: fail-closed not enforced (invalid base did not raise GateError)")
+        return 1
+    # 合法空基线（全零哨兵 / 空串）应返回 []，不得报错。
+    if changed_compute_files("0" * 40) != [] or changed_compute_files("") != []:
+        print("self-test FAILED: legal empty/zero base should return []")
+        return 1
+    print("OK: D-5 self-test passed (baseline green; delete/inflate modes turn red; fail-closed on bad base)")
     return 0
 
 
@@ -221,7 +257,11 @@ def main() -> int:
     if args.self_test:
         return _self_test()
 
-    files = changed_compute_files(args.base)
+    try:
+        files = changed_compute_files(args.base)
+    except GateError as exc:
+        print(f"D-5 FAIL-CLOSED: {exc}", file=sys.stderr)
+        return 2
     if args.generate:
         report = build_report(files=files)
         SHADOW_DIR.mkdir(parents=True, exist_ok=True)

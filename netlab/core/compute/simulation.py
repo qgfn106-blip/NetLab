@@ -558,13 +558,14 @@ class Simulation:
             self.ensure_thread()
             self.running = False
             # 原子预计算：成功才替换；取消/异常恢复旧场景与旧录制。
-            before_scene = self.scene.to_payload()
+            before_checkpoint = self.scene.capture_checkpoint()
             before_time = self.time
             before_steps = self.steps
             before_last_sample = self._last_sample_time
             before_recorder = self.recorder.snapshot()
             before_error = self.error
             before_error_at = self.error_at
+            before_frame_times = list(self._frame_times)
             self.scene.reset()
             self.time = 0.0
             self.steps = 0
@@ -613,7 +614,7 @@ class Simulation:
                         eta=(round(eta, 2) if eta is not None else None),
                     )
             if cancelled or self.error:
-                self.scene.load_payload(before_scene)
+                self.scene.restore_checkpoint(before_checkpoint)
                 self.time = before_time
                 self.steps = before_steps
                 self._last_sample_time = before_last_sample
@@ -622,6 +623,7 @@ class Simulation:
                     self.error = before_error
                     self.error_at = before_error_at
                 self._frame_times.clear()
+                self._frame_times.extend(before_frame_times)
             frames = len(self.recorder)
             first_time = self.recorder.frames[0]["t"] if frames else 0.0
             last_time = self.recorder.frames[-1]["t"] if frames else 0.0

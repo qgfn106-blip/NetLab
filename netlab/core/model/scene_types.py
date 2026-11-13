@@ -14,7 +14,12 @@ def is_known_mode(mode: Any) -> bool:
     """判断模式是否已知：内置 ``MODES`` 或已注册的插件引擎模式（R40）。
 
     局部导入 ``engine_registry``，避免模块级循环导入。
+
+    非字符串（list/dict/set 等不可哈希对象）直接返回 False，避免
+    ``mode in ENGINE_SPECS`` 抛 ``TypeError: unhashable type``（#7 修复）。
     """
+    if not isinstance(mode, str):
+        return False
     if mode in MODES:
         return True
     from .engine_registry import ENGINE_SPECS

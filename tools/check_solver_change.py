@@ -40,12 +40,12 @@ class GateError(RuntimeError):
 
 
 def changed_compute_files(base: str) -> list[str]:
-    if not base:
-        # 未提供基线（本地 --generate / 无 DIFF_BASE）：不比较，合法返回空。
-        return []
     if set(base) == {"0"}:
         # 全零哨兵（首提交 / 新分支 push 的 github.event.before）：无基线可比，合法返回空。
         return []
+    if not base:
+        # fail-closed：gate 模式下未提供基线（DIFF_BASE 为空）不得静默放行，明确失败。
+        raise GateError("D-5: no base commit provided (fail-closed).")
     try:
         out = _git("diff", "--name-only", f"{base}..HEAD")
     except subprocess.CalledProcessError as exc:
@@ -238,9 +238,26 @@ def _self_test() -> int:
     if not blocked:
         print("self-test FAILED: fail-closed not enforced (invalid base did not raise GateError)")
         return 1
-    # 合法空基线（全零哨兵 / 空串）应返回 []，不得报错。
-    if changed_compute_files("0" * 40) != [] or changed_compute_files("") != []:
-        print("self-test FAILED: legal empty/zero base should return []")
+    # 全零哨兵应返回 []（合法首提交/新分支 push）。
+    if changed_compute_files("0" * 40) != []:
+        print("self-test FAILED: zero sentinel base should return []")
+        return 1
+    # 空 base（gate 模式未设 DIFF_BASE）必须 fail-closed（抛 GateError），不得静默放行。
+    try:
+        changed_compute_files("")
+    except GateError:
+        pass
+    else:
+        print("self-test FAILED: empty base should be fail-closed")
+        return 1
+    # 真正执行 main 进程，断言无效 base 返回非零退出码（而非 0 放行）。
+    import subprocess as _sp
+    _proc = _sp.run(
+        [sys.executable, str(Path(__file__).resolve()), "--base", "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"],
+        capture_output=True, text=True,
+    )
+    if _proc.returncode == 0:
+        print("self-test FAILED: main() exited 0 on invalid base (fail-open)")
         return 1
     print("OK: D-5 self-test passed (baseline green; delete/inflate modes turn red; fail-closed on bad base)")
     return 0

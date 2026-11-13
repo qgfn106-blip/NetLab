@@ -2,6 +2,16 @@
 
 插件作者只应从这个包导入；不要直接依赖 ``netlab.core`` 内部模块。平台会把
 这里的声明适配到内部注册表，并保持 ``NodeRecord`` / ``EdgeRecord`` 结构不变。
+
+扩展边界（契约）：
+- **引擎 mode ≠ 功能块 mode**。插件可经 ``EngineSpec`` + ``register_engine`` 注册
+  自定义**求解引擎 mode**（不能替换内置 ``signal`` / ``circuit`` / ``vector``）；
+  但 ``BlockDef.mode``（功能块自定义模式）当前**仅允许** ``signal`` / ``vector`` /
+  ``circuit``，不支持插件新增功能块 mode。
+- 若需插件自定义功能块模式，属 Plugin API V2 范畴，须另行定义 Typed Port、
+  生命周期、持久化、权限边界与兼容性，不在 v1 契约内。
+- 本 API 是**进程内 Python 扩展接口，不是操作系统级安全沙箱**；插件在宿主进程内
+  运行、拥有与宿主相同能力，不要依赖它做不可信代码隔离。
 """
 
 from __future__ import annotations

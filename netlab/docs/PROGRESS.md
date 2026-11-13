@@ -2963,3 +2963,11 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 强化 C 支（用户要求、多子agent并行复核）：`netlab/tests/test_p1r2_ac_parity.py` 频率网格改 `np.logspace(1,6,41)`（1e1–1e6，每 0.125 decade）+ RLC 串联谐振≈5.03kHz 附近 7 点加密；断言改 `_assert_strict_allclose` 显式 `max_abs≤1e-12` 且 `|ref|>1e-9` 时 `max_rel≤1e-9`（非 assert_allclose 合并界）；T11/C15 增错误契约（同为 ComputeError、文案一致/点名 OP1）。分支 `test/p1r2-ac-parity-strict`（2c5f900）经 `merge --no-ff` 并入 main，终态 main=`4b5fc91`。
 - 验证：全量 pytest 1005 passed / 1 skipped；docs 隐私/SSOT/契约 6 passed；`git push origin main` `52b50a4..4b5fc91`；GitHub 5 check-run 全 `completed/success`（test / desktop-l2 / build / docker / e2e-l1）。
 - 边界：阶段 7–13、ADR-008 A/B/C、P0-2 全链路改造仍 `PENDING_USER_AUTHORIZATION`。
+
+## 7.170 2026-11-14 阶段7 P1-S1 类型化 DTO 层首切片（feat/p1s1-dto-skeleton）
+
+- 目标：Project/DTO 分层的第一步——纯增量类型接缝，不改外部 JSON、不改既有 dict 管线、`PROJECT_VERSION` 保持 7。
+- 交付：新增 `netlab/core/model/dto.py`（`ProjectDTO` / `NetworkDoc` / `SceneDoc`，`from_payload`/`to_payload` 用 `deepcopy` 保序，对 v7 payload 严格恒等）；新增 `netlab/tests/test_dto_roundtrip.py`（10 用例：4 个既有 fixture 的 dict 级 + 字节级 round-trip 恒等、字段暴露、非 dict 抛 TypeError）。
+- 过程：先 RED（`ModuleNotFoundError: netlab.core.model.dto`），实现后 GREEN（10 passed，含 `encode_project_bytes` 与原始 `.netlab` 字节完全一致）。
+- 验证：`pytest netlab/tests/test_dto_roundtrip.py -q` → 10 passed；全量 `pytest netlab/tests -q` → **1015 passed / 1 skipped**（基线 1005 +10，无回归；本地非 CI）。
+- 边界：未接任何调用方、未改 `graph.py/scene.py/FEM`、未提升版本；下一步做 `SCHEMA_MIGRATIONS` 注册表替换（先特征化测试锁定 if 链输出）。

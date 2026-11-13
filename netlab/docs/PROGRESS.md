@@ -1,6 +1,6 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-11（事实同步；当前基线：全量 872 passed / 1 skipped，以 status.json 与本机实测为准；3.20.1）
+> 最后修改：2026-11-14（阶段 7 P1-S1；当前基线：全量 1052 passed / 1 skipped / 0 failed、core line 82.07%，以 status.json 与本机实测为准；3.20.1）
 
 <!-- BEGIN GENERATED: status -->
 | 项 | 内容 |
@@ -2971,3 +2971,20 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 过程：先 RED（`ModuleNotFoundError: netlab.core.model.dto`），实现后 GREEN（10 passed，含 `encode_project_bytes` 与原始 `.netlab` 字节完全一致）。
 - 验证：`pytest netlab/tests/test_dto_roundtrip.py -q` → 10 passed；全量 `pytest netlab/tests -q` → **1015 passed / 1 skipped**（基线 1005 +10，无回归；本地非 CI）。
 - 边界：未接任何调用方、未改 `graph.py/scene.py/FEM`、未提升版本；下一步做 `SCHEMA_MIGRATIONS` 注册表替换（先特征化测试锁定 if 链输出）。
+
+## 7.171 2026-11-14 阶段7 P1-S1 Round3：SCHEMA_MIGRATIONS 注册表替换 if 链
+
+- 目标：`netlab/core/model/project.py` 的 `migrate_project` 六段 `if version < N` 链改为可枚举注册表，为阶段 7 后续 v1–v7 golden fixtures 与 v7→v8 迁移提供缝；零行为变化、`PROJECT_VERSION=7` 不变。
+- 特征化先行（仓库外 `NetlabExtras/scratch/migrate_characterize.py`）：固定 `_now` / `_network_id`，10 个 CASE（scene_json/v0..v7/v2_nonempty_scene）跑旧 if 链输出落 `migrate_golden.json`（6574 bytes），重构后 `check` 模式逐例比对 → `OK all 10 cases identical`（逐字节等价）。
+- 交付：`_migrate_v1/_v2/_v4/_v5/_v6/_v7(payload, version)` + `SCHEMA_MIGRATIONS: dict[int, Any]` + `_MIGRATION_STEPS = tuple(sorted(...))`；循环 `for step in _MIGRATION_STEPS: if version < step or (step == 2 and "networks" not in migrated): SCHEMA_MIGRATIONS[step](migrated, version)`。新增 `netlab/tests/test_project_migrations.py`（11 用例：注册表结构 `(1,2,4,5,6,7)`、`parametrize(range(0,7))` 各旧版达 v7、v6→v7 补 states 且幂等、v7 既有 states 保留、monkeypatch spy 验证调用顺序）。
+- 验证：全量 `pytest netlab/tests -q` → 1026 passed / 1 skipped（基线 1015 +11；本地非 CI）；分支 `feat/p1s1-schema-migrations`（`40a8b97`）经 `merge --no-ff` 入 main `b19a635`，已 push。
+- 边界：未接任何调用方之外的行为、未改外部 JSON、未提升版本号；下一步做 golden fixtures 入库与 v7→v8 草稿。
+
+## 7.172 2026-11-14 阶段7 P1-S1 Round4：v0–v7 golden fixtures + v7→v8 迁移草稿（未激活）
+
+- 目标：把 Round3 的仓库外特征化黄金样本固化进测试库；按 `MIGRATION_AND_COMPATIBILITY.md:174-177` §9 写 v7→v8 迁移草稿，验证「只加不删」可行性，**不激活**、不改 `PROJECT_VERSION=7`、不改 `SCHEMA_MIGRATIONS`、不接 `migrate_project`。
+- 交付 1：`netlab/tests/fixtures/projects/legacy/` 10 个输入（scene_json/v0/v1/v2/v2_nonempty_scene/v3/v4/v5/v6/v7）+ `migrate_golden.json`（期望输出）；生成脚本 `NetlabExtras/scratch/gen_legacy_fixtures.py`（仓库外，不入库）。
+- 交付 2：`netlab/tests/test_project_migrations_golden.py`（21 用例）：`_normalize()` 去 created/modified + sort_keys；`fixed_ids` monkeypatch `project_mod._now` / `project_mod._network_id`；逐例断言 `migrate_project` 输出 == golden 且 `version==PROJECT_VERSION`；迁移结果 `ProjectDTO.to_payload()` 恒等。
+- 交付 3：`netlab/core/model/v8_draft.py`（仅草稿 `_V8_DRAFT_VERSION=8`）：`migrate_v7_to_v8(payload)` 校验 dict/version==7，deepcopy；收集 node/edge `appearance` → `presentation.node_styles`/`edge_styles`，`port_type`/`port_id` 节点记 `compat.extensions.ports`，`kind=="wire"`→`v8_kind="PhysicalEdge"`、`"signal"`→`"DependencyEdge"`；末尾写 `version=8`、`schema_version="v8-draft"`。配套 `netlab/tests/test_v8_draft.py`（5 用例：草稿未激活、`PROJECT_VERSION==7`、`8 not in SCHEMA_MIGRATIONS`、映射、只加不删、拒绝非 v7/非 dict、无 appearance 则不写 presentation）。
+- 验证：三份新测试 `37 passed in 0.68s`；全量（CI 同款 `pytest netlab/tests -q --cov=netlab/core --cov-branch --cov-fail-under=81 --cov-report=json:coverage.json --junitxml=reports/pytest.xml`）→ **1052 passed / 1 skipped / 0 failed、core line 82.07%（12705/14811）、330.24s**（基线 1026 +26；本地非 CI）。`check_stage4_docs.py` PASSED、docs 隐私/SSOT/契约 6 passed、`check_status_freshness.py` OK。
+- 边界：v8 草稿不激活、无调用方、`PROJECT_VERSION` 仍 7、外部 `.netlab` 格式不变；阶段 8–13、ADR-008 A/B/C、P0-2 全链路改造仍 `PENDING_USER_AUTHORIZATION`。

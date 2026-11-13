@@ -828,12 +828,33 @@ class DescriptorModel:
     ) -> dict[str, Any]:
         """返回与 ``CircuitSolver.ac_sweep`` 兼容的 Bode 数据。
 
+        （纯线性元件路径现委托 canonical ``ac_sweep``：默认探针集亦与 ``ac_sweep`` 一致；
+        含可线性化非线性且给定 operating_point 时走原生线性化路径，为 canonical 不覆盖的扩展。）
+
         频率单位为 Hz；内部使用 ``ω = 2πf``。选中独立源取单位激励（1 V / 1 A），
         其余独立源置零。返回 ``frequencies``、``omega_rad_s``（同时提供别名
         ``omega``）、``input`` 与 ``probes``；每个探针含
         ``real/imag/magnitude/phase_deg/db`` 六个长度相同的列表。
         """
+        from .solver import CircuitSolver  # 局部导入避免循环
+
         values = self._validate_frequencies(frequencies)
+        # 纯线性元件（全部 kind ∈ AC_KINDS）且未强制回退到原生后端时：委托 canonical 共享核 _ac_bode，并补 omega_*。
+        # 含 LINEARIZABLE_NONLINEAR_KINDS 且已给 operating_point 时：canonical 不覆盖，必须保留原生 self.build/solve 线性化路径。
+        if (
+            getattr(self, "ac_backend", "legacy") != "descriptor"
+            and all(element.kind in CircuitSolver.AC_KINDS for element in self.elements)
+        ):
+            core = dict(
+                CircuitSolver(self.nodes, self.elements)._ac_bode(
+                    values,
+                    input_source=input_source,
+                    probes=list(probes) if probes else None,
+                )
+            )
+            core["omega_rad_s"] = [2.0 * math.pi * frequency for frequency in values]
+            core["omega"] = list(core["omega_rad_s"])
+            return core
         system = self.build(input_source)
         resolved = self._resolve_probes(probes)
         omegas = [2.0 * math.pi * frequency for frequency in values]

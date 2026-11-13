@@ -573,6 +573,97 @@ def migrate_scene_rails(
     return changed
 
 
+def _migrate_v1(payload: dict[str, Any], version: int) -> None:
+    payload.setdefault("scene", {"mode": "signal", "nodes": [], "edges": []})
+    payload.setdefault("sim", {})
+    payload.setdefault("fem", {})
+    payload.setdefault("ui", {})
+    payload.setdefault("blocks", [])
+    payload.setdefault("extensions", [])
+    payload.setdefault("plugins", [])
+
+
+def _migrate_v2(payload: dict[str, Any], version: int) -> None:
+    scene = payload.pop("scene", {"mode": "signal", "nodes": [], "edges": []})
+    sim = payload.pop("sim", {}) or {}
+    network = make_network("网络 1", scene, sim)
+    payload["networks"] = [network]
+    payload["current"] = network["id"]
+    metadata = payload.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+    metadata.setdefault("migrated_from_networks", f"v{version}")
+    payload["metadata"] = metadata
+
+
+def _migrate_v4(payload: dict[str, Any], version: int) -> None:
+    for network in payload.get("networks") or []:
+        if isinstance(network, dict) and isinstance(network.get("scene"), dict):
+            network["scene"] = migrate_scene_to_devices(network["scene"])
+    metadata = payload.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+    metadata.setdefault("migrated_devices", f"v{version}")
+    payload["metadata"] = metadata
+
+
+def _migrate_v5(payload: dict[str, Any], version: int) -> None:
+    rails_report: list[dict[str, Any]] = []
+    for network in payload.get("networks") or []:
+        if isinstance(network, dict) and isinstance(network.get("scene"), dict):
+            network["scene"] = migrate_scene_rails(
+                network["scene"],
+                rails_report,
+                network_name=str(network.get("name") or ""),
+            )
+    metadata = payload.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+    metadata.setdefault("migrated_rails", f"v{version}")
+    if rails_report:
+        metadata["rails_migration"] = rails_report
+    payload["metadata"] = metadata
+
+
+def _migrate_v6(payload: dict[str, Any], version: int) -> None:
+    payload.setdefault("plugins", [])
+    ui = payload.get("ui")
+    if not isinstance(ui, dict):
+        ui = {}
+        payload["ui"] = ui
+    ui.setdefault("profile", "netlab-ui/1")
+    metadata = payload.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+    metadata.setdefault("migrated_plugins", f"v{version}")
+    payload["metadata"] = metadata
+
+
+def _migrate_v7(payload: dict[str, Any], version: int) -> None:
+    # v7：每条网络新增可选的「工作台状态」列表；旧工程按空列表补齐。
+    for network in payload.get("networks") or []:
+        if isinstance(network, dict):
+            network.setdefault("states", [])
+    metadata = payload.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+    metadata.setdefault("migrated_states", f"v{version}")
+    payload["metadata"] = metadata
+
+
+# 版本迁移注册表：key 为「目标阈值」，仅当工程 version < key 时执行该步。
+# 顺序由 _MIGRATION_STEPS 排序保证与旧 if 链完全一致。
+SCHEMA_MIGRATIONS: dict[int, Any] = {
+    1: _migrate_v1,
+    2: _migrate_v2,
+    4: _migrate_v4,
+    5: _migrate_v5,
+    6: _migrate_v6,
+    7: _migrate_v7,
+}
+_MIGRATION_STEPS: tuple[int, ...] = tuple(sorted(SCHEMA_MIGRATIONS))
+
+
 def migrate_project(payload: dict[str, Any]) -> dict[str, Any]:
     """把旧格式升级到当前版本（v2：networks + current）。"""
     if not isinstance(payload, dict):
@@ -608,72 +699,9 @@ def migrate_project(payload: dict[str, Any]) -> dict[str, Any]:
             f"工程版本 {version} 高于当前程序支持的 {PROJECT_VERSION}，请升级 Netlab"
         )
     migrated = copy.deepcopy(payload)
-    if version < 1:
-        migrated.setdefault("scene", {"mode": "signal", "nodes": [], "edges": []})
-        migrated.setdefault("sim", {})
-        migrated.setdefault("fem", {})
-        migrated.setdefault("ui", {})
-        migrated.setdefault("blocks", [])
-        migrated.setdefault("extensions", [])
-        migrated.setdefault("plugins", [])
-    if version < 2 or "networks" not in migrated:
-        scene = migrated.pop("scene", {"mode": "signal", "nodes": [], "edges": []})
-        sim = migrated.pop("sim", {}) or {}
-        network = make_network("网络 1", scene, sim)
-        migrated["networks"] = [network]
-        migrated["current"] = network["id"]
-        metadata = migrated.get("metadata")
-        if not isinstance(metadata, dict):
-            metadata = {}
-        metadata.setdefault("migrated_from_networks", f"v{version}")
-        migrated["metadata"] = metadata
-    if version < 4:
-        for network in migrated.get("networks") or []:
-            if isinstance(network, dict) and isinstance(network.get("scene"), dict):
-                network["scene"] = migrate_scene_to_devices(network["scene"])
-        metadata = migrated.get("metadata")
-        if not isinstance(metadata, dict):
-            metadata = {}
-        metadata.setdefault("migrated_devices", f"v{version}")
-        migrated["metadata"] = metadata
-    if version < 5:
-        rails_report: list[dict[str, Any]] = []
-        for network in migrated.get("networks") or []:
-            if isinstance(network, dict) and isinstance(network.get("scene"), dict):
-                network["scene"] = migrate_scene_rails(
-                    network["scene"],
-                    rails_report,
-                    network_name=str(network.get("name") or ""),
-                )
-        metadata = migrated.get("metadata")
-        if not isinstance(metadata, dict):
-            metadata = {}
-        metadata.setdefault("migrated_rails", f"v{version}")
-        if rails_report:
-            metadata["rails_migration"] = rails_report
-        migrated["metadata"] = metadata
-    if version < 6:
-        migrated.setdefault("plugins", [])
-        ui = migrated.get("ui")
-        if not isinstance(ui, dict):
-            ui = {}
-            migrated["ui"] = ui
-        ui.setdefault("profile", "netlab-ui/1")
-        metadata = migrated.get("metadata")
-        if not isinstance(metadata, dict):
-            metadata = {}
-        metadata.setdefault("migrated_plugins", f"v{version}")
-        migrated["metadata"] = metadata
-    if version < 7:
-        # v7：每条网络新增可选的「工作台状态」列表；旧工程按空列表补齐。
-        for network in migrated.get("networks") or []:
-            if isinstance(network, dict):
-                network.setdefault("states", [])
-        metadata = migrated.get("metadata")
-        if not isinstance(metadata, dict):
-            metadata = {}
-        metadata.setdefault("migrated_states", f"v{version}")
-        migrated["metadata"] = metadata
+    for step in _MIGRATION_STEPS:
+        if version < step or (step == 2 and "networks" not in migrated):
+            SCHEMA_MIGRATIONS[step](migrated, version)
     migrated["version"] = PROJECT_VERSION
     migrated.setdefault("format", PROJECT_FORMAT)
     migrated.setdefault("app", f"netlab {APP_VERSION}")

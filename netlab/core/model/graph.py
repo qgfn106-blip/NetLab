@@ -842,6 +842,7 @@ class Network:
         values: np.ndarray,
         index: Mapping[Node, int],
         delayed_payloads: Mapping[Connection, NodeData],
+        external_payloads: Mapping[Connection, NodeData],
         dt: float,
     ) -> float:
         """按候选值评估 SCC 内一个无状态节点的输出（不写回 node）。"""
@@ -861,7 +862,9 @@ class Network:
                 source = connection.source
                 payload = {self._node_output_key(source): float(values[index[source]])}
             else:
-                payload = connection.evaluate(dt, time=self.time + dt)
+                payload = external_payloads.get(connection)
+                if payload is None:
+                    payload = connection.evaluate(dt, time=self.time + dt)
             inputs[connection.name] = payload
             if connection.target_port:
                 ports[connection.target_port] = payload
@@ -907,6 +910,18 @@ class Network:
                 raise AlgebraicLoopError(f"代数环引用了不存在的节点 {name!r}")
             nodes.append(node)
         index = {node: position for position, node in enumerate(nodes)}
+        # #5/批次1：外部（SCC 之外）非延迟入边每拍只求值一次，冻结复用给所有 Newton probe；
+        # 否则有状态输入会在每次 residual/雅可比探针里被重复推进。
+        _incoming = self._incoming_for_step()
+        external_payloads: dict[Connection, NodeData] = {}
+        for _node in nodes:
+            for _connection in _incoming.get(_node, ()):
+                if _connection.delay or _connection.source in index:
+                    continue
+                if _connection not in external_payloads:
+                    external_payloads[_connection] = _connection.evaluate(
+                        dt, time=self.time + dt
+                    )
         raw_initial = np.array(
             [float(node.data.get(self._node_output_key(node), 0.0)) for node in nodes],
             dtype=float,
@@ -918,7 +933,9 @@ class Network:
         def residual(values: np.ndarray) -> np.ndarray:
             return np.array(
                 [
-                    self._evaluate_node(node, values, index, delayed_payloads, dt)
+                    self._evaluate_node(
+                        node, values, index, delayed_payloads, external_payloads, dt
+                    )
                     - values[position]
                     for position, node in enumerate(nodes)
                 ],

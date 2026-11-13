@@ -11,7 +11,7 @@
 | 项 | 当前事实 |
 |---|---|
 | 仓库 | `NetlabHome/`，分支 `main` |
-| 最新 main 提交 | `origin/main`（已推送基线）=`9b2f9af85dc30069edbc66026ecf6b9f36827ce9`（2026-11-13 审批复核终态实测 HEAD=origin/main=`9b2f9af` 且 worktree clean；随后的审批纠偏作为 docs 尾提交（本地提交；GitHub 网络暂不可达，推送待恢复后补），提交自身无法自引用，精确 HEAD 以 `git rev-parse HEAD` 为准）。CI：`c70091d` 已取得 3 workflow/5 check-run 全 success（详见 §1 `CI 证据` 行）；`4975f90` 的 CI 未取得，标 `CI_NOT_VERIFIED`） |
+| 最新 main 提交 | `origin/main`（已推送基线）=`9b2f9af85dc30069edbc66026ecf6b9f36827ce9`（2026-11-13 审批复核终态实测 HEAD=origin/main=`9b2f9af` 且 worktree clean；随后的审批纠偏作为 docs 尾提交（ada71bf、c4b64ef 及本提交）推送至 origin/main；提交自身无法自引用，精确 HEAD 以 `git rev-parse HEAD` 为准）。CI：`c70091d` 已取得 3 workflow/5 check-run 全 success（详见 §1 `CI 证据` 行）；`4975f90` 的 CI 未取得，标 `CI_NOT_VERIFIED`） |
 | 复审/阶段6文档提交（已 push） | `fadf651`/`af444ac`/`073e422` 随 `584f540` 推上；`8f9344f`、`be2128a`、`aa2e30b`、`c70091d`、`9b67c2a`、`5c76741`、`1ab22c3`、`4975f90`、`9b2f9af` 均在 `origin/main`（审批复核实测本地 HEAD 与 `origin/main` 同值）。阶段 6 文档为未获阶段授权时的产出，见 §2 |
 | 测试报告绑定 HEAD | `status.json` / `reports/test_status.json`（生成于 2026-11-13T19:14:52+08:00）绑定 `1ab22c33d8f436394669e7305674c597803a2d2b`；959 passed / 1 skipped / 0 failed、316.28s、core line 81.61%；`4975f90` 为 status-only 尾提交，按 §4 不自引用。审批复核独立复跑：本地全量 959/1/0、126.99s（本地非 CI） |
 | 最后生产代码提交 | `1ab22c33d8f436394669e7305674c597803a2d2b`（既有代码缺陷修复 3 项：#7 is_known_mode 非str防护、#3 source stepping 末次 Newton 补 deadline、#2 checkpoint 冻结/恢复 _startup_pending；其后 `4975f90` 为 status-only。此前生产码为 `212a890` P1-1） |
@@ -24,7 +24,7 @@
 | 阶段 3 三条 CI（绑 `b667e51`） | python-tests `43115278340`、frontend-ts-build `43115278356`、container `43115278600`，均 success |
 | 阶段 2 三条 CI（绑 `8e7f583`） | container `43098331619`、python-tests `43098331551`、frontend-ts-build `43098331562`，GitHub runner 排队（status=queued / conclusion=null / jobs=[]），不作通过证据 |
 | P1 架构审计 | `CORE_ARCHITECTURE_AUDIT.md`（2026-11-11 历史快照，加注历史说明），已随本轮文档收口提交入库 |
-| 工作树 | `origin/main`=`9b2f9af` 后工作树 clean；本次审批纠偏作为 docs 尾提交提交后工作树 clean（本地未推送；推送待网络恢复）；`status.json` 的 `dirty`/`ahead_origin` 为生成时刻快照，门禁不校验该字段 |
+| 工作树 | `origin/main`=`9b2f9af` 后工作树 clean；本次审批纠偏作为 docs 尾提交推送后工作树 clean（提交自身无法自引用，精确远端以 `git ls-remote origin main` 为准）；`status.json` 的 `dirty`/`ahead_origin` 为生成时刻快照，门禁不校验该字段 |
 
 ### 1.1 本轮状态复核（2026-11-13 03:57，基于本地 Git 工作树与 `status.json` 实测，非 GitHub 侧核验）
 - latest_main_sha：`origin/main`（已推送基线）=`9b2f9af85dc30069edbc66026ecf6b9f36827ce9`（status/docs 尾提交）；本地 HEAD 同值、worktree clean；本次审批纠偏 docs 尾提交后精确 HEAD 以 `git rev-parse HEAD` 为准、`git worktree list` 仅一个工作树

@@ -970,6 +970,16 @@ class CircuitSolver:
             self._sparse_lu = None
             self._sparse_key = None
 
+    def _ac_bode(
+        self,
+        frequencies: list[float],
+        *,
+        input_source: str | None = None,
+        probes: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """canonical AC/Bode 共享核（= ac_sweep 公共实现），供 Descriptor 纯线性路径委托。"""
+        return self.ac_sweep(frequencies, input_source=input_source, probes=probes)
+
     def ac_sweep(
         self,
         frequencies: list[float],
@@ -1245,6 +1255,8 @@ class CircuitSolver:
                 return complex(solution[element.branch_index])
             if element.kind == "isource":
                 return complex(element.value)
+            if element.kind == "switch":
+                return difference * float(element.conductance)
             raise ComputeError(f"AC 探针 {token!r} 的电流暂不支持")
         raise ComputeError(f"AC 探针不存在：{token!r}")
 

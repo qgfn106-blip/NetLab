@@ -89,3 +89,13 @@
 - legacy combined status API：`state=pending total_count=0`（以 check-runs 为准，不写「CI 全绿/失败」）
 - V3 §4 边界：本证据仅覆盖 `c70091d` 的 3 个 workflow；本地 953 passed 仍为本地运行、不冒称 CI（尽管 `python-tests` 的 `test` check-run 在 CI 侧跑过全量 `pytest netlab/tests -q`，但本仓库 `status.json` 数字仍绑本地 `aa2e30b`，两者分开记录）；本轮新增的纯文档/测试提交未 push、未被该 CI 覆盖（`CI_NOT_VERIFIED`）
 - 对应本文件 §7 下一阶段任务 (c)：已完成
+
+## 补记（2026-11-13 19:52 Asia/Shanghai）：既有代码缺陷修复 3 项已落地并推送
+
+> 本文件为 2026-11-13 01:xx 时点审计报告，正文「已修复：无 / 只有设计 / 仍待授权：全部生产代码修复」是审计当时真实结论，按「历史章节不全局改写」原则保留；此处追加事后事实，不构成对原审计结论的改写。当前事实源以 `PROJECT_STATUS.md` 为准。
+
+- 2026-11-13 执行者会话按依赖序 7→3→2 落地 3 项最小生产代码修复（#7 `is_known_mode` 非 str 防护、#3 source stepping 末次 Newton 补 `deadline`、#2 `capture_checkpoint`/`restore_checkpoint` 冻结恢复 `_startup_pending`），提交 `1ab22c3`；红测 `5c76741` 6 条由 `xfail(strict=True)` 转绿并移除标记。
+- 全量 `pytest netlab/tests -q`：959 passed / 1 skipped / 0 failed（审批方独立复跑 126.99s，本地非 CI）；`status.json`/`reports/test_status.json` 绑 `1ab22c3`（316.28s，core line 81.61%）。
+- 已 push 到 `origin/main`=`4975f90`（4 提交 `9b67c2a`/`5c76741`/`1ab22c3`/`4975f90`）；`4975f90` 的 GitHub CI 未取得，标 `CI_NOT_VERIFIED`；`c70091d` 的 CI_VERIFIED 仅覆盖 `c70091d`。
+- 边界：#5（Newton 主路径，最高风险）与 #1/#4/#6/#8、阶段 6 AC/Bode 生产统一、阶段 7–13、ADR-008 A/B/C、P0-2 全链路均仍 `PENDING_USER_AUTHORIZATION`；本轮 3 项修复按「既有代码缺陷修复」记录，不计入阶段 6 交付物。
+- 授权记录：用户在本会话（NetLab项目优化 `session-c20e8127`）2026-11-13 19:06 原话「push，，按依赖序 `7→3→2` 落地，把这份完工报告原文投递给 `03a3e6b4` 做复核」为本轮 push 与 3 项修复的原始授权记录。

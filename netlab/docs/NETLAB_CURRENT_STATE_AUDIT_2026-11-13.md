@@ -5,29 +5,29 @@
 
 ## 1. 三行交付
 1. **改了什么**（仅文档/状态，无生产码）：同步 4 个状态文件到最新事实；新增 Port Schema 统一设计、8 项核心代码整改设计、本报告；整改阶段6 三份对拍文档并纳入探针脚本。
-2. **跑了什么**：全量 pytest（953 passed / 1 skipped / 322.70s，core line 81.528757%）；switch 对拍实验（两后端一致）；性能中位数复测。
+2. **跑了什么**：本地全量 pytest（2026-11-13 01:12：953 passed / 1 skipped / 322.70s，core line 81.528757%）；`status.json` / `reports/test_status.json` 于 01:56:47 另记录一次全量 953/1/0、400.41s、81.53%（绑 `aa2e30b`）；switch 对拍实验（两后端一致）；性能中位数复测。均为本地结果（不冒称 CI）；`c70091d` 的 GitHub CI 已于本文件文末「补记」回填（见 `latest_ci_runs` 行）。
 3. **输出**：状态基线已对齐最新 `main`；见 §2–§8 与两份配套文档。
 
 ## 2. 事实基线（8 字段）
 | 字段 | 值 |
 |------|----|
-| latest_main_sha | `8f9344f67910caa3f738bbef5153f2aa897d3e5a` |
+| latest_main_sha | `c70091d788524b75134a5a00946e7cce5f8fa095`（`origin/main` 同值；2026-11-13 本地 `git rev-parse` 实测、工作树 clean） |
 | latest_production_code_sha | `212a8908c190aa9fde018bda974b69413ea1e5bf`（`e41160f` 之后唯一触及生产码；fix(core) 插件引擎加载链 P1-1） |
-| tested_sha | 本轮全量测试绑定 HEAD=`8f9344f`（生产代码 212a890，其上为 docs-only） |
-| test_count | 953 passed / 1 skipped / 0 failed（322.70s） |
-| coverage | core line 81.528757%（12474/14630） |
-| latest_ci_runs | `8f9344f` 本轮刚 push，GitHub check-run 待产出（本轮未取得证据，如实标「待查」）；历史 `4dc7bdd` 的 5 check-run 均 success 仅作历史 |
-| current_stage | 阶段 6（P1-R2）**只读审计已完成**；**AC/Bode 生产代码统一未实施** |
+| tested_sha | `aa2e30bd59b7fb1fa5c5491d231bae596348bf8e`（`status.json` / `reports/test_status.json` 绑定；`c70091d` 为 status-only 尾提交，按 `PROJECT_STATUS.md §4` 不自引用） |
+| test_count | 953 passed / 1 skipped / 0 failed（`status.json`：400.41s；01:12 本地另一次 322.70s） |
+| coverage | core line 81.53%（`status.json`）；01:12 本地另一次 81.528757%（12474/14630） |
+| latest_ci_runs | 审计时 `CI_NOT_VERIFIED` → **事后回填 `CI_VERIFIED`**（`c70091d`：3 workflow run `43274818892`/`43274818886`/`43274818874` + 5 check-run 全 `completed/success`，2026-11-13 经 GitHub REST API 直连取得，详见文末「补记」；依 V3 §4 本地 953 passed 不冒称 CI，历史 `4dc7bdd` 仅作历史） |
+| current_stage | 阶段 5 整体 open；**阶段 6–13 均 `PENDING_USER_AUTHORIZATION`、未启动未验收**；只读审计/对拍材料已产出但依 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:14` 不构成阶段交付物；**AC/Bode 生产代码统一未实施** |
 | stage_acceptance | 阶段 4 正式验收已批准；阶段 5 子目标达成但整体 open（未标完成） |
-| pending_authorization | 阶段 6 AC/Bode 生产统一、阶段 7–13、ADR-008 升格落地、P0-2 全链路改造 |
+| pending_authorization | 阶段 6 AC/Bode 生产统一、阶段 7–13、ADR-008 三项 A/B/C、P0-2 全链路改造、push / 发布 |
 
-**明确区分**：阶段 6「只读审计已完成」（四文档）≠「AC/Bode 生产代码统一已实施」。后者未做、需授权。
+**明确区分**：仓内阶段 6 只读审计/对拍材料已产出 ≠ 阶段 6 已获授权/已验收 ≠「AC/Bode 生产代码统一已实施」。依 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:14`，未获明确批准前下一阶段只能只读了解、不得产生实现或正式文档交付物；后者未做、需授权。
 
 ## 3. A. 状态文件同步（已改）
-- `PROJECT_STATUS.md`：§1 baseline 表 main→`8f9344f`、生产码→`212a890`、测试→`953/1/322.70s/81.528757%`、CI 标「待查」；新增 §1.1「本轮状态复核（8 字段）」；阶段表阶段6 由「未开始」→「只读审计已完成、生产统一未实施」；ADR-008 记「1112n 授权 A/B/C 升格、落地待执行」。
-- `CORE_ARCHITECTURE_V2_ROADMAP.md`：当前事实基线刷为 `8f9344f` / `212a890` / 953 / 81.528757%。
-- `NETLAB_REVIEW_AUDIT_2026-11-12.md`：§A main/测试/生产码/CI/阶段 全部按最新事实纠正；§B stage5「暂停」→「1112n 恢复授权」、stage6「未开始」→「只读审计已完成、生产统一未实施」；§I P0-2 由「方案A还是B未定」→「已定方案A」。
-- `status.json` / `reports/test_status.json`：按机制在最终 HEAD 重新生成（见 §9）。
+- `PROJECT_STATUS.md`：§1 baseline 表 main→`c70091d`、生产码→`212a890`、测试→`status.json` 的 `953/1/0、400.41s、81.53%`、CI→`CI_NOT_VERIFIED`；§1.1「本轮状态复核（8 字段）」同步刷新；阶段 6 统一为 `PENDING_USER_AUTHORIZATION`、只读材料不记阶段完成；ADR-008 三项统一为 `PENDING_USER_AUTHORIZATION`（原文「1112n 授权 A/B/C 升格」无原始授权记录可核实，2026-11-13 复核已撤销）。
+- `CORE_ARCHITECTURE_V2_ROADMAP.md`：当前事实基线刷为 `c70091d` / `212a890` / `aa2e30b`（tested）/ 953 / 81.53% / `CI_NOT_VERIFIED`。
+- `NETLAB_REVIEW_AUDIT_2026-11-12.md`：§A main/测试/生产码/CI/阶段 按当前事实纠正；§B stage5 保持「子目标达成、整体 open」、stage6 统一为 `PENDING_USER_AUTHORIZATION`；§I P0-2 标为「提案/待用户裁决」（与 `ADR-003` `Proposed` 对齐）；§J 移除已获用户批准的「阶段 4 正式验收」待授权 stale 项；「1112n 恢复授权/已授权升格」表述已撤销。
+- `status.json` / `reports/test_status.json`：已于 2026-11-13T01:56:47+08:00 由 `c70091d` 重新生成（实测文件已更新）；`head` 绑定被测试提交 `aa2e30b`（status-only 尾提交不自引用，见 `PROJECT_STATUS.md §4`）。
 - `DOCS_INDEX.md`：日期更新 + 登记新增文档。
 
 ## 4. B. Port Schema 统一审计（设计，见 `P0-2_PORT_SCHEMA_UNIFICATION_DESIGN.md`）
@@ -60,7 +60,7 @@
 ## 7. 问题清单 · 依赖顺序 · 风险分级 · 下一阶段任务
 - **风险分级**：高 = #5（最高风险，改动 Newton 数值主路径，影响所有 solve_algebraic=True 非线性工程，建议 feature flag 分阶段放开）；中 = #1 #4 #6；低 = #2 #3 #7 #8。
 - **依赖/建议实施序**：7 → 3 → 2 → 8 → 6 → 4 → 1 → 5（高危先评审；#5 最后、feature flag）。
-- **下一阶段任务**：(a) 用户就 8 项与 Port Schema 7 个待拍板点给方向后，逐项先写失败测试再修复；(b) 阶段6 等价性测试设计（把 14 场景固化为 `tests/test_p1r2_ac_parity.py` + 失败行为用例，仍只读）；(c) CI 侧在 `8f9344f` 产出后补 check-run 证据。
+- **下一阶段任务**：(a) 用户就 8 项与 Port Schema 7 个待拍板点给方向后，逐项先写失败测试再修复；(b) 阶段6 等价性测试设计（把 14 场景固化为 `tests/test_p1r2_ac_parity.py` + 失败行为用例，仍只读）；(c) ~~CI 侧在 `c70091d` 取得绑定精确 SHA + workflow run ID 的 check-run 证据后才写结论~~ **已完成**（2026-11-13 事后取得并回填，见文末「补记」）。
 
 ## 8. 修复状态分类
 - **已修复**：无（本轮不改生产码，仅文档/状态）。
@@ -68,6 +68,24 @@
 - **仍待授权**：全部生产代码修复、阶段6 AC/Bode 生产统一、阶段7–13、ADR-008 A/B/C 落地、P0-2 全链路改造（含 Web/插件）、FEM 相关（硬冻结）。
 
 ## 9. 验收自检
-- 测试绑定：本轮全量测试在 `8f9344f` 树实跑（953/1/322.70s），未把旧 SHA 结果冒充新 HEAD；status.json/test_status.json 于最终 HEAD 重新生成。
+- 测试绑定：01:12 本地全量在 `8f9344f` 树实跑（953/1/322.70s）；`status.json` / `reports/test_status.json` 于 2026-11-13T01:56:47 重新生成并绑定 `aa2e30b`（953/1/0、400.41s、81.53%），`c70091d` 为 status-only 尾提交不自引用；两次均为本地结果，未把旧 SHA 结果冒充当前基线，未冒称 CI 证据。
 - 未放宽断言、未用 Fake 冒充 Runtime 验证；未删旧格式兼容；未改 FEM / `graph.py` 大规模结构 / `scene.py` 大规模结构 / 外部工程格式。
-- 未擅自扩大阶段授权：阶段6 仅完成只读审计与测试设计，未实施 AC/Bode 生产统一。
+- 阶段授权：阶段 6–13 均 `PENDING_USER_AUTHORIZATION`、未启动未验收；仓内只读审计/测试设计材料依 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:14` 不构成阶段交付物；未实施 AC/Bode 生产统一。
+
+---
+
+## 补记（2026-11-13 03:00 Asia/Shanghai）：`c70091d` 的 CI 证据事后取得并回填
+
+> 本文件为 2026-11-13 01:xx 的时点审计报告，正文 `CI_NOT_VERIFIED` 是**审计当时**的真实结论，按「历史章节不全局改写」原则保留；此处仅追加事后取得的证据，不构成对原审计结论的改写。当前事实源以 `PROJECT_STATUS.md` 为准。
+
+- Repository：`qgfn106-blip/NetLab`；Commit SHA（head_sha）：`c70091d788524b75134a5a00946e7cce5f8fa095`；Event：`push`
+- Checked At：2026-11-13 03:00（Asia/Shanghai），经 GitHub REST API 直连 `curl --noproxy '*'`（HTTP 200）取回；聚合 API 出口受 rate-limit 403，未采用其数据
+- Workflow run（Run ID / Conclusion / Run URL），3 个全部 `completed/success`：
+  - `python-tests` #134 / `43274818892` / `success` / https://github.com/qgfn106-blip/NetLab/actions/runs/43274818892
+  - `frontend-ts-build` #168 / `43274818886` / `success` / https://github.com/qgfn106-blip/NetLab/actions/runs/43274818886
+  - `container` #93 / `43274818874` / `success` / https://github.com/qgfn106-blip/NetLab/actions/runs/43274818874
+- Check-run（5 个，全 `completed/success`）：`test` `131380307795`、`desktop-l2` `131380307574`、`build` `131380308274`、`e2e-l1` `131380308763`、`docker` `131380308489`
+- 时间窗：2026-11-12T17:57:29Z → 18:01:50Z（Asia/Shanghai 01:57 → 02:01）
+- legacy combined status API：`state=pending total_count=0`（以 check-runs 为准，不写「CI 全绿/失败」）
+- V3 §4 边界：本证据仅覆盖 `c70091d` 的 3 个 workflow；本地 953 passed 仍为本地运行、不冒称 CI（尽管 `python-tests` 的 `test` check-run 在 CI 侧跑过全量 `pytest netlab/tests -q`，但本仓库 `status.json` 数字仍绑本地 `aa2e30b`，两者分开记录）；本轮新增的纯文档/测试提交未 push、未被该 CI 覆盖（`CI_NOT_VERIFIED`）
+- 对应本文件 §7 下一阶段任务 (c)：已完成

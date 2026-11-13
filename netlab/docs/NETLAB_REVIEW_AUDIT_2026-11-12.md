@@ -5,11 +5,11 @@
 
 ## A. 一页现状结论
 
-- GitHub `main` 最新提交：`8f9344f67910caa3f738bbef5153f2aa897d3e5a`（2026-11-13 复核；最新生产码为 `212a890`，其上为 docs-only）。
-- 测试报告绑定 HEAD：`8f9344f`（本轮）；953 passed / 1 skipped / 0 failed，322.70s，core line 81.528757%（12474/14630），2026-11-13 01:12。历史报告曾绑 `1df4934`/945。
+- 当前 `main` / `origin/main`：`c70091d788524b75134a5a00946e7cce5f8fa095`（2026-11-13 本地 `git rev-parse` 实测、两者同值；GitHub 侧 3 workflow run + 5 check-run 全部 `completed/success`（2026-11-13 已取得并回填，见本文件 CI 行）；最新生产码为 `212a890`，其上为 docs/状态/工具提交）。
+- 测试基线以 `status.json` / `reports/test_status.json` 为准（2026-11-13T01:56:47+08:00 生成，绑 `aa2e30b`）：953 passed / 1 skipped / 0 failed，400.41s，core line 81.53%。另 01:12 本地全量 953/1/0、322.70s、81.528757%（12474/14630）。历史报告曾绑 `1df4934`/945。均为本地结果（不冒称 CI）；`c70091d` 的 GitHub CI 已另取得并验证（见本文件 CI 行）。
 - 最后生产代码提交：`212a8908c190aa9fde018bda974b69413ea1e5bf`（P1-1 插件引擎加载链修复；`e41160f` 之后唯一触及生产码）。历史：`e41160f` 为 P1-R1 Stamp 共享原语；`b667e517...e41160f` 含 descriptor.py（+9/−30）与 stamps.py（+30/−7）。
-- CI：`8f9344f` 本轮刚 push，check-run 待 GitHub 侧产出（未取得，标「待查」）；历史 `4dc7bdd` 的 5 个 check-run 均 `completed/success`；legacy status API `pending/total 0`（以 check-runs 为准，不写「CI 全绿/失败」）。
-- 阶段：0–3 已完成；阶段 4 正式验收已于 2026-11-12 获用户批准；阶段 5 P1-R1 子目标达成、整体仍 open（1112n 恢复授权）；**阶段 6 P1-R2 只读审计已完成，AC/Bode 生产代码统一未实施**；阶段 7–13 未开始。**阶段 6 只读审计完成 ≠ AC/Bode 生产统一完成。**
+- CI：`CI_VERIFIED` @ `c70091d788524b75134a5a00946e7cce5f8fa095`（2026-11-13 03:00 Asia/Shanghai 经 GitHub REST API 直连 `curl --noproxy '*'` HTTP 200 取得）：3 workflow run（`python-tests` #134/`43274818892`、`frontend-ts-build` #168/`43274818886`、`container` #93/`43274818874`）与 5 check-run（`test`/`131380307795`、`desktop-l2`/`131380307574`、`build`/`131380308274`、`e2e-l1`/`131380308763`、`docker`/`131380308489`）全部 `completed/success`；Run URL 见 `PROJECT_STATUS.md §1`。依 V3 §4 本地 953 passed 仍为本地结果、不冒称 CI；该证据仅绑 `c70091d`，不覆盖其后未 push 的本地文档/测试提交；历史 `4dc7bdd` 的 5 个 check-run success 仅作历史证据；legacy status API `pending/total 0`（以 check-runs 为准，不写「CI 全绿/失败」）。
+- 阶段：0–3 已完成；阶段 4 正式验收已于 2026-11-12 获用户批准；阶段 5 P1-R1 子目标达成、整体仍 open；**阶段 6–13 均 `PENDING_USER_AUTHORIZATION`、未启动未验收**；仓内阶段 6 只读审计/对拍材料已产出，但依 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:14`（未获明确批准前下一阶段只能只读了解、不得产生实现或正式文档交付物）不构成阶段交付物，不记阶段完成；AC/Bode 生产代码统一未实施；阶段 7–13 未开始。**只读材料存在 ≠ 阶段 6 已验收 ≠ AC/Bode 生产统一完成。**
 - 本轮可立即做：P0-1 文档/状态基线纠偏（已完成）；P0-2 schema 契约需用户裁决，先给方案不擅自统一；P1-1～P1-6 只读审计与补丁设计已完成，未改生产代码；P2 仅给基准/拆分建议。
 
 ## B. 阶段 0–13 状态表
@@ -21,8 +21,8 @@
 | 2 P-B | 已完成（§7.152） | — |
 | 3 R40 收尾 | 已完成（§7.153） | — |
 | 4 P1-A 设计冻结 | 9 份设计文档 + 第三方封口评审 `a25c3774` pass；2026-11-12 获用户明确批准，正式验收通过（用户授权） | 阶段 6+ 仍需用户单独授权；不得据本表推定后续阶段获准 |
-| 5 P1-R1 Stamp 统一 | 代码提交 `e41160f`（状态刷新 `eaec04a`）；实际只统一两端口 Laplacian primitive，完整 CircuitElement 模型未统一；1112n 已恢复授权（子目标达成、整体 open）。P1-2 措辞已纠偏（`P1_R1_STAMP_CONVERGENCE.md`、`PROJECT_STATUS.md`）并补覆盖矩阵（2026-11-12 收口） | 只可修正状态/文档/测试措辞；不得作阶段 6 自动放行 |
-| 6 P1-R2 AC/Bode 统一 | **只读审计已完成**（parity 矩阵/后端约束/收敛方案 3 文档 + P0-2 schema 决策；未改生产码）；双后端为两条独立实现（已纠正「兼容包装」误述）；**AC/Bode 生产代码统一未实施** | 阶段 6 授权前不得改求解器生产代码 |
+| 5 P1-R1 Stamp 统一 | 代码提交 `e41160f`（状态刷新 `eaec04a`）；实际只统一两端口 Laplacian primitive，完整 CircuitElement 模型未统一；子目标达成、整体 open，阶段 6+ 仍 `PENDING_USER_AUTHORIZATION`。P1-2 措辞已纠偏（`P1_R1_STAMP_CONVERGENCE.md`、`PROJECT_STATUS.md`）并补覆盖矩阵（2026-11-12 收口） | 只可修正状态/文档/测试措辞；不得作阶段 6 自动放行 |
+| 6 P1-R2 AC/Bode 统一 | `PENDING_USER_AUTHORIZATION`、未启动未验收；只读审计/对拍材料已产出但不构成阶段交付物；双后端为两条独立实现（已纠正「兼容包装」误述）；**AC/Bode 生产代码统一未实施** | 阶段 6 授权前不得改求解器生产代码 |
 | 7–9 P1-S1/S2/S3 | 未开始 | 未授权不启动 |
 | 10–13 P2–P5 | 未开始 | 未授权不启动 |
 
@@ -153,8 +153,8 @@ ACTUAL: load_payload rejected -> ValidationError 未知模式：'repro-plugin'
 ## I. 需用户裁决的 Open Decisions
 
 1. **阶段 4 正式验收批准**：第三方封口评审 `a25c3774` 14/14 pass；已于 2026-11-12 获用户明确批准正式验收（用户授权）——本项已解决。
-2. **P0-2 Port schema**：**已定方案 A（PortDesc 内嵌）**（见 `P0-2_PORT_SCHEMA_DECISION.md`、`P0-2_PORT_SCHEMA_UNIFICATION_DESIGN.md`）；实施与 Web/插件全链路改造待授权。
-3. **ADR-008 三项**：A 显式 Runtime 快照是否入 Project Save；B Plugin 权限边界（只读/可写哪些层）；C 兼容窗口是否必须支持 v6。均 `PENDING_USER_AUTHORIZATION`（1112n 已授权 A/B/C 升格，落地动作待执行）。
+2. **P0-2 Port schema**：**方案 A（PortDesc 内嵌）为文档提案，待用户裁决**（见 `P0-2_PORT_SCHEMA_DECISION.md`、`P0-2_PORT_SCHEMA_UNIFICATION_DESIGN.md`；`docs/adr/ADR-003-typed-port-type-checking.md` 状态仍 `Proposed`；本行原写「已定」，与本报告 :13/:42/:112/:143/:165「需用户裁决」冲突，2026-11-13 复核按口径统一）；实施与 Web/插件全链路改造 `PENDING_USER_AUTHORIZATION`。
+3. **ADR-008 三项**：A 显式 Runtime 快照是否入 Project Save；B Plugin 权限边界（只读/可写哪些层）；C 兼容窗口是否必须支持 v6。均 `PENDING_USER_AUTHORIZATION`；`docs/adr/ADR-008-stage4-open-decisions.md` 仍 `Proposed`，三项为 Open Decision，未获用户裁定不得写成已定或据此实施 V2 迁移。
 4. **阶段 5 `eaec04a`**：恢复、保持冻结、或回退？按审批 13:10「不允许进入阶段6·需用户授权·暂停」保持冻结。
 5. **两路线裁定**：V2 设计路线与实现路线（是否继续 P1-A/P1-R1 双轨，是否先 P2 重构）需用户裁定。
 6. **P1-1 补丁是否触及冻结区**：若需改 `graph.py`/`scene.py`/`scene_io.py` 的冻结部分，先提交补丁方案+授权请求。
@@ -162,7 +162,7 @@ ACTUAL: load_payload rejected -> ValidationError 未知模式：'repro-plugin'
 ## J. 可立即修 vs 必须等待授权
 
 - **可立即做（已完成/可继续）**：P0-1 文档/状态基线纠偏（已做）；P0-2 选项分析与 checker 审计；P1-2/P1-3 只读审计与文档纠偏；P1-4/P1-5/P1-6 设计/测试计划；P2 基准与拆分建议。
-- **必须等待授权**：P0-2 最终 schema 选择与全链路改造；P1-1 生产代码补丁（若触及冻结/阶段 8 范围）；阶段 4 正式验收；阶段 5 恢复/回退；阶段 6–13；ADR-008 三项；V2 生产实现与外部 JSON 变更；FEM/graph.py/scene.py 大规模重构；MAX_NODES=400、NETLAB_MATH_ACCEL、500+、Newton/SCC。
+- **必须等待授权**：P0-2 最终 schema 选择与全链路改造；阶段 5 恢复/回退；阶段 6–13；ADR-008 三项；V2 生产实现与外部 JSON 变更；FEM/`graph.py`/`scene.py` 大规模重构；`MAX_NODES=400`、`NETLAB_MATH_ACCEL`、500+、Newton/SCC；push / 发布。**已解决、不再列为待授权**：阶段 4 正式验收（2026-11-12 获用户明确批准）、P1-1 插件引擎加载链修复（`212a890` 已交付，953 passed）。
 - **不得声称**：Proposed 设计 = 实现；Fake 测试 = 真实 Runtime 隔离；返回结构兼容 = 数值后端统一；旧 SHA CI 绿灯 = 当前 HEAD 证据。
 
 ## K. P1-2 / P1-3 收口记录（2026-11-12）
@@ -173,7 +173,7 @@ ACTUAL: load_payload rejected -> ValidationError 未知模式：'repro-plugin'
 
 ---
 
-*本报告记录审计与 P0-1 文档纠偏，以及 P1-2/P1-3（2026-11-12）措辞/矩阵收口；未改任何生产代码，未 push。*
+*本报告记录审计与 P0-1 文档纠偏，以及 P1-2/P1-3（2026-11-12）措辞/矩阵收口；本轮未改生产代码，成文时未 push（后续已随 `584f540`…`c70091d` 推送）。2026-11-13 复核纠偏：统一数字/阶段口径、撤销无据授权自证、修正 §J 阶段 4 stale 项。*
 
 ## L. 其他状态同步（2026-11-12 晚）
 

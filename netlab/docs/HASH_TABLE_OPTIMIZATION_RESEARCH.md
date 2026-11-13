@@ -1,10 +1,10 @@
 # NetLab 哈希表与嵌套数据结构优化研究报告
 
 > 日期：2026-11-08
-> 范围：`PERF_DICT_AND_CPP_AUDIT.md` 的文献延伸、数学分析与结构改进建议
+> 范围：`PERF_DICT_AND_CPP_AUDIT.md`（历史审计，已归档）的文献延伸、数学分析与结构改进建议
 > 约束：本报告是研究文档；不修改 NetLab 的运行算法，不把建议当作已实施事实
 > 实施状态（2026-11-08）：仅 P0 的 `sparse_threshold=512` 已按 D120/§34.5 实施；其余条目仍为待评审建议。
-> 配套审计：[PERF_DICT_AND_CPP_AUDIT.md](PERF_DICT_AND_CPP_AUDIT.md)
+> 配套审计：PERF_DICT_AND_CPP_AUDIT.md（历史审计，已归档，见 Git 历史）
 
 ## 摘要
 
@@ -40,7 +40,7 @@ Python 的 `dict` 适合第一类工作，因为动态、异构、可读；但�
 
 ## 2. 现有审计事实（本报告的事实基线）
 
-以下数字来自 `PERF_DICT_AND_CPP_AUDIT.md` 的只读测量，不是本报告重新跑出的结果；报告中的建议必须用同一基准复测后才能宣称收益。
+以下数字来自 `PERF_DICT_AND_CPP_AUDIT.md`（历史审计，已归档）的只读测量，不是本报告重新跑出的结果；报告中的建议必须用同一基准复测后才能宣称收益。
 
 | 观测 | 数值/结论 | 含义 |
 |---|---|---|
@@ -568,7 +568,7 @@ class RuntimeModel:
 
 ## 附录 B：研究记录与限制
 
-- 本报告基于 `PERF_DICT_AND_CPP_AUDIT.md` 的只读测量，未重新运行 390 节点基准；所有“预期收益”是审计估计或本报告的数学量级，不是承诺。
+- 本报告基于 `PERF_DICT_AND_CPP_AUDIT.md`（历史审计，已归档）的只读测量，未重新运行 390 节点基准；所有“预期收益”是审计估计或本报告的数学量级，不是承诺。
 - 论文清单中部分条目只核验到出版社/arXiv 入口，未逐篇通读全文；引用具体数字时已在正文标注来源和不确定性。
 - `MultiTable`、`Fine-Grained SIMD Hash Analysis`、`Learned Static Functions` 属于新预印本/新方向，需独立复现后再考虑进入生产。
 - 本报告不修改任何 NetLab 运行时代码；若进入实施，应按 `AGENT_GUIDE.md` 的范围/证据/回归要求单独开工作项。

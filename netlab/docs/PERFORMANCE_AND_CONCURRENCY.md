@@ -2083,7 +2083,7 @@ subject to：语义等价（同一输入数值结果在约定容差内一致）�
 
 ## 34. 第三十四轮：数据结构与检查点优化实施规划（P0–P3）
 
-> 规划依据：`PERF_DICT_AND_CPP_AUDIT.md` 的 B.1–B.3 与 `HASH_TABLE_OPTIMIZATION_RESEARCH.md` §5。原则：**先做可回退的常数级优化，再做结构性改造；任何会改变数值路径的改动都必须先有等价性测试和 feature flag。**
+> 规划依据：`PERF_DICT_AND_CPP_AUDIT.md`（历史性能审计，已归档）的 B.1–B.3 与 `HASH_TABLE_OPTIMIZATION_RESEARCH.md` §5。原则：**先做可回退的常数级优化，再做结构性改造；任何会改变数值路径的改动都必须先有等价性测试和 feature flag。**
 
 ### 34.1 基线（审计实测，待本轮复核）
 

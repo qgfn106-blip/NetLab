@@ -2,6 +2,7 @@
 
 > 最后核对：2026-11-13（全量文档基线同步 + 审计 A 阶段后复核 + D125 PlotKit 插件封装 + D129 测试配置 + D130 N-36 步骤事务 + D131 records 拆分 + D132 文档隐私清理 + D133 端到端控制实验 + D134 文档分层与会话日志 + D135 求解器影子门 + D136 影子门 CI 接入 + D137 插件路由拆分、D138 帮助检索路由拆分、D139 二维有限元路由拆分、D140 块库路由拆分、D141 分析路由拆分、D142 文档基线同步、D143 偏好/布局路由拆分、D144 BACKLOG 基线清理、D145 缓存/文档/加速路由拆分、D146 应用内扩展路由拆分、D147 仿真控制路由拆分、D148 工作区路由拆分、D149 多网络管理路由拆分、D150 PlotKit 接入/预计算路由拆分、D151 场景/模板路由拆分、D152 页面/UI/状态/诊断路由拆分、D153 工程文件路由拆分；本轮新增 VISION 草案、HASH_TABLE_OPTIMIZATION_RESEARCH、extensions/plugins/netlab.plotkit 官方插件、sessions 会话日志，更新 PROGRESS/DOCS_INDEX；阶段 4 P1-A 新增 9 份设计冻结草案 Proposed，见 §2.2）· 当前基线：静态 3.20.1 / 959 passed / 1 skipped / 0 failed（core line 81.61%，见 `status.json`，绑 `1ab22c3`；本地结果）/ R01–R43 / D1–D156；CI `CI_NOT_VERIFIED`；新增 **CODE_STANDARDS.md（代码规范，强制）**
 > 目的：先在这里找文档，不要凭文件名猜新旧。**历史文档保留原文，但不得作为当前实现口径。**
+> 文档精简（2026-11-13）：按用户隐私与保留策略，已移除 `docs/sessions/` 会话日志目录，以及早期审计/评审记录（STAGE4_INDEPENDENT_REVIEW、STAGE4_REMEDIATION_REPORT、specs/2026-11-09-n5-p3-audit、PERF_DICT_AND_CPP_AUDIT）；历史内容可从 Git 历史与 `PROGRESS.md` 追溯。
 
 ## 0. 文档分层（D-3 / N-30）
 
@@ -9,7 +10,6 @@
 | --- | --- | --- | --- |
 | 用户文档 | `netlab/docs/user/`、根 `README.md`/`INSTALL.md`/`OPERATION.md` | 使用者 | 只讲怎么用，不讲内部实现 |
 | 开发者文档 | `netlab/docs/*.md`、`adr/`、`specs/` | 贡献者 / agent | 架构、规范、决策、踩坑 |
-| 会话日志 | `netlab/docs/sessions/` | 追溯 | 按 `YYYY-MM-DD-主题.md`，不得写本机私有路径/代理端口/密钥 |
 
 隐私边界由 `netlab/tests/test_docs_privacy.py` 机检：本机路径、私有代理端口、记忆库路径零命中。
 
@@ -70,9 +70,7 @@
 | [CORE_INTERFACE_CONTRACTS.md](CORE_INTERFACE_CONTRACTS.md) | Python Protocol/ABC 精确签名、参数/返回/异常总表 | 规划（Proposed） |
 | [MIGRATION_AND_COMPATIBILITY.md](MIGRATION_AND_COMPATIBILITY.md) | 旧记录/工程 v6·v7 字段映射、兼容窗口、风险 R1–R6、回滚 | 规划（Proposed） |
 | [MINIMAL_DATA_MODEL_EXAMPLE.md](MINIMAL_DATA_MODEL_EXAMPLE.md) | 最小领域示例：RC 3 节点+2 边、机械 2 节点+1 边；JSON/内存对象/编译产物/运行结果 | 规划（Proposed） |\
-| [STAGE4_INDEPENDENT_REVIEW.md](STAGE4_INDEPENDENT_REVIEW.md) | 阶段 4 第④轮独立评审记录（初评不通过、问题与整改状态） | 规划（Proposed） |
 | [V2_IMPLEMENTATION_GAP_ANALYSIS.md](V2_IMPLEMENTATION_GAP_ANALYSIS.md) | 阶段 4 整改：P1-03–P1-13/P2-02 差距与迁移方案 | 规划（Proposed） |
-| [STAGE4_REMEDIATION_REPORT.md](STAGE4_REMEDIATION_REPORT.md) | 阶段 4 设计冻结整改报告（P0/P1/P2 证据与验收判定） | 规划（Proposed） |
 | [P1_R1_STAMP_CONVERGENCE.md](P1_R1_STAMP_CONVERGENCE.md) | 阶段 5 P1-R1 元件 Stamp 单一化收敛方案（Proposed） | 阶段 5 |
 | [P1-R2_PARITY_MATRIX.md](P1-R2_PARITY_MATRIX.md) | 阶段 6 P1-R2 双 AC 后端一致性矩阵（只读审计，12 拓扑复数域对比） | 阶段 6 |
 | [P1-R2_BACKEND_CONSTRAINTS.md](P1-R2_BACKEND_CONSTRAINTS.md) | 阶段 6 P1-R2 双后端约束表（元件/源/探针/数值/错误逐项对照 + 奇异 E 专项） | 阶段 6 |
@@ -118,12 +116,10 @@
 | [AGENT_GUIDE.md](AGENT_GUIDE.md) | Agent 开工三问、文档路由、闸门 | 当前 |
 | [CODE_STANDARDS.md](CODE_STANDARDS.md) | **代码规范（强制）**：TS/JS + Python + 测试 + 提交 + 文档规范；改代码前必读 | 当前 |
 
-### 2.6 会话日志（sessions）
+### 2.6 主日志（PROGRESS）
 
 | 文档 | 用途 | 状态 |
 | --- | --- | --- |
-| [sessions/README.md](sessions/README.md) | 会话日志命名、隐私与证据约定 | 当前 |
-| [sessions/2026-11-08-audit-repair.md](sessions/2026-11-08-audit-repair.md) | 2026-11-08 审计修复的目标、基线、已完成项与剩余项 | 当前 |
 | [PROGRESS.md](PROGRESS.md) | 逐轮执行证据的主日志（§7.x） | 当前 |
 
 ### 2.7 功能规格（spec，按日期归档）

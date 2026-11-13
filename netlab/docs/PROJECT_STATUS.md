@@ -46,7 +46,7 @@
 - 阶段 1（P1-A-lite）：已完成 —— `ADR-005` Presentation 外观归属 = Accepted（lite）；其余 ADR 仍 Proposed，ADR≠代码实施授权。
 - 阶段 2（P-B 元素级视图外观完整版）：已完成并 push 到 `8e7f583` —— 900 passed / 1 skipped / 81.376055%；评估整改见 `PROGRESS.md §7.154`。
 - 阶段 3（R40 收尾：节点卡片自由字段编辑）：已完成并 push 到 `b667e51` —— 909 passed / 1 skipped / 81.404692%，三条 CI success；详见 `PROGRESS.md §7.153`。
-- 阶段 4（P1-A 全量设计冻结）：9 份 Proposed 文档已交付；**2026-11-12 任务书整改完成**：P0-01–P0-04 全修复、P1-01/P1-02/P1-06 修复、P1-03–P1-13/P2-02 差距分析文档化，新增 `tools/check_stage4_docs.py` + `test_stage4_document_contracts.py`；第④轮封口评审已「通过（无阻断、无新增项）」；已于 2026-11-12 获用户明确批准正式验收；详见 `PROGRESS.md §7.159`、`STAGE4_REMEDIATION_REPORT.md`、`STAGE4_INDEPENDENT_REVIEW.md`。
+- 阶段 4（P1-A 全量设计冻结）：9 份 Proposed 文档已交付；**2026-11-12 任务书整改完成**：P0-01–P0-04 全修复、P1-01/P1-02/P1-06 修复、P1-03–P1-13/P2-02 差距分析文档化，新增 `tools/check_stage4_docs.py` + `test_stage4_document_contracts.py`；第④轮封口评审已「通过（无阻断、无新增项）」；已于 2026-11-12 获用户明确批准正式验收；详见 `PROGRESS.md §7.159`（阶段4评审/整改记录已按保留策略归档，见 Git 历史）。
 - 阶段 5（P1-R1 Stamp 统一）：代码 `e41160f`（状态 tip `eaec04a`，三条 CI success）已交付；2026-11-12 只读复核判「子目标达成、零数值回归」，但阶段 5 整体仍 open（元件模型完整统一未完成）；成果保留、不作阶段 5 整体完成依据，不进阶段 6。
 - 阶段 6（P1-R2 AC/Bode 统一）：`PENDING_USER_AUTHORIZATION`、未启动未验收。仓内 `P1-R2_PARITY_MATRIX`/`BACKEND_CONSTRAINTS`/`CONVERGENCE_PLAN` + `P0-2_PORT_SCHEMA_DECISION` 等只读审计/设计材料已产出（未改生产码），但依 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:14` 不构成阶段交付物或验收依据；**AC/Bode 生产代码统一未实施**（需用户明确授权后方可进入等价性测试设计与统一实现）。
 - 阶段 7–13（P1-S1 / P1-S2 / P1-S3 / P2 / P3 / P4 / P5）：未开始，保持 `PENDING_USER_AUTHORIZATION`。

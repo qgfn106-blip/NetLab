@@ -594,12 +594,18 @@ class Network:
             for node in component:
                 component_of[node] = component_index
 
+        breakpoint_component_indices = {component_of[node] for node in breakpoints}
         component_edges: set[tuple[int, int]] = set()
         for connection in enabled:
             source = component_of[connection.source]
             target = component_of[connection.target]
-            if source != target:
-                component_edges.add((source, target))
+            if source == target:
+                continue
+            # 真两阶段：断点当前输出只取上一拍状态、不依赖本拍输入，故指向断点
+            # 组件的依赖边不参与排序（断点先算=phase1，其余直接馈通=phase2）。
+            if target in breakpoint_component_indices:
+                continue
+            component_edges.add((source, target))
 
         indegree = [0] * len(components)
         outgoing: dict[int, list[int]] = {index: [] for index in range(len(components))}
@@ -615,9 +621,11 @@ class Network:
                 indegree[target] -= 1
                 if indegree[target] == 0:
                     ready.append(target)
-        if len(ordered) != len(components):  # 理论上已被断点消除；保留防御
-            ordered.extend(
-                index for index in range(len(components)) if index not in ordered
+        if len(ordered) != len(components):
+            missing = [index for index in range(len(components)) if index not in ordered]
+            raise AlgebraicLoopError(
+                f"求解计划组件依赖仍存在环（{len(missing)} 个组件无法排序）："
+                "断点应消除全部直接馈通环，请检查断点定义"
             )
 
         self_loops = {
@@ -625,7 +633,7 @@ class Network:
             for connection in enabled
             if connection.source is connection.target
         }
-        breakpoint_indices = {component_of[node] for node in breakpoints}
+        breakpoint_indices = breakpoint_component_indices
         stages: list[SolverStage] = []
         algebraic: list[tuple[str, ...]] = []
         for component_index in ordered:

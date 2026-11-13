@@ -11,6 +11,7 @@
 
 > 任何改代码（人类或 agent）前，先读并遵守 **[CODE_STANDARDS.md](CODE_STANDARDS.md)**（TS/JS + Python + 测试 + 提交 + 文档规范；三条铁律：**改代码必须遵守规范、只做等价改进、改代码必须同步文档**）。
 > 编码 Agent 行为硬约束（复用优先、禁止平行实现、测试性并行实现例外、共享状态、过测红线）见 **[CODING_CONSTRAINTS.md](CODING_CONSTRAINTS.md)**。
+> **GitHub 提交/隐私安全硬约束（强制）**：任何提交、Push、PR 或文件上传前，先读 **[GITHUB_CONTRIBUTION_PRIVACY_SECURITY_POLICY.md](GITHUB_CONTRIBUTION_PRIVACY_SECURITY_POLICY.md)**。核心：禁止 `git add .` / `git add -A`，只按审查通过的明确路径逐文件暂存；暂存后先做隐私/密钥扫描并生成报告；默认不由 Agent Push；不确定或检查失败即停止（NOT VERIFIED ≠ PASS）。
 
 **文档阅读顺序（避免混乱）**：本指南 `AGENT_GUIDE.md` → 需求与决策 `REQUIREMENTS_AND_RULES.md`（R/D 台账、§5 分期、§6 不做）→ 进度 `PROGRESS.md` → 主线待办 `BACKLOG.md` → 代码导读 `CODE_GUIDE.md` / 数学入口 `MATH.md`（再按入口进入 `math/ARCHITECTURE_MATH.md`、`math/ELEMENT_MATH.md`、`math/ANALYSIS_MATH.md`）；全部文档导航见 **[DOCS_INDEX.md](DOCS_INDEX.md)**；V2 架构演进见 [CORE_ARCHITECTURE_V2.md](CORE_ARCHITECTURE_V2.md) 与 [CORE_ARCHITECTURE_V2_ROADMAP.md](CORE_ARCHITECTURE_V2_ROADMAP.md)。同一事实只在「单一事实来源」维护一处，其余一律**链接引用、不复制**。
 

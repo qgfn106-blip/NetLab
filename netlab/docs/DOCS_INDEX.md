@@ -79,6 +79,7 @@
 | [P0-2_PORT_SCHEMA_UNIFICATION_DESIGN.md](P0-2_PORT_SCHEMA_UNIFICATION_DESIGN.md) | P0-2 Port Schema 统一设计（V1 PortDef/V2 PortDesc/PortType 字段映射、迁移、插件兼容；只读设计） | 阶段 6 |
 | [CORE_CODE_REMEDIATION_DESIGN.md](CORE_CODE_REMEDIATION_DESIGN.md) | 核心代码 8 项问题整改设计（file:line 依据/根因/失败测试/回归/风险；只读设计未实施） | 阶段 6 |
 | [NETLAB_CURRENT_STATE_AUDIT_2026-11-13.md](NETLAB_CURRENT_STATE_AUDIT_2026-11-13.md) | 当前状态复核与第一批整改报告（8 字段基线 + A/B/C/D 结论 + 修复状态分类） | 阶段 6 |
+| [GITHUB_CONTRIBUTION_PRIVACY_SECURITY_POLICY.md](GITHUB_CONTRIBUTION_PRIVACY_SECURITY_POLICY.md) | GitHub 贡献规范与隐私安全门禁（v1.0）：Agent 权限隔离、禁止上传数据分类、暂存区扫描、Commit/Push/PR 规范、.gitignore/Hook/Secret Scanner 门禁；**所有 GitHub 提交必须遵循** | 当前（2026-11-13） |
 
 ### 2.3 扩展体系
 

@@ -1,4 +1,4 @@
-"""批次A3：工程压缩容器解码必须有界且校验压缩流完整性（报告 #6）。
+"""工程压缩容器解码必须有界且校验压缩流完整性。
 
 缺陷（修复前）：decode_project_bytes 先 zlib.decompress 全量展开再判 8MB，
 zip-bomb 可致 MemoryError；且不校验 eof/unused_data/尾随/拼接/截断。

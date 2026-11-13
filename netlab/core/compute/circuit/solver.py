@@ -276,6 +276,7 @@ class CircuitSolver:
             "node_voltages": dict(self.node_voltages),
             "last_iterations": self.last_iterations,
             "last_solve_ms": self.last_solve_ms,
+            "startup_pending": bool(self._startup_pending),
             "elements": self._capture_element_state(),
         }
 
@@ -286,6 +287,9 @@ class CircuitSolver:
         self.node_voltages = dict(checkpoint.get("node_voltages", {}))
         self.last_iterations = int(checkpoint.get("last_iterations", 0))
         self.last_solve_ms = float(checkpoint.get("last_solve_ms", 0.0))
+        self._startup_pending = bool(
+            checkpoint.get("startup_pending", self._startup_pending)
+        )
         for element, row in zip(self.elements, checkpoint.get("elements", [])):
             element.state = _copy_state(row.get("state", {}))
             element.iteration_guess = _copy_state(row.get("guess", {}))
@@ -469,7 +473,7 @@ class CircuitSolver:
                     self._restore_element_states(trial_snapshot)
                     break
             solution, trial_iters, converged, residual = self._newton_solve(
-                dt, 0.0, solution, source_scale=1.0, mode=mode
+                dt, 0.0, solution, source_scale=1.0, mode=mode, deadline=deadline
             )
             iterations += trial_iters
         return solution, iterations, converged, residual, attempted

@@ -618,6 +618,29 @@ GitHub 支持 PR 模板帮助贡献者提供背景、关联 Issue、测试结果
 
 GitHub 的 Branch Protection / Rulesets 可要求 PR 审批、状态检查、对话解决、Code Owner 审查，并限制强推或删除。实际可用功能取决于仓库类型和账户计划，必须在仓库 Settings 中核实。[5, 6]
 
+#### 11.7.1 NetLab main 保护落地（2026-11-14，可直接执行）
+
+单人维护推荐配置：`Require a pull request before merging`（Required approvals=0，仍能挡直推）、`Require status checks`（test / desktop-l2 / build / e2e-l1 / docker，strict）、`Require conversation resolution`、`Require linear history`、`Include administrators`，并关闭 `Allow force pushes` / `Allow deletions`。
+
+UI：仓库 → Settings → Branches → Add branch protection rule → Branch name pattern `main` → 勾选上述项 → Create。
+
+CLI（已安装 `gh` 并登录时）：把下列 `protection.json` 存到仓库外，然后执行 `gh api -X PUT repos/qgfn106-blip/NetLab/branches/main/protection --input protection.json`：
+
+```json
+{
+  "required_status_checks": {"strict": true, "contexts": ["test", "desktop-l2", "build", "e2e-l1", "docker"]},
+  "enforce_admins": true,
+  "required_pull_request_reviews": {"required_approving_review_count": 0},
+  "restrictions": null,
+  "required_conversation_resolution": true,
+  "required_linear_history": true,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}
+```
+
+注：若账户计划/仓库类型不支持某字段（如 `required_linear_history` 或 0 审批），按 GitHub 返回错误逐项去掉后重试；状态检查名以首次 PR 实际出现的为准。
+
 ### 11.8 CODEOWNERS 建议
 
 ```text

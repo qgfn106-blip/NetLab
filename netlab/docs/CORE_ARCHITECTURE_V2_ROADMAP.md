@@ -1,6 +1,7 @@
 # NetLab Core Architecture V2 · 执行路线图
 
-> **状态：规划基线；P1 架构审计已完成（`CORE_ARCHITECTURE_AUDIT.md`，2026-11-11），当前按用户 2026-11-11 正式裁决的阶段 0–13 顺序推进。** 目标能力与当前实现差距见 [CORE_ARCHITECTURE_V2.md](CORE_ARCHITECTURE_V2.md)。
+> **状态：规划基线；P1 架构审计已完成（`CORE_ARCHITECTURE_AUDIT.md`，2026-11-11），当前按用户 2026-11-11 正式裁决的阶段 0–13 顺序推进。**
+> ⚠️ 2026-11-14 历史已 filter-repo 重写，本文所有旧 SHA（4975f90/1ab22c3/4dc7bdd 等）失效；当前有效基线 `origin/main=e2b390f`、1005 passed/1 skipped/core 81.96%（本地）。 目标能力与当前实现差距见 [CORE_ARCHITECTURE_V2.md](CORE_ARCHITECTURE_V2.md)。
 > 当前事实基线（2026-11-13 复核纠偏）：`origin/main`（已推送基线）=`4975f90f524b9f2a2bfe84adf329fe28e1c903bb`；tested_head `1ab22c33d8f436394669e7305674c597803a2d2b`（`status.json`，959 passed / 1 skipped / 0 failed、316.28s；`4975f90` 为 status-only 尾提交不自引用）；最后生产代码提交 `1ab22c33d8f436394669e7305674c597803a2d2b`；core line 81.61%；CI `CI_VERIFIED`（`c70091d`：3 workflow run `43274818892` / `43274818886` / `43274818874` 与 5 check-run 全部 `completed/success`，2026-11-13 经 GitHub REST API 直连取得，Run URL 见 `PROJECT_STATUS.md §1`；历史 `4dc7bdd` success 仅作历史；`4975f90` 的 CI 未取得（`CI_NOT_VERIFIED`））。阶段 3 历史基线（`b667e517...` / 909 / 81.404692%）仅作历史引用。
 
 ## 0. 路线总览

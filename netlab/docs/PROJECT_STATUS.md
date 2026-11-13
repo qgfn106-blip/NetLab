@@ -2,6 +2,8 @@
 
 - **状态**：当前状态唯一事实源（2026-11-13 复核纠偏：统一测试/HEAD 数字与阶段口径，撤销无据授权自证；依《NetLab / PlotKit 轻量研发与证据管理协议 V3》§2/§4）。2026-11-13 审批复核后同步至 `4975f90`：既有代码缺陷修复 3 项已推送，仍不计入阶段 6 交付物。
 - **最后刷新**：2026-11-13（Asia/Shanghai）。机器可读基线以 `status.json` / `reports/test_status.json` 为准；本文件只记当前事实，历史完成数字见 `PROGRESS.md`。
+
+> ⚠️ 2026-11-14 历史已由 `git filter-repo` 重写（移除 `reports/pytest.xml`）。**本文所有旧 SHA（`4dc7bdd`/`1df4934`/`e41160f`/`212a890`/`1ab22c3`/`4975f90`/`9b2f9af`/`5862629`/`03817f7`）均已失效**。当前唯一有效基线：`origin/main=e2b390f409f4876df98e59bc9ec1d8390f546834`、全量 **1005 passed / 1 skipped / core line 81.96%**（本地，绑 `e2b390f`；新 SHA 的 CI 未取得=`CI_NOT_VERIFIED`）、版本 3.20.1。§1 表格中的旧 SHA/959 为历史记录，仅作追溯。
 - **阶段 4（P1-A）**：设计冻结整改已完成 P0-01–P0-04 与关键 P1，新增 `tools/check_stage4_docs.py` 与契约测试；全量 945 passed / 1 skipped / 81.380784%（阶段 4 验收当时快照，非当前基线）；第④轮封口评审已「通过（无阻断、无新增项）」；**2026-11-12 获用户明确批准，正式验收通过（用户授权）**；阶段 5 转正式复核（进入阶段 6 仍需用户单独授权）。
 - **阶段 5（P1-R1）**：共享 `stamp_laplacian` 两端口原语收敛已交付（代码 `e41160f`，状态 tip `eaec04a`，三条 CI success）；**2026-11-12 只读复核判「子目标达成（零数值回归、无回归、数值等价 max_abs≈5.55e-17）」但「阶段 5 整体仍 open、不标完成、不进阶段 6」**——完整 CircuitElement 元件模型统一未完成（Descriptor 仍 A+sE、Legacy 仍伴随 MNA，双 `kind` 分派尚在）；ROADMAP:40 原目标基线不可零回归实现，彻底合并需 CORE_MODEL_V2 `ElementAdmittance`（Proposed，3× PENDING）。阶段 6–13 均 `PENDING_USER_AUTHORIZATION`。
 - **维护规则**：本文件只记当前事实；路线/阶段表见 `CORE_ARCHITECTURE_V2_ROADMAP.md`，目标口径见 `CORE_ARCHITECTURE_V2.md`，执行约束见 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md`（该文件为 2026-11-11 快照，动态状态委托本文件），架构决策见 `docs/adr/`，历史完成记录见 `PROGRESS.md`。机器可读字段以 `status.json` / `reports/test_status.json` 为准。

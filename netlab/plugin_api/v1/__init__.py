@@ -3,7 +3,7 @@
 插件作者只应从这个包导入；不要直接依赖 ``netlab.core`` 内部模块。平台会把
 这里的声明适配到内部注册表，并保持 ``NodeRecord`` / ``EdgeRecord`` 结构不变。
 
-扩展边界（契约，2026-11-13 批次 A2）：
+扩展边界（契约）：
 - **引擎 mode ≠ 功能块 mode**。插件可经 ``EngineSpec`` + ``register_engine`` 注册
   自定义**求解引擎 mode**（不能替换内置 ``signal`` / ``circuit`` / ``vector``）；
   但 ``BlockDef.mode``（功能块自定义模式）当前**仅允许** ``signal`` / ``vector`` /

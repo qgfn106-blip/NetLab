@@ -1,0 +1,322 @@
+{
+  "scene_json": {
+    "app": "netlab 2.1.0",
+    "blocks": [],
+    "current": "netfixed1",
+    "extensions": [],
+    "fem": {},
+    "format": "netlab-project",
+    "metadata": {
+      "migrated_from": "scene-json"
+    },
+    "name": "导入的场景",
+    "networks": [
+      {
+        "id": "netfixed1",
+        "name": "网络 1",
+        "scene": {
+          "edges": [],
+          "nodes": []
+        },
+        "sim": {},
+        "states": []
+      }
+    ],
+    "plugins": [],
+    "ui": {},
+    "version": 7
+  },
+  "v0": {
+    "app": "netlab 2.1.0",
+    "blocks": [],
+    "current": "netfixed1",
+    "extensions": [],
+    "fem": {},
+    "format": "netlab-project",
+    "metadata": {
+      "migrated_devices": "v0",
+      "migrated_from_networks": "v0",
+      "migrated_plugins": "v0",
+      "migrated_rails": "v0",
+      "migrated_states": "v0"
+    },
+    "name": "未命名工程",
+    "networks": [
+      {
+        "id": "netfixed1",
+        "name": "网络 1",
+        "scene": {
+          "edges": [],
+          "mode": "signal",
+          "nodes": []
+        },
+        "sim": {},
+        "states": []
+      }
+    ],
+    "plugins": [],
+    "ui": {
+      "profile": "netlab-ui/1"
+    },
+    "version": 7
+  },
+  "v1": {
+    "app": "netlab 2.1.0",
+    "blocks": [],
+    "current": "netfixed1",
+    "extensions": [],
+    "fem": {},
+    "format": "netlab-project",
+    "metadata": {
+      "migrated_devices": "v1",
+      "migrated_from_networks": "v1",
+      "migrated_plugins": "v1",
+      "migrated_rails": "v1",
+      "migrated_states": "v1"
+    },
+    "name": "未命名工程",
+    "networks": [
+      {
+        "id": "netfixed1",
+        "name": "网络 1",
+        "scene": {
+          "edges": [],
+          "mode": "signal",
+          "nodes": []
+        },
+        "sim": {},
+        "states": []
+      }
+    ],
+    "plugins": [],
+    "ui": {
+      "profile": "netlab-ui/1"
+    },
+    "version": 7
+  },
+  "v2": {
+    "app": "netlab 2.1.0",
+    "blocks": [],
+    "current": "n1",
+    "extensions": [],
+    "fem": {},
+    "format": "netlab-project",
+    "metadata": {
+      "migrated_devices": "v2",
+      "migrated_plugins": "v2",
+      "migrated_rails": "v2",
+      "migrated_states": "v2"
+    },
+    "name": "未命名工程",
+    "networks": [
+      {
+        "id": "n1",
+        "name": "网络 1",
+        "scene": {
+          "edges": [],
+          "mode": "signal",
+          "nodes": []
+        },
+        "sim": {},
+        "states": []
+      }
+    ],
+    "plugins": [],
+    "ui": {
+      "profile": "netlab-ui/1"
+    },
+    "version": 7
+  },
+  "v2_nonempty_scene": {
+    "app": "netlab 2.1.0",
+    "blocks": [],
+    "current": "n1",
+    "extensions": [],
+    "fem": {},
+    "format": "netlab-project",
+    "metadata": {
+      "migrated_devices": "v2",
+      "migrated_plugins": "v2",
+      "migrated_rails": "v2",
+      "migrated_states": "v2"
+    },
+    "name": "未命名工程",
+    "networks": [
+      {
+        "id": "n1",
+        "name": "网络 1",
+        "scene": {
+          "edges": [],
+          "mode": "circuit",
+          "nodes": [
+            {
+              "id": "a",
+              "kind": "ground",
+              "position": [
+                0,
+                0
+              ]
+            }
+          ]
+        },
+        "sim": {
+          "duration": 1.0
+        },
+        "states": []
+      }
+    ],
+    "plugins": [],
+    "ui": {
+      "profile": "netlab-ui/1"
+    },
+    "version": 7
+  },
+  "v3": {
+    "app": "netlab 2.1.0",
+    "blocks": [],
+    "current": "n1",
+    "extensions": [],
+    "fem": {},
+    "format": "netlab-project",
+    "metadata": {
+      "migrated_devices": "v3",
+      "migrated_plugins": "v3",
+      "migrated_rails": "v3",
+      "migrated_states": "v3"
+    },
+    "name": "未命名工程",
+    "networks": [
+      {
+        "id": "n1",
+        "name": "网络 1",
+        "scene": {
+          "edges": [],
+          "mode": "signal",
+          "nodes": []
+        },
+        "sim": {},
+        "states": []
+      }
+    ],
+    "plugins": [],
+    "ui": {
+      "profile": "netlab-ui/1"
+    },
+    "version": 7
+  },
+  "v4": {
+    "app": "netlab 2.1.0",
+    "blocks": [],
+    "current": "n1",
+    "extensions": [],
+    "fem": {},
+    "format": "netlab-project",
+    "metadata": {
+      "migrated_plugins": "v4",
+      "migrated_rails": "v4",
+      "migrated_states": "v4"
+    },
+    "name": "未命名工程",
+    "networks": [
+      {
+        "id": "n1",
+        "name": "网络 1",
+        "scene": {
+          "edges": [],
+          "mode": "signal",
+          "nodes": []
+        },
+        "sim": {},
+        "states": []
+      }
+    ],
+    "plugins": [],
+    "ui": {
+      "profile": "netlab-ui/1"
+    },
+    "version": 7
+  },
+  "v5": {
+    "app": "netlab 2.1.0",
+    "blocks": [],
+    "current": "n1",
+    "extensions": [],
+    "fem": {},
+    "format": "netlab-project",
+    "metadata": {
+      "migrated_plugins": "v5",
+      "migrated_states": "v5"
+    },
+    "name": "未命名工程",
+    "networks": [
+      {
+        "id": "n1",
+        "name": "网络 1",
+        "scene": {
+          "edges": [],
+          "mode": "signal",
+          "nodes": []
+        },
+        "sim": {},
+        "states": []
+      }
+    ],
+    "plugins": [],
+    "ui": {
+      "profile": "netlab-ui/1"
+    },
+    "version": 7
+  },
+  "v6": {
+    "app": "netlab 2.1.0",
+    "blocks": [],
+    "current": "n1",
+    "extensions": [],
+    "fem": {},
+    "format": "netlab-project",
+    "metadata": {
+      "migrated_states": "v6"
+    },
+    "name": "未命名工程",
+    "networks": [
+      {
+        "id": "n1",
+        "name": "网络 1",
+        "scene": {
+          "edges": [],
+          "mode": "signal",
+          "nodes": []
+        },
+        "sim": {},
+        "states": []
+      }
+    ],
+    "plugins": [],
+    "ui": {},
+    "version": 7
+  },
+  "v7": {
+    "app": "netlab 2.1.0",
+    "blocks": [],
+    "current": "n1",
+    "extensions": [],
+    "fem": {},
+    "format": "netlab-project",
+    "name": "未命名工程",
+    "networks": [
+      {
+        "id": "n1",
+        "name": "网络 1",
+        "scene": {
+          "edges": [],
+          "mode": "signal",
+          "nodes": []
+        },
+        "sim": {}
+      }
+    ],
+    "plugins": [],
+    "ui": {},
+    "version": 7
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "current": "n1",
+  "format": "netlab-project",
+  "networks": [
+    {
+      "id": "n1",
+      "name": "网络 1",
+      "scene": {
+        "edges": [],
+        "mode": "signal",
+        "nodes": []
+      },
+      "sim": {}
+    }
+  ],
+  "version": 2
+}

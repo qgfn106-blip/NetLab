@@ -2954,3 +2954,12 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - P1-2/P1-3 文档措辞已纠偏：`P1_R1_STAMP_CONVERGENCE.md` 标题改为「两端口 Laplacian Stamp 原语收敛与边界」并加范围澄清；`PROJECT_STATUS.md` 阶段 5 改「primitive 已统一、完整 CircuitElement 模型未统一」；`V2_IMPLEMENTATION_GAP_ANALYSIS.md` 改「frequency_response 不是 ac_sweep 兼容包装，是两条独立实现」。
 - 验证：全量 pytest 945 passed / 1 skipped / 0 failed / 111.70s；`render_docs.py --check`、docs 隐私/SSOT/契约 6 passed、`check_version`、`check_architecture`、`gen_contracts --check`、`update_readme_changelog --check`、`check_status_freshness`、`frontend npm run check:sections` 均通过。
 - 边界：未改生产代码；阶段 4 仍待用户正式批准，阶段 5 `eaec04a` 冻结、阶段 6–13 `PENDING_USER_AUTHORIZATION`；未 push。
+
+
+## 7.169 2026-11-14 阶段6 P1-R2 AC/Bode 双后端统一完成并入 main
+
+- 用户 2026-11-14 明确授权启动阶段6 AC/Bode 生产统一；canonical=`CircuitSolver.ac_sweep`，`DescriptorModel.frequency_response` 纯线性路径委托 canonical `_ac_bode`（补 omega_rad_s/omega）、线性化非线性（LINEARIZABLE_NONLINEAR_KINDS + operating_point）保留原生 build/solve。
+- 三支交付：A `feat/p1r2-ac-switch-current-probe`（`_ac_probe` 补 switch 电流 `difference*conductance`）+ B `refactor/p1r2-descriptor-delegate` + C `feat/p1r2-ac-parity`（T01–T14 + C15 + S16 + state_invariance）。`merge --no-ff` 合入 main `52b50a4`：全量 1005 passed/1 skipped、core 81.95%、benchmark 7 passed、diff-coverage 10/10、D-5 valid、隐私 clean。
+- 强化 C 支（用户要求、多子agent并行复核）：`netlab/tests/test_p1r2_ac_parity.py` 频率网格改 `np.logspace(1,6,41)`（1e1–1e6，每 0.125 decade）+ RLC 串联谐振≈5.03kHz 附近 7 点加密；断言改 `_assert_strict_allclose` 显式 `max_abs≤1e-12` 且 `|ref|>1e-9` 时 `max_rel≤1e-9`（非 assert_allclose 合并界）；T11/C15 增错误契约（同为 ComputeError、文案一致/点名 OP1）。分支 `test/p1r2-ac-parity-strict`（2c5f900）经 `merge --no-ff` 并入 main，终态 main=`4b5fc91`。
+- 验证：全量 pytest 1005 passed / 1 skipped；docs 隐私/SSOT/契约 6 passed；`git push origin main` `52b50a4..4b5fc91`；GitHub 5 check-run 全 `completed/success`（test / desktop-l2 / build / docker / e2e-l1）。
+- 边界：阶段 7–13、ADR-008 A/B/C、P0-2 全链路改造仍 `PENDING_USER_AUTHORIZATION`。

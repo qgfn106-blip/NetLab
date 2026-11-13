@@ -968,10 +968,20 @@ def decode_project_bytes(data: bytes) -> dict[str, Any]:
     """磁盘字节 → 工程 dict：探魔数 → 解压 → utf-8 → json.loads；无魔数按纯文本解析。"""
     raw = bytes(data)
     if raw[: len(PROJECT_MAGIC)] == PROJECT_MAGIC:
+        payload = raw[len(PROJECT_MAGIC) :]
+        decomp = zlib.decompressobj()
         try:
-            body = zlib.decompress(raw[len(PROJECT_MAGIC) :])
+            # 有界解压：最多产出 MAX+1 字节，超出即判超限，防止 zip-bomb 无限制展开。
+            body = decomp.decompress(payload, MAX_PROJECT_BYTES + 1)
+            if len(body) > MAX_PROJECT_BYTES or decomp.unconsumed_tail:
+                raise LimitError(f"工程文件不能超过 {MAX_PROJECT_BYTES // 1_000_000} MB")
+            body += decomp.flush()
         except zlib.error as exc:
             raise ValidationError(f"工程文件解压失败：{exc}") from exc
+        if not decomp.eof:
+            raise ValidationError("工程文件解压失败：压缩流不完整（缺少 zlib 结束标记/校验）")
+        if decomp.unused_data:
+            raise ValidationError("工程文件解压失败：压缩流后存在多余数据（尾随字节或拼接压缩流）")
     else:
         body = raw
     # MAX 判定用**未压缩** body 大小（压缩前后都按解压后校验）。

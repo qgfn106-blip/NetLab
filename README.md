@@ -262,7 +262,7 @@ Netlab 设计为**每人一份、本机运行**：服务默认只监听 `127.0.0
 **用户文档**
 - [user/quickstart.md](netlab/docs/user/quickstart.md)、[user/interface.md](netlab/docs/user/interface.md)、[user/shortcuts.md](netlab/docs/user/shortcuts.md)、[user/faq.md](netlab/docs/user/faq.md)、[user/glossary.md](netlab/docs/user/glossary.md)
 
-**近期审计 / 评审（仅列最近两次；历史审计与逐轮会话日志不进入本 README）**
+**近期审计 / 评审（仅列最近两次；更早的历史审计记录不进入本 README）**
 - [NETLAB_CURRENT_STATE_AUDIT_2026-11-13.md](netlab/docs/NETLAB_CURRENT_STATE_AUDIT_2026-11-13.md)、[NETLAB_REVIEW_AUDIT_2026-11-12.md](netlab/docs/NETLAB_REVIEW_AUDIT_2026-11-12.md)
 
 **历史特性规格（specs，18 篇）与调查**

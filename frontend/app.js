@@ -3806,8 +3806,8 @@ function setStatusHint(hint) {
       toast(`\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A${response && response.error || "\u672A\u77E5\u9519\u8BEF"}`, "error", 6e3);
       return;
     }
-    if (response.cancelled) {
-      toast("\u5DF2\u505C\u6B62", "warn", 3e3);
+    if (response.result && response.result.cancelled) {
+      toast("\u5DF2\u505C\u6B62\uFF08\u9884\u8BA1\u7B97\u672A\u5B8C\u6210\uFF09", "warn", 3e3);
       return;
     }
     leaveReplay();
@@ -3864,6 +3864,10 @@ function setStatusHint(hint) {
           }),
           label
         );
+        if (result && result.cancelled) {
+          toast(`${label}\u5DF2\u505C\u6B62\uFF08\u672A\u5B8C\u6210\uFF09`, "warn", 3e3);
+          continue;
+        }
         if (result && result.ok === false) toast(`${label}\u5931\u8D25\uFF1A${result.error || "\u672A\u77E5\u9519\u8BEF"}`, "error", 7e3);
       } catch (error) {
         toast(`${label}\u5931\u8D25\uFF1A${error?.message || error}`, "error", 7e3);

@@ -3794,11 +3794,22 @@ function setStatusHint(hint) {
     return span >= need * 0.9;
   }
   async function runSolveWindowPrecompute(seconds) {
-    const response = await api("/api/solve-window", {
-      method: "POST",
-      body: JSON.stringify({ duration: seconds }),
-      timeoutMs: 18e4
-    });
+    const response = await runPrecomputeWithProgress(
+      () => api("/api/solve-window", {
+        method: "POST",
+        body: JSON.stringify({ duration: seconds }),
+        timeoutMs: 18e4
+      }),
+      `\u6B63\u5728\u8BA1\u7B97 0\u2192${seconds}s`
+    );
+    if (!response || response.ok === false) {
+      toast(`\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A${response && response.error || "\u672A\u77E5\u9519\u8BEF"}`, "error", 6e3);
+      return;
+    }
+    if (response.cancelled) {
+      toast("\u5DF2\u505C\u6B62", "warn", 3e3);
+      return;
+    }
     leaveReplay();
     state.frames = [];
     state.cursor = 0;

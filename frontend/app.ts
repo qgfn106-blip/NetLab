@@ -4183,11 +4183,11 @@ function setStatusHint(hint: string): void {
   // ---- 统一预计算入口 -------------------------------------------------------
   type PrecomputeTarget = 'solve' | 'plotkit' | 'states';
 
-  async function runSolveWindowPrecompute(seconds: number) {
+  async function runSolveWindowPrecompute(seconds: number, dt: number | null = null) {
     const response: any = await runPrecomputeWithProgress(
       () => api('/api/solve-window', {
         method: 'POST',
-        body: JSON.stringify({ duration: seconds }),
+        body: JSON.stringify(dt ? { duration: seconds, dt } : { duration: seconds }),
         timeoutMs: 180000,
       }),
       `\u6B63\u5728\u8BA1\u7B97 0\u2192${seconds}s`,
@@ -4216,11 +4216,11 @@ function setStatusHint(hint: string): void {
     else toast(`预计算完成：${result.steps} 步 / ${result.frames} 帧`, 'ok', 3000);
   }
 
-  async function runPlotkitPrecompute(seconds: number) {
+  async function runPlotkitPrecompute(seconds: number, dt: number | null = null) {
     const pre = await runPrecomputeWithProgress(
       () => api('/api/plotkit/precompute', {
         method: 'POST',
-        body: JSON.stringify({ seconds }),
+        body: JSON.stringify(dt ? { seconds, dt } : { seconds }),
         timeoutMs: 180000,
       }),
       `正在计算 0→${seconds}s`,
@@ -4239,7 +4239,7 @@ function setStatusHint(hint: string): void {
     toast(`预计算完成：${pre.frames ?? 0} 帧`, 'ok', 3000);
   }
 
-  async function runStatesPrecompute(seconds: number) {
+  async function runStatesPrecompute(seconds: number, dt: number | null = null) {
     if (!wbCompareStateIds.length) {
       toast('请先在信号窗勾选要预计算的状态', 'error');
       return;
@@ -4251,7 +4251,7 @@ function setStatusHint(hint: string): void {
         const result = (await runPrecomputeWithProgress(
           () => api('/api/network/state/precompute', {
             method: 'POST',
-            body: JSON.stringify({ state_id: id, seconds }),
+            body: JSON.stringify(dt ? { state_id: id, seconds, dt } : { state_id: id, seconds }),
             timeoutMs: 600000,
           }),
           label,
@@ -4285,6 +4285,9 @@ function setStatusHint(hint: string): void {
       <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">时长（秒）
         <input id="precomputeSeconds" type="number" min="1" max="120" step="1" value="5" style="width:110px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
       </label>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">精度（步长 dt，秒；空=自动）
+        <input id="precomputeDt" type="number" min="0" step="0.001" placeholder="自动" style="width:110px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
+      </label>
       <div style="display:flex;justify-content:flex-end;gap:8px;">
         <button id="precomputeSkip" type="button" style="display:none">直接运行（不预计算）</button>
         <button id="precomputeCancel" type="button">取消</button>
@@ -4311,12 +4314,15 @@ function setStatusHint(hint: string): void {
         toast('预计算时长必须在 (0, 120] s 内', 'error', 3000);
         return;
       }
+      const dtInput = card.querySelector('#precomputeDt') as HTMLInputElement | null;
+      const dtRaw = dtInput ? Number(dtInput.value) : NaN;
+      const dtOpt = Number.isFinite(dtRaw) && dtRaw > 0 ? dtRaw : null;
       const kind = target.value as PrecomputeTarget;
       close();
       try {
-        if (kind === 'solve') await runSolveWindowPrecompute(seconds);
-        else if (kind === 'plotkit') await runPlotkitPrecompute(seconds);
-        else await runStatesPrecompute(seconds);
+        if (kind === 'solve') await runSolveWindowPrecompute(seconds, dtOpt);
+        else if (kind === 'plotkit') await runPlotkitPrecompute(seconds, dtOpt);
+        else await runStatesPrecompute(seconds, dtOpt);
       } catch (error) {
         toast(`预计算失败：${(error as Error).message}`, 'error', 6000);
       }

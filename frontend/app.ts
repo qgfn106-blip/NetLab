@@ -4196,8 +4196,8 @@ function setStatusHint(hint: string): void {
       toast(`\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A${response && response.error || '\u672A\u77E5\u9519\u8BEF'}`, 'error', 6000);
       return;
     }
-    if (response.cancelled) {
-      toast('\u5DF2\u505C\u6B62', 'warn', 3000);
+    if (response.result && response.result.cancelled) {
+      toast('已停止（预计算未完成）', 'warn', 3000);
       return;
     }
     leaveReplay();
@@ -4256,6 +4256,7 @@ function setStatusHint(hint: string): void {
           }),
           label,
         )) as { ok?: boolean; error?: string; frames?: number } | null;
+        if (result && (result as any).cancelled) { toast(`${label}已停止（未完成）`, 'warn', 3000); continue; }
         if (result && result.ok === false) toast(`${label}失败：${result.error || '未知错误'}`, 'error', 7000);
       } catch (error) {
         toast(`${label}失败：${(error as Error)?.message || error}`, 'error', 7000);

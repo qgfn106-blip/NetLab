@@ -71,7 +71,7 @@ from .scene_types import (
 
 
 # ---- 引擎 ------------------------------------------------------------------
-from .scene_engines import CircuitEngine, SignalEngine, _Engine
+from .scene_engines import _Engine
 from .scene_channels import _SceneChannelsMixin
 from .scene_io import _SceneIOMixin
 from .scene_edit import _SceneEditMixin
@@ -112,16 +112,9 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
 
     def ensure_engine(self) -> _Engine:
         if self._engine is None or self._dirty:
-            if self.mode not in MODES:
-                from .engine_registry import create_engine
+            from .engine_registry import create_engine
 
-                self._engine = create_engine(self.mode, self)
-            else:
-                self._engine = (
-                    CircuitEngine(self)
-                    if self.mode == "circuit"
-                    else SignalEngine(self)
-                )
+            self._engine = create_engine(self.mode, self)
             self._dirty = False
         return self._engine
 
@@ -271,6 +264,11 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
         return candidate
 
     def _normalize_node_params(self, kind: str, raw: Any) -> tuple[dict[str, Any], str]:
+        from .engine_registry import ENGINE_SPECS
+
+        if self.mode in ENGINE_SPECS:
+            # 插件引擎模式：节点类型已由 validate_kind 白名单把关，参数按通用对象透传。
+            return (dict(raw) if isinstance(raw, dict) else {}), str(kind)
         if self.mode in ("signal", "vector"):
             spec = get_compute_spec(kind)
             params = validate_params(list(spec.params), raw)
@@ -366,6 +364,11 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
         return {"element": element, **params}
 
     def _normalize_edge_params(self, kind: str, raw: Any) -> dict[str, Any]:
+        from .engine_registry import ENGINE_SPECS
+
+        if self.mode in ENGINE_SPECS:
+            # 插件引擎模式：连接类型已由 validate_kind 白名单把关，参数按通用对象透传。
+            return (dict(raw) if isinstance(raw, dict) else {})
         if self.mode in ("signal", "vector"):
             spec = get_method_spec(kind)
             return validate_params(list(spec.params), raw)

@@ -3036,3 +3036,12 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 交付5 ②小信号旁路超时 `netlab/core/compute/analysis.py` `_circuit_tf_analysis`：时间预算 `budget_s`（env `NETLAB_TF_BUDGET_S` 默认 20s）+ 自适应 `_max_step_steps=2000`/`_max_bode_points=400`，超时抛 `AnalysisError`。
 - 测试：`test_interpolation.py`(8) / `test_precompute_interpolation.py`(4) / `test_circuit_tf_budget.py`；全量 **1083 passed / 1 skipped / 0 failed、core line 82.23%（本地非 CI）**。前端 `build.mjs`+`verify_app_parity`+`tsc --noEmit` 通过。
 - 边界：插值仅作用 solve-window 目标且不改变录制；plotkit/states 的插值 GUI 消费待后续；不改 main、未合并。
+## 7.177 2026-11-15 预计算插值卡死/超时缺陷修复（P1–P5，fix/precompute-interp）
+
+- 背景（审批转达用户实测 m04200，main=ffd7cfd）：预计算完成后进度条 100% 仍卡住、无数据可用于分析，右下角「请求超时」红条。
+- 根因：`interpolation._gauss_midpoint` 每个中点朴素遍历全部点 → O(n²)；n≈5556、约 20 通道 rounds=1≈41s、rounds=2≈240s > 前端 `/api/solve-window` 180s → POST 被 abort、结果不落地。且 `simulation.precompute` 先置 progress done/100% 再于锁内跑插值；`net.ts` 超时文案硬编码「15 秒」；插值结果全量返回。
+- 修复：P1 `netlab/core/compute/interpolation.py` 将 `_gauss_midpoint` 改为有序时间轴上 `bisect` 仅遍历窗口内点（O(n·w)，与朴素逐位一致），新增 `estimate_frames`；实测 n=5556 gaussian rounds=1 2.06s→0.008s/通道、rounds=2 12s→0.027s/通道。P1/P5 `simulation.py` 插值前按「通道数×estimate_frames」估算，>4,000,000 帧直接 `ValidationError` 快速失败。P2 插值前置 `status="interpolating" running=True percent=99`，插值完成后才 `done/100%`，且 `precompute_progress()` 对 interpolating 不按 done/total 重算。P3 `frontend/app/net.ts`(及 build 产物 `app/net.js`) 使用真实 `timeoutMs`，不再硬编码「15 秒」。P4 纯插值计算在**锁外**执行（临时释放 RLock，避免阻塞 `/api/live` 与进度查询），完成后重取锁。
+- 测试：新增 `netlab/tests/test_precompute_interp_fix.py`(5)＋`test_interpolation.py`(8)＋`test_simulation_atomic.py`＋`test_analysis_circuit_bypass.py` 共 21 passed。
+- D-5：`check_solver_change --base ffd7cfd` 判「无 netlab/core/compute 数值变更，不需影子报告」（仅插值后处理/进度，不涉求解器数值路径）→ §6 第7项性能基准记「不适用+理由：无状态纯后处理复杂度治理，不改求解器数值语义」。
+- 边界：插值仅作用 solve-window 目标；不改 main、未合并；阶段9–13/ADR-008/P0-2/FEM/MAX_NODES=400/外部工程 JSON/PROJECT_VERSION=7 仍 PENDING_USER_AUTHORIZATION。
+

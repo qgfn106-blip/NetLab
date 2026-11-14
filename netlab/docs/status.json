@@ -1,20 +1,20 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-14T20:51:44+08:00",
-  "version": "3.20.2",
+  "generated_at": "2026-11-14T23:29:05+08:00",
+  "version": "3.20.1",
   "git": {
-    "branch": "feat/p1s2-engine-spi-slice2",
-    "head": "d2acedb2af8c4c2bf0b401df1b975fa6575501fc",
+    "branch": "wt/precompute-ux",
+    "head": "593a636c16567a46bf591d4cd11c26ae7c481f31",
     "dirty": true,
-    "ahead_origin": 2,
+    "ahead_origin": 9,
     "behind_origin": 0
   },
   "tests": {
-    "passed": 1068,
+    "passed": 1083,
     "skipped": 1,
     "failed": 0,
-    "duration_s": 328.71,
-    "coverage_core_line": 82.14,
+    "duration_s": 314.25,
+    "coverage_core_line": 82.23,
     "command": "pytest netlab/tests -q --cov=netlab/core --cov-branch --cov-fail-under=81",
     "source": "reports/test_status.json"
   },

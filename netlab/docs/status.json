@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-15T01:25:38+08:00",
+  "generated_at": "2026-11-15T02:46:44+08:00",
   "version": "3.20.2",
   "git": {
-    "branch": "integration/p1s2-ui-precompute",
-    "head": "02ef1134c0fbe2106edcbba070ebd1f0b02287c0",
+    "branch": "chore/status-align-449b1ed",
+    "head": "449b1eda9d21d7a78f0bffc2297ac9d9bf2d27c9",
     "dirty": false,
-    "ahead_origin": 16,
+    "ahead_origin": 0,
     "behind_origin": 0
   },
   "tests": {

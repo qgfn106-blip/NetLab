@@ -755,6 +755,7 @@ def _circuit_tf_analysis(
     f_stop: float,
     points: int,
     scale: str,
+    budget_s: float | None = None,
 ) -> dict[str, Any]:
     """电路小信号旁路分析：Descriptor 状态空间 + 零极点 + 阶跃 + Bode。"""
     if sim is None:
@@ -766,6 +767,33 @@ def _circuit_tf_analysis(
         raise AnalysisError("mode=circuit 必须提供 input_source")
     if not output:
         raise AnalysisError("mode=circuit 必须提供 output")
+
+    # 小信号分析是同步请求，必须带时间预算，避免大电路/多频点把请求卡死到超时。
+    import os as _os
+    import time as _time
+
+    if budget_s is None:
+        try:
+            budget_s = float(_os.environ.get("NETLAB_TF_BUDGET_S", "20") or "20")
+        except (TypeError, ValueError):
+            budget_s = 20.0
+    budget_s = max(0.001, float(budget_s))
+    _deadline = _time.perf_counter() + budget_s
+
+    def _deadline_check(stage: str) -> None:
+        if _time.perf_counter() > _deadline:
+            raise AnalysisError(
+                f"{stage}超时（>{budget_s:.3g}s）；请增大 step_dt、缩短 step_duration "
+                f"或减少频点数 points 后重试"
+            )
+
+    # 自适应上限：控制阶跃步数与 Bode 频点数，防止病态规模拖死同步请求。
+    _max_step_steps = 2000
+    _max_bode_points = 400
+    _steps = int(round(float(step_duration) / max(float(step_dt), 1e-12)))
+    if _steps > _max_step_steps:
+        step_dt = float(step_duration) / _max_step_steps
+    points = max(1, min(int(points), _max_bode_points))
 
     try:
         model = DescriptorModel.from_scene(scene, operating_point=operating_point)
@@ -786,11 +814,15 @@ def _circuit_tf_analysis(
         except (ComputeError, UnsupportedAnalysisError, ValueError) as exc:
             raise AnalysisError(f"{label}失败：{exc}") from exc
 
+    _deadline_check("状态空间构建")
     system = _guard("状态空间构建", lambda: model.build(input_source))
+    _deadline_check("极点分析")
     pole_result = _guard("极点分析", lambda: analyze_poles(system))
+    _deadline_check("输出矩阵构建")
     c_matrix, d_matrix = _guard(
         "输出矩阵构建", lambda: build_output_matrices(model, output, input_source)
     )
+    _deadline_check("零点分析")
     zero_result = _guard(
         "零点分析", lambda: analyze_zeros(system, C=c_matrix, D=d_matrix)
     )
@@ -809,6 +841,7 @@ def _circuit_tf_analysis(
                 f"阶跃分析只支持非接地节点电压探针：{output!r}"
             ) from exc
 
+    _deadline_check("阶跃分析")
     step = _guard("阶跃分析", _step)
 
     frequencies = _frequency_axis(
@@ -817,6 +850,7 @@ def _circuit_tf_analysis(
         points=int(points),
         scale=str(scale),
     )
+    _deadline_check("Bode 分析")
     bode = _guard(
         "Bode 分析",
         lambda: model.frequency_response(
@@ -825,6 +859,7 @@ def _circuit_tf_analysis(
             probes=[output],
         ),
     )
+    _deadline_check("传递函数提取")
     transfer = _guard(
         "传递函数提取",
         lambda: descriptor_transfer_function(

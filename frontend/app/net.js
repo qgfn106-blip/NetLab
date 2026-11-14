@@ -18,7 +18,8 @@ const DESKTOP_TOKEN = (() => {
 })();
 async function api(path, options = {}) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), Number(options.timeoutMs) || 15e3);
+  const timeoutMs = Number(options.timeoutMs) || 15e3;
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   const headers = { "Content-Type": "application/json" };
   if (DESKTOP_TOKEN) headers["X-Netlab-Token"] = DESKTOP_TOKEN;
   const config = {
@@ -49,7 +50,7 @@ async function api(path, options = {}) {
     return payload;
   } catch (error) {
     if (error.name === "AbortError") {
-      throw new Error("\u8BF7\u6C42\u8D85\u65F6\uFF1A\u540E\u7AEF\u53EF\u80FD\u672A\u542F\u52A8\u6216\u8BA1\u7B97\u963B\u585E\uFF0815 \u79D2\uFF09");
+      throw new Error(`\u8BF7\u6C42\u8D85\u65F6\uFF1A\u540E\u7AEF\u53EF\u80FD\u672A\u542F\u52A8\u6216\u8BA1\u7B97\u963B\u585E\uFF08${Math.round(timeoutMs / 1e3)} \u79D2\uFF09`);
     }
     throw error;
   } finally {

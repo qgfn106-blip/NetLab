@@ -33,7 +33,8 @@ export const DESKTOP_TOKEN = (() => {    try {
 
 export async function api(path: string, options: ApiOptions = {}) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), Number(options.timeoutMs) || 15000);
+    const timeoutMs = Number(options.timeoutMs) || 15000;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (DESKTOP_TOKEN) headers['X-Netlab-Token'] = DESKTOP_TOKEN;
     const config = {
@@ -64,7 +65,7 @@ export async function api(path: string, options: ApiOptions = {}) {
       return payload;
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
-        throw new Error('请求超时：后端可能未启动或计算阻塞（15 秒）');
+        throw new Error(`请求超时：后端可能未启动或计算阻塞（${Math.round(timeoutMs / 1000)} 秒）`);
       }
       throw error;
     } finally {

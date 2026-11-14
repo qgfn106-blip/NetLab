@@ -7,17 +7,28 @@
 
 两者都支持 ``rounds`` 轮细分（每轮点数约翻倍，N 轮后约 2**N 倍），并对多通道序列批量处理。
 本模块是纯函数后处理，不触碰求解器，预计算/绘图/导出可共用。
+
+复杂度说明（P1）：``gaussian`` 的实现基于时间轴有序，用二分定位窗口内的点，
+每个中点只遍历其窗口邻域（典型 O(window) 个点），整体 O(n·w) 而非朴素 O(n²)；
+窗口外的点权重本应为 0，因而结果与朴素实现逐位一致。
 """
 
 from __future__ import annotations
 
+import bisect
 import math
 from collections.abc import Mapping, Sequence
 
-__all__ = ["METHODS", "midpoint_resample", "resample_multi"]
+__all__ = ["METHODS", "midpoint_resample", "resample_multi", "estimate_frames"]
 
 METHODS = ("average", "gaussian")
 
+def estimate_frames(n: int, rounds: int) -> int:
+    """估算 ``rounds`` 轮中点细分后的帧数：每轮长度 n -> 2n-1。"""
+    if n <= 1:
+        return max(0, n)
+    r = max(0, int(rounds))
+    return (n - 1) * (2 ** r) + 1
 
 def _median_gap(times: Sequence[float]) -> float:
     gaps = sorted(
@@ -29,21 +40,25 @@ def _median_gap(times: Sequence[float]) -> float:
         return 0.0
     return gaps[len(gaps) // 2]
 
-
 def _gauss_midpoint(
-    t_mid: float, points: Sequence[tuple[float, float]], window: float
+    t_mid: float, times: Sequence[float], values: Sequence[float], window: float
 ) -> float | None:
+    n = len(times)
+    if window > 0.0:
+        lo = bisect.bisect_left(times, t_mid - window)
+        hi = bisect.bisect_right(times, t_mid + window)
+    else:
+        lo, hi = 0, n
     num = 0.0
     den = 0.0
-    for t, v in points:
-        d = abs(t - t_mid)
+    for k in range(lo, hi):
+        d = abs(times[k] - t_mid)
         if window > 0.0 and d > window:
             continue
         w = math.exp(-d)
-        num += w * v
+        num += w * values[k]
         den += w
     return None if den <= 0.0 else num / den
-
 
 def _resample_one(
     times: Sequence[float],
@@ -66,7 +81,6 @@ def _resample_one(
         raise ValueError("times 必须单调非降")
     win = _median_gap(t) if window is None else float(window)
     for _ in range(rounds):
-        points = list(zip(t, v))
         new_t = [t[0]]
         new_v = [v[0]]
         for i in range(len(t) - 1):
@@ -74,13 +88,12 @@ def _resample_one(
             if method == "average":
                 v_mid = (v[i] + v[i + 1]) / 2.0
             else:
-                got = _gauss_midpoint(t_mid, points, win)
+                got = _gauss_midpoint(t_mid, t, v, win)
                 v_mid = (v[i] + v[i + 1]) / 2.0 if got is None else got
             new_t.extend((t_mid, t[i + 1]))
             new_v.extend((v_mid, v[i + 1]))
         t, v = new_t, new_v
     return t, v
-
 
 def midpoint_resample(
     times: Sequence[float],
@@ -92,7 +105,6 @@ def midpoint_resample(
 ) -> tuple[list[float], list[float]]:
     """对单通道做中点细分插值。返回 (times, values)。"""
     return _resample_one(times, values, method, rounds, window)
-
 
 def resample_multi(
     times: Sequence[float],

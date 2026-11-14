@@ -43,12 +43,12 @@
 - 本次执行授权记录：用户在本会话（NetLab项目优化 `session-c20e8127`）2026-11-13 19:06 明确指令原话「push，，按依赖序 `7→3→2` 落地，把这份完工报告原文投递给 `03a3e6b4` 做复核」；据此执行 push 4 提交 + #7/#3/#2 三项修复 + 投递复核。该原话是本轮 push 与三项生产码修复的**原始用户授权记录**（此前 §3 写「未核到点名授权记录」系跨会话不可见，已据本会话原话补录，不改变「不计入阶段 6 交付物」的定性）。
 
 ### 1.2 是否需下一阶段授权（独立结论）
-- **更新（2026-11-14）**：阶段 6（P1-R2 AC/Bode 生产统一）已于 2026-11-14 获用户明确授权并完成并入 main（`PROGRESS.md §7.169`）；阶段 7（P1-S1）已完成并入 main；阶段 8（P1-S2 Engine SPI v2）已经用户授权启动，切片1 已实现待审（获批并合入后方可进入切片2及后续）。阶段 9–13、ADR-008 A/B/C、P0-2 全链路改造仍 `PENDING_USER_AUTHORIZATION`，须用户本人明确授权后方可进入。push 依用户 2026-11-14 授权由 Agent 核查后代为执行，不逐项询问。
+- **更新（2026-11-14）**：阶段 6（P1-R2 AC/Bode 生产统一）已于 2026-11-14 获用户明确授权并完成并入 main（`PROGRESS.md §7.169`）；阶段 7（P1-S1）已完成并入 main；阶段 8（P1-S2 Engine SPI v2）已经用户授权启动，切片1、切片2 均已合 main；切片3 及其后待授权。阶段 9–13、ADR-008 A/B/C、P0-2 全链路改造仍 `PENDING_USER_AUTHORIZATION`，须用户本人明确授权后方可进入。push 依用户 2026-11-14 授权由 Agent 核查后代为执行，不逐项询问。
 
 ### 1.3 当前阶段状态（2026-11-14，四类事实分离）
-- 文档/规划：阶段 6 已完成并入 main；阶段 7 P1-S1 已完成并入 main；阶段 8 P1-S2 Engine SPI v2 进行中（切片1 已合 main（`9afd2e4`）；切片2 已实现待审，见 `PROGRESS.md §7.174`），顺序按 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:11`，未跳步、未并行越级。
+- 文档/规划：阶段 6 已完成并入 main；阶段 7 P1-S1 已完成并入 main；阶段 8 P1-S2 Engine SPI v2 进行中（切片1 已合 main（`9afd2e4`）；切片2 已合 main（PR#3 `449b1ed`/PR#4 `ffd7cfd`，见 `PROGRESS.md §7.174`）），顺序按 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:11`，未跳步、未并行越级。
 - 代码事实：`PROJECT_VERSION=7` 不变；`netlab/core/model/dto.py` 恒等映射已入库；`project.py` 的 `migrate_project` 由 `SCHEMA_MIGRATIONS` 注册表驱动（特征化 10 例逐字节等价）；`v8_draft.py` 仅测试直接调用、不激活。
-- 测试事实（本地非 CI）：全量 1068 passed / 1 skipped / 0 failed、core line 82.14%（切片2，328.74s；以 `status.json`/`reports/test_status.json` 产物为准）；`tools/check_architecture.py` A1/A2/A3/A6 全 OK（A2 new=0）；`check_stage4_docs.py`、docs 隐私/SSOT/契约、`check_status_freshness.py` OK。
+- 测试事实（本地非 CI）：全量与覆盖率以 `status.json` / `reports/test_status.json` 唯一来源为准（当前 1103 passed / 1 skipped / core 82.32%；不手写旧 1068/82.14）；`tools/check_architecture.py` A1/A2/A3/A6 全 OK（A2 new=0）；`check_stage4_docs.py`、docs 隐私/SSOT/契约、`check_status_freshness.py` OK。
 - CI 事实（2026-11-14 补记）：`CI_VERIFIED` @ `622711b4589dbcecc5698cee3fcf9555769015ab`（分支 `feat/p1s2-engine-spi-v2`，事件 `push`）——3 workflow run 全 `completed/success`：`python-tests` `43567489008`、`frontend-ts-build` `43567489016`、`container` `43567489032`；5 check-run 全 `completed/success`：`test` `132364387545`、`desktop-l2` `132364387371`、`e2e-l1` `132364386533`、`docker` `132364386397`、`build` `132364386194`。依 V3 §4 各证据仅覆盖其对应 SHA（`622711b`、`6e227b9` 均为历史）；**当前尾提交 `90ae222382c32e57e0d186f7410966fcd95f4505` 为 `CI_VERIFIED`**（分支 `feat/p1s2-engine-spi-v2`，事件 `push`）——3 workflow run 全 `completed/success`：`python-tests` `43581400133`、`frontend-ts-build` `43581400154`、`container` `43581400220`；5 check-run 全 `completed/success`：`test` `132406699933`、`e2e-l1` `132406700040`、`desktop-l2` `132406700181`、`build` `132406700264`、`docker` `132406702079`。`6e227b9` 历史证据：3 run `43573261652`/`43573261664`/`43573261655`、5 check-run `132381964203`/`132381964323`/`132381964129`/`132381964002`/`132381963989`。本地 1061 passed 仍标「本地非 CI」。历史 `6f332a2` 证据见 §1 CI 证据行。
 - 授权事实：见 §1.2；阶段 8 切片1、切片2 均已获用户明确授权（2026-11-14 19:39 原话「明确授权切片 2」）；**合 main 需用户本人另给一句明确指令**；切片3 及其后、阶段 9–13、ADR-008 A/B/C、P0-2 全链路改造仍 `PENDING_USER_AUTHORIZATION`。
 
@@ -61,7 +61,7 @@
 - 阶段 4（P1-A 全量设计冻结）：9 份 Proposed 文档已交付；**2026-11-12 任务书整改完成**：P0-01–P0-04 全修复、P1-01/P1-02/P1-06 修复、P1-03–P1-13/P2-02 差距分析文档化，新增 `tools/check_stage4_docs.py` + `test_stage4_document_contracts.py`；第④轮封口评审已「通过（无阻断、无新增项）」；已于 2026-11-12 获用户明确批准正式验收；详见 `PROGRESS.md §7.159`（阶段4评审/整改记录已按保留策略归档，见 Git 历史）。
 - 阶段 5（P1-R1 Stamp 统一）：代码 `e41160f`（状态 tip `eaec04a`，三条 CI success）已交付；2026-11-12 只读复核判「子目标达成、零数值回归」，但阶段 5 整体仍 open（元件模型完整统一未完成）；成果保留、不作阶段 5 整体完成依据，不进阶段 6。
 - 阶段 6（P1-R2 AC/Bode 统一）：**已完成**（2026-11-14 用户明确授权启动，canonical=`CircuitSolver.ac_sweep`，`DescriptorModel.frequency_response` 纯线性路径委托；三支 A/B/C 合入 main，C 支严格对拍 `test/p1r2-ac-parity-strict`；1005 passed / 1 skipped / core 81.95%，GitHub 5 check-run 全 success；详见 `PROGRESS.md §7.169`）。
-- 阶段 7（P1-S1 Project/DTO 分层）：进行中（用户 2026-11-14 授权按规划继续）。已完成 DTO 首切片（`dto.py`，§7.170）、`SCHEMA_MIGRATIONS` 注册表替换 if 链（§7.171）、v0–v7 golden fixtures 与 v7→v8 迁移草稿（未激活，§7.172）；`PROJECT_VERSION=7` 不变、外部 JSON 不变、未接调用方。阶段 8–13（P1-S2 / P1-S3 / P2 / P3 / P4 / P5）：保持 `PENDING_USER_AUTHORIZATION`。
+- 阶段 7（P1-S1 Project/DTO 分层）：已完成（2026-11-14 授权；DTO 首切片、SCHEMA_MIGRATIONS 注册表、golden fixtures 均已完成并入 main）。已完成 DTO 首切片（`dto.py`，§7.170）、`SCHEMA_MIGRATIONS` 注册表替换 if 链（§7.171）、v0–v7 golden fixtures 与 v7→v8 迁移草稿（未激活，§7.172）；`PROJECT_VERSION=7` 不变、外部 JSON 不变、未接调用方。阶段 8–13（P1-S2 / P1-S3 / P2 / P3 / P4 / P5）：保持 `PENDING_USER_AUTHORIZATION`。
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
@@ -72,8 +72,8 @@
 | 4 | P1-A 全量设计冻结 | **已完成（2026-11-12 用户批准正式验收）** |
 | 5 | P1-R1 Stamp 统一 | 子目标达成（共享 Laplacian 原语，2026-11-12 复核 PASS）；**阶段 5 整体 open，不标完成、不进阶段 6** |
 | 6 | P1-R2 AC/Bode 统一 | **已完成**（2026-11-14 授权并完成并入 main，见 `PROGRESS.md §7.169`） |
-| 7 | P1-S1 Project/DTO | 进行中（DTO 首切片 → SCHEMA_MIGRATIONS 注册表 → golden fixtures + v8 草稿；见 §7.170–§7.172） |
-| 8 | P1-S2 Engine SPI v2 | 未开始 |
+| 7 | P1-S1 Project/DTO | **已完成**（DTO/SCHEMA_MIGRATIONS/golden fixtures；见 §7.170–§7.172） |
+| 8 | P1-S2 Engine SPI v2 | **已完成（切片1+切片2 已合 main）** |
 | 9 | P1-S3 前端拆分 | 未开始 |
 | 10 | P2 Core Model V2（A/B/C/D） | 未开始 |
 | 11 | P3 Equation + Compiler（研究型最小原型） | 未开始 |
@@ -84,7 +84,7 @@
 
 | 项 | 状态 |
 |---|---|
-| push / 发布 | 已发生的 push 为 Git 事实（`origin/main`=`ffd7cfd`，含 `9b67c2a`/`5c76741`/`1ab22c3`/`4975f90` 4 提交，均为既有代码缺陷修复/状态绑定；执行者自述经用户跨会话授权，审批方未核到点名该范围的原始授权记录，故按「修复提交」记录、不计入阶段 6 交付物）；睡前「连续推进」原话已被用户 2026-11-12 醒来后的新指令覆盖，依 V3 §2 不得由会话或仓内自述自行重新激活；后续 push 保持 `PENDING_USER_AUTHORIZATION`；禁 force / rebase / amend / 改写历史 |
+| push / 发布 | 已发生的 push 为 Git 事实（`origin/main` 精确指向以 `git ls-remote`/GitHub API 为准，已含阶段6、阶段7、阶段8切片1+切片2；不再手写旧提交清单）；睡前「连续推进」原话已被用户 2026-11-12 醒来后的新指令覆盖，依 V3 §2 不得由会话或仓内自述自行重新激活；后续 push 保持 `PENDING_USER_AUTHORIZATION`；禁 force / rebase / amend / 改写历史 |
 | 阶段自动推进 | `PENDING_USER_AUTHORIZATION`。无人值守连续推进已让位于用户 2026-11-12 醒来后的新指令；每阶段须用户本人明确批准后方可进入，不越级开工 |
 | R25（完整电路级内部结构） | 暂停（用户 2026-11-11 裁决先做 P-B） |
 | R43（M2） | 仅 opt-in |

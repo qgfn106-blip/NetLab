@@ -3031,7 +3031,7 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 背景（用户 2026-11-14 原话 m03418）：①不同预计算进度未统一到上菜单栏样式；②小信号旁路分析会超时无法计算；③预计算窗口可直接设置计算精度；④预计算后对已求值做中间平均插值提高精度、可选插值次数。（G(s) 浮点精度经用户要求暂缓，不在此列。）
 - 交付1 ①进度统一 `frontend/app.js`/`app.ts` `runSolveWindowPrecompute`：包进 `runPrecomputeWithProgress`（三入口里唯一未接入者），与 plotkit/states 一致轮询 `/api/precompute/progress`。
 - 交付2 ③精度输入：预计算对话框新增「精度（步长 dt，空=自动）」`#precomputeDt`，透传 solve-window/plotkit/states。
-- 交付3 ④插值模块 `netlab/core/compute/interpolation.py`：`average`（直接平均中点）/`gaussian`（`exp(-|Δt|)` 归一化加权），`midpoint_resample`/`resample_multi`，`rounds` 轮细分。
+- 交付3 ④插值模块 `netlab/core/compute/interpolation.py`：`average`（直接平均中点）/`gaussian`（`exp(-|Δt|)` 归一化加权；后于 2026-11-15 用户确认改为真高斯 `exp(-Δt²/2σ²)`、σ=window/3，见 §7.178），`midpoint_resample`/`resample_multi`，`rounds` 轮细分。
 - 交付4 ④接线：`Simulation.precompute(..., interpolation_method, interpolation_rounds, interpolation_window)` 成功时按录制帧生成 `result["interpolation"]={method,rounds,window,frame_count,frames:[{t,v}]}`（纯后处理、不改录制）；`SolveWindowRequest` 增三字段并透传；对话框增「插值/插值次数/窗口」并仅对 solve-window 目标透传（plotkit/states 暂不含，避免后端模型 extra 拒绝）。
 - 交付5 ②小信号旁路超时 `netlab/core/compute/analysis.py` `_circuit_tf_analysis`：时间预算 `budget_s`（env `NETLAB_TF_BUDGET_S` 默认 20s）+ 自适应 `_max_step_steps=2000`/`_max_bode_points=400`，超时抛 `AnalysisError`。
 - 测试：`test_interpolation.py`(8) / `test_precompute_interpolation.py`(4) / `test_circuit_tf_budget.py`；全量 **1083 passed / 1 skipped / 0 failed、core line 82.23%（本地非 CI）**。前端 `build.mjs`+`verify_app_parity`+`tsc --noEmit` 通过。
@@ -3056,4 +3056,4 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 批次B：P1-05 `registry_restore` 原子恢复 `ENGINE_SPECS+ENGINE_OWNERS`；P1-06 slice2 测试 `plugw` try/finally 清理；P2-04 `RuntimeSnapshot` 增 `scene_fingerprint` 防跨场景/同 ID 不同拓扑就地恢复（`f94fa9d`）。
 - 批次C：P2-05 circuit tf 顶层回传实际 `step_dt`（`0665083`）；P2-06 预计算对话框「精度」label 结构闭合。
 - 批次D：P2-10 `tools/check_status_freshness.py` 增比对 passed/skipped/coverage（`efb74a6`）；文档真相与单一来源（PROJECT_STATUS 2026-11-15 更正、PROGRESS 头部改指针、README `version: 7`）。
-- 待办：P1-03 核函数语义（Laplace vs 真高斯，待用户拍板）；P1-07/P2-08/P2-09 余项；批次E 全量+e2e+CI 精确 SHA 验收。全量本地 1101 passed / 1 skipped / core 82.31%（本地非 CI）。
+- 待办：P1-03 核函数语义：2026-11-15 用户确认方案 **A：真高斯** w=exp(-Δt²/(2σ²))、σ 缺省 window/3（保持 `61392b0` 实现，不改代码）；P1-07/P2-08/P2-09 余项；批次E 全量+e2e+CI 精确 SHA 验收。全量本地 1101 passed / 1 skipped / core 82.31%（本地非 CI）。

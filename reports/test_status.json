@@ -1,6 +1,6 @@
 {
-  "created_at": "2026-11-15T04:56:15+08:00",
-  "head": "976055e8e101b3ac7a1b325543d690d70515c178",
+  "created_at": "2026-11-15T05:02:03+08:00",
+  "head": "be3539df550dbe9141095076e38642b6e8c9d62f",
   "command": "pytest netlab/tests -q --cov=netlab/core --cov-branch --cov-fail-under=81",
   "source": "pytest junit + coverage.py json",
   "coverage_core_line": 82.32,

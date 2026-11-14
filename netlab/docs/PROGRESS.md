@@ -1,6 +1,6 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-14（阶段 7 P1-S1；当前基线：全量 1052 passed / 1 skipped / 0 failed、core line 82.07%，以 status.json 与本机实测为准；3.20.1）
+> 最后修改：2026-11-15（阶段 8 P1-S2 演进中；**当前测试基线以 `status.json` / `reports/test_status.json` 为唯一来源（勿手写数字）**；版本 3.20.2）
 
 <!-- BEGIN GENERATED: status -->
 | 项 | 内容 |
@@ -3031,8 +3031,29 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 背景（用户 2026-11-14 原话 m03418）：①不同预计算进度未统一到上菜单栏样式；②小信号旁路分析会超时无法计算；③预计算窗口可直接设置计算精度；④预计算后对已求值做中间平均插值提高精度、可选插值次数。（G(s) 浮点精度经用户要求暂缓，不在此列。）
 - 交付1 ①进度统一 `frontend/app.js`/`app.ts` `runSolveWindowPrecompute`：包进 `runPrecomputeWithProgress`（三入口里唯一未接入者），与 plotkit/states 一致轮询 `/api/precompute/progress`。
 - 交付2 ③精度输入：预计算对话框新增「精度（步长 dt，空=自动）」`#precomputeDt`，透传 solve-window/plotkit/states。
-- 交付3 ④插值模块 `netlab/core/compute/interpolation.py`：`average`（直接平均中点）/`gaussian`（`exp(-|Δt|)` 归一化加权），`midpoint_resample`/`resample_multi`，`rounds` 轮细分。
+- 交付3 ④插值模块 `netlab/core/compute/interpolation.py`：`average`（直接平均中点）/`gaussian`（`exp(-|Δt|)` 归一化加权；后于 2026-11-15 用户确认改为真高斯 `exp(-Δt²/2σ²)`、σ=window/3，见 §7.178），`midpoint_resample`/`resample_multi`，`rounds` 轮细分。
 - 交付4 ④接线：`Simulation.precompute(..., interpolation_method, interpolation_rounds, interpolation_window)` 成功时按录制帧生成 `result["interpolation"]={method,rounds,window,frame_count,frames:[{t,v}]}`（纯后处理、不改录制）；`SolveWindowRequest` 增三字段并透传；对话框增「插值/插值次数/窗口」并仅对 solve-window 目标透传（plotkit/states 暂不含，避免后端模型 extra 拒绝）。
 - 交付5 ②小信号旁路超时 `netlab/core/compute/analysis.py` `_circuit_tf_analysis`：时间预算 `budget_s`（env `NETLAB_TF_BUDGET_S` 默认 20s）+ 自适应 `_max_step_steps=2000`/`_max_bode_points=400`，超时抛 `AnalysisError`。
 - 测试：`test_interpolation.py`(8) / `test_precompute_interpolation.py`(4) / `test_circuit_tf_budget.py`；全量 **1083 passed / 1 skipped / 0 failed、core line 82.23%（本地非 CI）**。前端 `build.mjs`+`verify_app_parity`+`tsc --noEmit` 通过。
 - 边界：插值仅作用 solve-window 目标且不改变录制；plotkit/states 的插值 GUI 消费待后续；不改 main、未合并。
+## 7.177 2026-11-15 预计算插值卡死/超时缺陷修复（P1–P5，fix/precompute-interp）
+
+- 背景（审批转达用户实测 m04200，main=ffd7cfd）：预计算完成后进度条 100% 仍卡住、无数据可用于分析，右下角「请求超时」红条。
+- 根因：`interpolation._gauss_midpoint` 每个中点朴素遍历全部点 → O(n²)；n≈5556、约 20 通道 rounds=1≈41s、rounds=2≈240s > 前端 `/api/solve-window` 180s → POST 被 abort、结果不落地。且 `simulation.precompute` 先置 progress done/100% 再于锁内跑插值；`net.ts` 超时文案硬编码「15 秒」；插值结果全量返回。
+- 修复：P1 `netlab/core/compute/interpolation.py` 将 `_gauss_midpoint` 改为有序时间轴上 `bisect` 仅遍历窗口内点（O(n·w)，与朴素逐位一致），新增 `estimate_frames`；实测 n=5556 gaussian rounds=1 2.06s→0.008s/通道、rounds=2 12s→0.027s/通道。P1/P5 `simulation.py` 插值前按「通道数×estimate_frames」估算，>4,000,000 帧直接 `ValidationError` 快速失败。P2 插值前置 `status="interpolating" running=True percent=99`，插值完成后才 `done/100%`，且 `precompute_progress()` 对 interpolating 不按 done/total 重算。P3 `frontend/app/net.ts`(及 build 产物 `app/net.js`) 使用真实 `timeoutMs`，不再硬编码「15 秒」。P4 纯插值计算在**锁外**执行（临时释放 RLock，避免阻塞 `/api/live` 与进度查询），完成后重取锁。
+- 测试：新增 `netlab/tests/test_precompute_interp_fix.py`(5)＋`test_interpolation.py`(8)＋`test_simulation_atomic.py`＋`test_analysis_circuit_bypass.py` 共 21 passed。
+- D-5：`check_solver_change --base ffd7cfd` 判「无 netlab/core/compute 数值变更，不需影子报告」（仅插值后处理/进度，不涉求解器数值路径）→ §6 第7项性能基准记「不适用+理由：无状态纯后处理复杂度治理，不改求解器数值语义」。
+- 边界：插值仅作用 solve-window 目标；不改 main、未合并；阶段9–13/ADR-008/P0-2/FEM/MAX_NODES=400/外部工程 JSON/PROJECT_VERSION=7 仍 PENDING_USER_AUTHORIZATION。
+
+
+
+## 7.178 质量收敛与问题修复（2026-11-15，分支 fix/precompute-interp）
+
+> 任务书《NetLab 质量收敛与问题修复》18 项（P1-01…P3-01，批次 A→E）。本分支：先 RED 后 GREEN、逐文件暂存、隐私扫描、CI 绑精确 SHA；不改 main/不发布/不合 main。
+
+- 批次A 后端：P2-01 空序列/缺测语义/窗口校验（`interpolation.py`/`simulation.py`，`375f8b5`）；P2-02 `_build_interp_series` 探针缺测抛 ValidationError 非静默0；P2-03 window 必须有限正数。
+- 批次A 前端：P1-04 统一预计算取消状态（`4b3bc7f`，读 `result.cancelled`）；P1-01 插值帧接入前端回放（`714ccb1`，区分原始/插值帧、游标对齐、帧数上限，不污染 Recorder）。
+- 批次B：P1-05 `registry_restore` 原子恢复 `ENGINE_SPECS+ENGINE_OWNERS`；P1-06 slice2 测试 `plugw` try/finally 清理；P2-04 `RuntimeSnapshot` 增 `scene_fingerprint` 防跨场景/同 ID 不同拓扑就地恢复（`f94fa9d`）。
+- 批次C：P2-05 circuit tf 顶层回传实际 `step_dt`（`0665083`）；P2-06 预计算对话框「精度」label 结构闭合。
+- 批次D：P2-10 `tools/check_status_freshness.py` 增比对 passed/skipped/coverage（`efb74a6`）；文档真相与单一来源（PROJECT_STATUS 2026-11-15 更正、PROGRESS 头部改指针、README `version: 7`）。
+- 待办：P1-03 核函数语义：2026-11-15 用户确认方案 **A：真高斯** w=exp(-Δt²/(2σ²))、σ 缺省 window/3（保持 `61392b0` 实现，不改代码）；P1-07/P2-08/P2-09 余项；批次E 全量+e2e+CI 精确 SHA 验收。全量本地 1101 passed / 1 skipped / core 82.31%（本地非 CI）。

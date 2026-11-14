@@ -293,6 +293,29 @@ class Recorder:
         return len(self.frames)
 
 
+def _build_interp_series(frames):
+    """从录制帧构造插值用 times/keys/series；探针中途缺失时报错而非静默补 0（P2-02）。"""
+    keys: list[str] = []
+    for fr in frames:
+        for k in fr.get("v", {}):
+            if k not in keys:
+                keys.append(k)
+    missing = {}
+    for fr in frames:
+        v = fr.get("v", {})
+        for k in keys:
+            if k not in v:
+                missing[k] = missing.get(k, 0) + 1
+    bad = sorted(k for k, c in missing.items() if c > 0)
+    if bad:
+        raise ValidationError(
+            f"通道 {bad} 在部分录制帧中缺失，拒绝以 0 填充；请关闭插值或保证探针全程存在"
+        )
+    times = [float(fr["t"]) for fr in frames]
+    series = {k: [float(fr["v"][k]) for fr in frames] for k in keys}
+    return times, keys, series
+
+
 class Simulation:
     """持有场景、配置、后台线程与录制数据；所有读写都在同一把锁下。"""
 
@@ -499,7 +522,8 @@ class Simulation:
         started_at = snap.pop("started_at", None)
         total = int(snap.get("total") or 0)
         done = int(snap.get("done") or 0)
-        if total > 0:
+        # 插值阶段：保留写入的 99%（避免按 done/total 重算成 100% 造成「100% 后卡住」假象）。
+        if total > 0 and snap.get("status") != "interpolating":
             snap["percent"] = round(min(100.0, done * 100.0 / total), 1)
         if snap.get("status") == "running" and started_at is not None:
             elapsed = max(0.0, time.perf_counter() - float(started_at))
@@ -568,6 +592,10 @@ class Simulation:
                 0 <= int(interpolation_rounds) <= 6
             ):
                 raise ValidationError("插值次数必须在 0–6 之间")
+            if interpolation_window is not None:
+                _win = float(interpolation_window)
+                if not math.isfinite(_win) or _win <= 0.0:
+                    raise ValidationError("插值窗口必须是有限正数（None 表示自动）")
             # 录制环形缓冲只有 RECORDER_CAPACITY 帧：整段 0→T 必须装得下，
             # 否则只剩最后一段，前端看到的「起始时间」就不是 0。
             needed = int(math.ceil(count / RECORDER_CAPACITY))
@@ -647,53 +675,105 @@ class Simulation:
             elapsed_total = time.perf_counter() - started_at
             status = "cancelled" if cancelled else ("error" if self.error else "done")
             final_done = processed if (cancelled or self.error) else count
-            self._progress_update(
-                status=status,
-                running=False,
-                done=final_done,
-                total=count,
-                percent=(
-                    round(min(100.0, final_done * 100.0 / count), 1)
-                    if count
-                    else 0.0
-                ),
-                elapsed=round(elapsed_total, 3),
-                eta=0.0 if status == "done" else None,
-                error=self.error,
-                started_at=None,
-            )
-            interpolation = None
+            # 判断是否需要插值后处理；锁内只做数据快照，纯计算随后在锁外进行。
+            interp_plan = None
             if interpolation_method and status == "done" and frames >= 2:
-                from .interpolation import resample_multi
+                from .interpolation import estimate_frames, resample_multi
 
-                times = [float(fr["t"]) for fr in self.recorder.frames]
-                keys: list[str] = []
-                for fr in self.recorder.frames:
-                    for k in fr.get("v", {}):
-                        if k not in keys:
-                            keys.append(k)
-                series = {
-                    k: [float(fr.get("v", {}).get(k, 0.0)) for fr in self.recorder.frames]
-                    for k in keys
-                }
+                _times, _keys, _series = _build_interp_series(self.recorder.frames)
                 _rounds = max(0, min(6, int(interpolation_rounds)))
-                new_t, new_series = resample_multi(
-                    times,
-                    series,
-                    method=interpolation_method,
-                    rounds=_rounds,
-                    window=interpolation_window,
-                )
-                interpolation = {
-                    "method": interpolation_method,
+                # P1/P5：提前估算插值规模，明显过大时快速失败，而不是卡到前端超时。
+                _est_frames = estimate_frames(len(_times), _rounds)
+                if len(_keys) * _est_frames > 4_000_000:
+                    raise ValidationError(
+                        f"插值规模过大（约 {len(_keys)} 通道 × {_est_frames} 帧）；"
+                        "请减少插值次数、增大 sample_every/dt，或改用「直接平均中点」"
+                    )
+                interp_plan = {
+                    "times": _times,
+                    "keys": _keys,
+                    "series": _series,
                     "rounds": _rounds,
+                    "method": interpolation_method,
                     "window": interpolation_window,
+                    "resample_multi": resample_multi,
+                }
+            # P2：插值阶段单独标注且不显示 100%，避免「100% 后仍卡住」的假象。
+            if interp_plan is not None:
+                self._progress_update(
+                    status="interpolating",
+                    running=True,
+                    done=final_done,
+                    total=count,
+                    percent=99.0,
+                    elapsed=round(time.perf_counter() - started_at, 3),
+                    eta=None,
+                    error=None,
+                    started_at=None,
+                )
+            else:
+                self._progress_update(
+                    status=status,
+                    running=False,
+                    done=final_done,
+                    total=count,
+                    percent=(
+                        round(min(100.0, final_done * 100.0 / count), 1)
+                        if count
+                        else 0.0
+                    ),
+                    elapsed=round(elapsed_total, 3),
+                    eta=0.0 if status == "done" else None,
+                    error=self.error,
+                    started_at=None,
+                )
+            interpolation = None
+            if interp_plan is not None:
+                # P4：纯插值计算在**锁外**执行，避免阻塞 /api/live 与进度查询。
+                released = False
+                try:
+                    try:
+                        self.lock.release()
+                        released = True
+                    except RuntimeError:
+                        released = False
+                    new_t, new_series = interp_plan["resample_multi"](
+                        interp_plan["times"],
+                        interp_plan["series"],
+                        method=interp_plan["method"],
+                        rounds=interp_plan["rounds"],
+                        window=interp_plan["window"],
+                    )
+                finally:
+                    if released:
+                        self.lock.acquire()
+                keys = interp_plan["keys"]
+                interpolation = {
+                    "method": interp_plan["method"],
+                    "rounds": interp_plan["rounds"],
+                    "window": interp_plan["window"],
                     "frame_count": len(new_t),
                     "frames": [
                         {"t": new_t[i], "v": {k: new_series[k][i] for k in keys}}
                         for i in range(len(new_t))
                     ],
                 }
+                # 插值完成后才置 done/100%。
+                self._progress_update(
+                    status=status,
+                    running=False,
+                    done=final_done,
+                    total=count,
+                    percent=(
+                        round(min(100.0, final_done * 100.0 / count), 1)
+                        if count
+                        else 0.0
+                    ),
+                    elapsed=round(time.perf_counter() - started_at, 3),
+                    eta=0.0 if status == "done" else None,
+                    error=self.error,
+                    started_at=None,
+                )
             return {
                 "steps": self.steps,
                 "time": self.time,

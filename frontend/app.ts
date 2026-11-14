@@ -201,13 +201,11 @@ function setStatusHint(hint: string): void {
     renderVectorNodeList();
     schedulePhaseDraw();
   }
-
   function lookupSelection() {
     if (state.selection.type === 'node') return nodeById(state.selection.id);
     if (state.selection.type === 'edge') return edgeById(state.selection.id);
     return null;
   }
-
   function syncUI() {
     const sim = state.sim;
     if (!sim) return;
@@ -4196,8 +4194,8 @@ function setStatusHint(hint: string): void {
       toast(`\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A${response && response.error || '\u672A\u77E5\u9519\u8BEF'}`, 'error', 6000);
       return;
     }
-    if (response.cancelled) {
-      toast('\u5DF2\u505C\u6B62', 'warn', 3000);
+    if (response.result && response.result.cancelled) {
+      toast('已停止（预计算未完成）', 'warn', 3000);
       return;
     }
     leaveReplay();
@@ -4208,7 +4206,12 @@ function setStatusHint(hint: string): void {
     state.edgeValues.clear();
     state.sim = response.sim;
     state.replay.recordingRevision = state.scene?.revision ?? null;
-    await pollLive();
+    const ip = (response.result && (response.result as any).interpolation) || null;
+    if (ip && Array.isArray(ip.frames) && ip.frames.length) {
+      const frames = ip.frames.length > frameCap() ? ip.frames.slice(-frameCap()) : ip.frames;
+      for (const f of frames) { state.frames.push(f); ingestFrame(f); }
+      state.cursor = Number(response.sim?.cursor || 0); (state.replay as any).interpolated = true; (state.replay as any).interpMeta = { method: ip.method, rounds: ip.rounds, window: ip.window, count: frames.length };
+    } else { (state.replay as any).interpolated = false; await pollLive(); }
     updateReplayUI();
     scheduleChartDraw();
     const result = response.result || {};
@@ -4256,6 +4259,7 @@ function setStatusHint(hint: string): void {
           }),
           label,
         )) as { ok?: boolean; error?: string; frames?: number } | null;
+        if (result && (result as any).cancelled) { toast(`${label}已停止（未完成）`, 'warn', 3000); continue; }
         if (result && result.ok === false) toast(`${label}失败：${result.error || '未知错误'}`, 'error', 7000);
       } catch (error) {
         toast(`${label}失败：${(error as Error)?.message || error}`, 'error', 7000);
@@ -4287,9 +4291,9 @@ function setStatusHint(hint: string): void {
       </label>
       <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">精度（步长 dt，秒；空=自动）
         <input id="precomputeDt" type="number" min="0" step="0.001" placeholder="自动" style="width:110px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
-
+      </label>
       <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">插值 <select id="precomputeInterpMethod" style="flex:1;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"><option value="">不插值</option><option value="average">直接平均中点</option><option value="gaussian">高斯核加权中点</option></select></label>
-      <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">插值次数 <input id="precomputeInterpRounds" type="number" min="0" max="6" step="1" value="1" style="width:70px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"> 窗口 <input id="precomputeInterpWindow" type="number" min="0" step="0.001" placeholder="自动" style="width:80px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"></label>      </label>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">插值次数 <input id="precomputeInterpRounds" type="number" min="0" max="6" step="1" value="1" style="width:70px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"> 窗口 <input id="precomputeInterpWindow" type="number" min="0" step="0.001" placeholder="自动" style="width:80px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"></label>
       <div style="display:flex;justify-content:flex-end;gap:8px;">
         <button id="precomputeSkip" type="button" style="display:none">直接运行（不预计算）</button>
         <button id="precomputeCancel" type="button">取消</button>

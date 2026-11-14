@@ -3806,8 +3806,8 @@ function setStatusHint(hint) {
       toast(`\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A${response && response.error || "\u672A\u77E5\u9519\u8BEF"}`, "error", 6e3);
       return;
     }
-    if (response.cancelled) {
-      toast("\u5DF2\u505C\u6B62", "warn", 3e3);
+    if (response.result && response.result.cancelled) {
+      toast("\u5DF2\u505C\u6B62\uFF08\u9884\u8BA1\u7B97\u672A\u5B8C\u6210\uFF09", "warn", 3e3);
       return;
     }
     leaveReplay();
@@ -3818,7 +3818,20 @@ function setStatusHint(hint) {
     state.edgeValues.clear();
     state.sim = response.sim;
     state.replay.recordingRevision = state.scene?.revision ?? null;
-    await pollLive();
+    const ip = response.result && response.result.interpolation || null;
+    if (ip && Array.isArray(ip.frames) && ip.frames.length) {
+      const frames = ip.frames.length > frameCap() ? ip.frames.slice(-frameCap()) : ip.frames;
+      for (const f of frames) {
+        state.frames.push(f);
+        ingestFrame(f);
+      }
+      state.cursor = Number(response.sim?.cursor || 0);
+      state.replay.interpolated = true;
+      state.replay.interpMeta = { method: ip.method, rounds: ip.rounds, window: ip.window, count: frames.length };
+    } else {
+      state.replay.interpolated = false;
+      await pollLive();
+    }
     updateReplayUI();
     scheduleChartDraw();
     const result = response.result || {};
@@ -3864,6 +3877,10 @@ function setStatusHint(hint) {
           }),
           label
         );
+        if (result && result.cancelled) {
+          toast(`${label}\u5DF2\u505C\u6B62\uFF08\u672A\u5B8C\u6210\uFF09`, "warn", 3e3);
+          continue;
+        }
         if (result && result.ok === false) toast(`${label}\u5931\u8D25\uFF1A${result.error || "\u672A\u77E5\u9519\u8BEF"}`, "error", 7e3);
       } catch (error) {
         toast(`${label}\u5931\u8D25\uFF1A${error?.message || error}`, "error", 7e3);
@@ -3894,9 +3911,9 @@ function setStatusHint(hint) {
       </label>
       <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">\u7CBE\u5EA6\uFF08\u6B65\u957F dt\uFF0C\u79D2\uFF1B\u7A7A=\u81EA\u52A8\uFF09
         <input id="precomputeDt" type="number" min="0" step="0.001" placeholder="\u81EA\u52A8" style="width:110px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
-
+      </label>
       <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">\u63D2\u503C <select id="precomputeInterpMethod" style="flex:1;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"><option value="">\u4E0D\u63D2\u503C</option><option value="average">\u76F4\u63A5\u5E73\u5747\u4E2D\u70B9</option><option value="gaussian">\u9AD8\u65AF\u6838\u52A0\u6743\u4E2D\u70B9</option></select></label>
-      <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">\u63D2\u503C\u6B21\u6570 <input id="precomputeInterpRounds" type="number" min="0" max="6" step="1" value="1" style="width:70px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"> \u7A97\u53E3 <input id="precomputeInterpWindow" type="number" min="0" step="0.001" placeholder="\u81EA\u52A8" style="width:80px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"></label>      </label>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">\u63D2\u503C\u6B21\u6570 <input id="precomputeInterpRounds" type="number" min="0" max="6" step="1" value="1" style="width:70px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"> \u7A97\u53E3 <input id="precomputeInterpWindow" type="number" min="0" step="0.001" placeholder="\u81EA\u52A8" style="width:80px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"></label>
       <div style="display:flex;justify-content:flex-end;gap:8px;">
         <button id="precomputeSkip" type="button" style="display:none">\u76F4\u63A5\u8FD0\u884C\uFF08\u4E0D\u9884\u8BA1\u7B97\uFF09</button>
         <button id="precomputeCancel" type="button">\u53D6\u6D88</button>

@@ -14,6 +14,9 @@ from ..common.limits import ValidationError
 ENGINE_SPECS: dict[str, EngineSpec] = {}
 ENGINE_OWNERS: dict[str, str] = {}
 
+# 内建模式与 `scene_types.MODES` 必须一致：模块级 import 会形成
+# engine_registry <-> scene_types 环（A2 架构契约禁止），故此处保留副本，
+# 并由 `test_builtin_modes_matches_scene_types` 锁死二者不漂移。
 BUILTIN_MODES: tuple[str, ...] = ("signal", "circuit", "vector")
 
 
@@ -61,8 +64,10 @@ def create_engine(mode: str, scene: Any) -> Any:
         if engine is None:
             raise RuntimeError(f"引擎工厂没有返回实例：{mode}")
         return engine
+    if not is_builtin_mode(mode):
+        raise KeyError(f"未知引擎模式：{mode}")
     factory = _builtin_factory(mode)
-    if factory is None:
+    if factory is None:  # 防御：BUILTIN_MODES 与工厂映射不一致
         raise KeyError(f"未知引擎模式：{mode}")
     return factory(scene)
 
@@ -93,7 +98,9 @@ def engine_catalog() -> list[dict[str, Any]]:
             "description": spec.description,
             "domain": spec.domain,
             "version": spec.version,
-            "plugin_id": spec.plugin_id,
+            # 归属双通道：register_engine(plugin_id=...) 记在 ENGINE_OWNERS，
+            # spec.plugin_id 为 frozen dataclass 默认空；以 OWNERS 回退保证一致。
+            "plugin_id": spec.plugin_id or ENGINE_OWNERS.get(spec.mode, ""),
             "node_kinds": list(spec.node_kinds),
             "edge_kinds": list(spec.edge_kinds),
             "supported_port_types": list(spec.supported_port_types),

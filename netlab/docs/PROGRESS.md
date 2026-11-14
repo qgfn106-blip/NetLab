@@ -2988,14 +2988,17 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 交付 3：`netlab/core/model/v8_draft.py`（仅草稿 `_V8_DRAFT_VERSION=8`）：`migrate_v7_to_v8(payload)` 校验 dict/version==7，deepcopy；收集 node/edge `appearance` → `presentation.node_styles`/`edge_styles`，`port_type`/`port_id` 节点记 `compat.extensions.ports`，`kind=="wire"`→`v8_kind="PhysicalEdge"`、`"signal"`→`"DependencyEdge"`；末尾写 `version=8`、`schema_version="v8-draft"`。配套 `netlab/tests/test_v8_draft.py`（5 用例：草稿未激活、`PROJECT_VERSION==7`、`8 not in SCHEMA_MIGRATIONS`、映射、只加不删、拒绝非 v7/非 dict、无 appearance 则不写 presentation）。
 - 验证：三份新测试 `37 passed in 0.68s`；全量（CI 同款 `pytest netlab/tests -q --cov=netlab/core --cov-branch --cov-fail-under=81 --cov-report=json:coverage.json --junitxml=reports/pytest.xml`）→ **1052 passed / 1 skipped / 0 failed、core line 82.07%（12705/14811）、330.24s**（基线 1026 +26；本地非 CI）。`check_stage4_docs.py` PASSED、docs 隐私/SSOT/契约 6 passed、`check_status_freshness.py` OK。
 - 边界：v8 草稿不激活、无调用方、`PROJECT_VERSION` 仍 7、外部 `.netlab` 格式不变；阶段 8–13、ADR-008 A/B/C、P0-2 全链路改造仍 `PENDING_USER_AUTHORIZATION`。
-## 7.173 2026-11-14 阶段8 P1-S2 Engine SPI v2 切片1：engine_registry 统一入口 + 插件 kinds 白名单 + EngineSpec 9 字段
+## 7.173 2026-11-14 阶段8 P1-S2 Engine SPI v2 切片1：engine_registry 统一入口 + 插件 kinds 白名单 + EngineSpec 新增 5 字段（共 11）
 
-- 目标（G1+G2+G7 最小垂直切片，不做 breaking 改名）：`EngineSpec` 从 6 字段补到 9 字段（加性默认值 `domain/version/supported_port_types/plugin_id/metadata`）；`engine_registry` 成为内建+插件统一创建入口与 kinds 白名单来源；`add_node/add_edge` 对插件模式按引擎声明 kinds 校验；插件模式的节点/连接参数不再落入电路分支。
+- 目标（G1+G2+G7 最小垂直切片，不做 breaking 改名）：`EngineSpec` **新增 5 个字段（6→11）**：`domain`/`version`/`supported_port_types`/`plugin_id`/`metadata`，全部带默认值；SPI v2 设计目标为 9 字段（`ENGINE_SPI_V2.md:11-21`），本次以**加性**方式落地 5 个新字段，其余沿用既有名（命名差异：设计稿 `supported_node_kinds`/`supported_edge_kinds` → 实现 `node_kinds`/`edge_kinds`）；`engine_registry` 成为内建+插件统一创建入口与 kinds 白名单来源；`add_node/add_edge` 对插件模式按引擎声明 kinds 校验；插件模式的节点/连接参数不再落入电路分支。
 - 交付（分支 `feat/p1s2-engine-spi-v2`）：
   - `netlab/plugin_api/v1/__init__.py`：`EngineSpec` 增 5 个可选字段（全部带默认值，向后兼容）。
-  - `netlab/core/model/engine_registry.py`：新增 `BUILTIN_MODES` / `is_builtin_mode` / `_builtin_factory` / `create_engine` / `allowed_kinds` / `validate_kind`；`engine_catalog` 输出新增字段。`create_engine` 对未知模式抛 `KeyError("未知引擎模式：…")`。
+  - `netlab/core/model/engine_registry.py`：**扩展** `create_engine`（原位仅查 `ENGINE_SPECS`；本次改为「插件 factory 优先 + 内建 factory 回退」，未知模式抛 `KeyError("未知引擎模式：…")`）；新增 `BUILTIN_MODES`（`from .scene_types import MODES` 复用单一真值）/ `is_builtin_mode` / `_builtin_factory` / `allowed_kinds` / `validate_kind`；`engine_catalog` 输出新增字段，`plugin_id` 以 `ENGINE_OWNERS` 回退保证与 `register_engine(plugin_id=…)` 一致。
   - `netlab/core/model/scene.py`：`ensure_engine` 去掉内建 if/else，统一经 `create_engine`；`_normalize_node_params` / `_normalize_edge_params` 增加插件模式透传。
   - `netlab/core/model/scene_edit.py`：`add_node` / `add_edge` 调用 `validate_kind`。
   - 新增 `netlab/tests/test_p1s2_engine_spi_v2.py`（7 用例：9 字段、内建 factory 映射、未知模式 KeyError、`validate_kind` 单元、插件 node/edge 白名单拒绝、`engine_catalog` kinds）。
-- 验证：targeted 18 passed（含既有插件加载/契约测试）；全量 `pytest netlab/tests -q --cov=netlab/core --cov-branch --cov-fail-under=81` → **1059 passed / 1 skipped / 0 failed、core 82.11%**（基线 1052 +7，无回归；本地非 CI，绑本提交）。
+- 验证：targeted 20 passed（含既有插件加载/契约测试 + 新增 catalog/常量同步守卫）；全量 `pytest netlab/tests -q --cov=netlab/core --cov-branch --cov-fail-under=81` → **1061 passed / 1 skipped / 0 failed、core 82.13%**（基线 1052 +9，无回归；本地非 CI，绑本提交）；`tools/check_architecture.py` A1/A2/A3/A6 全 OK（A2 new=0）。
 - 边界：G3 进程级全局注册延后；`PluginFacade/RuntimeManager/CompiledModel/RuntimeSnapshot/Diagnostic` 与 `validate/compile/create_runtime/snapshot/restore/dispose` 生命周期钩子未实现（后续切片）；不改外部 JSON / checksum / FEM / MAX_NODES；未激活 ADR-008 与 P0-2（仍 PENDING_USER_AUTHORIZATION）；引擎契约状态仍 Proposed。
+
+- **口径更正（2026-11-14，依审批复核 m03029）**：① 代码提交 `0fc8350` 的 commit message 写「EngineSpec 9 字段」为口径偏差——实际为**新增 5 字段（共 11）**，以此处与 §1.3 为准（commit message 已 push，不重写历史）；② 本节「+93/−21」是**不含新增测试文件（121 行）**的口径，全量为 7 files +214/−21；③ CI 已产出并绑定 `622711b4589d`（3 run / 5 check-run 全 success，ID 见 `PROJECT_STATUS.md §1.3`）。
+- 边界补充：`Scene.__init__` 对非 str/不可哈希 mode 仍抛 `TypeError`（既有债务，base 同样存在，收敛到 `is_known_mode` 留给后续切片）；`is_builtin_mode` 现被 `create_engine` 使用；`BUILTIN_MODES` 与 `scene_types.MODES` 由 `test_builtin_modes_matches_scene_types` 锁死同步（模块级 import 会形成 A2 架构环，故保留副本 + 守卫测试）。

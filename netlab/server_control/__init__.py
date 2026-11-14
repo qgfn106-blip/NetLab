@@ -40,6 +40,9 @@ class SolveWindowRequest(BaseModel):
     duration: float
     dt: float | None = None
     sample_every: int | None = None
+    interpolation_method: str | None = None
+    interpolation_rounds: int = 1
+    interpolation_window: float | None = None
 
 
 class ControlRequest(BaseModel):
@@ -86,7 +89,14 @@ def build_router(*, service: Any) -> APIRouter:
     def solve_window(request: SolveWindowRequest) -> dict[str, Any]:
         if service.degraded:
             raise ConflictError("工程处于降级只读模式，不能预计算")
-        result = service.precompute(request.duration, request.dt, request.sample_every)
+        result = service.precompute(
+            request.duration,
+            request.dt,
+            request.sample_every,
+            interpolation_method=request.interpolation_method,
+            interpolation_rounds=request.interpolation_rounds,
+            interpolation_window=request.interpolation_window,
+        )
         return {"result": result, "sim": service.info()}
 
     @router.get("/api/operating-point")

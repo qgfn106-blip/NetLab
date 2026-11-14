@@ -1,20 +1,20 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-15T04:44:29+08:00",
+  "generated_at": "2026-11-15T04:53:39+08:00",
   "version": "3.20.2",
   "git": {
     "branch": "fix/precompute-interp",
-    "head": "91ae44f57a061ba185333f327c02d6d1a58fe16d",
+    "head": "976055e8e101b3ac7a1b325543d690d70515c178",
     "dirty": false,
-    "ahead_origin": 9,
+    "ahead_origin": 12,
     "behind_origin": 0
   },
   "tests": {
-    "passed": 1101,
+    "passed": 1103,
     "skipped": 1,
     "failed": 0,
-    "duration_s": 340.35,
-    "coverage_core_line": 82.31,
+    "duration_s": 395.89,
+    "coverage_core_line": 82.32,
     "command": "pytest netlab/tests -q --cov=netlab/core --cov-branch --cov-fail-under=81",
     "source": "reports/test_status.json"
   },

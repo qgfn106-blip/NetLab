@@ -4184,11 +4184,22 @@ function setStatusHint(hint: string): void {
   type PrecomputeTarget = 'solve' | 'plotkit' | 'states';
 
   async function runSolveWindowPrecompute(seconds: number) {
-    const response = await api('/api/solve-window', {
-      method: 'POST',
-      body: JSON.stringify({ duration: seconds }),
-      timeoutMs: 180000,
-    });
+    const response: any = await runPrecomputeWithProgress(
+      () => api('/api/solve-window', {
+        method: 'POST',
+        body: JSON.stringify({ duration: seconds }),
+        timeoutMs: 180000,
+      }),
+      `\u6B63\u5728\u8BA1\u7B97 0\u2192${seconds}s`,
+    );
+    if (!response || response.ok === false) {
+      toast(`\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A${response && response.error || '\u672A\u77E5\u9519\u8BEF'}`, 'error', 6000);
+      return;
+    }
+    if (response.cancelled) {
+      toast('\u5DF2\u505C\u6B62', 'warn', 3000);
+      return;
+    }
     leaveReplay();
     state.frames = [];
     state.cursor = 0;

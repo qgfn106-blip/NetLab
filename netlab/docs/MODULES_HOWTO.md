@@ -134,4 +134,4 @@
 
 - 单测：`netlab/tests/test_circuit_modules.py` —— 20 条（含边界分组合并端口、过期节点提示、旧模型器件边入模块、跨边界拒绝四条回归）；全库 `python -m pytest netlab/tests -q` → **627 passed, 1 skipped**（628 collected，2026-11-07 实测）。
 - 验收脚本：`NetlabExtras/scratch/verify_p706.mjs`（引脚/封装/实例化/展平）、`verify_p707.mjs`（内部浮窗）、`verify_p708.mjs`（等价性）。
-- 相关文档：`UI_SPEC.md` §5.7（封装入口与端口）、§5.8（模块内部浮窗）；`REQUIREMENTS_AND_RULES.md` D49/D50/D51、R24；`PROGRESS.md` §7.21–§7.24；编码/格式规范见 [CODE_STANDARDS.md](CODE_STANDARDS.md)（D119 SSOT）。
+- 相关文档：`UI_SPEC.md` §5.7（封装入口与端口）、§5.8（模块内部浮窗）；`内部需求与决策文档（私有仓）` D49/D50/D51、R24；`内部进度文档（私有仓）` §7.21–§7.24；编码/格式规范见 （D119 SSOT）。

@@ -2,7 +2,7 @@
 
 > **状态：规划文档（目标口径，不是当前实现口径）**
 > 依据：用户提供的《NetLab Core Architecture V2》786 行任务书（12 阶段；本地副本由会话转交，未入库）。
-> 当前事实基线（2026-11-12 复审纠偏）：latest main `4dc7bdd815477b63d51f683edc3af3c2765ba72b`；tested_head `1df4934f7dec861aa96bdf813d688516696753ee`；最后生产代码提交 `e41160f300393889c1b9539ebab73ed5280f2796`；945 passed / 1 skipped、core 81.380784%；CI 证据（`4dc7bdd` 的 5 个 check-run 全 success）见 `PROJECT_STATUS.md`。阶段 3 历史基线（`b667e517...` / 909 / 81.404692%）仅作历史引用。
+> 当前事实基线（2026-11-12 复审纠偏）：latest main `4dc7bdd815477b63d51f683edc3af3c2765ba72b`；tested_head `1df4934f7dec861aa96bdf813d688516696753ee`；最后生产代码提交 `e41160f300393889c1b9539ebab73ed5280f2796`；945 passed / 1 skipped、core 81.380784%；CI 证据（`4dc7bdd` 的 5 个 check-run 全 success）见 `内部状态文档（私有仓）`。阶段 3 历史基线（`b667e517...` / 909 / 81.404692%）仅作历史引用。
 > **使用规则：本文描述的是目标；任何“已具备”的说法必须以当前代码和测试为准。目标能力与当前实现的差距见 §3。**
 
 ## 1. 总目标与核心原则
@@ -78,7 +78,7 @@ P1 审计除模块/数据结构/依赖梳理外，必须对以下两条结构性
 
 ## 5. 相关文档
 
-- 执行路线图：[CORE_ARCHITECTURE_V2_ROADMAP.md](CORE_ARCHITECTURE_V2_ROADMAP.md)
+- 执行路线图：
 - 现有架构：[ARCHITECTURE.md](ARCHITECTURE.md)、[CODE_GUIDE.md](CODE_GUIDE.md)
-- 需求与决策：[REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md)
-- 进度：[PROGRESS.md](PROGRESS.md)、[BACKLOG.md](BACKLOG.md)
+- 需求与决策：
+- 进度：、

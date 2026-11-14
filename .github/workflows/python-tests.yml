@@ -41,9 +41,6 @@ jobs:
           pip install -r requirements-dev.txt
           pip install ../.plotkit-src
 
-      - name: Docs SSOT render (G4)
-        run: python tools/render_docs.py --check
-
       - name: Section budget (strict audit P0)
         working-directory: frontend
         run: |
@@ -131,22 +128,6 @@ jobs:
           PYTHONPATH: .
           DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: python tools/diff_coverage.py --coverage coverage.json --base "$DIFF_BASE" --threshold 80
-
-      - name: Write test status artifact (B-3)
-        env:
-          PYTHONPATH: .
-        run: >
-          python tools/write_test_status.py
-          --junit reports/pytest.xml
-          --coverage coverage.json
-          --command "pytest netlab/tests -q --cov=netlab/core --cov-branch --cov-fail-under=81"
-
-      - name: Status freshness (B-3)
-        env:
-          PYTHONPATH: .
-        run: |
-          python tools/gen_status.py
-          python tools/check_status_freshness.py
 
   desktop-l2:
     runs-on: windows-latest

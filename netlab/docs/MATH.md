@@ -56,7 +56,7 @@ flowchart TB
 1. 先读 [架构数学](math/ARCHITECTURE_MATH.md)，建立 `N=(V,E,s,t,Port,delay)`、算子和求解顺序。
 2. 再读 [元件数学](math/ELEMENT_MATH.md)，查看每种连接方法和 MNA 元件的具体离散式。
 3. 最后读 [分析数学](math/ANALYSIS_MATH.md)，把录制数据、频响和描述符结果接起来。
-4. 需要代码导航时回到 [CODE_GUIDE.md](CODE_GUIDE.md)；需求/决策以 [REQUIREMENTS_AND_RULES.md](REQUIREMENTS_AND_RULES.md) 为准。
+4. 需要代码导航时回到 [CODE_GUIDE.md](CODE_GUIDE.md)；需求/决策以  为准。
 
 ## 4. 图示索引
 

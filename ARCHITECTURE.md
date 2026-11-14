@@ -10,7 +10,7 @@ Netlab 是**单进程**应用：一个 Python 后端（FastAPI 服务 + 常驻�
 
 > 结构图：[docs/assets/netlab-architecture.svg](docs/assets/netlab-architecture.svg)（2026-11-06 分层版）
 
-> **V2 长远架构路线**：[CORE_ARCHITECTURE_V2.md](netlab/docs/CORE_ARCHITECTURE_V2.md)（需求、目标能力、当前差距） / [CORE_ARCHITECTURE_V2_ROADMAP.md](netlab/docs/CORE_ARCHITECTURE_V2_ROADMAP.md)（P1–P5 路线）。当前实现不等于 V2 目标，规划文档中标注了差距。
+> **V2 长远架构路线**：[CORE_ARCHITECTURE_V2.md](netlab/docs/CORE_ARCHITECTURE_V2.md)（需求、目标能力、当前差距） / （P1–P5 路线）。当前实现不等于 V2 目标，规划文档中标注了差距。
 
 ## 1. 目录即分层
 
@@ -242,4 +242,4 @@ graph LR
 
 ---
 
-配套文档：数学入口见 [netlab/docs/MATH.md](netlab/docs/MATH.md)（含架构数学、元件数学、分析数学三份专题），逐模块导读见 [netlab/docs/CODE_GUIDE.md](netlab/docs/CODE_GUIDE.md)，需求与决策见 [netlab/docs/REQUIREMENTS_AND_RULES.md](netlab/docs/REQUIREMENTS_AND_RULES.md)。
+配套文档：数学入口见 [netlab/docs/MATH.md](netlab/docs/MATH.md)（含架构数学、元件数学、分析数学三份专题），逐模块导读见 [netlab/docs/CODE_GUIDE.md](netlab/docs/CODE_GUIDE.md)，内部需求与决策文档已迁至私有仓。

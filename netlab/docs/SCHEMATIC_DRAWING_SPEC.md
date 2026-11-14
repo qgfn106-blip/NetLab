@@ -90,7 +90,7 @@
 
 ## 7. Agent 工作流（强制顺序）
 
-1. 先读 `REQUIREMENTS_AND_RULES.md` 的 R18/R19 与 D33/D34，再读本文与 `GLOSSARY.md`。
+1. 先读 `内部需求与决策文档（私有仓）` 的 R18/R19 与 D33/D34，再读本文与 `GLOSSARY.md`。
 2. 先定义/更新 `ElementSpec.pins` 与布局 schema，再写渲染；**不得先改渲染再补数据**。
 3. 求值路径（MNA/Newton）零改动；用测试证明 `scene.step` 前后拓扑/结果不变。
 4. 每加一个符号：引脚表 + 绑定校验 + 绘制 + 快照截图 + 至少 1 个行为/几何断言。

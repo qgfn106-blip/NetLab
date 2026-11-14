@@ -52,5 +52,5 @@ Keep a Changelog, and versions follow the package metadata in
 
 ## 3.20.0 — 2026-11-07
 
-- Prior baseline release. See `netlab/docs/PROGRESS.md` for the detailed
+- Prior baseline release. See `netlab/docs/内部进度文档（私有仓）` for the detailed
   engineering history.

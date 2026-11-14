@@ -1,7 +1,8 @@
 # NetLab 项目状态（唯一事实源 · PROJECT_STATUS）
 
-- **状态**：当前状态唯一事实源（依《NetLab / PlotKit 轻量研发与证据管理协议 V3》§2/§4，四类事实分离）。2026-11-14 阶段 6（P1-R2 AC/Bode 双后端统一）已获用户明确授权并完成并入 main（见 `PROGRESS.md §7.169`）；阶段 7（P1-S1 Project/DTO 分层）已完成并入 main（DTO 首切片 §7.170、SCHEMA_MIGRATIONS §7.171、v0–v7 golden fixtures 与 v7→v8 迁移草稿（未激活）§7.172）；阶段 8（P1-S2 Engine SPI v2）经用户授权启动，切片1（engine_registry 统一入口 + 插件 kinds 白名单 + EngineSpec 加性 5 字段，§7.173）已合入 main（PR #1 `cdca016` + PR #2 status-only `9afd2e4`）；切片2（生命周期钩子骨架 + RuntimeSnapshot 契约 + G3 注册表作用域骨架，§7.174）已按用户 2026-11-14 19:39「明确授权切片 2」实现于分支 `feat/p1s2-engine-spi-slice2`、待审。
+- **状态**：当前状态唯一事实源（依《NetLab / PlotKit 轻量研发与证据管理协议 V3》§2/§4，四类事实分离）。2026-11-14 阶段 6（P1-R2 AC/Bode 双后端统一）已获用户明确授权并完成并入 main（见 `PROGRESS.md §7.169`）；阶段 7（P1-S1 Project/DTO 分层）已完成并入 main（DTO 首切片 §7.170、SCHEMA_MIGRATIONS §7.171、v0–v7 golden fixtures 与 v7→v8 迁移草稿（未激活）§7.172）；阶段 8（P1-S2 Engine SPI v2）经用户授权启动，切片1（engine_registry 统一入口 + 插件 kinds 白名单 + EngineSpec 加性 5 字段，§7.173）已合入 main（PR #1 `cdca016` + PR #2 status-only `9afd2e4`）；切片2（生命周期钩子骨架 + RuntimeSnapshot 契约 + G3 注册表作用域骨架，§7.174）已按用户 2026-11-14 19:39「明确授权切片 2」实现于分支 `feat/p1s2-engine-spi-slice2`（后经 PR #3/PR #4 合入 main，见下方 2026-11-15 更正）。
 - **最后刷新**：2026-11-14（Asia/Shanghai）。机器可读基线以 `status.json` / `reports/test_status.json` 为准；本文件只记当前事实，历史完成数字见 `PROGRESS.md`。
+- **当前状态更正（2026-11-15，权威，覆盖下文较早历史快照）**：版本 **3.20.2**（`netlab/__init__.py:13`）。**阶段 7（P1-S1）已完成**；**阶段 8（P1-S2 Engine SPI v2）切片 1、切片 2 已合入 main**（PR #3 merge `449b1ed` + PR #4 status-only `ffd7cfd`），后续切片待授权。阶段 9–13 / ADR-008 A/B/C / P0-2 全链路 / FEM 硬冻结 仍 `PENDING_USER_AUTHORIZATION`。**所有易变测试/覆盖率/HEAD 数字以 `status.json` / `reports/test_status.json` 为唯一来源，本文正文不再手写具体数字**（当前分支 `fix/precompute-interp` 本地质量收敛基线 1101 passed / 1 skipped / core 82.31%，本地非 CI）。
 
 > ⚠️ 2026-11-14 历史已由 `git filter-repo` 重写（移除 `reports/pytest.xml`），**重写前所有旧 SHA 均已失效**。当前有效基线：全量 **1061 passed / 1 skipped / 0 failed、core line 82.13%**（543.03s，本地非 CI，绑 `status.json` 的 `git.head`；GitHub CI 已验证 `CI_VERIFIED` @ `90ae222`（当前分支尾提交；3 workflow run + 5 check-run 全 success，ID 见 §1.3「CI 事实」行）；历史 `6f332a2` 见 §1 `CI 证据` 行）、版本 3.20.1；提交自身无法自引用，精确 HEAD 以 `git rev-parse HEAD` 与 `status.json` 为准。§1 表格与 §1.1 中的旧 SHA/959 等为 2026-11-13 历史快照，仅作追溯；当前阶段状态见 §1.3。
 - **阶段 4（P1-A）**：设计冻结整改已完成 P0-01–P0-04 与关键 P1，新增 `tools/check_stage4_docs.py` 与契约测试；全量 945 passed / 1 skipped / 81.380784%（阶段 4 验收当时快照，非当前基线）；第④轮封口评审已「通过（无阻断、无新增项）」；**2026-11-12 获用户明确批准，正式验收通过（用户授权）**；阶段 5 转正式复核（进入阶段 6 仍需用户单独授权）。
@@ -83,7 +84,7 @@
 
 | 项 | 状态 |
 |---|---|
-| push / 发布 | 已发生的 push 为 Git 事实（`origin/main`=`4975f90`，含 `9b67c2a`/`5c76741`/`1ab22c3`/`4975f90` 4 提交，均为既有代码缺陷修复/状态绑定；执行者自述经用户跨会话授权，审批方未核到点名该范围的原始授权记录，故按「修复提交」记录、不计入阶段 6 交付物）；睡前「连续推进」原话已被用户 2026-11-12 醒来后的新指令覆盖，依 V3 §2 不得由会话或仓内自述自行重新激活；后续 push 保持 `PENDING_USER_AUTHORIZATION`；禁 force / rebase / amend / 改写历史 |
+| push / 发布 | 已发生的 push 为 Git 事实（`origin/main`=`ffd7cfd`，含 `9b67c2a`/`5c76741`/`1ab22c3`/`4975f90` 4 提交，均为既有代码缺陷修复/状态绑定；执行者自述经用户跨会话授权，审批方未核到点名该范围的原始授权记录，故按「修复提交」记录、不计入阶段 6 交付物）；睡前「连续推进」原话已被用户 2026-11-12 醒来后的新指令覆盖，依 V3 §2 不得由会话或仓内自述自行重新激活；后续 push 保持 `PENDING_USER_AUTHORIZATION`；禁 force / rebase / amend / 改写历史 |
 | 阶段自动推进 | `PENDING_USER_AUTHORIZATION`。无人值守连续推进已让位于用户 2026-11-12 醒来后的新指令；每阶段须用户本人明确批准后方可进入，不越级开工 |
 | R25（完整电路级内部结构） | 暂停（用户 2026-11-11 裁决先做 P-B） |
 | R43（M2） | 仅 opt-in |

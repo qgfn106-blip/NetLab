@@ -1,6 +1,6 @@
 # Netlab 执行进度与修订计划
 
-> 最后修改：2026-11-14（阶段 7 P1-S1；当前基线：全量 1052 passed / 1 skipped / 0 failed、core line 82.07%，以 status.json 与本机实测为准；3.20.1）
+> 最后修改：2026-11-15（阶段 8 P1-S2 演进中；**当前测试基线以 `status.json` / `reports/test_status.json` 为唯一来源（勿手写数字）**；版本 3.20.2）
 
 <!-- BEGIN GENERATED: status -->
 | 项 | 内容 |
@@ -3045,3 +3045,15 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - D-5：`check_solver_change --base ffd7cfd` 判「无 netlab/core/compute 数值变更，不需影子报告」（仅插值后处理/进度，不涉求解器数值路径）→ §6 第7项性能基准记「不适用+理由：无状态纯后处理复杂度治理，不改求解器数值语义」。
 - 边界：插值仅作用 solve-window 目标；不改 main、未合并；阶段9–13/ADR-008/P0-2/FEM/MAX_NODES=400/外部工程 JSON/PROJECT_VERSION=7 仍 PENDING_USER_AUTHORIZATION。
 
+
+
+## 7.178 质量收敛与问题修复（2026-11-15，分支 fix/precompute-interp）
+
+> 任务书《NetLab 质量收敛与问题修复》18 项（P1-01…P3-01，批次 A→E）。本分支：先 RED 后 GREEN、逐文件暂存、隐私扫描、CI 绑精确 SHA；不改 main/不发布/不合 main。
+
+- 批次A 后端：P2-01 空序列/缺测语义/窗口校验（`interpolation.py`/`simulation.py`，`375f8b5`）；P2-02 `_build_interp_series` 探针缺测抛 ValidationError 非静默0；P2-03 window 必须有限正数。
+- 批次A 前端：P1-04 统一预计算取消状态（`4b3bc7f`，读 `result.cancelled`）；P1-01 插值帧接入前端回放（`714ccb1`，区分原始/插值帧、游标对齐、帧数上限，不污染 Recorder）。
+- 批次B：P1-05 `registry_restore` 原子恢复 `ENGINE_SPECS+ENGINE_OWNERS`；P1-06 slice2 测试 `plugw` try/finally 清理；P2-04 `RuntimeSnapshot` 增 `scene_fingerprint` 防跨场景/同 ID 不同拓扑就地恢复（`f94fa9d`）。
+- 批次C：P2-05 circuit tf 顶层回传实际 `step_dt`（`0665083`）；P2-06 预计算对话框「精度」label 结构闭合。
+- 批次D：P2-10 `tools/check_status_freshness.py` 增比对 passed/skipped/coverage（`efb74a6`）；文档真相与单一来源（PROJECT_STATUS 2026-11-15 更正、PROGRESS 头部改指针、README `version: 7`）。
+- 待办：P1-03 核函数语义（Laplace vs 真高斯，待用户拍板）；P1-07/P2-08/P2-09 余项；批次E 全量+e2e+CI 精确 SHA 验收。全量本地 1101 passed / 1 skipped / core 82.31%（本地非 CI）。

@@ -76,6 +76,83 @@ class _Engine:
         raise NotImplementedError
 
 
+    # ---- Engine SPI v2 生命周期骨架（切片2，Proposed）--------------------
+    # 目标口径见 netlab/docs/ENGINE_SPI_V2.md §3 与 ENGINE_LIFECYCLE.md；
+    # 这里只上提薄壳，不改数值内核、不引入 RuntimeManager。
+    def validate(self, spec=None) -> list:
+        """按插件 spec 的 kind 白名单产出诊断；无 spec（内建）则返回空。
+
+        注意：这里刻意不 import ``engine_registry``（否则 scene_engines 与
+        engine_registry 形成 A2 架构环）；白名单随 spec 传入或由 ``create_engine``
+        挂到实例 ``self.spec`` 上。
+        """
+        from ...plugin_api.v1 import Diagnostic
+
+        scene = getattr(self, "scene", None)
+        mode = getattr(scene, "mode", "")
+        spec = spec if spec is not None else getattr(self, "spec", None)
+        diags = []
+        for edge, attr in ((False, "nodes"), (True, "edges")):
+            allowed = None
+            if spec is not None:
+                allowed = spec.edge_kinds if edge else spec.node_kinds
+            if not allowed:
+                continue
+            records = getattr(scene, attr, None) or {}
+            for record in records.values():
+                kind = getattr(record, "kind", None)
+                if kind not in allowed:
+                    what = "连接" if edge else "节点"
+                    diags.append(
+                        Diagnostic(
+                            severity="error",
+                            code="kind_not_allowed",
+                            message=f"引擎模式 {mode!r} 不支持{what}类型 {kind!r}",
+                            item=str(getattr(record, "id", "")),
+                        )
+                    )
+        return diags
+
+    def compile(self):
+        """编译骨架：当前仅把引擎自身包成 CompiledModel。"""
+        from ...plugin_api.v1 import CompiledModel
+
+        return CompiledModel(mode=getattr(getattr(self, "scene", None), "mode", ""), engine=self)
+
+    def create_runtime(self, compiled=None):
+        """运行期骨架：当前运行时即引擎自身。"""
+        return self
+
+    def snapshot(self):
+        """把引擎 checkpoint 上提为 RuntimeSnapshot。"""
+        from ...plugin_api.v1 import RuntimeSnapshot
+
+        capture = getattr(self, "capture_checkpoint", None)
+        state = capture() if callable(capture) else {}
+        mode = getattr(getattr(self, "scene", None), "mode", "")
+        return RuntimeSnapshot(mode=mode, state=state if isinstance(state, dict) else {})
+
+    def restore(self, snapshot) -> None:
+        """从 RuntimeSnapshot 就地恢复（同模式、同引擎）。"""
+        from ...plugin_api.v1 import RuntimeSnapshot
+        from ..common.limits import ValidationError
+
+        if not isinstance(snapshot, RuntimeSnapshot):
+            raise ValidationError("restore 需要 RuntimeSnapshot")
+        mode = getattr(getattr(self, "scene", None), "mode", "")
+        if snapshot.mode != mode:
+            raise ValidationError(
+                f"快照模式 {snapshot.mode!r} 与引擎模式 {mode!r} 不一致"
+            )
+        restore = getattr(self, "restore_checkpoint", None)
+        if callable(restore) and snapshot.state:
+            restore(snapshot.state)
+
+    def dispose(self) -> None:
+        """释放骨架：当前无持有资源，保持空实现。"""
+        return None
+
+
 class SignalEngine(_Engine):
     def __init__(self, scene: "Scene") -> None:
         self.network = Network(

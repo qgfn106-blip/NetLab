@@ -926,6 +926,7 @@ def _circuit_tf_analysis(
         "transfer_function": transfer,
         "metrics": metrics,
         "step": step,
+        "step_dt": float(step.get("dt", step_dt)) if isinstance(step, dict) else float(step_dt),
         "bode": bode,
         "assumptions": [
             "基于 DC 工作点线性化的 Descriptor 状态空间",

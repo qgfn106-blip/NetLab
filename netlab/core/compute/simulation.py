@@ -511,7 +511,13 @@ class Simulation:
         return snap
 
     def precompute(
-        self, duration: float, dt: float | None = None, sample_every: int | None = None
+        self,
+        duration: float,
+        dt: float | None = None,
+        sample_every: int | None = None,
+        interpolation_method: str | None = None,
+        interpolation_rounds: int = 1,
+        interpolation_window: float | None = None,
     ) -> dict[str, Any]:
         """P7-05/D48：从 0 开始预计算 0→T，填充录制帧；不改当前场景参数。"""
         with self.lock:
@@ -551,6 +557,17 @@ class Simulation:
                 raise ValidationError(
                     f"预计算步数超过 {MAX_PRECOMPUTE_STEPS}；请增大 dt、缩短 duration，或分段预计算"
                 )
+            if (
+                interpolation_method is not None
+                and interpolation_method not in ("average", "gaussian")
+            ):
+                raise ValidationError(
+                    f"未知插值方法：{interpolation_method!r}；可选 ('average', 'gaussian')"
+                )
+            if interpolation_method is not None and not (
+                0 <= int(interpolation_rounds) <= 6
+            ):
+                raise ValidationError("插值次数必须在 0–6 之间")
             # 录制环形缓冲只有 RECORDER_CAPACITY 帧：整段 0→T 必须装得下，
             # 否则只剩最后一段，前端看到的「起始时间」就不是 0。
             needed = int(math.ceil(count / RECORDER_CAPACITY))
@@ -645,6 +662,38 @@ class Simulation:
                 error=self.error,
                 started_at=None,
             )
+            interpolation = None
+            if interpolation_method and status == "done" and frames >= 2:
+                from .interpolation import resample_multi
+
+                times = [float(fr["t"]) for fr in self.recorder.frames]
+                keys: list[str] = []
+                for fr in self.recorder.frames:
+                    for k in fr.get("v", {}):
+                        if k not in keys:
+                            keys.append(k)
+                series = {
+                    k: [float(fr.get("v", {}).get(k, 0.0)) for fr in self.recorder.frames]
+                    for k in keys
+                }
+                _rounds = max(0, min(6, int(interpolation_rounds)))
+                new_t, new_series = resample_multi(
+                    times,
+                    series,
+                    method=interpolation_method,
+                    rounds=_rounds,
+                    window=interpolation_window,
+                )
+                interpolation = {
+                    "method": interpolation_method,
+                    "rounds": _rounds,
+                    "window": interpolation_window,
+                    "frame_count": len(new_t),
+                    "frames": [
+                        {"t": new_t[i], "v": {k: new_series[k][i] for k in keys}}
+                        for i in range(len(new_t))
+                    ],
+                }
             return {
                 "steps": self.steps,
                 "time": self.time,
@@ -655,6 +704,7 @@ class Simulation:
                 "first_time": first_time,
                 "last_time": last_time,
                 "cancelled": cancelled,
+                "interpolation": interpolation,
             }
 
     def _t_step_count_locked(self) -> int:

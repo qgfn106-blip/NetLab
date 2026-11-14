@@ -58,6 +58,35 @@ from ..compute.nodal import (
 from ..compute.params import validate_params
 from .ports import pins_for_device
 from ..compute.profiling import timed
+def _scene_fingerprint(scene: Any) -> str:
+    """场景结构指纹：mode + 节点(id,kind) + 边(id,source,target,kind) 的稳定哈希。
+
+    用于 RuntimeSnapshot 跨场景 / 同 ID 不同拓扑的就地恢复防护（P2-04）。
+    """
+    import hashlib
+
+    if scene is None:
+        return ""
+    parts = [f"mode={getattr(scene, 'mode', '')}"]
+    nodes = getattr(scene, "nodes", {}) or {}
+    for nid in sorted(nodes):
+        rec = nodes[nid]
+        parts.append(f"n:{nid}:{getattr(rec, 'kind', '')}")
+    edges = getattr(scene, "edges", {}) or {}
+    for eid in sorted(edges):
+        rec = edges[eid]
+        parts.append(
+            "e:%s:%s->%s:%s"
+            % (
+                eid,
+                getattr(rec, "source", ""),
+                getattr(rec, "target", ""),
+                getattr(rec, "kind", ""),
+            )
+        )
+    return hashlib.sha1("\n".join(parts).encode("utf-8")).hexdigest()
+
+
 class _Engine:
     def step(self, dt: float, deadline: float | None = None) -> None:  # pragma: no cover - 抽象
         raise NotImplementedError
@@ -129,8 +158,19 @@ class _Engine:
 
         capture = getattr(self, "capture_checkpoint", None)
         state = capture() if callable(capture) else {}
-        mode = getattr(getattr(self, "scene", None), "mode", "")
-        return RuntimeSnapshot(mode=mode, state=state if isinstance(state, dict) else {})
+        if not isinstance(state, dict):
+            state = {}
+        try:
+            import copy as _copy
+
+            state = _copy.deepcopy(state)
+        except Exception:  # 快照必须与引擎内部状态解耦；无法深拷贝时退化浅拷贝
+            state = dict(state)
+        scene = getattr(self, "scene", None)
+        mode = getattr(scene, "mode", "")
+        return RuntimeSnapshot(
+            mode=mode, state=state, scene_fingerprint=_scene_fingerprint(scene)
+        )
 
     def restore(self, snapshot) -> None:
         """从 RuntimeSnapshot 就地恢复（同模式、同引擎）。"""
@@ -143,6 +183,12 @@ class _Engine:
         if snapshot.mode != mode:
             raise ValidationError(
                 f"快照模式 {snapshot.mode!r} 与引擎模式 {mode!r} 不一致"
+            )
+        stored_fp = getattr(snapshot, "scene_fingerprint", "")
+        current_fp = _scene_fingerprint(getattr(self, "scene", None))
+        if stored_fp and current_fp and stored_fp != current_fp:
+            raise ValidationError(
+                "快照 scene 结构指纹与当前场景不一致（跨场景/拓扑已变），拒绝就地恢复"
             )
         restore = getattr(self, "restore_checkpoint", None)
         if callable(restore) and snapshot.state:

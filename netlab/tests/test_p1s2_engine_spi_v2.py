@@ -81,6 +81,12 @@ def test_create_engine_handles_builtin_modes():
     assert _builtin_factory("definitely_not_a_mode") is None
     assert isinstance(Scene("signal").ensure_engine(), SignalEngine)
     assert isinstance(Scene("vector").ensure_engine(), SignalEngine)
+    # 唯一不同引擎类的分支：circuit → CircuitEngine
+    cs = Scene("circuit")
+    gnd = cs.add_node(name="gnd", kind="ground")
+    n1 = cs.add_node(name="n1", kind="node")
+    cs.add_edge(source=n1.id, target=gnd.id, kind="resistor", params={"R": 1000.0})
+    assert isinstance(cs.ensure_engine(), CircuitEngine)
 
 
 def test_create_engine_unknown_mode_raises_keyerror():
@@ -119,3 +125,17 @@ def test_engine_catalog_consumes_kinds(plugin_engine):
     row = next(r for r in rows if r["mode"] == PLUGIN_MODE)
     assert row["node_kinds"] == ["manual"]
     assert row["edge_kinds"] == ["scale"]
+
+
+def test_engine_catalog_reports_registered_plugin_id(plugin_engine):
+    """归属双通道一致：register_engine(plugin_id=...) 须在 catalog 中可见（不是空串）。"""
+    cat = {row["mode"]: row for row in engine_catalog()}
+    assert cat[PLUGIN_MODE]["plugin_id"] == "test"
+
+
+def test_builtin_modes_matches_scene_types():
+    """单一真值守卫：BUILTIN_MODES 必须与 scene_types.MODES 同步（防 dual source 漂移）。"""
+    from netlab.core.model.engine_registry import BUILTIN_MODES
+    from netlab.core.model.scene_types import MODES
+
+    assert BUILTIN_MODES == MODES

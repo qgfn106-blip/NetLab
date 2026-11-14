@@ -1,4 +1,4 @@
-const UI_BUILD = "3.20.2";
+const UI_BUILD = "3.20.1";
 const PALETTE = [
   "#a8541f",
   "#1f5f5b",

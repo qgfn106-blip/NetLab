@@ -245,12 +245,13 @@ z-index 132；**不挤占画布**（不再有 `body.settings-open` 让位规则�
 
 ### 6.1 浮窗基类 `.floatwin`
 
-设置窗与文档中心共用一套浮窗行为，样式在 `style.css`「内部浮窗基类」段，逻辑在 `app.js`：
+设置窗与文档中心共用一套浮窗行为，样式在 `style.css`「内部浮窗基类」段，逻辑在 `app/float.ts`：
 
 | 函数 | 作用 |
 | --- | --- |
 | `placeFloatWindow(root, key)` | 把 `state[key]` 的 `{left,top,width,height}` 写回样式；无记录时清空内联样式回到 CSS 默认居中 |
 | `raiseFloatWindow(root)` | 点击即抬层：z-index 从 131 起自增，越过 138 时整体回落到 132 |
+| `clampFloatWindow(root)` | 打开或恢复几何后把窗口夹回视口：宽不超过 `innerWidth - 16`、高不超过 `innerHeight - 48`（预留 40px 标题栏），left/top 至少留 8px / 40px（标题栏可见），越界才写内联样式并加 `.moved` |
 | `toggleFloatMaximize(root, key)` | 切 `.maximized`（`inset: 12px/108px`），同时把当前几何写进 `state[key]` |
 | `initFloatWindow(root, key, {minWidth,minHeight})` | 绑定拖动、双击最大化、`-min`/`-max` 按钮、右下 grip 缩放、root `pointerdown` 抬层 |
 
@@ -260,6 +261,8 @@ z-index 132；**不挤占画布**（不再有 `body.settings-open` 让位规则�
   否则进场动画的 translate 会与内联 `left/top` 叠加造成跳位（3.10.0 踩坑）。
 - 拖动时 `top` 夹在 `40 … innerHeight - 高度 - 8`，保证标题栏露头且右下缩放柄不会移出屏幕。
 - 缩放 `minWidth/minHeight` 由各窗传入（文档 420×320）；`width/height` 同时受视口上限约束。
+- 右下 `.floatwin-resize` 为 20×20 可见缩放柄（`touch-action:none`、双层斜纹 + `--line-strong` 描边，hover 转 `--accent`）；此前 16×16 且无对比色，用户反馈「看不到、拖不动」。
+- 所有浮窗打开路径都过 `clampFloatWindow`：`placeFloatWindow` 两个分支各调一次；`#analWin`（`openAnalysis`）与 `#plotkitWin`（`openPlotkit`）不走 `placeFloatWindow`，各自在打开末尾显式调用。`#analWin`/`.analwin` 尺寸改为 `min(760px,92vw) × min(580px,80vh)`，`.plotkit-win` 改为 `min(960px,94vw) × min(640px,84vh)`，避免小视口下默认尺寸溢出。
 - 最小化 `.minimized`：高 40px、贴右下（`right:16px; bottom:46px`）；最大化 `.maximized`：`top:108px` 让开顶栏+菜单栏。
 - 窗口 z-index：文档 130、设置 132、`#qcard` 140、引导页 110（引导页开着时浮窗仍可见，靠抬层而非固定层级）。
 

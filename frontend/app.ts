@@ -4183,12 +4183,23 @@ function setStatusHint(hint: string): void {
   // ---- 统一预计算入口 -------------------------------------------------------
   type PrecomputeTarget = 'solve' | 'plotkit' | 'states';
 
-  async function runSolveWindowPrecompute(seconds: number) {
-    const response = await api('/api/solve-window', {
-      method: 'POST',
-      body: JSON.stringify({ duration: seconds }),
-      timeoutMs: 180000,
-    });
+  async function runSolveWindowPrecompute(seconds: number, dt: number | null = null, interp: { interpolation_method: string; interpolation_rounds: number; interpolation_window: number | null } | null = null) {
+    const response: any = await runPrecomputeWithProgress(
+      () => api('/api/solve-window', {
+        method: 'POST',
+        body: JSON.stringify({ duration: seconds, ...(dt ? { dt } : {}), ...(interp || {}) }),
+        timeoutMs: 180000,
+      }),
+      `\u6B63\u5728\u8BA1\u7B97 0\u2192${seconds}s`,
+    );
+    if (!response || response.ok === false) {
+      toast(`\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A${response && response.error || '\u672A\u77E5\u9519\u8BEF'}`, 'error', 6000);
+      return;
+    }
+    if (response.cancelled) {
+      toast('\u5DF2\u505C\u6B62', 'warn', 3000);
+      return;
+    }
     leaveReplay();
     state.frames = [];
     state.cursor = 0;
@@ -4205,11 +4216,11 @@ function setStatusHint(hint: string): void {
     else toast(`预计算完成：${result.steps} 步 / ${result.frames} 帧`, 'ok', 3000);
   }
 
-  async function runPlotkitPrecompute(seconds: number) {
+  async function runPlotkitPrecompute(seconds: number, dt: number | null = null) {
     const pre = await runPrecomputeWithProgress(
       () => api('/api/plotkit/precompute', {
         method: 'POST',
-        body: JSON.stringify({ seconds }),
+        body: JSON.stringify(dt ? { seconds, dt } : { seconds }),
         timeoutMs: 180000,
       }),
       `正在计算 0→${seconds}s`,
@@ -4228,7 +4239,7 @@ function setStatusHint(hint: string): void {
     toast(`预计算完成：${pre.frames ?? 0} 帧`, 'ok', 3000);
   }
 
-  async function runStatesPrecompute(seconds: number) {
+  async function runStatesPrecompute(seconds: number, dt: number | null = null) {
     if (!wbCompareStateIds.length) {
       toast('请先在信号窗勾选要预计算的状态', 'error');
       return;
@@ -4240,7 +4251,7 @@ function setStatusHint(hint: string): void {
         const result = (await runPrecomputeWithProgress(
           () => api('/api/network/state/precompute', {
             method: 'POST',
-            body: JSON.stringify({ state_id: id, seconds }),
+            body: JSON.stringify(dt ? { state_id: id, seconds, dt } : { state_id: id, seconds }),
             timeoutMs: 600000,
           }),
           label,
@@ -4274,6 +4285,11 @@ function setStatusHint(hint: string): void {
       <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">时长（秒）
         <input id="precomputeSeconds" type="number" min="1" max="120" step="1" value="5" style="width:110px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
       </label>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">精度（步长 dt，秒；空=自动）
+        <input id="precomputeDt" type="number" min="0" step="0.001" placeholder="自动" style="width:110px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
+
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">插值 <select id="precomputeInterpMethod" style="flex:1;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"><option value="">不插值</option><option value="average">直接平均中点</option><option value="gaussian">高斯核加权中点</option></select></label>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">插值次数 <input id="precomputeInterpRounds" type="number" min="0" max="6" step="1" value="1" style="width:70px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"> 窗口 <input id="precomputeInterpWindow" type="number" min="0" step="0.001" placeholder="自动" style="width:80px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"></label>      </label>
       <div style="display:flex;justify-content:flex-end;gap:8px;">
         <button id="precomputeSkip" type="button" style="display:none">直接运行（不预计算）</button>
         <button id="precomputeCancel" type="button">取消</button>
@@ -4300,12 +4316,24 @@ function setStatusHint(hint: string): void {
         toast('预计算时长必须在 (0, 120] s 内', 'error', 3000);
         return;
       }
+      const dtInput = card.querySelector('#precomputeDt') as HTMLInputElement | null;
+      const dtRaw = dtInput ? Number(dtInput.value) : NaN;
+      const dtOpt = Number.isFinite(dtRaw) && dtRaw > 0 ? dtRaw : null;
+      const interpSel = card.querySelector('#precomputeInterpMethod') as HTMLSelectElement | null;
+      const interpMethod = interpSel ? interpSel.value : '';
+      const roundsRaw = Number((card.querySelector('#precomputeInterpRounds') as HTMLInputElement | null)?.value);
+      const windowRaw = Number((card.querySelector('#precomputeInterpWindow') as HTMLInputElement | null)?.value);
+      const interpOpts = interpMethod ? {
+        interpolation_method: interpMethod,
+        interpolation_rounds: Number.isFinite(roundsRaw) ? Math.max(0, Math.min(6, roundsRaw)) : 1,
+        interpolation_window: Number.isFinite(windowRaw) && windowRaw > 0 ? windowRaw : null,
+      } : null;
       const kind = target.value as PrecomputeTarget;
       close();
       try {
-        if (kind === 'solve') await runSolveWindowPrecompute(seconds);
-        else if (kind === 'plotkit') await runPlotkitPrecompute(seconds);
-        else await runStatesPrecompute(seconds);
+        if (kind === 'solve') await runSolveWindowPrecompute(seconds, dtOpt, interpOpts);
+        else if (kind === 'plotkit') await runPlotkitPrecompute(seconds, dtOpt);
+        else await runStatesPrecompute(seconds, dtOpt);
       } catch (error) {
         toast(`预计算失败：${(error as Error).message}`, 'error', 6000);
       }
@@ -6816,7 +6844,7 @@ function setStatusHint(hint: string): void {
     pop.style.zIndex = '20000';
     pop.style.padding = '10px';
     pop.style.borderRadius = '10px';
-    pop.style.background = 'var(--panel, #fff)';
+    pop.style.background = 'var(--panel-bg)';
     pop.style.boxShadow = '0 12px 36px rgba(0,0,0,.24)';
     pop.style.border = '1px solid var(--line, #ccd4d8)';
     const host = div('iro-host');

@@ -1,5 +1,26 @@
 import { clamp } from "../app.utils.js";
 import { state, ui } from "./state.js";
+function clampFloatWindow(root) {
+  if (!root || root.hidden) return;
+  if (root.classList.contains("maximized") || root.classList.contains("minimized")) return;
+  const margin = 8;
+  const measuredWidth = root.offsetWidth;
+  const measuredHeight = root.offsetHeight;
+  if (!measuredWidth || !measuredHeight) return;
+  const width = Math.min(measuredWidth, Math.max(320, window.innerWidth - margin * 2));
+  const height = Math.min(measuredHeight, Math.max(240, window.innerHeight - 40 - margin));
+  const positioned = root.classList.contains("moved") || !!root.style.left || !!root.style.top;
+  if (!positioned && Math.abs(width - measuredWidth) < 1 && Math.abs(height - measuredHeight) < 1) return;
+  const rect = root.getBoundingClientRect();
+  const left = clamp(rect.left, margin, Math.max(margin, window.innerWidth - width - margin));
+  const top = clamp(rect.top, 40, Math.max(40, window.innerHeight - height - margin));
+  if (Math.abs(left - rect.left) < 1 && Math.abs(top - rect.top) < 1 && Math.abs(width - measuredWidth) < 1 && Math.abs(height - measuredHeight) < 1) return;
+  root.classList.add("moved");
+  root.style.left = `${Math.round(left)}px`;
+  root.style.top = `${Math.round(top)}px`;
+  root.style.width = `${Math.round(width)}px`;
+  root.style.height = `${Math.round(height)}px`;
+}
 function placeFloatWindow(root, key) {
   if (!root) return;
   const geo = state[key];
@@ -9,6 +30,7 @@ function placeFloatWindow(root, key) {
     root.style.top = "";
     root.style.width = "";
     root.style.height = "";
+    clampFloatWindow(root);
     return;
   }
   root.classList.add("moved");
@@ -16,6 +38,7 @@ function placeFloatWindow(root, key) {
   root.style.top = `${geo.top}px`;
   root.style.width = `${geo.width}px`;
   root.style.height = `${geo.height}px`;
+  clampFloatWindow(root);
 }
 function placeDocWindow() {
   placeFloatWindow(ui.docWin, "docGeo");
@@ -100,6 +123,7 @@ function initFloatWindow(root, key, spec = {}) {
   }
 }
 export {
+  clampFloatWindow,
   initFloatWindow,
   placeDocWindow,
   placeFloatWindow,

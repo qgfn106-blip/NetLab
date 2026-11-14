@@ -4183,11 +4183,11 @@ function setStatusHint(hint: string): void {
   // ---- 统一预计算入口 -------------------------------------------------------
   type PrecomputeTarget = 'solve' | 'plotkit' | 'states';
 
-  async function runSolveWindowPrecompute(seconds: number, dt: number | null = null) {
+  async function runSolveWindowPrecompute(seconds: number, dt: number | null = null, interp: { interpolation_method: string; interpolation_rounds: number; interpolation_window: number | null } | null = null) {
     const response: any = await runPrecomputeWithProgress(
       () => api('/api/solve-window', {
         method: 'POST',
-        body: JSON.stringify(dt ? { duration: seconds, dt } : { duration: seconds }),
+        body: JSON.stringify({ duration: seconds, ...(dt ? { dt } : {}), ...(interp || {}) }),
         timeoutMs: 180000,
       }),
       `\u6B63\u5728\u8BA1\u7B97 0\u2192${seconds}s`,
@@ -4287,7 +4287,19 @@ function setStatusHint(hint: string): void {
       </label>
       <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">精度（步长 dt，秒；空=自动）
         <input id="precomputeDt" type="number" min="0" step="0.001" placeholder="自动" style="width:110px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
+
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">插值
+        <select id="precomputeInterpMethod" style="flex:1;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
+          <option value="">不插值</option>
+          <option value="average">直接平均中点</option>
+          <option value="gaussian">高斯核加权中点</option>
+        </select>
       </label>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">插值次数
+        <input id="precomputeInterpRounds" type="number" min="0" max="6" step="1" value="1" style="width:80px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
+        窗口
+        <input id="precomputeInterpWindow" type="number" min="0" step="0.001" placeholder="自动" style="width:90px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
+      </label>      </label>
       <div style="display:flex;justify-content:flex-end;gap:8px;">
         <button id="precomputeSkip" type="button" style="display:none">直接运行（不预计算）</button>
         <button id="precomputeCancel" type="button">取消</button>
@@ -4317,10 +4329,19 @@ function setStatusHint(hint: string): void {
       const dtInput = card.querySelector('#precomputeDt') as HTMLInputElement | null;
       const dtRaw = dtInput ? Number(dtInput.value) : NaN;
       const dtOpt = Number.isFinite(dtRaw) && dtRaw > 0 ? dtRaw : null;
+      const interpSel = card.querySelector('#precomputeInterpMethod') as HTMLSelectElement | null;
+      const interpMethod = interpSel ? interpSel.value : '';
+      const roundsRaw = Number((card.querySelector('#precomputeInterpRounds') as HTMLInputElement | null)?.value);
+      const windowRaw = Number((card.querySelector('#precomputeInterpWindow') as HTMLInputElement | null)?.value);
+      const interpOpts = interpMethod ? {
+        interpolation_method: interpMethod,
+        interpolation_rounds: Number.isFinite(roundsRaw) ? Math.max(0, Math.min(6, roundsRaw)) : 1,
+        interpolation_window: Number.isFinite(windowRaw) && windowRaw > 0 ? windowRaw : null,
+      } : null;
       const kind = target.value as PrecomputeTarget;
       close();
       try {
-        if (kind === 'solve') await runSolveWindowPrecompute(seconds, dtOpt);
+        if (kind === 'solve') await runSolveWindowPrecompute(seconds, dtOpt, interpOpts);
         else if (kind === 'plotkit') await runPlotkitPrecompute(seconds, dtOpt);
         else await runStatesPrecompute(seconds, dtOpt);
       } catch (error) {

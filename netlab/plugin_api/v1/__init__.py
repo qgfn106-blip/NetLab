@@ -152,6 +152,12 @@ class EngineSpec:
     factory: Callable[[Any], Any]
     node_kinds: tuple[str, ...] = ()
     edge_kinds: tuple[str, ...] = ()
+    # ---- Engine SPI v2（G1）：加性字段，带默认值，旧构造不变 ----
+    domain: str = ""
+    version: str = ""
+    supported_port_types: tuple[str, ...] = ()
+    plugin_id: str = ""
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @runtime_checkable

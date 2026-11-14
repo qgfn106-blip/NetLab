@@ -78,6 +78,9 @@ class _SceneEditMixin:
         self._unique_node_name(clean_name)
         if not isinstance(kind, str):
             raise ValidationError("kind 必须是字符串")
+        from .engine_registry import validate_kind
+
+        validate_kind(self.mode, kind)
         params_clean, _label = self._normalize_node_params(kind, params)
         self._check_block_mode(kind, params_clean)
         data_clean = json_safe(data or {}, where=f"节点 {clean_name!r} 的数据")
@@ -294,6 +297,11 @@ class _SceneEditMixin:
     ) -> EdgeRecord:
         if len(self.edges) >= MAX_EDGES:
             raise LimitError(f"连接数量不能超过 {MAX_EDGES}")
+        if not isinstance(kind, str):
+            raise ValidationError("kind 必须是字符串")
+        from .engine_registry import validate_kind
+
+        validate_kind(self.mode, kind, edge=True)
         if pins is not None:
             from .schematic import apply_pin_bindings
 

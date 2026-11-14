@@ -2988,3 +2988,14 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 交付 3：`netlab/core/model/v8_draft.py`（仅草稿 `_V8_DRAFT_VERSION=8`）：`migrate_v7_to_v8(payload)` 校验 dict/version==7，deepcopy；收集 node/edge `appearance` → `presentation.node_styles`/`edge_styles`，`port_type`/`port_id` 节点记 `compat.extensions.ports`，`kind=="wire"`→`v8_kind="PhysicalEdge"`、`"signal"`→`"DependencyEdge"`；末尾写 `version=8`、`schema_version="v8-draft"`。配套 `netlab/tests/test_v8_draft.py`（5 用例：草稿未激活、`PROJECT_VERSION==7`、`8 not in SCHEMA_MIGRATIONS`、映射、只加不删、拒绝非 v7/非 dict、无 appearance 则不写 presentation）。
 - 验证：三份新测试 `37 passed in 0.68s`；全量（CI 同款 `pytest netlab/tests -q --cov=netlab/core --cov-branch --cov-fail-under=81 --cov-report=json:coverage.json --junitxml=reports/pytest.xml`）→ **1052 passed / 1 skipped / 0 failed、core line 82.07%（12705/14811）、330.24s**（基线 1026 +26；本地非 CI）。`check_stage4_docs.py` PASSED、docs 隐私/SSOT/契约 6 passed、`check_status_freshness.py` OK。
 - 边界：v8 草稿不激活、无调用方、`PROJECT_VERSION` 仍 7、外部 `.netlab` 格式不变；阶段 8–13、ADR-008 A/B/C、P0-2 全链路改造仍 `PENDING_USER_AUTHORIZATION`。
+## 7.173 2026-11-14 阶段8 P1-S2 Engine SPI v2 切片1：engine_registry 统一入口 + 插件 kinds 白名单 + EngineSpec 9 字段
+
+- 目标（G1+G2+G7 最小垂直切片，不做 breaking 改名）：`EngineSpec` 从 6 字段补到 9 字段（加性默认值 `domain/version/supported_port_types/plugin_id/metadata`）；`engine_registry` 成为内建+插件统一创建入口与 kinds 白名单来源；`add_node/add_edge` 对插件模式按引擎声明 kinds 校验；插件模式的节点/连接参数不再落入电路分支。
+- 交付（分支 `feat/p1s2-engine-spi-v2`）：
+  - `netlab/plugin_api/v1/__init__.py`：`EngineSpec` 增 5 个可选字段（全部带默认值，向后兼容）。
+  - `netlab/core/model/engine_registry.py`：新增 `BUILTIN_MODES` / `is_builtin_mode` / `_builtin_factory` / `create_engine` / `allowed_kinds` / `validate_kind`；`engine_catalog` 输出新增字段。`create_engine` 对未知模式抛 `KeyError("未知引擎模式：…")`。
+  - `netlab/core/model/scene.py`：`ensure_engine` 去掉内建 if/else，统一经 `create_engine`；`_normalize_node_params` / `_normalize_edge_params` 增加插件模式透传。
+  - `netlab/core/model/scene_edit.py`：`add_node` / `add_edge` 调用 `validate_kind`。
+  - 新增 `netlab/tests/test_p1s2_engine_spi_v2.py`（7 用例：9 字段、内建 factory 映射、未知模式 KeyError、`validate_kind` 单元、插件 node/edge 白名单拒绝、`engine_catalog` kinds）。
+- 验证：targeted 18 passed（含既有插件加载/契约测试）；全量 `pytest netlab/tests -q --cov=netlab/core --cov-branch --cov-fail-under=81` → **1059 passed / 1 skipped / 0 failed、core 82.11%**（基线 1052 +7，无回归；本地非 CI，绑本提交）。
+- 边界：G3 进程级全局注册延后；`PluginFacade/RuntimeManager/CompiledModel/RuntimeSnapshot/Diagnostic` 与 `validate/compile/create_runtime/snapshot/restore/dispose` 生命周期钩子未实现（后续切片）；不改外部 JSON / checksum / FEM / MAX_NODES；未激活 ADR-008 与 P0-2（仍 PENDING_USER_AUTHORIZATION）；引擎契约状态仍 Proposed。

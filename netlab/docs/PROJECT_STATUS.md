@@ -3,7 +3,7 @@
 - **状态**：当前状态唯一事实源（依《NetLab / PlotKit 轻量研发与证据管理协议 V3》§2/§4，四类事实分离）。2026-11-14 阶段 6（P1-R2 AC/Bode 双后端统一）已获用户明确授权并完成并入 main（见 `PROGRESS.md §7.169`）；阶段 7（P1-S1 Project/DTO 分层）按用户「继续按文档规划完成任务」授权启动，当前进行中：DTO 首切片（§7.170）、SCHEMA_MIGRATIONS 注册表（§7.171）、v0–v7 golden fixtures 与 v7→v8 迁移草稿（未激活，§7.172）。
 - **最后刷新**：2026-11-14（Asia/Shanghai）。机器可读基线以 `status.json` / `reports/test_status.json` 为准；本文件只记当前事实，历史完成数字见 `PROGRESS.md`。
 
-> ⚠️ 2026-11-14 历史已由 `git filter-repo` 重写（移除 `reports/pytest.xml`），**重写前所有旧 SHA 均已失效**。当前有效基线：全量 **1052 passed / 1 skipped / 0 failed、core line 82.07%**（330.24s，本地非 CI，绑 `status.json` 的 `git.head`；GitHub CI 已验证 `CI_VERIFIED` @ `6f332a2`；3 workflow run + 5 check-run 全 `completed/success`，见 §1 `CI 证据` 行）、版本 3.20.1；提交自身无法自引用，精确 HEAD 以 `git rev-parse HEAD` 与 `status.json` 为准。§1 表格与 §1.1 中的旧 SHA/959 等为 2026-11-13 历史快照，仅作追溯；当前阶段状态见 §1.3。
+> ⚠️ 2026-11-14 历史已由 `git filter-repo` 重写（移除 `reports/pytest.xml`），**重写前所有旧 SHA 均已失效**。当前有效基线：全量 **1059 passed / 1 skipped / 0 failed、core line 82.11%**（339.24s，本地非 CI，绑 `status.json` 的 `git.head`；GitHub CI 已验证 `CI_VERIFIED` @ `6f332a2`；3 workflow run + 5 check-run 全 `completed/success`，见 §1 `CI 证据` 行）、版本 3.20.1；提交自身无法自引用，精确 HEAD 以 `git rev-parse HEAD` 与 `status.json` 为准。§1 表格与 §1.1 中的旧 SHA/959 等为 2026-11-13 历史快照，仅作追溯；当前阶段状态见 §1.3。
 - **阶段 4（P1-A）**：设计冻结整改已完成 P0-01–P0-04 与关键 P1，新增 `tools/check_stage4_docs.py` 与契约测试；全量 945 passed / 1 skipped / 81.380784%（阶段 4 验收当时快照，非当前基线）；第④轮封口评审已「通过（无阻断、无新增项）」；**2026-11-12 获用户明确批准，正式验收通过（用户授权）**；阶段 5 转正式复核（进入阶段 6 仍需用户单独授权）。
 - **阶段 5（P1-R1）**：共享 `stamp_laplacian` 两端口原语收敛已交付（代码 `e41160f`，状态 tip `eaec04a`，三条 CI success）；**2026-11-12 只读复核判「子目标达成（零数值回归、无回归、数值等价 max_abs≈5.55e-17）」但「阶段 5 整体仍 open、不标完成、不进阶段 6」**——完整 CircuitElement 元件模型统一未完成（Descriptor 仍 A+sE、Legacy 仍伴随 MNA，双 `kind` 分派尚在）；ROADMAP:40 原目标基线不可零回归实现，彻底合并需 CORE_MODEL_V2 `ElementAdmittance`（Proposed，3× PENDING）。阶段 6–13 均 `PENDING_USER_AUTHORIZATION`。
 - **维护规则**：本文件只记当前事实；路线/阶段表见 `CORE_ARCHITECTURE_V2_ROADMAP.md`，目标口径见 `CORE_ARCHITECTURE_V2.md`，执行约束见 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md`（该文件为 2026-11-11 快照，动态状态委托本文件），架构决策见 `docs/adr/`，历史完成记录见 `PROGRESS.md`。机器可读字段以 `status.json` / `reports/test_status.json` 为准。
@@ -45,7 +45,7 @@
 - **更新（2026-11-14）**：阶段 6（P1-R2 AC/Bode 生产统一）已于 2026-11-14 获用户明确授权并完成并入 main（`PROGRESS.md §7.169`）；阶段 7（P1-S1）已按用户「继续按文档规划完成任务，继续 workflow」授权启动，当前进行中。阶段 8–13、ADR-008 A/B/C、P0-2 全链路改造仍 `PENDING_USER_AUTHORIZATION`，须用户本人明确授权后方可进入。push 依用户 2026-11-14 授权由 Agent 核查后代为执行，不逐项询问。
 
 ### 1.3 当前阶段状态（2026-11-14，四类事实分离）
-- 文档/规划：阶段 6 已完成并入 main；阶段 7 P1-S1 进行中，顺序按 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:11`，未跳步、未并行越级。
+- 文档/规划：阶段 6 已完成并入 main；阶段 7 P1-S1 已完成并入 main；阶段 8 P1-S2 Engine SPI v2 进行中（切片1 已实现待审），顺序按 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:11`，未跳步、未并行越级。
 - 代码事实：`PROJECT_VERSION=7` 不变；`netlab/core/model/dto.py` 恒等映射已入库；`project.py` 的 `migrate_project` 由 `SCHEMA_MIGRATIONS` 注册表驱动（特征化 10 例逐字节等价）；`v8_draft.py` 仅测试直接调用、不激活。
 - 测试事实（本地非 CI）：全量 1052 passed / 1 skipped / 0 failed、core line 82.07%（330.24s）；`check_stage4_docs.py`、docs 隐私/SSOT/契约 6 passed、`check_status_freshness.py` OK。
 - CI 事实：`CI_VERIFIED` @ 当前 HEAD `6f332a21bbaaaaf628e76a8c2c539a5623e6c2f6`（3 workflow run + 5 check-run 全 `completed/success`，精确 SHA 与 Run ID 见 §1 CI 证据行）；不把本地结果冒称 CI。

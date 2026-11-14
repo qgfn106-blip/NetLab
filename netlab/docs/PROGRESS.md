@@ -3002,3 +3002,15 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 
 - **口径更正（2026-11-14，依审批复核 m03029）**：① 代码提交 `0fc8350` 的 commit message 写「EngineSpec 9 字段」为口径偏差——实际为**新增 5 字段（共 11）**，以此处与 §1.3 为准（commit message 已 push，不重写历史）；② 本节「+93/−21」是**不含新增测试文件（121 行）**的口径，全量为 7 files +214/−21；③ CI 已产出：尾提交 `90ae222382c32e57e0d186f7410966fcd95f4505` 按 V3 §4 绑精确 SHA——3 workflow run `43581400133`（python-tests）/`43581400154`（frontend-ts-build）/`43581400220`（container）+ 5 check-run `132406699933`（test）/`132406700040`（e2e-l1）/`132406700181`（desktop-l2）/`132406700264`（build）/`132406702079`（docker）全 success；此前 `622711b4589d` 为历史证据。§6 第 8 项据此满足；此后为对齐 effective head 追加的 status-only 提交按 V3 §4 标 `CI_NOT_VERIFIED`，不自指冒称 CI 绿。
 - 边界补充：`Scene.__init__` 对非 str/不可哈希 mode 仍抛 `TypeError`（既有债务，base 同样存在，收敛到 `is_known_mode` 留给后续切片）；`is_builtin_mode` 现被 `create_engine` 使用；`BUILTIN_MODES` 与 `scene_types.MODES` 由 `test_builtin_modes_matches_scene_types` 锁死同步（模块级 import 会形成 A2 架构环，故保留副本 + 守卫测试）。
+
+## 7.174 2026-11-14 阶段8 P1-S2 Engine SPI v2 切片2：生命周期钩子骨架 + RuntimeSnapshot 契约 + G3 注册表作用域骨架
+
+- 目标（用户 2026-11-14 19:39 原话「明确授权切片 2」；范围＝审计草案 §3.4 第二切片）：把 `capture_checkpoint`/`restore_checkpoint` 上提为基类 `snapshot`/`restore`，新增 `validate`/`compile`/`create_runtime`/`dispose` 薄壳，定义 `RuntimeSnapshot`/`CompiledModel`/`Diagnostic` 契约，并给进程级注册表加「作用域快照/还原/复位」骨架。**不引入 RuntimeManager、不改数值内核、不改外部工程 JSON、不激活 ADR-008/P0-2。**
+- 文档目标 vs 当前实现（分开记）：`ENGINE_SPI_V2.md` §2–§3 与 `ENGINE_LIFECYCLE.md` 仍是 **Proposed** 目标口径（含完整 RuntimeManager/PluginFacade）；本切片只落「薄壳骨架」，让生命周期状态机可测，不声称达成契约。
+- 交付 1 `netlab/plugin_api/v1/__init__.py`（加性）：新增 `Diagnostic(severity, code, message, item="")`、`CompiledModel(mode, engine)`、`RuntimeSnapshot(mode, state)` 三个 frozen dataclass；`EngineSpec` 不变（切片1 已加 5 字段共 11）。
+- 交付 2 `netlab/core/model/scene_engines.py`：`_Engine` 新增 `validate(spec=None)`（按 `spec`/实例 `self.spec` 的 `node_kinds`/`edge_kinds` 白名单产出 `Diagnostic`，内建模式无 spec→空）、`compile()`→`CompiledModel`、`create_runtime(compiled=None)`→自身、`snapshot()`→`RuntimeSnapshot(mode, capture_checkpoint())`、`restore(snapshot)`（校验类型与 mode 后调 `restore_checkpoint`）、`dispose()` 空实现。**刻意不在 scene_engines 内 import engine_registry**（否则触发 A2 架构环，`tools/check_architecture.py` 会报 new=1）。
+- 交付 3 `netlab/core/model/engine_registry.py`：`create_engine` 创建插件引擎后把 `spec` 挂到实例（`try/except AttributeError` 兼容 `__slots__`），使 `validate()` 无需再查注册表；新增 `registry_snapshot()`/`registry_restore(state)`/`reset_registry()`（基线挂在**函数属性**而非模块级可变全局，以过 A3 检查；默认全局语义不变，仅提供作用域与测试隔离能力）。
+- 交付 4 `netlab/tests/test_p1s2_engine_spi_v2_slice2.py`（7 用例）：生命周期钩子齐备、`compile`/`create_runtime` 契约对象、`snapshot` 往返、插件白名单 `validate` 诊断（节点/连接各一）、内建模式无诊断、注册表 snapshot/restore/reset、`create_engine` 挂 spec 后 `validate` 生效。
+- 验证：targeted 18 passed；全量（CI 同款命令）**1068 passed / 1 skipped / 0 failed、core line 82.14%（328.74s，本地非 CI）**（基线 1061 +7）；`tools/check_architecture.py` A1 OK、**A2 new=0（total=3 均为既有环）**、A3 0、A6 OK。
+- 边界：`RuntimeManager`/`PluginFacade`/编译与调度仍不存在（Proposed）；G3 只做「作用域快照/复位」骨架，**未做按 Project 真正作用域化**，进程级全局语义不变；外部 `.netlab` 格式、checksum、`PROJECT_VERSION=7` 均未动。
+- 下一步（需用户另行明确指令）：切片2 合 main；阶段 9–13、ADR-008 A/B/C、P0-2 全链路仍 `PENDING_USER_AUTHORIZATION`。

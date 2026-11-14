@@ -16,6 +16,7 @@ import numpy as np
 
 from . import complex_support as complex_layer
 from . import transfer as transfer_math
+from .exact_input import to_exact as _to_exact
 from .circuit.descriptor import DescriptorModel
 from .circuit.descriptor_analysis import (
     UnsupportedAnalysisError,
@@ -524,11 +525,8 @@ def transfer_function(
             }
 
     def sym_number(value: Any) -> Any:
-        if isinstance(value, bool):
-            return sp.Integer(int(value))
-        if isinstance(value, (int, float)) and float(value).is_integer():
-            return sp.Integer(int(value))
-        return sp.sympify(str(value))
+        # S1: keep decimal input as exact rationals to avoid early float drift.
+        return _to_exact(value)
 
     def local_tf(node: Any) -> Any:
         kind = node.kind

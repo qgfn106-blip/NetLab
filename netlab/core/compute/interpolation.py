@@ -71,6 +71,10 @@ def _resample_one(
         raise ValueError(f"未知插值方法 {method!r}；可选 {METHODS}")
     if rounds < 0:
         raise ValueError("rounds 必须 >= 0")
+    if window is not None:
+        window = float(window)
+        if not math.isfinite(window) or window <= 0.0:
+            raise ValueError("window 必须是有限正数（None 表示自动）")
     t = [float(x) for x in times]
     v = [float(x) for x in values]
     if len(t) != len(v):
@@ -116,12 +120,16 @@ def resample_multi(
 ):
     """对多通道批量插值。``series`` 为 dict[name, 序列] 时返回 (times, dict)；为 list 时返回 (times, list)。"""
     if isinstance(series, Mapping):
+        if len(series) == 0:
+            return [float(x) for x in times], {}
         out: dict[str, list[float]] = {}
         new_t: list[float] | None = None
         for name, vals in series.items():
             new_t, out[name] = _resample_one(times, vals, method, rounds, window)
         assert new_t is not None
         return new_t, out
+    if len(series) == 0:
+        return [float(x) for x in times], []
     out_list: list[list[float]] = []
     new_t = None
     for vals in series:

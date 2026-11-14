@@ -1,20 +1,20 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-14T18:56:01+08:00",
-  "version": "3.20.1",
+  "generated_at": "2026-11-15T01:25:38+08:00",
+  "version": "3.20.2",
   "git": {
-    "branch": "chore/status-align-cdca016",
-    "head": "cdca0164f1441eb673ae0b46dd349874353b2a5f",
+    "branch": "integration/p1s2-ui-precompute",
+    "head": "02ef1134c0fbe2106edcbba070ebd1f0b02287c0",
     "dirty": false,
-    "ahead_origin": 0,
+    "ahead_origin": 16,
     "behind_origin": 0
   },
   "tests": {
-    "passed": 1061,
+    "passed": 1083,
     "skipped": 1,
     "failed": 0,
-    "duration_s": 543.03,
-    "coverage_core_line": 82.13,
+    "duration_s": 304.78,
+    "coverage_core_line": 82.23,
     "command": "pytest netlab/tests -q --cov=netlab/core --cov-branch --cov-fail-under=81",
     "source": "reports/test_status.json"
   },

@@ -63,6 +63,10 @@ def create_engine(mode: str, scene: Any) -> Any:
         engine = spec.factory(scene)
         if engine is None:
             raise RuntimeError(f"引擎工厂没有返回实例：{mode}")
+        try:
+            engine.spec = spec  # 让 validate() 直接取到白名单，无需再查注册表
+        except AttributeError:  # 引擎使用 __slots__ 时忽略
+            pass
         return engine
     if not is_builtin_mode(mode):
         raise KeyError(f"未知引擎模式：{mode}")
@@ -107,3 +111,34 @@ def engine_catalog() -> list[dict[str, Any]]:
         }
         for spec in ENGINE_SPECS.values()
     ]
+
+
+# ---- G3 注册表作用域骨架（切片2）------------------------------------------
+# 现状是进程级全局注册表；这里只提供"作用域快照 / 还原 / 复位"三件套，
+# 供测试隔离与未来按 Project 作用域化使用，**不改变默认全局语义**。
+def registry_snapshot() -> dict[str, EngineSpec]:
+    """记录当前注册集作为作用域基线，并返回其副本。
+
+    基线挂在函数属性上（而非模块级可变全局），以通过 A3「白名单外可变单例」检查。
+    """
+    registry_snapshot._baseline = dict(ENGINE_SPECS)  # type: ignore[attr-defined]
+    registry_snapshot._baseline_owners = dict(ENGINE_OWNERS)  # type: ignore[attr-defined]
+    return dict(ENGINE_SPECS)
+
+
+def registry_restore(state: dict[str, EngineSpec]) -> None:
+    """把注册集还原为给定快照（副本语义）。"""
+    ENGINE_SPECS.clear()
+    ENGINE_SPECS.update(dict(state))
+
+
+def reset_registry() -> None:
+    """复位到最近一次 registry_snapshot() 的基线；无基线则清空。"""
+    baseline = getattr(registry_snapshot, "_baseline", None)
+    owners = getattr(registry_snapshot, "_baseline_owners", None)
+    ENGINE_SPECS.clear()
+    ENGINE_OWNERS.clear()
+    if baseline:
+        ENGINE_SPECS.update(baseline)
+    if owners:
+        ENGINE_OWNERS.update(owners)

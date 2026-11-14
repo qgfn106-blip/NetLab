@@ -2,6 +2,33 @@ import type { FloatGeo, FloatWindowSpec, State } from './types.js';
 import { clamp } from '../app.utils.js';
 import { state, ui } from './state.js';
 
+  // 浮窗始终留在视口内：尺寸超出可视区时收缩、位置越界时回拉，
+  // 保证标题栏和右下角缩放柄都可见可达（否则窗口被撑大后无法再拖回）。
+  export function clampFloatWindow(root: HTMLElement) {
+    if (!root || root.hidden) return;
+    if (root.classList.contains('maximized') || root.classList.contains('minimized')) return;
+    const margin = 8;
+    const measuredWidth = root.offsetWidth;
+    const measuredHeight = root.offsetHeight;
+    if (!measuredWidth || !measuredHeight) return;
+    const width = Math.min(measuredWidth, Math.max(320, window.innerWidth - margin * 2));
+    const height = Math.min(measuredHeight, Math.max(240, window.innerHeight - 40 - margin));
+    // 默认居中样式由 CSS 的 max-width/max-height 保证不越界；未拖动的窗口不再量取入场动画中的变换尺寸，
+    // 否则 floatwin-in 的 scale(.994) 会被当成真实尺寸写死，首次打开会轻微收缩。
+    const positioned = root.classList.contains('moved') || !!root.style.left || !!root.style.top;
+    if (!positioned && Math.abs(width - measuredWidth) < 1 && Math.abs(height - measuredHeight) < 1) return;
+    const rect = root.getBoundingClientRect();
+    const left = clamp(rect.left, margin, Math.max(margin, window.innerWidth - width - margin));
+    const top = clamp(rect.top, 40, Math.max(40, window.innerHeight - height - margin));
+    if (Math.abs(left - rect.left) < 1 && Math.abs(top - rect.top) < 1
+      && Math.abs(width - measuredWidth) < 1 && Math.abs(height - measuredHeight) < 1) return;
+    root.classList.add('moved');
+    root.style.left = `${Math.round(left)}px`;
+    root.style.top = `${Math.round(top)}px`;
+    root.style.width = `${Math.round(width)}px`;
+    root.style.height = `${Math.round(height)}px`;
+  }
+
   export function placeFloatWindow(root: HTMLElement, key: string) {
     if (!root) return;
     const geo = (state as State & Record<string, FloatGeo | undefined>)[key];
@@ -11,6 +38,7 @@ import { state, ui } from './state.js';
       root.style.top = '';
       root.style.width = '';
       root.style.height = '';
+      clampFloatWindow(root);
       return;
     }
     root.classList.add('moved');
@@ -18,6 +46,7 @@ import { state, ui } from './state.js';
     root.style.top = `${geo.top}px`;
     root.style.width = `${geo.width}px`;
     root.style.height = `${geo.height}px`;
+    clampFloatWindow(root);
   }
 
   export function placeDocWindow() {

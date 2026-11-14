@@ -6816,7 +6816,7 @@ function setStatusHint(hint: string): void {
     pop.style.zIndex = '20000';
     pop.style.padding = '10px';
     pop.style.borderRadius = '10px';
-    pop.style.background = 'var(--panel, #fff)';
+    pop.style.background = 'var(--panel-bg)';
     pop.style.boxShadow = '0 12px 36px rgba(0,0,0,.24)';
     pop.style.border = '1px solid var(--line, #ccd4d8)';
     const host = div('iro-host');

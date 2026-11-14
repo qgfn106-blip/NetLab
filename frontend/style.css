@@ -1458,6 +1458,8 @@ body.panel-dragging, body.panel-dragging * { cursor: col-resize !important; }
   background: var(--float-bg);
   border: var(--ui-line, 1px) solid var(--ink);
   box-shadow: var(--shadow-float);
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
   animation: floatwin-in var(--t-slow) var(--ease-out);
 }
 @keyframes floatwin-in { from { opacity: 0; transform: translate(-50%, -49%) scale(.994); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
@@ -1502,9 +1504,20 @@ body.panel-dragging, body.panel-dragging * { cursor: col-resize !important; }
 .floatwin-body { flex: 1; min-height: 0; display: flex; }
 .floatwin-resize {
   position: absolute; right: 0; bottom: 0;
-  width: 16px; height: 16px;
+  width: 20px; height: 20px;
   cursor: nwse-resize;
+  touch-action: none;
+  z-index: 4;
+  border-right: 2px solid var(--line-strong);
+  border-bottom: 2px solid var(--line-strong);
+  border-bottom-right-radius: 10px;
   background: linear-gradient(135deg, transparent 50%, var(--line-strong) 50%, var(--line-strong) 56%, transparent 56%, transparent 66%, var(--line-strong) 66%, var(--line-strong) 72%, transparent 72%);
+  opacity: .8;
+}
+.floatwin-resize:hover {
+  opacity: 1;
+  border-color: var(--accent);
+  background: linear-gradient(135deg, transparent 50%, var(--accent) 50%, var(--accent) 56%, transparent 56%, transparent 66%, var(--accent) 66%, var(--accent) 72%, transparent 72%);
 }
 
 /* ---------------- 设置窗（非模态内部浮窗） ---------------- */
@@ -1968,16 +1981,16 @@ body { grid-template-columns: minmax(0, 1fr); }
   width: 100%;
   min-height: 420px;
   border: 0;
-  background: var(--bg-panel, #fff);
+  background: var(--paper-2);
   border-radius: 8px;
 }
 
-.plotkit-win { width: 960px; height: 640px; }
+.plotkit-win { width: min(960px, 94vw); height: min(640px, 84vh); }
 .plotkit-body { flex: 1 1 auto; min-height: 0; display: flex; padding: 0; }
 .plotkit-frame { flex: 1 1 auto; width: 100%; border: 0; border-radius: 0 0 12px 12px; background: #12131a; }
 .plotkit-hint { display: flex; flex-direction: column; gap: 10px; padding: 16px 4px; }
-.plotkit-hint p { margin: 0; font-size: calc(12.5px * var(--ui-font-scale, 1)); line-height: 1.6; color: var(--text-2, #555); }
-.plotkit-hint .muted { color: var(--text-3, #888); }
+.plotkit-hint p { margin: 0; font-size: calc(12.5px * var(--ui-font-scale, 1)); line-height: 1.6; color: var(--text-secondary); }
+.plotkit-hint .muted { color: var(--text-tertiary); }
 .plotkit-hint .ghost { align-self: flex-start; }
 
 /* 停靠形态：贴画布右侧的内嵌窗口；浮出时恢复可拖动浮窗 */
@@ -2009,7 +2022,7 @@ body { grid-template-columns: minmax(0, 1fr); }
 .vscode-status[hidden] { display: none; }
 
 /* ---- 电路分析浮窗（R26）：DC 工作点 + AC 扫频 --------------------------- */
-.analwin { width: 760px; height: 580px; }
+.analwin { width: min(760px, 92vw); height: min(580px, 80vh); }
 .analwin-body {
   display: flex;
   flex-direction: column;
@@ -2064,7 +2077,7 @@ body { grid-template-columns: minmax(0, 1fr); }
 .anal-tablewrap th {
   position: sticky;
   top: 0;
-  background: var(--panel, #f3efe8);
+  background: var(--panel-bg);
   color: var(--muted, #7b7266);
   font-weight: 600;
 }
@@ -2087,7 +2100,7 @@ body { grid-template-columns: minmax(0, 1fr); }
   width: 100%;
   border: var(--ui-line, 1px) solid var(--line, #d9d3c7);
   border-radius: 10px;
-  background: var(--panel, #f3efe8);
+  background: var(--panel-bg);
 }
 .anal-pane[data-anal-pane="bypass"] { overflow-y: auto; }
 .anal-bypass-canvas {
@@ -2096,13 +2109,13 @@ body { grid-template-columns: minmax(0, 1fr); }
   height: 170px;
   border: var(--ui-line, 1px) solid var(--line, #d9d3c7);
   border-radius: 10px;
-  background: var(--panel, #f3efe8);
+  background: var(--panel-bg);
 }
 #analBypassPoles, #analBypassZeros { flex: none; max-height: 140px; }
 .anal-transfer { padding: 6px 10px 2px; font-size: calc(12px * var(--ui-font-scale, 1)); color: var(--text-primary); overflow-wrap: anywhere; }
 .anal-transfer code { font-family: ui-monospace, monospace; }
 .anal-metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; padding: 6px 10px; }
-.anal-metrics-grid > div { border: var(--ui-line, 1px) solid var(--line, #d9d3c7); border-radius: 8px; padding: 6px 8px; background: var(--panel, #f3efe8); }
+.anal-metrics-grid > div { border: var(--ui-line, 1px) solid var(--line, #d9d3c7); border-radius: 8px; padding: 6px 8px; background: var(--panel-bg); }
 .anal-metrics-grid span { display: block; font-size: calc(10.5px * var(--ui-font-scale, 1)); color: var(--muted, #7b7266); }
 .anal-metrics-grid b { font-family: ui-monospace, monospace; font-weight: 600; font-size: calc(12px * var(--ui-font-scale, 1)); }
 
@@ -2210,8 +2223,8 @@ html[data-density="loose"] .setwin-nav button { padding-top: calc(8px * var(--ui
 .wb-param-row .field { margin: 0; }
 .wb-obj-group { border-top: 1px solid var(--line); }
 .wb-obj-group:first-child { border-top: none; }
-.wb-obj-summary { cursor: pointer; padding: 6px 10px; font-weight: 600; background: color-mix(in srgb, var(--panel) 88%, var(--line)); user-select: none; }
-.wb-obj-summary:hover { background: color-mix(in srgb, var(--panel) 75%, var(--line)); }
+.wb-obj-summary { cursor: pointer; padding: 6px 10px; font-weight: 600; background: color-mix(in srgb, var(--panel-bg) 88%, var(--line)); user-select: none; }
+.wb-obj-summary:hover { background: color-mix(in srgb, var(--panel-bg) 75%, var(--line)); }
 .wb-obj-body { display: flex; flex-direction: column; }
 .wb-obj-body .wb-param-row { grid-template-columns: 150px 1fr; padding-left: 18px; }
 

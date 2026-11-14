@@ -1,6 +1,6 @@
 # Netlab 需求 · 决策 · 执行计划（2026-10-25 修订版）
 
-> 最后修改：2026-11-11（事实同步；D1–D156；当前基线见 [status.json](status.json)，全量 872 passed / 1 skipped 为本机实测（2026-11-11，204.51s）；678 passed / 1 skipped / 70.71s 为 2026-11-08 历史数）
+> 最后修改：2026-11-14（追加 D157；D1–D157；其余事实基线同 2026-11-11；当前基线见 [status.json](status.json)，全量 872 passed / 1 skipped 为本机实测（2026-11-11，204.51s）；678 passed / 1 skipped / 70.71s 为 2026-11-08 历史数）
 > 本版**取代** 2026-10-24 版的需求口径。旧条文不删除，凡被推翻或细化的条目一律进 §7「已废弃口径」。
 > 每条需求统一六段式：**原话 / 解读 / 拟改架构 / 验收 / 权重·期次 / 现状**。
 > **现状**一栏只写本次会话内读代码或跑测试能证明的事实；没有证据的一律标「待核实」。
@@ -22,7 +22,7 @@
 
 | 你想干什么 | 看哪一节 |
 | --- | --- |
-| 知道"为什么这么定" | §2 决策台账（D1–D156） |
+| 知道"为什么这么定" | §2 决策台账（D1–D157） |
 | 知道"要做什么、做到什么程度算完" | §3 需求清单（R01–R43） |
 | 知道"先做哪个" | §4 权重与依赖、§5 分期 |
 | 知道"哪些明确不做" | §6 不做清单 |
@@ -899,6 +899,7 @@ L3 状态空间一等公民、自定义快捷键、分屏、自定义符号、�
 
 | 日期 | 变更 |
 | --- | --- |
+| 2026-11-14 | **UI 深色对比与浮窗缩放修复（§7.175，3.20.2）**：`--panel` 等未定义 token 全量替换为真实设计 token；`analSeries()` 让 Bode/阶跃系列色随主题；`clampFloatWindow` 统一视口夹取；`.floatwin-resize` 20×20 可见缩放柄；新增 `e2e/float_window_ux.mjs`，`npm run e2e` 全绿 |
 | 2026-11-07 | **SchemDraw 版式 + 帮助搜索分组 + Bode 拖动读数（§7.87）**：`schematic_export.py` 加 `_edge_label`/`_grid_positions`/`_decorate_svg`（打印图框、标题栏、重叠网格回退）；`server.help_search` 按类别分组 + kind 计分并返回 `kind_label/groups`；`tfBodeCursorFromEvent` 拖动夹取 + `←/→`（Shift ×10）吸附；MATH.md §6.3 补反查公式；定向 8 passed，全量 **627 passed / 1 skipped**（80.12 s），静态 3.20.1 |
 | 2026-11-07 | **R11 多窗口周期 + R14 全局搜索 + R34 Bode 光标（§7.86）**：`analysis._period_windows`/`score_std`/`period_std`（`test_analysis.py:51-52` 断言）；帮助面板全局搜索；R34 Bode 光标；全量 **626 passed / 1 skipped** |
 | 2026-11-07 | **R15 功率电子 + R06 电路侧接口 + R18 图纸增强 + R19 SchemDraw 导出（§7.85）**：新增 `netlab/core/compute/powerelectronics.py`（384 行）与 `schematic_export.py`（122 行，SchemDraw 可选依赖），`nodal.py` 加 thyristor/igbt/jfet/relay PIN_BINDINGS（`:1371-1374`）与「功率电子与电机」分类（`:2727-2731`）；全量 **622 passed / 1 skipped** |
@@ -1463,3 +1464,4 @@ MOSFET。
 | D154 | 审计剩余项治理与路线拍板（2026-11-08，用户拍板，承接 D120–D153） | 用户确认按推荐方案全开，把剩余工作拆成 **12 / 20 / 14** 三轮目标（目标一 W0 收口 + C-4 + N-08；目标二 C-1/C-2 结构拆分；目标三 治理/文档/覆盖率/打包）。①**C-4 口径（2026-11-08 按用户新契约修正）**：以审计 §5.1「R2 四款可测判据」为准——①不复制源码（`netlab/_vendor/plotkit` 最终不存在）②不覆盖导入优先级（无 `sys.path.insert`）③不注入第三方页面（无 HTML 注入 / fragment token / 全局 monkey-patch；删除前必须先有等价鉴权）④不碰私有符号（`DATA_LOCK` / `STATIC_DIR` / `create_app` / `store.registry` / `server.assets` 零引用，由 PlotKit 侧提供最小稳定公开 API 与 `probe()` 三态）。**wheel 只是构建产物形态，不构成解耦或达标证据，且二进制不得提交进主仓 git**（放 release assets 或 `.gitignore` 的构建产物目录）。D124 的 vendor 源码副本是过渡态、不是目标态。②**P 项归属**：P-01…P-11 全部回 `PlotKit/` 仓修，口径用 `PlotKit/docs/REQUIREMENTS_AND_PROGRESS.md`；netlab 侧只做接口契约测试 / mock / 摘除测试 / 版本协商，不改 P 项；P-06（NS 伪谱求解器）先标 `experimental`，删或留待定。③**单轮预算 R10（三类轮）**：以审计 §5 R10 为唯一权威定义——L 逻辑轮 ≤5 文件 / ≤300 行；M 纯搬运轮 ≤5 文件 / ≤800 行（**按逻辑源码计**：`git diff --numstat HEAD -- '*.ts'` 排除 `*.js` 编译产物与 `package.json`，并显式枚举新增/未跟踪 `.ts` 的 `wc -l`，写明 `ins+del` 双边；TS parity 还要求产物已 git-tracked、函数/类体 hash 不变，纯类型模块不生成 `.js`）；M1 按语言分叉：Python 轮用 `tools/check_move_equivalence.py` 的 AST 等价检查，TS 轮用 `frontend/tools/verify_app_parity.js` + `npm run build` + 扩全的产物漂移门（含 `frontend/app/**/*.js`）；D 纯删除轮 ≤5 文件 / 行数不限，必须 grep 零引用、独立 commit、替代路径已验证。前端 esbuild 入口由 `frontend/scripts/build.mjs` 自动收集 `app/*.ts`，每轮不再改 `package.json`。原 R10′ 的「≤2 文件 / ≤800 行 + `git diff -w --numstat` 增删差」条款作废，不得再引用。④**覆盖率三层**：`netlab/core/*` 设硬门限（基线实测 **81%**，`--cov-fail-under=78` ratchet 只升不降）；`netlab/server_*`（实测 **87%**）与 `plotkit_bridge`（**73%**）只报告不设门限；omit `_vendor` / `tests` / `desktop` / `__main__`；另要求 diff coverage ≥80%。⑤**编号勘误**：A-5 = N-08 通道键（**不是**大文件拆分；现状为 id 字符串键，`ChannelKey` 结构化类型未落地），N-10 巨石文件的编号裁定以审计 §4.3 C-1 为准：C-1a = `server.py` 路由拆分（D137–D153 已完成 15 步）、C-1b = `nodal.py` / `scene.py` 拆分（本轮）、C-2 = `app.ts` 拆分；D131 / D137 标签已由「A-5/N-10」更正为「C-1/N-10」。⑥**审计文档位置**：`ProjectPoint/docs/NETLAB_PLOTKIT_AUDIT_AND_REMEDIATION.md` 不在 NetlabHome 仓内、无版本历史，阶段进度以本台账 + BACKLOG + PROGRESS 为准。⑦**W0 基线**：上一轮 80 项未提交改动已切分为 7 个 commit（`9cc5641` → `e9de1a5`），工作树干净；全量 `python -m pytest netlab/tests -q` → 678 passed / 1 skipped（无覆盖率 70.71s；`--cov=netlab --cov-branch` 217.32s）。⑧**S5 结束条件（2026-11-08 用户 m05246 拍板，m05394 复核）**：`frontend/app.ts` ≤ 8,000 行；机检口径 `frontend/tools/check_app_sections.mjs` 用 TypeScript AST 取每个顶层语句行跨度，任一 >800 行即失败；每个 `frontend/app/*.ts` ≤800 行；`npm run verify:parity` + 全量 pytest + npm typecheck/test/build + 产物漂移门全绿；满足后才启动 D-1 覆盖率与 M 轮留痕。 |
 | D155 | V2 架构演进纳入正式规划（2026-11-11） | 采纳《NetLab Core Architecture V2》为正式需求/路线文档，明确「目标能力 ≠ 当前实现」；路线为 P1 架构审计 → P2 Core Model V2 + Typed Port → P3 Equation + Model Compiler → P4 Runtime + Plugin V2 → P5 Validation/机械/多物理场；P1 先只读审计，不重写稳定模块。 |
 | D156 | 编码 Agent 行为硬约束与测试性并行实现（2026-11-11，用户要求） | 正式化并落盘 `CODING_CONSTRAINTS.md`。五条硬规则：①新增模块/文件前必须复用调查并给出「现有实现为何不可复用」的举证，否则不得新增；②正式发布路径同一能力只允许一个 canonical 实现；允许「测试性并行实现」例外，但必须同时满足：显式标注实验性且与 canonical 命名/目录/开关隔离并默认关闭；给出合并回原始架构方案（合并点、迁移步骤、替换 canonical、回滚）；合并完成即删除旧实验实现，禁止长期双轨；不得进入正式发布路径/CI 门禁（离线只读探针除外）；交付时回答「为什么最终能并入、合并代价是什么」；③禁止直接改共享状态，必须走 Simulation.lock / NetworkContainer.lock / Recorder 等公开 API，新增端点无锁不得改 Scene；④禁止为过测新增 test-only 生产分支、弱化断言、skip 或删功能；测试 oracle 必须独立（解析解/参考实现），parity allowlist 例外须为空或逐条批准；⑤重复实现视为缺陷，除符合②测试性并行例外且已排期合并外一律打回。 |
+| D157 | UI 浮窗缩放与深色主题对比（2026-11-14，用户报告） | ① `.floatwin` 统一 `clampFloatWindow` 夹回视口（宽高 ≤ innerWidth-16 / innerHeight-48，left/top ≥ 8/40；高度预留 40px 标题栏），`placeFloatWindow` 两分支及 `#analWin`/`#plotkitWin` 打开路径全部调用；② 右下 `.floatwin-resize` 由 16×16 无对比改为 20×20 可见柄（`touch-action:none`、双层斜纹 + `--line-strong`、hover `--accent`）；③ 深色主题禁用未定义 CSS 变量 `--panel`/`--bg-panel`/`--text-2`/`--text-3`，统一改 `--panel-bg`/`--paper-2`/`--text-secondary`/`--text-tertiary`；`.analwin`/`.plotkit-win` 改响应式尺寸；④ 图表系列色默认模式经 `C()` 映射主题 token，避免深色低对比。验证：`npm run build` + `npm run typecheck` + `npm run e2e`（含新增 `float_window_ux`）全绿。 | 已完成 |

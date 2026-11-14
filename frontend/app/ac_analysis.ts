@@ -1,10 +1,11 @@
 // 交流分析面板（S5-36 从 app.ts 迁出）
+import { C } from './colors.js';
 import { PALETTE } from './constants.js';
 import { api } from './net.js';
 import { $, $$, canvas, ctx } from './dom.js';
 import { chartPalette } from './theme.js';
 import { div } from './ui.js';
-import { raiseFloatWindow } from './float.js';
+import { clampFloatWindow, raiseFloatWindow } from './float.js';
 import { state, ui } from './state.js';
 import { probeNamesForAc } from './ac_probe.js';
 import { toast } from './desktop.js';
@@ -27,6 +28,13 @@ export function analNum(value: unknown, digits: number = 6) {
 export function analToken(name: string, fallback: string) {
     const value = getComputedStyle(document.documentElement).getPropertyValue(name);
     return (value || '').trim() || fallback;
+  }
+
+// 图表取色：跟随主题时用 C() 把调色板映射到当前主题令牌（深色主题自动提亮），
+// 高对比/色盲友好档位保持原样值。
+export function analSeries(): string[] {
+    const chartMode = String((state.prefs && state.prefs.chartPalette) || 'theme');
+    return chartMode === 'theme' ? PALETTE.map((color) => C(color)) : chartPalette();
   }
 
 export function niceAxisTicks(min: number, max: number, target = 5): { min: number; max: number; step: number; values: number[] } {
@@ -67,6 +75,7 @@ export function openAnalysis(tab = 'op') {
     }
     win.hidden = false;
     raiseFloatWindow(win);
+    clampFloatWindow(win);
     fillAcSources();
     fillBypassSources();
     selectAnalTab(tab);
@@ -286,9 +295,8 @@ export function drawAcChart() {
     }
     // 曲线
     const swatches: string[] = [];
+    const series = analSeries();
     probes.forEach(([name, info], index: number) => {
-      const chartMode = String((state.prefs && state.prefs.chartPalette) || 'theme');
-      const series = chartMode === 'theme' ? PALETTE : chartPalette();
       const color = series[index % series.length];
       swatches.push(`<span><i style="background:${color}"></i>${analEscape(name)}</span>`);
       const draw = (values: number[], yFn: (value: number) => number) => {
@@ -535,6 +543,7 @@ export function drawBypassBode() {
     const info = probes[0][1];
     const db = info.db || [];
     const phase = info.phase_deg || [];
+    const series = analSeries();
     const padL = 52;
     const padR = 14;
     const padT = 12;
@@ -575,7 +584,7 @@ export function drawBypassBode() {
       context.font = '10px ui-monospace, monospace';
       context.fillText(`${niceAxisLabel(value)} dB`, 4, y + 3);
     }
-    context.strokeStyle = PALETTE[0];
+    context.strokeStyle = series[0];
     context.lineWidth = 1.6;
     context.beginPath();
     db.forEach((value, index) => {
@@ -584,7 +593,7 @@ export function drawBypassBode() {
       if (index === 0) context.moveTo(x, y); else context.lineTo(x, y);
     });
     context.stroke();
-    context.strokeStyle = PALETTE[1] || PALETTE[0];
+    context.strokeStyle = series[1] || series[0];
     context.beginPath();
     phase.forEach((value, index) => {
       const x = xOf(freqs[index]);
@@ -599,8 +608,8 @@ export function drawBypassBode() {
     context.fillText(`${analNum(freqs[0], 3)} Hz`, padL, height - 7);
     context.fillText(`${analNum(freqs[freqs.length - 1], 3)} Hz`, width - padR - 54, height - 7);
     if (legend) {
-      legend.innerHTML = `<span><i style="background:${PALETTE[0]}"></i>${analEscape(probes[0][0])} 幅值</span>`
-        + `<span><i style="background:${PALETTE[1] || PALETTE[0]}"></i>相位</span>`;
+      legend.innerHTML = `<span><i style="background:${series[0]}"></i>${analEscape(probes[0][0])} 幅值</span>`
+        + `<span><i style="background:${series[1] || series[0]}"></i>相位</span>`;
     }
   }
 
@@ -622,6 +631,7 @@ export function drawBypassStep() {
     const padR = 14;
     const padT = 14;
     const padB = 26;
+    const series = analSeries();
     const plotW = Math.max(40, width - padL - padR);
     const plotH = Math.max(30, height - padT - padB);
     const t0 = times[0];
@@ -653,7 +663,7 @@ export function drawBypassStep() {
       context.font = '10px ui-monospace, monospace';
       context.fillText(niceAxisLabel(value), 4, y + 3);
     }
-    context.strokeStyle = PALETTE[2] || PALETTE[0];
+    context.strokeStyle = series[2] || series[0];
     context.lineWidth = 1.6;
     context.beginPath();
     values.forEach((value, index) => {

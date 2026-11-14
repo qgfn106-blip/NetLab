@@ -5,7 +5,7 @@
 <!-- BEGIN GENERATED: status -->
 | 项 | 内容 |
 | --- | --- |
-| 版本 | 3.20.1 |
+| 版本 | 3.20.2 |
 | 状态详情 | 见 [status.json](status.json)（由 `tools/gen_status.py` 生成，禁止手写） |
 | 覆盖率门限 | core line ≥81% / changed line ≥80% |
 | 当前阶段 | 产品开发主线见 [BACKLOG.md](BACKLOG.md)；历史严格审计 §11 已删除，不再引用 |
@@ -3014,3 +3014,13 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 验证：targeted 18 passed；全量（CI 同款命令）**1068 passed / 1 skipped / 0 failed、core line 82.14%（328.74s，本地非 CI）**（基线 1061 +7）；`tools/check_architecture.py` A1 OK、**A2 new=0（total=3 均为既有环）**、A3 0、A6 OK。
 - 边界：`RuntimeManager`/`PluginFacade`/编译与调度仍不存在（Proposed）；G3 只做「作用域快照/复位」骨架，**未做按 Project 真正作用域化**，进程级全局语义不变；外部 `.netlab` 格式、checksum、`PROJECT_VERSION=7` 均未动。
 - 下一步（需用户另行明确指令）：切片2 合 main；阶段 9–13、ADR-008 A/B/C、P0-2 全链路仍 `PENDING_USER_AUTHORIZATION`。
+## 7.175 2026-11-14 阶段7 UI 修复：深色主题对比 + 浮窗可见缩放 + 视口夹取（3.20.2）
+
+- 背景（用户 2026-11-14 19:45 原话「又遇到之前的新问题，请与NetLab项目审批合作改善UI不匹配的问题，之前也出现了新功能窗口的ui不匹配等问题，出现字符显示与背景颜色区分等问题，现在是在小信号旁路的功能中发现该问题，请修复，并检查其他地方是否还有类似问题」；另「对于应用内的悬浮窗口，也增加可以用鼠标改变窗口大小的功能」）：定位为深色主题下浮窗/图表仍用浅色硬编码或未定义 CSS 变量，且 `.floatwin-resize` 缩放柄无对比、看不见。
+- 交付 1 `frontend/style.css`：`--panel`（未定义，真实 token 为 `--panel-bg`）6 处、`--bg-panel` 1 处、`--text-2`/`--text-3` 各 1 处全部改真实 token（`--panel-bg`/`--paper-2`/`--text-secondary`/`--text-tertiary`）；`.analwin` 760×580 → `min(760px,92vw)×min(580px,80vh)`、`.plotkit-win` 960×640 → `min(960px,94vw)×min(640px,84vh)`；`.floatwin` 加 `max-width/max-height: calc(100vw/100vh - 16px)`；`.floatwin-resize` 16→20px、`touch-action:none`、双层斜纹 + `--line-strong` 描边、`:hover` 转 `--accent`。
+- 交付 2 `frontend/app/ac_analysis.ts`：新增 `analSeries()`，默认 `theme` 模式下 `PALETTE.map(C)` 映射主题 token（`colors.ts` 的 `C()`）；AC 面板、Bode 幅相、阶跃图全部改用 `series[...]`，深色下 teal/orange 不再贴底色。
+- 交付 3 `frontend/app/float.ts`：新增 `clampFloatWindow(root)`，按视口夹取宽高（≥320/240，≤ innerWidth-16 / innerHeight-48，预留 40px 标题栏）与 left/top（≥8/40），越界才写内联样式并加 `.moved`；`placeFloatWindow` 两分支均调用。`frontend/app/ac_analysis.ts` 的 `openAnalysis`、`frontend/app/plotkit_frame.ts` 的 `openPlotkit` 在打开末尾显式调用；`frontend/app.ts:6819` iro 颜色浮层 `var(--panel,#fff)` → `var(--panel-bg)`。
+- 交付 4 `frontend/e2e/float_window_ux.mjs`（新增）：深色主题下断言 `#analBypassSummary` 卡片背景/文字 WCAG 对比 ≥4.5、`#analBypassBode` 背景为深色、`#analBypassPoles th` 对比达标；拖动 `#analWin .floatwin-resize` +140/+90 宽高增长；把窗口写成 3000px/left -500 后重新打开仍被夹回视口。已注册进 `package.json` 的 `e2e`。
+- 文档：`netlab/docs/UI_SPEC.md` §6.1 增 `clampFloatWindow` 与 20×20 缩放柄约定；`REQUIREMENTS_AND_RULES.md` 增 D157 与变更记录。
+- 验证：`npm run build`（3.20.2，重建 `app.js`/`ac_analysis.js`/`float.js`/`plotkit_frame.js`）、`npm run typecheck` 通过；`npm run e2e` 全绿（smoke/analysis/appearance/card_fields/float_window_ux 五套）。前端改动不涉 Python 逻辑，未跑 pytest。
+- 边界：`chartPalette` 的 high-contrast/colorblind 模式未变；`theme` 模式只经 `C()` 映射主题 token，不改变原始 `PALETTE` 色值语义。

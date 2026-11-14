@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-14T20:25:18+08:00",
-  "version": "3.20.1",
+  "generated_at": "2026-11-14T20:51:44+08:00",
+  "version": "3.20.2",
   "git": {
     "branch": "feat/p1s2-engine-spi-slice2",
     "head": "d2acedb2af8c4c2bf0b401df1b975fa6575501fc",
     "dirty": true,
-    "ahead_origin": 1,
+    "ahead_origin": 2,
     "behind_origin": 0
   },
   "tests": {

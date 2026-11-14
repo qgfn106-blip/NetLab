@@ -13,7 +13,7 @@
 <!-- BEGIN GENERATED: status -->
 | 项 | 内容 |
 | --- | --- |
-| 版本 | 3.20.1 |
+| 版本 | 3.20.2 |
 | 状态详情 | 见 [status.json](status.json)（由 `tools/gen_status.py` 生成，禁止手写） |
 | 覆盖率门限 | core line ≥81% / changed line ≥80% |
 | 当前阶段 | 产品开发主线见 [BACKLOG.md](BACKLOG.md)；历史严格审计 §11 已删除，不再引用 |

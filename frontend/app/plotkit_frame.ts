@@ -1,6 +1,6 @@
 // PlotKit 内嵌窗口与 VS Code 浮窗（S5-37 从 app.ts 迁出）
 import { api, plotkitFrameUrl } from './net.js';
-import { placeFloatWindow, raiseFloatWindow } from './float.js';
+import { clampFloatWindow, placeFloatWindow, raiseFloatWindow } from './float.js';
 import { $, stage } from './dom.js';
 import { state } from './state.js';
 import { toast } from './desktop.js';
@@ -100,6 +100,7 @@ export function openPlotkit() {
     win.classList.remove('minimized');
     layoutPlotkitWindow();
     if (typeof raiseFloatWindow === 'function') raiseFloatWindow(win);
+    clampFloatWindow(win);
   }
 
 export function closePlotkit() {

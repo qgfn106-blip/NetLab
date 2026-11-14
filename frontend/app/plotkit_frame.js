@@ -1,5 +1,5 @@
 import { api, plotkitFrameUrl } from "./net.js";
-import { placeFloatWindow, raiseFloatWindow } from "./float.js";
+import { clampFloatWindow, placeFloatWindow, raiseFloatWindow } from "./float.js";
 import { $ } from "./dom.js";
 import { state } from "./state.js";
 import { toast } from "./desktop.js";
@@ -90,6 +90,7 @@ function openPlotkit() {
   win.classList.remove("minimized");
   layoutPlotkitWindow();
   if (typeof raiseFloatWindow === "function") raiseFloatWindow(win);
+  clampFloatWindow(win);
 }
 function closePlotkit() {
   const win = $("#plotkitWin");

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-14T17:48:45+08:00",
+  "generated_at": "2026-11-14T18:56:01+08:00",
   "version": "3.20.1",
   "git": {
-    "branch": "feat/p1s2-engine-spi-v2",
-    "head": "7822fae56cf21ca0269c093307ffdbc8dcd02495",
+    "branch": "chore/status-align-cdca016",
+    "head": "cdca0164f1441eb673ae0b46dd349874353b2a5f",
     "dirty": false,
-    "ahead_origin": 7,
+    "ahead_origin": 0,
     "behind_origin": 0
   },
   "tests": {

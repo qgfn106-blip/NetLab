@@ -1,7 +1,7 @@
 # P1-R2 收敛方案（准入与提案，只读）
 
 > 任务来源：m00267。性质：**只读设计**。本文件只给“准入条件 + 统一实现提案 + 风险/验证计划”，**不修改生产代码**、不统一、不删除 Legacy。
-> 前置：`P1-R2_PARITY_MATRIX.md`（实测矩阵）、`P1-R2_BACKEND_CONSTRAINTS.md`（约束表）。
+> 前置：实测矩阵与后端约束表原为 `P1-R2_PARITY_MATRIX.md` / `P1-R2_BACKEND_CONSTRAINTS.md`（两份只读报告已于 2026-11-14 按 `DOCS_INDEX.md` 规则 7 删除，原文见 git 历史）；其 15 场景结论已并入 `netlab/tests/test_p1r2_ac_parity.py` 与 `PROGRESS.md §7.169`。
 > 日期：2026-11-12（初版）/ 2026-11-13（C 块整改：按 ROADMAP 对齐终态、更新实测数字与场景计数）。
 
 ## 1. 准入闸门（Gate）与当前是否满足

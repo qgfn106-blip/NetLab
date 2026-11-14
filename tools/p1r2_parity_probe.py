@@ -1,6 +1,6 @@
 """Read-only P1-R2 parity probe: Legacy ac_sweep vs Descriptor frequency_response.
 
-Produces empirical evidence for P1-R2_PARITY_MATRIX / BACKEND_CONSTRAINTS.
+Empirical evidence for the P1-R2 AC backend parity gate; the 15-scenario matrix is fixed in netlab/tests/test_p1r2_ac_parity.py and PROGRESS.md §7.169 (the two read-only reports were removed 2026-11-14).
 Does NOT modify any production code. Run from NetlabHome cwd:
     python ../NetlabExtras/scratch/p1r2_parity_probe.py
 """

@@ -1,6 +1,6 @@
 # Netlab 文档索引（DOCS INDEX）
 
-> 最后核对：2026-11-14（全量文档基线同步 + 审计 A 阶段后复核 + D125 PlotKit 插件封装 + D129 测试配置 + D130 N-36 步骤事务 + D131 records 拆分 + D132 文档隐私清理 + D133 端到端控制实验 + D134 文档分层与会话日志 + D135 求解器影子门 + D136 影子门 CI 接入 + D137 插件路由拆分、D138 帮助检索路由拆分、D139 二维有限元路由拆分、D140 块库路由拆分、D141 分析路由拆分、D142 文档基线同步、D143 偏好/布局路由拆分、D144 BACKLOG 基线清理、D145 缓存/文档/加速路由拆分、D146 应用内扩展路由拆分、D147 仿真控制路由拆分、D148 工作区路由拆分、D149 多网络管理路由拆分、D150 PlotKit 接入/预计算路由拆分、D151 场景/模板路由拆分、D152 页面/UI/状态/诊断路由拆分、D153 工程文件路由拆分；本轮新增 VISION 草案、HASH_TABLE_OPTIMIZATION_RESEARCH、extensions/plugins/netlab.plotkit 官方插件、sessions 会话日志，更新 PROGRESS/DOCS_INDEX；阶段 4 P1-A 新增 9 份设计冻结草案 Proposed，见 §2.2）· 当前基线：静态 3.20.1 / 1052 passed / 1 skipped / 0 failed（core line 82.07%，见 `status.json`；本地非 CI；2026-11-14 历史 filter-repo 重写，重写前旧 SHA 失效；阶段 6 完成 / 阶段 7 P1-S1 进行中）/ R01–R43 / D1–D156；CI `CI_NOT_VERIFIED`；新增 **CODE_STANDARDS.md（代码规范，强制）**
+> 最后核对：2026-11-14（全量文档基线同步 + 审计 A 阶段后复核 + D125 PlotKit 插件封装 + D129 测试配置 + D130 N-36 步骤事务 + D131 records 拆分 + D132 文档隐私清理 + D133 端到端控制实验 + D134 文档分层与会话日志 + D135 求解器影子门 + D136 影子门 CI 接入 + D137 插件路由拆分、D138 帮助检索路由拆分、D139 二维有限元路由拆分、D140 块库路由拆分、D141 分析路由拆分、D142 文档基线同步、D143 偏好/布局路由拆分、D144 BACKLOG 基线清理、D145 缓存/文档/加速路由拆分、D146 应用内扩展路由拆分、D147 仿真控制路由拆分、D148 工作区路由拆分、D149 多网络管理路由拆分、D150 PlotKit 接入/预计算路由拆分、D151 场景/模板路由拆分、D152 页面/UI/状态/诊断路由拆分、D153 工程文件路由拆分；本轮新增 VISION 草案、HASH_TABLE_OPTIMIZATION_RESEARCH、extensions/plugins/netlab.plotkit 官方插件、sessions 会话日志，更新 PROGRESS/DOCS_INDEX；阶段 4 P1-A 新增 9 份设计冻结草案 Proposed，见 §2.2）· 当前基线：静态 3.20.1 / 1052 passed / 1 skipped / 0 failed（core line 82.07%，见 `status.json`；本地非 CI；2026-11-14 历史 filter-repo 重写，重写前旧 SHA 失效；阶段 6 完成 / 阶段 7 P1-S1 进行中）/ R01–R43 / D1–D156；CI `CI_VERIFIED` @ `6f332a2`（3 workflow run + 5 check-run 全 `completed/success`，见 `PROJECT_STATUS.md §1` CI 证据行）；新增 **CODE_STANDARDS.md（代码规范，强制）**
 > 目的：先在这里找文档，不要凭文件名猜新旧。**历史文档保留原文，但不得作为当前实现口径。**
 > 文档精简（2026-11-13）：按用户隐私与保留策略，已移除 `docs/sessions/` 会话日志目录，以及早期审计/评审记录（STAGE4_INDEPENDENT_REVIEW、STAGE4_REMEDIATION_REPORT、specs/2026-11-09-n5-p3-audit、PERF_DICT_AND_CPP_AUDIT）；历史内容可从 Git 历史与 `PROGRESS.md` 追溯。
 
@@ -72,8 +72,6 @@
 | [MINIMAL_DATA_MODEL_EXAMPLE.md](MINIMAL_DATA_MODEL_EXAMPLE.md) | 最小领域示例：RC 3 节点+2 边、机械 2 节点+1 边；JSON/内存对象/编译产物/运行结果 | 规划（Proposed） |\
 | [V2_IMPLEMENTATION_GAP_ANALYSIS.md](V2_IMPLEMENTATION_GAP_ANALYSIS.md) | 阶段 4 整改：P1-03–P1-13/P2-02 差距与迁移方案 | 规划（Proposed） |
 | [P1_R1_STAMP_CONVERGENCE.md](P1_R1_STAMP_CONVERGENCE.md) | 阶段 5 P1-R1 元件 Stamp 单一化收敛方案（Proposed） | 阶段 5 |
-| [P1-R2_PARITY_MATRIX.md](P1-R2_PARITY_MATRIX.md) | 阶段 6 P1-R2 双 AC 后端一致性矩阵（只读审计，12 拓扑复数域对比） | 阶段 6 |
-| [P1-R2_BACKEND_CONSTRAINTS.md](P1-R2_BACKEND_CONSTRAINTS.md) | 阶段 6 P1-R2 双后端约束表（元件/源/探针/数值/错误逐项对照 + 奇异 E 专项） | 阶段 6 |
 | [P1-R2_CONVERGENCE_PLAN.md](P1-R2_CONVERGENCE_PLAN.md) | 阶段 6 P1-R2 收敛方案（准入闸门 + 统一提案 + 风险/验证，只读设计） | 阶段 6 |
 | [P0-2_PORT_SCHEMA_DECISION.md](P0-2_PORT_SCHEMA_DECISION.md) | P0-2 决策：PortDesc 内嵌（方案 A）依赖审计、差距与最小迁移提案 | 阶段 6 |
 | [P0-2_PORT_SCHEMA_UNIFICATION_DESIGN.md](P0-2_PORT_SCHEMA_UNIFICATION_DESIGN.md) | P0-2 Port Schema 统一设计（V1 PortDef/V2 PortDesc/PortType 字段映射、迁移、插件兼容；只读设计） | 阶段 6 |
@@ -143,6 +141,7 @@
 这些文档保留当时的决策与技术评估，**不再作为当前行为依据**；引用时请标注“历史”。
 
 > 2026-11-06 文档整理：已删除 7 个已完成/过期文档（`DOCUMENTATION_PLAN.md`、`IMPLEMENTATION_PLAN.md`、`QT_NATIVE_SPEC.md`、`NGSPICE_SOLVER_COMPARISON.md`、`SOLVER_OPTIMIZATION_PLAN.md`、`SOLVER_OPTIMIZATION_REPORT.md`、`TS_P17_MODULE_DESIGN.md`）；原文见 git 历史。`docs/specs/*` 作为已实现功能的验收证据保留。
+> 2026-11-14 文档整理：按规则 7 删除 2 份已完成的一次性只读报告 （`P1-R2_PARITY_MATRIX.md`、`P1-R2_BACKEND_CONSTRAINTS.md`）——15 场景实测矩阵与双后端约束结论已并入 `netlab/tests/test_p1r2_ac_parity.py` 与 `PROGRESS.md §7.169`，原文见 git 历史。保留 `P1-R2_CONVERGENCE_PLAN.md`（Step A/C 未实施）、`NETLAB_REVIEW_AUDIT_2026-11-12.md`（P1-4/5/6 补丁方案暂无第二处）、`NETLAB_CURRENT_STATE_AUDIT_2026-11-13.md`（含唯一授权原话），结论并入 `PROGRESS.md`/需求台账前不删。历史章节按当时文件名的引用属历史快照，不作全局改写。
 
 | 文档 | 状态 | 说明 |
 | --- | --- | --- |

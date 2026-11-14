@@ -99,7 +99,10 @@ def test_create_engine_attaches_spec_for_validate():
             node_kinds=("ok",),
         )
     )
-    engine = create_engine("plugw", _stub_scene("plugw", node_kinds=("ok", "bad")))
-    assert engine.spec is spec
-    msgs = " ".join(d.message for d in engine.validate())
-    assert "bad" in msgs and "'ok'" not in msgs
+    try:
+        engine = create_engine("plugw", _stub_scene("plugw", node_kinds=("ok", "bad")))
+        assert engine.spec is spec
+        msgs = " ".join(d.message for d in engine.validate())
+        assert "bad" in msgs and "'ok'" not in msgs
+    finally:
+        unregister_engine("plugw")

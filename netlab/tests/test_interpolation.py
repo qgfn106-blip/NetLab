@@ -66,3 +66,19 @@ def test_invalid_inputs():
         midpoint_resample([0.0, 1.0], [1.0], rounds=1)
     with pytest.raises(ValueError):
         midpoint_resample([1.0, 0.0], [1.0, 2.0], rounds=1)
+
+def test_gaussian_is_true_gaussian_not_exponential():
+    # 真高斯：sigma 小则远端（t=2，d=1.5）权重 exp(-(1.5^2)/(2*0.3^2))≈3.7e-6 可忽略，
+    # t=0.5 处只受两端 0 与 100 影响 → ≈50；旧 exp(-d) 会被远端明显拉低（≈42）。
+    t, v = midpoint_resample(
+        [0.0, 1.0, 2.0], [0.0, 100.0, 0.0], method="gaussian", rounds=1, window=10.0, sigma=0.3
+    )
+    assert v[1] == pytest.approx(50.0, abs=1.0)
+
+
+def test_gaussian_sigma_must_be_positive():
+    import pytest as _p
+
+    with _p.raises(ValueError):
+        midpoint_resample([0.0, 1.0], [0.0, 1.0], method="gaussian", sigma=0.0)
+

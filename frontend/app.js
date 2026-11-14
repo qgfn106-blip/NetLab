@@ -3793,12 +3793,23 @@ function setStatusHint(hint) {
     const need = Number(state.chart && state.chart.window || 5);
     return span >= need * 0.9;
   }
-  async function runSolveWindowPrecompute(seconds) {
-    const response = await api("/api/solve-window", {
-      method: "POST",
-      body: JSON.stringify({ duration: seconds }),
-      timeoutMs: 18e4
-    });
+  async function runSolveWindowPrecompute(seconds, dt = null, interp = null) {
+    const response = await runPrecomputeWithProgress(
+      () => api("/api/solve-window", {
+        method: "POST",
+        body: JSON.stringify({ duration: seconds, ...dt ? { dt } : {}, ...interp || {} }),
+        timeoutMs: 18e4
+      }),
+      `\u6B63\u5728\u8BA1\u7B97 0\u2192${seconds}s`
+    );
+    if (!response || response.ok === false) {
+      toast(`\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A${response && response.error || "\u672A\u77E5\u9519\u8BEF"}`, "error", 6e3);
+      return;
+    }
+    if (response.cancelled) {
+      toast("\u5DF2\u505C\u6B62", "warn", 3e3);
+      return;
+    }
     leaveReplay();
     state.frames = [];
     state.cursor = 0;
@@ -3814,11 +3825,11 @@ function setStatusHint(hint) {
     if (result.error) toast(`\u9884\u8BA1\u7B97\u4E2D\u65AD\uFF1A${result.error}`, "error", 6e3);
     else toast(`\u9884\u8BA1\u7B97\u5B8C\u6210\uFF1A${result.steps} \u6B65 / ${result.frames} \u5E27`, "ok", 3e3);
   }
-  async function runPlotkitPrecompute(seconds) {
+  async function runPlotkitPrecompute(seconds, dt = null) {
     const pre = await runPrecomputeWithProgress(
       () => api("/api/plotkit/precompute", {
         method: "POST",
-        body: JSON.stringify({ seconds }),
+        body: JSON.stringify(dt ? { seconds, dt } : { seconds }),
         timeoutMs: 18e4
       }),
       `\u6B63\u5728\u8BA1\u7B97 0\u2192${seconds}s`
@@ -3836,7 +3847,7 @@ function setStatusHint(hint) {
     await syncAfterPrecompute(pre);
     toast(`\u9884\u8BA1\u7B97\u5B8C\u6210\uFF1A${pre.frames ?? 0} \u5E27`, "ok", 3e3);
   }
-  async function runStatesPrecompute(seconds) {
+  async function runStatesPrecompute(seconds, dt = null) {
     if (!wbCompareStateIds.length) {
       toast("\u8BF7\u5148\u5728\u4FE1\u53F7\u7A97\u52FE\u9009\u8981\u9884\u8BA1\u7B97\u7684\u72B6\u6001", "error");
       return;
@@ -3848,7 +3859,7 @@ function setStatusHint(hint) {
         const result = await runPrecomputeWithProgress(
           () => api("/api/network/state/precompute", {
             method: "POST",
-            body: JSON.stringify({ state_id: id, seconds }),
+            body: JSON.stringify(dt ? { state_id: id, seconds, dt } : { state_id: id, seconds }),
             timeoutMs: 6e5
           }),
           label
@@ -3881,6 +3892,11 @@ function setStatusHint(hint) {
       <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">\u65F6\u957F\uFF08\u79D2\uFF09
         <input id="precomputeSeconds" type="number" min="1" max="120" step="1" value="5" style="width:110px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
       </label>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">\u7CBE\u5EA6\uFF08\u6B65\u957F dt\uFF0C\u79D2\uFF1B\u7A7A=\u81EA\u52A8\uFF09
+        <input id="precomputeDt" type="number" min="0" step="0.001" placeholder="\u81EA\u52A8" style="width:110px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
+
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">\u63D2\u503C <select id="precomputeInterpMethod" style="flex:1;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"><option value="">\u4E0D\u63D2\u503C</option><option value="average">\u76F4\u63A5\u5E73\u5747\u4E2D\u70B9</option><option value="gaussian">\u9AD8\u65AF\u6838\u52A0\u6743\u4E2D\u70B9</option></select></label>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">\u63D2\u503C\u6B21\u6570 <input id="precomputeInterpRounds" type="number" min="0" max="6" step="1" value="1" style="width:70px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"> \u7A97\u53E3 <input id="precomputeInterpWindow" type="number" min="0" step="0.001" placeholder="\u81EA\u52A8" style="width:80px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"></label>      </label>
       <div style="display:flex;justify-content:flex-end;gap:8px;">
         <button id="precomputeSkip" type="button" style="display:none">\u76F4\u63A5\u8FD0\u884C\uFF08\u4E0D\u9884\u8BA1\u7B97\uFF09</button>
         <button id="precomputeCancel" type="button">\u53D6\u6D88</button>
@@ -3912,12 +3928,24 @@ function setStatusHint(hint) {
         toast("\u9884\u8BA1\u7B97\u65F6\u957F\u5FC5\u987B\u5728 (0, 120] s \u5185", "error", 3e3);
         return;
       }
+      const dtInput = card.querySelector("#precomputeDt");
+      const dtRaw = dtInput ? Number(dtInput.value) : NaN;
+      const dtOpt = Number.isFinite(dtRaw) && dtRaw > 0 ? dtRaw : null;
+      const interpSel = card.querySelector("#precomputeInterpMethod");
+      const interpMethod = interpSel ? interpSel.value : "";
+      const roundsRaw = Number(card.querySelector("#precomputeInterpRounds")?.value);
+      const windowRaw = Number(card.querySelector("#precomputeInterpWindow")?.value);
+      const interpOpts = interpMethod ? {
+        interpolation_method: interpMethod,
+        interpolation_rounds: Number.isFinite(roundsRaw) ? Math.max(0, Math.min(6, roundsRaw)) : 1,
+        interpolation_window: Number.isFinite(windowRaw) && windowRaw > 0 ? windowRaw : null
+      } : null;
       const kind = target.value;
       close();
       try {
-        if (kind === "solve") await runSolveWindowPrecompute(seconds);
-        else if (kind === "plotkit") await runPlotkitPrecompute(seconds);
-        else await runStatesPrecompute(seconds);
+        if (kind === "solve") await runSolveWindowPrecompute(seconds, dtOpt, interpOpts);
+        else if (kind === "plotkit") await runPlotkitPrecompute(seconds, dtOpt);
+        else await runStatesPrecompute(seconds, dtOpt);
       } catch (error) {
         toast(`\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A${error.message}`, "error", 6e3);
       }
@@ -6098,7 +6126,7 @@ function setStatusHint(hint) {
     pop.style.zIndex = "20000";
     pop.style.padding = "10px";
     pop.style.borderRadius = "10px";
-    pop.style.background = "var(--panel, #fff)";
+    pop.style.background = "var(--panel-bg)";
     pop.style.boxShadow = "0 12px 36px rgba(0,0,0,.24)";
     pop.style.border = "1px solid var(--line, #ccd4d8)";
     const host = div("iro-host");

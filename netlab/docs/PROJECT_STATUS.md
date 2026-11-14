@@ -1,6 +1,6 @@
 # NetLab 项目状态（唯一事实源 · PROJECT_STATUS）
 
-- **状态**：当前状态唯一事实源（依《NetLab / PlotKit 轻量研发与证据管理协议 V3》§2/§4，四类事实分离）。2026-11-14 阶段 6（P1-R2 AC/Bode 双后端统一）已获用户明确授权并完成并入 main（见 `PROGRESS.md §7.169`）；阶段 7（P1-S1 Project/DTO 分层）已完成并入 main（DTO 首切片 §7.170、SCHEMA_MIGRATIONS §7.171、v0–v7 golden fixtures 与 v7→v8 迁移草稿（未激活）§7.172）；阶段 8（P1-S2 Engine SPI v2）经用户授权启动，切片1（engine_registry 统一入口 + 插件 kinds 白名单 + EngineSpec 加性 5 字段）已在分支 `feat/p1s2-engine-spi-v2` 实现、待审（§7.173）。
+- **状态**：当前状态唯一事实源（依《NetLab / PlotKit 轻量研发与证据管理协议 V3》§2/§4，四类事实分离）。2026-11-14 阶段 6（P1-R2 AC/Bode 双后端统一）已获用户明确授权并完成并入 main（见 `PROGRESS.md §7.169`）；阶段 7（P1-S1 Project/DTO 分层）已完成并入 main（DTO 首切片 §7.170、SCHEMA_MIGRATIONS §7.171、v0–v7 golden fixtures 与 v7→v8 迁移草稿（未激活）§7.172）；阶段 8（P1-S2 Engine SPI v2）经用户授权启动，切片1（engine_registry 统一入口 + 插件 kinds 白名单 + EngineSpec 加性 5 字段，§7.173）已合入 main（PR #1 `cdca016` + PR #2 status-only `9afd2e4`）；切片2（生命周期钩子骨架 + RuntimeSnapshot 契约 + G3 注册表作用域骨架，§7.174）已按用户 2026-11-14 19:39「明确授权切片 2」实现于分支 `feat/p1s2-engine-spi-slice2`、待审。
 - **最后刷新**：2026-11-14（Asia/Shanghai）。机器可读基线以 `status.json` / `reports/test_status.json` 为准；本文件只记当前事实，历史完成数字见 `PROGRESS.md`。
 
 > ⚠️ 2026-11-14 历史已由 `git filter-repo` 重写（移除 `reports/pytest.xml`），**重写前所有旧 SHA 均已失效**。当前有效基线：全量 **1061 passed / 1 skipped / 0 failed、core line 82.13%**（543.03s，本地非 CI，绑 `status.json` 的 `git.head`；GitHub CI 已验证 `CI_VERIFIED` @ `90ae222`（当前分支尾提交；3 workflow run + 5 check-run 全 success，ID 见 §1.3「CI 事实」行）；历史 `6f332a2` 见 §1 `CI 证据` 行）、版本 3.20.1；提交自身无法自引用，精确 HEAD 以 `git rev-parse HEAD` 与 `status.json` 为准。§1 表格与 §1.1 中的旧 SHA/959 等为 2026-11-13 历史快照，仅作追溯；当前阶段状态见 §1.3。
@@ -45,11 +45,11 @@
 - **更新（2026-11-14）**：阶段 6（P1-R2 AC/Bode 生产统一）已于 2026-11-14 获用户明确授权并完成并入 main（`PROGRESS.md §7.169`）；阶段 7（P1-S1）已完成并入 main；阶段 8（P1-S2 Engine SPI v2）已经用户授权启动，切片1 已实现待审（获批并合入后方可进入切片2及后续）。阶段 9–13、ADR-008 A/B/C、P0-2 全链路改造仍 `PENDING_USER_AUTHORIZATION`，须用户本人明确授权后方可进入。push 依用户 2026-11-14 授权由 Agent 核查后代为执行，不逐项询问。
 
 ### 1.3 当前阶段状态（2026-11-14，四类事实分离）
-- 文档/规划：阶段 6 已完成并入 main；阶段 7 P1-S1 已完成并入 main；阶段 8 P1-S2 Engine SPI v2 进行中（切片1 已实现待审），顺序按 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:11`，未跳步、未并行越级。
+- 文档/规划：阶段 6 已完成并入 main；阶段 7 P1-S1 已完成并入 main；阶段 8 P1-S2 Engine SPI v2 进行中（切片1 已合 main（`9afd2e4`）；切片2 已实现待审，见 `PROGRESS.md §7.174`），顺序按 `PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:11`，未跳步、未并行越级。
 - 代码事实：`PROJECT_VERSION=7` 不变；`netlab/core/model/dto.py` 恒等映射已入库；`project.py` 的 `migrate_project` 由 `SCHEMA_MIGRATIONS` 注册表驱动（特征化 10 例逐字节等价）；`v8_draft.py` 仅测试直接调用、不激活。
-- 测试事实（本地非 CI）：全量 1061 passed / 1 skipped / 0 failed、core line 82.13%（以 `status.json`/`reports/test_status.json` 产物为准）；`tools/check_architecture.py` A1/A2/A3/A6 全 OK；`check_stage4_docs.py`、docs 隐私/SSOT/契约 6 passed、`check_status_freshness.py` OK。
+- 测试事实（本地非 CI）：全量 1068 passed / 1 skipped / 0 failed、core line 82.14%（切片2，328.74s；以 `status.json`/`reports/test_status.json` 产物为准）；`tools/check_architecture.py` A1/A2/A3/A6 全 OK（A2 new=0）；`check_stage4_docs.py`、docs 隐私/SSOT/契约、`check_status_freshness.py` OK。
 - CI 事实（2026-11-14 补记）：`CI_VERIFIED` @ `622711b4589dbcecc5698cee3fcf9555769015ab`（分支 `feat/p1s2-engine-spi-v2`，事件 `push`）——3 workflow run 全 `completed/success`：`python-tests` `43567489008`、`frontend-ts-build` `43567489016`、`container` `43567489032`；5 check-run 全 `completed/success`：`test` `132364387545`、`desktop-l2` `132364387371`、`e2e-l1` `132364386533`、`docker` `132364386397`、`build` `132364386194`。依 V3 §4 各证据仅覆盖其对应 SHA（`622711b`、`6e227b9` 均为历史）；**当前尾提交 `90ae222382c32e57e0d186f7410966fcd95f4505` 为 `CI_VERIFIED`**（分支 `feat/p1s2-engine-spi-v2`，事件 `push`）——3 workflow run 全 `completed/success`：`python-tests` `43581400133`、`frontend-ts-build` `43581400154`、`container` `43581400220`；5 check-run 全 `completed/success`：`test` `132406699933`、`e2e-l1` `132406700040`、`desktop-l2` `132406700181`、`build` `132406700264`、`docker` `132406702079`。`6e227b9` 历史证据：3 run `43573261652`/`43573261664`/`43573261655`、5 check-run `132381964203`/`132381964323`/`132381964129`/`132381964002`/`132381963989`。本地 1061 passed 仍标「本地非 CI」。历史 `6f332a2` 证据见 §1 CI 证据行。
-- 授权事实：见 §1.2；阶段 8 已获用户授权（切片1 待审，切片2 及其后须先设设计/授权边界）；阶段 9–13、ADR-008 A/B/C、P0-2 全链路改造仍 `PENDING_USER_AUTHORIZATION`。
+- 授权事实：见 §1.2；阶段 8 切片1、切片2 均已获用户明确授权（2026-11-14 19:39 原话「明确授权切片 2」）；**合 main 需用户本人另给一句明确指令**；切片3 及其后、阶段 9–13、ADR-008 A/B/C、P0-2 全链路改造仍 `PENDING_USER_AUTHORIZATION`。
 
 ## 2. 阶段进度（用户 2026-11-11 正式裁决的阶段 0–13 顺序）
 

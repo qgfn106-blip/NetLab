@@ -201,13 +201,11 @@ function setStatusHint(hint: string): void {
     renderVectorNodeList();
     schedulePhaseDraw();
   }
-
   function lookupSelection() {
     if (state.selection.type === 'node') return nodeById(state.selection.id);
     if (state.selection.type === 'edge') return edgeById(state.selection.id);
     return null;
   }
-
   function syncUI() {
     const sim = state.sim;
     if (!sim) return;
@@ -4208,7 +4206,12 @@ function setStatusHint(hint: string): void {
     state.edgeValues.clear();
     state.sim = response.sim;
     state.replay.recordingRevision = state.scene?.revision ?? null;
-    await pollLive();
+    const ip = (response.result && (response.result as any).interpolation) || null;
+    if (ip && Array.isArray(ip.frames) && ip.frames.length) {
+      const frames = ip.frames.length > frameCap() ? ip.frames.slice(-frameCap()) : ip.frames;
+      for (const f of frames) { state.frames.push(f); ingestFrame(f); }
+      state.cursor = Number(response.sim?.cursor || 0); (state.replay as any).interpolated = true; (state.replay as any).interpMeta = { method: ip.method, rounds: ip.rounds, window: ip.window, count: frames.length };
+    } else { (state.replay as any).interpolated = false; await pollLive(); }
     updateReplayUI();
     scheduleChartDraw();
     const result = response.result || {};

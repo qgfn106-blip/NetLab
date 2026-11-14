@@ -74,6 +74,21 @@ def main(argv: list[str] | None = None) -> int:
             errors.append(f"test_status.head={report.get('head')} != tested HEAD={tested_head}")
         if report.get("failed") not in (0, None):
             errors.append(f"test_status.failed={report.get('failed')}")
+        # P2-10：不仅比对 head/failed，还要比对 passed/skipped/coverage，
+        # 防止「测试数字漂移但 status 未重生成」的静默腐烂。
+        for _key in ("passed", "skipped"):
+            _sv, _rv = tests.get(_key), report.get(_key)
+            if _sv is not None and _rv is not None and _sv != _rv:
+                errors.append(f"status.tests.{_key}={_sv} != test_status.{_key}={_rv}")
+        _scov, _rcov = tests.get("coverage_core_line"), report.get("coverage_core_line")
+        if _scov is not None and _rcov is not None:
+            try:
+                if round(float(_scov), 2) != round(float(_rcov), 2):
+                    errors.append(
+                        f"status.tests.coverage_core_line={_scov} != test_status={_rcov}"
+                    )
+            except (TypeError, ValueError):
+                errors.append("coverage_core_line 非法数值")
     if errors:
         print("FAIL: status freshness")
         for e in errors:

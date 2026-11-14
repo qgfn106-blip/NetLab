@@ -160,6 +160,32 @@ class EngineSpec:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class Diagnostic:
+    """能力校验诊断（Engine SPI v2 · 切片2 骨架）。"""
+
+    severity: str
+    code: str
+    message: str
+    item: str = ""
+
+
+@dataclass(frozen=True)
+class CompiledModel:
+    """编译产物骨架：当前仅持有引擎引用，不承载数值内核（Proposed 契约）。"""
+
+    mode: str
+    engine: Any
+
+
+@dataclass(frozen=True)
+class RuntimeSnapshot:
+    """运行快照骨架：mode + 引擎自带 checkpoint 状态。"""
+
+    mode: str
+    state: dict[str, Any]
+
+
 @runtime_checkable
 class EngineProtocol(Protocol):
     def build(self, scene: Any, store: Any) -> None: ...
@@ -229,6 +255,9 @@ class PluginContext:
 
 
 __all__ = [
+    "RuntimeSnapshot",
+    "CompiledModel",
+    "Diagnostic",
     "AnalysisContext",
     "AnalysisResult",
     "AnalysisSpec",

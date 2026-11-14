@@ -3793,11 +3793,11 @@ function setStatusHint(hint) {
     const need = Number(state.chart && state.chart.window || 5);
     return span >= need * 0.9;
   }
-  async function runSolveWindowPrecompute(seconds) {
+  async function runSolveWindowPrecompute(seconds, dt = null) {
     const response = await runPrecomputeWithProgress(
       () => api("/api/solve-window", {
         method: "POST",
-        body: JSON.stringify({ duration: seconds }),
+        body: JSON.stringify(dt ? { duration: seconds, dt } : { duration: seconds }),
         timeoutMs: 18e4
       }),
       `\u6B63\u5728\u8BA1\u7B97 0\u2192${seconds}s`
@@ -3825,11 +3825,11 @@ function setStatusHint(hint) {
     if (result.error) toast(`\u9884\u8BA1\u7B97\u4E2D\u65AD\uFF1A${result.error}`, "error", 6e3);
     else toast(`\u9884\u8BA1\u7B97\u5B8C\u6210\uFF1A${result.steps} \u6B65 / ${result.frames} \u5E27`, "ok", 3e3);
   }
-  async function runPlotkitPrecompute(seconds) {
+  async function runPlotkitPrecompute(seconds, dt = null) {
     const pre = await runPrecomputeWithProgress(
       () => api("/api/plotkit/precompute", {
         method: "POST",
-        body: JSON.stringify({ seconds }),
+        body: JSON.stringify(dt ? { seconds, dt } : { seconds }),
         timeoutMs: 18e4
       }),
       `\u6B63\u5728\u8BA1\u7B97 0\u2192${seconds}s`
@@ -3847,7 +3847,7 @@ function setStatusHint(hint) {
     await syncAfterPrecompute(pre);
     toast(`\u9884\u8BA1\u7B97\u5B8C\u6210\uFF1A${pre.frames ?? 0} \u5E27`, "ok", 3e3);
   }
-  async function runStatesPrecompute(seconds) {
+  async function runStatesPrecompute(seconds, dt = null) {
     if (!wbCompareStateIds.length) {
       toast("\u8BF7\u5148\u5728\u4FE1\u53F7\u7A97\u52FE\u9009\u8981\u9884\u8BA1\u7B97\u7684\u72B6\u6001", "error");
       return;
@@ -3859,7 +3859,7 @@ function setStatusHint(hint) {
         const result = await runPrecomputeWithProgress(
           () => api("/api/network/state/precompute", {
             method: "POST",
-            body: JSON.stringify({ state_id: id, seconds }),
+            body: JSON.stringify(dt ? { state_id: id, seconds, dt } : { state_id: id, seconds }),
             timeoutMs: 6e5
           }),
           label
@@ -3892,6 +3892,9 @@ function setStatusHint(hint) {
       <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">\u65F6\u957F\uFF08\u79D2\uFF09
         <input id="precomputeSeconds" type="number" min="1" max="120" step="1" value="5" style="width:110px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
       </label>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">\u7CBE\u5EA6\uFF08\u6B65\u957F dt\uFF0C\u79D2\uFF1B\u7A7A=\u81EA\u52A8\uFF09
+        <input id="precomputeDt" type="number" min="0" step="0.001" placeholder="\u81EA\u52A8" style="width:110px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
+      </label>
       <div style="display:flex;justify-content:flex-end;gap:8px;">
         <button id="precomputeSkip" type="button" style="display:none">\u76F4\u63A5\u8FD0\u884C\uFF08\u4E0D\u9884\u8BA1\u7B97\uFF09</button>
         <button id="precomputeCancel" type="button">\u53D6\u6D88</button>
@@ -3923,12 +3926,15 @@ function setStatusHint(hint) {
         toast("\u9884\u8BA1\u7B97\u65F6\u957F\u5FC5\u987B\u5728 (0, 120] s \u5185", "error", 3e3);
         return;
       }
+      const dtInput = card.querySelector("#precomputeDt");
+      const dtRaw = dtInput ? Number(dtInput.value) : NaN;
+      const dtOpt = Number.isFinite(dtRaw) && dtRaw > 0 ? dtRaw : null;
       const kind = target.value;
       close();
       try {
-        if (kind === "solve") await runSolveWindowPrecompute(seconds);
-        else if (kind === "plotkit") await runPlotkitPrecompute(seconds);
-        else await runStatesPrecompute(seconds);
+        if (kind === "solve") await runSolveWindowPrecompute(seconds, dtOpt);
+        else if (kind === "plotkit") await runPlotkitPrecompute(seconds, dtOpt);
+        else await runStatesPrecompute(seconds, dtOpt);
       } catch (error) {
         toast(`\u9884\u8BA1\u7B97\u5931\u8D25\uFF1A${error.message}`, "error", 6e3);
       }

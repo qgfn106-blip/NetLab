@@ -548,10 +548,14 @@ def transfer_function(
         if kind == "transfer_function":
             return sp.sympify(_node_tf(kind, params))
         if kind == "state_space":
-            a = sp.Matrix(params.get("A") or [])
-            b = sp.Matrix(params.get("B") or [])
-            c = sp.Matrix(params.get("C") or [])
-            d = sp.Matrix(params.get("D") or [[0.0]])
+            def _exact_rows(key: str, default: list) -> sp.Matrix:
+                rows = params.get(key) or default
+                return sp.Matrix([[_to_exact(x) for x in row] for row in rows])
+
+            a = _exact_rows("A", [])
+            b = _exact_rows("B", [])
+            c = _exact_rows("C", [])
+            d = _exact_rows("D", [[0.0]])
             if a.shape[0] == 0 or b.shape[0] != a.shape[0]:
                 raise AnalysisError(f"状态空间节点 {node.name!r} 的 A/B 维度不匹配")
             transfer = c * (s * sp.eye(a.shape[0]) - a).inv() * b + d

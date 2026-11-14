@@ -2993,10 +2993,10 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 目标（G1+G2+G7 最小垂直切片，不做 breaking 改名）：`EngineSpec` **新增 5 个字段（6→11）**：`domain`/`version`/`supported_port_types`/`plugin_id`/`metadata`，全部带默认值；SPI v2 设计目标为 9 字段（`ENGINE_SPI_V2.md:11-21`），本次以**加性**方式落地 5 个新字段，其余沿用既有名（命名差异：设计稿 `supported_node_kinds`/`supported_edge_kinds` → 实现 `node_kinds`/`edge_kinds`）；`engine_registry` 成为内建+插件统一创建入口与 kinds 白名单来源；`add_node/add_edge` 对插件模式按引擎声明 kinds 校验；插件模式的节点/连接参数不再落入电路分支。
 - 交付（分支 `feat/p1s2-engine-spi-v2`）：
   - `netlab/plugin_api/v1/__init__.py`：`EngineSpec` 增 5 个可选字段（全部带默认值，向后兼容）。
-  - `netlab/core/model/engine_registry.py`：**扩展** `create_engine`（原位仅查 `ENGINE_SPECS`；本次改为「插件 factory 优先 + 内建 factory 回退」，未知模式抛 `KeyError("未知引擎模式：…")`）；新增 `BUILTIN_MODES`（`from .scene_types import MODES` 复用单一真值）/ `is_builtin_mode` / `_builtin_factory` / `allowed_kinds` / `validate_kind`；`engine_catalog` 输出新增字段，`plugin_id` 以 `ENGINE_OWNERS` 回退保证与 `register_engine(plugin_id=…)` 一致。
+  - `netlab/core/model/engine_registry.py`：**扩展** `create_engine`（原位仅查 `ENGINE_SPECS`；本次改为「插件 factory 优先 + 内建 factory 回退」，未知模式抛 `KeyError("未知引擎模式：…")`）；新增 `BUILTIN_MODES`（**字面量副本 + `test_builtin_modes_matches_scene_types` 相等守卫**；模块级 `from .scene_types import MODES` 会形成 A2 架构环）/ `is_builtin_mode` / `_builtin_factory` / `allowed_kinds` / `validate_kind`；`engine_catalog` 输出新增字段，`plugin_id` 以 `ENGINE_OWNERS` 回退保证与 `register_engine(plugin_id=…)` 一致。
   - `netlab/core/model/scene.py`：`ensure_engine` 去掉内建 if/else，统一经 `create_engine`；`_normalize_node_params` / `_normalize_edge_params` 增加插件模式透传。
   - `netlab/core/model/scene_edit.py`：`add_node` / `add_edge` 调用 `validate_kind`。
-  - 新增 `netlab/tests/test_p1s2_engine_spi_v2.py`（7 用例：9 字段、内建 factory 映射、未知模式 KeyError、`validate_kind` 单元、插件 node/edge 白名单拒绝、`engine_catalog` kinds）。
+  - 新增 `netlab/tests/test_p1s2_engine_spi_v2.py`（**9 用例**：EngineSpec 新增 5 字段（共 11）、内建 factory 映射、未知模式 KeyError、`validate_kind` 单元、插件 node/edge 白名单拒绝、`engine_catalog` kinds、catalog `plugin_id` 一致性、`BUILTIN_MODES` 与 `MODES` 相等守卫）。
 - 验证：targeted 20 passed（含既有插件加载/契约测试 + 新增 catalog/常量同步守卫）；全量 `pytest netlab/tests -q --cov=netlab/core --cov-branch --cov-fail-under=81` → **1061 passed / 1 skipped / 0 failed、core 82.13%**（基线 1052 +9，无回归；本地非 CI，绑本提交）；`tools/check_architecture.py` A1/A2/A3/A6 全 OK（A2 new=0）。
 - 边界：G3 进程级全局注册延后；`PluginFacade/RuntimeManager/CompiledModel/RuntimeSnapshot/Diagnostic` 与 `validate/compile/create_runtime/snapshot/restore/dispose` 生命周期钩子未实现（后续切片）；不改外部 JSON / checksum / FEM / MAX_NODES；未激活 ADR-008 与 P0-2（仍 PENDING_USER_AUTHORIZATION）；引擎契约状态仍 Proposed。
 

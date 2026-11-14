@@ -3895,18 +3895,8 @@ function setStatusHint(hint) {
       <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">\u7CBE\u5EA6\uFF08\u6B65\u957F dt\uFF0C\u79D2\uFF1B\u7A7A=\u81EA\u52A8\uFF09
         <input id="precomputeDt" type="number" min="0" step="0.001" placeholder="\u81EA\u52A8" style="width:110px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
 
-      <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">\u63D2\u503C
-        <select id="precomputeInterpMethod" style="flex:1;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
-          <option value="">\u4E0D\u63D2\u503C</option>
-          <option value="average">\u76F4\u63A5\u5E73\u5747\u4E2D\u70B9</option>
-          <option value="gaussian">\u9AD8\u65AF\u6838\u52A0\u6743\u4E2D\u70B9</option>
-        </select>
-      </label>
-      <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">\u63D2\u503C\u6B21\u6570
-        <input id="precomputeInterpRounds" type="number" min="0" max="6" step="1" value="1" style="width:80px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
-        \u7A97\u53E3
-        <input id="precomputeInterpWindow" type="number" min="0" step="0.001" placeholder="\u81EA\u52A8" style="width:90px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;">
-      </label>      </label>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">\u63D2\u503C <select id="precomputeInterpMethod" style="flex:1;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"><option value="">\u4E0D\u63D2\u503C</option><option value="average">\u76F4\u63A5\u5E73\u5747\u4E2D\u70B9</option><option value="gaussian">\u9AD8\u65AF\u6838\u52A0\u6743\u4E2D\u70B9</option></select></label>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">\u63D2\u503C\u6B21\u6570 <input id="precomputeInterpRounds" type="number" min="0" max="6" step="1" value="1" style="width:70px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"> \u7A97\u53E3 <input id="precomputeInterpWindow" type="number" min="0" step="0.001" placeholder="\u81EA\u52A8" style="width:80px;padding:5px 8px;border:1px solid var(--line,#cfc6b5);border-radius:7px;background:var(--paper,#faf8f2);color:inherit;"></label>      </label>
       <div style="display:flex;justify-content:flex-end;gap:8px;">
         <button id="precomputeSkip" type="button" style="display:none">\u76F4\u63A5\u8FD0\u884C\uFF08\u4E0D\u9884\u8BA1\u7B97\uFF09</button>
         <button id="precomputeCancel" type="button">\u53D6\u6D88</button>

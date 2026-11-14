@@ -5,7 +5,7 @@
 <!-- BEGIN GENERATED: status -->
 | 项 | 内容 |
 | --- | --- |
-| 版本 | 3.20.2 |
+| 版本 | 3.20.1 |
 | 状态详情 | 见 [status.json](status.json)（由 `tools/gen_status.py` 生成，禁止手写） |
 | 覆盖率门限 | core line ≥81% / changed line ≥80% |
 | 当前阶段 | 产品开发主线见 [BACKLOG.md](BACKLOG.md)；历史严格审计 §11 已删除，不再引用 |
@@ -3024,3 +3024,14 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 文档：`netlab/docs/UI_SPEC.md` §6.1 增 `clampFloatWindow` 与 20×20 缩放柄约定；`REQUIREMENTS_AND_RULES.md` 增 D157 与变更记录。
 - 验证：`npm run build`（3.20.2，重建 `app.js`/`ac_analysis.js`/`float.js`/`plotkit_frame.js`）、`npm run typecheck` 通过；`npm run e2e` 全绿（smoke/analysis/appearance/card_fields/float_window_ux 五套）。前端改动不涉 Python 逻辑，未跑 pytest。
 - 边界：`chartPalette` 的 high-contrast/colorblind 模式未变；`theme` 模式只经 `C()` 映射主题 token，不改变原始 `PALETTE` 色值语义。
+
+## 7.176 2026-11-14 预计算体验四项（进度统一 / 小信号旁路超时 / 精度输入 / 插值后处理）
+
+- 背景（用户 2026-11-14 原话 m03418）：①不同预计算进度未统一到上菜单栏样式；②小信号旁路分析会超时无法计算；③预计算窗口可直接设置计算精度；④预计算后对已求值做中间平均插值提高精度、可选插值次数。（G(s) 浮点精度经用户要求暂缓，不在此列。）
+- 交付1 ①进度统一 `frontend/app.js`/`app.ts` `runSolveWindowPrecompute`：包进 `runPrecomputeWithProgress`（三入口里唯一未接入者），与 plotkit/states 一致轮询 `/api/precompute/progress`。
+- 交付2 ③精度输入：预计算对话框新增「精度（步长 dt，空=自动）」`#precomputeDt`，透传 solve-window/plotkit/states。
+- 交付3 ④插值模块 `netlab/core/compute/interpolation.py`：`average`（直接平均中点）/`gaussian`（`exp(-|Δt|)` 归一化加权），`midpoint_resample`/`resample_multi`，`rounds` 轮细分。
+- 交付4 ④接线：`Simulation.precompute(..., interpolation_method, interpolation_rounds, interpolation_window)` 成功时按录制帧生成 `result["interpolation"]={method,rounds,window,frame_count,frames:[{t,v}]}`（纯后处理、不改录制）；`SolveWindowRequest` 增三字段并透传；对话框增「插值/插值次数/窗口」并仅对 solve-window 目标透传（plotkit/states 暂不含，避免后端模型 extra 拒绝）。
+- 交付5 ②小信号旁路超时 `netlab/core/compute/analysis.py` `_circuit_tf_analysis`：时间预算 `budget_s`（env `NETLAB_TF_BUDGET_S` 默认 20s）+ 自适应 `_max_step_steps=2000`/`_max_bode_points=400`，超时抛 `AnalysisError`。
+- 测试：`test_interpolation.py`(8) / `test_precompute_interpolation.py`(4) / `test_circuit_tf_budget.py`；全量 **1082 passed / 1 skipped / 0 failed、core line 82.23%（本地非 CI）**。前端 `build.mjs`+`verify_app_parity`+`tsc --noEmit` 通过。
+- 边界：插值仅作用 solve-window 目标且不改变录制；plotkit/states 的插值 GUI 消费待后续；不改 main、未合并。

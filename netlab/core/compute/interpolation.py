@@ -1,9 +1,9 @@
 """预计算结果的后处理插值工具（需求④）：两种可选方法。
 
 - ``method="average"``：**直接平均中点法**——相邻两点取算术平均作为中点（朴素线性中点）。
-- ``method="gaussian"``：**高斯核加权中点法**——时间窗口 ``|t - t_mid| <= window`` 内，
-  按时间欧氏距离的指数倒数 ``w = exp(-|t - t_mid|)`` 归一化后的加权平均
-  ``v_mid = Σ w_k v_k / Σ w_k``。
+- ``method="gaussian"``：**真高斯核加权中点法**——时间窗口 ``|t - t_mid| <= window`` 内，
+  按高斯核 ``w = exp(-(t - t_mid)^2 / (2*sigma^2))`` 归一化后的加权平均
+  ``v_mid = Σ w_k v_k / Σ w_k``。``sigma`` 缺省取 ``window/3``（窗口边界约 3σ）。
 
 两者都支持 ``rounds`` 轮细分（每轮点数约翻倍，N 轮后约 2**N 倍），并对多通道序列批量处理。
 本模块是纯函数后处理，不触碰求解器，预计算/绘图/导出可共用。
@@ -41,7 +41,11 @@ def _median_gap(times: Sequence[float]) -> float:
     return gaps[len(gaps) // 2]
 
 def _gauss_midpoint(
-    t_mid: float, times: Sequence[float], values: Sequence[float], window: float
+    t_mid: float,
+    times: Sequence[float],
+    values: Sequence[float],
+    window: float,
+    sigma: float,
 ) -> float | None:
     n = len(times)
     if window > 0.0:
@@ -55,7 +59,7 @@ def _gauss_midpoint(
         d = abs(times[k] - t_mid)
         if window > 0.0 and d > window:
             continue
-        w = math.exp(-d)
+        w = math.exp(-(d * d) / (2.0 * sigma * sigma))
         num += w * values[k]
         den += w
     return None if den <= 0.0 else num / den
@@ -66,6 +70,7 @@ def _resample_one(
     method: str,
     rounds: int,
     window: float | None,
+    sigma: float | None = None,
 ) -> tuple[list[float], list[float]]:
     if method not in METHODS:
         raise ValueError(f"未知插值方法 {method!r}；可选 {METHODS}")
@@ -75,6 +80,10 @@ def _resample_one(
         window = float(window)
         if not math.isfinite(window) or window <= 0.0:
             raise ValueError("window 必须是有限正数（None 表示自动）")
+    if sigma is not None:
+        sigma = float(sigma)
+        if not math.isfinite(sigma) or sigma <= 0.0:
+            raise ValueError("sigma 必须是有限正数（None 表示取 window/3）")
     t = [float(x) for x in times]
     v = [float(x) for x in values]
     if len(t) != len(v):
@@ -84,6 +93,7 @@ def _resample_one(
     if any(t[i + 1] < t[i] for i in range(len(t) - 1)):
         raise ValueError("times 必须单调非降")
     win = _median_gap(t) if window is None else float(window)
+    _sig = sigma if sigma is not None else (win / 3.0 if win > 0.0 else 1.0)
     for _ in range(rounds):
         new_t = [t[0]]
         new_v = [v[0]]
@@ -92,7 +102,7 @@ def _resample_one(
             if method == "average":
                 v_mid = (v[i] + v[i + 1]) / 2.0
             else:
-                got = _gauss_midpoint(t_mid, t, v, win)
+                got = _gauss_midpoint(t_mid, t, v, win, _sig)
                 v_mid = (v[i] + v[i + 1]) / 2.0 if got is None else got
             new_t.extend((t_mid, t[i + 1]))
             new_v.extend((v_mid, v[i + 1]))
@@ -106,9 +116,10 @@ def midpoint_resample(
     method: str = "average",
     rounds: int = 1,
     window: float | None = None,
+    sigma: float | None = None,
 ) -> tuple[list[float], list[float]]:
-    """对单通道做中点细分插值。返回 (times, values)。"""
-    return _resample_one(times, values, method, rounds, window)
+    """对单通道做中点细分插值。返回 (times, values)。gaussian 可选 ``sigma``（缺省 window/3）。"""
+    return _resample_one(times, values, method, rounds, window, sigma)
 
 def resample_multi(
     times: Sequence[float],
@@ -117,6 +128,7 @@ def resample_multi(
     method: str = "average",
     rounds: int = 1,
     window: float | None = None,
+    sigma: float | None = None,
 ):
     """对多通道批量插值。``series`` 为 dict[name, 序列] 时返回 (times, dict)；为 list 时返回 (times, list)。"""
     if isinstance(series, Mapping):
@@ -125,7 +137,7 @@ def resample_multi(
         out: dict[str, list[float]] = {}
         new_t: list[float] | None = None
         for name, vals in series.items():
-            new_t, out[name] = _resample_one(times, vals, method, rounds, window)
+            new_t, out[name] = _resample_one(times, vals, method, rounds, window, sigma)
         assert new_t is not None
         return new_t, out
     if len(series) == 0:
@@ -133,7 +145,7 @@ def resample_multi(
     out_list: list[list[float]] = []
     new_t = None
     for vals in series:
-        new_t, vv = _resample_one(times, vals, method, rounds, window)
+        new_t, vv = _resample_one(times, vals, method, rounds, window, sigma)
         out_list.append(vv)
     assert new_t is not None
     return new_t, out_list

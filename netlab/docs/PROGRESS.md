@@ -3033,5 +3033,5 @@ DC 工作点 2 张表 8 行、meta「迭代 1 步 · 矩阵 4 · 残差 0 · 稠
 - 交付3 ④插值模块 `netlab/core/compute/interpolation.py`：`average`（直接平均中点）/`gaussian`（`exp(-|Δt|)` 归一化加权），`midpoint_resample`/`resample_multi`，`rounds` 轮细分。
 - 交付4 ④接线：`Simulation.precompute(..., interpolation_method, interpolation_rounds, interpolation_window)` 成功时按录制帧生成 `result["interpolation"]={method,rounds,window,frame_count,frames:[{t,v}]}`（纯后处理、不改录制）；`SolveWindowRequest` 增三字段并透传；对话框增「插值/插值次数/窗口」并仅对 solve-window 目标透传（plotkit/states 暂不含，避免后端模型 extra 拒绝）。
 - 交付5 ②小信号旁路超时 `netlab/core/compute/analysis.py` `_circuit_tf_analysis`：时间预算 `budget_s`（env `NETLAB_TF_BUDGET_S` 默认 20s）+ 自适应 `_max_step_steps=2000`/`_max_bode_points=400`，超时抛 `AnalysisError`。
-- 测试：`test_interpolation.py`(8) / `test_precompute_interpolation.py`(4) / `test_circuit_tf_budget.py`；全量 **1082 passed / 1 skipped / 0 failed、core line 82.23%（本地非 CI）**。前端 `build.mjs`+`verify_app_parity`+`tsc --noEmit` 通过。
+- 测试：`test_interpolation.py`(8) / `test_precompute_interpolation.py`(4) / `test_circuit_tf_budget.py`；全量 **1083 passed / 1 skipped / 0 failed、core line 82.23%（本地非 CI）**。前端 `build.mjs`+`verify_app_parity`+`tsc --noEmit` 通过。
 - 边界：插值仅作用 solve-window 目标且不改变录制；plotkit/states 的插值 GUI 消费待后续；不改 main、未合并。

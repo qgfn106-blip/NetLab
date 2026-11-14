@@ -184,6 +184,7 @@ class RuntimeSnapshot:
 
     mode: str
     state: dict[str, Any]
+    scene_fingerprint: str = ""
 
 
 @runtime_checkable

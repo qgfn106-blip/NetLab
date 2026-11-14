@@ -127,9 +127,19 @@ def registry_snapshot() -> dict[str, EngineSpec]:
 
 
 def registry_restore(state: dict[str, EngineSpec]) -> None:
-    """把注册集还原为给定快照（副本语义）。"""
+    """把注册集还原为给定快照（副本语义）。
+
+    P1-05：同时原子恢复 ``ENGINE_SPECS`` 与 ``ENGINE_OWNERS``——owners 取
+    ``registry_snapshot`` 时记录的基线中、且仍存在于本快照里的条目，避免
+    「spec 还原了但 owner 残留」的脏状态。先构造副本再整体替换，保持原子性。
+    """
+    restored = dict(state)
+    baseline_owners = getattr(registry_snapshot, "_baseline_owners", {}) or {}
+    restored_owners = {k: v for k, v in baseline_owners.items() if k in restored}
     ENGINE_SPECS.clear()
-    ENGINE_SPECS.update(dict(state))
+    ENGINE_SPECS.update(restored)
+    ENGINE_OWNERS.clear()
+    ENGINE_OWNERS.update(restored_owners)
 
 
 def reset_registry() -> None:

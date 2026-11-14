@@ -293,6 +293,29 @@ class Recorder:
         return len(self.frames)
 
 
+def _build_interp_series(frames):
+    """从录制帧构造插值用 times/keys/series；探针中途缺失时报错而非静默补 0（P2-02）。"""
+    keys: list[str] = []
+    for fr in frames:
+        for k in fr.get("v", {}):
+            if k not in keys:
+                keys.append(k)
+    missing = {}
+    for fr in frames:
+        v = fr.get("v", {})
+        for k in keys:
+            if k not in v:
+                missing[k] = missing.get(k, 0) + 1
+    bad = sorted(k for k, c in missing.items() if c > 0)
+    if bad:
+        raise ValidationError(
+            f"通道 {bad} 在部分录制帧中缺失，拒绝以 0 填充；请关闭插值或保证探针全程存在"
+        )
+    times = [float(fr["t"]) for fr in frames]
+    series = {k: [float(fr["v"][k]) for fr in frames] for k in keys}
+    return times, keys, series
+
+
 class Simulation:
     """持有场景、配置、后台线程与录制数据；所有读写都在同一把锁下。"""
 
@@ -569,6 +592,10 @@ class Simulation:
                 0 <= int(interpolation_rounds) <= 6
             ):
                 raise ValidationError("插值次数必须在 0–6 之间")
+            if interpolation_window is not None:
+                _win = float(interpolation_window)
+                if not math.isfinite(_win) or _win <= 0.0:
+                    raise ValidationError("插值窗口必须是有限正数（None 表示自动）")
             # 录制环形缓冲只有 RECORDER_CAPACITY 帧：整段 0→T 必须装得下，
             # 否则只剩最后一段，前端看到的「起始时间」就不是 0。
             needed = int(math.ceil(count / RECORDER_CAPACITY))
@@ -653,16 +680,7 @@ class Simulation:
             if interpolation_method and status == "done" and frames >= 2:
                 from .interpolation import estimate_frames, resample_multi
 
-                _times = [float(fr["t"]) for fr in self.recorder.frames]
-                _keys = []
-                for fr in self.recorder.frames:
-                    for k in fr.get("v", {}):
-                        if k not in _keys:
-                            _keys.append(k)
-                _series = {
-                    k: [float(fr.get("v", {}).get(k, 0.0)) for fr in self.recorder.frames]
-                    for k in _keys
-                }
+                _times, _keys, _series = _build_interp_series(self.recorder.frames)
                 _rounds = max(0, min(6, int(interpolation_rounds)))
                 # P1/P5：提前估算插值规模，明显过大时快速失败，而不是卡到前端超时。
                 _est_frames = estimate_frames(len(_times), _rounds)

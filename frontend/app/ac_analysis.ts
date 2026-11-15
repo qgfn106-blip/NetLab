@@ -8,8 +8,13 @@ import { div } from './ui.js';
 import { clampFloatWindow, raiseFloatWindow } from './float.js';
 import { state, ui } from './state.js';
 import { probeNamesForAc } from './ac_probe.js';
+import { formatPolynomial } from './numeric_scope.js';
 import { toast } from './desktop.js';
 import type { AcResultRec, OpElementRec } from './types.js';
+
+function _fmtPoly(coeffs: unknown, digits: number): string {
+  return formatPolynomial(coeffs, digits);
+}
 
 function _dispDigits(): number {
     const n = Number((state.prefs || {}).numericDigits ?? 6);
@@ -486,10 +491,13 @@ function bypassSummary(result: BypassRec) {
         ? '—'
         : `${analNum(value)}${unit}`
     );
+    const _gNum = _fmtPoly((tf as any).numerator_coeffs, _dispDigits());
+    const _gDen = _fmtPoly((tf as any).denominator_coeffs, _dispDigits());
+    const _gTxt = _gNum && _gDen ? `${_gNum} / (${_gDen})` : (tf.expression || '—');
     if (tf.supported === false) {
       transferHost.innerHTML = `<div class="anal-empty">传递函数：${analEscape(tf.reason || '当前电路阶数过高')}</div>`;
     } else {
-      transferHost.innerHTML = `<div class="anal-transfer">G(s) = <code>${analEscape(tf.expression || '—')}</code>`
+      transferHost.innerHTML = `<div class="anal-transfer">G(s) = <code>${analEscape(_gTxt)}</code>`
         + `<span class="anal-meta"> · 阶数 ${tf.order ?? '—'} · 相对阶 ${tf.relative_order ?? '—'}</span></div>`;
     }
     const items: Array<[string, string]> = [

@@ -1,6 +1,7 @@
 // S5-23 工程文件（.netlab）：保存 / 打开 / 自动保存 / 恢复（从 app.ts 原样迁出）
 import type { ProjectRec, LimitsRec, RailItemRec } from './types.js';
 import { state, ui } from './state.js';
+import { resolveProjectNumeric } from './numeric_scope.js';
 import { el, div, button } from './ui.js';
 import { api, jsonRequest } from './net.js';
 import { desktopBridge, callBridge, isDesktop, showBanner, toast } from './desktop.js';
@@ -171,6 +172,8 @@ export async function buildProjectPayload() {
           cardFields: normalizeCardFields(state.ui.cardFields),
           symbolScale: Number(state.ui.symbolScale) || 1.2,
           glyphColor: state.ui.glyphColor || '#1f5f5b',
+          numericPrecision: state.prefs.numericPrecision === 'standard' ? 'standard' : 'exact',
+          numericDigits: Math.max(3, Math.min(17, Number(state.prefs.numericDigits) || 6)),
         },
       }),
     });
@@ -359,6 +362,7 @@ export async function newProject() {
     state.cursor = Number(response.sim?.cursor || 0);
     state.project.name = '未命名工程';
     state.project.path = '';
+    applyNumericProjectUi({ numericPrecision: 'exact', numericDigits: 6 });
     void syncProjectContext();
     projectSaved();
     renderScenePanel();
@@ -503,3 +507,12 @@ export function initProject() {
     setInterval(() => void autosaveProject(), state.project.autosaveInterval);
     if (isDesktop()) state.project.desktop = true;
   }
+
+export function applyNumericProjectUi(uiSettings: Record<string, unknown>): void {
+  const resolved = resolveProjectNumeric(uiSettings);
+  state.prefs.numericPrecision = resolved.numericPrecision;
+  state.prefs.numericDigits = resolved.numericDigits;
+  void jsonRequest('/api/numeric-precision', 'POST', { mode: resolved.numericPrecision }).catch(() => {});
+  const paint = (window as any).__paintNumeric;
+  if (typeof paint === 'function') paint();
+}

@@ -26,7 +26,7 @@ import { section, renderEmptyInspector, setEmptyInspectorActions } from "./app/i
 import { isPinNode, devicePins } from "./app/device_pins.js";
 import { renderNodeInspector, renderEdgeInspector, applyInspector, updateInspectorLive, setInspectorActions } from "./app/inspector.js";
 import { renderSpecPane, scheduleSpecRender, renderExtensionPanel, setSpecPanelActions } from "./app/spec_panel.js";
-import { AUTOSAVE_ENABLED_KEY, setProjectActions, setProjectFileInput, markProjectDirty, updateProjectPanel, projectDownloadText as downloadText, saveProject, importProjectText, openProject, newProject, recoverAutosave, maybeOfferRecovery, initProject } from "./app/project.js";
+import { applyNumericProjectUi, AUTOSAVE_ENABLED_KEY, setProjectActions, setProjectFileInput, markProjectDirty, updateProjectPanel, projectDownloadText as downloadText, saveProject, importProjectText, openProject, newProject, recoverAutosave, maybeOfferRecovery, initProject } from "./app/project.js";
 import { loadUiPrefs, setAppearanceActions } from "./app/appearance.js";
 import { initAppearanceControls, saveAutosaveSetting, refreshTelemetryQuality, setAppearanceControlActions } from "./app/appearance_controls.js";
 import { setGeometryActions, worldToScreen, screenToWorld, nodeDiameter, nodeRect, devicePinScreen, snapWorld, portOut, edgeEndpointHit, waypointHitAt, anchorSideFor, edgePathPoints, pathMidpoint, distanceToPath } from "./app/geometry.js";
@@ -4578,6 +4578,7 @@ function setStatusHint(hint) {
     }
     if (Number.isFinite(Number(uiSettings.symbolScale))) state.ui.symbolScale = clamp(Number(uiSettings.symbolScale), 0.6, 2.5);
     if (typeof uiSettings.glyphColor === "string") state.ui.glyphColor = uiSettings.glyphColor;
+    applyNumericProjectUi(uiSettings);
     requestDraw();
   }
   function blockBadges(spec) {

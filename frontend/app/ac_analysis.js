@@ -6,7 +6,11 @@ import { chartPalette } from "./theme.js";
 import { clampFloatWindow, raiseFloatWindow } from "./float.js";
 import { state } from "./state.js";
 import { probeNamesForAc } from "./ac_probe.js";
+import { formatPolynomial } from "./numeric_scope.js";
 import { toast } from "./desktop.js";
+function _fmtPoly(coeffs, digits) {
+  return formatPolynomial(coeffs, digits);
+}
 function _dispDigits() {
   const n = Number((state.prefs || {}).numericDigits ?? 6);
   return Number.isFinite(n) ? Math.max(3, Math.min(17, Math.round(n))) : 6;
@@ -348,10 +352,13 @@ function bypassSummary(result) {
   const tf = result.transfer_function || {};
   const metrics = result.metrics || {};
   const fmtValue = (value, unit = "") => value === null || value === void 0 || !Number.isFinite(Number(value)) ? "\u2014" : `${analNum(value)}${unit}`;
+  const _gNum = _fmtPoly(tf.numerator_coeffs, _dispDigits());
+  const _gDen = _fmtPoly(tf.denominator_coeffs, _dispDigits());
+  const _gTxt = _gNum && _gDen ? `${_gNum} / (${_gDen})` : tf.expression || "\u2014";
   if (tf.supported === false) {
     transferHost.innerHTML = `<div class="anal-empty">\u4F20\u9012\u51FD\u6570\uFF1A${analEscape(tf.reason || "\u5F53\u524D\u7535\u8DEF\u9636\u6570\u8FC7\u9AD8")}</div>`;
   } else {
-    transferHost.innerHTML = `<div class="anal-transfer">G(s) = <code>${analEscape(tf.expression || "\u2014")}</code><span class="anal-meta"> \xB7 \u9636\u6570 ${tf.order ?? "\u2014"} \xB7 \u76F8\u5BF9\u9636 ${tf.relative_order ?? "\u2014"}</span></div>`;
+    transferHost.innerHTML = `<div class="anal-transfer">G(s) = <code>${analEscape(_gTxt)}</code><span class="anal-meta"> \xB7 \u9636\u6570 ${tf.order ?? "\u2014"} \xB7 \u76F8\u5BF9\u9636 ${tf.relative_order ?? "\u2014"}</span></div>`;
   }
   const items = [
     ["DC \u589E\u76CA", tf.dc_gain_finite === false ? "\u2014\uFF08A \u5947\u5F02\uFF09" : fmtValue(tf.dc_gain)],

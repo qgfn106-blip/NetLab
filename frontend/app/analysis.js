@@ -2,6 +2,7 @@ import { state } from "./state.js";
 import { jsonRequest } from "./net.js";
 import { toast } from "./desktop.js";
 import { fmt } from "../app.utils.js";
+import { analysisQuery } from "./analysis_paths.js";
 import { $ } from "./dom.js";
 import { nodeByName } from "./model.js";
 import { openAnalysis, niceAxisTicks, niceAxisLabel } from "./ac_analysis.js";
@@ -30,8 +31,7 @@ function analysisSignalKey() {
   return keys[0] || "";
 }
 async function analysisGet(path, query) {
-  const qs = query ? `?${new URLSearchParams(query)}` : "";
-  return task(() => jsonRequest(`${path}${qs}`, "GET"), { dirty: false });
+  return task(() => jsonRequest(analysisQuery(path, query), "GET"), { dirty: false });
 }
 function setAnalysisOutput(text) {
   state.analysisLast = text;

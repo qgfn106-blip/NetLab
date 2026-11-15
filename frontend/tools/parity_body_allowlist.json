@@ -29,6 +29,7 @@
     "bypassSummary",
     "_fmtPoly",
     "newProject",
-    "applyNumericProjectUi"
+    "applyNumericProjectUi",
+    "analysisGet"
   ]
 }

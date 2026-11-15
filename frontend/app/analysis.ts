@@ -5,6 +5,7 @@ import { el, div, button } from './ui.js';
 import { api, jsonRequest } from './net.js';
 import { toast } from './desktop.js';
 import { fmt } from '../app.utils.js';
+import { analysisQuery } from './analysis_paths.js';
 import { $ } from './dom.js';
 import { nodeByName } from './model.js';
 import { openAnalysis, niceAxisTicks, niceAxisLabel } from './ac_analysis.js';
@@ -38,8 +39,7 @@ export function analysisSignalKey() {
   }
 
 export async function analysisGet(path: string, query?: Record<string, string>) {
-    const qs = query ? `?${new URLSearchParams(query)}` : '';
-    return task(() => jsonRequest(`${path}${qs}`, 'GET'), { dirty: false });
+    return task(() => jsonRequest(analysisQuery(path, query), 'GET'), { dirty: false });
   }
 
 export function setAnalysisOutput(text: string) {

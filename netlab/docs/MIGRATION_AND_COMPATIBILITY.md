@@ -1,7 +1,7 @@
 # 迁移与兼容设计冻结（阶段 4 / P1-A）
 
 > 状态：`Proposed`（设计冻结草案，待评审）。本文是目标设计口径与迁移策略，不是当前实现；ADR 不是实施授权。
-> 依据：`NETLAB_V2_PLANNING_REVIEW.md:100-108`（补 6 份文档第 5 份：旧记录、project v6/v7、字段改名、兼容窗口与回滚）、`CORE_ARCHITECTURE_AUDIT.md:394-400`（迁移风险表 R1–R6）、`CORE_ARCHITECTURE_V2_ROADMAP.md:60`（旧工程可通过适配层读取）。
+> 依据：相关规划/审计材料（NETLAB_V2_PLANNING_REVIEW / CORE_ARCHITECTURE_AUDIT / CORE_ARCHITECTURE_V2_ROADMAP）已迁至 Private-Docs 私有库，主库不保留、本文件不重建其内容；兼容窗口结论以本节与 §10 全文为准。
 > 边界：不迁移旧工程、不改外部 JSON、不删字段、不写生产代码、不改 FEM。
 
 ## 1. 现状格式基线（只记事实）
@@ -40,11 +40,11 @@
 
 | 版本 | 当前状态 | 设计目标 |
 | --- | --- | --- |
-| v6 及更早 | 由 `migrate_project` 处理 | **是否必须继续支持 v6 是待用户裁定的开放问题**（§6） |
+| v6 及更早 | 由 `migrate_project` 处理 | **已确认（用户 2026-11-15 决策）：保留现行 loader 已验证的全部历史输入路径 v0–v7 + 独立 scene-json，不主动收缩** |
 | v7 | 当前版本 | 必须可读、可 round-trip、旧 API 不破坏 |
 | v8（未来） | 未定义 | 仅在引入新字段/新 Desc 分层时递增；携带显式迁移器与 golden fixtures |
 
-**开放问题 3（PENDING_USER_AUTHORIZATION）**：兼容窗口是否必须支持 v6 旧工程（`NETLAB_V2_PLANNING_REVIEW.md:136`）。未裁定前按「v7 必保，v6 沿用现有 migrate_project 不扩展」的最小方案设计，不删除现有迁移器、不承诺 v6 新特性。
+**已裁定（用户 2026-11-15 §10 全文）**：P2-D 兼容窗口保留当前正式加载器已支持且经测试验证的全部历史工程输入路径（v0–v7 及独立 scene-json 导入路径），**不主动收缩**。任何历史迁移删除须先做使用影响分析 + 弃用公告 + 替代方案 + 用户明确批准；Agent 不得以维护成本为由自行收缩。注：ADR-008 决策 C 的「C1」与本文档 §10 的「C1」同名反义，一律以 §10 全文表述为准，禁止只写「按 C1」；ADR-008 A/B/C 未因此裁定。
 
 **开放问题 1（PENDING_USER_AUTHORIZATION）**：项目保存是否允许显式 Runtime 快照。默认不含；未裁定前 `RuntimeSnapshot` 不进工程 schema。见 `ENGINE_LIFECYCLE.md` §5。
 
@@ -75,7 +75,7 @@ save_project(desc)
 | R5 前端改动影响交互 | `app.ts` 规模大、手工 API body | 抽 `analysis_client.ts` + 结果 DTO、UI 状态机独立测试 | 前端拆分独立提交 |
 | R6 性能回归 | 每步深拷贝、快照成本 | 先加 204/400 基准、快照接口逐步替换、不在 P1 改默认 | 基准与开关独立提交 |
 
-顺序（`CORE_ARCHITECTURE_AUDIT.md:385`）：P1-A 设计冻结 → P1-R1/R2 数值统一 → P1-S1 DTO 分层 → P1-S2 Engine SPI v2 → P1-S3 前端拆分。**P1-R1/R2 先于大规模 Node/Connection 拆分**，否则拆模型会放大两套数值路径差异。
+顺序（依据已迁 Private-Docs 的审计材料，主库不重建）：P1-A 设计冻结 → P1-R1/R2 数值统一 → P1-S1 DTO 分层 → P1-S2 Engine SPI v2 → P1-S3 前端拆分。**P1-R1/R2 先于大规模 Node/Connection 拆分**，否则拆模型会放大两套数值路径差异。
 
 ## 6. 待用户裁定的开放问题（Open Question / PENDING_USER_AUTHORIZATION）
 
@@ -83,7 +83,7 @@ save_project(desc)
 2. **项目保存是否允许显式 Runtime 快照**：见 `ENGINE_LIFECYCLE.md` §5。
 3. **Plugin 权限边界（只读/可写哪些层）**：见 `ARCHITECTURE_BOUNDARIES.md` §6。
 
-三项均标为 `PENDING_USER_AUTHORIZATION`，本阶段不代替用户裁定；`ADR-001/002/003/004/006/007` 保持 `Proposed`。
+其余待裁项（项目保存是否允许显式 Runtime 快照、Plugin 权限边界）标为 `PENDING_USER_AUTHORIZATION`，本阶段不代替用户裁定；`ADR-001/002/003/004/006/007/008` 保持 `Proposed`（ADR-008 A/B/C 未因本决策裁定）。
 
 ## 7. P1-03 逐字段迁移映射（完整表）
 
@@ -176,5 +176,5 @@ V2 输出（同一工程，按 §7 转换）：
 - v6 → v7：调用既有 `migrate_project`，不改旧文件；迁移结果写入新文件，原文件只读备份。
 - v7 → v8：`appearance` → `presentation.node_styles/edge_styles`；`PortSpec/PinSpec` → `PortDesc/PortType`；`EdgeRecord.kind="wire"` → `PhysicalEdge`、`"signal"` → `DependencyEdge`。
 - 字段只加不删；未知字段进入 `compat.extensions` 原样保留，保证 round-trip 不丢数据。
-- 兼容窗口是否必须支持 v6 是 `PENDING_USER_AUTHORIZATION`（ADR-008 决策 C）；在裁定前默认“能读 v7、v6 走显式迁移工具并提示用户确认”。
+- 兼容窗口（已裁定，用户 2026-11-15 §10 全文）：保留现行 loader 已验证的全部历史路径 v0–v7 及独立 scene-json，不主动收缩；删除任何历史迁移须影响分析 + 弃用公告 + 替代方案 + 用户明确批准。注：ADR-008 决策 C 的 C1 与 §10 的 C1 同名反义，一律以 §10 全文为准，ADR-008 未因此裁定。
 - 回滚：V2 写出的 `version: 8` 工程不得被 V1 直接覆盖；V1 读取器遇到 v8 必须拒绝并提示使用 V2 或迁移工具。

@@ -66,5 +66,9 @@ class NodeRuntime:
         return {"state": copy.deepcopy(self.state), "inputs": copy.deepcopy(self.inputs)}
 
     def restore(self, snapshot: dict[str, Any]) -> None:
-        self.state = copy.deepcopy(snapshot.get("state", {}))
-        self.inputs = copy.deepcopy(snapshot.get("inputs", {}))
+        if not isinstance(snapshot, dict):
+            raise TypeError("NodeRuntime.restore 需要 dict 快照")
+        if "state" not in snapshot or "inputs" not in snapshot:
+            raise ValueError("NodeRuntime.restore 快照缺少 state/inputs 键")
+        self.state = copy.deepcopy(snapshot["state"])
+        self.inputs = copy.deepcopy(snapshot["inputs"])

@@ -100,17 +100,17 @@ def test_desc_to_fields_deep_copied() -> None:
 
 
 def test_runtime_restore_rejects_non_mapping() -> None:
-    # 非映射输入被显式拒绝：当前实现对 .get 取属性抛 AttributeError（不静默吞掉）。
+    # 非映射输入被显式拒绝（TypeError）。
     rt = NodeRuntime.from_record(_record(_pilot_scene(), "i"))
     for bad in (None, 42, "x", [1, 2]):  # type: ignore[list-item]
-        with pytest.raises((AttributeError, TypeError)):
+        with pytest.raises(TypeError):
             rt.restore(bad)  # type: ignore[arg-type]
 
 
-def test_runtime_restore_missing_keys_falls_back_empty() -> None:
-    # 现状契约：snapshot 缺 state/inputs 键时回落为空态（不崩）。「显式拒绝缺失键」
-    # 属更强契约，当前生产实现未提供，记入退出条件 gap（见 scratch 证据），不在本纯测试片强改。
+def test_runtime_restore_missing_keys_rejected() -> None:
+    # 缺失 state/inputs 键显式拒绝（ValueError），不再静默回落空态。
     rt = NodeRuntime.from_record(_record(_pilot_scene(), "i"))
     rt.state["acc"] = 9.0
-    rt.restore({})
-    assert rt.state == {} and rt.inputs == {}
+    for bad in ({}, {"state": {}}, {"inputs": {}}):
+        with pytest.raises(ValueError):
+            rt.restore(bad)

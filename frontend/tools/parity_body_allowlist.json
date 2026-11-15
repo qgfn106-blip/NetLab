@@ -34,6 +34,8 @@
     "runOperatingPoint",
     "runAcSweep",
     "runAnalysisTF",
-    "exportAnalysisCsv"
+    "exportAnalysisCsv",
+    "drawAnalysisTF",
+    "drawAnalysisSpectrum"
   ]
 }

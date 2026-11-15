@@ -44,6 +44,8 @@
 | v7 | 当前版本 | 必须可读、可 round-trip、旧 API 不破坏 |
 | v8（未来） | 未定义 | 仅在引入新字段/新 Desc 分层时递增；携带显式迁移器与 golden fixtures |
 
+> **命名空间澄清（D-C-2）**：`docs/canonical/contracts/compatibility.yaml` 的 `project:6` 属 **C2 合同 schema 命名空间**，与 `.netlab` 的 `PROJECT_VERSION=7` 是不同命名空间/用途，不得混为一谈。
+
 **已裁定（用户 2026-11-15 §10 全文）**：P2-D 兼容窗口保留当前正式加载器已支持且经测试验证的全部历史工程输入路径（v0–v7 及独立 scene-json 导入路径），**不主动收缩**。任何历史迁移删除须先做使用影响分析 + 弃用公告 + 替代方案 + 用户明确批准；Agent 不得以维护成本为由自行收缩。注：ADR-008 决策 C 的「C1」与本文档 §10 的「C1」同名反义，一律以 §10 全文表述为准，禁止只写「按 C1」；ADR-008 A/B/C 未因此裁定。
 
 **开放问题 1（PENDING_USER_AUTHORIZATION）**：项目保存是否允许显式 Runtime 快照。默认不含；未裁定前 `RuntimeSnapshot` 不进工程 schema。见 `ENGINE_LIFECYCLE.md` §5。

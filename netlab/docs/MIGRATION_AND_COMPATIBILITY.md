@@ -79,7 +79,7 @@ save_project(desc)
 
 ## 6. 待用户裁定的开放问题（Open Question / PENDING_USER_AUTHORIZATION）
 
-1. **兼容窗口是否必须支持 v6 旧工程**：见 §3；影响迁移器范围与 golden fixtures 数量。
+1. ~~兼容窗口是否必须支持 v6 旧工程~~ **已裁定（见 §3，用户 2026-11-15 决策）：保留现行 loader 已验证的全部历史路径 v0–v7 + 独立 scene-json，不主动收缩；删除历史迁移须影响分析+弃用公告+替代方案+用户批准。**
 2. **项目保存是否允许显式 Runtime 快照**：见 `ENGINE_LIFECYCLE.md` §5。
 3. **Plugin 权限边界（只读/可写哪些层）**：见 `ARCHITECTURE_BOUNDARIES.md` §6。
 

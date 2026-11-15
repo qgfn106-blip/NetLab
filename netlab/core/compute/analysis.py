@@ -14,6 +14,12 @@ from typing import Any, Callable
 
 import numpy as np
 
+from .frequency_diag import (
+    cond_enabled as _freq_diag_enabled,
+    point_diagnostics as _freq_point,
+    summarize as _freq_summarize,
+)
+
 from . import complex_support as complex_layer
 from . import transfer as transfer_math
 from .exact_input import to_exact as _to_exact
@@ -1179,6 +1185,7 @@ def _signal_frequency_response(
     input_node: str,
     output_node: str,
     frequencies: np.ndarray,
+    diag_sink: dict | None = None,
 ) -> np.ndarray:
     scene = sim.scene
     nodes = {node.name: node for node in scene.nodes.values()}
@@ -1203,6 +1210,7 @@ def _signal_frequency_response(
     index = {name: position for position, name in enumerate(names)}
     dt = float(getattr(sim.config, "dt", 0.0) or 0.0)
     values = np.empty(frequencies.size, dtype=np.complex128)
+    diag_points: list[dict[str, Any]] = []
     for position, frequency in enumerate(frequencies):
         omega = 2.0 * math.pi * float(frequency)
         matrix = np.zeros((len(names), len(names)), dtype=np.complex128)
@@ -1231,6 +1239,10 @@ def _signal_frequency_response(
         except np.linalg.LinAlgError as exc:
             raise AnalysisError(f"频响节点方程在 {frequency:g} Hz 处奇异") from exc
         values[position] = solution[index[output_node]]
+        if diag_sink is not None:
+            diag_points.append(_freq_point(matrix, rhs, solution))
+    if diag_sink is not None:
+        diag_sink["points"] = diag_points
     return values
 
 
@@ -1281,9 +1293,14 @@ def frequency_response(
     """
     frequencies = _frequency_axis(f_start, f_stop, points, scale)
     mode = str(getattr(sim.scene, "mode", ""))
+    freq_diag_points: list[dict[str, Any]] | None = None
     if mode == "signal":
         try:
-            values = _signal_frequency_response(sim, input, output, frequencies)
+            signal_diag = {"points": []} if _freq_diag_enabled() else None
+            values = _signal_frequency_response(
+                sim, input, output, frequencies, diag_sink=signal_diag
+            )
+            freq_diag_points = signal_diag["points"] if signal_diag is not None else None
         except AnalysisError as exc:
             return {
                 "ok": False,
@@ -1330,6 +1347,16 @@ def frequency_response(
         "phase_deg": [float(value) for value in phase],
         "assumptions": assumptions,
         "warnings": [],
+        "diagnostics": (
+            _freq_summarize(freq_diag_points)
+            if freq_diag_points is not None
+            else {
+                "diag_enabled": False,
+                "any_ill_conditioned": False,
+                "max_rel_residual": None,
+                "points": [],
+            }
+        ),
         "source": "complex analysis layer（R39）",
     }
 

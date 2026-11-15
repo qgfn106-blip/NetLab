@@ -1,4 +1,5 @@
 import { state, ui } from "./state.js";
+import { resolveProjectNumeric } from "./numeric_scope.js";
 import { el, div, button } from "./ui.js";
 import { api, jsonRequest } from "./net.js";
 import { desktopBridge, callBridge, isDesktop, showBanner, toast } from "./desktop.js";
@@ -493,10 +494,10 @@ function initProject() {
   if (isDesktop()) state.project.desktop = true;
 }
 function applyNumericProjectUi(uiSettings) {
-  state.prefs.numericPrecision = uiSettings.numericPrecision === "standard" ? "standard" : "exact";
-  const nd = Number(uiSettings.numericDigits);
-  state.prefs.numericDigits = Number.isFinite(nd) ? Math.max(3, Math.min(17, Math.round(nd))) : 6;
-  void jsonRequest("/api/numeric-precision", "POST", { mode: state.prefs.numericPrecision }).catch(() => {
+  const resolved = resolveProjectNumeric(uiSettings);
+  state.prefs.numericPrecision = resolved.numericPrecision;
+  state.prefs.numericDigits = resolved.numericDigits;
+  void jsonRequest("/api/numeric-precision", "POST", { mode: resolved.numericPrecision }).catch(() => {
   });
   const paint = window.__paintNumeric;
   if (typeof paint === "function") paint();

@@ -28,6 +28,7 @@
     "analNum",
     "bypassSummary",
     "_fmtPoly",
-    "newProject"
+    "newProject",
+    "applyNumericProjectUi"
   ]
 }

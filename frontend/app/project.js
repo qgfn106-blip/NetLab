@@ -356,6 +356,7 @@ async function newProject() {
   state.cursor = Number(response.sim?.cursor || 0);
   state.project.name = "\u672A\u547D\u540D\u5DE5\u7A0B";
   state.project.path = "";
+  applyNumericProjectUi({ numericPrecision: "exact", numericDigits: 6 });
   void syncProjectContext();
   projectSaved();
   renderScenePanel();

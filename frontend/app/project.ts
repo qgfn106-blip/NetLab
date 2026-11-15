@@ -361,6 +361,7 @@ export async function newProject() {
     state.cursor = Number(response.sim?.cursor || 0);
     state.project.name = '未命名工程';
     state.project.path = '';
+    applyNumericProjectUi({ numericPrecision: 'exact', numericDigits: 6 });
     void syncProjectContext();
     projectSaved();
     renderScenePanel();

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Body, Query
+from fastapi import APIRouter, Body, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 
 from ..core.common.limits import ValidationError
@@ -91,7 +91,10 @@ def build_router(*, service: Any) -> APIRouter:
     @router.post("/api/numeric-precision")
     def numeric_precision_set(request: NumericPrecisionRequest) -> dict[str, Any]:
         from ..core.compute import analysis
-        analysis.set_numeric_precision_mode(request.mode)
+        try:
+            analysis.set_numeric_precision_mode(request.mode)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=422, detail="mode 必须是 exact 或 standard")
         return {"mode": analysis.numeric_precision_mode()}
 
     return router

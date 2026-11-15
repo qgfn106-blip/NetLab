@@ -133,9 +133,6 @@ async function loadUiPrefs() {
     state.prefs.theme = ["system", "light", "dark"].includes(stored.theme) ? stored.theme : "system";
     state.prefs.motion = ["off", "low", "med", "high"].includes(stored.ui_motion) ? stored.ui_motion : "low";
     state.prefs.perf = ["perf", "balanced", "quality"].includes(stored.ui_perf) ? stored.ui_perf : "perf";
-    state.prefs.numericPrecision = stored.numeric_precision === "standard" ? "standard" : "exact";
-    const _nd = Number(stored.numeric_display_digits);
-    state.prefs.numericDigits = Number.isFinite(_nd) ? Math.max(3, Math.min(17, Math.round(_nd))) : 6;
     state.prefs.accent = typeof stored.ui_accent === "string" ? stored.ui_accent : "";
     state.prefs.guide = "always";
     if (typeof stored.autosave_enabled === "boolean") state.project.autosave = stored.autosave_enabled;
@@ -146,7 +143,7 @@ async function loadUiPrefs() {
   }
   state.uiReady = true;
 }
-const PREF_SETTING_KEYS = { theme: "theme", motion: "ui_motion", perf: "ui_perf", accent: "ui_accent", numericPrecision: "numeric_precision", numericDigits: "numeric_display_digits" };
+const PREF_SETTING_KEYS = { theme: "theme", motion: "ui_motion", perf: "ui_perf", accent: "ui_accent" };
 async function setPref(key, value) {
   state.prefs[key] = value;
   applyAppearance();

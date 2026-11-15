@@ -16,8 +16,10 @@ function _fmtPoly(coeffs: unknown, digits: number): string {
   const parts: string[] = [];
   const n = coeffs.length;
   for (let i = 0; i < n; i += 1) {
-    const c = Number(coeffs[i]);
-    if (!Number.isFinite(c) || c === 0) continue;
+    const raw = coeffs[i];
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) return '';
+    const c = raw;
+    if (c === 0) continue;
     const pow = n - 1 - i;
     let num = Math.abs(c).toPrecision(digits);
     if (num.includes('.')) num = num.replace(/0+$/, '').replace(/\.$/, '');

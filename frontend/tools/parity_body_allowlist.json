@@ -26,6 +26,8 @@
     "syncPrefControls",
     "initAppearanceControls",
     "analNum",
-    "bypassSummary"
+    "bypassSummary",
+    "_fmtPoly",
+    "newProject"
   ]
 }

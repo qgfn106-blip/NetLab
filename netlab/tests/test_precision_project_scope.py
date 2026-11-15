@@ -43,3 +43,27 @@ def test_invalid_mode_rejected() -> None:
     with pytest.raises(ValueError):
         analysis.set_numeric_precision_mode("double")
     assert analysis.numeric_precision_mode() == prev
+
+from netlab.core.model.project import (  # noqa: E402
+    compute_checksum,
+    decode_project_bytes,
+    encode_project_bytes,
+    verify_checksum,
+)
+
+
+def test_project_ui_numeric_roundtrip_and_checksum() -> None:
+    proj = {"name": "p", "ui": {"numericPrecision": "standard", "numericDigits": 8}, "nodes": {}}
+    assert decode_project_bytes(encode_project_bytes(proj)) == proj
+    assert verify_checksum(proj) is True  # 无 checksum 键视为通过
+    assert verify_checksum({**proj, "checksum": "bad"}) is False  # 错误校验和应拒绝
+    # JS number 往返：整数值浮点/负零归一
+    legacy = {"name": "p", "ui": {"numericDigits": 6}, "v": -430.0, "z": -0.0}
+    assert decode_project_bytes(encode_project_bytes(legacy)) == legacy
+
+
+def test_project_without_ui_decodes_ok() -> None:
+    proj = {"name": "legacy", "nodes": {}}
+    back = decode_project_bytes(encode_project_bytes(proj))
+    assert back == proj
+    assert "ui" not in back

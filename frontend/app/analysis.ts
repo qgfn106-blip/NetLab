@@ -10,6 +10,7 @@ import { analysisTfRequest, analysisExportRequest } from './analysis_client.js';
 import { $ } from './dom.js';
 import { nodeByName } from './model.js';
 import { openAnalysis, niceAxisTicks, niceAxisLabel } from './ac_analysis.js';
+import { prepareCanvasFrame } from './analysis_view.js';
 
 type AnalysisActions = {
   task: <T>(run: () => T | Promise<T>, options?: Record<string, unknown>) => Promise<T | null>;
@@ -198,14 +199,9 @@ export function drawAnalysisTF() {
     const data = state.analysisTF;
     if (!canvas || !data) return;
     attachTfCursor();
-    const dpr = window.devicePixelRatio || 1;
-    const width = canvas.clientWidth || 360;
-    const height = canvas.clientHeight || 210;
-    (canvas as HTMLCanvasElement).width = Math.round(width * dpr);
-    (canvas as HTMLCanvasElement).height = Math.round(height * dpr);
-    const ctx = (canvas as HTMLCanvasElement).getContext('2d');
-    ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx!.clearRect(0, 0, width, height);
+    const frame = prepareCanvasFrame(canvas as HTMLCanvasElement, 360, 210);
+    if (!frame) return;
+    const { ctx, width, height } = frame;
     const view = ($('#analysisTFView') as HTMLInputElement)?.value || 'bode';
     if (view === 'step') drawTFStep((ctx as CanvasRenderingContext2D), (data as TfDataRec), width, height);
     else if (view === 'poles') drawTFPoles((ctx as CanvasRenderingContext2D), (data as TfDataRec), width, height);
@@ -706,14 +702,9 @@ export function drawAnalysisSpectrum() {
     const canvas = $('#analysisChart');
     const data = state.analysisSpectrum as SpectrumRec | null;
     if (!canvas || !data) return;
-    const dpr = window.devicePixelRatio || 1;
-    const width = canvas.clientWidth || 320;
-    const height = canvas.clientHeight || 150;
-    (canvas as HTMLCanvasElement).width = Math.round(width * dpr);
-    (canvas as HTMLCanvasElement).height = Math.round(height * dpr);
-    const ctx = (canvas as HTMLCanvasElement).getContext('2d');
-    ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx!.clearRect(0, 0, width, height);
+    const frame = prepareCanvasFrame(canvas as HTMLCanvasElement, 320, 150);
+    if (!frame) return;
+    const { ctx, width, height } = frame;
     const mags = data.magnitude || [];
     const freqs = data.freqs || [];
     if (!mags.length) return;

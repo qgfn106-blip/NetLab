@@ -3,12 +3,12 @@
 import { api, jsonRequest } from './net.js';
 import type { ApiOptions } from './net.js';
 
-export function analysisTfRequest(body: unknown, options: ApiOptions = {}) {
-  return jsonRequest('/api/analysis/tf', 'POST', body, options);
+export function analysisTfRequest(body: unknown, _options?: ApiOptions) {
+  return jsonRequest('/api/analysis/tf', 'POST', body);
 }
 
-export function analysisExportRequest(body: unknown, options: ApiOptions = {}) {
-  return jsonRequest('/api/analysis/export', 'POST', body, options);
+export function analysisExportRequest(body: unknown, _options?: ApiOptions) {
+  return jsonRequest('/api/analysis/export', 'POST', body);
 }
 
 export function operatingPointRequest(options: ApiOptions = {}) {

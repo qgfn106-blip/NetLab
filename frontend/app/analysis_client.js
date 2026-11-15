@@ -1,9 +1,9 @@
 import { api, jsonRequest } from "./net.js";
-function analysisTfRequest(body, options = {}) {
-  return jsonRequest("/api/analysis/tf", "POST", body, options);
+function analysisTfRequest(body, _options) {
+  return jsonRequest("/api/analysis/tf", "POST", body);
 }
-function analysisExportRequest(body, options = {}) {
-  return jsonRequest("/api/analysis/export", "POST", body, options);
+function analysisExportRequest(body, _options) {
+  return jsonRequest("/api/analysis/export", "POST", body);
 }
 function operatingPointRequest(options = {}) {
   return api("/api/operating-point", options);

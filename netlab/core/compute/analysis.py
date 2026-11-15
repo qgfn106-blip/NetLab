@@ -16,6 +16,7 @@ import numpy as np
 
 from . import complex_support as complex_layer
 from . import transfer as transfer_math
+from .exact_input import to_exact as _to_exact
 from .circuit.descriptor import DescriptorModel
 from .circuit.descriptor_analysis import (
     UnsupportedAnalysisError,
@@ -27,6 +28,26 @@ from .circuit.descriptor_analysis import (
 )
 from ..common.limits import MAX_NODES, ComputeError
 from .statespace import StateSpaceModel
+
+
+def numeric_precision_mode() -> str:
+    """当前符号/传函数值精度模式：'exact'（默认）或 'standard'。
+
+    仅影响符号/传函分析链路；数值仿真、时域、录制、绘图仍恒为 float64，不受影响。
+    默认 'exact' 与既有行为一致（to_exact）。
+    """
+    return getattr(numeric_precision_mode, "_mode", "exact")
+
+
+def set_numeric_precision_mode(mode: str) -> None:
+    """设置符号数值精度模式。
+
+    * 'exact'：符号/传函调用 ``to_exact``（默认）。
+    * 'standard'：退回旧行为 ``sp.sympify(str(value))``，允许出现 ``sp.Float``（大系统提速）。
+    """
+    if mode not in ("exact", "standard"):
+        raise ValueError(f"numeric_precision 必须是 exact 或 standard，收到 {mode!r}")
+    numeric_precision_mode._mode = mode  # type: ignore[attr-defined]
 
 
 ANALYSIS_TIMEOUT = 5.0
@@ -524,10 +545,10 @@ def transfer_function(
             }
 
     def sym_number(value: Any) -> Any:
-        if isinstance(value, bool):
-            return sp.Integer(int(value))
-        if isinstance(value, (int, float)) and float(value).is_integer():
-            return sp.Integer(int(value))
+        # exact：十进制输入 -> 精确有理数（避免早期 float 漂移）；
+        # standard：退回旧行为 sp.sympify(str(value))，允许 sp.Float（大系统提速）。
+        if numeric_precision_mode() == "exact":
+            return _to_exact(value)
         return sp.sympify(str(value))
 
     def local_tf(node: Any) -> Any:
@@ -550,10 +571,14 @@ def transfer_function(
         if kind == "transfer_function":
             return sp.sympify(_node_tf(kind, params))
         if kind == "state_space":
-            a = sp.Matrix(params.get("A") or [])
-            b = sp.Matrix(params.get("B") or [])
-            c = sp.Matrix(params.get("C") or [])
-            d = sp.Matrix(params.get("D") or [[0.0]])
+            def _exact_rows(key: str, default: list) -> sp.Matrix:
+                rows = params.get(key) or default
+                return sp.Matrix([[sym_number(x) for x in row] for row in rows])
+
+            a = _exact_rows("A", [])
+            b = _exact_rows("B", [])
+            c = _exact_rows("C", [])
+            d = _exact_rows("D", [[0.0]])
             if a.shape[0] == 0 or b.shape[0] != a.shape[0]:
                 raise AnalysisError(f"状态空间节点 {node.name!r} 的 A/B 维度不匹配")
             transfer = c * (s * sp.eye(a.shape[0]) - a).inv() * b + d

@@ -62,6 +62,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "ui_motion": "low",
     "ui_perf": "perf",
     "ui_guide": "always",
+    "numeric_precision": "exact",
+    "numeric_display_digits": 6,
 }
 
 #: 设置项 → 类型/范围校验；未知键一律拒绝，避免隐藏配置。
@@ -77,11 +79,14 @@ _SETTINGS_RULES: dict[str, tuple[type, Any]] = {
     "ui_motion": (str, None),
     "ui_perf": (str, None),
     "ui_guide": (str, None),
+    "numeric_precision": (str, None),
+    "numeric_display_digits": (int, (3, 17)),
 }
 _THEMES = ("system", "light", "dark")
 _UI_MOTION = ("off", "low", "med", "high")
 _UI_PERF = ("perf", "balanced", "quality")
 _UI_GUIDE = ("always", "never")
+_NUMERIC_PRECISION = ("exact", "standard")
 
 
 @dataclass(frozen=True)
@@ -156,6 +161,8 @@ def _coerce_setting(key: str, value: Any) -> Any:
             raise ValidationError(f"设置 ui_perf 必须是 {', '.join(_UI_PERF)} 之一")
         if key == "ui_guide" and value not in _UI_GUIDE:
             raise ValidationError(f"设置 ui_guide 必须是 {', '.join(_UI_GUIDE)} 之一")
+        if key == "numeric_precision" and value not in _NUMERIC_PRECISION:
+            raise ValidationError(f"设置 numeric_precision 必须是 {', '.join(_NUMERIC_PRECISION)} 之一")
         if key == "ui_accent":
             if value and not (len(value) == 7 and value.startswith("#")):
                 raise ValidationError("设置 ui_accent 必须是空串或 #rrggbb")

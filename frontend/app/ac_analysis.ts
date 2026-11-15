@@ -11,13 +11,18 @@ import { probeNamesForAc } from './ac_probe.js';
 import { toast } from './desktop.js';
 import type { AcResultRec, OpElementRec } from './types.js';
 
+function _dispDigits(): number {
+    const n = Number((state.prefs || {}).numericDigits ?? 6);
+    return Number.isFinite(n) ? Math.max(3, Math.min(17, Math.round(n))) : 6;
+  }
+
 export function analEscape(text: string) {
     return String(text ?? '').replace(/[&<>"]/g, (ch) => (
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' } as Record<string, string>)[ch]
     ));
   }
 
-export function analNum(value: unknown, digits: number = 6) {
+export function analNum(value: unknown, digits: number = _dispDigits()) {
     const num = Number(value);
     if (!Number.isFinite(num)) return '—';
     const abs = Math.abs(num);
@@ -49,7 +54,7 @@ export function niceAxisTicks(min: number, max: number, target = 5): { min: numb
     const high = Math.ceil(max / step) * step;
     const values: number[] = [];
     for (let value = low, index = 0; value <= high + step * 0.5 && index < 100; value += step, index += 1) {
-      values.push(Number(value.toPrecision(12)));
+      values.push(Number(value.toPrecision(_dispDigits())));
     }
     return { min: low, max: high, step, values };
   }
@@ -58,7 +63,7 @@ export function niceAxisLabel(value: number): string {
     if (!Number.isFinite(value)) return '';
     const abs = Math.abs(value);
     if (abs !== 0 && (abs < 1e-3 || abs >= 1e6)) return value.toExponential(2);
-    return String(Number(value.toPrecision(6)));
+    return String(Number(value.toPrecision(_dispDigits())));
   }
 
 export function analysisWarn() {

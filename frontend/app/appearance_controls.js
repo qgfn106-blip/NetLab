@@ -75,6 +75,13 @@ function initAppearanceControls() {
   bindAppearSeg("#segRadius", "radius", true);
   bindAppearSeg("#segLine", "lineWidth", true);
   bindAppearSeg("#segChart", "chartPalette", false);
+  bindAppearSeg("#segNumPrec", "numericPrecision", false);
+  $("#inpNumDigits")?.addEventListener("change", () => {
+    const inp = $("#inpNumDigits");
+    const n = Math.max(3, Math.min(17, Math.round(Number(inp.value) || 6)));
+    inp.value = String(n);
+    void setPref("numericDigits", n);
+  });
   $("#rngTone")?.addEventListener("input", () => {
     const input = $("#rngTone");
     state.prefs.surfaceTone = Number(input.value) || 0;

@@ -16,6 +16,14 @@ from ..core.model import schematic
 from ..core.model.workspace import load_settings, save_settings, settings_file
 
 
+def _apply_numeric_precision(settings: dict[str, Any]) -> None:
+    from ..core.compute import analysis
+    try:
+        analysis.set_numeric_precision_mode(str(settings.get("numeric_precision", "exact")))
+    except (ValueError, TypeError):
+        pass
+
+
 class ProfileRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -59,10 +67,14 @@ def build_router(*, service: Any) -> APIRouter:
 
     @router.get("/api/settings")
     def settings_get() -> dict[str, Any]:
-        return {"settings": load_settings(), "path": str(settings_file())}
+        settings = load_settings()
+        _apply_numeric_precision(settings)
+        return {"settings": settings, "path": str(settings_file())}
 
     @router.patch("/api/settings")
     def settings_patch(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
-        return {"settings": save_settings(payload), "path": str(settings_file())}
+        settings = save_settings(payload)
+        _apply_numeric_precision(settings)
+        return {"settings": settings, "path": str(settings_file())}
 
     return router

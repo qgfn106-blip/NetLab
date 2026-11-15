@@ -76,6 +76,13 @@ export function initAppearanceControls() {
     bindAppearSeg('#segRadius', 'radius', true);
     bindAppearSeg('#segLine', 'lineWidth', true);
     bindAppearSeg('#segChart', 'chartPalette', false);
+    bindAppearSeg('#segNumPrec', 'numericPrecision', false);
+    $('#inpNumDigits')?.addEventListener('change', () => {
+      const inp = $('#inpNumDigits') as HTMLInputElement;
+      const n = Math.max(3, Math.min(17, Math.round(Number(inp.value) || 6)));
+      inp.value = String(n);
+      void setPref('numericDigits', n);
+    });
 
     // 5) 明暗强度微调（纸面/表面）：拖动实时应用，结束落盘
     $('#rngTone')?.addEventListener('input', () => {

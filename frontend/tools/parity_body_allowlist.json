@@ -17,6 +17,14 @@
     "openViewDesigner",
     "applyProjectUi",
     "buildProjectPayload",
-    "api"
+    "api",
+    "niceAxisTicks",
+    "niceAxisLabel",
+    "PREF_DEFAULTS",
+    "loadUiPrefs",
+    "PREF_SETTING_KEYS",
+    "syncPrefControls",
+    "initAppearanceControls",
+    "analNum"
   ]
 }

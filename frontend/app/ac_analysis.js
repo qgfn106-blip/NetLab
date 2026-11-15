@@ -7,10 +7,14 @@ import { clampFloatWindow, raiseFloatWindow } from "./float.js";
 import { state } from "./state.js";
 import { probeNamesForAc } from "./ac_probe.js";
 import { toast } from "./desktop.js";
+function _dispDigits() {
+  const n = Number((state.prefs || {}).numericDigits ?? 6);
+  return Number.isFinite(n) ? Math.max(3, Math.min(17, Math.round(n))) : 6;
+}
 function analEscape(text) {
   return String(text ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
 }
-function analNum(value, digits = 6) {
+function analNum(value, digits = _dispDigits()) {
   const num = Number(value);
   if (!Number.isFinite(num)) return "\u2014";
   const abs = Math.abs(num);
@@ -37,7 +41,7 @@ function niceAxisTicks(min, max, target = 5) {
   const high = Math.ceil(max / step) * step;
   const values = [];
   for (let value = low, index = 0; value <= high + step * 0.5 && index < 100; value += step, index += 1) {
-    values.push(Number(value.toPrecision(12)));
+    values.push(Number(value.toPrecision(_dispDigits())));
   }
   return { min: low, max: high, step, values };
 }
@@ -45,7 +49,7 @@ function niceAxisLabel(value) {
   if (!Number.isFinite(value)) return "";
   const abs = Math.abs(value);
   if (abs !== 0 && (abs < 1e-3 || abs >= 1e6)) return value.toExponential(2);
-  return String(Number(value.toPrecision(6)));
+  return String(Number(value.toPrecision(_dispDigits())));
 }
 function analysisWarn() {
   toast("\u5206\u6790\u4F1A\u57FA\u4E8E\u5F53\u524D\u573A\u666F\u91CD\u65B0\u6C42\u89E3\uFF0C\u671F\u95F4\u5B9E\u65F6\u64AD\u653E\u4F1A\u6682\u505C\uFF1B\u53EF\u968F\u65F6\u5173\u95ED\u5206\u6790\u7A97\u3002", "warn", 4200);

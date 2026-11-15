@@ -383,6 +383,17 @@
           </div></div>
         </div>
         <div class="set-row">
+          <label>数值精度<em>仅影响符号/传函分析，数值仿真仍 float64；精确模式在节点数很大时可能较慢，可切标准</em></label>
+          <div class="set-control"><div class="seg" id="segNumPrec">
+            <button type="button" data-value="exact">精确（符号用精确有理数）</button>
+            <button type="button" data-value="standard">标准（float64）</button>
+          </div></div>
+        </div>
+        <div class="set-row">
+          <label>显示有效位数<em>仅影响界面与图表的数值显示，不影响计算（3–17，默认 6）</em></label>
+          <div class="set-control"><input id="inpNumDigits" type="number" min="3" max="17" step="1" value="6" inputmode="numeric"></div>
+        </div>
+        <div class="set-row">
           <label>界面密度<em>行高与控件间距：紧凑 / 标准 / 宽松</em></label>
           <div class="set-control"><div class="seg" id="segDensity">
             <button type="button" data-value="compact">紧凑</button>

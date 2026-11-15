@@ -30,12 +30,12 @@ export const PREF_CACHE_KEY = 'netlab.ui.prefs';
 export interface AppearanceDefaults {
     theme: string; motion: string; perf: string; accent: string; accentDark: string;
     fontScale: number; density: string; surfaceTone: number; radius: number;
-    lineWidth: number; chartPalette: string;
+    lineWidth: number; chartPalette: string; numericPrecision: string; numericDigits: number;
   }
 export const PREF_DEFAULTS: AppearanceDefaults = {
     theme: 'system', motion: 'low', perf: 'perf', accent: '', accentDark: '',
     fontScale: 12, density: 'standard', surfaceTone: 0, radius: 0,
-    lineWidth: 1, chartPalette: 'theme',
+    lineWidth: 1, chartPalette: 'theme', numericPrecision: 'exact', numericDigits: 6,
   };
 export const FONT_SCALES = [11, 12, 13, 14];
 export const RADIUS_STEPS = [0, 2, 4];
@@ -158,6 +158,9 @@ export async function loadUiPrefs() {
       state.prefs.theme = ['system', 'light', 'dark'].includes(stored.theme) ? stored.theme : 'system';
       state.prefs.motion = ['off', 'low', 'med', 'high'].includes(stored.ui_motion) ? stored.ui_motion : 'low';
       state.prefs.perf = ['perf', 'balanced', 'quality'].includes(stored.ui_perf) ? stored.ui_perf : 'perf';
+      state.prefs.numericPrecision = stored.numeric_precision === 'standard' ? 'standard' : 'exact';
+      const _nd = Number(stored.numeric_display_digits);
+      state.prefs.numericDigits = Number.isFinite(_nd) ? Math.max(3, Math.min(17, Math.round(_nd))) : 6;
       state.prefs.accent = typeof stored.ui_accent === 'string' ? stored.ui_accent : '';
       // 启动引导一律按 always 处理（不再允许通过 ui_guide='never' 关闭开始页）
       state.prefs.guide = 'always';
@@ -171,7 +174,7 @@ export async function loadUiPrefs() {
     state.uiReady = true;
   }
 
-export const PREF_SETTING_KEYS = { theme: 'theme', motion: 'ui_motion', perf: 'ui_perf', accent: 'ui_accent' };
+export const PREF_SETTING_KEYS = { theme: 'theme', motion: 'ui_motion', perf: 'ui_perf', accent: 'ui_accent', numericPrecision: 'numeric_precision', numericDigits: 'numeric_display_digits' };
 
 export async function setPref(key: string, value: unknown) {
     state.prefs[key] = value;
@@ -211,6 +214,9 @@ export function syncPrefControls() {
     paint($('#segRadius'), String(prefs.radius ?? PREF_DEFAULTS.radius));
     paint($('#segLine'), String(prefs.lineWidth ?? PREF_DEFAULTS.lineWidth));
     paint($('#segChart'), String(prefs.chartPalette ?? PREF_DEFAULTS.chartPalette));
+    paint($('#segNumPrec'), String(prefs.numericPrecision ?? PREF_DEFAULTS.numericPrecision));
+    const numDigitsInput = $('#inpNumDigits') as HTMLInputElement | null;
+    if (numDigitsInput) numDigitsInput.value = String(prefs.numericDigits ?? PREF_DEFAULTS.numericDigits);
     const toneInput = $('#rngTone') as HTMLInputElement | null;
     if (toneInput) {
       const tone = Number(prefs.surfaceTone ?? 0);

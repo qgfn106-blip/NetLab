@@ -30,6 +30,26 @@ from ..common.limits import MAX_NODES, ComputeError
 from .statespace import StateSpaceModel
 
 
+def numeric_precision_mode() -> str:
+    """当前符号/传函数值精度模式：'exact'（默认）或 'standard'。
+
+    仅影响符号/传函分析链路；数值仿真、时域、录制、绘图仍恒为 float64，不受影响。
+    默认 'exact' 与既有行为一致（to_exact）。
+    """
+    return getattr(numeric_precision_mode, "_mode", "exact")
+
+
+def set_numeric_precision_mode(mode: str) -> None:
+    """设置符号数值精度模式。
+
+    * 'exact'：符号/传函调用 ``to_exact``（默认）。
+    * 'standard'：退回旧行为 ``sp.sympify(str(value))``，允许出现 ``sp.Float``（大系统提速）。
+    """
+    if mode not in ("exact", "standard"):
+        raise ValueError(f"numeric_precision 必须是 exact 或 standard，收到 {mode!r}")
+    numeric_precision_mode._mode = mode  # type: ignore[attr-defined]
+
+
 ANALYSIS_TIMEOUT = 5.0
 MAX_EXPORT_ROWS = 200_000
 
@@ -525,8 +545,11 @@ def transfer_function(
             }
 
     def sym_number(value: Any) -> Any:
-        # S1: keep decimal input as exact rationals to avoid early float drift.
-        return _to_exact(value)
+        # exact：十进制输入 -> 精确有理数（避免早期 float 漂移）；
+        # standard：退回旧行为 sp.sympify(str(value))，允许 sp.Float（大系统提速）。
+        if numeric_precision_mode() == "exact":
+            return _to_exact(value)
+        return sp.sympify(str(value))
 
     def local_tf(node: Any) -> Any:
         kind = node.kind
@@ -550,7 +573,7 @@ def transfer_function(
         if kind == "state_space":
             def _exact_rows(key: str, default: list) -> sp.Matrix:
                 rows = params.get(key) or default
-                return sp.Matrix([[_to_exact(x) for x in row] for row in rows])
+                return sp.Matrix([[sym_number(x) for x in row] for row in rows])
 
             a = _exact_rows("A", [])
             b = _exact_rows("B", [])

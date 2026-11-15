@@ -13,10 +13,8 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import Any
 
-import sympy as sp
-
-
 def to_exact(value: Any) -> Any:
+    import sympy as sp  # lazy: analysis 导入本模块时不强制依赖 sympy
     """把数值/字符串转成 SymPy 精确表达式（有限浮点->有理数）。"""
     if isinstance(value, bool):
         return sp.Integer(int(value))

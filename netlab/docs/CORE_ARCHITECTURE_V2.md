@@ -31,15 +31,15 @@
 
 | 阶段 | 目标能力 | 主要交付物（任务书口径） |
 |---|---|---|
-| 1 | 现有架构审计与问题定位 | `CORE_ARCHITECTURE_AUDIT.md`、模块依赖图、核心数据结构关系图、问题分级、改造顺序、迁移风险 |
+| 1 | 现有架构审计与问题定位 | `CORE_ARCHITECTURE_AUDIT`（已迁 Private-Docs，不重建）、模块依赖图、核心数据结构关系图、问题分级、改造顺序、迁移风险 |
 | 2 | 统一网络模型 Core Model V2 | `CORE_MODEL_V2.md`、四类关系图、核心对象 UML/关系图、Python 类型接口草案、迁移方案 |
 | 3 | Typed Port 与物理量/单位系统 | `TYPED_PORT_SYSTEM.md`、端口数据结构、单位/量纲检查、连接语义 |
-| 4 | Equation / Constraint 数学模型系统 | `EQUATION_SYSTEM.md`、Equation/Constraint 接口、Variable Registry、全局方程装配 |
-| 5 | Model Compiler | `MODEL_COMPILER.md`、Compiled Model、编译流程、增量编译、诊断、求解器选择 |
-| 6 | Runtime 与 Execution Plan | `RUNTIME_ARCHITECTURE.md`、Model/Compiled/Runtime 三层、Execution Plan、Recorder 分离 |
-| 7 | Plugin Architecture V2 | `PLUGIN_ARCHITECTURE_V2.md`、Domain/Component/PortType/EquationProvider/Solver 注册协议 |
-| 8 | Scientific Validation Framework | `SCIENTIFIC_VALIDATION.md`、解析解/收敛/守恒/参考软件/Property-based 验证 |
-| 9 | 性能优化与计算后端 | `PERFORMANCE_ARCHITECTURE.md`、性能剖析、稀疏/非线性/GPU 评估、回归门 |
+| 4 | Equation / Constraint 数学模型系统 | `EQUATION_SYSTEM`（未建立）、Equation/Constraint 接口、Variable Registry、全局方程装配 |
+| 5 | Model Compiler | `MODEL_COMPILER`（未建立）、Compiled Model、编译流程、增量编译、诊断、求解器选择 |
+| 6 | Runtime 与 Execution Plan | `RUNTIME_ARCHITECTURE`（未建立）、Model/Compiled/Runtime 三层、Execution Plan、Recorder 分离 |
+| 7 | Plugin Architecture V2 | `PLUGIN_ARCHITECTURE_V2`（未建立）、Domain/Component/PortType/EquationProvider/Solver 注册协议 |
+| 8 | Scientific Validation Framework | `SCIENTIFIC_VALIDATION`（未建立）、解析解/收敛/守恒/参考软件/Property-based 验证 |
+| 9 | 性能优化与计算后端 | `PERFORMANCE_ARCHITECTURE`（未建立）、性能剖析、稀疏/非线性/GPU 评估、回归门 |
 | 10 | 机械动力学试验引擎 | 机械组件（Mass/Spring/Damper/Gear/Motor 等）、机械端口、`M q̈ + C q̇ + K q = F(t)`、验证案例 |
 | 11 | 多物理场与空间分布模型 | Mesh/DOF/Field/BC/Material、通用 FEM 流程、多物理场耦合、场可视化 |
 | 12 | 实施约束 | 先设计后实施、不重写稳定模块、不做过早抽象、控制每次修改范围、保持兼容与可测试性 |

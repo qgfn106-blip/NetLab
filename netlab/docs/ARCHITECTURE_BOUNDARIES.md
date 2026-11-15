@@ -62,7 +62,7 @@ flowchart TD
 | --- | --- | --- |
 | `Node` 同时有 `data/state/compute/handler` 与描述字段 | `netlab/core/model/graph.py:163` | Model 与 Runtime 未分层 |
 | `Node.__post_init__` 保持 `data/state` 引用，engine 与 UI 共享可变字典 | `netlab/core/model/graph.py:164-188` | 双份可变状态 |
-| model ↔ compute 双向包依赖、27 模块同一 SCC | `CORE_ARCHITECTURE_AUDIT.md` §5 | 依赖方向无约束 |
+| model ↔ compute 双向包依赖、27 模块同一 SCC | `CORE_ARCHITECTURE_AUDIT`（已迁 Private-Docs，不重建） §5 | 依赖方向无约束 |
 | `netlab/__init__.py:15-17` 顶层导入连带加载全模型/compute | 审计 §5 | 层隔离缺失 |
 | `decode_project_bytes` 先解压后限 8 MB | 审计 §5 | 安全边界（非本阶段修复项） |
 | 外观更新曾触发 `_dirty` 重编译 | `netlab/core/model/scene_edit.py:151` | 已在阶段 2 修复 |

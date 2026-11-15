@@ -260,7 +260,7 @@ flowchart TD
   S1 --> VR["VariableRegistry"]
 ```
 
-四图分别回答：谁与谁物理相连、谁的计算依赖谁、哪些方程约束哪些变量、场景与块如何组织。现状把这四类关系压在同一份 `EdgeRecord` / `Connection`（P1-B1，见 `CORE_ARCHITECTURE_AUDIT.md` §5）。
+四图分别回答：谁与谁物理相连、谁的计算依赖谁、哪些方程约束哪些变量、场景与块如何组织。现状把这四类关系压在同一份 `EdgeRecord` / `Connection`（P1-B1，见 `CORE_ARCHITECTURE_AUDIT`（已迁 Private-Docs，不重建） §5）。
 
 ## 6. 与现状差异与渐进迁移
 

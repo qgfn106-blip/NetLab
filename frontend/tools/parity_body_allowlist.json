@@ -30,6 +30,10 @@
     "_fmtPoly",
     "newProject",
     "applyNumericProjectUi",
-    "analysisGet"
+    "analysisGet",
+    "runOperatingPoint",
+    "runAcSweep",
+    "runAnalysisTF",
+    "exportAnalysisCsv"
   ]
 }

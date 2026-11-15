@@ -3,6 +3,7 @@ import { jsonRequest } from "./net.js";
 import { toast } from "./desktop.js";
 import { fmt } from "../app.utils.js";
 import { analysisQuery } from "./analysis_paths.js";
+import { analysisTfRequest, analysisExportRequest } from "./analysis_client.js";
 import { $ } from "./dom.js";
 import { nodeByName } from "./model.js";
 import { openAnalysis, niceAxisTicks, niceAxisLabel } from "./ac_analysis.js";
@@ -106,7 +107,7 @@ async function runAnalysisTransfer() {
   const out = $("#analysisTFOut");
   if (out) out.textContent = "\u5206\u6790\u4E2D\u2026";
   try {
-    const response = await jsonRequest("/api/analysis/tf", "POST", {
+    const response = await analysisTfRequest({
       input_node: input,
       output_node: output,
       points: 240
@@ -169,7 +170,7 @@ async function runAnalysisTF() {
   const out = $("#analysisTFOut");
   if (out) out.textContent = "\u5206\u6790\u4E2D\u2026";
   try {
-    const response = await jsonRequest("/api/analysis/tf", "POST", {
+    const response = await analysisTfRequest({
       node: node || null,
       expr: node ? null : expr,
       points: 240
@@ -677,7 +678,7 @@ async function exportAnalysisCsv(keys = null, defaultName = "analysis") {
   const key = analysisSignalKey();
   const wanted = Array.isArray(keys) && keys.length ? keys : key ? [key] : null;
   const response = await task(
-    () => jsonRequest("/api/analysis/export", "POST", { name: name || defaultName, keys: wanted, decimate: 1 })
+    () => analysisExportRequest({ name: name || defaultName, keys: wanted, decimate: 1 })
   );
   if (!response) return;
   setAnalysisOutput(`\u5DF2\u5BFC\u51FA ${response.rows} \u884C \u2192 ${response.path}

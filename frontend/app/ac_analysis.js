@@ -1,6 +1,6 @@
 import { C } from "./colors.js";
 import { PALETTE } from "./constants.js";
-import { api } from "./net.js";
+import { operatingPointRequest, acSweepRequest, analysisTfApi } from "./analysis_client.js";
 import { $, $$ } from "./dom.js";
 import { chartPalette } from "./theme.js";
 import { clampFloatWindow, raiseFloatWindow } from "./float.js";
@@ -107,7 +107,7 @@ async function runOperatingPoint() {
   const meta = $("#analOpMeta");
   if (meta) meta.textContent = "\u6C42\u89E3\u4E2D\u2026";
   try {
-    const data = await api("/api/operating-point");
+    const data = await operatingPointRequest();
     const result = data.result || {};
     const nodeRows = Object.entries(result.node_voltages || {}).map(([name, value]) => `<tr><td>${analEscape(name)}</td><td class="num">${analNum(value)}</td></tr>`).join("");
     const elementRows = Object.entries(result.elements || {}).map(([name, info]) => `<tr><td>${analEscape(name)}</td><td class="num">${analNum(info.current)}</td><td class="num">${analNum(info.voltage_difference)}</td><td class="num">${analNum(info.power)}</td></tr>`).join("");
@@ -137,7 +137,7 @@ async function runAcSweep() {
   if (probeNames.length) params.set("probes", probeNames.join(","));
   if (meta) meta.textContent = "\u626B\u9891\u4E2D\u2026";
   try {
-    const data = await api(`/api/ac-sweep?${params.toString()}`);
+    const data = await acSweepRequest(params);
     state.acResult = data.result || null;
     state.acRevision = state.scene?.revision ?? null;
     const result = state.acResult;
@@ -572,7 +572,7 @@ async function runCircuitBypass() {
   }
   if (meta) meta.textContent = "\u6C42\u89E3\u4E2D\u2026";
   try {
-    const opData = await api("/api/operating-point");
+    const opData = await operatingPointRequest();
     const op = (opData.result || {}).node_voltages || null;
     const body = {
       mode: "circuit",
@@ -586,7 +586,7 @@ async function runCircuitBypass() {
       points: 121,
       scale: "log"
     };
-    const data = await api("/api/analysis/tf", { method: "POST", body: JSON.stringify(body) });
+    const data = await analysisTfApi(body);
     bypassResult = data;
     const result = bypassResult;
     const stateSpace = result?.state_space;

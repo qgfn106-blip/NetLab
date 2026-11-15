@@ -172,7 +172,9 @@ async function buildProjectPayload() {
         cardValue: state.ui.cardValue !== false,
         cardFields: normalizeCardFields(state.ui.cardFields),
         symbolScale: Number(state.ui.symbolScale) || 1.2,
-        glyphColor: state.ui.glyphColor || "#1f5f5b"
+        glyphColor: state.ui.glyphColor || "#1f5f5b",
+        numericPrecision: state.prefs.numericPrecision === "standard" ? "standard" : "exact",
+        numericDigits: Math.max(3, Math.min(17, Number(state.prefs.numericDigits) || 6))
       }
     })
   });
@@ -489,8 +491,18 @@ function initProject() {
   setInterval(() => void autosaveProject(), state.project.autosaveInterval);
   if (isDesktop()) state.project.desktop = true;
 }
+function applyNumericProjectUi(uiSettings) {
+  state.prefs.numericPrecision = uiSettings.numericPrecision === "standard" ? "standard" : "exact";
+  const nd = Number(uiSettings.numericDigits);
+  state.prefs.numericDigits = Number.isFinite(nd) ? Math.max(3, Math.min(17, Math.round(nd))) : 6;
+  void jsonRequest("/api/numeric-precision", "POST", { mode: state.prefs.numericPrecision }).catch(() => {
+  });
+  const paint = window.__paintNumeric;
+  if (typeof paint === "function") paint();
+}
 export {
   AUTOSAVE_ENABLED_KEY,
+  applyNumericProjectUi,
   autosaveProject,
   buildProjectPayload,
   importProjectText,

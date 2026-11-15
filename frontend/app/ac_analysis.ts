@@ -11,6 +11,23 @@ import { probeNamesForAc } from './ac_probe.js';
 import { toast } from './desktop.js';
 import type { AcResultRec, OpElementRec } from './types.js';
 
+function _fmtPoly(coeffs: unknown, digits: number): string {
+  if (!Array.isArray(coeffs) || !coeffs.length) return '';
+  const parts: string[] = [];
+  const n = coeffs.length;
+  for (let i = 0; i < n; i += 1) {
+    const c = Number(coeffs[i]);
+    if (!Number.isFinite(c) || c === 0) continue;
+    const pow = n - 1 - i;
+    let num = Math.abs(c).toPrecision(digits);
+    if (num.includes('.')) num = num.replace(/0+$/, '').replace(/\.$/, '');
+    const term = pow === 0 ? num : pow === 1 ? `${num}s` : `${num}s^${pow}`;
+    const sign = c < 0 ? '−' : parts.length ? '+' : '';
+    parts.push(`${sign}${term}`);
+  }
+  return parts.length ? parts.join('') : '0';
+}
+
 function _dispDigits(): number {
     const n = Number((state.prefs || {}).numericDigits ?? 6);
     return Number.isFinite(n) ? Math.max(3, Math.min(17, Math.round(n))) : 6;
@@ -486,10 +503,13 @@ function bypassSummary(result: BypassRec) {
         ? '—'
         : `${analNum(value)}${unit}`
     );
+    const _gNum = _fmtPoly((tf as any).numerator_coeffs, _dispDigits());
+    const _gDen = _fmtPoly((tf as any).denominator_coeffs, _dispDigits());
+    const _gTxt = _gNum && _gDen ? `${_gNum} / (${_gDen})` : (tf.expression || '—');
     if (tf.supported === false) {
       transferHost.innerHTML = `<div class="anal-empty">传递函数：${analEscape(tf.reason || '当前电路阶数过高')}</div>`;
     } else {
-      transferHost.innerHTML = `<div class="anal-transfer">G(s) = <code>${analEscape(tf.expression || '—')}</code>`
+      transferHost.innerHTML = `<div class="anal-transfer">G(s) = <code>${analEscape(_gTxt)}</code>`
         + `<span class="anal-meta"> · 阶数 ${tf.order ?? '—'} · 相对阶 ${tf.relative_order ?? '—'}</span></div>`;
     }
     const items: Array<[string, string]> = [

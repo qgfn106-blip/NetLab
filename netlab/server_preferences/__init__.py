@@ -31,6 +31,12 @@ class ProfileRequest(BaseModel):
     reset: bool = False
 
 
+class NumericPrecisionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mode: str
+
+
 def build_router(*, service: Any) -> APIRouter:
     router = APIRouter(tags=["preferences"])
 
@@ -76,5 +82,16 @@ def build_router(*, service: Any) -> APIRouter:
         settings = save_settings(payload)
         _apply_numeric_precision(settings)
         return {"settings": settings, "path": str(settings_file())}
+
+    @router.get("/api/numeric-precision")
+    def numeric_precision_get() -> dict[str, Any]:
+        from ..core.compute import analysis
+        return {"mode": analysis.numeric_precision_mode()}
+
+    @router.post("/api/numeric-precision")
+    def numeric_precision_set(request: NumericPrecisionRequest) -> dict[str, Any]:
+        from ..core.compute import analysis
+        analysis.set_numeric_precision_mode(request.mode)
+        return {"mode": analysis.numeric_precision_mode()}
 
     return router

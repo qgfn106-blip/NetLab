@@ -25,6 +25,7 @@
     "PREF_SETTING_KEYS",
     "syncPrefControls",
     "initAppearanceControls",
-    "analNum"
+    "analNum",
+    "bypassSummary"
   ]
 }

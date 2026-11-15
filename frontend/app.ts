@@ -37,7 +37,7 @@ import { sectionLabel, section, buildHeader, renderEmptyInspector, setEmptyInspe
 import { modulePorts, deviceElementSpec, isPinNode, devicePins, buildDevicePinList } from './app/device_pins.js';
 import { renderNodeInspector, renderWireInspector, renderEdgeInspector, applyInspector, updateInspectorLive, setInspectorActions } from './app/inspector.js';
 import { renderSpecPane, scheduleSpecRender, renderExtensionPanel, refreshExtensions, setSpecPanelActions } from './app/spec_panel.js';
-import { AUTOSAVE_ENABLED_KEY, setProjectActions, setProjectFileInput, markProjectDirty, projectSaved, rememberRecent, loadRecent, updateProjectPanel, buildProjectPayload, projectDownloadText as downloadText, saveProject, importProjectText, openProject, openProjectPath, newProject, recoverAutosave, autosaveProject, maybeOfferRecovery, initProject } from './app/project.js';
+import { applyNumericProjectUi, AUTOSAVE_ENABLED_KEY, setProjectActions, setProjectFileInput, markProjectDirty, projectSaved, rememberRecent, loadRecent, updateProjectPanel, buildProjectPayload, projectDownloadText as downloadText, saveProject, importProjectText, openProject, openProjectPath, newProject, recoverAutosave, autosaveProject, maybeOfferRecovery, initProject } from './app/project.js';
 import { ACCENT_SWATCHES, PREF_CACHE_KEY, PREF_DEFAULTS, FONT_SCALES, RADIUS_STEPS, LINE_STEPS, CHART_MODES, activeAccent, computeRuntimeOverride, applyAppearance, resolveTheme, readPrefCache, writePrefCache, loadUiPrefs, PREF_SETTING_KEYS, setPref, syncPrefControls, setAppearanceActions } from './app/appearance.js';
 import { initAppearanceControls, resetAppearance, saveAutosaveSetting, TelemetryQuality, formatQualityNumber, setQualityText, refreshTelemetryQuality, setAppearanceControlActions } from './app/appearance_controls.js';
 import { setGeometryActions, worldToScreen, screenToWorld, nodeDiameter, nodeRect, isModuleNode, devicePinGroups, deviceWorldSize, deviceRect, devicePinLocal, devicePinWired, deviceSupplyLabel, deviceMissingPins, deviceImplicitGroundPin, deviceInactive, devicePinScreen, snapWorld, portOut, portIn, curveFor, nodeCenterScreen, anchorPoint, edgeEndpointHit, waypointHitAt, anchorSideFor, anchorScreenPoint, edgePathPoints, pathSegments, pathPointAt, pathMidpoint, pathEndAngle, distanceToPath, vectorForNode, bezierPoint } from './app/geometry.js';
@@ -4997,7 +4997,7 @@ function setStatusHint(hint: string): void {
     }
     if (Number.isFinite(Number(uiSettings.symbolScale))) state.ui.symbolScale = clamp(Number(uiSettings.symbolScale), 0.6, 2.5);
     if (typeof uiSettings.glyphColor === 'string') state.ui.glyphColor = uiSettings.glyphColor;
-    requestDraw();
+    applyNumericProjectUi(uiSettings); requestDraw();
   }
 
   /* ======================================================================

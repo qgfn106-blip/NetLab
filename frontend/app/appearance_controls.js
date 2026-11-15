@@ -75,13 +75,32 @@ function initAppearanceControls() {
   bindAppearSeg("#segRadius", "radius", true);
   bindAppearSeg("#segLine", "lineWidth", true);
   bindAppearSeg("#segChart", "chartPalette", false);
-  bindAppearSeg("#segNumPrec", "numericPrecision", false);
+  const paintNumeric = () => {
+    const seg = $("#segNumPrec");
+    if (seg) seg.querySelectorAll("button[data-value]").forEach((node) => node.classList.toggle("active", node.dataset.value === (state.prefs.numericPrecision === "standard" ? "standard" : "exact")));
+    const inp = $("#inpNumDigits");
+    if (inp) inp.value = String(state.prefs.numericDigits ?? 6);
+  };
+  window.__paintNumeric = paintNumeric;
+  $("#segNumPrec")?.addEventListener("click", (event) => {
+    const target = event.target.closest("button[data-value]");
+    if (!target) return;
+    state.prefs.numericPrecision = target.dataset.value === "standard" ? "standard" : "exact";
+    void jsonRequest("/api/numeric-precision", "POST", { mode: state.prefs.numericPrecision }).catch(() => {
+    });
+    markProjectDirty();
+    paintNumeric();
+    requestDraw();
+  });
   $("#inpNumDigits")?.addEventListener("change", () => {
     const inp = $("#inpNumDigits");
     const n = Math.max(3, Math.min(17, Math.round(Number(inp.value) || 6)));
     inp.value = String(n);
-    void setPref("numericDigits", n);
+    state.prefs.numericDigits = n;
+    markProjectDirty();
+    paintNumeric();
   });
+  paintNumeric();
   $("#rngTone")?.addEventListener("input", () => {
     const input = $("#rngTone");
     state.prefs.surfaceTone = Number(input.value) || 0;

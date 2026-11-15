@@ -76,13 +76,32 @@ export function initAppearanceControls() {
     bindAppearSeg('#segRadius', 'radius', true);
     bindAppearSeg('#segLine', 'lineWidth', true);
     bindAppearSeg('#segChart', 'chartPalette', false);
-    bindAppearSeg('#segNumPrec', 'numericPrecision', false);
+    // 数值精度 / 显示有效位数：工程级设置（随工程保存，不写全局偏好）
+    const paintNumeric = () => {
+      const seg = $('#segNumPrec');
+      if (seg) seg.querySelectorAll('button[data-value]').forEach((node) => node.classList.toggle('active', (node as HTMLElement).dataset.value === (state.prefs.numericPrecision === 'standard' ? 'standard' : 'exact')));
+      const inp = $('#inpNumDigits') as HTMLInputElement | null;
+      if (inp) inp.value = String(state.prefs.numericDigits ?? 6);
+    };
+    (window as any).__paintNumeric = paintNumeric;
+    $('#segNumPrec')?.addEventListener('click', (event: MouseEvent) => {
+      const target = (event.target! as Element).closest('button[data-value]') as HTMLElement | null;
+      if (!target) return;
+      state.prefs.numericPrecision = target.dataset.value === 'standard' ? 'standard' : 'exact';
+      void jsonRequest('/api/numeric-precision', 'POST', { mode: state.prefs.numericPrecision }).catch(() => {});
+      markProjectDirty();
+      paintNumeric();
+      requestDraw();
+    });
     $('#inpNumDigits')?.addEventListener('change', () => {
       const inp = $('#inpNumDigits') as HTMLInputElement;
       const n = Math.max(3, Math.min(17, Math.round(Number(inp.value) || 6)));
       inp.value = String(n);
-      void setPref('numericDigits', n);
+      state.prefs.numericDigits = n;
+      markProjectDirty();
+      paintNumeric();
     });
+    paintNumeric();
 
     // 5) 明暗强度微调（纸面/表面）：拖动实时应用，结束落盘
     $('#rngTone')?.addEventListener('input', () => {

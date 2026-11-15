@@ -7,6 +7,7 @@ import {
 import type { AcResultRec, AppearanceRec, BezierRec, BlockItem, BoxRec, CacheEntryRec, CatalogRec, ChartRec, ClipboardRec, ComplexLike, DataHolder, DeclaredItemRec, DegradedItemRec, DegradedRec, DocItem, DragRec, EdgeBodyRec, EdgeItem, ExtItemRec, ExtRec, ExtResultRec, FieldKey, FloatGeo, FloatWindowSpec, FrameItem, HelpInfoRec, HoverRec, HoverWaypointRec, InstrumentRec, IroGlobal, IroPicker, IssueRec, LayoutRec, LimitsRec, MenuItemRec, MultiRec, NetworkItem, NodeItem, OpElementRec, ParamSpec, PayloadRec, PerfRowRec, PointerRec, PortSpec, PrefsRec, PreviewNode, ProjectRec, Pt, RailItemRec, ReplayRec, SceneRec, SelectionRec, SimRec, SimStats, SizeRec, SnapshotRec, SpecRec, SpectrumRec, State, StateSpaceRec, TemplateRec, TfBodeRec, TfDataRec, TfMetricsRec, TfStepRec, Ui, UiPrefsRec, ViewRec, WireToolRec } from './app/types.js';
 import { UI_BUILD, PALETTE, GROUP_COLORS, NODE_RADIUS, NODE_W, NODE_H, CHART_KEYS, MAX_IMPORT_BYTES, MAX_FRAMES, INST_COLORS } from './app/constants.js';
 import { $, $$, stage, canvas, ctx, chartCanvas, chartCtx, phaseCanvas, phaseCtx, scopeCanvas, scopeCtx, lissCanvas, lissCtx } from './app/dom.js';
+import { roundRectPath, pointerPosition, frameCap } from './app/canvas_geometry.js';
 import { state, ui } from './app/state.js';
 import type { ApiOptions } from './app/net.js';
 import { el, div, button, clone, isFormTarget } from './app/ui.js';
@@ -294,10 +295,6 @@ function setStatusHint(hint: string): void {
     ui.runBtn.title = running ? '暂停（空格）' : '运行（空格）';
   }
 
-  function frameCap() {
-    const keys = Math.max(1, Number(state.sim?.probe_keys?.length) || state.values.size || 1);
-    return Math.min(MAX_FRAMES, Math.max(600, Math.floor(250000 / keys)));
-  }
 
   function updateSignalKeyCache() {
     const keys = Array.isArray(state.sim?.probe_keys) ? state.sim.probe_keys : [];
@@ -388,20 +385,6 @@ function setStatusHint(hint: string): void {
     scheduleChartDraw();
   }
 
-  function roundRectPath(context: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-    const radius = Math.max(0, Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2));
-    context.beginPath();
-    context.moveTo(x + radius, y);
-    context.lineTo(x + w - radius, y);
-    context.quadraticCurveTo(x + w, y, x + w, y + radius);
-    context.lineTo(x + w, y + h - radius);
-    context.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-    context.lineTo(x + radius, y + h);
-    context.quadraticCurveTo(x, y + h, x, y + h - radius);
-    context.lineTo(x, y + radius);
-    context.quadraticCurveTo(x, y, x + radius, y);
-    context.closePath();
-  }
 
 
 
@@ -477,13 +460,6 @@ function setStatusHint(hint: string): void {
     zoomAt(factor, state.canvasSize.w / 2, state.canvasSize.h / 2);
   }
 
-  function pointerPosition(event: MouseEvent) {
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    };
-  }
 
   function distance(ax: number, ay: number, bx: number, by: number) {
     return Math.hypot(ax - bx, ay - by);

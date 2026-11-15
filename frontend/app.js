@@ -1,6 +1,7 @@
 import { fmt, intText, clamp, hashString } from "./app.utils.js";
-import { NODE_W, NODE_H, CHART_KEYS, MAX_IMPORT_BYTES, MAX_FRAMES } from "./app/constants.js";
+import { NODE_W, NODE_H, CHART_KEYS, MAX_IMPORT_BYTES } from "./app/constants.js";
 import { $, $$, stage, canvas, chartCanvas, chartCtx } from "./app/dom.js";
+import { roundRectPath, pointerPosition, frameCap } from "./app/canvas_geometry.js";
 import { state, ui } from "./app/state.js";
 import { el, div, button, clone, isFormTarget } from "./app/ui.js";
 import { normalizeCardFields } from "./app/card_fields.js";
@@ -220,10 +221,6 @@ function setStatusHint(hint) {
     ui.runLabel.textContent = running ? "\u6682\u505C" : "\u8FD0\u884C";
     ui.runBtn.title = running ? "\u6682\u505C\uFF08\u7A7A\u683C\uFF09" : "\u8FD0\u884C\uFF08\u7A7A\u683C\uFF09";
   }
-  function frameCap() {
-    const keys = Math.max(1, Number(state.sim?.probe_keys?.length) || state.values.size || 1);
-    return Math.min(MAX_FRAMES, Math.max(600, Math.floor(25e4 / keys)));
-  }
   function updateSignalKeyCache() {
     const keys = Array.isArray(state.sim?.probe_keys) ? state.sim.probe_keys : [];
     const rawLabels = state.sim?.probe_labels;
@@ -306,20 +303,6 @@ function setStatusHint(hint) {
     chartCanvas.height = Math.max(1, Math.round(height * dpr));
     scheduleChartDraw();
   }
-  function roundRectPath(context, x, y, w, h, r) {
-    const radius = Math.max(0, Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2));
-    context.beginPath();
-    context.moveTo(x + radius, y);
-    context.lineTo(x + w - radius, y);
-    context.quadraticCurveTo(x + w, y, x + w, y + radius);
-    context.lineTo(x + w, y + h - radius);
-    context.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-    context.lineTo(x + radius, y + h);
-    context.quadraticCurveTo(x, y + h, x, y + h - radius);
-    context.lineTo(x, y + radius);
-    context.quadraticCurveTo(x, y, x + radius, y);
-    context.closePath();
-  }
   function circuitPinSegments(edge, source, target) {
     if (state.scene?.mode !== "circuit" || state.ui?.symbol !== "gb" || !edge.layout) return null;
     const pins = elementPins(edge);
@@ -375,13 +358,6 @@ function setStatusHint(hint) {
   }
   function zoomCenter(factor) {
     zoomAt(factor, state.canvasSize.w / 2, state.canvasSize.h / 2);
-  }
-  function pointerPosition(event) {
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top
-    };
   }
   function distance(ax, ay, bx, by) {
     return Math.hypot(ax - bx, ay - by);

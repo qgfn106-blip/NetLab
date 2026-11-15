@@ -1,7 +1,7 @@
 // 交流分析面板（S5-36 从 app.ts 迁出）
 import { C } from './colors.js';
 import { PALETTE } from './constants.js';
-import { api } from './net.js';
+import { operatingPointRequest, acSweepRequest, analysisTfApi } from './analysis_client.js';
 import { $, $$, canvas, ctx } from './dom.js';
 import { chartPalette } from './theme.js';
 import { div } from './ui.js';
@@ -132,7 +132,7 @@ export async function runOperatingPoint() {
     const meta = $('#analOpMeta');
     if (meta) meta.textContent = '求解中…';
     try {
-      const data = await api('/api/operating-point');
+      const data = await operatingPointRequest();
       const result = data.result || {};
       const nodeRows = Object.entries(result.node_voltages || {}).map(([name, value]) => (
         `<tr><td>${analEscape(name)}</td><td class="num">${analNum(value)}</td></tr>`
@@ -177,7 +177,7 @@ export async function runAcSweep() {
     if (probeNames.length) params.set('probes', probeNames.join(','));
     if (meta) meta.textContent = '扫频中…';
     try {
-      const data = await api(`/api/ac-sweep?${params.toString()}`);
+      const data = await acSweepRequest(params);
       state.acResult = data.result || null;
       state.acRevision = state.scene?.revision ?? null;
       const result = state.acResult as AcResultRec | null;
@@ -708,7 +708,7 @@ export async function runCircuitBypass() {
     }
     if (meta) meta.textContent = '求解中…';
     try {
-      const opData = await api('/api/operating-point');
+      const opData = await operatingPointRequest();
       const op = (opData.result || {}).node_voltages || null;
       const body = {
         mode: 'circuit',
@@ -722,7 +722,7 @@ export async function runCircuitBypass() {
         points: 121,
         scale: 'log',
       };
-      const data = await api('/api/analysis/tf', { method: 'POST', body: JSON.stringify(body) });
+      const data = await analysisTfApi(body);
       bypassResult = data as BypassRec;
       const result = bypassResult;
       const stateSpace = result?.state_space;

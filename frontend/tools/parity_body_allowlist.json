@@ -29,6 +29,11 @@
     "bypassSummary",
     "_fmtPoly",
     "newProject",
-    "applyNumericProjectUi"
+    "applyNumericProjectUi",
+    "analysisGet",
+    "runOperatingPoint",
+    "runAcSweep",
+    "runAnalysisTF",
+    "exportAnalysisCsv"
   ]
 }

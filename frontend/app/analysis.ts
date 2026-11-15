@@ -5,6 +5,8 @@ import { el, div, button } from './ui.js';
 import { api, jsonRequest } from './net.js';
 import { toast } from './desktop.js';
 import { fmt } from '../app.utils.js';
+import { analysisQuery } from './analysis_paths.js';
+import { analysisTfRequest, analysisExportRequest } from './analysis_client.js';
 import { $ } from './dom.js';
 import { nodeByName } from './model.js';
 import { openAnalysis, niceAxisTicks, niceAxisLabel } from './ac_analysis.js';
@@ -38,8 +40,7 @@ export function analysisSignalKey() {
   }
 
 export async function analysisGet(path: string, query?: Record<string, string>) {
-    const qs = query ? `?${new URLSearchParams(query)}` : '';
-    return task(() => jsonRequest(`${path}${qs}`, 'GET'), { dirty: false });
+    return task(() => jsonRequest(analysisQuery(path, query), 'GET'), { dirty: false });
   }
 
 export function setAnalysisOutput(text: string) {
@@ -111,7 +112,7 @@ export async function runAnalysisTransfer() {
     const out = $('#analysisTFOut');
     if (out) out.textContent = '分析中…';
     try {
-      const response = await jsonRequest('/api/analysis/tf', 'POST', {
+      const response = await analysisTfRequest({
         input_node: input,
         output_node: output,
         points: 240,
@@ -176,7 +177,7 @@ export async function runAnalysisTF() {
     const out = $('#analysisTFOut');
     if (out) out.textContent = '分析中…';
     try {
-      const response = await jsonRequest('/api/analysis/tf', 'POST', {
+      const response = await analysisTfRequest({
         node: node || null,
         expr: node ? null : expr,
         points: 240,
@@ -694,7 +695,7 @@ export async function exportAnalysisCsv(keys: string[] | null = null, defaultNam
     const key = analysisSignalKey();
     const wanted = Array.isArray(keys) && keys.length ? keys : (key ? [key] : null);
     const response = await task(() =>
-      jsonRequest('/api/analysis/export', 'POST', { name: name || defaultName, keys: wanted, decimate: 1 }),
+      analysisExportRequest({ name: name || defaultName, keys: wanted, decimate: 1 }),
     );
     if (!response) return;
     setAnalysisOutput(`已导出 ${response.rows} 行 → ${response.path}\n列：${(response.columns || []).join(', ')}`);

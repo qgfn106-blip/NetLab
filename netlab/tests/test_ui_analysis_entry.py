@@ -42,7 +42,13 @@ def test_index_has_circuit_bypass_controls() -> None:
 
 
 def test_app_calls_solver_analysis_endpoints() -> None:
-    js = _read("app.ts") + "\n" + _read("app/ac_analysis.ts")
+    js = (
+        _read("app.ts")
+        + "\n"
+        + _read("app/ac_analysis.ts")
+        + "\n"
+        + _read("app/analysis_client.ts")
+    )
     assert "/api/operating-point" in js
     assert "/api/ac-sweep" in js
     assert "/api/analysis/tf" in js

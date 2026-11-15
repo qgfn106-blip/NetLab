@@ -1,3 +1,4 @@
+# 职责边界：A1 = 接缝契约（NodeDesc/NodeRuntime 形状/冻结/隔离基础）
 """P2-A A1：NodeDesc / NodeRuntime 惰性并行接缝（纯新增，不改数值路径）。
 
 验收要点（审批 m05956 条件）：NodeDesc 不含运行态；NodeRuntime 持 state/inputs

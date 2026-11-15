@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import copy
+import dataclasses
 
 import pytest
 
@@ -39,7 +40,7 @@ def test_pilot_desc_roundtrip_and_frozen(name: str) -> None:
     fields = desc.to_fields()
     assert fields["id"] == rec.id and fields["name"] == rec.name and fields["kind"] == rec.kind
     assert fields["params"] == dict(rec.params)
-    with pytest.raises(Exception):
+    with pytest.raises(dataclasses.FrozenInstanceError):
         desc.kind = "noop"  # frozen
 
 
@@ -86,3 +87,30 @@ def test_scene_payload_roundtrip_preserves_pilot_nodes() -> None:
     restored.load_payload(payload)
     got = {n.name: n.kind for n in restored.nodes.values()}
     assert got.get("s") == "sum" and got.get("i") == "integrate"
+
+
+# --- A2 边界：不可篡改 / 异常输入（v1 严格期望，用于 RED 取证） ---
+
+
+def test_desc_to_fields_deep_copied() -> None:
+    desc = NodeDesc.from_record(_record(_pilot_scene(), "s"))
+    fields = desc.to_fields()
+    fields["params"]["__x__"] = 1
+    assert "__x__" not in desc.params, "to_fields 返回体被外部篡改不应回写 desc.params"
+
+
+def test_runtime_restore_rejects_non_mapping() -> None:
+    # 非映射输入被显式拒绝（TypeError）。
+    rt = NodeRuntime.from_record(_record(_pilot_scene(), "i"))
+    for bad in (None, 42, "x", [1, 2]):  # type: ignore[list-item]
+        with pytest.raises(TypeError):
+            rt.restore(bad)  # type: ignore[arg-type]
+
+
+def test_runtime_restore_missing_keys_rejected() -> None:
+    # 缺失 state/inputs 键显式拒绝（ValueError），不再静默回落空态。
+    rt = NodeRuntime.from_record(_record(_pilot_scene(), "i"))
+    rt.state["acc"] = 9.0
+    for bad in ({}, {"state": {}}, {"inputs": {}}):
+        with pytest.raises(ValueError):
+            rt.restore(bad)

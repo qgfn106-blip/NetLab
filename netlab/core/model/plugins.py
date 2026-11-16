@@ -430,8 +430,10 @@ class PluginManager:
 
     def _install(self, record: PluginRecord, capability: str, spec: Any) -> None:
         plugin_id = record.manifest.id
-        raw_kind = getattr(spec, "kind", None) or getattr(spec, "id", "")
-        kind = _qualify(plugin_id, raw_kind)
+        kind = ""
+        if capability != "engine":
+            raw_kind = getattr(spec, "kind", None) or getattr(spec, "id", "")
+            kind = _qualify(plugin_id, raw_kind)
         if capability == "compute":
             if not isinstance(spec, V1ComputeSpec):
                 raise ValidationError("compute 注册项必须是 ComputeSpec")
@@ -522,6 +524,14 @@ class PluginManager:
                 raise ValidationError("engine 注册项必须是 EngineSpec")
             if spec.mode in ("signal", "circuit", "vector"):
                 raise ValidationError("插件不能替换内置引擎")
+            # REM-B2-02 (PS-02)：注册键必须与 mode 完全一致（engine_registry 以 mode
+            # 为键，create_engine/unload 均按 mode 查找，禁止套 _qualify 前缀）。
+            spec_kind = getattr(spec, "kind", "") or ""
+            if spec_kind and spec_kind != spec.mode:
+                raise ValidationError(
+                    f"engine 插件 kind({spec_kind!r}) 必须与 mode({spec.mode!r}) 一致"
+                )
+            kind = spec_kind or spec.mode
             register_engine(spec, plugin_id=plugin_id)
         else:
             raise ValidationError(f"未实现的能力：{capability}")

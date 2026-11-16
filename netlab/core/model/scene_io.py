@@ -61,10 +61,34 @@ from ..compute.profiling import timed
 
 
 class _SceneIOMixin:
-    def to_payload(self, *, include_state: bool = False) -> dict[str, Any]:
+    def to_payload(
+        self, *, include_state: bool = False, authored_data: bool = False
+    ) -> dict[str, Any]:
+        """导出场景载荷。
+
+        ``authored_data=True`` 仅用于**工程保存路径**（build_project /
+        Networks.to_project）：对 compute/handler 节点把 ``data`` 换回其
+        ``_initial_data``（建模初值），避免把运行时输出写进工程后被当作初值。
+        默认 ``False`` = 既有行为逐字节不变（canvas/undo/validate 等复用路径零影响）。
+
+        实现约束：**绝不在此处 ensure_engine**（重建会用已含运行时输出的
+        record.data 重新快照 _initial_data，反而把污染固化为初值）；只用已构建的
+        ``self._engine``，无则回退 record.data。
+        """
+        node_map = None
+        if authored_data and self._engine is not None:
+            node_map = getattr(self._engine, "node_map", None)
         nodes = []
         for record in self.nodes.values():
-            nodes.append(record.snapshot(include_state=include_state))
+            snap = record.snapshot(include_state=include_state)
+            if authored_data:
+                node = node_map.get(record.id) if node_map else None
+                if node is not None and (
+                    getattr(node, "compute", None) is not None
+                    or getattr(node, "handler", None) is not None
+                ):
+                    snap["data"] = copy.deepcopy(node._initial_data)
+            nodes.append(snap)
         edges = []
         for record in self.edges.values():
             edges.append(record.snapshot(include_state=include_state))

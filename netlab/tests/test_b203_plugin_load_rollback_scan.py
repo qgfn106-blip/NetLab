@@ -149,3 +149,76 @@ def test_8_rollback_record_clears_multiple_capabilities(tmp_path, mode):
     assert rec.status == "error"
     assert rec.error == "boom"
     assert rec.registered == {}
+
+
+def _no_our_module(pid):
+    import sys
+    prefix = "netlab_plugin_" + pid.replace(".", "_")
+    return not any(name.startswith(prefix) for name in sys.modules)
+
+
+def test_9_disabled_after_scan_unloads_old_loaded(tmp_path, mode):
+    """已加载插件被禁用后再次 scan：须换成 disabled 且全局注册表/模块零残留（D-B2-03-1）。"""
+    pid, m = "com.example.b203good9", mode + "9"
+    ER.ENGINE_SPECS.pop(m, None)
+    ER.ENGINE_OWNERS.pop(m, None)
+    _make_plugin(tmp_path, pid, m, _GOOD)
+    pm = _manager(tmp_path)
+    pm.scan(load=True)
+    assert pm._records[pid].status == "loaded"
+    assert m in ER.ENGINE_SPECS
+    pm._disabled.add(pid)
+    pm.scan(load=True)
+    assert pm._records[pid].status == "disabled"
+    assert m not in ER.ENGINE_SPECS and m not in ER.ENGINE_OWNERS
+    assert _no_our_module(pid)
+
+
+def test_10_incompatible_after_host_change_unloads(tmp_path, mode):
+    """已加载插件因 host 版本变化变 incompatible：须先 unload，全局注册表零残留（D-B2-03-1）。"""
+    pid, m = "com.example.b203good10", mode + "10"
+    ER.ENGINE_SPECS.pop(m, None)
+    ER.ENGINE_OWNERS.pop(m, None)
+    _make_plugin(tmp_path, pid, m, _GOOD)  # netlab >=3.0.0
+    pm = _manager(tmp_path)
+    pm.scan(load=True)
+    assert pm._records[pid].status == "loaded"
+    old_host = pm.host_version
+    pm.host_version = "2.0.0"
+    try:
+        pm.scan(load=True)
+    finally:
+        pm.host_version = old_host
+    assert pm._records[pid].status == "incompatible"
+    assert m not in ER.ENGINE_SPECS and m not in ER.ENGINE_OWNERS
+    assert _no_our_module(pid)
+
+
+def test_11_scan_unload_failure_is_logged_not_raised(tmp_path, mode, monkeypatch):
+    """scan 中旧 loaded 卸载抛错时应记录并继续采纳新状态，不使整次 scan 崩溃（D-B2-03-1 异常分支）。"""
+    pid, m = "com.example.b203good11", mode + "11"
+    ER.ENGINE_SPECS.pop(m, None)
+    ER.ENGINE_OWNERS.pop(m, None)
+    _make_plugin(tmp_path, pid, m, _GOOD)
+    pm = _manager(tmp_path)
+    pm.scan(load=True)
+    assert pm._records[pid].status == "loaded"
+    pm._disabled.add(pid)
+
+    def _boom(record):
+        raise RuntimeError("unload boom")
+
+    monkeypatch.setattr(pm, "_unload_record", _boom)
+    try:
+        pm.scan(load=True)  # 不应抛出
+        assert pm._records[pid].status == "disabled"
+    finally:
+        # 被测异常分支下真实卸载未执行，清理全局注册表与模块，避免污染其它测试。
+        ER.ENGINE_SPECS.pop(m, None)
+        ER.ENGINE_OWNERS.pop(m, None)
+        import sys
+
+        prefix = "netlab_plugin_" + pid.replace(".", "_")
+        for name in list(sys.modules):
+            if name.startswith(prefix):
+                del sys.modules[name]

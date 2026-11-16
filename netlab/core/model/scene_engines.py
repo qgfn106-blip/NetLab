@@ -199,6 +199,25 @@ class _Engine:
         return None
 
 
+def _runtime_pilot_mode() -> str:
+    """A-int-1 试点开关（环境变量）：仅认 off/gain，默认 off；非法值 fail-safe 到 off 并警告一次。"""
+    import os
+    import warnings
+
+    raw = os.environ.get("NETLAB_NODE_RUNTIME_PILOT", "off")
+    value = str(raw).strip().lower()
+    if value not in ("off", "gain"):
+        if not getattr(_runtime_pilot_mode, "_warned", False):
+            _runtime_pilot_mode._warned = True  # type: ignore[attr-defined]
+            warnings.warn(
+                f"NETLAB_NODE_RUNTIME_PILOT={raw!r} 非法，按 off 处理（旧行为）",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+        return "off"
+    return value
+
+
 class SignalEngine(_Engine):
     def __init__(self, scene: "Scene") -> None:
         self.network = Network(
@@ -221,6 +240,22 @@ class SignalEngine(_Engine):
                     f"节点 {record.name!r} 的计算方式无法装配：{exc}"
                 ) from exc
             traits = solver_traits(record.kind, params)
+            if (
+                record.kind == "gain"
+                and str(getattr(self.scene, "mode", "")) == "signal"
+                and _runtime_pilot_mode() == "gain"
+            ):
+                # A-int-1：经 NodeDesc/NodeRuntime 惰性适配后仍委托原 gain handler；
+                # ctx 与结果写回完全走原有同一段代码（零数学复制、不双写）。
+                from netlab.core.model.instance_model import NodeDesc, NodeRuntime
+
+                _base_handler = handler
+                _pilot_desc = NodeDesc.from_record(record)
+                _pilot_rt = NodeRuntime.from_record(record)
+
+                def handler(ctx, _base_handler=_base_handler, _desc=_pilot_desc, _rt=_pilot_rt):
+                    return _base_handler(ctx)
+
             node = Node(
                 name=record.name,
                 data=record.data,

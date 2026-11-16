@@ -187,6 +187,7 @@ class PluginRecord:
     error: str = ""
     registered: dict[str, list[str]] = field(default_factory=dict)
     loaded_at: str = ""
+    stale: bool = False
 
     def summary(self) -> dict[str, Any]:
         return {
@@ -196,6 +197,7 @@ class PluginRecord:
             "error": self.error,
             "registered": {key: list(value) for key, value in self.registered.items()},
             "loaded_at": self.loaded_at,
+            "stale": self.stale,
         }
 
 
@@ -348,7 +350,26 @@ class PluginManager:
                             error=str(exc),
                         )
                         discovered[directory.name] = record
-            self._records = discovered
+            merged: dict[str, PluginRecord] = {}
+            for pid, new_rec in discovered.items():
+                old = self._records.get(pid)
+                if (
+                    old is not None
+                    and old.status in ("loaded", "disabled")
+                    and new_rec.status != "incompatible"
+                ):
+                    if old.manifest.version != new_rec.manifest.version:
+                        old.stale = True
+                    merged[pid] = old
+                else:
+                    merged[pid] = new_rec
+            for pid, old in list(self._records.items()):
+                if pid not in discovered and old.status == "loaded":
+                    try:
+                        self._unload_record(old)
+                    except Exception:
+                        logger.exception("插件卸载失败：%s", pid)
+            self._records = merged
             if load:
                 self._load_available()
             return [record.summary() for record in self._records.values()]
@@ -406,27 +427,68 @@ class PluginManager:
                 raise ValidationError(f"依赖插件未加载：{dep_id}")
             if not version_satisfies(dependency.manifest.version, dep_range):
                 raise ValidationError(f"依赖版本不满足：{dep_id} {dep_range}")
-        module = _import_plugin_module(manifest, record.path)
-        context = PluginContext(
-            manifest.id,
-            record.path,
-            self.data_root / manifest.id,
-            manifest=manifest,
-            logger=logging.getLogger(f"netlab.plugin.{manifest.id}"),
-        )
-        function_name = manifest.entry.split(":", 1)[1]
-        function = getattr(module, function_name)
-        function(context)
-        for capability, spec in context.registrations:
-            if capability not in manifest.capabilities:
-                raise ValidationError(f"插件未声明能力 {capability}")
-            self._install(record, capability, spec)
-        self._modules[manifest.id] = module
+        try:
+            module = _import_plugin_module(manifest, record.path)
+            context = PluginContext(
+                manifest.id,
+                record.path,
+                self.data_root / manifest.id,
+                manifest=manifest,
+                logger=logging.getLogger(f"netlab.plugin.{manifest.id}"),
+            )
+            function_name = manifest.entry.split(":", 1)[1]
+            function = getattr(module, function_name)
+            function(context)
+            for capability, spec in context.registrations:
+                if capability not in manifest.capabilities:
+                    raise ValidationError(f"插件未声明能力 {capability}")
+                self._install(record, capability, spec)
+            self._modules[manifest.id] = module
+        except Exception as exc:
+            # REM-B2-03：事务回滚——撤销已装能力/模块，置 error 后 re-raise。
+            self._rollback_record(record, exc)
+            raise
         record.status = "loaded"
         record.error = ""
         import time
 
         record.loaded_at = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+
+    def _rollback_record(self, record: PluginRecord, exc: BaseException) -> None:
+        """REM-B2-03：撤销该插件已安装的全部能力与模块，置 error（不被 _unload_record 尾状态覆盖）。"""
+        for capability, kinds in list(record.registered.items()):
+            for kind in kinds:
+                try:
+                    if capability == "compute":
+                        COMPUTE_SPECS.pop(kind, None)
+                    elif capability == "method":
+                        METHOD_SPECS.pop(kind, None)
+                    elif capability == "analysis":
+                        unregister_analysis(kind)
+                    elif capability == "element":
+                        ELEMENT_SPECS.pop(kind, None)
+                    elif capability == "data_io":
+                        self.data_formats.pop(kind, None)
+                    elif capability == "panel":
+                        self.panels.pop(kind, None)
+                    elif capability == "template":
+                        self.templates.pop(kind, None)
+                    elif capability == "visual":
+                        self.visuals.pop(kind, None)
+                    elif capability == "engine":
+                        unregister_engine(kind)
+                except Exception:  # 撤销须容错幂等
+                    logger.exception("回滚能力失败：%s/%s", capability, kind)
+        record.registered.clear()
+        pid = record.manifest.id
+        for name in [
+            name for name in sys.modules
+            if name.startswith("netlab_plugin_") and pid.replace(".", "_") in name
+        ]:
+            sys.modules.pop(name, None)
+        self._modules.pop(pid, None)
+        record.status = "error"
+        record.error = str(exc)
 
     def _install(self, record: PluginRecord, capability: str, spec: Any) -> None:
         plugin_id = record.manifest.id
@@ -574,7 +636,7 @@ class PluginManager:
     def unload_all(self) -> None:
         with _PLUGIN_LOCK:
             for record in list(self._records.values()):
-                if record.status == "loaded":
+                if record.status == "loaded" or record.registered:
                     self._unload_record(record)
 
     def reload(self, plugin_id: str) -> dict[str, Any]:

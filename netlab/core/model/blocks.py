@@ -361,6 +361,22 @@ class BlockStore:
 class BlockRuntime:
     """一个功能块实例的内部场景；每个实例独立 state。"""
 
+    @classmethod
+    def compile(
+        cls,
+        block: BlockDef,
+        store: BlockStore,
+        *,
+        depth: int = 0,
+        internal_sim: bool = False,
+    ) -> "BlockRuntime":
+        """统一构造入口（薄封装，M2）。
+
+        仅为 compare_block_modes 与 scene_engines.create_runtime 提供单一入口；
+        不改变 `__init__` 语义、不引入缓存或类级可变状态。
+        """
+        return cls(block, store, depth=depth, internal_sim=internal_sim)
+
     def __init__(
         self,
         block: BlockDef,
@@ -627,8 +643,8 @@ def compare_block_modes(
     store = BlockStore()
     store.add(copy.deepcopy(block))
     try:
-        behavior = BlockRuntime(block, store, internal_sim=False)
-        structural = BlockRuntime(block, store, internal_sim=True)
+        behavior = BlockRuntime.compile(block, store, internal_sim=False)
+        structural = BlockRuntime.compile(block, store, internal_sim=True)
     except Exception as exc:  # noqa: BLE001 - 对比接口需要把失败原因回给前端
         return {"ok": False, "block_id": block.id, "reason": str(exc)}
 

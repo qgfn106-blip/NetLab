@@ -122,6 +122,7 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
         """P0：更新求解器选项；下次 ensure_engine 时生效。"""
         self.solver_options = options
         self.revision += 1
+        self._dirty = True
 
     def set_algebraic_solver(self, enabled: bool) -> None:
         """R36/P2：开启/关闭信号流直接馈通 SCC 线性求解。"""

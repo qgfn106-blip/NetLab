@@ -600,6 +600,22 @@ class Simulation:
             # 否则只剩最后一段，前端看到的「起始时间」就不是 0。
             needed = int(math.ceil(count / RECORDER_CAPACITY))
             sample = max(sample, needed, 1)
+            # COMP-01：插值规模校验前移到任何状态突变之前——被拒绝的调用
+            # 不能已经 reset 场景/清空录制/推进整段循环，否则旧结果永久丢失。
+            # 方法/次数/窗口校验已在上方完成；此处预检规模上界，公式与锁内
+            # 快照点（interp_plan 构造处）一致，帧数取最坏情况
+            # min(count, RECORDER_CAPACITY)（sample 归一后录制帧数的上界）。
+            if interpolation_method:
+                from .interpolation import estimate_frames as _estimate_frames
+
+                _pre_frames = min(count, RECORDER_CAPACITY)
+                _pre_est = _estimate_frames(_pre_frames, int(interpolation_rounds))
+                _pre_keys = len(self.scene.probes(by_id=True)) or 1
+                if _pre_keys * _pre_est > 4_000_000:
+                    raise ValidationError(
+                        f"插值规模过大（约 {_pre_keys} 通道 × {_pre_est} 帧）；"
+                        "请减少插值次数、增大 sample_every/dt，或改用「直接平均中点」"
+                    )
             self.ensure_thread()
             self.running = False
             # 原子预计算：成功才替换；取消/异常恢复旧场景与旧录制。

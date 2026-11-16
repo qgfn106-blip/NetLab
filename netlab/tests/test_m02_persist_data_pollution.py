@@ -66,3 +66,47 @@ def test_network_container_build_project_save_path_uses_initial_data() -> None:
     payload = proj["networks"][0]["scene"]
     assert _node(payload, gid)["data"] == {}
     assert _node(payload, uid)["data"]["value"] == pytest.approx(3.0)
+
+
+def _build_circuit():
+    scene = Scene("circuit")
+    gnd = scene.add_node(name="gnd", kind="ground")
+    vin = scene.add_node(name="vin", kind="node")
+    out = scene.add_node(name="out", kind="node")
+    scene.add_edge(name="V1", source=vin.id, target=gnd.id, kind="vsource",
+                   params={"wave": "dc", "offset": 0.0, "amplitude": 1.0})
+    scene.add_edge(name="R1", source=vin.id, target=out.id, kind="resistor", params={"R": 1000.0})
+    scene.add_edge(name="C1", source=out.id, target=gnd.id, kind="capacitor", params={"C": 1.0e-6})
+    return scene, out.id
+
+
+def test_circuit_authored_snapshot_strips_runtime_voltage() -> None:
+    scene, outid = _build_circuit()
+    scene.step(1.0e-4)
+    assert scene.nodes[outid].data.get("voltage") is not None
+    payload = scene.to_payload(include_state=False, authored_data=True)
+    assert "voltage" not in _node(payload, outid)["data"]
+
+
+def test_circuit_default_to_payload_keeps_runtime_voltage() -> None:
+    scene, outid = _build_circuit()
+    scene.step(1.0e-4)
+    payload = scene.to_payload(include_state=False)
+    assert _node(payload, outid)["data"].get("voltage") is not None
+
+
+def test_circuit_build_project_strips_runtime_voltage() -> None:
+    scene, outid = _build_circuit()
+    scene.step(1.0e-4)
+    proj = build_project(Simulation(scene), name="t")
+    payload = proj["networks"][0]["scene"]
+    assert "voltage" not in _node(payload, outid)["data"]
+
+
+def test_circuit_network_container_strips_runtime_voltage() -> None:
+    scene, outid = _build_circuit()
+    scene.step(1.0e-4)
+    nc = NetworkContainer(Simulation(scene))
+    proj = nc.build_project(name="t")
+    payload = proj["networks"][0]["scene"]
+    assert "voltage" not in _node(payload, outid)["data"]

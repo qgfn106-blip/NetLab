@@ -556,6 +556,13 @@ class CircuitEngine(_Engine):
         all_nodes = {**scene.nodes, **extra_nodes}
         all_edges = list(scene.edges.values()) + list(extra_edges)
         self.block_records = extra_nodes
+        # M-02-circuit：捕获每个记录求解前的 authorded 初值（circuit 无 node_map，
+        # 保存路径 to_payload(authored_data=True) 优先用此映射，剥离运行时 data["voltage"]）。
+        self._initial_data: dict[str, dict] = {
+            record_id: copy.deepcopy(record.data)
+            for record_id, record in all_nodes.items()
+            if isinstance(getattr(record, "data", None), dict)
+        }
         net_records = {
             record.id: record
             for record in all_nodes.values()

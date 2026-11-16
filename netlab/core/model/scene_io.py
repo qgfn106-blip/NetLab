@@ -76,8 +76,11 @@ class _SceneIOMixin:
         ``self._engine``，无则回退 record.data。
         """
         node_map = None
+        engine_initial = None
         if authored_data and self._engine is not None:
             node_map = getattr(self._engine, "node_map", None)
+            # M-02-circuit：circuit 引擎无 node_map，改用引擎在求解前捕获的初值映射。
+            engine_initial = getattr(self._engine, "_initial_data", None)
         nodes = []
         for record in self.nodes.values():
             snap = record.snapshot(include_state=include_state)
@@ -88,6 +91,8 @@ class _SceneIOMixin:
                     or getattr(node, "handler", None) is not None
                 ):
                     snap["data"] = copy.deepcopy(node._initial_data)
+                elif engine_initial is not None and record.id in engine_initial:
+                    snap["data"] = copy.deepcopy(engine_initial[record.id])
             nodes.append(snap)
         edges = []
         for record in self.edges.values():

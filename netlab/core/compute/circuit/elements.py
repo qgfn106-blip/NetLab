@@ -47,6 +47,11 @@ class CircuitElement:
         self.dt = 0.0
         self.time = 0.0
 
+    #: COMP-02：以 ``self.state`` 为镜像的缓存属性名（如 on/speed）。
+    #: 检查点只恢复 ``element.state``；子类须声明此元组，使回滚时同步缓存，
+    #: 避免 operating_point()/ac_sweep() 提交后的缓存泄漏到后续瞬态。
+    CACHED_STATE_ATTRS: tuple[str, ...] = ()
+
     def reset(self) -> None:
         """清空历史（保留参数）。子类覆盖。"""
         self.iteration_guess.clear()

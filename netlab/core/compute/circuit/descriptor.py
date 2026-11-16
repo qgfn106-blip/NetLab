@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import math
+import os
 from dataclasses import dataclass
 from typing import Any, Iterable, Sequence
 
@@ -75,6 +76,15 @@ LINEARIZABLE_NONLINEAR_KINDS = frozenset(
 )
 
 _EPS = float(np.finfo(float).eps)
+
+# 频响数值健康诊断（只读诊断，不改变求解算法与结果）
+FREQ_DIAG_ILL_THRESHOLD = 1.0e-6
+FREQ_DIAG_COND_THRESHOLD = 1.0e12
+
+
+def FREQ_DIAG_COND_ENABLED() -> bool:
+    """是否处于显式诊断路径（读环境变量 NETLAB_FREQ_DIAG=1）；实时路径默认不估计 cond。"""
+    return os.environ.get("NETLAB_FREQ_DIAG") == "1"
 
 
 class DescriptorIndex:
@@ -255,6 +265,47 @@ class DescriptorSystem:
             + _EPS
         )
         return numerator / denominator
+
+
+    def diagnostics(self, omega: float, solution: "np.ndarray | None" = None) -> dict[str, Any]:
+        """诊断单个频点 ``(A + jωE) X = B`` 的数值健康度（纯读，不改变求解结果）。"""
+        matrix = self.matrix(omega)
+        solver_ok = True
+        vector = None
+        try:
+            vector = np.linalg.solve(matrix, self.B) if solution is None else np.asarray(solution, dtype=complex)
+        except np.linalg.LinAlgError:
+            solver_ok = False
+        rel_residual: float | None = None
+        if not solver_ok or vector is None:
+            finite = False
+        else:
+            finite = bool(np.all(np.isfinite(matrix)) and np.all(np.isfinite(vector)))
+            if finite:
+                numerator = float(np.linalg.norm(matrix @ vector - self.B))
+                denominator = (
+                    float(np.linalg.norm(matrix)) * float(np.linalg.norm(vector))
+                    + float(np.linalg.norm(self.B))
+                )
+                rel_residual = numerator / denominator if denominator > 1e-300 else numerator
+        ill = (not solver_ok) or (not finite) or (
+            rel_residual is not None and rel_residual > FREQ_DIAG_ILL_THRESHOLD
+        )
+        cond_est: float | None = None
+        if FREQ_DIAG_COND_ENABLED() or ill:
+            try:
+                cond_est = float(np.linalg.cond(matrix))
+            except Exception:
+                cond_est = None
+            if cond_est is not None and cond_est > FREQ_DIAG_COND_THRESHOLD:
+                ill = True
+        return {
+            "solver_ok": solver_ok,
+            "finite": bool(finite),
+            "rel_residual": rel_residual,
+            "ill_conditioned": bool(ill),
+            "cond_est": cond_est,
+        }
 
 
 class DescriptorModel:
@@ -820,6 +871,59 @@ class DescriptorModel:
             raise ValidationError("AC 频率必须严格递增")
         return values
 
+
+    def _frequency_diagnostics(self, system: "DescriptorSystem", omegas: Sequence[float]) -> dict[str, Any]:
+        points: list[dict[str, Any]] = []
+        max_rel: float | None = None
+        max_cond: float | None = None
+        any_ill = False
+        for omega in omegas:
+            entry: dict[str, Any] = {"omega": float(omega)}
+            entry.update(system.diagnostics(float(omega)))
+            rel = entry.get("rel_residual")
+            if rel is not None:
+                max_rel = rel if max_rel is None else max(max_rel, rel)
+            cond = entry.get("cond_est")
+            if cond is not None:
+                max_cond = cond if max_cond is None else max(max_cond, cond)
+            if entry.get("ill_conditioned"):
+                any_ill = True
+            points.append(entry)
+        return {
+            "threshold": FREQ_DIAG_ILL_THRESHOLD,
+            "cond_threshold": FREQ_DIAG_COND_THRESHOLD,
+            "diag_enabled": FREQ_DIAG_COND_ENABLED(),
+            "any_ill_conditioned": any_ill,
+            "max_rel_residual": max_rel,
+            "max_cond_est": max_cond,
+            "points": points,
+        }
+
+    def _attach_diagnostics(self, result: dict[str, Any], input_source: str | None, system: "DescriptorSystem | None" = None) -> dict[str, Any]:
+        if not FREQ_DIAG_COND_ENABLED():
+            result["diagnostics"] = {
+                "any_ill_conditioned": False,
+                "max_rel_residual": None,
+                "points": [],
+                "diag_enabled": False,
+            }
+            return result
+        try:
+            if system is None:
+                system = self.build(input_source)
+        except Exception:
+            result["diagnostics"] = {
+                "any_ill_conditioned": False,
+                "max_rel_residual": None,
+                "points": [],
+                "note": "diagnostics unavailable",
+            }
+            return result
+        freqs = result.get("frequencies") or []
+        omegas = [2.0 * math.pi * float(f) for f in freqs]
+        result["diagnostics"] = self._frequency_diagnostics(system, omegas)
+        return result
+
     def frequency_response(
         self,
         frequencies: Iterable[float],
@@ -854,7 +958,7 @@ class DescriptorModel:
             )
             core["omega_rad_s"] = [2.0 * math.pi * frequency for frequency in values]
             core["omega"] = list(core["omega_rad_s"])
-            return core
+            return self._attach_diagnostics(core, input_source)
         system = self.build(input_source)
         resolved = self._resolve_probes(probes)
         omegas = [2.0 * math.pi * frequency for frequency in values]
@@ -892,7 +996,7 @@ class DescriptorModel:
                     math.degrees(math.atan2(value.imag, value.real))
                 )
                 chain["db"].append(20.0 * math.log10(max(magnitude, 1.0e-30)))
-        return output
+        return self._attach_diagnostics(output, input_source, system)
 
     def __repr__(self) -> str:  # pragma: no cover - 调试辅助
         return (

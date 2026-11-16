@@ -136,3 +136,16 @@ def test_7_version_change_marks_stale_without_reload(tmp_path, mode):
     assert rec.stale is True
     assert rec.manifest.version == "0.1.0"
     assert pm._records[pid].summary()["stale"] is True
+
+
+def test_8_rollback_record_clears_multiple_capabilities(tmp_path, mode):
+    """_rollback_record 覆盖多能力撤销分支（compute/method/analysis）并清空 registered。"""
+    _make_plugin(tmp_path, "com.example.b203good", mode, _GOOD)
+    pm = _manager(tmp_path)
+    pm.scan(load=True)
+    rec = pm._records["com.example.b203good"]
+    rec.registered = {"compute": ["x"], "method": ["y"], "analysis": ["z"]}
+    pm._rollback_record(rec, ValueError("boom"))
+    assert rec.status == "error"
+    assert rec.error == "boom"
+    assert rec.registered == {}

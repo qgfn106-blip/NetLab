@@ -664,6 +664,31 @@ SCHEMA_MIGRATIONS: dict[int, Any] = {
 _MIGRATION_STEPS: tuple[int, ...] = tuple(sorted(SCHEMA_MIGRATIONS))
 
 
+def detect_project_version(payload: dict[str, Any]) -> int:
+    """判定一个工程输入所需的**目标版本**（行为与 migrate_project 入口完全一致）。
+
+    只读、不修改 ``payload``。返回该输入所需的目标版本，不代表原始 version 字段：
+    - 已带正确 format：返回其 ``version``（缺省 0），并做非负整数校验、> PROJECT_VERSION 拒绝；
+    - 旧版 scene-json（format 缺失/不符但含 nodes & edges）：返回 PROJECT_VERSION；
+    - 其它（非 mapping / 缺 format 且非 scene-json）→ ValidationError。
+    注：``isinstance(True, int)`` 为真是历史怪癖，此处原样保留以保持零回归。
+    """
+    if not isinstance(payload, dict):
+        raise ValidationError("工程文件必须是 JSON 对象")
+    if payload.get("format") != PROJECT_FORMAT:
+        if "nodes" in payload and "edges" in payload:
+            return PROJECT_VERSION
+        raise ValidationError("不是 Netlab 工程文件（缺少 format 字段）")
+    version = payload.get("version", 0)
+    if not isinstance(version, int) or version < 0:
+        raise ValidationError("工程 version 必须是非负整数")
+    if version > PROJECT_VERSION:
+        raise ValidationError(
+            f"工程版本 {version} 高于当前程序支持的 {PROJECT_VERSION}，请升级 Netlab"
+        )
+    return version
+
+
 def migrate_project(payload: dict[str, Any]) -> dict[str, Any]:
     """把旧格式升级到当前版本（v2：networks + current）。"""
     if not isinstance(payload, dict):
@@ -691,13 +716,7 @@ def migrate_project(payload: dict[str, Any]) -> dict[str, Any]:
                 "metadata": {"migrated_from": "scene-json"},
             }
         raise ValidationError("不是 Netlab 工程文件（缺少 format 字段）")
-    version = payload.get("version", 0)
-    if not isinstance(version, int) or version < 0:
-        raise ValidationError("工程 version 必须是非负整数")
-    if version > PROJECT_VERSION:
-        raise ValidationError(
-            f"工程版本 {version} 高于当前程序支持的 {PROJECT_VERSION}，请升级 Netlab"
-        )
+    version = detect_project_version(payload)
     migrated = copy.deepcopy(payload)
     for step in _MIGRATION_STEPS:
         if version < step or (step == 2 and "networks" not in migrated):

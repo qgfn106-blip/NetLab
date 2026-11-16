@@ -11,7 +11,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from .blocks import BlockDef, BlockStore, BlockRuntime
+from .blocks import BlockDef, BlockStore, BlockRuntime, iter_interface_nodes
 from ..common.limits import NetlabError, ValidationError
 
 MAX_REPORT_ITEMS = 40
@@ -29,15 +29,10 @@ def _item(
 
 
 def _interface_ports(block: BlockDef) -> set[str]:
-    ports: set[str] = set()
-    for node in block.nodes:
-        if node.get("kind") not in ("module_input", "module_output"):
-            continue
-        params = node.get("params") or {}
-        if str(params.get("role", "interface")) != "interface":
-            continue
-        ports.add(str(params.get("port_name") or node.get("name") or ""))
-    return ports
+    return {
+        str(view["params"].get("port_name") or view["node_name"] or "")
+        for view in iter_interface_nodes(block.nodes)
+    }
 
 
 def _child_block_ids(block: BlockDef) -> list[tuple[str, str]]:

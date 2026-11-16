@@ -234,22 +234,38 @@ class BlockDef:
         )
 
 
+def iter_interface_nodes(nodes: list[dict[str, Any]]):
+    """纯函数（M1 端口推导单一来源）：逐个产出「内部接口节点」视图。
+
+    只做结构判定，不推导端口字段/默认值，调用方按各自需要派生。判定规则与历史
+    上 derive_ports / BlockRuntime._build / block_validate._interface_ports 完全一致：
+    kind ∈ {module_input, module_output} 且 params.role（缺省 "interface"）== "interface"。
+    """
+    for node in nodes:
+        kind = node.get("kind")
+        if kind not in ("module_input", "module_output"):
+            continue
+        params = node.get("params") or {}
+        if str(params.get("role", "interface")) != "interface":
+            continue
+        yield {
+            "node_id": str(node.get("id") or ""),
+            "node_name": node.get("name"),
+            "kind": kind,
+            "params": params,
+        }
+
+
 def derive_ports(
     nodes: list[dict[str, Any]], edges: list[dict[str, Any]]
 ) -> list[PortDef]:
     """从内部接口节点推导端口（封装时使用）。"""
     del edges
     ports: list[PortDef] = []
-    for node in nodes:
-        kind = node.get("kind")
-        if kind not in ("module_input", "module_output"):
-            continue
-        params = node.get("params") or {}
-        role = str(params.get("role", "interface"))
-        if role != "interface":
-            continue
-        name = str(params.get("port_name") or node.get("name") or "port")
-        direction = "input" if kind == "module_input" else "output"
+    for view in iter_interface_nodes(nodes):
+        params = view["params"]
+        name = str(params.get("port_name") or view["node_name"] or "port")
+        direction = "input" if view["kind"] == "module_input" else "output"
         fields = _port_fields(params.get("fields"))
         if not fields:
             fields = ["voltage"]
@@ -388,15 +404,11 @@ class BlockRuntime:
         )
         scene.ensure_engine()
         self._scene = scene
-        for node in self.block.nodes:
-            kind = node.get("kind")
-            params = node.get("params") or {}
-            role = str(params.get("role", "interface"))
-            if role != "interface" or kind not in ("module_input", "module_output"):
-                continue
-            name = str(node.get("name"))
+        for view in iter_interface_nodes(self.block.nodes):
+            params = view["params"]
+            name = str(view["node_name"])
             port_name = str(params.get("port_name") or name)
-            if kind == "module_input":
+            if view["kind"] == "module_input":
                 self._input_nodes[port_name] = name
             else:
                 fields = _port_fields(params.get("fields")) or ["voltage"]

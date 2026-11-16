@@ -158,6 +158,8 @@ class EngineSpec:
     supported_port_types: tuple[str, ...] = ()
     plugin_id: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
+    # REM-B2-02 (PS-02)：engine 插件注册键；为空则按 mode 派生（须与 mode 一致）。
+    kind: str = ""
 
 
 @dataclass(frozen=True)

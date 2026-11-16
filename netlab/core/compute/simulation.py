@@ -602,13 +602,15 @@ class Simulation:
             sample = max(sample, needed, 1)
             # COMP-01：插值规模校验前移到任何状态突变之前——被拒绝的调用
             # 不能已经 reset 场景/清空录制/推进整段循环，否则旧结果永久丢失。
-            # 方法/次数/窗口校验已在上方完成；此处预检规模上界，公式与锁内
-            # 快照点（interp_plan 构造处）一致，帧数取最坏情况
-            # min(count, RECORDER_CAPACITY)（sample 归一后录制帧数的上界）。
+            # 方法/次数/窗口校验已在上方完成；此处预检规模，公式与锁内快照点
+            # （interp_plan 构造处）一致。帧数用 sample 归一后的
+            # ceil(count / sample)（实际录制帧数，受 RECORDER_CAPACITY 环形
+            # 缓冲截断）——不用更松的 min(count, RECORDER_CAPACITY) 上界，
+            # 否则大 sample_every 的合法调用会被误拒（D-COMP01-1）。
             if interpolation_method:
                 from .interpolation import estimate_frames as _estimate_frames
 
-                _pre_frames = min(count, RECORDER_CAPACITY)
+                _pre_frames = min(int(math.ceil(count / sample)), RECORDER_CAPACITY)
                 _pre_est = _estimate_frames(_pre_frames, int(interpolation_rounds))
                 _pre_keys = len(self.scene.probes(by_id=True)) or 1
                 if _pre_keys * _pre_est > 4_000_000:

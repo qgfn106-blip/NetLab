@@ -8,7 +8,10 @@
 本文件用真实 Scene/Simulation 验证：
 1. 超限调用抛 ValidationError 后，recorder/time/steps/场景检查点/进度
    全部与调用前一致（先跑一小段成功预计算制造非平凡“调用前”状态）；
-2. 成功的预计算仍照常替换状态（防止修复方向矫枉过正、把成功路径也回滚）。
+2. 成功的预计算仍照常替换状态（防止修复方向矫枉过正、把成功路径也回滚）；
+3. 大 sample_every 的合法插值调用不被误拒（D-COMP01-1：预检帧数必须用
+   ceil(count/sample) 实际值，而不是 min(count, RECORDER_CAPACITY) 上界——
+   否则 count 大但采样稀的合法调用会被上界误判为超限）。
 """
 
 from __future__ import annotations
@@ -85,5 +88,31 @@ def test_precompute_still_replaces_state_on_success() -> None:
         assert sim.time == pytest.approx(0.03)
         assert len(sim.recorder) == 3
         assert sim.recorder.snapshot() != first_snapshot
+    finally:
+        sim.shutdown()
+
+
+def test_sparse_sampling_with_gaussian_not_rejected() -> None:
+    # D-COMP01-1（审批复现用例）：count=2000、sample_every=2 → 实际帧 1000，
+    # 42 通道 × estimate_frames(1000,6)=63937 ≈ 2.68M < 4M，本该通过；
+    # 旧预检误用 min(count, RECORDER_CAPACITY)=2000 上界 → 42×127937≈5.37M
+    # > 4M，把合法的粗采样调用误拒。
+    sim = Simulation(_wide_scene())
+    try:
+        result = sim.precompute(
+            2.0,
+            dt=1e-3,
+            sample_every=2,
+            interpolation_method="gaussian",
+            interpolation_rounds=6,
+        )
+        assert result["cancelled"] is False
+        assert result["error"] is None
+        assert result["frames"] >= 2, "合法粗采样调用应正常产出录制帧"
+        interp = result["interpolation"]
+        assert interp["method"] == "gaussian"
+        assert interp["frames"], "插值帧不应为空"
+        progress = sim.precompute_progress()
+        assert progress["status"] == "done"
     finally:
         sim.shutdown()

@@ -25,6 +25,9 @@ from ..compute.computes import (
     solver_traits,
 )
 from .graph import Network, Node
+from .instance_model import NodeDesc, NodeRuntime
+import logging
+import os
 from ..common.limits import (
     MAX_EDGES,
     MAX_FIELDS,
@@ -199,6 +202,19 @@ class _Engine:
         return None
 
 
+def _runtime_pilot_mode() -> str:
+    """A-int-1 试点开关：仅认 ``off``/``gain``；其它值 fail-safe 按 off 并告警一次。"""
+    value = os.environ.get("NETLAB_NODE_RUNTIME_PILOT", "off").strip().lower()
+    if value not in ("off", "gain"):
+        if not getattr(_runtime_pilot_mode, "_warned", False):
+            logging.getLogger(__name__).warning(
+                "NETLAB_NODE_RUNTIME_PILOT=%r 非法，按 off 处理（fail-safe）", value
+            )
+            _runtime_pilot_mode._warned = True
+        return "off"
+    return value
+
+
 class SignalEngine(_Engine):
     def __init__(self, scene: "Scene") -> None:
         self.network = Network(
@@ -221,6 +237,31 @@ class SignalEngine(_Engine):
                     f"节点 {record.name!r} 的计算方式无法装配：{exc}"
                 ) from exc
             traits = solver_traits(record.kind, params)
+            if (
+                record.kind == "gain"
+                and getattr(scene, "mode", "") == "signal"
+                and _runtime_pilot_mode() == "gain"
+            ):
+                _desc = NodeDesc.from_record(record)
+
+                def _pilot_handler(ctx, _desc=_desc, _record=record):
+                    # 真用 NodeRuntime：每次求值按记录取运行态并做一致性断言。
+                    _rt = NodeRuntime.from_record(_record)
+                    if _rt.state != {}:
+                        raise AssertionError(
+                            "A-int-1 试点：gain 的 NodeRuntime.state 应为空"
+                        )
+                    if set(_rt.inputs) != set(_record.inputs):
+                        raise AssertionError(
+                            "A-int-1 试点：NodeRuntime.inputs 与 record.inputs 不一致"
+                        )
+                    # 真用 NodeDesc：按描述重建委托（不复制数学）。
+                    _spec2, _params2, _handler2 = prepare_compute(
+                        _desc.kind, _desc.params
+                    )
+                    return _handler2(ctx)
+
+                handler = _pilot_handler
             node = Node(
                 name=record.name,
                 data=record.data,

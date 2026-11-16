@@ -46,8 +46,10 @@ from .engine_registry import (
 from ..common.limits import ValidationError
 
 logger = logging.getLogger("netlab.plugins")
-PLUGIN_ROOT = Path(__file__).resolve().parents[2] / "extensions" / "plugins"
-PLUGIN_DATA_ROOT = Path(__file__).resolve().parents[2] / "extensions" / "plugin_data"
+# REM-B2-01 (PS-01): plugins.py lives at <repo>/netlab/core/model/, repo root is parents[3].
+# Old parents[2] pointed at <repo>/netlab/extensions (nonexistent) -> scan always empty.
+PLUGIN_ROOT = Path(__file__).resolve().parents[3] / "extensions" / "plugins"
+PLUGIN_DATA_ROOT = Path(__file__).resolve().parents[3] / "extensions" / "plugin_data"
 LOCKFILE_NAME = "plugins_state.json"
 MAX_MANIFEST_BYTES = 200_000
 ID_RE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$")

@@ -49,3 +49,42 @@ def test_missing_node_warns_readonly():
     scene = _scene_with({"output": "scalar"}, {"input": "scalar"})
     diags = diagnose_connection(scene, "src", "nope", "signal")
     assert len(diags) == 1 and diags[0]["code"] == "target_missing"
+
+
+def test_dict_metadata_compatible_returns_empty():
+    from netlab.core.model.connect_diagnostics import diagnose_connection
+
+    scene = _scene_with(
+        {"output": {"type": "scalar", "unit": "V", "dimension": "voltage"}},
+        {"input": {"type": "complex", "name": "in"}},
+    )
+    assert diagnose_connection(scene, "src", "dst", "signal") == []
+
+
+def test_dict_metadata_incompatible_warns():
+    from netlab.core.model.connect_diagnostics import diagnose_connection
+
+    scene = _scene_with({"output": {"type": "power"}}, {"input": {"type": "scalar"}})
+    diags = diagnose_connection(scene, "src", "dst", "signal")
+    assert len(diags) == 1 and diags[0]["code"] == "incompatible"
+
+
+def test_unknown_type_string_ignored_returns_empty():
+    from netlab.core.model.connect_diagnostics import diagnose_connection
+
+    scene = _scene_with({"output": "bogus"}, {"input": "scalar"})
+    assert diagnose_connection(scene, "src", "dst", "signal") == []
+
+
+def test_invalid_dict_type_ignored_returns_empty():
+    from netlab.core.model.connect_diagnostics import diagnose_connection
+
+    scene = _scene_with({"output": {"type": "nope"}}, {"input": {"type": "scalar"}})
+    assert diagnose_connection(scene, "src", "dst", "signal") == []
+
+
+def test_missing_target_metadata_returns_empty():
+    from netlab.core.model.connect_diagnostics import diagnose_connection
+
+    scene = _scene_with({"output": "scalar"}, {"unrelated": "scalar"})
+    assert diagnose_connection(scene, "src", "dst", "signal") == []

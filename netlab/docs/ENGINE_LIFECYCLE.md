@@ -69,7 +69,7 @@ flowchart LR
 
 ## 6. 待用户裁定的开放问题（Open Question / PENDING_USER_AUTHORIZATION）
 
-1. **项目保存是否允许显式 Runtime 快照**（`NETLAB_V2_PLANNING_REVIEW.md:136`）：见 §5，未裁定前不进工程 schema。
+1. **项目保存是否允许显式 Runtime 快照**（`NETLAB_V2_PLANNING_REVIEW.md:136`）：见 §5，未裁定前不进工程 schema。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 2. Plugin 权限边界（只读/可写哪些层）：见 `ARCHITECTURE_BOUNDARIES.md` §6、`ENGINE_SPI_V2.md` §4。
 3. 兼容窗口是否必须支持 v6 旧工程：见 `MIGRATION_AND_COMPATIBILITY.md` §3。
 

@@ -66,7 +66,7 @@ P1 审计除模块/数据结构/依赖梳理外，必须对以下两条结构性
 | 机械动力学 | 没有 Mass/Spring/Damper/Gear/Motor 等组件和机械端口 | **缺失** |
 | 多物理场 / 空间分布 | `NetlabHome/netlab/core/compute/fem.py` 是固定单位正方形 Q4 热传导演示 | **缺失**：无通用 Mesh/DOF/Field/BC/Material 抽象 |
 
-**任务书要求的 V2 交付文档当前均未建立**：`CORE_ARCHITECTURE_AUDIT.md`、`CORE_MODEL_V2.md`、`TYPED_PORT_SYSTEM.md`、`EQUATION_SYSTEM.md`、`MODEL_COMPILER.md`、`RUNTIME_ARCHITECTURE.md`、`PLUGIN_ARCHITECTURE_V2.md`、`SCIENTIFIC_VALIDATION.md`、`PERFORMANCE_ARCHITECTURE.md`、`MECHANICAL_ENGINE.md`、`MULTIPHYSICS.md`。
+**任务书要求的 V2 交付文档：部分已建立于本库（`CORE_MODEL_V2.md`、`TYPED_PORT_SYSTEM.md`、`MINIMAL_DATA_MODEL_EXAMPLE.md` 等）；其余（`CORE_ARCHITECTURE_AUDIT.md`、`EQUATION_SYSTEM.md`、`MODEL_COMPILER.md`、`RUNTIME_ARCHITECTURE.md`、`PLUGIN_ARCHITECTURE_V2.md`、`SCIENTIFIC_VALIDATION.md`、`PERFORMANCE_ARCHITECTURE.md`、`MECHANICAL_ENGINE.md`、`MULTIPHYSICS.md`）已迁 Private-Docs 或未建立，不重建。**
 
 ## 4. 范围与不做事项
 

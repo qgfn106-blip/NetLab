@@ -1,7 +1,7 @@
 # 架构层边界设计冻结（阶段 4 / P1-A）
 
 > 状态：`Proposed`（设计冻结草案，待评审）。本文是目标设计口径，不是当前实现；ADR 不是实施授权。
-> 依据：`NETLAB_V2_PLANNING_REVIEW.md:100-108`（补 6 份文档第 1 份：层边界与依赖方向）、`PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:44`、七项裁决 ②（外观默认持久化在 SceneDoc 的 Presentation 层）、`ADR-005`（lite，Accepted）。
+> 依据：`NETLAB_V2_PLANNING_REVIEW.md:100-108`（补 6 份文档第 1 份：层边界与依赖方向）、`PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:44`、七项裁决 ②（外观默认持久化在 SceneDoc 的 Presentation 层）、`ADR-005`（lite，Accepted）。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 > 边界：不写生产代码；不改 `graph.py`/`scene.py` 冻结区；不迁移旧工程；不改 FEM；Plugin v1 不是沙箱。
 
 ## 1. 六层定义
@@ -75,7 +75,7 @@ flowchart TD
 
 ## 6. 待用户裁定的开放问题（Open Question / PENDING_USER_AUTHORIZATION）
 
-来自 `NETLAB_V2_PLANNING_REVIEW.md:136`，本阶段不代替用户裁定：
+来自 `NETLAB_V2_PLANNING_REVIEW.md:136`，本阶段不代替用户裁定：（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 
 1. **Plugin 权限边界（只读/可写哪些层）**：§2 表格给出候选（Plugin 可注册 Model、可声明式挂载 UI，不得直接访问 Runtime），但「是否可写 Presentation 层」「是否可读 Compiled Model 细节」未裁定。未裁定前按最小只读实现。
 2. 项目保存是否允许显式 Runtime 快照：见 `ENGINE_LIFECYCLE.md` §5。

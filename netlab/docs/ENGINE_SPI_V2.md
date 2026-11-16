@@ -1,7 +1,7 @@
 # Engine SPI V2 设计冻结（阶段 4 / P1-A）
 
 > 状态：`Proposed`（设计冻结草案，待评审）。本文是目标设计口径，不是当前实现；ADR 不是实施授权，Plugin v1 不是沙箱。
-> 依据：`NETLAB_V2_PLANNING_REVIEW.md:118-123`（Engine 五问）、`NETLAB_V2_PLANNING_REVIEW.md:128-136`、`CORE_ARCHITECTURE_AUDIT.md:385`（P1-A 先写三份文档不要先改代码）、`CORE_ARCHITECTURE_AUDIT.md §5`（P1-B2 插件 mode 端到端断路）。
+> 依据：`NETLAB_V2_PLANNING_REVIEW.md:118-123`（Engine 五问）、`NETLAB_V2_PLANNING_REVIEW.md:128-136`、`CORE_ARCHITECTURE_AUDIT.md:385`（P1-A 先写三份文档不要先改代码）、`CORE_ARCHITECTURE_AUDIT.md §5`（P1-B2 插件 mode 端到端断路）。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 > 边界：不写生产代码；不改 `netlab/core/model/scene.py`、`netlab/core/model/scene_engines.py`、`netlab/core/model/engine_registry.py`；Plugin 不能替换内建 Engine；不改 FEM。
 
 ## 1. EngineSpec 能力声明
@@ -82,7 +82,7 @@ flowchart LR
 - 内建 Circuit/Signal 引擎先以适配层实现 SPI v2 的默认方法；默认行为不变。
 - `NetworkContainer` 模板由 `engine_catalog()` 生成，替换硬编码 mode 字典。
 - 插件项目必须先过 manifest / `EngineSpec` 白名单静态校验，才允许 `compile`。
-- 每步单独提交、可回退；先 shadow 对拍再切默认（与 `CORE_ARCHITECTURE_AUDIT.md §6.1` 顺序一致）。
+- 每步单独提交、可回退；先 shadow 对拍再切默认（与 `CORE_ARCHITECTURE_AUDIT.md §6.1` 顺序一致）。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 
 ## 7. 待用户裁定的开放问题（Open Question / PENDING_USER_AUTHORIZATION）
 

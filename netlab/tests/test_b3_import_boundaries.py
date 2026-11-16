@@ -62,9 +62,6 @@ def test_compute_old_paths_still_export_same_objects() -> None:
 # 全域动态验收推迟到 R4（scene/scene_engines 收敛）之后 / R5。故这里只用静态 AST 检查。
 
 _R3_MODULES = ("project", "networks", "workspace")
-_R3_BUILDERS = {"project": "_new_simulation", "networks": "_new_simulation"}
-
-
 def _module_body_from_imports(path: str) -> list[str]:
     tree = ast.parse(Path(path).read_text(encoding="utf-8"))
     mods: list[str] = []
@@ -82,7 +79,8 @@ def test_r3_no_top_level_simulation_import() -> None:
 
 def test_r3_construction_is_lazy_inside_function() -> None:
     # 运行时构造点必须用函数体内 lazy import（不得在模块顶层）
-    for mod, fn in _R3_BUILDERS.items():
+    builders = {"project": "_new_simulation", "networks": "_new_simulation"}
+    for mod, fn in builders.items():
         tree = ast.parse(Path(f"netlab/core/model/{mod}.py").read_text(encoding="utf-8"))
         found = False
         for node in ast.walk(tree):

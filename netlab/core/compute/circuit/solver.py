@@ -74,6 +74,19 @@ _splu: Any = None
 _scipy_loaded = False
 
 
+def _sync_cached_state(element: Any) -> None:
+    """把元件上以 ``state`` 为镜像的缓存属性（如 on/speed）同步回 state 值。
+
+    COMP-02：Thyristor/Relay 的 ``on``、DcMotor 的 ``speed`` 是快路径缓存，
+    但检查点只恢复 ``element.state``；若不回写缓存，``operating_point()``/
+    ``ac_sweep()`` 提交后被污染的缓存会泄漏到后续瞬态。类通过
+    ``CACHED_STATE_ATTRS`` 声明需同步的属性名。
+    """
+    for name in getattr(element, "CACHED_STATE_ATTRS", ()):
+        if name in element.state:
+            setattr(element, name, element.state[name])
+
+
 def _load_scipy() -> None:
     """第一次用到电路求解时才导入 SciPy（幂等，失败则退回纯 NumPy）。"""
     global _scipy_loaded, _scipy_lu_factor, _scipy_lu_solve, _sparse, _splu
@@ -265,6 +278,11 @@ class CircuitSolver:
                 row["value"] = getattr(element, "value")
             if hasattr(element, "source_scale"):
                 row["source_scale"] = float(getattr(element, "source_scale"))
+            cached_attrs = getattr(element, "CACHED_STATE_ATTRS", ())
+            if cached_attrs:
+                row["cached"] = {
+                    name: getattr(element, name, None) for name in cached_attrs
+                }
             rows.append(row)
         return rows
 
@@ -299,6 +317,11 @@ class CircuitSolver:
                 element.value = row["value"]
             if "source_scale" in row:
                 element.source_scale = row["source_scale"]
+            cached = row.get("cached")
+            if cached:
+                for name, value in cached.items():
+                    setattr(element, name, value)
+            _sync_cached_state(element)
         # 失败步可能已用污染矩阵生成 LU；一律失效，避免后续线性步复用。
         self._lu_cache = None
         self._lu_matrix = None
@@ -316,6 +339,7 @@ class CircuitSolver:
         for element, row in zip(self.elements, snapshot):
             element.state = _copy_state(row["state"])
             element.iteration_guess = _copy_state(row["guess"])
+            _sync_cached_state(element)
 
     # ---- 推进 -------------------------------------------------------------
     @timed("circuit.solver.step")
@@ -1277,6 +1301,7 @@ class CircuitSolver:
             element.result = {}
             for key in ("current", "voltage_difference", "power"):
                 element.state.pop(key, None)
+            _sync_cached_state(element)
         self.last_iterations = 0
         self.last_solve_ms = 0.0
         self.last_residual = 0.0

@@ -19,6 +19,7 @@ from .params import ParamSpec, float_param
 
 class Thyristor(CircuitElement):
     kind = "thyristor"
+    CACHED_STATE_ATTRS = ("on",)
     label = "晶闸管"
     nonlinear = True
     output_fields = (
@@ -68,6 +69,7 @@ class Thyristor(CircuitElement):
 
 class Igbt(CircuitElement):
     kind = "igbt"
+    CACHED_STATE_ATTRS = ("on",)
     label = "IGBT"
     nonlinear = True
     output_fields = (
@@ -112,6 +114,7 @@ class Igbt(CircuitElement):
 
 class Jfet(CircuitElement):
     kind = "jfet"
+    CACHED_STATE_ATTRS = ("on",)
     label = "JFET"
     nonlinear = True
     output_fields = (
@@ -156,6 +159,7 @@ class Jfet(CircuitElement):
 
 class Relay(CircuitElement):
     kind = "relay"
+    CACHED_STATE_ATTRS = ("on",)
     label = "继电器"
     nonlinear = True
     output_fields = (
@@ -200,6 +204,7 @@ class Relay(CircuitElement):
 
 class DcMotor(CircuitElement):
     kind = "motor"
+    CACHED_STATE_ATTRS = ("speed",)
     label = "直流电机"
     nonlinear = True
     output_fields = (

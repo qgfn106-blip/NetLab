@@ -402,7 +402,7 @@ class SignalEngine(_Engine):
                 or runtime.depth != self.scene.block_depth
                 or runtime.internal_sim != internal_sim
             ):
-                runtime = BlockRuntime(
+                runtime = BlockRuntime.compile(
                     block,
                     self.scene.blocks,
                     depth=self.scene.block_depth,

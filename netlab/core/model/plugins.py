@@ -353,15 +353,23 @@ class PluginManager:
             merged: dict[str, PluginRecord] = {}
             for pid, new_rec in discovered.items():
                 old = self._records.get(pid)
+                # D-B2-03-1：只有新记录是正常 discovered 时才沿用旧对象（可标 stale）；
+                # 新记录为 disabled/incompatible/error 时，若旧记录已加载须先撤销注册再采纳新状态，
+                # 否则禁用不生效、版本不满足时全局注册表残留（违背零残留）。
                 if (
                     old is not None
                     and old.status in ("loaded", "disabled")
-                    and new_rec.status != "incompatible"
+                    and new_rec.status == "discovered"
                 ):
                     if old.manifest.version != new_rec.manifest.version:
                         old.stale = True
                     merged[pid] = old
                 else:
+                    if old is not None and old.status == "loaded":
+                        try:
+                            self._unload_record(old)
+                        except Exception:
+                            logger.exception("插件卸载失败：%s", pid)
                     merged[pid] = new_rec
             for pid, old in list(self._records.items()):
                 if pid not in discovered and old.status == "loaded":

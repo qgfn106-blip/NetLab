@@ -26,7 +26,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..common.limits import LimitError, ValidationError
 from .path_guard import ensure_allowed_path
@@ -38,7 +38,10 @@ from .project import (
     load_project,
     save_project,
 )
-from ..compute.simulation import Simulation
+
+if TYPE_CHECKING:
+    from .contracts.simulation import SimulationProtocol as Simulation  # noqa: F401
+
 
 PROJECT_FILENAME = "project.netlab"
 PROJECT_SUBDIRS: tuple[str, ...] = ("blocks", "extensions", "exports", "backups")

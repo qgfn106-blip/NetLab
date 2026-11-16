@@ -27,10 +27,10 @@ from ..common.limits import LimitError, NetlabError, ValidationError, json_safe
 from .path_guard import ensure_allowed_path
 from .scene import MODES, Scene
 from .engine_registry import plugin_modes
-from ..compute.simulation import Simulation
 
 if TYPE_CHECKING:
     from .networks import NetworkContainer
+    from .contracts.simulation import SimulationProtocol as Simulation  # noqa: F401
 
 PROJECT_FORMAT = "netlab-project"
 PROJECT_VERSION = 7
@@ -41,6 +41,13 @@ PROJECT_SUFFIX = ".netlab"
 # 读盘先探魔数 → 解压 → utf-8 → json.loads；无魔数按纯文本 JSON 解析（兼容全部存量）。
 # checksum 仍算在解压后的 canonical body 上；MAX_PROJECT_BYTES 判定用未压缩体。
 PROJECT_MAGIC = b"\x1fNLAB\x01"
+
+
+def _new_simulation(mode: str) -> "Simulation":
+    """构造 Simulation 实例（函数内延迟导入，避免 model 顶层依赖 compute 实现）。"""
+    from ..compute.simulation import Simulation as _Simulation
+
+    return _Simulation(Scene(mode))
 
 
 def _now() -> str:
@@ -893,7 +900,7 @@ def validate_project(
         sim_payload = network.get("sim") or {}
         if not isinstance(sim_payload, dict):
             raise ValidationError(f"网络 {label!r} 的 sim 必须是对象")
-        trial_sim = Simulation(Scene(mode))
+        trial_sim = _new_simulation(mode)
         try:
             trial_sim.apply_config(sim_payload)
         finally:

@@ -22,9 +22,9 @@ from typing import Any, Callable, Mapping
 
 import numpy as np
 
-from ..compute.clock import SimClock
-from ..compute.fields import read_numeric, resolve_output
-from ..compute.profiling import timed
+from ..common.clock import SimClock
+from ..common.fields import read_numeric, resolve_output
+from ..common.profiling import timed
 from ..common.limits import (
     ComputeError,
     ConflictError,

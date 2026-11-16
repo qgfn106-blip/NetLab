@@ -2,14 +2,14 @@
 
 > 状态：`Proposed`（设计冻结草案，待评审）。本文是**目标设计口径**，不是当前实现；ADR 不是实施授权，Proposed 不得伪装 Accepted。
 > 阶段 4 开工时基线以 `git rev-parse HEAD`、`status.json` 与 GitHub branches/main 为准；本文不写死运行态数字，避免旧基线残留。
-> 依据：`PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:44`、`NETLAB_V2_PLANNING_REVIEW.md:97-136`、`CORE_ARCHITECTURE_V2_ROADMAP.md:54-66`、`CORE_ARCHITECTURE_AUDIT.md:385`、`CORE_ARCHITECTURE_AUDIT.md:394-400`。
+> 依据：`PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:44`、`NETLAB_V2_PLANNING_REVIEW.md:97-136`、`CORE_ARCHITECTURE_V2_ROADMAP.md:54-66`、`CORE_ARCHITECTURE_AUDIT.md:385`、`CORE_ARCHITECTURE_AUDIT.md:394-400`。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 > 边界：本阶段不写任何生产代码；不改 `netlab/core/model/graph.py`、`netlab/core/model/scene.py` 冻结区；不迁移旧工程；不放宽 `MAX_NODES=400`；不改 FEM；不擅自放量 `NETLAB_MATH_ACCEL`。
 
 ## 1. 目标与非目标
 
 目标：把「物理拓扑、计算依赖、方程约束、场景组织」四类关系从同一份 `NodeRecord` / `EdgeRecord` / `Node` / `Connection` 中分离，给出 Description（Desc）与 Runtime 两层对象、13 类核心对象的接口草案、四类关系图、与现状差异及渐进迁移路线，作为 P2 及之后阶段的设计基线。
 
-非目标（明确不做）：不实施 Core Model 替换、不写生产代码、不改外部工程 JSON、不删字段、不升格 ADR、不裁定 §11 的三项开放问题。设计评审通过前不实施替换（`CORE_ARCHITECTURE_V2_ROADMAP.md:60`）。
+非目标（明确不做）：不实施 Core Model 替换、不写生产代码、不改外部工程 JSON、不删字段、不升格 ADR、不裁定 §11 的三项开放问题。设计评审通过前不实施替换（`CORE_ARCHITECTURE_V2_ROADMAP.md:60`）。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 
 ## 2. 分层与依赖方向
 
@@ -273,7 +273,7 @@ flowchart TD
 | `Scene` 用 `mode` 选 Circuit/Signal 引擎 | `netlab/core/model/scene.py:81` | 插件 mode 端到端断路（P1-B2） | `EngineSpec` 注册表 + `engine_catalog()` | P1-S2 |
 | 外观更新走 `SceneEdit`，`_touch()` 置 `_dirty` 触发重编译 | `netlab/core/model/scene_edit.py:151` | 曾违反 ADR-005-lite | appearance-only 用 `revision += 1` | 已在阶段 2 修复，作为 V2 约束保留 |
 
-迁移原则：字段只加不删；每个网络先经适配层可读；golden round-trip fixtures；默认行为不变；每步独立可回退提交。风险表 R1–R6 见 `CORE_ARCHITECTURE_AUDIT.md:394-400`。
+迁移原则：字段只加不删；每个网络先经适配层可读；golden round-trip fixtures；默认行为不变；每步独立可回退提交。风险表 R1–R6 见 `CORE_ARCHITECTURE_AUDIT.md:394-400`。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 
 ## 7. 三型边
 
@@ -311,7 +311,7 @@ flowchart TD
 
 ## 11. 待用户裁定的开放问题（Open Question / PENDING_USER_AUTHORIZATION）
 
-以下三项来自 `NETLAB_V2_PLANNING_REVIEW.md:136`，**本阶段不代替用户裁定**，仅给出候选与影响，标为 `PENDING_USER_AUTHORIZATION`：
+以下三项来自 `NETLAB_V2_PLANNING_REVIEW.md:136`，**本阶段不代替用户裁定**，仅给出候选与影响，标为 `PENDING_USER_AUTHORIZATION`：（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 
 1. 项目保存是否允许**显式** Runtime 快照：已裁决的默认是「普通保存不含 Runtime 快照，Project Save 与 Runtime Snapshot 归属分离」；是否开放用户主动导出/断点快照入口仍待裁定。影响 `RuntimeSnapshot` 是否进工程 schema。
 2. Plugin 权限边界（只读/可写哪些层）：见 `ARCHITECTURE_BOUNDARIES.md` §6、`ENGINE_SPI_V2.md` §4。影响 `PluginFacade` 能力白名单。

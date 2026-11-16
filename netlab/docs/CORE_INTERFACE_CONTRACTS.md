@@ -1,7 +1,7 @@
 # 核心接口契约设计冻结（阶段 4 / P1-A）
 
 > 状态：`Proposed`（设计冻结草案，待评审）。本文给出**精确的 Python Protocol / ABC 方法签名、参数、返回、异常**，不是概念描述；所有代码块须 `ast.parse` 可解析。本文是目标设计口径，不是当前实现，也不是实施授权。
-> 依据：`NETLAB_V2_PLANNING_REVIEW.md:100-108`（补 6 份文档第 4 份：精确方法签名）、`:132-136`（必须给出可执行 Python Protocol 签名）、`CORE_MODEL_V2.md` §4、`ENGINE_SPI_V2.md` §3。
+> 依据：`NETLAB_V2_PLANNING_REVIEW.md:100-108`（补 6 份文档第 4 份：精确方法签名）、`:132-136`（必须给出可执行 Python Protocol 签名）、`CORE_MODEL_V2.md` §4、`ENGINE_SPI_V2.md` §3。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 > 边界：本文代码是**接口草案**，不导入、不注册、不执行；不写生产代码、不改冻结区、不改 FEM。
 
 ## 1. 异常层级
@@ -329,6 +329,6 @@ class EngineBase(ABC):
 
 ## 6. 与现状对照
 
-现状 `netlab/core/model/scene_engines.py:61` 的 `_Engine` 只有 `step/reset/zero_time/probes/stats`；本文补 `validate/compile/create_runtime/snapshot/restore/dispose` 共 7 个方法。现状 `EngineProtocol.build` 从未调用（审计 §5）；本文明确 `compile` 是唯一编译入口。实施顺序见 `CORE_ARCHITECTURE_AUDIT.md:385` 的 P1-S2，阶段 4 只冻结签名不改代码。
+现状 `netlab/core/model/scene_engines.py:61` 的 `_Engine` 只有 `step/reset/zero_time/probes/stats`；本文补 `validate/compile/create_runtime/snapshot/restore/dispose` 共 7 个方法。现状 `EngineProtocol.build` 从未调用（审计 §5）；本文明确 `compile` 是唯一编译入口。实施顺序见 `CORE_ARCHITECTURE_AUDIT.md:385` 的 P1-S2，阶段 4 只冻结签名不改代码。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 
-三项「需用户决策」（`NETLAB_V2_PLANNING_REVIEW.md:136`）见 `MIGRATION_AND_COMPATIBILITY.md` §3、`ENGINE_LIFECYCLE.md` §6、`ARCHITECTURE_BOUNDARIES.md` §6，均标 `PENDING_USER_AUTHORIZATION`，本阶段不裁定。
+三项「需用户决策」（`NETLAB_V2_PLANNING_REVIEW.md:136`）见 `MIGRATION_AND_COMPATIBILITY.md` §3、`ENGINE_LIFECYCLE.md` §6、`ARCHITECTURE_BOUNDARIES.md` §6，均标 `PENDING_USER_AUTHORIZATION`，本阶段不裁定。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）

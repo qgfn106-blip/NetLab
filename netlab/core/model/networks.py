@@ -24,7 +24,7 @@ import time
 import uuid
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..common.limits import ConflictError, NotFoundError, ValidationError
 from .path_guard import ensure_allowed_path
@@ -32,8 +32,17 @@ from .project import build_project_from_networks, project_scene_payload
 from .schematic import fill_missing_layout
 from .scene import Scene
 from .scene_types import is_known_mode
-from ..compute.simulation import Simulation
 from .templates import build_template
+
+if TYPE_CHECKING:
+    from .contracts.simulation import SimulationProtocol as Simulation  # noqa: F401
+
+
+def _new_simulation(mode: str) -> "Simulation":
+    """构造 Simulation（函数内延迟导入，切断 model 顶层对 compute 实现的依赖）。"""
+    from ..compute.simulation import Simulation as _Simulation
+
+    return _Simulation(Scene(mode))
 
 
 def _blank_scene_payload(mode: str) -> dict[str, Any]:
@@ -1003,7 +1012,7 @@ class NetworkContainer:
         if not is_known_mode(chosen):
             raise ValidationError(f"未知的工作模式：{chosen!r}")
         template = _blank_scene_payload(chosen)
-        simulation = Simulation(Scene(chosen))
+        simulation = _new_simulation(chosen)
         try:
             simulation.load_scene(template)
         except Exception:
@@ -1027,7 +1036,7 @@ class NetworkContainer:
         if target.scene.mode == clean:
             return {"id": network_id, "mode": clean, "networks": self.list_networks()}
         template = _blank_scene_payload(clean)
-        replacement = Simulation(Scene(clean))
+        replacement = _new_simulation(clean)
         try:
             replacement.load_scene(template)
         except Exception:
@@ -1177,7 +1186,7 @@ class NetworkContainer:
             for item in raw_networks:
                 network_id = str(item.get("id") or uuid.uuid4().hex[:12])
                 name = str(item.get("name") or f"网络 {len(created) + 1}")[:60]
-                simulation = Simulation(Scene("signal"))
+                simulation = _new_simulation("signal")
                 simulation.load_scene(
                     project_scene_payload(
                         project,

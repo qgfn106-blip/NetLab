@@ -54,3 +54,48 @@ def test_compute_old_paths_still_export_same_objects() -> None:
     assert cc.SimClock is c.SimClock
     assert cf.read_numeric is f.read_numeric
     assert cp.timed is p.timed
+
+
+# ---- B3 R3: project / networks / workspace 顶层不再依赖 compute.simulation 实现 ----
+
+import os
+import subprocess
+import sys
+
+_R3_MODULES = ("project", "networks", "workspace")
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _top_level_imports_containing(path: str, needle: str) -> bool:
+    tree = ast.parse(Path(path).read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module and needle in node.module:
+            return True
+    return False
+
+
+def test_r3_no_top_level_simulation_import() -> None:
+    for mod in _R3_MODULES:
+        assert not _top_level_imports_containing(
+            f"netlab/core/model/{mod}.py", "compute.simulation"
+        ), mod
+
+
+def _clean_process_sim_not_loaded(module: str) -> bool:
+    code = (
+        f"import {module}, sys; "
+        "print('netlab.core.compute.simulation' in sys.modules)"
+    )
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(_REPO_ROOT)
+    res = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=str(_REPO_ROOT), capture_output=True, text=True, env=env,
+    )
+    assert res.returncode == 0, res.stderr
+    return res.stdout.strip() == "False"
+
+
+def test_r3_import_does_not_load_simulation_clean_process() -> None:
+    for mod in _R3_MODULES:
+        assert _clean_process_sim_not_loaded(f"netlab.core.model.{mod}"), mod

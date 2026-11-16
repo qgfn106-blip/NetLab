@@ -997,6 +997,9 @@ class Simulation:
                     else {"fps": 60, "dt": 1.0e-4, "steps_per_frame": 2}
                 )
             self.apply_config(sim_payload)
+            # M-01：apply_config 会写 solver_options；再 ensure_engine 用工程选项重建
+            # 引擎，避免「先按默认选项构建、后写配置却不重建」导致静默失效。
+            self.scene.ensure_engine()
 
     def mutate(self, function: Callable[[Scene], Any]) -> Any:
         with self.lock:

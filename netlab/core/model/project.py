@@ -204,7 +204,7 @@ def build_project(
 ) -> dict[str, Any]:
     """从当前运行状态生成单网络工程（v2，兼容旧调用方）。"""
     with simulation.lock:
-        scene_payload = simulation.scene.to_payload(include_state=False)
+        scene_payload = simulation.scene.to_payload(include_state=False, authored_data=True)
         # 功能块定义只在工程顶层保存一份，避免场景与 blocks 两份数据分叉。
         scene_blocks = scene_payload.pop("blocks", []) or []
         if not blocks:

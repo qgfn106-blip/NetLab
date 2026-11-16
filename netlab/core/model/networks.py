@@ -1113,7 +1113,7 @@ class NetworkContainer:
         for network_id in list(self._order):
             simulation = self._entries[network_id]
             with simulation.lock:
-                payload = simulation.scene.to_payload(include_state=False)
+                payload = simulation.scene.to_payload(include_state=False, authored_data=True)
                 scene_blocks = payload.pop("blocks", []) or []
                 for block in scene_blocks:
                     blocks_by_id[str(block.get("id"))] = copy.deepcopy(block)

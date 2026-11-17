@@ -64,3 +64,9 @@ def test_drivetrain_reject_nonpositive_dt():
     for dt in (0.0, -1e-3):
         with pytest.raises(ValueError):
             drive_simulate(p, dt=dt)
+
+def test_public_docstrings_preserved():
+    assert backward_euler.__doc__ and "后向欧拉" in backward_euler.__doc__
+    assert rk4.__doc__ is None or isinstance(rk4.__doc__, str)
+    assert verlet.__doc__ and "Verlet" in verlet.__doc__
+

@@ -133,3 +133,8 @@
 2. 对每个节点，收集所有 incident 端口的 through 变量，按参考方向求和，生成 `sum(sign_i * through_i) = 0`。
 3. 将元件本构方程代入 through/across 变量，得到最终方程组；不得在端口层重复生成本构。
 4. 三域共用同一规则，只替换 across/through 的物理量名与单位；跨域必须经 `multi_port` 或显式转换器，禁止隐式换算。
+
+
+## 附：端口类型代码现状（2026-11-17 核对，非契约变更）
+
+当前 `netlab/core/model/port_types.py`：`PORT_TYPES = ("scalar", "complex", "vector2", "electrical", "power")`；`PortDesc`（frozen dataclass）字段 `name, type, role, direction, unit, dimension, required, order`；`can_connect(a,b)` 纯函数（未知类型/双输出/双输入/类型不兼容→拒绝；`scalar↔complex`、`scalar↔electrical` 可提升；unit/dimension 仅提示不硬校验）。P2-B 仅落地纯数据契约+检查，**未接线求解/引擎**。

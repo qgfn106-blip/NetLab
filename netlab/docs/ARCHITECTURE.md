@@ -1,6 +1,6 @@
 # Netlab 架构与运作原理
 
-> 适用版本：`netlab 3.20.1`（Python 3.11+，FastAPI + NumPy/SciPy）
+> 适用版本：`netlab 3.20.1`（Python 3.11+，FastAPI + NumPy/SciPy）。**注：本文件为 3.20.1 历史快照；当前版本以 `netlab/__init__.py` / `pyproject.toml` 为准。**
 > 配套文档：[EXTENDING.md](EXTENDING.md) —— 新增节点、连接、元件、模板的分步指南；[EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md) —— 插件包、插件 API 与全栈扩展规范
 > 目标：读完能回答三个问题——**代码怎么分层**、**一拍仿真怎么走完**、**改功能该动哪个文件**。
 
@@ -43,7 +43,7 @@ TOPOLOGY 内部有 3 种模式，共用同一套 HTTP 与场景模型：
 | 服务 | Uvicorn | `run.py` 负责端口探测与自动开浏览器 |
 | 数值 | NumPy（必需）、SciPy（可选） | `linalg.py` 自带 Padé `expm`，不依赖 SciPy |
 | 前端 | TypeScript（编译到 ES2020）+ Canvas | `frontend/app.ts` 等源码经 esbuild 构建为 `app.js`/`app.utils.js`/`desktop-shim.js`，无第三方运行时库 |
-| 测试 | pytest + httpx/TestClient | 679 项回归用例（2026-11-08：678 passed / 1 skipped），覆盖数值、场景与 API |
+| 测试 | pytest + httpx/TestClient | 679 项回归用例（2026-11-08：678 passed / 1 skipped），覆盖数值、场景与 API（2026-11-08 历史快照；当前基线以 CI 为准） |
 
 运行形态：
 
@@ -107,7 +107,7 @@ NetlabHome/
 │  │     ├─ ports.py / schematic.py / ui_profile.py（R40 netlab-ui/1 视图配置）
 │  │     └─ templates.py      16 个可复现场景（builder + SIM_PRESETS）
 │  │
-│  ├─ tests/                  conftest.py + test_*.py（2026-11-08 全量 678 passed / 1 skipped）
+│  ├─ tests/                  conftest.py + test_*.py（2026-11-08 历史快照：全量 678 passed / 1 skipped；当前以 CI 为准）
 │  ├─ docs/                   截图 + 文档（本文件、CODE_GUIDE、MATH…）
 │  └─ tools/                  可选 Edge CDP 冒烟脚本 / 结构整理脚本
 └─ （无兼容层）netlab/ 包根只剩 __init__ / server / run / plotkit_bridge / vscode_bridge / cache_guard / desktop / core（PlotKit 为外部依赖，无 _vendor）
@@ -652,7 +652,7 @@ TEMPLATES["my_template"] = {...}           # templates：直接写 dict
 - 工程 `format_version` 已升 7（`format_version = 7`），新增 `plugins` 锁段；缺插件时降级打开并标“未解析”；
 - UI 增加简洁画布与视图内设计，配置存为 `netlab-ui/1` profile。
 
-完整规范与验收矩阵见 [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md)，决策见 [adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md)。
+完整规范与验收矩阵见 [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md)，决策见 ADR（已迁 Private-Docs，不重建）。
 
 ---
 
@@ -963,7 +963,7 @@ scheduleChartDraw 70–80ms ─► drawChart：二分定位时间窗 → 稠密�
 
 ```bash
 cd NetlabHome
-python -m pytest netlab/tests -q                 # 全量 678 passed, 1 skipped（679 collected）
+python -m pytest netlab/tests -q                 #（2026-11-08 历史快照）全量 678 passed, 1 skipped（679 collected）
 python -m pytest netlab/tests -q -k "circuit"    # 按关键字
 python -m pytest netlab/tests -q -x              # 首个失败即停
 ```

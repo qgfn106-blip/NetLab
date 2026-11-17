@@ -14,6 +14,12 @@ Keep a Changelog, and versions follow the package metadata in
 - D-2 / N-20: added `requirements.lock` generated from a clean editable
   install, plus a `tools/check_version.py` CI guard.
 
+## 3.20.2 — 2026-11-14
+
+### Fixed
+
+- UI：深色主题对比度与浮窗缩放夹取修正。
+
 ## 3.20.1 — 2026-11-08
 
 ### Added

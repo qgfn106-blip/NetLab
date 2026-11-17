@@ -2,7 +2,7 @@
 
 > 最后更新：2026-11-07（§6.8/§8.1/§8.2/§8.3/§9.1 以 3.20.1 代码校正：PanelSpec/VisualSpec 字段、netlab-ui/1 严格白名单、工程 ui 段旧键、实现现状标注）
 > 状态：设计规范，已接受（2026-11-06）
-> 决策记录：[adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md)
+> 决策记录：ADR 已迁 Private-Docs，不重建。
 > 迁移指南：[EXTENDING.md](EXTENDING.md)（现有内置扩展方式）
 > 术语：[GLOSSARY.md](GLOSSARY.md)
 
@@ -754,4 +754,4 @@ class VisualSpec:                # netlab/plugin_api/v1/__init__.py:118
 - [ARCHITECTURE.md](ARCHITECTURE.md)：现有运行时、注册表和前端架构；
 - [EXTENDING.md](EXTENDING.md)：现有单文件扩展写法（legacy 与内置扩展）；
 - [GLOSSARY.md](GLOSSARY.md)：插件、视图、数据接口术语；
-- [adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md)：本规范的决策记录。
+- ADR 已迁 Private-Docs，不重建（本规范的决策记录）。

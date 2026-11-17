@@ -266,7 +266,7 @@ flowchart TD
 
 | 现状 | 位置 | 问题 | V2 目标 | 迁移步骤 |
 | --- | --- | --- | --- | --- |
-| `Node` 承载 compute/handler/state/data/inputs/ports/trusted 等 | `netlab/core/model/graph.py:163` | 描述与运行态混在一个对象 | `NodeDesc` + `NodeRuntime` 分离 | P1-S1 DTO 分层 → P2-A 字段只加不删 → P2-B 适配器 → P2-C shadow → P2-D 切换 |
+| `Node` 承载 compute/handler/state/data/inputs/ports/trusted 等 | `netlab/core/model/graph.py` 的 `Node` 类（行号会漂移，按符号定位） | 描述与运行态混在一个对象 | `NodeDesc` + `NodeRuntime` 分离 | P1-S1 DTO 分层 → P2-A 字段只加不删 → P2-B 适配器 → P2-C shadow → P2-D 切换 |
 | `Connection` 承载 source/target 为 Node 对象、method 回调、state、delay、output | `netlab/core/model/graph.py:290` | 物理拓扑与计算依赖共用 | 三型边（§7）+ `ConnectionRuntime` | 同上 |
 | `Network` = nodes/connections + SimClock + SCC/Tarjan | `netlab/core/model/graph.py:362` | 信号域执行图当通用物理图 | `CompiledModel` + `ExecutionPlan` | P3 引入编译器 |
 | `NodeRecord` / `EdgeRecord` 为 UI/JSON 记录，字段与运行时重复 | `netlab/core/model/records.py:14`、`:81` | 双份可变状态、外观与物理字段混放 | Desc 单源 + Presentation 旁路 | 保留记录层，字段只加不删 |

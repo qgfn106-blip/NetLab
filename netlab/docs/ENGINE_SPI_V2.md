@@ -91,3 +91,8 @@ flowchart LR
 3. 兼容窗口：**已按用户 2026-11-15 裁定**——保留现行 loader 已验证的全部历史输入路径 v0–v7 + 独立 scene-json，不主动收缩；任何历史迁移删除须影响评估 + 弃用公告 + 替代方案 + 用户明确批准。详见 `MIGRATION_AND_COMPATIBILITY.md` §3。
 
 在用户裁定前，第 1、2 项不进入实现；第 3 项（兼容窗口）已按用户 2026-11-15 裁定生效。`ADR-001/002/003/004/006/007` 保持 `Proposed`。
+
+
+## 附：EngineSpec 代码现状（2026-11-17 核对，非契约变更）
+
+当前 `netlab/plugin_api/v1/__init__.py:148` 的 `EngineSpec`（frozen dataclass）字段：`mode`、`label`、`description`、`factory`、`node_kinds`、`edge_kinds`；SPI v2 加性字段：`domain`、`version`、`supported_port_types`、`plugin_id`、`metadata`；REM-B2-02 增 `kind`（空则按 mode 派生、须与 mode 一致）。**以代码为准**；本文档上文若字段名/顺序不一致，以代码为当前事实。

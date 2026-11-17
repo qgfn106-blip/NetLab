@@ -6,9 +6,77 @@
       "id": "n1",
       "name": "网络 1",
       "scene": {
-        "edges": [],
         "mode": "signal",
-        "nodes": []
+        "nodes": [
+          {
+            "id": "src",
+            "name": "正弦源",
+            "kind": "sine",
+            "params": {
+              "frequency": 1000.0,
+              "amplitude": 1.0,
+              "offset": 0.0
+            },
+            "position": [
+              100.0,
+              100.0
+            ],
+            "size": [
+              80.0,
+              40.0
+            ]
+          },
+          {
+            "id": "g1",
+            "name": "增益",
+            "kind": "gain",
+            "params": {
+              "gain": 2.0
+            },
+            "data": {},
+            "state": {},
+            "position": [
+              240.0,
+              100.0
+            ],
+            "size": [
+              80.0,
+              40.0
+            ]
+          },
+          {
+            "id": "sc",
+            "name": "示波器",
+            "kind": "scope",
+            "params": {},
+            "position": [
+              380.0,
+              100.0
+            ],
+            "size": [
+              80.0,
+              40.0
+            ]
+          }
+        ],
+        "edges": [
+          {
+            "id": "e1",
+            "source": "src",
+            "target": "g1",
+            "kind": "signal",
+            "source_port": "out",
+            "target_port": "in"
+          },
+          {
+            "id": "e2",
+            "source": "g1",
+            "target": "sc",
+            "kind": "signal",
+            "source_port": "out",
+            "target_port": "in"
+          }
+        ]
       },
       "sim": {}
     }

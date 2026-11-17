@@ -63,6 +63,8 @@ class HybridAutomaton:
         return t0 + tau, xtau(tau)
 
     def simulate(self, x0, mode0, t0, t1, dt, event_tol=1e-9, max_events=1000):
+        if dt <= 0:
+            raise ValueError(f"dt 必须为正数：{dt!r}")
         t = t0
         x = np.asarray(x0, float).copy()
         q = mode0

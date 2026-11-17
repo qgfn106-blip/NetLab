@@ -8,6 +8,8 @@ from .newton import damped_newton
 
 def backward_euler(f, x0, t0, t1, dt, jac=None):
     """后向欧拉（L-稳定，1 阶）：每步用 Newton 解隐式方程。"""
+    if dt <= 0:
+        raise ValueError(f"dt 必须为正数：{dt!r}")
     x = np.asarray(x0, float).copy()
     t = t0
     ts, xs = [t], [x.copy()]
@@ -27,6 +29,8 @@ def backward_euler(f, x0, t0, t1, dt, jac=None):
 
 
 def rk4(f, x0, t0, t1, dt):
+    if dt <= 0:
+        raise ValueError(f"dt 必须为正数：{dt!r}")
     x = np.asarray(x0, float).copy()
     t = t0
     ts, xs = [t], [x.copy()]
@@ -50,6 +54,8 @@ def verlet(accel, x0, v0, t0, t1, dt):
     的截断步）会破坏严格辛性，因此长期能量守恒只能作为数值观察，不是
     对任意力场/步长的定理。
     """
+    if dt <= 0:
+        raise ValueError(f"dt 必须为正数：{dt!r}")
     x = np.asarray(x0, float).copy()
     v = np.asarray(v0, float).copy()
     t = t0

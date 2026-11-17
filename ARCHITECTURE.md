@@ -90,7 +90,7 @@ NetlabHome/
 
 ```json
 {
-  "format": "netlab-project", "version": 6,
+  "format": "netlab-project", "version": 7,
   "networks": [ { "id", "name", "mode": "signal|vector|circuit",
                   "nodes": [ { "id", "name", "kind", "position", "params", "data" } ],
                   "edges": [ { "id", "name", "source", "target", "kind", "params" } ] } ],

@@ -20,6 +20,7 @@ import { PLOT_SEMANTICS, frameSeriesToPoints, buildPlotLineLayers } from "./app/
 import { createParamGroupTable, fallbackParams } from "./app/param_groups.js";
 import { groupNodeSpecs } from "./app/menu_model.js";
 import { SHEET_SIZES, drawGraph, requestDraw, animationLoop } from "./app/canvas_render.js";
+import { openIroColorPopover, setGroupSub, blockBadges, numberInput, modulePortList, captureSceneSnapshot, fieldFor, wbFmtAxis, wbToggleInArray, setPanelGroup, plotkitFrames, closeMenus, wbBadge } from "./app/ui_helpers.js";
 import { drawPhase, phaseFrameCount, phaseStateKeys, renderVectorNodeList, resizePhase, schedulePhaseDraw, setPhaseIndex, stopPhasePlay, togglePhasePlay } from "./app/phase.js";
 import { setInstrumentActions, fillInstrumentSelects, drawInstruments, resizeInstrument, initInstruments } from "./app/instruments.js";
 import { circuitCrossingMap, circuitPinPath, edgeAnchorTowards, pinScreenPoint, wirePathPoints } from "./app/canvas_base.js";
@@ -1275,23 +1276,6 @@ function setStatusHint(hint) {
     }
     return "inspect";
   }
-  function setPanelGroup(group) {
-    $$(".panel-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.group === group));
-    $$(".panel-group").forEach((node) => node.classList.toggle("active", node.dataset.group === group));
-  }
-  function setGroupSub(group, sub) {
-    const host = $(`.panel-group[data-group="${group}"]`);
-    if (!host) return;
-    const attr = group === "fn" ? "fnrole" : "sub";
-    $$(`[data-${attr}]`, host).forEach((node) => {
-      node.classList.toggle("active", node.dataset[attr] === sub);
-    });
-    if (group === "modules" || group === "analysis" || group === "workbench") {
-      $$(".tab-pane", host).forEach((pane) => {
-        pane.classList.toggle("hidden", pane.id !== `tab-${sub}`);
-      });
-    }
-  }
   function switchTab(name) {
     if (name === "scene") {
       openSettings("project");
@@ -1339,9 +1323,6 @@ function setStatusHint(hint) {
     if (conf.sub === "ext") {
       renderExtensionPanel();
     }
-  }
-  function plotkitFrames() {
-    return [$("#plotkitFrame"), $("#plotkitInlineHost iframe")].filter(Boolean);
   }
   function notifyPlotkit(visible) {
     for (const frame of plotkitFrames()) {
@@ -1880,13 +1861,6 @@ function setStatusHint(hint) {
     state.selection = pastedNodeIds.length ? { type: "node", id: pastedNodeIds[0] } : { type: null, id: null };
     requestDraw();
     toast(`\u5DF2\u7C98\u8D34 ${nodesCreated} \u8282\u70B9 / ${edgesCreated} \u8FDE\u63A5`, "ok", 2600);
-  }
-  async function captureSceneSnapshot() {
-    try {
-      return await jsonRequest("/api/scene/export", "GET");
-    } catch (error) {
-      return null;
-    }
   }
   async function pushUndoSnapshot() {
     const snapshot = await captureSceneSnapshot();
@@ -2445,21 +2419,6 @@ function setStatusHint(hint) {
       requestDraw();
       toast(`\u81EA\u52A8\u5E03\u5C40\u5931\u8D25\uFF1A${error.message}`, "error", 6e3);
     }
-  }
-  function fieldFor(labelText, unitText, input) {
-    const wrapper = div("field");
-    wrapper.appendChild(numberedField(labelText, unitText));
-    wrapper.appendChild(input);
-    return wrapper;
-  }
-  function numberInput(value, options = {}) {
-    const input = el("input");
-    input.type = "number";
-    if (options.min !== void 0) input.min = String(options.min);
-    if (options.max !== void 0) input.max = String(options.max);
-    if (options.step !== void 0) input.step = String(options.step);
-    input.value = String(value);
-    return input;
   }
   function renderScenePanel() {
     const pane = ui.scenePane;
@@ -4131,9 +4090,6 @@ function setStatusHint(hint) {
       }
     ];
   }
-  function closeMenus() {
-    $$(".menu.open").forEach((node) => node.classList.remove("open"));
-  }
   function initMenus() {
     const host = ui.menuItems;
     if (!host) return;
@@ -4560,17 +4516,6 @@ function setStatusHint(hint) {
     applyNumericProjectUi(uiSettings);
     requestDraw();
   }
-  function blockBadges(spec) {
-    const badges = [
-      spec.mode,
-      spec.model || "behavioral",
-      `v${spec.version}`,
-      `${spec.node_count} \u8282\u70B9`,
-      `${(spec.inputs || []).length} \u5165 / ${(spec.outputs || []).length} \u51FA`
-    ];
-    if (spec.builtin) badges.unshift("\u5185\u7F6E");
-    return badges;
-  }
   async function refreshBlocks() {
     const response = await task(() => jsonRequest("/api/blocks", "GET"), { dirty: false });
     if (!response) return;
@@ -4713,14 +4658,6 @@ function setStatusHint(hint) {
     const inputs = (spec?.inputs || []).map((port) => port.name).join(", ") || "\u2014";
     const outputs = (spec?.outputs || []).map((port) => port.name).join(", ") || "\u2014";
     return `${inputs} \u2192 ${outputs}`;
-  }
-  function modulePortList(block) {
-    return (block?.ports || []).map((port) => ({
-      name: String(port.name || "port"),
-      direction: String(port.direction || (port.dtype === "electrical" ? "inout" : "input")),
-      dtype: String(port.dtype || ""),
-      net: String(port.net || "")
-    }));
   }
   function renderModuleSide(block) {
     const side = ui.modulePorts;
@@ -5008,9 +4945,6 @@ function setStatusHint(hint) {
   let wbComparePayload = null;
   let wbCompareRenderer = "simple-chart";
   let wbActiveRenderers = [];
-  function wbBadge(text, cls) {
-    return el("span", cls, text);
-  }
   function wbMarkDirty() {
     wbDirty = true;
     const badge = $("#wbDirtyBadge");
@@ -5111,11 +5045,6 @@ function setStatusHint(hint) {
       });
     } catch {
     }
-  }
-  function wbToggleInArray(arr, value, on) {
-    const index = arr.indexOf(value);
-    if (on && index < 0) arr.push(value);
-    else if (!on && index >= 0) arr.splice(index, 1);
   }
   function wbAvailableProbes() {
     const set = /* @__PURE__ */ new Set();
@@ -5287,12 +5216,6 @@ function setStatusHint(hint) {
       const total = entries.length;
       statusEl.textContent = ok === total ? `\u5DF2\u751F\u6210 ${total} \u4E2A\u5B50\u56FE \xB7 \u5171\u4EAB\u4FE1\u53F7\uFF1A${(payload.signals || []).join("\u3001")}` : `\u90E8\u5206\u72B6\u6001\u65E0\u6709\u6548\u7F13\u5B58\uFF08${ok}/${total} \u53EF\u7ED8\uFF09\xB7 \u8BF7\u5BF9\u7F3A\u5931\u72B6\u6001\u5148\u300C\u9884\u8BA1\u7B97\u9009\u4E2D\u72B6\u6001\u300D\u3002`;
     }
-  }
-  function wbFmtAxis(value) {
-    if (!Number.isFinite(value)) return "\u2014";
-    const abs = Math.abs(value);
-    if (abs !== 0 && (abs >= 1e4 || abs < 1e-3)) return value.toExponential(1);
-    return String(Math.round(value * 1e3) / 1e3);
   }
   function renderCompareGrid() {
     const grid = $("#wbCompareGrid");
@@ -6108,42 +6031,6 @@ function setStatusHint(hint) {
       if (response?.current) applyUiTokens(response.current.tokens, response.current.mode);
     } catch {
     }
-  }
-  function openIroColorPopover(anchor, value, onChange) {
-    document.querySelectorAll(".iro-popover").forEach((node) => node.remove());
-    if (!window.iro || typeof window.iro.ColorPicker !== "function") {
-      anchor.click();
-      return;
-    }
-    const pop = div("iro-popover");
-    const rect = anchor.getBoundingClientRect();
-    pop.style.position = "fixed";
-    pop.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 260))}px`;
-    pop.style.top = `${Math.max(8, Math.min(rect.bottom + 6, window.innerHeight - 300))}px`;
-    pop.style.zIndex = "20000";
-    pop.style.padding = "10px";
-    pop.style.borderRadius = "10px";
-    pop.style.background = "var(--panel-bg)";
-    pop.style.boxShadow = "0 12px 36px rgba(0,0,0,.24)";
-    pop.style.border = "1px solid var(--line, #ccd4d8)";
-    const host = div("iro-host");
-    pop.appendChild(host);
-    pop.appendChild(button("\u5173\u95ED", "btn tiny", () => pop.remove()));
-    document.body.appendChild(pop);
-    const picker = new window.iro.ColorPicker(host, { width: 220, color: value || "#000000" });
-    picker.on("color:change", (color) => onChange(color.hexString));
-    setTimeout(() => {
-      const close = (event) => {
-        if (pop.contains(event.target) || event.target === anchor) return;
-        pop.remove();
-        document.removeEventListener("pointerdown", close);
-      };
-      document.addEventListener("pointerdown", close);
-    }, 0);
-  }
-  function previewElementAppearance(item, appearance) {
-    item.appearance = { ...appearance };
-    requestDraw();
   }
   async function persistElementAppearanceBatch(items) {
     if (!items.length) return;

@@ -3,6 +3,7 @@ import { NODE_W, NODE_H, CHART_KEYS, MAX_IMPORT_BYTES } from "./app/constants.js
 import { $, $$, stage, canvas, chartCanvas, chartCtx } from "./app/dom.js";
 import { roundRectPath, pointerPosition, frameCap } from "./app/canvas_geometry.js";
 import { drawWbSubplot } from "./app/wb_subplot.js";
+import { drawModulePreview } from "./app/module_preview.js";
 import { state, ui } from "./app/state.js";
 import { el, div, button, clone, isFormTarget } from "./app/ui.js";
 import { normalizeCardFields } from "./app/card_fields.js";
@@ -4693,92 +4694,6 @@ function setStatusHint(hint) {
       }
     }
   }
-  function drawModulePreview() {
-    const canvas2 = ui.moduleCanvas;
-    const block = state.moduleBlock;
-    const stage2 = ui.moduleStage;
-    if (!canvas2 || !stage2 || !block) return;
-    const ctx2 = canvas2.getContext("2d");
-    if (!ctx2) return;
-    const box = stage2.getBoundingClientRect();
-    const width = Math.round(box.width);
-    const height = Math.round(box.height);
-    if (width < 20 || height < 20) return;
-    const dpr = window.devicePixelRatio || 1;
-    canvas2.width = Math.round(width * dpr);
-    canvas2.height = Math.round(height * dpr);
-    ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx2.clearRect(0, 0, width, height);
-    ctx2.fillStyle = C("#faf8f2");
-    ctx2.fillRect(0, 0, width, height);
-    const nodes = (block.nodes || []).map((node) => ({
-      id: String(node.id || ""),
-      label: String(node.params?.port_name || node.name || node.label || node.kind || node.id || "?"),
-      kind: String(node.kind || ""),
-      x: Number(node.position?.x ?? node.x ?? 0),
-      y: Number(node.position?.y ?? node.y ?? 0)
-    }));
-    const isEmpty = !nodes.length;
-    if (ui.moduleEmpty) ui.moduleEmpty.hidden = !isEmpty;
-    canvas2.hidden = isEmpty;
-    if (isEmpty) return;
-    const portNets = new Set(modulePortList(block).map((port) => port.net).filter(Boolean));
-    const xs = nodes.map((node) => node.x);
-    const ys = nodes.map((node) => node.y);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-    const pad = 34;
-    const spanX = Math.max(1, maxX - minX);
-    const spanY = Math.max(1, maxY - minY);
-    const scale = Math.min((width - pad * 2) / spanX, (height - pad * 2) / spanY, 1.15);
-    const offsetX = (width - spanX * scale) / 2 - minX * scale;
-    const offsetY = (height - spanY * scale) / 2 - minY * scale;
-    const project = (node) => ({ x: node.x * scale + offsetX, y: node.y * scale + offsetY });
-    const byId = new Map(nodes.map((node) => [node.id, node]));
-    ctx2.strokeStyle = C("#ded7c8");
-    ctx2.lineWidth = 1;
-    for (const edge of block.edges || []) {
-      const source = byId.get(String(edge.source || ""));
-      const target = byId.get(String(edge.target || ""));
-      if (!source || !target) continue;
-      const a = project(source);
-      const b = project(target);
-      ctx2.beginPath();
-      ctx2.moveTo(a.x, a.y);
-      ctx2.lineTo(b.x, b.y);
-      ctx2.stroke();
-    }
-    ctx2.font = '10px "Segoe UI", "Microsoft YaHei", sans-serif';
-    ctx2.textAlign = "center";
-    ctx2.textBaseline = "middle";
-    for (const node of nodes) {
-      const point = project(node);
-      const isPort = portNets.has(node.id);
-      const isGround = node.kind === "ground";
-      const isDevice = node.kind === "device";
-      const text = node.label.length > 12 ? `${node.label.slice(0, 11)}\u2026` : node.label;
-      const w = Math.max(54, Math.round(ctx2.measureText(text).width) + 18);
-      const h = 22;
-      const fill = isPort ? tokens().modPortFill : isGround ? tokens().modGroundFill : isDevice ? tokens().modDeviceFill : tokens().modFill;
-      const stroke = isPort ? tokens().modPortStroke : isGround ? tokens().modGroundStroke : isDevice ? tokens().modDeviceStroke : tokens().modStroke;
-      const ink = isPort ? tokens().modPortInk : isGround ? tokens().modGroundInk : isDevice ? tokens().modDeviceInk : tokens().modInk;
-      ctx2.beginPath();
-      ctx2.rect(point.x - w / 2, point.y - h / 2, w, h);
-      ctx2.fillStyle = fill;
-      ctx2.fill();
-      ctx2.strokeStyle = stroke;
-      ctx2.lineWidth = isPort ? 1.6 : 1;
-      ctx2.stroke();
-      ctx2.fillStyle = ink;
-      ctx2.fillText(text, point.x, point.y);
-    }
-    ctx2.textAlign = "left";
-    ctx2.fillStyle = C("#969083");
-    ctx2.font = '9.5px "Segoe UI", "Microsoft YaHei", sans-serif';
-    ctx2.fillText(`\u53EA\u8BFB\u9884\u89C8 \xB7 ${block.name || block.id} \xB7 ${nodes.length} \u8282\u70B9 / ${(block.edges || []).length} \u8FDE\u7EBF`, 12, height - 12);
-  }
   function layoutModuleWindow() {
     if (!ui.moduleWin) return;
     ui.moduleWin.classList.toggle("docked", Boolean(state.moduleDock));
@@ -4811,7 +4726,7 @@ function setStatusHint(hint) {
         placeFloatWindow(ui.moduleWin, "moduleGeo");
         raiseFloatWindow(ui.moduleWin);
       }
-      requestAnimationFrame(() => drawModulePreview());
+      requestAnimationFrame(() => drawModulePreview({ state, ui }));
     };
     void run();
   }
@@ -4831,11 +4746,11 @@ function setStatusHint(hint) {
       ui.moduleWin.style.top = "";
       ui.moduleWin.style.width = "";
       ui.moduleWin.style.height = "";
-      requestAnimationFrame(() => drawModulePreview());
+      requestAnimationFrame(() => drawModulePreview({ state, ui }));
     } else {
       placeFloatWindow(ui.moduleWin, "moduleGeo");
       raiseFloatWindow(ui.moduleWin);
-      requestAnimationFrame(() => drawModulePreview());
+      requestAnimationFrame(() => drawModulePreview({ state, ui }));
     }
   }
   function initModuleWindow() {
@@ -4857,7 +4772,7 @@ function setStatusHint(hint) {
     });
     if (ui.moduleStage && typeof ResizeObserver === "function") {
       const observer = new ResizeObserver(() => {
-        if (!ui.moduleWin?.hidden) drawModulePreview();
+        if (!ui.moduleWin?.hidden) drawModulePreview({ state, ui });
       });
       observer.observe(ui.moduleStage);
     }
@@ -6986,7 +6901,7 @@ function setStatusHint(hint) {
   setInspectorActions({ deleteNode, patchNodeGeometry, nodeDiameter, deleteEdge, patchEdgeGeometry, syncUI, updateScenePanelValues, renderInspector, updateSignalKeyCache, refreshState });
   setSpecPanelActions({ attachParamHelp, confirmModal, renderInspector });
   setAnalysisActions({ task, downloadText, phaseStateKeys, C, tokens });
-  setAppearanceActions({ drawModulePreview, scheduleChartDraw });
+  setAppearanceActions({ drawModulePreview: () => drawModulePreview({ state, ui }), scheduleChartDraw });
   setPlotkitDataActions({ refreshState, renderAnalysisPanel, updateSignalKeyCache });
   setPlotkitFrameActions({ setStatusHint });
   setDocsActions({ loadTemplate });

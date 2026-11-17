@@ -48,16 +48,6 @@ from ..compute.methods import (
     method_catalog,
     prepare_method,
 )
-from ..compute.nodal import (
-    CircuitNode,
-    CircuitSolver,
-    create_element,
-    create_element_from_pins,
-    element_catalog,
-    element_spec,
-    integration_methods,
-    node_catalog,
-)
 from ..compute.params import validate_params
 from .ports import pins_for_device
 from ..compute.profiling import timed
@@ -588,6 +578,7 @@ class SignalEngine(_Engine):
 
 class CircuitEngine(_Engine):
     def __init__(self, scene: "Scene") -> None:
+        from ..compute.nodal import CircuitNode, CircuitSolver, create_element, create_element_from_pins
         self.scene = scene
         # R24/D51：电路模块按"电气直连"展开——模块引脚与内部端口网络合并，
         # 内部器件进父矩阵。没有模块时 extra_* 为空，行为与之前完全一致。

@@ -141,3 +141,24 @@ def test_r4a_used_symbols_imported_lazily() -> None:
         got = _function_level_import_modules(f"netlab/core/model/{mod}.py")
         for n in needed:
             assert any(m.endswith(n) for m in got), f"{mod} 缺少函数内 lazy import {n}"
+
+
+# ---- B3 R4b: scene_engines 顶层去 compute 实现 import + 全域动态验收（solver 不再加载）----
+def test_r4b_scene_engines_no_top_level_nodal_import() -> None:
+    # 只要求切断会拉 circuit.solver 的 compute.nodal；computes/methods/params 不拉 solver，
+    # 保留顶层以维持既有 monkeypatch(netlab.core.model.scene_engines.prepare_compute) 兼容。
+    mods = _module_body_from_imports("netlab/core/model/scene_engines.py")
+    assert not any(m.endswith("compute.nodal") for m in mods), "scene_engines 顶层仍有 compute.nodal"
+
+
+def test_r4b_import_scene_does_not_load_circuit_solver() -> None:
+    import subprocess
+    import sys
+    code = (
+        "import netlab.core.model.scene, sys;"
+        "assert 'netlab.core.compute.circuit.solver' not in sys.modules, "
+        "'circuit.solver loaded';print('OK')"
+    )
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "OK" in r.stdout

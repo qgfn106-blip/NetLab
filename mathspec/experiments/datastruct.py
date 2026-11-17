@@ -150,15 +150,18 @@ def csr_from_triplets(rows, cols, vals, shape):
     data = []
     indices = []
     last_row = -1
+    prev_row = -1
     for r, c, v in zip(rows, cols, vals):
         while last_row < r:
             last_row += 1
             indptr[last_row] = len(data)
-        if indices and indices[-1] == c and last_row == r:
+        # 仅同一行内、同一列的相邻重复项才累加；不同行即使列号相同也各占一条
+        if indices and prev_row == r and indices[-1] == c:
             data[-1] += float(v)
         else:
             indices.append(int(c))
             data.append(float(v))
+        prev_row = r
     while last_row + 1 <= n_rows:
         last_row += 1
         indptr[last_row] = len(data)

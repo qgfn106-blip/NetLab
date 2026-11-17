@@ -84,6 +84,10 @@ def simulate(p: DriveTrainParams, V: float = 12.0, tau_L: float = 0.5,
              t_end: float = 3.0, dt: float = 1e-4,
              x0: Optional[np.ndarray] = None) -> Tuple[np.ndarray, np.ndarray]:
     """固定步长 RK4（参考实现；非刚性测试台够用）。"""
+    if dt <= 0:
+        raise ValueError(f"dt 必须为正数：{dt!r}")
+    if t_end < 0:
+        raise ValueError(f"t_end 不能为负：{t_end!r}")
     if x0 is None:
         x0 = np.zeros(4, dtype=float)
     f = deriv_factory(p, V, tau_L)

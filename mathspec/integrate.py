@@ -7,6 +7,8 @@ from .newton import damped_newton
 
 
 def backward_euler(f, x0, t0, t1, dt, jac=None):
+    if dt <= 0:
+        raise ValueError(f"dt 必须为正数：{dt!r}")
     """后向欧拉（L-稳定，1 阶）：每步用 Newton 解隐式方程。"""
     x = np.asarray(x0, float).copy()
     t = t0
@@ -27,6 +29,8 @@ def backward_euler(f, x0, t0, t1, dt, jac=None):
 
 
 def rk4(f, x0, t0, t1, dt):
+    if dt <= 0:
+        raise ValueError(f"dt 必须为正数：{dt!r}")
     x = np.asarray(x0, float).copy()
     t = t0
     ts, xs = [t], [x.copy()]
@@ -44,6 +48,8 @@ def rk4(f, x0, t0, t1, dt):
 
 
 def verlet(accel, x0, v0, t0, t1, dt):
+    if dt <= 0:
+        raise ValueError(f"dt 必须为正数：{dt!r}")
     """速度 Verlet（辛积分，P2）。accel(t, x) -> a。
 
     辛性质适用于保守、可分离力场且固定步长；变步长（包括本函数对末段

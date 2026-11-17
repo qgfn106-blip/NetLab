@@ -17,12 +17,6 @@ from typing import Any
 from .blocks import BlockRuntime, BlockStore
 from .records import EdgeRecord, NodeRecord
 from ..compute.clock import SimClock
-from ..compute.computes import (
-    compute_catalog,
-    get_compute_spec,
-    prepare_compute,
-    solver_traits,
-)
 from .graph import Network, Node
 from ..common.limits import (
     MAX_EDGES,
@@ -39,23 +33,7 @@ from ..common.limits import (
     check_name,
     json_safe,
 )
-from ..compute.methods import (
-    get_method_spec,
-    method_catalog,
-    prepare_method,
-)
 from .scene_types import is_known_mode, normalize_appearance
-from ..compute.nodal import (
-    CircuitNode,
-    CircuitSolver,
-    create_element,
-    create_element_from_pins,
-    element_catalog,
-    element_spec,
-    integration_methods,
-    node_catalog,
-)
-from ..compute.params import validate_params
 from .ports import pins_for_device
 from ..compute.profiling import timed
 
@@ -108,6 +86,7 @@ class _SceneIOMixin:
 
     def load_payload(self, payload: Any) -> None:
 
+        from ..compute.nodal import integration_methods
         if not isinstance(payload, dict):
             raise ValidationError("场景必须是 JSON 对象")
         mode = payload.get("mode", self.mode)
@@ -299,6 +278,9 @@ class _SceneIOMixin:
 
     # ---- 元数据 -----------------------------------------------------------
     def catalog(self) -> dict[str, Any]:
+        from ..compute.computes import compute_catalog
+        from ..compute.nodal import element_catalog, integration_methods, node_catalog
+        from ..compute.methods import method_catalog
         from .engine_registry import plugin_modes
 
         modes = [

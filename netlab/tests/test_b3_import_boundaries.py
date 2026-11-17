@@ -105,3 +105,39 @@ def test_r3_annotations_use_contracts_simulation_protocol() -> None:
 def test_contracts_simulation_does_not_import_compute_implementation() -> None:
     mods = _module_body_from_imports("netlab/core/model/contracts/simulation.py")
     assert not any("compute" in m for m in mods)
+
+
+# ---- B3 R4a: scene / scene_edit / scene_io 顶层去 compute 实现 import（静态验收）----
+_R4A_MODULES = ("scene", "scene_edit", "scene_io")
+_R4A_FORBIDDEN = ("compute.computes", "compute.methods", "compute.nodal", "compute.params")
+
+
+def test_r4a_no_top_level_compute_impl_imports() -> None:
+    for mod in _R4A_MODULES:
+        mods = _module_body_from_imports(f"netlab/core/model/{mod}.py")
+        for bad in _R4A_FORBIDDEN:
+            assert not any(m.endswith(bad) for m in mods), f"{mod} 顶层仍有 {bad}"
+
+
+def _function_level_import_modules(path: str) -> set[str]:
+    tree = ast.parse(Path(path).read_text(encoding="utf-8"))
+    mods: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for inner in ast.walk(node):
+                if isinstance(inner, ast.ImportFrom) and inner.module and "compute" in inner.module:
+                    mods.add(inner.module)
+    return mods
+
+
+def test_r4a_used_symbols_imported_lazily() -> None:
+    # 被使用的 compute 符号必须在函数体内 lazy import（顶层不得有）
+    expect = {
+        "scene": {"compute.computes", "compute.params", "compute.methods", "compute.nodal"},
+        "scene_edit": {"compute.nodal"},
+        "scene_io": {"compute.computes", "compute.methods", "compute.nodal"},
+    }
+    for mod, needed in expect.items():
+        got = _function_level_import_modules(f"netlab/core/model/{mod}.py")
+        for n in needed:
+            assert any(m.endswith(n) for m in got), f"{mod} 缺少函数内 lazy import {n}"

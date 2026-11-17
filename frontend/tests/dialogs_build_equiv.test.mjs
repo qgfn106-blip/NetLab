@@ -71,3 +71,19 @@ test('chooseModeModal equivalence', async () => {
   assert.deepEqual(b,a);
   assert.equal(b.res,'circuit');
 });
+
+test('closeModal direct: hides, clears card, resolves false', async () => {
+  makeEnv();
+  const { ui } = await import('../app/state.js');
+  const NEW = await import('../app/dialogs_build.js');
+  ui.modal = new El('div'); ui.modalCard = new El('div');
+  ui.modal.classList.add('hidden');
+  const p = NEW.openConfirmModal('t', 'm');
+  assert.equal(ui.modal.classList.contains('hidden'), false);
+  assert.ok(ui.modalCard.children.length > 0, 'card has children while open');
+  NEW.closeModal();
+  const res = await p;
+  assert.equal(ui.modal.classList.contains('hidden'), true, 'hidden after closeModal');
+  assert.equal(ui.modalCard.children.length, 0, 'card cleared');
+  assert.equal(res, false, 'resolved false');
+});

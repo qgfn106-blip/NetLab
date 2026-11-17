@@ -1,6 +1,6 @@
 # 外观引擎设计（一期全局外观引擎 / 二期元素级视图外观）
 
-- 状态：**已实施**（P-A1–P-A4 完成，见 §12；P-B 待办）
+- 状态：已实现·以代码为准
 - 日期：2026-11-07
 - 作用域：**仅 netlab 主壳**（Q1=B，PlotKit 视图与其 `app.css` 本期不动）
 - 关联：ADR [adr/0003-appearance-engine.md](adr/0003-appearance-engine.md)；UI 唯一实现口径 [UI_SPEC.md](UI_SPEC.md)；决策 D75（主题单一来源）

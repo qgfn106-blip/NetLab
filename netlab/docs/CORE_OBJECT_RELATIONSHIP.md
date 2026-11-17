@@ -1,6 +1,6 @@
 # 核心对象关系设计冻结（阶段 4 / P1-A）
 
-> 状态：`Proposed`（设计冻结草案，待评审）。本文是目标设计口径，不是当前实现；ADR 不是实施授权。
+> 状态：设计规范（`Proposed`，设计冻结草案，待评审）。本文是目标设计口径，不是当前实现；ADR 不是实施授权。
 > 依据：`NETLAB_V2_PLANNING_REVIEW.md:100-108`（补 6 份文档第 2 份：对象关系图与所有权）、`:110-116`（Desc/Runtime 五问）、`CORE_ARCHITECTURE_AUDIT`（已迁 Private-Docs，不重建） §5（P1-H1 职责过重与双份状态）。
 > 边界：不写生产代码；不改 `graph.py`/`scene.py` 冻结区；不删字段；不改 FEM。
 

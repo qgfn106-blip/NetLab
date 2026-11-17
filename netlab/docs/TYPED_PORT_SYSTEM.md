@@ -1,6 +1,6 @@
 # Typed Port 系统设计冻结（阶段 4 / P1-A）
 
-> 状态：`Proposed`（设计冻结草案，待评审）。本文是目标设计口径，不是当前实现；ADR 不是实施授权。
+> 状态：设计规范（`Proposed`，设计冻结草案，待评审）。本文是目标设计口径，不是当前实现；ADR 不是实施授权。
 > 依据：`NETLAB_V2_PLANNING_REVIEW.md:125-130`（Typed Port 五问）、`CORE_ARCHITECTURE_V2_ROADMAP.md:58-62`、`CORE_ARCHITECTURE_AUDIT`（已迁 Private-Docs，不重建） §5（P1-B1 物理拓扑与计算依赖共边）。
 > 边界：不写生产代码；不改现有 `netlab/core/model/blocks.py:80-128` 的 `PortDef`；不删字段；不改 FEM；不放宽 `MAX_NODES=400`。
 

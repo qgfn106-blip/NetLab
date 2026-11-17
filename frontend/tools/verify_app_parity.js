@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
+import { diffUncovered, wholeFileHash } from './parity_uncovered.js';
 
 const base = process.argv[2] || 'HEAD';
 const frontendDir = path.resolve(import.meta.dirname, '..');
@@ -43,7 +44,9 @@ function collect(fileName, text) {
       }
     }
   }
-  return { names: out, runtime: hasRuntime(sf) };
+  let exprChars = 0;
+  for (const stmt of sf.statements) { if (ts.isExpressionStatement(stmt)) exprChars += stmt.getText(sf).length; }
+  return { names: out, runtime: hasRuntime(sf), exprRatio: text.length ? exprChars / text.length : 0 };
 }
 
 const baselineFiles = execFileSync('git', ['ls-tree', '-r', '--name-only', base, '--', `${relFrontend}`], { cwd: repoRoot, encoding: 'utf8' })
@@ -64,9 +67,11 @@ currentFiles.push(path.join(frontendDir, 'desktop-shim.ts'));
 
 const baseNames = new Map();
 const baseBodies = new Map();
+const baseWhole = new Map();
 for (const rel of baselineFiles) {
   const text = execFileSync('git', ['show', `${base}:${rel}`], { cwd: repoRoot, encoding: 'utf8' });
   const { names } = collect(rel, text);
+  baseWhole.set(rel, wholeFileHash(text));
   for (const item of names) {
     if (!baseNames.has(item.name)) baseNames.set(item.name, []);
     baseNames.get(item.name).push(rel);
@@ -76,13 +81,17 @@ for (const rel of baselineFiles) {
 
 const currentNames = new Map();
 const currentBodies = new Map();
+const currentWhole = new Map();
 const typeOnlyModules = new Set();
+const uncovered = [];
 for (const full of currentFiles) {
   if (!existsSync(full)) continue;
   const rel = path.relative(repoRoot, full).replaceAll('\\', '/');
   const text = readFileSync(full, 'utf8');
-  const { names, runtime } = collect(rel, text);
+  const { names, runtime, exprRatio } = collect(rel, text);
   if (!runtime) typeOnlyModules.add(rel);
+  currentWhole.set(rel, wholeFileHash(text));
+  if (runtime && exprRatio > 0.5) uncovered.push(rel);
   for (const item of names) {
     if (!currentNames.has(item.name)) currentNames.set(item.name, []);
     currentNames.get(item.name).push(rel);
@@ -118,16 +127,24 @@ const changedBodies = [...currentBodies.entries()]
 const allowlistPath = path.join(frontendDir, 'tools', 'parity_body_allowlist.json');
 const allowlist = JSON.parse(readFileSync(allowlistPath, 'utf8'));
 const allowedBodies = new Set(Array.isArray(allowlist.allowed_bodies) ? allowlist.allowed_bodies : []);
+const uncoveredDiff = diffUncovered(uncovered, Array.isArray(allowlist.uncovered_files) ? allowlist.uncovered_files : []);
 const unexpectedBodies = changedBodies.filter((name) => !allowedBodies.has(name));
-if (missing.length || duplicates.length || missingJs.length || untrackedJs.length || unexpectedBodies.length) {
+if (missing.length || duplicates.length || missingJs.length || untrackedJs.length || unexpectedBodies.length || !uncoveredDiff.ok) {
   if (missing.length) console.error(`MISSING declarations: ${missing.join(', ')}`);
   if (duplicates.length) console.error(`DUPLICATE declarations:\n${duplicates.join('\n')}`);
   if (missingJs.length) console.error(`MISSING built JS: ${missingJs.join(', ')}`);
   if (untrackedJs.length) console.error(`UNTRACKED built JS: ${untrackedJs.join(', ')}`);
   if (unexpectedBodies.length) console.error(`CHANGED bodies not in tracked allowlist: ${unexpectedBodies.join(', ')}`);
+  if (!uncoveredDiff.ok && uncoveredDiff.extra.length) console.error(`UNEXPECTED uncovered runtime files (not in uncovered_files): ${uncoveredDiff.extra.join(', ')}`);
+  if (!uncoveredDiff.ok && uncoveredDiff.absent.length) console.error(`uncovered_files lists non-uncovered files (remove these): ${uncoveredDiff.absent.join(', ')}`);
   process.exit(1);
 }
 const allowedChangedBodies = changedBodies.filter((name) => allowedBodies.has(name));
 if (allowedChangedBodies.length) console.error(`WARN changed bodies (tracked allowlist): ${allowedChangedBodies.join(', ')}`);
 
+for (const rel of uncovered) {
+  const baseHash = baseWhole.get(rel);
+  const nowHash = currentWhole.get(rel);
+  if (baseHash !== undefined && baseHash !== nowHash) console.error(`WARN uncovered file changed (invisible to declaration parity): ${rel}`);
+}
 console.log(`OK: app.ts parity passed (base=${base}, ${currentFiles.length} TS files, ${currentNames.size} top-level declarations, ${appTs.length - typeOnlyModules.size} runtime app modules, ${typeOnlyModules.size} type-only)`);

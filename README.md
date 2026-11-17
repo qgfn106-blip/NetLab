@@ -146,7 +146,6 @@ python -m netlab.desktop
 - [netlab/docs/PLUGIN_GUIDE.md](netlab/docs/PLUGIN_GUIDE.md) —— 插件包开发与本地加载
 - [OPERATION.md](OPERATION.md) —— 界面速览、快捷键、建图/建电路、曲线与回放、工程文件
 - [INSTALL.md](INSTALL.md) —— 安装、离线部署、局域网访问、故障排查
--  —— 活跃/历史文档索引
 
 ## 离线使用
 
@@ -225,11 +224,7 @@ Netlab 设计为**每人一份、本机运行**：服务默认只监听 `127.0.0
 
 > 项目在多个研究/专题文档中保留了更大规模的文献清单（含 DOI/arXiv/URL 与核验状态）。README 仅列核心理论文献以避免重复；**全部专题文献按下列位置索引**：
 
--  —— 性能与并发专题，含 12 组「参考文献（含地址）」章节（§18.6 图论/超图/因子图、§19.8、§20.6、§21.7、§22.8、§23.6 等；涵盖 Modelica/FMU、稀疏因子分解、缓存友好数据结构等，累计 100+ 条，均附 DOI/arXiv/URL）。
--  §9「参考文献与核验状态」—— 24 条哈希表/MPHF/SwissTable/IcebergHT/PTHash/缓存友好结构论文，逐条标注「已核验 / 用户提供 / 预印本」。
--  —— 可观测性与传感器配置来源（Gramian、D-optimal、次模贪心；Yamada 2023 Sensors DOI `10.3390/s23135961`、Nemhauser 1978 DOI `10.1007/BF01588971` 等）。
--  —— mathspec M2 门评审依据与外部参考。
--  —— AC 语料/对拍来源与核验记录。
+- （以上专题文档已迁 Private-Docs，主库不再提供条目索引）
 - [mathspec/README.md](mathspec/README.md) —— mathspec 数学规范总览与来源说明。
 
 ### 七、项目知识树（内部文档索引）
@@ -240,31 +235,26 @@ Netlab 设计为**每人一份、本机运行**：服务默认只监听 `127.0.0
 - [README.md](README.md)（本文件）、[ARCHITECTURE.md](ARCHITECTURE.md)（分层/场景/求解器/插件/前端数据流）、[CHANGELOG.md](CHANGELOG.md)、[INSTALL.md](INSTALL.md)、[OPERATION.md](OPERATION.md)
 
 **总览、规范与计划**
-- 、、、、
-- 、、[GLOSSARY.md](netlab/docs/GLOSSARY.md)、、、、、
+- [GLOSSARY.md](netlab/docs/GLOSSARY.md)
 
 **架构与代码**
-- [netlab/docs/ARCHITECTURE.md](netlab/docs/ARCHITECTURE.md)、[ARCHITECTURE_BOUNDARIES.md](netlab/docs/ARCHITECTURE_BOUNDARIES.md)、[CODE_GUIDE.md](netlab/docs/CODE_GUIDE.md)、、
-- [CORE_INTERFACE_CONTRACTS.md](netlab/docs/CORE_INTERFACE_CONTRACTS.md)、[CORE_OBJECT_RELATIONSHIP.md](netlab/docs/CORE_OBJECT_RELATIONSHIP.md)、[MODULES_HOWTO.md](netlab/docs/MODULES_HOWTO.md)、[SOLVER_CODE_MAP.md](netlab/docs/SOLVER_CODE_MAP.md)、
+- [netlab/docs/ARCHITECTURE.md](netlab/docs/ARCHITECTURE.md)、[ARCHITECTURE_BOUNDARIES.md](netlab/docs/ARCHITECTURE_BOUNDARIES.md)、[CODE_GUIDE.md](netlab/docs/CODE_GUIDE.md)
+- [CORE_INTERFACE_CONTRACTS.md](netlab/docs/CORE_INTERFACE_CONTRACTS.md)、[CORE_OBJECT_RELATIONSHIP.md](netlab/docs/CORE_OBJECT_RELATIONSHIP.md)、[MODULES_HOWTO.md](netlab/docs/MODULES_HOWTO.md)、[SOLVER_CODE_MAP.md](netlab/docs/SOLVER_CODE_MAP.md)
 - [EXTENDING.md](netlab/docs/EXTENDING.md)、[EXTENSIBILITY_ARCHITECTURE.md](netlab/docs/EXTENSIBILITY_ARCHITECTURE.md)、[PLUGIN_GUIDE.md](netlab/docs/PLUGIN_GUIDE.md)、[VSCODE_INTEGRATION.md](netlab/docs/VSCODE_INTEGRATION.md)
 
 **模型与接口设计**
-- [CORE_MODEL_V2.md](netlab/docs/CORE_MODEL_V2.md)、[CORE_ARCHITECTURE_V2.md](netlab/docs/CORE_ARCHITECTURE_V2.md)、、[MINIMAL_DATA_MODEL_EXAMPLE.md](netlab/docs/MINIMAL_DATA_MODEL_EXAMPLE.md)、[TYPED_PORT_SYSTEM.md](netlab/docs/TYPED_PORT_SYSTEM.md)
-- 、、[MIGRATION_AND_COMPATIBILITY.md](netlab/docs/MIGRATION_AND_COMPATIBILITY.md)
+- [CORE_MODEL_V2.md](netlab/docs/CORE_MODEL_V2.md)、[CORE_ARCHITECTURE_V2.md](netlab/docs/CORE_ARCHITECTURE_V2.md)、[MINIMAL_DATA_MODEL_EXAMPLE.md](netlab/docs/MINIMAL_DATA_MODEL_EXAMPLE.md)、[TYPED_PORT_SYSTEM.md](netlab/docs/TYPED_PORT_SYSTEM.md)
+- [MIGRATION_AND_COMPATIBILITY.md](netlab/docs/MIGRATION_AND_COMPATIBILITY.md)
 - [ENGINE_LIFECYCLE.md](netlab/docs/ENGINE_LIFECYCLE.md)、[ENGINE_SPI_V2.md](netlab/docs/ENGINE_SPI_V2.md)、[APPEARANCE_ENGINE_DESIGN.md](netlab/docs/APPEARANCE_ENGINE_DESIGN.md)、[UI_SPEC.md](netlab/docs/UI_SPEC.md)、[SCHEMATIC_DRAWING_SPEC.md](netlab/docs/SCHEMATIC_DRAWING_SPEC.md)、[BUILD_AND_PACKAGING.md](netlab/docs/BUILD_AND_PACKAGING.md)
 
 **数学与仿真原理**
-- [MATH.md](netlab/docs/MATH.md)、[UNIFIED_SIM_MATH_SPEC.md](netlab/docs/UNIFIED_SIM_MATH_SPEC.md)、
+- [MATH.md](netlab/docs/MATH.md)、[UNIFIED_SIM_MATH_SPEC.md](netlab/docs/UNIFIED_SIM_MATH_SPEC.md)
 - [math/ARCHITECTURE_MATH.md](netlab/docs/math/ARCHITECTURE_MATH.md)、[math/ELEMENT_MATH.md](netlab/docs/math/ELEMENT_MATH.md)、[math/ANALYSIS_MATH.md](netlab/docs/math/ANALYSIS_MATH.md)
 
 **决策记录（ADR）**
-- 、、、、、、、、
-- 早期 ADR：、、
 
 **研究与专题**
-- 、[PERF_DICT_AND_CPP_AUDIT.md](netlab/docs/PERF_DICT_AND_CPP_AUDIT.md)、
-- 、、、、
-- mathspec：[mathspec/README.md](mathspec/README.md)、、、
+- mathspec：[mathspec/README.md](mathspec/README.md)
 
 **经验与速查**
 
@@ -274,6 +264,5 @@ Netlab 设计为**每人一份、本机运行**：服务默认只监听 `127.0.0
 **近期审计 / 评审（仅列最近两次；更早的历史审计记录不进入本 README）**
 
 **历史特性规格（specs，18 篇）与调查**
--  目录（2026-11-03…2026-11-09 的特性规格与门评审）
-- 、[docs/specs/2026-11-09-c5-path-token.md](docs/specs/2026-11-09-c5-path-token.md)、[docs/specs/2026-11-09-n08-channel-key.md](docs/specs/2026-11-09-n08-channel-key.md)
+- [docs/specs/2026-11-09-c5-path-token.md](docs/specs/2026-11-09-c5-path-token.md)、[docs/specs/2026-11-09-n08-channel-key.md](docs/specs/2026-11-09-n08-channel-key.md)
 - [extensions/plugins/README.md](extensions/plugins/README.md)

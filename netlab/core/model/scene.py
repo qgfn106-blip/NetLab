@@ -17,12 +17,6 @@ from typing import Any
 from .blocks import BlockRuntime, BlockStore
 from .records import EdgeRecord, NodeRecord
 from ..compute.clock import SimClock
-from ..compute.computes import (
-    compute_catalog,
-    get_compute_spec,
-    prepare_compute,
-    solver_traits,
-)
 from .graph import Network, Node
 from ..common.limits import (
     MAX_EDGES,
@@ -39,22 +33,6 @@ from ..common.limits import (
     check_name,
     json_safe,
 )
-from ..compute.methods import (
-    get_method_spec,
-    method_catalog,
-    prepare_method,
-)
-from ..compute.nodal import (
-    CircuitNode,
-    CircuitSolver,
-    create_element,
-    create_element_from_pins,
-    element_catalog,
-    element_spec,
-    integration_methods,
-    node_catalog,
-)
-from ..compute.params import validate_params
 from .ports import pins_for_device
 from ..compute.profiling import timed
 from .scene_types import (
@@ -265,6 +243,8 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
         return candidate
 
     def _normalize_node_params(self, kind: str, raw: Any) -> tuple[dict[str, Any], str]:
+        from ..compute.computes import get_compute_spec
+        from ..compute.params import validate_params
         from .engine_registry import ENGINE_SPECS
 
         if self.mode in ENGINE_SPECS:
@@ -350,6 +330,8 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
 
     def _normalize_device_params(self, raw: Any) -> dict[str, Any]:
         """器件节点参数：``{"element": 元件 kind, ...元件参数}``。"""
+        from ..compute.nodal import element_spec
+        from ..compute.params import validate_params
         if not isinstance(raw, dict):
             raise ValidationError("器件节点参数必须是对象：{'element': 元件 kind, ...}")
         element = raw.get("element")
@@ -365,6 +347,9 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
         return {"element": element, **params}
 
     def _normalize_edge_params(self, kind: str, raw: Any) -> dict[str, Any]:
+        from ..compute.nodal import element_spec
+        from ..compute.methods import get_method_spec
+        from ..compute.params import validate_params
         from .engine_registry import ENGINE_SPECS
 
         if self.mode in ENGINE_SPECS:
@@ -459,6 +444,7 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
         nodes: dict[str, "NodeRecord"] | None = None,
     ) -> tuple[str, str]:
         """R20/Q8：信号/矢量边的端口绑定；电路用 source_pin/target_pin。"""
+        from ..compute.computes import get_compute_spec
         node_map = self.nodes if nodes is None else nodes
         source_port = "" if source_port in (None, "") else str(source_port)
         target_port = "" if target_port in (None, "") else str(target_port)

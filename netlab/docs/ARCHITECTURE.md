@@ -649,7 +649,7 @@ TEMPLATES["my_template"] = {...}           # templates：直接写 dict
 - compute/method/element/analysis/data-format/template/panel 全部走稳定门面；
 - 自定义求解引擎只能注册为新 mode，`EngineProtocol` 固定为 `build/step/reset/probes/stats`；
 - `NodeRecord`/`EdgeRecord` 核心字段不变，插件私有持久化数据只进 `ext[plugin_id]`；
-- 工程 `format_version` 已升 6，新增 `plugins` 锁段；缺插件时降级打开并标“未解析”；
+- 工程 `format_version` 已升 7（`format_version = 7`），新增 `plugins` 锁段；缺插件时降级打开并标“未解析”；
 - UI 增加简洁画布与视图内设计，配置存为 `netlab-ui/1` profile。
 
 完整规范与验收矩阵见 [EXTENSIBILITY_ARCHITECTURE.md](EXTENSIBILITY_ARCHITECTURE.md)，决策见 [adr/0002-plugin-extension-architecture.md](adr/0002-plugin-extension-architecture.md)。

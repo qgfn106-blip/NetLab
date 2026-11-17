@@ -79,6 +79,6 @@ flowchart TD
 
 1. **Plugin 权限边界（只读/可写哪些层）**：§2 表格给出候选（Plugin 可注册 Model、可声明式挂载 UI，不得直接访问 Runtime），但「是否可写 Presentation 层」「是否可读 Compiled Model 细节」未裁定。未裁定前按最小只读实现。
 2. 项目保存是否允许显式 Runtime 快照：见 `ENGINE_LIFECYCLE.md` §5。
-3. 兼容窗口是否必须支持 v6 旧工程：见 `MIGRATION_AND_COMPATIBILITY.md` §3。
+3. 兼容窗口：**已按用户 2026-11-15 裁定**——保留现行 loader 已验证的全部历史输入路径 v0–v7 + 独立 scene-json，不主动收缩；任何历史迁移删除须影响评估 + 弃用公告 + 替代方案 + 用户明确批准。详见 `MIGRATION_AND_COMPATIBILITY.md` §3。
 
-三项均标为 `PENDING_USER_AUTHORIZATION`，不进入实现。
+第 1、2 项仍标 `PENDING_USER_AUTHORIZATION`、不进入实现；第 3 项（兼容窗口）已按上述用户裁定生效。

@@ -9,7 +9,7 @@
 
 目标：把「物理拓扑、计算依赖、方程约束、场景组织」四类关系从同一份 `NodeRecord` / `EdgeRecord` / `Node` / `Connection` 中分离，给出 Description（Desc）与 Runtime 两层对象、13 类核心对象的接口草案、四类关系图、与现状差异及渐进迁移路线，作为 P2 及之后阶段的设计基线。
 
-非目标（明确不做）：不实施 Core Model 替换、不写生产代码、不改外部工程 JSON、不删字段、不升格 ADR、不裁定 §11 的三项开放问题。设计评审通过前不实施替换（`CORE_ARCHITECTURE_V2_ROADMAP.md:60`）。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
+非目标（明确不做）：不实施 Core Model 替换、不写生产代码、不改外部工程 JSON、不删字段、不升格 ADR、不裁定 §11 的第 1、2 项开放问题（第 3 项兼容窗口已按用户 2026-11-15 裁定）。设计评审通过前不实施替换（`CORE_ARCHITECTURE_V2_ROADMAP.md:60`）。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 
 ## 2. 分层与依赖方向
 
@@ -311,13 +311,13 @@ flowchart TD
 
 ## 11. 待用户裁定的开放问题（Open Question / PENDING_USER_AUTHORIZATION）
 
-以下三项来自 `NETLAB_V2_PLANNING_REVIEW.md:136`，**本阶段不代替用户裁定**，仅给出候选与影响，标为 `PENDING_USER_AUTHORIZATION`：（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
+以下第 1、2 项来自 `NETLAB_V2_PLANNING_REVIEW.md:136`，**本阶段不代替用户裁定**，仅给出候选与影响，标为 `PENDING_USER_AUTHORIZATION`；第 3 项（兼容窗口）已按用户 2026-11-15 裁定：（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 
 1. 项目保存是否允许**显式** Runtime 快照：已裁决的默认是「普通保存不含 Runtime 快照，Project Save 与 Runtime Snapshot 归属分离」；是否开放用户主动导出/断点快照入口仍待裁定。影响 `RuntimeSnapshot` 是否进工程 schema。
 2. Plugin 权限边界（只读/可写哪些层）：见 `ARCHITECTURE_BOUNDARIES.md` §6、`ENGINE_SPI_V2.md` §4。影响 `PluginFacade` 能力白名单。
-3. 兼容窗口是否必须支持 v6 旧工程：见 `MIGRATION_AND_COMPATIBILITY.md` §3。影响迁移器范围与 golden fixtures 数量。
+3. 兼容窗口：**已按用户 2026-11-15 裁定**——保留 v0–v7 + 独立 scene-json、不主动收缩（删除须影响评估+弃用公告+替代+用户明确批准）。影响迁移器范围与 golden fixtures 数量。
 
-在用户裁定前，三项均不进入实现，不写入 ADR 状态，不改变 `ADR-001/002/003/004/006/007 = Proposed` 的事实。
+在用户裁定前，第 1、2 项不进入实现；第 3 项（兼容窗口）已按裁定生效。不写入 ADR 状态，不改变 `ADR-001/002/003/004/006/007 = Proposed` 的事实。
 
 ## 12. P1-05 三型边独立数据结构（整改补充）
 

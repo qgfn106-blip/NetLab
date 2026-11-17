@@ -1,6 +1,6 @@
 # Core Model V2 设计冻结（阶段 4 / P1-A）
 
-> 状态：`Proposed`（设计冻结草案，待评审）。本文是**目标设计口径**，不是当前实现；ADR 不是实施授权，Proposed 不得伪装 Accepted。
+> 状态：设计规范
 > 阶段 4 开工时基线以 `git rev-parse HEAD`、`status.json` 与 GitHub branches/main 为准；本文不写死运行态数字，避免旧基线残留。
 > 依据：`PROJECT_OPTIMIZATION_EXECUTION_PLAN.md:44`、`NETLAB_V2_PLANNING_REVIEW.md:97-136`、`CORE_ARCHITECTURE_V2_ROADMAP.md:54-66`、`CORE_ARCHITECTURE_AUDIT.md:385`、`CORE_ARCHITECTURE_AUDIT.md:394-400`。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 > 边界：本阶段不写任何生产代码；不改 `netlab/core/model/graph.py`、`netlab/core/model/scene.py` 冻结区；不迁移旧工程；不放宽 `MAX_NODES=400`；不改 FEM；不擅自放量 `NETLAB_MATH_ACCEL`。

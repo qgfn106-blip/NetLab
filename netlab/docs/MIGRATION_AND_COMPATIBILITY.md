@@ -1,6 +1,6 @@
 # 迁移与兼容设计冻结（阶段 4 / P1-A）
 
-> 状态：`Proposed`（设计冻结草案，待评审）。本文是目标设计口径与迁移策略，不是当前实现；ADR 不是实施授权。
+> 状态：设计规范
 > 依据：相关规划/审计材料（NETLAB_V2_PLANNING_REVIEW / CORE_ARCHITECTURE_AUDIT / CORE_ARCHITECTURE_V2_ROADMAP）已迁至 Private-Docs 私有库，主库不保留、本文件不重建其内容；兼容窗口结论以本节与 §10 全文为准。
 > 边界：不迁移旧工程、不改外部 JSON、不删字段、不写生产代码、不改 FEM。
 

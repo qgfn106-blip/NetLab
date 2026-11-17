@@ -1,7 +1,7 @@
 # Netlab 全栈扩展架构（Plugin API v1）
 
 > 最后更新：2026-11-07（§6.8/§8.1/§8.2/§8.3/§9.1 以 3.20.1 代码校正：PanelSpec/VisualSpec 字段、netlab-ui/1 严格白名单、工程 ui 段旧键、实现现状标注）
-> 状态：设计规范，已接受（2026-11-06）
+> 状态：设计规范
 > 决策记录：ADR 已迁 Private-Docs，不重建。
 > 迁移指南：[EXTENDING.md](EXTENDING.md)（现有内置扩展方式）
 > 术语：[GLOSSARY.md](GLOSSARY.md)

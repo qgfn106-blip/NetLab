@@ -17,6 +17,11 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      - name: Setup Python (evidence)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Install
         working-directory: frontend
         run: npm ci
@@ -44,6 +49,23 @@ jobs:
       - name: Artifact drift guard (committed JS must match a fresh build)
         working-directory: frontend
         run: git diff --ignore-cr-at-eol --exit-code -- app.js app.utils.js desktop-shim.js app
+
+      - name: Record build evidence
+        run: >
+          mkdir -p reports/evidence &&
+          python tools/run_evidence.py --tool frontend-ts-build
+          --out reports/evidence/frontend-ts-build.json
+          --artifact frontend/package-lock.json --artifact frontend/app.js --artifact frontend/app.utils.js
+          -- npm --prefix frontend run typecheck
+
+      - name: Upload CI evidence (run id + exact SHA + artifacts)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-ts-build-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/evidence/
+          if-no-files-found: warn
+          retention-days: 14
 
   e2e-l1:
     runs-on: ubuntu-latest
@@ -74,7 +96,24 @@ jobs:
         run: pip install fastapi uvicorn numpy scipy jsonschema
 
       - name: L1 browser e2e
-        working-directory: frontend
+        working-directory: .
         env:
           PYTHON: python
-        run: npm run e2e
+        run: >
+          mkdir -p reports/evidence &&
+          python tools/run_evidence.py --tool frontend-e2e-l1
+          --out reports/evidence/frontend-e2e-l1.json
+          --artifact frontend/package-lock.json
+          -- npm --prefix frontend run e2e
+
+      - name: Upload CI evidence (run id + exact SHA + artifacts)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-e2e-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            reports/evidence/
+            reports/e2e/
+            reports/gui_smoke/
+          if-no-files-found: warn
+          retention-days: 14

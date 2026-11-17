@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,7 @@ from ..core.model.project import (
 from ..core.model.workspace import load_settings
 
 router = APIRouter(tags=["project"])
+_LOGGER = logging.getLogger(__name__)
 
 _service: Any = None
 _fem: Any = None
@@ -122,51 +124,76 @@ def apply_project(
             "工程包含 Python 扩展代码。扩展会在本进程执行，不是沙箱；"
             "确认来源可信后，使用 trust_extensions=true 重新导入。"
         )
-    if extension_items:
-        extensions.activate_project_extensions(extension_items)
     library = library or str(_library_path())
-    degraded = None
-    try:
-        project = validate_project(project, library=library)
-    except ValidationError as exc:
-        message = str(exc)
-        if not allow_fallback or not any(
-            marker in message for marker in ("缺失", "不存在", "库路径", "模块")
-        ):
+    # parse → activate → validate → commit：扩展激活与后续校验/装载共享同一事务，
+    # 任一阶段失败都会恢复扩展注册表，避免失败导入留下全局注册副作用。
+    stage = "parse"
+    with extensions.registry_transaction():
+        try:
+            stage = "activate"
+            if extension_items:
+                extensions.activate_project_extensions(extension_items)
+            stage = "validate"
+            degraded = None
+            try:
+                project = validate_project(project, library=library)
+            except ValidationError as exc:
+                message = str(exc)
+                if not allow_fallback or not any(
+                    marker in message
+                    for marker in ("缺失", "不存在", "库路径", "模块")
+                ):
+                    raise
+                # D7：缺失时降级只读打开，用占位块顶上；运行与编辑被禁用。
+                project = validate_project(
+                    project, library=library, allow_degraded=True
+                )
+                degraded = project.get("degraded")
+            # 先应用 FEM（失败时不破坏当前网络），再载入已通过校验的场景。
+            stage = "apply_fem"
+            fem_payload = project.get("fem") or {}
+            if fem_payload:
+                _fem.apply_config(fem_payload)
+            stage = "commit"
+            _service.load_project(
+                project, library=library, allow_degraded=bool(degraded)
+            )
+            global _last_project, _last_project_library
+            _last_project = copy.deepcopy(project) if degraded else None
+            _last_project_library = library
+            _LOGGER.info(
+                "project import committed: extensions=%d degraded=%s",
+                len(extension_items),
+                bool(degraded),
+            )
+            return {
+                "scene": _service.scene.runtime_state(),
+                "sim": _service.info(),
+                "networks": _service.list_networks(),
+                "current": _service.current_id,
+                "degraded": _service.degraded,
+                "fem": _fem.snapshot(include_mesh=False),
+                "ui": project.get("ui") or {},
+                "blocks": project.get("blocks") or [],
+                "extensions": project.get("extensions") or [],
+                "project": {
+                    "name": project.get("name"),
+                    "version": project.get("version"),
+                    "created": project.get("created"),
+                    "modified": project.get("modified"),
+                    "checksum": project.get("checksum"),
+                    "trusted_extensions": bool(trust_extensions),
+                },
+                "migration": {
+                    "rails": (project.get("metadata") or {}).get("rails_migration")
+                    or [],
+                },
+            }
+        except Exception:
+            _LOGGER.warning(
+                "project import failed at stage=%s", stage, exc_info=True
+            )
             raise
-        # D7：缺失时降级只读打开，用占位块顶上；运行与编辑被禁用。
-        project = validate_project(project, library=library, allow_degraded=True)
-        degraded = project.get("degraded")
-    # 先应用 FEM（失败时不破坏当前网络），再载入已通过校验的场景。
-    fem_payload = project.get("fem") or {}
-    if fem_payload:
-        _fem.apply_config(fem_payload)
-    _service.load_project(project, library=library, allow_degraded=bool(degraded))
-    global _last_project, _last_project_library
-    _last_project = copy.deepcopy(project) if degraded else None
-    _last_project_library = library
-    return {
-        "scene": _service.scene.runtime_state(),
-        "sim": _service.info(),
-        "networks": _service.list_networks(),
-        "current": _service.current_id,
-        "degraded": _service.degraded,
-        "fem": _fem.snapshot(include_mesh=False),
-        "ui": project.get("ui") or {},
-        "blocks": project.get("blocks") or [],
-        "extensions": project.get("extensions") or [],
-        "project": {
-            "name": project.get("name"),
-            "version": project.get("version"),
-            "created": project.get("created"),
-            "modified": project.get("modified"),
-            "checksum": project.get("checksum"),
-            "trusted_extensions": bool(trust_extensions),
-        },
-        "migration": {
-            "rails": (project.get("metadata") or {}).get("rails_migration") or [],
-        },
-    }
 
 
 @router.get("/api/project")

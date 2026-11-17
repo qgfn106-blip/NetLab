@@ -1,7 +1,7 @@
 // R40 P-B 元素外观 e2e：多选批量、扩展颜色、线型、持久化。
-import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { chromium } from 'playwright-core';
+import { beginFlow, startBackend } from './harness.mjs';
 
 const PORT = Number(process.env.E2E_PORT || 8880);
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -55,17 +55,11 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-const server = spawn(
-  process.env.PYTHON || 'python',
-  ['-m', 'uvicorn', 'netlab.server:app', '--port', String(PORT), '--log-level', 'warning'],
-  {
-    cwd: new URL('../../', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'),
-    env: { ...process.env, PYTHONPATH: '.' },
-    stdio: 'ignore',
-  },
-);
+const backend = await startBackend({ port: PORT, name: 'appearance_ux' });
 
 let browser;
+let flow;
+let failure = null;
 try {
   await waitHealth();
   const imported = await fetch(`${BASE}/api/scene`, {
@@ -85,6 +79,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.on('pageerror', (error) => errors.push(String(error)));
   page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+  flow = await beginFlow(browser, page, 'appearance_ux', errors);
 
   await page.goto(BASE + '/', { waitUntil: 'networkidle' });
   await page.waitForSelector('#btnRun', { state: 'visible', timeout: 15000 });
@@ -92,7 +87,7 @@ try {
 
   await page.locator('#graph').click({ position: { x: 600, y: 400 } });
   await page.keyboard.press('Control+a');
-  await page.waitForTimeout(150);
+  await page.waitForFunction(() => document.querySelectorAll('.selected').length > 0, null, { timeout: 5000 }).catch(() => {});
   await page.locator('#menuItems .menu > button').filter({ hasText: '视图' }).click();
   await page.locator('.menu.open .menu-item').filter({ hasText: '视图设计…' }).click();
   await page.waitForSelector('#modalCard h3', { state: 'visible', timeout: 5000 });
@@ -122,7 +117,11 @@ try {
       && response.request().method() === 'PATCH', { timeout: 10000 });
   await styleSelect.selectOption('dashed');
   await stylePatch;
-  await page.waitForTimeout(3000);
+  await page.waitForFunction(async () => {
+    const payload = await (await fetch('/api/scene/export')).json();
+    const scene = payload.scene || payload;
+    return (scene.edges || []).every((edge) => edge.appearance?.lineStyle === 'dashed');
+  }, null, { timeout: 10000 });
 
   const scene = await page.evaluate(async () => (await fetch('/api/scene/export')).json());
   const sceneData = scene.scene || scene;
@@ -138,7 +137,11 @@ try {
   }
   assert(errors.length === 0, `页面错误: ${errors.join(' | ')}`);
   console.log('appearance ux e2e: OK (batch, colors, lineStyle)');
+} catch (error) {
+  failure = error;
+  throw error;
 } finally {
+  if (flow) await flow.finish({ status: failure || errors.length ? 'failed' : 'ok', error: failure });
   if (browser) await browser.close();
-  server.kill();
+  await backend.stop();
 }

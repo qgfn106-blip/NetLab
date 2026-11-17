@@ -156,6 +156,9 @@ class CircuitSolver:
         self.last_residual = 0.0
         self.last_strategies: tuple[str, ...] = ()
         self.last_scaled = False
+        self.last_status = "idle"
+        self.last_dt = 0.0
+        self.last_failure: dict[str, Any] | None = None
         self.last_row_scale: np.ndarray | None = None
         self.last_col_scale: np.ndarray | None = None
         self._worst_residual_index: int | None = None
@@ -414,6 +417,20 @@ class CircuitSolver:
         if not converged:
             trouble = self._trouble_name(solution, dt=dt, residual=residual)
             tried = "、".join(attempted) if attempted else "未启用 gmin/source stepping"
+            self.last_status = "failed"
+            self.last_dt = float(dt)
+            self.last_iterations = iterations
+            self.last_residual = float(residual)
+            self.last_failure = {
+                "status": "failed",
+                "reason": "newton_nonconvergence",
+                "dt": float(dt),
+                "time": float(self.time),
+                "iterations": iterations,
+                "residual": float(residual),
+                "worst_node": trouble,
+                "strategies": list(attempted),
+            }
             raise ComputeError(
                 f"非线性电路在 {self.options.max_iter} 次 Newton 迭代内未收敛"
                 f"（后向残差 {residual:.3g}，最大残差节点 {trouble!r}）；"
@@ -440,11 +457,20 @@ class CircuitSolver:
             if node_id in self.node_voltages:
                 self.node_voltages[node_id] = float(solution[position])
         self.node_voltages[self.ground] = 0.0
+        self.last_status = "converged"
+        self.last_dt = float(dt)
         self.last_iterations = iterations
         self.last_solve_ms = (_time.perf_counter() - started) * 1000.0
+        self.last_failure = None
         return {
+            "status": "converged",
+            "converged": True,
+            "reason": None,
+            "dt": float(dt),
+            "time": float(self.time),
             "iterations": iterations,
             "matrix_size": self.matrix_size,
+            "sparse": bool(self.sparse),
             "solve_ms": self.last_solve_ms,
             "residual": self.last_residual,
             "strategies": list(self.last_strategies),
@@ -1175,7 +1201,22 @@ class CircuitSolver:
                     self._check_floating(ctx.A)
                 solution = None
                 if fast:
-                    solution = solver.solve(omega, ctx.rhs)
+                    solution = solver.solve(omega, ctx.rhs, refine_steps=0)
+                    residual = solver.relative_residual(omega, ctx.rhs, solution)
+                    if not math.isfinite(residual) or residual > 1.0e-8:
+                        # 低秩更新在病态/强耦合频点可能失稳；残差超限时本频点
+                        # 退回完整矩阵直接解，并留下可观测的诊断记录。
+                        record_math_diag(
+                            "p3.fallback",
+                            {
+                                "n": size,
+                                "r": stamp_count,
+                                "ratio": solver.ratio,
+                                "omega": omega,
+                                "residual": residual,
+                            },
+                        )
+                        solution = np.linalg.solve(solver.matrix(omega), ctx.rhs)
                     record_math_diag(
                         "p3.used",
                         {

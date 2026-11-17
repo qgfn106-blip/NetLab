@@ -38,9 +38,10 @@ import hashlib
 import math
 import re
 import threading
+from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 import numpy as np
 
@@ -378,6 +379,22 @@ def _restore_registry(
     _REGISTRY.update(registry)
 
 
+@contextmanager
+def registry_transaction() -> Iterator[None]:
+    """把一次扩展激活/导入包成可回滚事务。
+
+    进入时在注册表锁内保存快照；``with`` 块内任何异常都会恢复快照。
+    扩展代码是**受信宿主执行边界**而不是沙箱，事务只保证注册表原子性。
+    """
+    with _LOCK:
+        snapshot = _snapshot_registry()
+        try:
+            yield
+        except BaseException:
+            _restore_registry(snapshot)
+            raise
+
+
 def execute_code(
     code: str,
     *,
@@ -400,6 +417,7 @@ def execute_code(
                 "method": method,
             }
             compiled = compile(code, filename, "exec")
+            # 受信宿主执行边界：扩展拥有本进程权限，不是沙箱。
             exec(compiled, namespace, namespace)  # noqa: S102 - 本地可信扩展，非沙箱
             before_items = before[2]
             changed = [
@@ -609,6 +627,7 @@ __all__ = [
     "get_extension",
     "scan_directory",
     "activate_project_extensions",
+    "registry_transaction",
     "reset",
     "EXTENSION_ROOT",
 ]

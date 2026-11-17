@@ -26,9 +26,30 @@ def test_e2e_control_experiment_green(tmp_path: Path) -> None:
     table = json.loads((tmp_path / "error_table.json").read_text(encoding="utf-8"))
     assert table["pass"] is True
     assert table["head"]
-    assert {row["metric"] for row in table["rows"]} == {"final", "overshoot_pct", "settling_2pct_s"}
-    for name in ("underdamped_control.netlab", "step_response.csv", "step_response.svg", "plot_spec.json"):
+    assert {row["metric"] for row in table["rows"]} == {
+        "final",
+        "overshoot_pct",
+        "settling_2pct_s",
+        "max_abs_tracking",
+        "rmse_tracking",
+        "integral_abs_error",
+        "feedback_delay_s",
+        "sampling_jitter_s",
+    }
+    for name in (
+        "underdamped_control.netlab",
+        "step_response.csv",
+        "step_response.svg",
+        "plot_spec.json",
+        "trajectory.json",
+    ):
         assert (tmp_path / name).is_file(), name
+    trajectory = json.loads((tmp_path / "trajectory.json").read_text(encoding="utf-8"))
+    assert len(trajectory["time_s"]) == len(trajectory["plant_value"]) == 1200
+    assert {"time_s", "plant_value", "analytic_value", "abs_error", "metrics", "budget"} <= set(trajectory)
+    assert "peak_time_s" in trajectory["metrics"]
+    assert trajectory["metrics"]["feedback_delay_s"] > 0.0
+    assert trajectory["metrics"]["sampling_jitter_s"] <= 1e-9
     spec = json.loads((tmp_path / "plot_spec.json").read_text(encoding="utf-8"))
     assert spec["spec_version"] == "0.1"
     assert spec["layers"]

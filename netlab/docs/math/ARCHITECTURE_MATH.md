@@ -417,7 +417,7 @@ x = [ v_1, …, v_{n-1}, i_1, …, i_m ]ᵀ ,   A ∈ ℝ^{N×N}, N = (n-1) + m
 
 ### 5.3 稀疏判定 `_decide_sparse`
 
-`_decide_sparse`（`solver.py:234`）返回 `matrix_size > options.sparse_threshold`，默认阈值 **512**（`stamps.py:40-44` 注释：≤400 节点时 LIL 反而更慢，故默认 512）。`SolverOptions.sparse` 支持 `"auto" / "on" / "off"`：`"auto"` 按阈值，`"on"/"off"` 强制。
+`_decide_sparse`（`solver.py:250`）返回 `matrix_size > options.sparse_threshold`，默认阈值 **512**（`stamps.py:40-45`）。WP-8 的 ladder/grid/star 配对基准未能证明上调到 600 有稳健全局收益（各拓扑交叉点不一致、跨轮噪声大），故保持 512。详见 `docs/WP8_SPARSE_THRESHOLD.md`。`SolverOptions.sparse` 支持 `"auto" / "on" / "off"`：`"auto"` 按阈值，`"on"/"off"` 强制。
 
 ### 5.4 元件 stamp 契约：`StampContext`
 
@@ -537,6 +537,12 @@ Gear2 需要两步合法历史 `(v_{n-1}, dt)`；若首步或 `dt` 变化则 `_g
 
 `operating_point`（`solver.py:903`）求 `F(x)=0` 的直流解：`time=0`、元件值取 `waveform_value(params, 0)`、猜值 `x=0`，调 `_newton_with_strategies(1e-9, guess, mode="dc")`；不收敛抛 `ComputeError("直流工作点在 N 次 Newton 迭代内未收敛（后向残差 …，最大残差节点 …）")`。`mode="dc"` 下电容开路、电感短路（见上表 stamp 分支），因此工作点只由电阻网络与源决定。
 
+### 5.7.1 瞬态步与诊断字段
+
+`CircuitSolver.step(dt)` 的返回值是统一的步进诊断字典：`status`（`converged` / `failed`）、`converged`、`reason`（失败时为 `newton_nonconvergence`，成功为 `None`）、`dt`、`time`、`iterations`、`matrix_size`、`solve_ms`、`residual`、`strategies`、`scaling`。失败路径在抛 `ComputeError` 前同步写 `last_status="failed"`、`last_dt`、`last_failure={status, reason, dt, time, iterations, residual, worst_node, strategies}`；成功路径写 `last_status="converged"`、`last_dt`、`last_failure=None`。`scene_engines.CircuitEngine.stats()` 原样透出这些字段，因此 HTTP / 前端 / 报告都能看到失败原因，而不是只拿到一个异常字符串。
+
+失败不会静默降级：Newton 不收敛、矩阵病态或步进超时都保留原始残差和已尝试策略（gmin/source stepping），由调用方决定停止或回退。
+
 ### 5.8 AC 小信号 `ac_sweep`
 
 `ac_sweep`（`solver.py:969`）只支持**线性/受控源**元件集合
@@ -546,6 +552,8 @@ AC_KINDS = {resistor, capacitor, inductor, vsource, isource, vcvs, vccs, switch}
 ```
 
 其余（二极管、BJT、MOS、运放等）显式 `ComputeError`，**不做静默线性化**。每个频点：选中独立源设单位激励（1 V / 1 A），其余源置零；电容 `jωC`、电感 `1/(jωL)`；解一次复数 MNA 得到各探针的 `magnitude / phase_deg / db`。频率须正有限且严格递增。该路径**不改瞬态状态**（只读探针）。
+
+可选低秩 Woodbury 快速路径（默认关闭）：`size >= AC_WOODBURY_MIN_SIZE=160` 且 `NETLAB_MATH_ACCEL_P3=on` 时，构造 `Z=A0^{-1}E`、`G=E^H Z`，每频点只解 r×r 小系统；逐频点后向残差 `>1e-8` 时回退完整复数解并记 `p3.fallback`。`n=400/600/800`、200 频点、单探针实测 p50 加速 7.9x/11.0x/8.8x，全节点 100 频点 n=400 为 1.51x，max_abs_error 1e-15–1e-13；详见 `docs/WP8_AC_SWEEP.md`。默认 `off` 即稳定路径，`NETLAB_MATH_ACCEL=off` 可单独回滚。
 
 ### 5.9 描述符模型：非线性的小信号入口
 
@@ -596,9 +604,9 @@ y = C x + D u
 ### 6.2 复杂度
 
 - **稠密 MNA**：一次 LU 分解 `O(N³)`，回代 `O(N²)`；`N = (n−1) + m`。线性电路矩阵只依赖 `dt` 与参数，首拍分解后**复用 LU**（`_solve_matrix`，`solver.py:714`，缓存校验 `_lu_matrix` 相等 + `_cached_dt==dt`）。
-- **稀疏后端**：`_solve_sparse`（`solver.py:804`）用 `splu`，复杂度取决于**填充（fill-in）**与排序；默认阈值 512，低于阈值稠密更快。
+- **稀疏后端**：`_solve_sparse`（`solver.py:804`）用 `splu`，复杂度取决于**填充（fill-in）**与排序；默认阈值 512，低于阈值稠密更快；WP-8 未证明上调到 600 的全局收益。
 - **Newton**：每迭代一次装配 + 一次线性解，`max_iter=60`（`stamps.py:19`）。非线性电路每迭代矩阵变化，LU 缓存失效。
-- **AC 扫频**：每个频点一次复数解 `O(N³)`（`ac_sweep`，`solver.py:969`）；描述符模型同样是每频点一次 `np.linalg.solve`（`descriptor.py:243`）。
+- **AC 扫频**：默认每个频点一次复数解 `O(N³)`（`ac_sweep`，`solver.py:969`）；描述符模型同样是每频点一次 `np.linalg.solve`（`descriptor.py:243`）。可选的 Woodbury 路径把每频点降为 `O(N²r + r³)`（`r` 为无功印章数），默认关闭，见 §5.8 与 `docs/WP8_AC_SWEEP.md`。
 - **图算法**：Kahn 拓扑排序 `O(V+E)`；Tarjan SCC `O(V+E)`（迭代式，避免递归深度限制）。
 
 ### 6.3 迭代上限与策略
@@ -611,7 +619,7 @@ y = C x + D u
 | `reltol / vntol / abstol` | 见 `SolverOptions` | `stamps.py:19` |
 | `residual_safety_tol` | 1e-8 | `stamps.py:19` |
 | `pivot_tol` | 1e-14 | `stamps.py:19` |
-| `sparse_threshold` | 512 | `stamps.py:40-44` |
+| `sparse_threshold` | 512 | `stamps.py:40-45`（WP-8 复核） |
 
 ### 6.4 代码索引表
 

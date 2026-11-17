@@ -80,6 +80,7 @@ FEM: FemSimulation = FemSimulation()
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    SERVICE.ensure_assembled()
     SERVICE.ensure_thread()
     FEM.ensure_thread()
     try:
@@ -119,6 +120,7 @@ _DESKTOP_TOKEN = os.environ.get("NETLAB_DESKTOP_TOKEN")
 #: C-5：桌面外壳用一次性 nonce 路径种 cookie，token 不进 URL 查询串。
 DESKTOP_BOOTSTRAP_PREFIX = "/__desktop_session__/"
 _DESKTOP_BOOTSTRAP = os.environ.get("NETLAB_DESKTOP_BOOTSTRAP") or ""
+_DESKTOP_BOOTSTRAP_LOCK = threading.Lock()
 # 桌面会话 cookie：桌面外壳打开一次性 bootstrap 路径时由宿主种下，供同源 iframe
 # （PlotKit 子应用）自动携带；HttpOnly + SameSite=Strict，脚本读不到也跨站带不出。
 DESKTOP_COOKIE_NAME = "netlab_desktop_token"
@@ -261,23 +263,30 @@ async def desktop_token_guard(request: Request, call_next):
     SameSite=Strict；token 不进 URL 查询串。
     """
     path = request.url.path
-    if (
-        _DESKTOP_TOKEN
-        and _DESKTOP_BOOTSTRAP
-        and path.startswith(DESKTOP_BOOTSTRAP_PREFIX)
-        and secrets.compare_digest(
-            path[len(DESKTOP_BOOTSTRAP_PREFIX):], _DESKTOP_BOOTSTRAP
+    if _DESKTOP_TOKEN and path.startswith(DESKTOP_BOOTSTRAP_PREFIX):
+        global _DESKTOP_BOOTSTRAP
+        supplied_bootstrap = path[len(DESKTOP_BOOTSTRAP_PREFIX):]
+        matched = False
+        with _DESKTOP_BOOTSTRAP_LOCK:
+            expected = _DESKTOP_BOOTSTRAP
+            if expected and secrets.compare_digest(supplied_bootstrap, expected):
+                # 一次性 nonce：成功交换 cookie 后立即失效，重放只能拿到 404。
+                _DESKTOP_BOOTSTRAP = ""
+                matched = True
+        if matched:
+            response = RedirectResponse(url="/", status_code=303)
+            response.set_cookie(
+                DESKTOP_COOKIE_NAME,
+                _DESKTOP_TOKEN,
+                path="/",
+                httponly=True,
+                samesite="strict",
+            )
+            return response
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "桌面会话 bootstrap 无效或已使用"},
         )
-    ):
-        response = RedirectResponse(url="/", status_code=303)
-        response.set_cookie(
-            DESKTOP_COOKIE_NAME,
-            _DESKTOP_TOKEN,
-            path="/",
-            httponly=True,
-            samesite="strict",
-        )
-        return response
     supplied = request.headers.get("x-netlab-token") or request.cookies.get(
         DESKTOP_COOKIE_NAME
     ) or ""

@@ -182,3 +182,53 @@ def test_large_ladder_uses_woodbury_and_matches_dense(
     assert (
         float(np.max(np.abs(b - a)) / max(float(np.max(np.abs(a))), 1.0e-300)) < 1.0e-10
     )
+
+def test_woodbury_condition_estimate_does_not_use_svd(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """构造期只能用 LU 主元比；重新引入 np.linalg.cond 会让本测试失败。"""
+    rng = np.random.default_rng(11)
+    size = 80
+    base = rng.normal(size=(size, size)) + 1j * rng.normal(size=(size, size))
+    base = base + base.T + 30.0 * np.eye(size)
+    stamps = [
+        ReactiveStamp(name=f"C{i}", a=i, b=i + 1, kind="C", value=1.0e-6 * (i + 1))
+        for i in range(5)
+    ]
+
+    def _forbidden(*args: object, **kwargs: object) -> float:
+        raise AssertionError("np.linalg.cond 不应出现在 AC Woodbury 构造路径")
+
+    monkeypatch.setattr(np.linalg, "cond", _forbidden)
+    solver = ACWoodburySolver(base, stamps, omega0=2.0 * math.pi * 1.0e3)
+    assert solver.usable, solver.reason
+    assert math.isfinite(solver.cond_estimate)
+    assert solver.cond_estimate >= 1.0
+
+
+def test_fast_path_residual_guard_falls_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """低秩解被破坏时，逐频点残差守卫必须回退完整矩阵，且结果与 off 一致。"""
+    frequencies = [10.0, 100.0, 1.0e3, 1.0e4]
+
+    def _zero_solution(
+        self: ACWoodburySolver, omega: float, rhs: np.ndarray, refine_steps: int = 1
+    ) -> np.ndarray:
+        return np.zeros_like(rhs)
+
+    monkeypatch.setenv("NETLAB_MATH_ACCEL", "on")
+    monkeypatch.setattr(ACWoodburySolver, "solve", _zero_solution)
+    reset_diagnostics()
+    on = Simulation(_rc_ladder(parts=250, cap_every=20)).ac_sweep(
+        frequencies, probes=["n250"]
+    )
+    counters = snapshot()["counters"]
+    assert counters.get("p3.fallback", 0) >= len(frequencies)
+    monkeypatch.setenv("NETLAB_MATH_ACCEL", "off")
+    off = Simulation(_rc_ladder(parts=250, cap_every=20)).ac_sweep(
+        frequencies, probes=["n250"]
+    )
+    a = np.asarray(off["probes"]["n250"]["magnitude"], dtype=float)
+    b = np.asarray(on["probes"]["n250"]["magnitude"], dtype=float)
+    assert float(np.max(np.abs(b - a))) < 1.0e-12

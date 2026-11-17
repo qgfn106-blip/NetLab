@@ -114,7 +114,9 @@ python -m PyInstaller --noconfirm --onefile --name netlab ^
 
 - 默认端口 **8010**。被占用时换一个：`python -m netlab.run --port 8021`。
 - 默认**只监听 `127.0.0.1`**：只有本机能访问，不需要放行防火墙。
-- Netlab 没有账号体系，也不会主动对外暴露。**不建议**用 `--host 0.0.0.0` 把编辑与文件接口开放给局域网；如果确实需要共享，请只在可信网络中短暂开启，用完立即关闭。
+- 监听非回环地址（如 `--host 0.0.0.0`）必须提供访问令牌：`--token <随机串>` 或环境变量 `NETLAB_DESKTOP_TOKEN`；缺少令牌会直接拒绝启动。
+- 只有显式传入 `--unsafe-no-auth` 才允许非回环地址无令牌启动，启动时会输出警告。该模式没有认证，**仅限受信隔离网络临时使用**。
+- 令牌只通过 `X-Netlab-Token` 请求头或 HttpOnly/SameSite=Strict 会话 cookie 传递，不会写入 URL、日志或 artifact。
 - 跨公网访问需要端口转发或内网穿透，风险更高，本仓库不提供该配置。
 
 ## 5. 常见问题

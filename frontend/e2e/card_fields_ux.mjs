@@ -1,7 +1,7 @@
 // R40 阶段 3：节点卡片自由字段编辑 e2e（勾选 / 排序 / 保存 / 重载 / 白名单）。
-import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { chromium } from 'playwright-core';
+import { beginFlow, startBackend } from './harness.mjs';
 
 const PORT = Number(process.env.E2E_PORT || 8883);
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -55,17 +55,11 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-const server = spawn(
-  process.env.PYTHON || 'python',
-  ['-m', 'uvicorn', 'netlab.server:app', '--port', String(PORT), '--log-level', 'warning'],
-  {
-    cwd: new URL('../../', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'),
-    env: { ...process.env, PYTHONPATH: '.' },
-    stdio: 'ignore',
-  },
-);
+const backend = await startBackend({ port: PORT, name: 'card_fields_ux' });
 
 let browser;
+let flow;
+let failure = null;
 try {
   await waitHealth();
   const imported = await fetch(`${BASE}/api/scene`, {
@@ -85,6 +79,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.on('pageerror', (error) => errors.push(String(error)));
   page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+  flow = await beginFlow(browser, page, 'card_fields_ux', errors);
 
   // 引导遮罩带淡出动画，必须等它真正隐藏，否则会拦截菜单点击。
   const dismissGuide = async () => {
@@ -179,7 +174,11 @@ try {
 
   assert(errors.length === 0, `页面错误: ${errors.join(' | ')}`);
   console.log('card fields ux e2e: OK (whitelist, toggle, reorder, save, reload)');
+} catch (error) {
+  failure = error;
+  throw error;
 } finally {
+  if (flow) await flow.finish({ status: failure || errors.length ? 'failed' : 'ok', error: failure });
   if (browser) await browser.close();
-  server.kill();
+  await backend.stop();
 }

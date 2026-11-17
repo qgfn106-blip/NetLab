@@ -16,7 +16,7 @@ from typing import Any
 
 from .blocks import BlockRuntime, BlockStore
 from .records import EdgeRecord, NodeRecord
-from ..compute.clock import SimClock
+from ..common.clock import SimClock
 from .graph import Network, Node
 from ..common.limits import (
     MAX_EDGES,
@@ -35,7 +35,7 @@ from ..common.limits import (
 )
 from .scene_types import is_known_mode, normalize_appearance
 from .ports import pins_for_device
-from ..compute.profiling import timed
+from ..common.profiling import timed
 
 
 class _SceneIOMixin:

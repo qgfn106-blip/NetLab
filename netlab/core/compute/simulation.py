@@ -12,7 +12,7 @@ import time
 import uuid
 from collections import deque
 from dataclasses import asdict, dataclass, field
-from typing import Any, Callable, ClassVar
+from typing import Any, Callable, ClassVar, TYPE_CHECKING
 
 from ..common.limits import (
     MAX_PRECOMPUTE_STEPS,
@@ -22,7 +22,8 @@ from ..common.limits import (
     as_float,
     as_int,
 )
-from ..model.scene import Scene
+if TYPE_CHECKING:  # 运行期按需局部导入，避免 compute 包顶层依赖 model 实现
+    from ..model.scene import Scene
 from .clock import SimClock
 from .telemetry_quality import (
     fifo_delay_bound,
@@ -66,8 +67,8 @@ class SimConfig:
     breakpoints: bool = True
     #: 稀疏矩阵策略：auto（按规模自动）/ on / off；无 SciPy 时自动退回稠密。
     sparse: str = "auto"
-    #: auto 模式下矩阵尺寸超过该值才启用稀疏装配。当前 LIL 装配在 ≤400 节点反而更慢，
-    #: 默认提高到 512；显式 on/off 不受影响（P0）。
+    #: auto 模式下矩阵尺寸超过该值才启用稀疏装配。WP-8 配对基准未能证明 600 的
+    #: 全局收益（各拓扑交叉点不一致且跨轮噪声大），故保持 512；显式 on/off 不受影响。
     sparse_threshold: int = 512
 
     #: A-3 / N-06：把“数值参数”和“呈现参数”分开。字段仍保留在平铺 dataclass 中，
@@ -320,6 +321,8 @@ class Simulation:
     """持有场景、配置、后台线程与录制数据；所有读写都在同一把锁下。"""
 
     def __init__(self, scene: Scene | None = None) -> None:
+        from ..model.scene import Scene
+
         self.scene = scene or Scene("signal")
         self.lock = threading.RLock()
         self.config = SimConfig()
@@ -993,6 +996,8 @@ class Simulation:
 
     # ---- 场景替换 ---------------------------------------------------------
     def load_scene(self, payload: dict[str, Any]) -> None:
+        from ..model.scene import Scene
+
         with self.lock:
             scene = Scene(self.scene.mode)
             scene.load_payload(payload)
@@ -1127,6 +1132,7 @@ def default_simulation() -> Simulation:
     示例网络仍可通过模板（``signal_chain`` 等）或引导页「打开示例工程」进入；
     启动即停止的语义由前端控制：这里只负责给出一个干净的空白场景。
     """
+    from ..model.scene import Scene
     from ..model.templates import build_template
 
     scene = Scene("signal")

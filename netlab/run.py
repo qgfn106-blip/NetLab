@@ -8,10 +8,46 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
+import os
 import sys
 import threading
 import time
 import webbrowser
+
+LOOPBACK_HOST_NAMES = frozenset({"localhost"})
+UNSAFE_WARNING = (
+    "警告：--unsafe-no-auth 已启用，服务将无认证暴露在非回环地址 {host} 上；"
+    "仅限受信网络临时使用。"
+)
+
+
+def is_loopback_host(host: str) -> bool:
+    """判断监听地址是否仅限本机（localhost、IPv4/IPv6 回环）。"""
+    value = (host or "").strip().strip("[]")
+    if not value:
+        return False
+    if value.lower() in LOOPBACK_HOST_NAMES:
+        return True
+    try:
+        return ipaddress.ip_address(value).is_loopback
+    except ValueError:
+        return False
+
+
+def validate_security(host: str, token: str | None, unsafe_no_auth: bool) -> str | None:
+    """返回错误信息；None 表示启动策略允许。"""
+    if is_loopback_host(host):
+        return None
+    if token:
+        return None
+    if unsafe_no_auth:
+        return None
+    return (
+        f"拒绝启动：--host {host} 不是回环地址，但没有访问令牌。"
+        "请用 --token 或 NETLAB_DESKTOP_TOKEN 指定令牌；"
+        "只在完全受信的隔离网络中才可显式使用 --unsafe-no-auth。"
+    )
 
 
 def setup_console() -> None:
@@ -39,6 +75,16 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--host", default="127.0.0.1", help="监听地址（默认仅本机）")
     parser.add_argument("--port", type=int, default=8010, help="监听端口（默认 8010）")
+    parser.add_argument(
+        "--token",
+        default=None,
+        help="API 访问令牌（也可用 NETLAB_DESKTOP_TOKEN 环境变量；不要写进 URL）",
+    )
+    parser.add_argument(
+        "--unsafe-no-auth",
+        action="store_true",
+        help="显式允许非回环地址在无令牌下启动（仅限受信网络，风险自负）",
+    )
     parser.add_argument(
         "--no-browser", action="store_true", help="启动后不自动打开浏览器"
     )
@@ -74,6 +120,16 @@ def open_browser_later(url: str) -> None:
 def main() -> int:
     setup_console()
     args = parse_args()
+    token = args.token or os.environ.get("NETLAB_DESKTOP_TOKEN")
+    error = validate_security(args.host, token, args.unsafe_no_auth)
+    if error:
+        print(error, file=sys.stderr, flush=True)
+        return 2
+    if token:
+        # 在导入 netlab.server 前写入环境变量：server 模块在导入时读取 token。
+        os.environ["NETLAB_DESKTOP_TOKEN"] = token
+    elif args.unsafe_no_auth and not is_loopback_host(args.host):
+        print(UNSAFE_WARNING.format(host=args.host), file=sys.stderr, flush=True)
     # 先做一次端口探测，给出比 uvicorn 更直白的提示。
     import socket
 

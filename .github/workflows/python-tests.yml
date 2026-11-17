@@ -114,8 +114,12 @@ jobs:
         env:
           PYTHONPATH: .
         run: >
-          mkdir -p reports &&
-          pytest netlab/tests mathspec/tests -q
+          mkdir -p reports reports/evidence &&
+          python tools/run_evidence.py --tool python-tests
+          --out reports/evidence/python-tests.json
+          --junit reports/pytest.xml
+          --artifact reports/pytest.xml --artifact coverage.json
+          -- pytest netlab/tests mathspec/tests -q
           --cov=netlab/core --cov-branch --cov-fail-under=81
           --cov-report=term-missing:skip-covered
           --cov-report=json:coverage.json
@@ -128,6 +132,20 @@ jobs:
           PYTHONPATH: .
           DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: python tools/diff_coverage.py --coverage coverage.json --base "$DIFF_BASE" --threshold 80
+
+      - name: Upload CI evidence (run id + exact SHA + artifacts)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-tests-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            reports/evidence/
+            reports/e2e/
+            reports/e2e-mutation/
+            reports/pytest.xml
+            coverage.json
+          if-no-files-found: warn
+          retention-days: 14
 
   desktop-l2:
     runs-on: windows-latest
@@ -147,4 +165,16 @@ jobs:
           pip install pywebview pythonnet
 
       - name: L2 desktop selftest
-        run: python tools/e2e_desktop_smoke.py
+        run: >
+          python tools/run_evidence.py --tool desktop-l2
+          --out reports/evidence/desktop-l2.json
+          -- python tools/e2e_desktop_smoke.py
+
+      - name: Upload desktop evidence (run id + exact SHA)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-l2-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/evidence/
+          if-no-files-found: warn
+          retention-days: 14

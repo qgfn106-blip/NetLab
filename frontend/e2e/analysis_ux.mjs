@@ -1,7 +1,7 @@
 // 六项前端 UX e2e：mode 入口、旁路指标/传函、坐标轴、导出入口、统一预计算。
-import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { chromium } from 'playwright-core';
+import { beginFlow, startBackend } from './harness.mjs';
 
 const PORT = Number(process.env.E2E_PORT || 8879);
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -55,17 +55,11 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-const server = spawn(
-  process.env.PYTHON || 'python',
-  ['-m', 'uvicorn', 'netlab.server:app', '--port', String(PORT), '--log-level', 'warning'],
-  {
-    cwd: new URL('../../', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'),
-    env: { ...process.env, PYTHONPATH: '.' },
-    stdio: 'ignore',
-  },
-);
+const backend = await startBackend({ port: PORT, name: 'analysis_ux' });
 
 let browser;
+let flow;
+let failure = null;
 try {
   await waitHealth();
   const imported = await fetch(`${BASE}/api/scene`, {
@@ -94,6 +88,7 @@ try {
   });
   page.on('pageerror', (error) => errors.push(String(error)));
   page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+  flow = await beginFlow(browser, page, 'analysis_ux', errors);
   await page.addInitScript(() => {
     window.__netlabCanvasTexts = [];
     const original = CanvasRenderingContext2D.prototype.fillText;
@@ -125,7 +120,7 @@ try {
   assert(poles.includes('-1000'), `极点表异常: ${poles}`);
 
   // 3) 画布刻度应来自自适应 nice ticks，而不是固定等分。
-  await page.waitForTimeout(300);
+  await page.waitForFunction(() => (window.__netlabCanvasTexts || []).length > 0, null, { timeout: 5000 });
   const canvasTexts = await page.evaluate(() => window.__netlabCanvasTexts || []);
   const canvasNum = (text) => {
     const match = String(text).replace('−', '-').match(/-?\d+(?:\.\d+)?/);
@@ -138,9 +133,9 @@ try {
   await page.locator('#menuItems .menu > button').filter({ hasText: '文件' }).click();
   const exportItem = page.locator('.menu.open .menu-item').filter({ hasText: '导出原理图 SVG…' });
   await exportItem.waitFor({ state: 'visible', timeout: 3000 });
-  await page.waitForTimeout(600);
+  const firstExport = page.waitForResponse((response) => response.url().includes('/api/export/schematic'), { timeout: 5000 });
   await exportItem.click();
-  await page.waitForTimeout(400);
+  await firstExport;
   assert(exportCalls === 1, `文件菜单导出未调用 API: ${exportCalls}`);
   await page.keyboard.press('Escape');
 
@@ -152,8 +147,9 @@ try {
   });
   const contextExport = page.locator('#linkMenu .popup-item').filter({ hasText: '导出原理图 SVG…' });
   await contextExport.waitFor({ state: 'visible', timeout: 3000 });
+  const secondExport = page.waitForResponse((response) => response.url().includes('/api/export/schematic'), { timeout: 5000 });
   await contextExport.click();
-  await page.waitForTimeout(400);
+  await secondExport;
   assert(exportCalls === 2, `画布右键导出未调用 API: ${exportCalls}`);
   await page.keyboard.press('Escape');
 
@@ -168,7 +164,11 @@ try {
 
   assert(errors.length === 0, `页面错误: ${errors.join('; ')}`);
   console.log('analysis ux e2e: OK (mode, metrics, ticks, export, context export, precompute)');
+} catch (error) {
+  failure = error;
+  throw error;
 } finally {
+  if (flow) await flow.finish({ status: failure || errors.length ? 'failed' : 'ok', error: failure });
   if (browser) await browser.close();
-  server.kill();
+  await backend.stop();
 }

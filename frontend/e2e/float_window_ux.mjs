@@ -1,7 +1,7 @@
 // 浮窗可用性 e2e：深色主题下小信号旁路对比度、右下角缩放柄、窗口视口约束。
-import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { chromium } from 'playwright-core';
+import { beginFlow, startBackend } from './harness.mjs';
 
 const PORT = Number(process.env.E2E_PORT || 8881);
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -78,17 +78,11 @@ function contrast(a, b) {
   return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
 }
 
-const server = spawn(
-  'python',
-  ['-m', 'uvicorn', 'netlab.server:app', '--port', String(PORT), '--log-level', 'warning'],
-  {
-    cwd: new URL('../../', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'),
-    env: { ...process.env, PYTHONPATH: '.' },
-    stdio: 'ignore',
-  },
-);
+const backend = await startBackend({ port: PORT, name: 'float_window_ux' });
 
 let browser;
+let flow;
+let failure = null;
 try {
   await waitHealth();
   const imported = await fetch(`${BASE}/api/scene`, {
@@ -114,6 +108,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.on('pageerror', (error) => errors.push(String(error)));
   page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+  flow = await beginFlow(browser, page, 'float_window_ux', errors);
   await page.addInitScript(() => {
     window.localStorage.setItem('netlab.ui.prefs', JSON.stringify({ theme: 'dark' }));
   });
@@ -130,7 +125,7 @@ try {
   await page.waitForSelector('#analWin', { state: 'visible', timeout: 5000 });
   await page.locator('#analRunBypass').click();
   await page.waitForFunction(() => (document.querySelector('#analBypassTransfer')?.textContent || '').includes('G(s)'), null, { timeout: 15000 });
-  await page.waitForTimeout(300);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 
   // 1) 指标卡：深色下背景必须为深色令牌，文字对比度 ≥ 4.5
   const cardColors = await page.locator('#analBypassSummary > div').first().evaluate((el) => {
@@ -193,7 +188,11 @@ try {
 
   assert(errors.length === 0, `页面报错: ${errors.join(' | ')}`);
   console.log('float_window_ux e2e OK');
+} catch (error) {
+  failure = error;
+  throw error;
 } finally {
+  if (flow) await flow.finish({ status: failure || errors.length ? 'failed' : 'ok', error: failure });
   if (browser) await browser.close();
-  server.kill();
+  await backend.stop();
 }

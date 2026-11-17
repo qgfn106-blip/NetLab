@@ -40,8 +40,7 @@ from ..common.limits import (
     check_id,
     check_name,
 )
-from ..compute.fields import resolve_field
-from ..compute.methods import prepare_method
+from ..common.fields import resolve_field
 
 if TYPE_CHECKING:  # pragma: no cover
     from .scene import Scene  # noqa: F401
@@ -722,6 +721,8 @@ def _find_record(scene: "Scene", node_id: str):
 
 
 def _method_output_field(kind: str, params: dict[str, Any] | None) -> list[str]:
+    from ..compute.methods import prepare_method
+
     try:
         spec, _params, _method = prepare_method(kind, params or {})
     except Exception:

@@ -130,18 +130,29 @@ class ACWoodburySolver:
         for column, g in zip(self.e_matrix.T, self.g0):
             self.a0 += g * np.outer(column, column)
         self._lu = None
+        #: ``lu_solve(LU, E)`` 与 ``Eᴴ·Z`` 只依赖 A0 和印章，与频率无关；
+        #: 预先算好后，每个频点只剩一次单 RHS 回代 + 一个小规模稠密解。
+        self._z: np.ndarray | None = None
+        self._gram: np.ndarray | None = None
         self.cond_estimate = float("inf")
         self.min_pivot = 0.0
         if not self.usable:
             return
         try:
-            from scipy.linalg import lu_factor
+            from scipy.linalg import lu_factor, lu_solve
 
             self._lu = lu_factor(self.a0, check_finite=False)
             diagonal = np.abs(np.diag(self._lu[0]))
             max_pivot = float(diagonal.max()) if diagonal.size else 0.0
             self.min_pivot = float(diagonal.min()) if diagonal.size else 0.0
-            self.cond_estimate = float(np.linalg.cond(self.a0))
+            # FULL SVD 的 np.linalg.cond 是 O(n³) 且会把一次 AC 扫频的固定开销
+            # 放大到数百毫秒；这里用 LU 主元比作为廉价条件数代理（只用于
+            # 可用性门禁/诊断，真实精度由逐频点后向残差守卫兜底）。
+            self.cond_estimate = (
+                float("inf")
+                if self.min_pivot <= 0.0
+                else max_pivot / self.min_pivot
+            )
             if not np.all(np.isfinite(self.a0)):
                 self.usable = False
                 self.reason = "A0 含非有限值"
@@ -153,6 +164,9 @@ class ACWoodburySolver:
             ):
                 self.usable = False
                 self.reason = f"A0 条件数 {self.cond_estimate:.3g} > {cond_limit:.0e}"
+            else:
+                self._z = lu_solve(self._lu, self.e_matrix, check_finite=False)
+                self._gram = self.e_matrix.conj().T @ self._z
         except (ValueError, np.linalg.LinAlgError) as exc:
             self.usable = False
             self.reason = f"A0 分解失败：{exc}"
@@ -167,8 +181,27 @@ class ACWoodburySolver:
         delta = self._delta(omega)
         result = self.a0 @ vector
         if np.any(delta != 0.0):
-            result = result + self.e_matrix @ (delta * (self.e_matrix.T @ vector))
+            result = result + self.e_matrix @ (delta * (self.e_matrix.conj().T @ vector))
         return result
+
+    def matrix(self, omega: float) -> np.ndarray:
+        """返回该频点的完整系统矩阵 A(ω)（用于残差审计/回退）。"""
+        matrix = np.array(self.a0, dtype=complex, copy=True)
+        delta = self._delta(omega)
+        active = np.abs(delta) > 0.0
+        if np.any(active):
+            columns = self.e_matrix[:, active]
+            matrix += (columns * delta[active]) @ columns.conj().T
+        return matrix
+
+    def relative_residual(
+        self, omega: float, rhs: np.ndarray, solution: np.ndarray
+    ) -> float:
+        """计算 A(ω)x=b 的相对残差，供快速路径失败时回退判定。"""
+        rhs = np.asarray(rhs, dtype=complex)
+        solution = np.asarray(solution, dtype=complex)
+        residual = rhs - self._apply(omega, solution)
+        return float(np.linalg.norm(residual) / max(np.linalg.norm(rhs), 1.0))
 
     def solve(
         self, omega: float, rhs: np.ndarray, *, refine_steps: int = 1
@@ -185,11 +218,13 @@ class ACWoodburySolver:
         delta = self._delta(omega)
         active = np.abs(delta) > 0.0
         if np.any(active):
-            columns = self.e_matrix[:, active]
-            delta_active = delta[active]
-            z = lu_solve(self._lu, columns, check_finite=False)
-            small = np.diag(1.0 / delta_active) + columns.conj().T @ z
-            solution = y - z @ np.linalg.solve(small, columns.conj().T @ y)
+            if self._z is None or self._gram is None:
+                raise ValueError("ACWoodburySolver 缺少预计算因子")
+            z = self._z[:, active]
+            small = np.diag(1.0 / delta[active]) + self._gram[np.ix_(active, active)]
+            solution = y - z @ np.linalg.solve(
+                small, self.e_matrix[:, active].conj().T @ y
+            )
         else:
             solution = y
         for _ in range(max(0, int(refine_steps))):

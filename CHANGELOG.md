@@ -8,6 +8,16 @@ Keep a Changelog, and versions follow the package metadata in
 
 ### Changed
 
+- WP-8: paired ladder/grid/star benchmarks could not prove a stable global
+  benefit from raising `SolverOptions.sparse_threshold` / `SimConfig.sparse_threshold`,
+  so the default stays 512; `step()` and circuit `stats()` now expose the
+  selected `sparse` backend.
+- WP-8: opt-in AC Woodbury fast path (`NETLAB_MATH_ACCEL_P3=on`, matrix size
+  >=160, reactive ratio <=0.10) with a cheap LU-pivot condition estimate and a
+  per-frequency backward-residual guard that falls back to the full solve;
+  default remains `off`. Paired benchmarks: 7.9x/11.0x/8.8x at n=400/600/800
+  with 200 frequencies, 1.51x for all-node probes at n=400; see
+  `docs/WP8_AC_SWEEP.md`.
 - D-2 / N-21: version now has a single source (`netlab/__init__.py`).
   `frontend/index.html` uses the `__NETLAB_VERSION__` placeholder, filled at
   response time; `UI_BUILD` is injected by the esbuild build script.

@@ -28,6 +28,7 @@ def test_architecture_contracts_pass(tmp_path: Path) -> None:
     assert report["a2_new_cycles"] == []
     assert report["a3_unlisted"] == []
     assert report["a6"]["loaded"] == []
+    assert report["a7"]["loaded"] == []
 
 
 def test_a2_baseline_is_documented() -> None:

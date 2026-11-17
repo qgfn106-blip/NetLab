@@ -89,6 +89,12 @@ class NetworkContainer:
             self._current = network_id
         return network_id
 
+    def ensure_assembled(self) -> None:
+        """显式装配全部网络的引擎（WP-7c）；已装配的网络由 Scene 幂等复用。"""
+        with self.lock:
+            for simulation in self._entries.values():
+                simulation.scene.ensure_engine()
+
     def _entry(self, network_id: str) -> Simulation:
         simulation = self._entries.get(network_id)
         if simulation is None:
@@ -1196,6 +1202,8 @@ class NetworkContainer:
                     )
                 )
                 fill_missing_layout(simulation.scene)
+                # 先在旧网络仍可用时完成装配；失败会进入下方 cleanup，不破坏现场。
+                simulation.scene.ensure_engine()
                 created.append((network_id, name, simulation))
                 raw_states = item.get("states")
                 states_by_id[network_id] = (

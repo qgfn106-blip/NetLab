@@ -131,6 +131,11 @@ server.py / desktop/*
 - **frontend 只经 HTTP 访问后端**（`/api/*`、`/plotkit/*`）；后端不知道前端的任何 DOM 结构。
 - **core 不 import server / desktop / frontend**；计算层不碰 I/O。
 - `graph.py`、`nodal.py` **不 import `scene.py`**；注册表只依赖参数与校验层。新增功能保持这个方向，循环 import 就不会出现。
+- **WP-7（2026-11-18）**：`scene.py` 顶层不再导入 `scene_engines`（`_Engine` 仅 TYPE_CHECKING），
+  运行期由 `engine_registry.create_engine` 在 `ensure_engine()` 中组合；`simulation.py` 对
+  `model.scene` 也改为 TYPE_CHECKING + 方法内局部导入。`tools/check_architecture.py` 新增
+  **A7 model 导入隔离**：`import netlab.core.model.scene` 不得加载 `circuit.solver` /
+  `circuit.stamps` / `nodal` / `simulation` / `scipy.sparse` / `scipy.linalg`。
 
 `project.py` 的 `build_project_for()` 按对象分派：`NetworkContainer` 用自己的 `build_project()` 打包全部网络，普通 `Simulation` 走单场景构建；`networks.py` 反向 import 构建函数，因此 `project.py` 对容器只做 `TYPE_CHECKING` 注解。
 

@@ -114,6 +114,21 @@ class SolverPlan:
     algebraic: tuple[tuple[str, ...], ...]
 
 
+@dataclass(frozen=True, slots=True)
+class CompiledGraph:
+    """WP-7：一次结构编译的只读产物，供重复 step 复用。
+
+    结构变化会递增 ``revision`` 并丢弃缓存；运行时状态仍留在 Node/Connection
+    与引擎中，不进入这个产物。
+    """
+
+    revision: int
+    node_names: tuple[str, ...]
+    order: tuple[str, ...]
+    plan: SolverPlan
+    delayed: tuple[str, ...]
+
+
 class AlgebraicLoopError(ComputeError):
     """R36/P2：代数环无解、奇异或包含当前求解器不支持的环节点。"""
 
@@ -379,6 +394,8 @@ class Network:
         self._order: list[Node] | None = None
         self._incoming: dict[Node, list[Connection]] | None = None
         self._delayed: list[Connection] | None = None
+        self._revision = 0
+        self._compiled: CompiledGraph | None = None
         #: N-36：最近一次成功/失败步开始前的状态快照，供上层超时回滚复用，
         #: 避免 Simulation 每步再做一次 Scene 级全量 deepcopy。
         self._last_step_snapshot: dict[str, Any] | None = None
@@ -396,6 +413,8 @@ class Network:
         self._order = None
         self._incoming = None
         self._delayed = None
+        self._compiled = None
+        self._revision += 1
 
     def add_node(self, node: Node) -> Node:
         if node in self.nodes:
@@ -565,7 +584,7 @@ class Network:
         """返回由场景自动加上的延迟边（R36/P1 的可见记录）。"""
         return [connection for connection in self.connections if connection.auto_delay]
 
-    def solver_plan(self) -> SolverPlan:
+    def _build_solver_plan(self) -> SolverPlan:
         """R36/P1：状态断点 + 直接馈通 SCC 的执行计划。
 
         本方法只描述结构，不改变 ``step`` 的默认行为；真正的 SCC 内求解在后续
@@ -664,6 +683,34 @@ class Network:
             ),
             algebraic=tuple(algebraic),
         )
+
+    def compile(self) -> CompiledGraph:
+        """编译并缓存执行图；结构变更后自动重建（WP-7）。"""
+        if self._compiled is not None:
+            return self._compiled
+        try:
+            order = tuple(node.name for node in self.topological_order())
+        except ComputeError:
+            # 直接馈通环由 solver_plan 的 SCC 阶段处理，不需要全局拓扑序。
+            order = ()
+        plan = self._build_solver_plan()
+        compiled = CompiledGraph(
+            revision=self._revision,
+            node_names=tuple(node.name for node in self.nodes),
+            order=order,
+            plan=plan,
+            delayed=tuple(
+                connection.name
+                for connection in self._enabled_edges(include_delayed=True)
+                if connection.delay
+            ),
+        )
+        self._compiled = compiled
+        return compiled
+
+    def solver_plan(self) -> SolverPlan:
+        """返回缓存的执行计划（WP-7：结构与 step 共用同一编译产物）。"""
+        return self.compile().plan
 
     def topological_order(self) -> list[Node]:
         """按非延迟依赖排序；存在代数环时抛出 ``ComputeError``。"""

@@ -945,8 +945,13 @@ class CircuitEngine(_Engine):
         return {
             "kind": "circuit",
             "matrix_size": self.solver.matrix_size,
+            "sparse": bool(self.solver.sparse),
             "nodes": len(self.solver.nodes),
             "elements": len(self.solver.elements),
+            "status": self.solver.last_status,
+            "converged": self.solver.last_status == "converged",
+            "dt": self.solver.last_dt,
+            "failure": self.solver.last_failure,
             "iterations": self.solver.last_iterations,
             "nonlinear": self.solver.nonlinear,
             "solve_ms": self.solver.last_solve_ms,

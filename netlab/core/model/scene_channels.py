@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import copy
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from .channels import KIND_EDGE, KIND_NODE, KIND_STATE, ChannelKey
-from .scene_engines import SignalEngine, _Engine
+
+if TYPE_CHECKING:  # 运行期避免把 compute 实现拖进 model 层
+    from .scene_engines import _Engine
 
 
 class _SceneChannelsMixin:
@@ -51,6 +53,8 @@ class _SceneChannelsMixin:
 
     def runtime_state(self) -> dict[str, Any]:
         """给 HTTP 层的完整快照：包含最新输出、输入与引擎统计。"""
+        from .scene_engines import SignalEngine
+
         engine: _Engine | None = None
         engine_error: str | None = None
         try:

@@ -39,8 +39,9 @@ class SolverOptions:
     pivot_tol: float = 1.0e-14
     #: 稀疏矩阵策略：auto=超过阈值自动切换、on=强制稀疏、off=强制稠密（R26/D53）。
     sparse: str = "auto"
-    #: auto 模式下矩阵尺寸超过该值改用稀疏。当前 LIL 装配在 ≤400 节点反而更慢，
-    #: 默认提高到 512，避免默认踩到负优化；显式 on/off 不受影响（P0）。
+    #: auto 模式下矩阵尺寸超过该值改用稀疏。WP-8 配对基准显示 600 处各拓扑
+    #: 交叉点不一致（ladder/star 偏稀疏、grid 偏稠密），跨轮噪声也大，无法证明
+    #: 全局收益，故保持 512；显式 on/off 不受影响。
     sparse_threshold: int = 512
     #: 单步计算截止时刻（time.perf_counter 的单调时钟）；None 表示不限制。
     deadline: float | None = None

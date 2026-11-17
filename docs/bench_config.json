@@ -1,0 +1,32 @@
+{
+  "schema": "netlab-bench-config/1",
+  "relative_band": 2,
+  "memory_band": 0.5,
+  "minimum_absolute_delta_ms": 0.25,
+  "layer_absolute_floor_ms": {
+    "scene": 15,
+    "solver": 1,
+    "recording": 0.5,
+    "http": 15
+  },
+  "fingerprint_keys": [
+    "processor",
+    "machine",
+    "cpu_count",
+    "os",
+    "os_release",
+    "python",
+    "python_implementation",
+    "packages.numpy",
+    "packages.scipy",
+    "packages.matplotlib",
+    "threads"
+  ],
+  "exit_codes": {
+    "PASS": 0,
+    "DRIFT": 1,
+    "INCOMPARABLE": 2,
+    "ERROR": 3
+  },
+  "note": "退化方向：仅当测量 p50 高于基线、超出 relative_band 且绝对增量超过对应层噪声底时判 DRIFT；scene 超 MAX_NODES 的 SKIPPED_LIMIT 不参与比较。fingerprint 覆盖硬件、OS、Python、NumPy/SciPy/Matplotlib、线程配置；缺失字段视为不同。"
+}

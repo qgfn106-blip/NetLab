@@ -25,6 +25,10 @@ forbidden_edges:
 # A3 模块级可变全局白名单：module + name，必须写原因与删除时间
 # 未列出的模块级可变全局一律失败；新增条目需在本文件登记。
 mutable_globals_whitelist:
+  - module: netlab.server
+    names: [_DESKTOP_BOOTSTRAP_LOCK]
+    reason: 桌面会话 bootstrap 一次性交换的串行锁
+    remove_by: "2026-12-31"
   - module: netlab.plotkit_bridge
     names: [_LOCK, _STATE, _ACTIVE, _FORCED, _REGISTERED, _LAST_ERROR]
     reason: PlotKit 挂载状态与同步锁，待 G1 后续迁移到 AppState 注入

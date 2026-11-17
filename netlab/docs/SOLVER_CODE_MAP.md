@@ -970,6 +970,7 @@ solution = np.linalg.solve(ctx.A, ctx.rhs)
 - 复数盖章：`Capacitor` → `jωC`，`Inductor` → `1/(jωL)`（`omega=0` 时退 `DC_CONDUCTANCE`）；电压源被选为激励时 1 V、其余源置 0。
 - 探针 `_ac_probe()`：节点电压，或 resistor `v/R`、capacitor `1jωC·v`、inductor `v/(1jωL)`、vsource 支路电流、isource 值；输出 `magnitude/phase_deg/db`。
 - 只读：`finally` 恢复检查点；`test_solver_analysis.py` 有 RC 截止（0.707107/−45.0°/−3.0103 dB）与反相 VCVS（2.0/180°）回归。
+- 可选 Woodbury：`size>=160` 且 `NETLAB_MATH_ACCEL_P3=on` 时走低秩更新；`ratio<=0.10` 才启用，逐频点残差 `>1e-8` 回退完整解并记 `p3.fallback`。默认 off，基准见 `docs/WP8_AC_SWEEP.md`。
 
 **③ Gear2 companion（`Capacitor.prepare/commit`、`Inductor.prepare/commit`）**
 
@@ -1001,7 +1002,7 @@ def _solve_sparse(self, matrix, rhs, dt):
 
 | 项 | 代码 | 说明 |
 | --- | --- | --- |
-| 决策 | `_decide_sparse()` | `off`→否；无 SciPy→否；`on`→是；`auto`→`matrix_size > sparse_threshold`（默认 512，D120） |
+| 决策 | `_decide_sparse()` | `off`→否；无 SciPy→否；`on`→是；`auto`→`matrix_size > sparse_threshold`（默认 512，WP-8 复核后保持） |
 | 装配 | `_blank_matrix()` | 稀疏 `lil_matrix`，稠密 `np.zeros`；`_newton_solve` 每轮新建 |
 | 分解 | `_solve_sparse()` | 稀疏均衡 → csr → `splu`；缓存键按 `indptr/indices/data` 字节与 dt |
 | 诊断 | `_solve_sparse()` 内部 | `factor.U.diagonal()` 零主元 → 「电路矩阵奇异（零主元）：节点」；`RuntimeError` → 「电路矩阵奇异（稀疏 LU）」 |

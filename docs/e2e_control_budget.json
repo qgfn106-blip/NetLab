@@ -1,0 +1,15 @@
+{
+  "schema": "netlab-e2e-control-budget/1",
+  "description": "D-4 二阶欠阻尼控制实验误差预算；阈值基于解析解与 1200 步 / dt=0.01s 基线。",
+  "budget": {
+    "final_abs": 0.02,
+    "overshoot_pp": 2.5,
+    "settling_2pct_s": 0.5,
+    "max_abs_tracking": 0.08,
+    "rmse_tracking": 0.03,
+    "integral_abs_error": 0.2,
+    "feedback_delay_s": 0.02,
+    "sampling_jitter_s": 1e-9
+  },
+  "direction": "measured 与 analytic 的绝对误差必须小于等于 limit；max_abs_tracking/rmse_tracking/integral_abs_error 的 analytic 为 0。"
+}

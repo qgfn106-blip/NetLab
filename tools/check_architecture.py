@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""架构契约机检：A1 依赖方向、A2 无环、A3 模块级可变单例、A6 冷启动隔离。
+"""架构契约机检：A1 依赖方向、A2 无环、A3 模块级可变单例、A6 冷启动隔离、A7 model 层导入隔离。
 
 用法：python tools/check_architecture.py [--json reports/architecture.json]
 任一硬失败 exit 1；A3 白名单外条目同样 exit 1。
@@ -220,6 +220,22 @@ def check_a6() -> dict[str, Any]:
     return {"exit": proc.returncode, "loaded": loaded, "stderr": proc.stderr.strip()[-400:]}
 
 
+def check_a7() -> dict[str, Any]:
+    """import scene 不得拉起 compute 包（求解器/仿真循环）或 scipy 数值栈。"""
+    code = (
+        "import sys; import netlab.core.model.scene; "
+        "bad=[x for x in sys.modules if x == 'netlab.core.compute' or "
+        "x.startswith('netlab.core.compute.')]; "
+        "bad += [x for x in ('scipy.sparse', 'scipy.linalg') if x in sys.modules]; "
+        "print(','.join(sorted(bad)))"
+    )
+    proc = subprocess.run(
+        [sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, timeout=120
+    )
+    loaded = [x for x in (proc.stdout or "").strip().split(",") if x]
+    return {"exit": proc.returncode, "loaded": loaded, "stderr": proc.stderr.strip()[-400:]}
+
+
 def check_ts_cycles() -> list[list[str]]:
     base = ROOT / "frontend"
     files = [base / "app.ts", *sorted((base / "app").glob("*.ts"))]
@@ -267,6 +283,7 @@ def main() -> int:
     ts_cycles = check_ts_cycles()
     a3 = check_a3(mods, contract)
     a6 = check_a6()
+    a7 = check_a7()
 
     report = {
         "commit": subprocess.run(
@@ -280,6 +297,7 @@ def main() -> int:
         "ts_cycles": ts_cycles,
         "a3_unlisted": a3,
         "a6": a6,
+        "a7": a7,
     }
     out = Path(args.json)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -300,8 +318,20 @@ def main() -> int:
     print(f"A6 冷启动隔离: {'FAIL' if a6['loaded'] or a6['exit'] else 'OK'} loaded={a6['loaded']}")
     if a6["stderr"]:
         print(a6["stderr"])
+    print(f"A7 model 导入隔离: {'FAIL' if a7['loaded'] or a7['exit'] else 'OK'} loaded={a7['loaded']}")
+    if a7["stderr"]:
+        print(a7["stderr"])
 
-    failed = bool(a1 or a2_new or ts_cycles or a3 or a6["loaded"] or a6["exit"])
+    failed = bool(
+        a1
+        or a2_new
+        or ts_cycles
+        or a3
+        or a6["loaded"]
+        or a6["exit"]
+        or a7["loaded"]
+        or a7["exit"]
+    )
     return 1 if failed else 0
 
 

@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from ...plugin_api.v1 import EngineSpec
@@ -74,6 +75,37 @@ def create_engine(mode: str, scene: Any) -> Any:
     if factory is None:  # 防御：BUILTIN_MODES 与工厂映射不一致
         raise KeyError(f"未知引擎模式：{mode}")
     return factory(scene)
+
+
+@dataclass(frozen=True, slots=True)
+class EngineAssembly:
+    """一次显式装配的三个稳定阶段：模型 → 编译产物 → 运行时。
+
+    model 保留引擎实例本身（插件 SPI 的入口），compiled/runtime
+    由引擎生命周期方法产生。当前内建引擎的 compile/create_runtime 仍是
+    薄壳（同一实例），但装配边界已固定，后续替换实现不需要改调用方。
+    """
+
+    mode: str
+    model: Any
+    compiled: Any
+    runtime: Any
+
+
+def assemble_engine(mode: str, scene: Any) -> EngineAssembly:
+    """创建引擎并显式走 compile → create_runtime（WP-7c）。
+
+    插件若未实现生命周期方法，则回退为“模型即编译产物/运行时”，保持
+    旧插件可用；不允许 create_runtime 返回 None 后静默空转。
+    """
+    model = create_engine(mode, scene)
+    compile_fn = getattr(model, "compile", None)
+    compiled = compile_fn() if callable(compile_fn) else model
+    runtime_fn = getattr(model, "create_runtime", None)
+    runtime = runtime_fn(compiled) if callable(runtime_fn) else model
+    if runtime is None:
+        raise RuntimeError(f"引擎运行时为空：{mode}")
+    return EngineAssembly(mode=mode, model=model, compiled=compiled, runtime=runtime)
 
 
 def allowed_kinds(mode: str, *, edge: bool = False) -> tuple[str, ...] | None:

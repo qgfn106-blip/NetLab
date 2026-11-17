@@ -12,11 +12,11 @@ import math
 import re
 import time
 import uuid
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from .blocks import BlockRuntime, BlockStore
 from .records import EdgeRecord, NodeRecord
-from ..compute.clock import SimClock
+from ..common.clock import SimClock
 from .graph import Network, Node
 from ..common.limits import (
     MAX_EDGES,
@@ -34,7 +34,7 @@ from ..common.limits import (
     json_safe,
 )
 from .ports import pins_for_device
-from ..compute.profiling import timed
+from ..common.profiling import timed
 from .scene_types import (
     ANCHOR_SIDES,
     MAX_NODE_SIZE,
@@ -49,7 +49,8 @@ from .scene_types import (
 
 
 # ---- 引擎 ------------------------------------------------------------------
-from .scene_engines import _Engine
+if TYPE_CHECKING:  # 只在类型检查时加载实现，运行期由 engine_registry 组合
+    from .scene_engines import _Engine
 from .scene_channels import _SceneChannelsMixin
 from .scene_io import _SceneIOMixin
 from .scene_edit import _SceneEditMixin
@@ -79,6 +80,7 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
         self.block_depth = 0
         self.revision = 0
         self._engine: _Engine | None = None
+        self._assembly: Any | None = None
         self._dirty = True
         self.last_step_ms = 0.0
         self._counter = 0
@@ -90,11 +92,22 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
 
     def ensure_engine(self) -> _Engine:
         if self._engine is None or self._dirty:
-            from .engine_registry import create_engine
+            from .engine_registry import assemble_engine
 
-            self._engine = create_engine(self.mode, self)
+            assembly = assemble_engine(self.mode, self)
+            self._assembly = assembly
+            # 兼容旧调用：_engine 仍指向运行时；装配产物另由 assembly 暴露。
+            self._engine = assembly.runtime
             self._dirty = False
         return self._engine
+
+    @property
+    def assembly(self):
+        """最近一次装配产物（模型/编译/运行时）；按需触发装配。"""
+        if self._assembly is None or self._dirty:
+            self._engine = None
+            self.ensure_engine()
+        return self._assembly
 
     def set_solver_options(self, options: object | None) -> None:
         """P0：更新求解器选项；下次 ensure_engine 时生效。"""

@@ -6,6 +6,8 @@ import numpy as np
 import pytest
 
 from netlab.core.common.limits import ComputeError, ValidationError
+from netlab.core.compute.circuit.elements import Resistor, VoltageSource
+from netlab.core.compute.circuit.solver import CircuitNode, CircuitSolver
 from netlab.core.compute.nodal import SolverOptions
 from netlab.core.model.scene import Scene
 
@@ -69,15 +71,35 @@ def test_sparse_auto_threshold_switches():
     assert engine.solver.sparse is False
 
 
-def test_default_sparse_threshold_keeps_max_sized_ladder_dense():
-    """默认阈值必须覆盖 MAX_NODES 附近的电路，避免默认走 LIL 负优化。"""
+def _solver_ladder(count: int) -> CircuitSolver:
+    """直接构造 count 个节点的梯形网络，避免 Scene 的 MAX_NODES=400 限制。"""
+    nodes = [CircuitNode("gnd", "gnd", ground=True)]
+    nodes += [CircuitNode(f"n{i}", f"n{i}") for i in range(count)]
+    elements = [VoltageSource("V1", "n0", "gnd", {"wave": "dc", "offset": 1.0}, {})]
+    for i in range(count - 1):
+        elements.append(Resistor(f"Rs{i}", f"n{i}", f"n{i + 1}", {"R": 1000.0}, {}))
+    for i in range(count):
+        elements.append(Resistor(f"Rp{i}", f"n{i}", "gnd", {"R": 1000.0}, {}))
+    return CircuitSolver(nodes, elements)
+
+
+def test_default_sparse_threshold_boundary():
+    """默认阈值在 512 未知量处切换：512 稠密、513 稀疏。"""
     from netlab.core.compute.simulation import SimConfig
 
     assert SimConfig().sparse_threshold == 512
-    scene = _ladder(390)
-    engine = scene.ensure_engine()
-    engine.step(1e-4)
-    assert engine.solver.sparse is False
+
+    dense_solver = _solver_ladder(511)
+    dense_stats = dense_solver.step(1e-4)
+    assert dense_solver.matrix_size == 512
+    assert dense_solver.sparse is False
+    assert dense_stats["sparse"] is False
+
+    sparse_solver = _solver_ladder(512)
+    sparse_stats = sparse_solver.step(1e-4)
+    assert sparse_solver.matrix_size == 513
+    assert sparse_solver.sparse is True
+    assert sparse_stats["sparse"] is True
 
 
 def test_sparse_on_reports_flag_and_matches_dense():

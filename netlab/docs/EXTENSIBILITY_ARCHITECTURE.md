@@ -595,14 +595,14 @@ class VisualSpec:                # netlab/plugin_api/v1/__init__.py:118
 
 ---
 
-## 9. 工程格式 v6
+## 9. 工程格式 v7（PROJECT_VERSION = 7）
 
 ### 9.1 结构
 
 ```json
 {
   "format": "netlab-project",
-  "version": 6,
+  "version": 7,
   "name": "grid-inverter",
   "plugins": [
     {"id": "com.example.power", "version": "1.2.0", "sha256": "..."}
@@ -619,15 +619,15 @@ class VisualSpec:                # netlab/plugin_api/v1/__init__.py:118
 - 工程 `ui` 段保存的是**旧版视图偏好**（`view/tab/workspace/grid/symbol/nodeStyle/drawing*/cardDetail/cardValue/symbolScale/glyphColor`，由 `frontend/app.ts` 的 `buildProjectPayload()` 组装、`netlab/core/model/project.py` 的 `json_safe(ui)` 落盘）；它与运行期 `netlab-ui/1`（`POST /api/ui`）是两套结构，不要混用。
 - `networks` 内 NodeRecord/EdgeRecord 结构不变。
 
-### 9.2 v5 → v6 迁移
+### 9.2 历史迁移（v5 → v6 → v7，幂等）
 
 1. 读入 v5。
-2. 增加 `"version": 6` 和 `"plugins": []`。
+2. 增加 `"version": 6`（迁移至 v6 时；当前 `PROJECT_VERSION = 7`）和 `"plugins": []`。
 3. 增加空 `"ui": {}`。
 4. 保持所有 `networks`、`current`、`metadata` 原样。
 5. 重新计算 `checksum` 后保存。
 
-迁移必须是幂等的；重复打开 v6 不再改写。
+迁移必须是幂等的；重复打开 v7 不再改写。
 
 ### 9.3 缺插件与版本不匹配
 
@@ -714,7 +714,7 @@ class VisualSpec:                # netlab/plugin_api/v1/__init__.py:118
 - 注册：内置冲突、插件冲突、重复注册、能力未声明。
 - 导入检查：允许 `netlab.plugin_api.v1`，拒绝 `netlab.core`、`netlab.server`、动态 import。
 - 数据边界：拒绝 NumPy 标量、NaN/Inf、set、bytes；复数 `{re,im}` 通过。
-- 工程 v5→v6 迁移：字段保持不变、checksum 更新、幂等。
+- 历史工程迁移（v5→v6→v7）：字段保持不变、checksum 更新、幂等。
 
 ### 13.2 集成测试
 
@@ -742,7 +742,7 @@ class VisualSpec:                # netlab/plugin_api/v1/__init__.py:118
 | P2 | compute/method/element 适配与迁移测试 | 首批扩展点 |
 | P3 | analysis/data_format/template/engine | 算法与数据扩展 |
 | P4 | UI profile、简洁画布、视图设计器、PanelSpec | UI 扩展 |
-| P5 | 工程 v6、缺插件降级、legacy 兼容 | 迁移与验收 |
+| P5 | 工程 v7、缺插件降级、legacy 兼容 | 迁移与验收 |
 | P6 | 文档/示例插件/全量回归/备份 | 稳定版 |
 
 每一阶段都必须先写测试；实现阶段不得改变本规范中的 Node/Edge 不变式和插件 API 主版本。

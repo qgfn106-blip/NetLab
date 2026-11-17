@@ -185,4 +185,4 @@ class EdgeDesc:
 ## 6. 已知边界
 
 - 本示例用于设计评审，不作为验收阈值；运行结果只验证数学一致性。
-- 显式 Runtime 快照是否允许、Plugin 权限边界、v6 兼容窗口三项仍是 `PENDING_USER_AUTHORIZATION`，见 ADR-008。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
+- 显式 Runtime 快照是否允许、Plugin 权限边界两项仍是 `PENDING_USER_AUTHORIZATION`，见 ADR-008；v6 兼容窗口已按用户 2026-11-15 裁定——保留 v0–v7 + 独立 scene-json、不主动收缩（删除须影响评估+弃用公告+替代+用户明确批准）。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）

@@ -72,6 +72,6 @@ flowchart TD
 
 1. **项目保存是否允许显式 Runtime 快照**（`NETLAB_V2_PLANNING_REVIEW.md:136`）：已裁决默认是「普通保存不含 Runtime 快照，Project Save 与 Runtime Snapshot 归属分离」；是否开放用户主动导出/断点快照入口未裁定，影响 `RuntimeSnapshot` 是否进工程 schema。本文只给接口草案，不裁定。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 2. Plugin 权限边界（只读/可写哪些层）：见 `ARCHITECTURE_BOUNDARIES.md` §6。
-3. 兼容窗口是否必须支持 v6 旧工程：见 `MIGRATION_AND_COMPATIBILITY.md` §3。
+3. 兼容窗口：**已按用户 2026-11-15 裁定**——保留现行 loader 已验证的全部历史输入路径 v0–v7 + 独立 scene-json，不主动收缩；任何历史迁移删除须影响评估 + 弃用公告 + 替代方案 + 用户明确批准。详见 `MIGRATION_AND_COMPATIBILITY.md` §3。
 
-三项均标为 `PENDING_USER_AUTHORIZATION`，不进入实现；ADR 状态不变。
+第 1、2 项仍标 `PENDING_USER_AUTHORIZATION`、不进入实现；第 3 项（兼容窗口）已按用户 2026-11-15 裁定生效。ADR 状态不变。

@@ -331,4 +331,4 @@ class EngineBase(ABC):
 
 现状 `netlab/core/model/scene_engines.py:61` 的 `_Engine` 只有 `step/reset/zero_time/probes/stats`；本文补 `validate/compile/create_runtime/snapshot/restore/dispose` 共 7 个方法。现状 `EngineProtocol.build` 从未调用（审计 §5）；本文明确 `compile` 是唯一编译入口。实施顺序见 `CORE_ARCHITECTURE_AUDIT.md:385` 的 P1-S2，阶段 4 只冻结签名不改代码。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 
-三项「需用户决策」（`NETLAB_V2_PLANNING_REVIEW.md:136`）见 `MIGRATION_AND_COMPATIBILITY.md` §3、`ENGINE_LIFECYCLE.md` §6、`ARCHITECTURE_BOUNDARIES.md` §6，均标 `PENDING_USER_AUTHORIZATION`，本阶段不裁定。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
+第 1、2 项「需用户决策」（`NETLAB_V2_PLANNING_REVIEW.md:136`）见 `ENGINE_LIFECYCLE.md` §6、`ARCHITECTURE_BOUNDARIES.md` §6，仍标 `PENDING_USER_AUTHORIZATION`，本阶段不裁定；第 3 项（兼容窗口，见 `MIGRATION_AND_COMPATIBILITY.md` §3）已按用户 2026-11-15 裁定——保留 v0–v7 + 独立 scene-json、不主动收缩（删除须影响评估+弃用公告+替代+用户明确批准）。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）

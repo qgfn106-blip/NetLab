@@ -2,6 +2,7 @@ import { fmt, intText, clamp, hashString } from "./app.utils.js";
 import { NODE_W, NODE_H, CHART_KEYS, MAX_IMPORT_BYTES } from "./app/constants.js";
 import { $, $$, stage, canvas, chartCanvas, chartCtx } from "./app/dom.js";
 import { roundRectPath, pointerPosition, frameCap } from "./app/canvas_geometry.js";
+import { drawWbSubplot } from "./app/wb_subplot.js";
 import { state, ui } from "./app/state.js";
 import { el, div, button, clone, isFormTarget } from "./app/ui.js";
 import { normalizeCardFields } from "./app/card_fields.js";
@@ -16,11 +17,11 @@ import { kindListFor, numberedField, trimNumber } from "./app/fields.js";
 import { buildParamField, collectParamValues, setTypeLabelHelp } from "./app/param_fields.js";
 import { hideHelpCard, showHelpCard, typeLabelHelp, paramRangeText, setSwitchTab } from "./app/help_card.js";
 import { activeTab, modeLabel, selectedNode, selectedEdge, nodeById, edgeById, getNodeSpec, getEdgeSpec, specDefaults, uniqueNodeName } from "./app/model.js";
-import { PLOT_SEMANTICS, frameSeriesToPoints, buildPlotLineLayers } from "./app/plot_semantics.js";
+import { PLOT_SEMANTICS, buildPlotLineLayers } from "./app/plot_semantics.js";
 import { createParamGroupTable, fallbackParams } from "./app/param_groups.js";
 import { groupNodeSpecs } from "./app/menu_model.js";
 import { SHEET_SIZES, drawGraph, requestDraw, animationLoop } from "./app/canvas_render.js";
-import { openIroColorPopover, setGroupSub, blockBadges, numberInput, modulePortList, captureSceneSnapshot, fieldFor, wbFmtAxis, wbToggleInArray, setPanelGroup, plotkitFrames, closeMenus, wbBadge } from "./app/ui_helpers.js";
+import { openIroColorPopover, setGroupSub, blockBadges, numberInput, modulePortList, captureSceneSnapshot, fieldFor, wbToggleInArray, setPanelGroup, plotkitFrames, closeMenus, wbBadge } from "./app/ui_helpers.js";
 import { drawPhase, phaseFrameCount, phaseStateKeys, renderVectorNodeList, resizePhase, schedulePhaseDraw, setPhaseIndex, stopPhasePlay, togglePhasePlay } from "./app/phase.js";
 import { setInstrumentActions, fillInstrumentSelects, drawInstruments, resizeInstrument, initInstruments } from "./app/instruments.js";
 import { circuitCrossingMap, circuitPinPath, edgeAnchorTowards, pinScreenPoint, wirePathPoints } from "./app/canvas_base.js";
@@ -5263,95 +5264,6 @@ function setStatusHint(hint) {
       wbActiveRenderers.push(renderer);
     }
   }
-  function drawWbSubplot(canvas2, entry, signals, xMin, xMax, height) {
-    const parentWidth = canvas2.parentElement?.getBoundingClientRect().width || 320;
-    const cssW = Math.max(120, Math.round(parentWidth));
-    const cssH = height == null ? wbCompareLayout.height : height;
-    const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5);
-    canvas2.width = Math.round(cssW * dpr);
-    canvas2.height = Math.round(cssH * dpr);
-    canvas2.style.width = `${cssW}px`;
-    canvas2.style.height = `${cssH}px`;
-    const ctx2 = canvas2.getContext("2d");
-    if (!ctx2) return;
-    ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx2.clearRect(0, 0, cssW, cssH);
-    ctx2.fillStyle = C("#faf8f2");
-    ctx2.fillRect(0, 0, cssW, cssH);
-    const left = 48;
-    const right = 12;
-    const top = 10;
-    const bottom = 22;
-    const plotW = Math.max(10, cssW - left - right);
-    const plotH = Math.max(10, cssH - top - bottom);
-    let yMin = Infinity;
-    let yMax = -Infinity;
-    for (const key of signals) {
-      const arr = entry.series?.[key] || [];
-      for (const value of arr) {
-        if (Number.isFinite(value)) {
-          yMin = Math.min(yMin, value);
-          yMax = Math.max(yMax, value);
-        }
-      }
-    }
-    if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
-      yMin = -1;
-      yMax = 1;
-    }
-    if (yMax - yMin < 1e-12) {
-      const mid = (yMax + yMin) / 2 || 0;
-      yMin = mid - 0.5;
-      yMax = mid + 0.5;
-    }
-    const spanY = Math.max(1e-12, yMax - yMin);
-    const spanX = Math.max(1e-12, xMax - xMin);
-    const toX = (t) => left + (t - xMin) / spanX * plotW;
-    const toY = (v) => top + (1 - (v - yMin) / spanY) * plotH;
-    ctx2.strokeStyle = C("#e6e2d6");
-    ctx2.lineWidth = PLOT_SEMANTICS.gridWidth;
-    ctx2.fillStyle = C("#969083");
-    ctx2.font = '10px "Segoe UI","Microsoft YaHei",sans-serif';
-    ctx2.textAlign = "right";
-    ctx2.textBaseline = "middle";
-    for (let i = 0; i <= 4; i += 1) {
-      const value = yMin + spanY * (i / 4);
-      const y = toY(value);
-      ctx2.beginPath();
-      ctx2.moveTo(left, y);
-      ctx2.lineTo(left + plotW, y);
-      ctx2.stroke();
-      ctx2.fillText(wbFmtAxis(value), left - 6, y);
-    }
-    ctx2.textAlign = "center";
-    ctx2.textBaseline = "top";
-    for (let i = 0; i <= 4; i += 1) {
-      const t = xMin + spanX * (i / 4);
-      const x = toX(t);
-      ctx2.beginPath();
-      ctx2.moveTo(x, top);
-      ctx2.lineTo(x, top + plotH);
-      ctx2.stroke();
-      ctx2.fillText(wbFmtAxis(t), x, top + plotH + 4);
-    }
-    ctx2.strokeStyle = C("#b8b3a4");
-    ctx2.strokeRect(left, top, plotW, plotH);
-    for (const key of signals) {
-      const points = frameSeriesToPoints(entry.t || [], entry.series?.[key] || []);
-      const n = points.x.length;
-      if (!n) continue;
-      ctx2.strokeStyle = colorForKey(key);
-      ctx2.lineWidth = PLOT_SEMANTICS.lineWidth;
-      ctx2.beginPath();
-      for (let i = 0; i < n; i += 1) {
-        const x = toX(points.x[i]);
-        const y = toY(points.y[i]);
-        if (i === 0) ctx2.moveTo(x, y);
-        else ctx2.lineTo(x, y);
-      }
-      ctx2.stroke();
-    }
-  }
   const PLOTKIT_RENDER2D_URL = "/plotkit/static/render2d.js";
   function readPlot2D() {
     const holder = window;
@@ -5396,7 +5308,7 @@ function setStatusHint(hint) {
     draw() {
       if (!this.canvas || !this.series) return;
       const { entry, signals, xMin, xMax, height } = this.series;
-      drawWbSubplot(this.canvas, entry, signals, xMin ?? 0, xMax ?? 1, height ?? this.height);
+      drawWbSubplot(this.canvas, entry, signals, xMin ?? 0, xMax ?? 1, height ?? this.height, { colorForKey, wbCompareLayout });
     }
     resize() {
       this.draw();
@@ -5442,7 +5354,7 @@ function setStatusHint(hint) {
       } catch (error) {
         if (token !== this.renderToken || this.canvas !== canvas2 || !this.series) return;
         const { entry, signals, xMin, xMax, height } = series;
-        drawWbSubplot(canvas2, entry, signals, xMin ?? 0, xMax ?? 1, height ?? this.height);
+        drawWbSubplot(canvas2, entry, signals, xMin ?? 0, xMax ?? 1, height ?? this.height, { colorForKey, wbCompareLayout });
         if (this.host) this.host.setAttribute("data-renderer-fallback", "1");
         console.warn("[W3] PlotKit \u6E32\u67D3\u4E0D\u53EF\u7528\uFF0C\u5DF2\u56DE\u9000\u7B80\u6613\u6E32\u67D3\uFF1A", error?.message || error);
       }

@@ -114,26 +114,26 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
-| 2026-11-15 | docs(quality): P1-07 正文与阶段表补正（阶段7/8切片1+2 已合 main、数字指 status.json）+ P1-03 记为用户确认方案A真高斯 |
-| 2026-11-15 | docs(backlog): 批次D P2-07 去除手写 1052/3.20.1 旧基线，改指向 status.json 单一来源 |
-| 2026-11-15 | test(d5): 补交 solver 改动 shadow 报告（base 4a0178e；含插值/仿真/分析 compute 变更，脚本 --generate 真实生成） |
-| 2026-11-15 | docs(code-guide): 批次D P2-09 标注行号/行数为初版快照、以当前源码为准（消除过期行数误导） |
-| 2026-11-15 | fix(interp): 批次A P1-03 高斯核改为真高斯 exp(-Δt²/2σ²)（新增 sigma，缺省 window/3），弃用原 exp(-\|Δt\|)（实为 Laplace 核） |
-| 2026-11-15 | docs(quality): 批次D 真相校正——PROJECT_STATUS 2026-11-15 权威更正(阶段7完成/阶段8切片1+2已合main/版本3.20.2)、PROGRESS 头部改单一来源指针+§7.178、README *.netlab version 7 |
-| 2026-11-15 | fix(tools): 批次D P2-10 status 新鲜度门增比对 passed/skipped/coverage（防数字静默漂移） |
-| 2026-11-15 | fix(analysis/ui): 批次C P2-05 circuit tf 顶层回传实际 step_dt + P2-06 预计算对话框精度选择收尾标签修正 |
-| 2026-11-15 | fix(engine): 批次B P1-05 registry_restore 原子恢复 owner + P1-06 测试清理 + P2-04 snapshot 场景指纹防护 |
-| 2026-11-15 | fix(ui): 批次A P1-01 预计算插值帧接入前端回放（区分原始/插值帧、游标对齐、帧数上限，不污染 Recorder） |
-| 2026-11-15 | fix(ui): 批次A P1-04 统一预计算取消状态（solve 读 result.cancelled；states 处理 cancelled） |
-| 2026-11-15 | fix(precompute): 批次A P2-01/02/03 空序列/缺测语义/窗口校验 |
-| 2026-11-15 | fix(precompute): 插值卡死/超时缺陷 P1-P5（gaussian 二分 O(n·w)、快速失败、进度阶段、真实超时文案、锁外插值） |
-| 2026-11-15 | chore(docs): render_docs 重新生成 PROGRESS/BACKLOG 派生区（消 docs drift） |
-| 2026-11-15 | chore(frontend): constants.js UI_BUILD 对齐 netlab 版本 3.20.2（消 artifact drift） |
-| 2026-11-15 | chore(d-5): 补 D-5 影子报告（集成分支 compute 改动 off/shadow/on + 独立参考） |
-| 2026-11-15 | chore(docs): PROGRESS 行尾统一回 CRLF（消除跨谱系 eol 伪 diff） |
-| 2026-11-14 | fix(frontend): 重新生成 constants.js 使 UI_BUILD 与 netlab/__init__ 3.20.1 一致（消除 artifact drift） |
-| 2026-11-14 | fix(precompute): 压缩对话框插值选项布局使 app.ts 回到 8000 行内（Section budget 门） |
-| 2026-11-14 | docs(progress): §7.176 全量计数更正 1082→1083（0 failed） |
+| 2026-11-18 | feat: 完成 WP-0~WP-8 优化实施与非 FEM 验收 |
+| 2026-11-17 | fix(frontend): 补提交 app.ts 的 S3 调用点改动（修复 artifact drift 未提交文件） |
+| 2026-11-17 | refactor(frontend): F-01 S3 外提参数写回四函数到 param_commit.ts（行为字节等价，app.ts 7395→7300） |
+| 2026-11-17 | test(frontend): D-B61-1 补 closeModal 直达用例（隐藏/清卡/resolve false） |
+| 2026-11-17 | refactor(frontend): F-01 S2 外提对话框到 dialogs_build.ts（零行为；app.ts 7479→7395） |
+| 2026-11-17 | test(frontend): 修正 drawChart 等价测试 activeTab mock 使真正执行 + 断言每场景>50 指令（D-B60-1） |
+| 2026-11-17 | refactor(frontend): F-01 S1b-3 外提 drawChart 到 chart_draw.ts（app.ts 7679→7479） |
+| 2026-11-17 | refactor(frontend): F-01 S1b-2 外提 drawModulePreview 到 module_preview.ts（app.ts 7770→7679） |
+| 2026-11-17 | refactor(frontend): F-01 S1b-1 外提 drawWbSubplot 至 app/wb_subplot（依赖显式化，指令序列等价） |
+| 2026-11-17 | refactor(frontend): F-01 S1a 外提零依赖 UI 小工具至 app/ui_helpers（app.ts 7982→7869，字节等价） |
+| 2026-11-17 | test(frontend): F-05 verify_app_parity 未覆盖运行时文件白名单+整文件告警（零行为） |
+| 2026-11-17 | test(b7): 更新 frontend api 契约——shutdown 经 api() 单缝，裸 fetch 仅 helper 内 |
+| 2026-11-17 | fix(b7): F-02 shutdown 走 api()/桌面原生关闭; F-03 numeric-precision 与 settings 串扰最小修 |
+| 2026-11-17 | fix(mathspec): D-B6-1 dt 校验移到 docstring 之后（保留 __doc__）+ 文档回归测试 |
+| 2026-11-17 | fix(mathspec): B6 csr 跨行判重修正 + 积分/hybrid/drivetrain dt<=0 校验 |
+| 2026-11-17 | chore(b5-02): python-tests.yml 保持仓库原有 CRLF 行尾（消除伪 diff） |
+| 2026-11-17 | test(b5-02): mathspec 测试纳入 root testpaths/CI + 低覆盖模块补测 |
+| 2026-11-17 | test(b5-01): v3-v7 历史 golden 强化（真实节点/边/state）并与 p2d 契约测试去重 |
+| 2026-11-17 | fix(docs): D9 保留设计规范文档的 Proposed 标记与示例正文（不违契约测试） |
+| 2026-11-17 | docs(status): 统一 12 份主库文档状态头为 5 类标签（D9，doc-only） |
 
 <!-- END LAST 20 UPDATES -->
 

@@ -1,6 +1,6 @@
 # Engine SPI V2 设计冻结（阶段 4 / P1-A）
 
-> 状态：设计规范
+> 状态：设计规范（`Proposed`，设计冻结草案，待评审）。本文是目标设计口径，不是当前实现；ADR 不是实施授权，Plugin v1 不是沙箱。
 > 依据：`NETLAB_V2_PLANNING_REVIEW.md:118-123`（Engine 五问）、`NETLAB_V2_PLANNING_REVIEW.md:128-136`、`CORE_ARCHITECTURE_AUDIT.md:385`（P1-A 先写三份文档不要先改代码）、`CORE_ARCHITECTURE_AUDIT.md §5`（P1-B2 插件 mode 端到端断路）。（注：文中引用的内部设计文档 / ADR 已迁 Private-Docs，不重建）
 > 边界：不写生产代码；不改 `netlab/core/model/scene.py`、`netlab/core/model/scene_engines.py`、`netlab/core/model/engine_registry.py`；Plugin 不能替换内建 Engine；不改 FEM。
 

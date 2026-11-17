@@ -1,6 +1,6 @@
 # Engine 生命周期设计冻结（阶段 4 / P1-A）
 
-> 状态：设计规范
+> 状态：设计规范（`Proposed`，设计冻结草案，待评审）。本文是目标设计口径，不是当前实现；ADR 不是实施授权。
 > 依据：`NETLAB_V2_PLANNING_REVIEW.md:100-108`（补 6 份文档第 3 份：create→validate→compile→run→snapshot→restore→destroy，谁创建/销毁 Runtime）、`:110-116`（Desc/Runtime 五问 3/4/5）、`CORE_ARCHITECTURE_AUDIT`（已迁 Private-Docs，不重建） §5（`_Engine` 无 checkpoint 接口）。
 > 边界：不写生产代码；不改 `scene_engines.py`/`simulation.py` 冻结区；不改 FEM。
 

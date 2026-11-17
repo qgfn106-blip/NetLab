@@ -8,6 +8,7 @@ import type { AcResultRec, AppearanceRec, BezierRec, BlockItem, BoxRec, CacheEnt
 import { UI_BUILD, PALETTE, GROUP_COLORS, NODE_RADIUS, NODE_W, NODE_H, CHART_KEYS, MAX_IMPORT_BYTES, MAX_FRAMES, INST_COLORS } from './app/constants.js';
 import { $, $$, stage, canvas, ctx, chartCanvas, chartCtx, phaseCanvas, phaseCtx, scopeCanvas, scopeCtx, lissCanvas, lissCtx } from './app/dom.js';
 import { roundRectPath, pointerPosition, frameCap } from './app/canvas_geometry.js';
+import { drawWbSubplot } from './app/wb_subplot.js';
 import { state, ui } from './app/state.js';
 import type { ApiOptions } from './app/net.js';
 import { el, div, button, clone, isFormTarget } from './app/ui.js';
@@ -5842,106 +5843,6 @@ function setStatusHint(hint: string): void {
     }
   }
 
-  function drawWbSubplot(
-    canvas: HTMLCanvasElement,
-    entry: WbCompareEntry,
-    signals: string[],
-    xMin: number,
-    xMax: number,
-    height?: number,
-  ): void {
-    const parentWidth = canvas.parentElement?.getBoundingClientRect().width || 320;
-    const cssW = Math.max(120, Math.round(parentWidth));
-    const cssH = height == null ? wbCompareLayout.height : height;
-    const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5);
-    canvas.width = Math.round(cssW * dpr);
-    canvas.height = Math.round(cssH * dpr);
-    canvas.style.width = `${cssW}px`;
-    canvas.style.height = `${cssH}px`;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, cssW, cssH);
-    ctx.fillStyle = C('#faf8f2');
-    ctx.fillRect(0, 0, cssW, cssH);
-
-    const left = 48;
-    const right = 12;
-    const top = 10;
-    const bottom = 22;
-    const plotW = Math.max(10, cssW - left - right);
-    const plotH = Math.max(10, cssH - top - bottom);
-
-    let yMin = Infinity;
-    let yMax = -Infinity;
-    for (const key of signals) {
-      const arr = entry.series?.[key] || [];
-      for (const value of arr) {
-        if (Number.isFinite(value)) {
-          yMin = Math.min(yMin, value);
-          yMax = Math.max(yMax, value);
-        }
-      }
-    }
-    if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
-      yMin = -1;
-      yMax = 1;
-    }
-    if (yMax - yMin < 1e-12) {
-      const mid = (yMax + yMin) / 2 || 0;
-      yMin = mid - 0.5;
-      yMax = mid + 0.5;
-    }
-    const spanY = Math.max(1e-12, yMax - yMin);
-    const spanX = Math.max(1e-12, xMax - xMin);
-    const toX = (t: number) => left + ((t - xMin) / spanX) * plotW;
-    const toY = (v: number) => top + (1 - (v - yMin) / spanY) * plotH;
-
-    ctx.strokeStyle = C('#e6e2d6');
-    ctx.lineWidth = PLOT_SEMANTICS.gridWidth;
-    ctx.fillStyle = C('#969083');
-    ctx.font = '10px "Segoe UI","Microsoft YaHei",sans-serif';
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    for (let i = 0; i <= 4; i += 1) {
-      const value = yMin + spanY * (i / 4);
-      const y = toY(value);
-      ctx.beginPath();
-      ctx.moveTo(left, y);
-      ctx.lineTo(left + plotW, y);
-      ctx.stroke();
-      ctx.fillText(wbFmtAxis(value), left - 6, y);
-    }
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    for (let i = 0; i <= 4; i += 1) {
-      const t = xMin + spanX * (i / 4);
-      const x = toX(t);
-      ctx.beginPath();
-      ctx.moveTo(x, top);
-      ctx.lineTo(x, top + plotH);
-      ctx.stroke();
-      ctx.fillText(wbFmtAxis(t), x, top + plotH + 4);
-    }
-    ctx.strokeStyle = C('#b8b3a4');
-    ctx.strokeRect(left, top, plotW, plotH);
-
-    for (const key of signals) {
-      const points = frameSeriesToPoints(entry.t || [], entry.series?.[key] || []);
-      const n = points.x.length;
-      if (!n) continue;
-      ctx.strokeStyle = colorForKey(key);
-      ctx.lineWidth = PLOT_SEMANTICS.lineWidth;
-      ctx.beginPath();
-      for (let i = 0; i < n; i += 1) {
-        const x = toX(points.x[i]);
-        const y = toY(points.y[i]);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    }
-  }
 
   // ===== W3：绘图渲染器抽象（PlotKit 去 iframe 化的内嵌渲染） =====
   // 规格（Q8=A）：PlotKit 保留渲染内核、去掉 iframe 独立外壳，作为 netlab 内嵌绘图模块；
@@ -6045,7 +5946,7 @@ function setStatusHint(hint: string): void {
     private draw(): void {
       if (!this.canvas || !this.series) return;
       const { entry, signals, xMin, xMax, height } = this.series;
-      drawWbSubplot(this.canvas, entry, signals, xMin ?? 0, xMax ?? 1, height ?? this.height);
+      drawWbSubplot(this.canvas, entry, signals, xMin ?? 0, xMax ?? 1, height ?? this.height, { colorForKey, wbCompareLayout });
     }
 
     resize(): void {
@@ -6097,7 +5998,7 @@ function setStatusHint(hint: string): void {
         // PlotKit 未挂载 / 加载失败：优雅回退到简易渲染，不打断界面、不抛错。
         if (token !== this.renderToken || this.canvas !== canvas || !this.series) return;
         const { entry, signals, xMin, xMax, height } = series;
-        drawWbSubplot(canvas, entry, signals, xMin ?? 0, xMax ?? 1, height ?? this.height);
+        drawWbSubplot(canvas, entry, signals, xMin ?? 0, xMax ?? 1, height ?? this.height, { colorForKey, wbCompareLayout });
         if (this.host) this.host.setAttribute('data-renderer-fallback', '1');
         console.warn('[W3] PlotKit 渲染不可用，已回退简易渲染：', (error as Error)?.message || error);
       }

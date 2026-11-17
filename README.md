@@ -233,26 +233,26 @@ Netlab 设计为**每人一份、本机运行**：服务默认只监听 `127.0.0
 - [README.md](README.md)（本文件）、[ARCHITECTURE.md](ARCHITECTURE.md)（分层/场景/求解器/插件/前端数据流）、[CHANGELOG.md](CHANGELOG.md)、[INSTALL.md](INSTALL.md)、[OPERATION.md](OPERATION.md)
 
 **总览、规范与计划**
-- 、、[GLOSSARY.md](netlab/docs/GLOSSARY.md)、、、、、
+- [GLOSSARY.md](netlab/docs/GLOSSARY.md)
 
 **架构与代码**
-- [netlab/docs/ARCHITECTURE.md](netlab/docs/ARCHITECTURE.md)、[ARCHITECTURE_BOUNDARIES.md](netlab/docs/ARCHITECTURE_BOUNDARIES.md)、[CODE_GUIDE.md](netlab/docs/CODE_GUIDE.md)、、
-- [CORE_INTERFACE_CONTRACTS.md](netlab/docs/CORE_INTERFACE_CONTRACTS.md)、[CORE_OBJECT_RELATIONSHIP.md](netlab/docs/CORE_OBJECT_RELATIONSHIP.md)、[MODULES_HOWTO.md](netlab/docs/MODULES_HOWTO.md)、[SOLVER_CODE_MAP.md](netlab/docs/SOLVER_CODE_MAP.md)、
+- [netlab/docs/ARCHITECTURE.md](netlab/docs/ARCHITECTURE.md)、[ARCHITECTURE_BOUNDARIES.md](netlab/docs/ARCHITECTURE_BOUNDARIES.md)、[CODE_GUIDE.md](netlab/docs/CODE_GUIDE.md)
+- [CORE_INTERFACE_CONTRACTS.md](netlab/docs/CORE_INTERFACE_CONTRACTS.md)、[CORE_OBJECT_RELATIONSHIP.md](netlab/docs/CORE_OBJECT_RELATIONSHIP.md)、[MODULES_HOWTO.md](netlab/docs/MODULES_HOWTO.md)、[SOLVER_CODE_MAP.md](netlab/docs/SOLVER_CODE_MAP.md)
 - [EXTENDING.md](netlab/docs/EXTENDING.md)、[EXTENSIBILITY_ARCHITECTURE.md](netlab/docs/EXTENSIBILITY_ARCHITECTURE.md)、[PLUGIN_GUIDE.md](netlab/docs/PLUGIN_GUIDE.md)、[VSCODE_INTEGRATION.md](netlab/docs/VSCODE_INTEGRATION.md)
 
 **模型与接口设计**
-- [CORE_MODEL_V2.md](netlab/docs/CORE_MODEL_V2.md)、[CORE_ARCHITECTURE_V2.md](netlab/docs/CORE_ARCHITECTURE_V2.md)、、[MINIMAL_DATA_MODEL_EXAMPLE.md](netlab/docs/MINIMAL_DATA_MODEL_EXAMPLE.md)、[TYPED_PORT_SYSTEM.md](netlab/docs/TYPED_PORT_SYSTEM.md)
-- 、、[MIGRATION_AND_COMPATIBILITY.md](netlab/docs/MIGRATION_AND_COMPATIBILITY.md)
+- [CORE_MODEL_V2.md](netlab/docs/CORE_MODEL_V2.md)、[CORE_ARCHITECTURE_V2.md](netlab/docs/CORE_ARCHITECTURE_V2.md)、[MINIMAL_DATA_MODEL_EXAMPLE.md](netlab/docs/MINIMAL_DATA_MODEL_EXAMPLE.md)、[TYPED_PORT_SYSTEM.md](netlab/docs/TYPED_PORT_SYSTEM.md)
+- [MIGRATION_AND_COMPATIBILITY.md](netlab/docs/MIGRATION_AND_COMPATIBILITY.md)
 - [ENGINE_LIFECYCLE.md](netlab/docs/ENGINE_LIFECYCLE.md)、[ENGINE_SPI_V2.md](netlab/docs/ENGINE_SPI_V2.md)、[APPEARANCE_ENGINE_DESIGN.md](netlab/docs/APPEARANCE_ENGINE_DESIGN.md)、[UI_SPEC.md](netlab/docs/UI_SPEC.md)、[SCHEMATIC_DRAWING_SPEC.md](netlab/docs/SCHEMATIC_DRAWING_SPEC.md)、[BUILD_AND_PACKAGING.md](netlab/docs/BUILD_AND_PACKAGING.md)
 
 **数学与仿真原理**
-- [MATH.md](netlab/docs/MATH.md)、[UNIFIED_SIM_MATH_SPEC.md](netlab/docs/UNIFIED_SIM_MATH_SPEC.md)、
+- [MATH.md](netlab/docs/MATH.md)、[UNIFIED_SIM_MATH_SPEC.md](netlab/docs/UNIFIED_SIM_MATH_SPEC.md)
 - [math/ARCHITECTURE_MATH.md](netlab/docs/math/ARCHITECTURE_MATH.md)、[math/ELEMENT_MATH.md](netlab/docs/math/ELEMENT_MATH.md)、[math/ANALYSIS_MATH.md](netlab/docs/math/ANALYSIS_MATH.md)
 
 **决策记录（ADR）**
 
 **研究与专题**
-- mathspec：[mathspec/README.md](mathspec/README.md)、、、
+- mathspec：[mathspec/README.md](mathspec/README.md)
 
 **经验与速查**
 
@@ -262,5 +262,5 @@ Netlab 设计为**每人一份、本机运行**：服务默认只监听 `127.0.0
 **近期审计 / 评审（仅列最近两次；更早的历史审计记录不进入本 README）**
 
 **历史特性规格（specs，18 篇）与调查**
-- 、[docs/specs/2026-11-09-c5-path-token.md](docs/specs/2026-11-09-c5-path-token.md)、[docs/specs/2026-11-09-n08-channel-key.md](docs/specs/2026-11-09-n08-channel-key.md)
+- [docs/specs/2026-11-09-c5-path-token.md](docs/specs/2026-11-09-c5-path-token.md)、[docs/specs/2026-11-09-n08-channel-key.md](docs/specs/2026-11-09-n08-channel-key.md)
 - [extensions/plugins/README.md](extensions/plugins/README.md)

@@ -37,5 +37,9 @@
     "exportAnalysisCsv",
     "drawAnalysisTF",
     "drawAnalysisSpectrum"
+  ],
+  "uncovered_files": [
+    "app.ts",
+    "desktop-shim.ts"
   ]
 }

@@ -16,7 +16,7 @@ import { placeFloatWindow, raiseFloatWindow, initFloatWindow } from "./app/float
 import { chartPalette } from "./app/theme.js";
 import { C, tokens } from "./app/colors.js";
 import { kindListFor, numberedField, trimNumber } from "./app/fields.js";
-import { buildParamField, collectParamValues, setTypeLabelHelp } from "./app/param_fields.js";
+import { buildParamField, setTypeLabelHelp } from "./app/param_fields.js";
 import { hideHelpCard, showHelpCard, typeLabelHelp, paramRangeText, setSwitchTab } from "./app/help_card.js";
 import { activeTab, modeLabel, selectedNode, selectedEdge, nodeById, edgeById, getNodeSpec, getEdgeSpec, specDefaults, uniqueNodeName } from "./app/model.js";
 import { PLOT_SEMANTICS, buildPlotLineLayers } from "./app/plot_semantics.js";
@@ -45,6 +45,7 @@ import { openSettings, closeSettings, initSettingsWin, showGuide, initGuide, set
 import { setPlotkitFrameActions } from "./app/plotkit_frame.js";
 import { elementPins, elementRot } from "./app/circuit_symbols.js";
 import { closeModal, openConfirmModal as confirmModal, openModeModal as chooseModeModal } from "./app/dialogs_build.js";
+import { wbCommitNodeParam, wbCommitEdgeParam, wbCommitSimParam } from "./app/param_commit.js";
 function setStatusHint(hint) {
   const node = document.getElementById("statusHint");
   if (node) node.textContent = hint;
@@ -78,6 +79,7 @@ function setStatusHint(hint) {
       state.busy = false;
     }
   }
+  const paramCommitDeps = { state, toast, jsonRequest, wbMarkDirty, applySnapshot };
   function applySnapshot(snapshot) {
     if (!snapshot || typeof snapshot !== "object" || !snapshot.scene) return;
     const sim = snapshot.sim || state.sim;
@@ -5182,7 +5184,7 @@ function setStatusHint(hint) {
       for (const param of list) {
         const value = param.key in baseParams ? baseParams[param.key] : clone(param.default);
         const control2 = buildParamField(param, value);
-        control2.addEventListener("change", () => void wbCommitNodeParam(node.id, control2, baseParams));
+        control2.addEventListener("change", () => void wbCommitNodeParam(paramCommitDeps, node.id, control2, baseParams));
         addRow(`${node.name} \xB7 ${node.kind}`, node.id, String(param.label || param.key), control2);
       }
     }
@@ -5194,7 +5196,7 @@ function setStatusHint(hint) {
       for (const param of list) {
         const value = param.key in baseParams ? baseParams[param.key] : clone(param.default);
         const control2 = buildParamField(param, value);
-        control2.addEventListener("change", () => void wbCommitEdgeParam(edge.id, control2, baseParams));
+        control2.addEventListener("change", () => void wbCommitEdgeParam(paramCommitDeps, edge.id, control2, baseParams));
         addRow(`${edge.name || edge.id} \xB7 ${edge.kind}`, edge.id, String(param.label || param.key), control2);
       }
     }
@@ -5210,7 +5212,7 @@ function setStatusHint(hint) {
       };
       const value = field.key in config ? config[field.key] : void 0;
       const control2 = buildParamField(paramSpec, value);
-      control2.addEventListener("change", () => void wbCommitSimParam(field.key, control2));
+      control2.addEventListener("change", () => void wbCommitSimParam(paramCommitDeps, field.key, control2));
       addRow("\u4EFF\u771F\u8BBE\u7F6E", "sim", field.label, control2);
     }
     const integValue = String(scene?.integration || "trapezoidal");
@@ -5221,7 +5223,7 @@ function setStatusHint(hint) {
       choices: ["trapezoidal", "backward_euler", "gear2"]
     };
     const integControl = buildParamField(integSpec, integValue);
-    integControl.addEventListener("change", () => void wbCommitSimParam("integration", integControl));
+    integControl.addEventListener("change", () => void wbCommitSimParam(paramCommitDeps, "integration", integControl));
     addRow("\u4EFF\u771F\u8BBE\u7F6E", "sim", "\u79EF\u5206\u65B9\u6CD5", integControl);
     const applyFilter = () => applyGroupFilter(wbFilterText);
     filter.addEventListener("input", () => {
@@ -5278,96 +5280,6 @@ function setStatusHint(hint) {
       wbDirty = false;
       markProjectDirty();
       await renderWorkbenchState();
-    } catch (error) {
-      toast(error?.message || String(error), "error", 6e3);
-    }
-  }
-  async function wbCommitNodeParam(nodeId, control2, baseParams) {
-    let values;
-    try {
-      values = collectParamValues(control2.parentElement || control2);
-    } catch (error) {
-      toast(error.message, "error", 5e3);
-      return;
-    }
-    const merged = Object.assign({}, baseParams, values);
-    try {
-      const resp = await jsonRequest(`/api/nodes/${encodeURIComponent(nodeId)}`, "PATCH", {
-        params: merged
-      });
-      if (!resp) return;
-      Object.assign(baseParams, values);
-      if (resp.node) {
-        const list = state.scene?.nodes || [];
-        const index = list.findIndex((item) => item.id === nodeId);
-        if (index >= 0) list[index] = Object.assign({}, list[index], resp.node);
-      }
-      if (resp.sim) state.sim = resp.sim;
-      wbMarkDirty();
-    } catch (error) {
-      toast(error?.message || String(error), "error", 6e3);
-    }
-  }
-  async function wbCommitEdgeParam(edgeId, control2, baseParams) {
-    let values;
-    try {
-      values = collectParamValues(control2.parentElement || control2);
-    } catch (error) {
-      toast(error.message, "error", 5e3);
-      return;
-    }
-    const merged = Object.assign({}, baseParams, values);
-    try {
-      const resp = await jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, "PATCH", {
-        params: merged
-      });
-      if (!resp) return;
-      Object.assign(baseParams, values);
-      if (resp.edge) {
-        const list = state.scene?.edges || [];
-        const index = list.findIndex((item) => item.id === edgeId);
-        if (index >= 0) list[index] = Object.assign({}, list[index], resp.edge);
-      }
-      if (resp.sim) state.sim = resp.sim;
-      wbMarkDirty();
-    } catch (error) {
-      toast(error?.message || String(error), "error", 6e3);
-    }
-  }
-  async function wbCommitSimParam(key, control2) {
-    let values;
-    try {
-      values = collectParamValues(control2.parentElement || control2);
-    } catch (error) {
-      toast(error.message, "error", 5e3);
-      return;
-    }
-    try {
-      const resp = await jsonRequest("/api/config", "PATCH", {
-        [key]: values[key]
-      });
-      if (!resp) return;
-      if (resp.sim) state.sim = resp.sim;
-      wbMarkDirty();
-    } catch (error) {
-      toast(error?.message || String(error), "error", 6e3);
-    }
-  }
-  async function wbCommitIntegration(control2) {
-    let values;
-    try {
-      values = collectParamValues(control2.parentElement || control2);
-    } catch (error) {
-      toast(error.message, "error", 5e3);
-      return;
-    }
-    try {
-      const resp = await jsonRequest("/api/scene", "PATCH", {
-        integration: values["integration"]
-      });
-      if (!resp) return;
-      applySnapshot(resp);
-      wbMarkDirty();
     } catch (error) {
       toast(error?.message || String(error), "error", 6e3);
     }

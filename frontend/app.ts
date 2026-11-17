@@ -56,6 +56,7 @@ import { openSettings, closeSettings, setSettingsPane, initSettingsWin, showGuid
 import { setPlotkitFrameActions } from './app/plotkit_frame.js';
 import { circuitMidAngle, drawCircuitGlyph, circuitWireGap, drawJunctionDots, elementPins, elementLayoutCenter, elementRot, symbolScalePx } from './app/circuit_symbols.js';
 import { closeModal, openConfirmModal as confirmModal, openModeModal as chooseModeModal } from './app/dialogs_build.js';
+import { wbCommitNodeParam, wbCommitEdgeParam, wbCommitSimParam, wbCommitIntegration, type ParamCommitDeps } from './app/param_commit.js';
 function setStatusHint(hint: string): void {
   const node = document.getElementById('statusHint');
   if (node) node.textContent = hint;
@@ -132,6 +133,8 @@ function setStatusHint(hint: string): void {
   /* ======================================================================
    * 2. 快照同步与全局 UI
    * ==================================================================== */
+
+  const paramCommitDeps: ParamCommitDeps = { state, toast, jsonRequest, wbMarkDirty, applySnapshot };
 
   function applySnapshot(snapshot: SnapshotRec) {
     if (!snapshot || typeof snapshot !== 'object' || !snapshot.scene) return;
@@ -5819,7 +5822,7 @@ function setStatusHint(hint: string): void {
       for (const param of list) {
         const value = param.key in baseParams ? baseParams[param.key] : clone(param.default);
         const control = buildParamField(param, value);
-        control.addEventListener('change', () => void wbCommitNodeParam(node.id, control, baseParams));
+        control.addEventListener('change', () => void wbCommitNodeParam(paramCommitDeps, node.id, control, baseParams));
         addRow(`${node.name} · ${node.kind}`, node.id, String(param.label || param.key), control);
       }
     }
@@ -5831,7 +5834,7 @@ function setStatusHint(hint: string): void {
       for (const param of list) {
         const value = param.key in baseParams ? baseParams[param.key] : clone(param.default);
         const control = buildParamField(param, value);
-        control.addEventListener('change', () => void wbCommitEdgeParam(edge.id, control, baseParams));
+        control.addEventListener('change', () => void wbCommitEdgeParam(paramCommitDeps, edge.id, control, baseParams));
         addRow(`${edge.name || edge.id} · ${edge.kind}`, edge.id, String(param.label || param.key), control);
       }
     }
@@ -5847,7 +5850,7 @@ function setStatusHint(hint: string): void {
       };
       const value = field.key in config ? config[field.key] : undefined;
       const control = buildParamField(paramSpec, value);
-      control.addEventListener('change', () => void wbCommitSimParam(field.key, control));
+      control.addEventListener('change', () => void wbCommitSimParam(paramCommitDeps, field.key, control));
       addRow('仿真设置', 'sim', field.label, control);
     }
     const integValue = String(scene?.integration || 'trapezoidal');
@@ -5858,7 +5861,7 @@ function setStatusHint(hint: string): void {
       choices: ['trapezoidal', 'backward_euler', 'gear2'],
     };
     const integControl = buildParamField(integSpec, integValue);
-    integControl.addEventListener('change', () => void wbCommitSimParam('integration', integControl));
+    integControl.addEventListener('change', () => void wbCommitSimParam(paramCommitDeps, 'integration', integControl));
     addRow('仿真设置', 'sim', '积分方法', integControl);
 
     const applyFilter = (): void => applyGroupFilter(wbFilterText);
@@ -5932,107 +5935,9 @@ function setStatusHint(hint: string): void {
     }
   }
 
-  async function wbCommitNodeParam(
-    nodeId: string,
-    control: HTMLElement,
-    baseParams: Record<string, unknown>,
-  ): Promise<void> {
-    let values: Record<string, unknown>;
-    try {
-      values = collectParamValues(control.parentElement || control);
-    } catch (error) {
-      toast((error as Error).message, 'error', 5000);
-      return;
-    }
-    const merged = Object.assign({}, baseParams, values);
-    try {
-      const resp = (await jsonRequest(`/api/nodes/${encodeURIComponent(nodeId)}`, 'PATCH', {
-        params: merged,
-      })) as { node?: NodeItem; sim?: SimRec } | null;
-      if (!resp) return;
-      Object.assign(baseParams, values);
-      if (resp.node) {
-        const list = state.scene?.nodes || [];
-        const index = list.findIndex((item) => item.id === nodeId);
-        if (index >= 0) list[index] = Object.assign({}, list[index], resp.node);
-      }
-      if (resp.sim) state.sim = resp.sim;
-      wbMarkDirty();
-    } catch (error) {
-      toast((error as Error)?.message || String(error), 'error', 6000);
-    }
-  }
 
-  async function wbCommitEdgeParam(
-    edgeId: string,
-    control: HTMLElement,
-    baseParams: Record<string, unknown>,
-  ): Promise<void> {
-    let values: Record<string, unknown>;
-    try {
-      values = collectParamValues(control.parentElement || control);
-    } catch (error) {
-      toast((error as Error).message, 'error', 5000);
-      return;
-    }
-    const merged = Object.assign({}, baseParams, values);
-    try {
-      const resp = (await jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, 'PATCH', {
-        params: merged,
-      })) as { edge?: EdgeItem; sim?: SimRec } | null;
-      if (!resp) return;
-      Object.assign(baseParams, values);
-      if (resp.edge) {
-        const list = state.scene?.edges || [];
-        const index = list.findIndex((item) => item.id === edgeId);
-        if (index >= 0) list[index] = Object.assign({}, list[index], resp.edge);
-      }
-      if (resp.sim) state.sim = resp.sim;
-      wbMarkDirty();
-    } catch (error) {
-      toast((error as Error)?.message || String(error), 'error', 6000);
-    }
-  }
 
-  async function wbCommitSimParam(key: string, control: HTMLElement): Promise<void> {
-    let values: Record<string, unknown>;
-    try {
-      values = collectParamValues(control.parentElement || control);
-    } catch (error) {
-      toast((error as Error).message, 'error', 5000);
-      return;
-    }
-    try {
-      const resp = (await jsonRequest('/api/config', 'PATCH', {
-        [key]: values[key],
-      })) as { config?: unknown; sim?: SimRec } | null;
-      if (!resp) return;
-      if (resp.sim) state.sim = resp.sim;
-      wbMarkDirty();
-    } catch (error) {
-      toast((error as Error)?.message || String(error), 'error', 6000);
-    }
-  }
 
-  async function wbCommitIntegration(control: HTMLElement): Promise<void> {
-    let values: Record<string, unknown>;
-    try {
-      values = collectParamValues(control.parentElement || control);
-    } catch (error) {
-      toast((error as Error).message, 'error', 5000);
-      return;
-    }
-    try {
-      const resp = (await jsonRequest('/api/scene', 'PATCH', {
-        integration: values['integration'],
-      })) as SnapshotRec | null;
-      if (!resp) return;
-      applySnapshot(resp);
-      wbMarkDirty();
-    } catch (error) {
-      toast((error as Error)?.message || String(error), 'error', 6000);
-    }
-  }
 
   function renderAnalysisPanel() {
     const pane = ui.analysisPane;

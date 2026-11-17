@@ -4350,19 +4350,25 @@ function setStatusHint(hint: string): void {
     clearTimeout(state.phaseTimer);
     clearTimeout(state.positionTimer);
     clearInterval(state.stateTimer);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2500);
+    // 桌面外壳：优先调用 pywebview 原生关闭（桌面模式下服务器按设计拒绝 /api/shutdown）。
+    const pywebviewApi = (window as any).pywebview?.api;
+    if (pywebviewApi && typeof pywebviewApi.window_close === 'function') {
+      try {
+        pywebviewApi.window_close();
+      } catch (error) {
+        // 原生关闭失败则回退到 HTTP 关闭。
+      }
+      return;
+    }
+    // 浏览器模式：统一走 api() 助手，自动附带桌面会话 token（X-Netlab-Token）。
     try {
-      await fetch('/api/shutdown', {
+      await api('/api/shutdown', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ confirm: true }),
-        signal: controller.signal,
+        timeoutMs: 2500,
       });
     } catch (error) {
       // 进程可能在响应完全读取前退出；忽略网络错误。
-    } finally {
-      clearTimeout(timer);
     }
     await new Promise((resolve) => setTimeout(resolve, 550));
     showShutdownScreen();

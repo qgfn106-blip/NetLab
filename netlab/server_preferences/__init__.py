@@ -73,8 +73,8 @@ def build_router(*, service: Any) -> APIRouter:
 
     @router.get("/api/settings")
     def settings_get() -> dict[str, Any]:
+        # 纯读取：不得把持久设置写回全局计算模式（避免与 /api/numeric-precision 互相覆盖）。
         settings = load_settings()
-        _apply_numeric_precision(settings)
         return {"settings": settings, "path": str(settings_file())}
 
     @router.patch("/api/settings")
@@ -95,6 +95,10 @@ def build_router(*, service: Any) -> APIRouter:
             analysis.set_numeric_precision_mode(request.mode)
         except (ValueError, TypeError):
             raise HTTPException(status_code=422, detail="mode 必须是 exact 或 standard")
+        # 同步持久化，避免下次 GET/PATCH /api/settings 用旧值覆盖本次设置。
+        settings = load_settings()
+        settings["numeric_precision"] = request.mode
+        save_settings(settings)
         return {"mode": analysis.numeric_precision_mode()}
 
     return router

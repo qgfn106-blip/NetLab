@@ -3972,18 +3972,21 @@ function setStatusHint(hint) {
     clearTimeout(state.phaseTimer);
     clearTimeout(state.positionTimer);
     clearInterval(state.stateTimer);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2500);
+    const pywebviewApi = window.pywebview?.api;
+    if (pywebviewApi && typeof pywebviewApi.window_close === "function") {
+      try {
+        pywebviewApi.window_close();
+      } catch (error) {
+      }
+      return;
+    }
     try {
-      await fetch("/api/shutdown", {
+      await api("/api/shutdown", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ confirm: true }),
-        signal: controller.signal
+        timeoutMs: 2500
       });
     } catch (error) {
-    } finally {
-      clearTimeout(timer);
     }
     await new Promise((resolve) => setTimeout(resolve, 550));
     showShutdownScreen();

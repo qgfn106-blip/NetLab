@@ -115,7 +115,7 @@ jobs:
           PYTHONPATH: .
         run: >
           mkdir -p reports &&
-          pytest netlab/tests -q
+          pytest netlab/tests mathspec/tests -q
           --cov=netlab/core --cov-branch --cov-fail-under=81
           --cov-report=term-missing:skip-covered
           --cov-report=json:coverage.json

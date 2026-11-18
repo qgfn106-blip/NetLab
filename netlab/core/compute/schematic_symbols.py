@@ -187,7 +187,11 @@ def primitive_segments(primitives: Iterable[Mapping[str, Any]]) -> list[Any]:
             segments.append(Segment([tuple(point) for point in primitive["points"]]))
         elif kind == "polygon":
             segments.append(
-                SegmentPoly([tuple(point) for point in primitive["points"]], closed=True, fill=False)
+                SegmentPoly(
+                    [tuple(point) for point in primitive["points"]],
+                    closed=True,
+                    fill=bool(primitive.get("fill", False)),
+                )
             )
         elif kind == "circle":
             segments.append(

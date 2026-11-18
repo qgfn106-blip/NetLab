@@ -35,9 +35,9 @@ def _load_schemdraw() -> tuple[Any, Any]:
         ) from exc
     # 保留可搜索/可访问的 <text>，而不是把文字转成 path 轮廓。
     matplotlib.rcParams["svg.fonttype"] = "none"
-    # 0.127 mm/world × 20 world/grid = 2.54 mm；1 world = 0.05 in。
-    # 不设置时 SchemDraw 默认 0.5 in/world，导出图为物理尺寸的 10 倍且线宽过细。
-    schemdraw.config(inches_per_unit=0.05)
+    # 0.127 mm/world × 20 world/grid = 2.54 mm；1 world = 0.127 mm = 0.005 in。
+    # 不设置时 SchemDraw 默认 0.5 in/world，导出图为物理尺寸的 100 倍且线宽过细。
+    schemdraw.config(inches_per_unit=0.005)
     return schemdraw, el
 
 
@@ -68,8 +68,8 @@ def _decorate_svg(svg: str, title: str, meta: str) -> str:
     svg = re.sub(r"(<svg\b[^>]*>)", r"\1" + head, svg, count=1)
     footer = (
         f'</g><text x="{outer_w - 12:g}" y="{outer_h - 10:g}" text-anchor="end" '
-        'font-family="Microsoft YaHei, sans-serif" font-size="7" fill="#777777">'
-        f"{html.escape(meta)} · NetLab</text></svg>"
+        'font-family="Microsoft YaHei, sans-serif" font-size="6" fill="#777777">'
+        "NetLab</text></svg>"
     )
     return svg.replace("</svg>", footer, 1)
 
@@ -179,7 +179,7 @@ def render_schematic_svg(ir: SchematicExportIR) -> str:
     """把 IR 渲染为 SVG 文本；不读写用户文件。"""
     schemdraw, el = _load_schemdraw()
     drawing = schemdraw.Drawing(show=False)
-    drawing.config(fontsize=9, font="Microsoft YaHei", lw=1.1)
+    drawing.config(fontsize=5.5, font="Microsoft YaHei", lw=0.8)
 
     # 先画导线：颜色/线宽统一，且不产生任何文字。
     for wire in ir.wires:
@@ -210,6 +210,13 @@ def render_schematic_svg(ir: SchematicExportIR) -> str:
             )
         )
 
+    for ground in ir.grounds:
+        try:
+            element = GBElement("ground", style=ir.style)
+        except (UnsupportedSymbolError, SymbolSpecError):
+            continue
+        drawing.add(element.at((float(ground.x), -float(ground.y))))
+
     for label in ir.labels:
         drawing.add(
             el.Label()
@@ -218,7 +225,7 @@ def render_schematic_svg(ir: SchematicExportIR) -> str:
                 label.text,
                 halign=_label_halign(label.placement),
                 valign=_label_valign(label.placement),
-                fontsize=8,
+                fontsize=5.5,
             )
         )
 
@@ -267,9 +274,10 @@ def export_schematic_document(
     title = " — ".join(
         part for part in (project_name.strip(), network_name.strip()) if part
     )
-    node_count = len(getattr(scene, "nodes", {}) or {})
-    edge_count = len(getattr(scene, "edges", {}) or {})
-    meta = f"{node_count} 节点 · {edge_count} 元件 · {style} · {route}"
+    meta = (
+        f"{ir.stats.nodes} 节点 · {ir.stats.devices} 元件 · "
+        f"{ir.stats.wires} 导线 · {style} · {route}"
+    )
     decorated = _decorate_svg(svg, title or "NetLab 原理图", meta)
     return {
         "ok": True,

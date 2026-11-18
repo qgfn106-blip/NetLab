@@ -1,411 +1,424 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
   "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="1414.93pt" height="989.052pt" viewBox="0 0 1414.93 989.052" xmlns="http://www.w3.org/2000/svg" version="1.1"><rect x="0.5" y="0.5" width="1413.93" height="988.052" fill="#ffffff" stroke="#333333" stroke-width="1.2"/>
-<rect x="5" y="5" width="1404.93" height="979.052" fill="none" stroke="#333333" stroke-width="0.6"/>
-<text x="10" y="19" font-family="Microsoft YaHei, sans-serif" font-size="10" font-weight="600" fill="#222222">桥式整流</text>
-<text x="10" y="29" font-family="Microsoft YaHei, sans-serif" font-size="7" fill="#666666">0 节点 · 0 元件 · gb · orthogonal</text>
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="179.827pt" height="151.646pt" viewBox="0 0 179.827 151.646" xmlns="http://www.w3.org/2000/svg" version="1.1"><rect x="0.5" y="0.5" width="178.827" height="150.646" fill="#ffffff" stroke="#333333" stroke-width="1.2"/>
+<rect x="5" y="5" width="169.827" height="141.646" fill="none" stroke="#333333" stroke-width="0.6"/>
+<text x="10" y="19" font-family="Microsoft YaHei, sans-serif" font-size="10" font-weight="600" fill="#222222">bridge_rectifier</text>
+<text x="10" y="29" font-family="Microsoft YaHei, sans-serif" font-size="7" fill="#666666">10 节点 · 6 元件 · 12 导线 · gb · orthogonal</text>
 <g transform="translate(18,34)">
-
+ 
  <defs>
   <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
  <g id="figure_1">
   <g id="patch_1">
-   <path d="M 0 925.05175
-L 1378.92925 925.05175
-L 1378.92925 0
-L 0 0
+   <path d="M 0 87.6456 
+L 143.827409 87.6456 
+L 143.827409 0 
+L 0 0 
 z
 " style="fill: #ffffff"/>
   </g>
   <g id="axes_1">
    <g id="patch_2">
-    <path d="M 388.46125 243.828
-L 388.46125 200.628
-L 424.46125 222.228
-L 388.46125 243.828
+    <path d="M 44.780609 24.3828 
+L 44.780609 20.0628 
+L 48.380609 22.2228 
+L 44.780609 24.3828 
 z
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="patch_3">
-    <path d="M 1036.46125 243.828
-L 1036.46125 200.628
-L 1072.46125 222.228
-L 1036.46125 243.828
+    <path d="M 109.580609 24.3828 
+L 109.580609 20.0628 
+L 113.180609 22.2228 
+L 109.580609 24.3828 
 z
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="patch_4">
-    <path d="M 388.46125 675.828
-L 388.46125 632.628
-L 424.46125 654.228
-L 388.46125 675.828
+    <path d="M 44.780609 67.5828 
+L 44.780609 63.2628 
+L 48.380609 65.4228 
+L 44.780609 67.5828 
 z
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="patch_5">
-    <path d="M 1036.46125 675.828
-L 1036.46125 632.628
-L 1072.46125 654.228
-L 1036.46125 675.828
+    <path d="M 109.580609 67.5828 
+L 109.580609 63.2628 
+L 113.180609 65.4228 
+L 109.580609 67.5828 
 z
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="patch_6">
-    <path d="M 712.46125 387.828
-L 712.46125 488.628
-L 748.46125 488.628
-L 748.46125 387.828
-L 712.46125 387.828
+    <path d="M 77.180609 38.7828 
+L 77.180609 48.8628 
+L 80.780609 48.8628 
+L 80.780609 38.7828 
+L 77.180609 38.7828 
 z
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="patch_7">
-    <path d="M 82.46125 690.228
-C 92.008562 690.228 101.166125 686.434813 107.917094 679.683844
-C 114.668063 672.932875 118.46125 663.775312 118.46125 654.228
-C 118.46125 644.680688 114.668063 635.523125 107.917094 628.772156
-C 101.166125 622.021187 92.008562 618.228 82.46125 618.228
-C 72.913938 618.228 63.756375 622.021187 57.005406 628.772156
-C 50.254437 635.523125 46.46125 644.680688 46.46125 654.228
-C 46.46125 663.775312 50.254437 672.932875 57.005406 679.683844
-C 63.756375 686.434813 72.913938 690.228 82.46125 690.228
-L 82.46125 690.228
+    <path d="M 14.180609 69.0228 
+C 15.135341 69.0228 16.051097 68.643481 16.726194 67.968384 
+C 17.401291 67.293288 17.780609 66.377531 17.780609 65.4228 
+C 17.780609 64.468069 17.401291 63.552312 16.726194 62.877216 
+C 16.051097 62.202119 15.135341 61.8228 14.180609 61.8228 
+C 13.225878 61.8228 12.310122 62.202119 11.635025 62.877216 
+C 10.959928 63.552312 10.580609 64.468069 10.580609 65.4228 
+C 10.580609 66.377531 10.959928 67.293288 11.635025 67.968384 
+C 12.310122 68.643481 13.225878 69.0228 14.180609 69.0228 
+L 14.180609 69.0228 
 z
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linejoin: miter"/>
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter"/>
    </g>
    <g id="line2d_1">
-    <path d="M 478.46125 654.228
-L 379.46125 654.228
-L 280.46125 654.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 53.780609 65.4228 
+L 55.580609 65.4228 
+L 57.380609 65.4228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_2">
-    <path d="M 280.46125 654.228
-L 280.46125 546.228
-L 280.46125 438.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 57.380609 65.4228 
+L 57.380609 54.6228 
+L 57.380609 43.8228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_3">
-    <path d="M 280.46125 438.228
-L 181.46125 438.228
-L 82.46125 438.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 57.380609 43.8228 
+L 35.780609 43.8228 
+L 14.180609 43.8228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_4">
-    <path d="M 1126.46125 654.228
-L 1189.46125 654.228
-L 1252.46125 654.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 118.580609 65.4228 
+L 120.380609 65.4228 
+L 122.180609 65.4228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_5">
-    <path d="M 1252.46125 654.228
-L 1252.46125 546.228
-L 1252.46125 438.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 122.180609 65.4228 
+L 122.180609 54.6228 
+L 122.180609 43.8228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_6">
-    <path d="M 1252.46125 438.228
-L 1315.46125 438.228
-L 1378.46125 438.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 122.180609 43.8228 
+L 132.980609 43.8228 
+L 143.780609 43.8228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_7">
-    <path d="M 82.46125 726.228
-L 244.46125 726.228
-L 406.46125 726.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 14.180609 72.6228 
+L 14.180609 79.8228 
+L 14.180609 87.0228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_8">
-    <path d="M 406.46125 726.228
-L 406.46125 798.228
-L 406.46125 870.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 14.180609 87.0228 
+L 46.580609 87.0228 
+L 78.980609 87.0228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_9">
-    <path d="M 406.46125 870.228
-L 568.46125 870.228
-L 730.46125 870.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 39.380609 22.2228 
+L 37.580609 22.2228 
+L 35.780609 22.2228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_10">
-    <path d="M 334.46125 222.228
-L 271.46125 222.228
-L 208.46125 222.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 35.780609 22.2228 
+L 35.780609 33.0228 
+L 35.780609 43.8228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_11">
-    <path d="M 208.46125 222.228
-L 208.46125 330.228
-L 208.46125 438.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 35.780609 43.8228 
+L 24.980609 43.8228 
+L 14.180609 43.8228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_12">
-    <path d="M 208.46125 438.228
-L 145.46125 438.228
-L 82.46125 438.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 39.380609 65.4228 
+L 37.580609 65.4228 
+L 35.780609 65.4228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_13">
-    <path d="M 334.46125 654.228
-L 433.46125 654.228
-L 532.46125 654.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 35.780609 65.4228 
+L 35.780609 76.2228 
+L 35.780609 87.0228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_14">
-    <path d="M 532.46125 654.228
-L 532.46125 762.228
-L 532.46125 870.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 35.780609 87.0228 
+L 57.380609 87.0228 
+L 78.980609 87.0228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_15">
-    <path d="M 532.46125 870.228
-L 631.46125 870.228
-L 730.46125 870.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 78.980609 36.6228 
+L 78.980609 18.6228 
+L 78.980609 0.6228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_16">
-    <path d="M 730.46125 366.228
-L 730.46125 186.228
-L 730.46125 6.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 53.780609 22.2228 
+L 55.580609 22.2228 
+L 57.380609 22.2228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_17">
-    <path d="M 478.46125 222.228
-L 541.46125 222.228
-L 604.46125 222.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 57.380609 22.2228 
+L 57.380609 11.4228 
+L 57.380609 0.6228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_18">
-    <path d="M 604.46125 222.228
-L 604.46125 114.228
-L 604.46125 6.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 57.380609 0.6228 
+L 68.180609 0.6228 
+L 78.980609 0.6228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_19">
-    <path d="M 604.46125 6.228
-L 667.46125 6.228
-L 730.46125 6.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 104.180609 65.4228 
+L 102.380609 65.4228 
+L 100.580609 65.4228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_20">
-    <path d="M 982.46125 654.228
-L 919.46125 654.228
-L 856.46125 654.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 100.580609 65.4228 
+L 100.580609 76.2228 
+L 100.580609 87.0228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_21">
-    <path d="M 856.46125 654.228
-L 856.46125 762.228
-L 856.46125 870.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 100.580609 87.0228 
+L 89.780609 87.0228 
+L 78.980609 87.0228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_22">
-    <path d="M 856.46125 870.228
-L 793.46125 870.228
-L 730.46125 870.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 104.180609 22.2228 
+L 102.380609 22.2228 
+L 100.580609 22.2228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_23">
-    <path d="M 982.46125 222.228
-L 1081.46125 222.228
-L 1180.46125 222.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 100.580609 22.2228 
+L 100.580609 33.0228 
+L 100.580609 43.8228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_24">
-    <path d="M 1180.46125 222.228
-L 1180.46125 330.228
-L 1180.46125 438.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 100.580609 43.8228 
+L 122.180609 43.8228 
+L 143.780609 43.8228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_25">
-    <path d="M 1180.46125 438.228
-L 1279.46125 438.228
-L 1378.46125 438.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 14.180609 58.2228 
+L 14.180609 51.0228 
+L 14.180609 43.8228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_26">
-    <path d="M 82.46125 582.228
-L 82.46125 510.228
-L 82.46125 438.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 78.980609 51.0228 
+L 78.980609 69.0228 
+L 78.980609 87.0228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_27">
-    <path d="M 730.46125 510.228
-L 730.46125 690.228
-L 730.46125 870.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 118.580609 22.2228 
+L 120.380609 22.2228 
+L 122.180609 22.2228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_28">
-    <path d="M 1126.46125 222.228
-L 1027.46125 222.228
-L 928.46125 222.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 122.180609 22.2228 
+L 122.180609 11.4228 
+L 122.180609 0.6228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_29">
-    <path d="M 928.46125 222.228
-L 928.46125 114.228
-L 928.46125 6.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 122.180609 0.6228 
+L 100.580609 0.6228 
+L 78.980609 0.6228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_30">
-    <path d="M 928.46125 6.228
-L 829.46125 6.228
-L 730.46125 6.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 39.380609 22.2228 
+L 44.780609 22.2228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_31">
-    <path d="M 334.46125 222.228
-L 388.46125 222.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 48.380609 24.3828 
+L 48.380609 20.0628 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_32">
-    <path d="M 424.46125 243.828
-L 424.46125 200.628
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 48.380609 22.2228 
+L 53.780609 22.2228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_33">
-    <path d="M 424.46125 222.228
-L 478.46125 222.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 104.180609 22.2228 
+L 109.580609 22.2228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_34">
-    <path d="M 982.46125 222.228
-L 1036.46125 222.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 113.180609 24.3828 
+L 113.180609 20.0628 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_35">
-    <path d="M 1072.46125 243.828
-L 1072.46125 200.628
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 113.180609 22.2228 
+L 118.580609 22.2228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_36">
-    <path d="M 1072.46125 222.228
-L 1126.46125 222.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 39.380609 65.4228 
+L 44.780609 65.4228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_37">
-    <path d="M 334.46125 654.228
-L 388.46125 654.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 48.380609 67.5828 
+L 48.380609 63.2628 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_38">
-    <path d="M 424.46125 675.828
-L 424.46125 632.628
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 48.380609 65.4228 
+L 53.780609 65.4228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_39">
-    <path d="M 424.46125 654.228
-L 478.46125 654.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 104.180609 65.4228 
+L 109.580609 65.4228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_40">
-    <path d="M 982.46125 654.228
-L 1036.46125 654.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 113.180609 67.5828 
+L 113.180609 63.2628 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_41">
-    <path d="M 1072.46125 675.828
-L 1072.46125 632.628
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 113.180609 65.4228 
+L 118.580609 65.4228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_42">
-    <path d="M 1072.46125 654.228
-L 1126.46125 654.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 78.980609 36.6228 
+L 78.980609 38.7828 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_43">
-    <path d="M 730.46125 366.228
-L 730.46125 387.828
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 78.980609 48.8628 
+L 78.980609 51.0228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_44">
-    <path d="M 730.46125 488.628
-L 730.46125 510.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 14.180609 58.2228 
+L 14.180609 61.8228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_45">
-    <path d="M 82.46125 582.228
-L 82.46125 618.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 14.180609 69.0228 
+L 14.180609 72.6228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="line2d_46">
-    <path d="M 82.46125 690.228
-L 82.46125 726.228
-" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 1.1; stroke-linecap: round"/>
+    <path d="M 14.180609 61.8228 
+L 14.180609 69.0228 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
+   </g>
+   <g id="line2d_47">
+    <path d="M 78.980609 87.0228 
+L 78.980609 84.1428 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
+   </g>
+   <g id="line2d_48">
+    <path d="M 83.300609 84.1428 
+L 74.660609 84.1428 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
+   </g>
+   <g id="line2d_49">
+    <path d="M 81.860609 82.7028 
+L 76.100609 82.7028 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
+   </g>
+   <g id="line2d_50">
+    <path d="M 80.420609 81.2628 
+L 77.540609 81.2628 
+" clip-path="url(#clip1)" style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linecap: round"/>
    </g>
    <g id="text_1">
-    <text style="font-size: 10px; font-family: 'Microsoft YaHei'; text-anchor: middle" x="96.86125" y="656.981906" transform="rotate(-0 96.86125 656.981906)">+</text>
+    <text style="font-size: 5.5px; font-family: 'Microsoft YaHei'; text-anchor: middle" x="111.344609" y="79.215362" transform="rotate(-0 111.344609 79.215362)">D4</text>
    </g>
    <g id="text_2">
-    <text style="font-size: 10px; font-family: 'Microsoft YaHei'; text-anchor: middle" x="60.86125" y="656.981906" transform="rotate(-0 60.86125 656.981906)">−</text>
+    <text style="font-size: 5.5px; font-family: 'Microsoft YaHei'; text-anchor: end" x="72.464609" y="45.373448" transform="rotate(-0 72.464609 45.373448)">RL</text>
    </g>
    <g id="text_3">
-    <text style="font-size: 8px; font-family: 'Microsoft YaHei'; text-anchor: middle" x="1054.10125" y="754.583" transform="rotate(-0 1054.10125 754.583)">D4</text>
+    <text style="font-size: 5.5px; font-family: 'Microsoft YaHei'; text-anchor: start" x="85.424609" y="45.373448" transform="rotate(-0 85.424609 45.373448)">100Ω</text>
    </g>
    <g id="text_4">
-    <text style="font-size: 8px; font-family: 'Microsoft YaHei'; text-anchor: end" x="665.30125" y="440.791125" transform="rotate(-0 665.30125 440.791125)">RL</text>
+    <text style="font-size: 5.5px; font-family: 'Microsoft YaHei'; text-anchor: middle" x="111.344609" y="36.015362" transform="rotate(-0 111.344609 36.015362)">D2</text>
    </g>
    <g id="text_5">
-    <text style="font-size: 8px; font-family: 'Microsoft YaHei'; text-anchor: start" x="794.90125" y="440.791125" transform="rotate(-0 794.90125 440.791125)">100Ω</text>
+    <text style="font-size: 5.5px; font-family: 'Microsoft YaHei'; text-anchor: end" x="6.944609" y="66.973448" transform="rotate(-0 6.944609 66.973448)">V1</text>
    </g>
    <g id="text_6">
-    <text style="font-size: 8px; font-family: 'Microsoft YaHei'; text-anchor: middle" x="1054.10125" y="322.583" transform="rotate(-0 1054.10125 322.583)">D2</text>
+    <text style="font-size: 5.5px; font-family: 'Microsoft YaHei'; text-anchor: middle" x="46.544609" y="36.015362" transform="rotate(-0 46.544609 36.015362)">D1</text>
    </g>
    <g id="text_7">
-    <text style="font-size: 8px; font-family: 'Microsoft YaHei'; text-anchor: end" x="10.10125" y="656.791125" transform="rotate(-0 10.10125 656.791125)">V1</text>
-   </g>
-   <g id="text_8">
-    <text style="font-size: 8px; font-family: 'Microsoft YaHei'; text-anchor: middle" x="406.10125" y="322.583" transform="rotate(-0 406.10125 322.583)">D1</text>
-   </g>
-   <g id="text_9">
-    <text style="font-size: 8px; font-family: 'Microsoft YaHei'; text-anchor: middle" x="406.10125" y="923.063" transform="rotate(-0 406.10125 923.063)">D3</text>
+    <text style="font-size: 5.5px; font-family: 'Microsoft YaHei'; text-anchor: middle" x="46.544609" y="79.215362" transform="rotate(-0 46.544609 79.215362)">D3</text>
    </g>
    <g id="patch_8">
-    <path d="M 82.46125 443.988
-C 83.98882 443.988 85.45403 443.38109 86.534185 442.300935
-C 87.61434 441.22078 88.22125 439.75557 88.22125 438.228
-C 88.22125 436.70043 87.61434 435.23522 86.534185 434.155065
-C 85.45403 433.07491 83.98882 432.468 82.46125 432.468
-C 80.93368 432.468 79.46847 433.07491 78.388315 434.155065
-C 77.30816 435.23522 76.70125 436.70043 76.70125 438.228
-C 76.70125 439.75557 77.30816 441.22078 78.388315 442.300935
-C 79.46847 443.38109 80.93368 443.988 82.46125 443.988
+    <path d="M 14.180609 44.3988 
+C 14.333366 44.3988 14.479887 44.338109 14.587903 44.230094 
+C 14.695918 44.122078 14.756609 43.975557 14.756609 43.8228 
+C 14.756609 43.670043 14.695918 43.523522 14.587903 43.415506 
+C 14.479887 43.307491 14.333366 43.2468 14.180609 43.2468 
+C 14.027852 43.2468 13.881331 43.307491 13.773316 43.415506 
+C 13.6653 43.523522 13.604609 43.670043 13.604609 43.8228 
+C 13.604609 43.975557 13.6653 44.122078 13.773316 44.230094 
+C 13.881331 44.338109 14.027852 44.3988 14.180609 44.3988 
 z
-" clip-path="url(#clip1)" style="stroke: #000000; stroke-width: 1.1; stroke-linejoin: miter"/>
+" clip-path="url(#clip1)" style="stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter"/>
    </g>
    <g id="patch_9">
-    <path d="M 730.46125 11.988
-C 731.98882 11.988 733.45403 11.38109 734.534185 10.300935
-C 735.61434 9.22078 736.22125 7.75557 736.22125 6.228
-C 736.22125 4.70043 735.61434 3.23522 734.534185 2.155065
-C 733.45403 1.07491 731.98882 0.468 730.46125 0.468
-C 728.93368 0.468 727.46847 1.07491 726.388315 2.155065
-C 725.30816 3.23522 724.70125 4.70043 724.70125 6.228
-C 724.70125 7.75557 725.30816 9.22078 726.388315 10.300935
-C 727.46847 11.38109 728.93368 11.988 730.46125 11.988
+    <path d="M 78.980609 1.1988 
+C 79.133366 1.1988 79.279887 1.138109 79.387903 1.030094 
+C 79.495918 0.922078 79.556609 0.775557 79.556609 0.6228 
+C 79.556609 0.470043 79.495918 0.323522 79.387903 0.215506 
+C 79.279887 0.107491 79.133366 0.0468 78.980609 0.0468 
+C 78.827852 0.0468 78.681331 0.107491 78.573316 0.215506 
+C 78.4653 0.323522 78.404609 0.470043 78.404609 0.6228 
+C 78.404609 0.775557 78.4653 0.922078 78.573316 1.030094 
+C 78.681331 1.138109 78.827852 1.1988 78.980609 1.1988 
 z
-" clip-path="url(#clip1)" style="stroke: #000000; stroke-width: 1.1; stroke-linejoin: miter"/>
+" clip-path="url(#clip1)" style="stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter"/>
    </g>
    <g id="patch_10">
-    <path d="M 730.46125 875.988
-C 731.98882 875.988 733.45403 875.38109 734.534185 874.300935
-C 735.61434 873.22078 736.22125 871.75557 736.22125 870.228
-C 736.22125 868.70043 735.61434 867.23522 734.534185 866.155065
-C 733.45403 865.07491 731.98882 864.468 730.46125 864.468
-C 728.93368 864.468 727.46847 865.07491 726.388315 866.155065
-C 725.30816 867.23522 724.70125 868.70043 724.70125 870.228
-C 724.70125 871.75557 725.30816 873.22078 726.388315 874.300935
-C 727.46847 875.38109 728.93368 875.988 730.46125 875.988
+    <path d="M 78.980609 87.5988 
+C 79.133366 87.5988 79.279887 87.538109 79.387903 87.430094 
+C 79.495918 87.322078 79.556609 87.175557 79.556609 87.0228 
+C 79.556609 86.870043 79.495918 86.723522 79.387903 86.615506 
+C 79.279887 86.507491 79.133366 86.4468 78.980609 86.4468 
+C 78.827852 86.4468 78.681331 86.507491 78.573316 86.615506 
+C 78.4653 86.723522 78.404609 86.870043 78.404609 87.0228 
+C 78.404609 87.175557 78.4653 87.322078 78.573316 87.430094 
+C 78.681331 87.538109 78.827852 87.5988 78.980609 87.5988 
 z
-" clip-path="url(#clip1)" style="stroke: #000000; stroke-width: 1.1; stroke-linejoin: miter"/>
+" clip-path="url(#clip1)" style="stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter"/>
    </g>
   </g>
  </g>
  <defs>
   <clipPath id="clip1">
-   <rect x="8.63965" y="0" width="1370.2896" height="917.936"/>
+   <rect x="6.829499" y="0" width="136.99791" height="87.6456"/>
   </clipPath>
  </defs>
-<g id="netlab-structure" display="none" data-schema="netlab-schematic-structure/1"><g class="netlab-symbol" data-owner-id="cc9a0d848145" data-kind="diode" data-name="D1" data-center-x="90.0" data-center-y="80.0" data-rotation="0.0" data-bbox-left="68.0" data-bbox-top="64.0" data-bbox-right="112.0" data-bbox-bottom="98.0"><circle class="netlab-pin-anchor" data-owner-id="cc9a0d848145" data-pin-name="A" data-pin-role="passive" data-x="70.0" data-y="80.0" cx="70.0" cy="-80.0" r="0"/><circle class="netlab-pin-anchor" data-owner-id="cc9a0d848145" data-pin-name="K" data-pin-role="passive" data-x="110.0" data-y="80.0" cx="110.0" cy="-80.0" r="0"/></g><g class="netlab-symbol" data-owner-id="4a80baad4013" data-kind="diode" data-name="D2" data-center-x="270.0" data-center-y="80.0" data-rotation="0.0" data-bbox-left="248.0" data-bbox-top="64.0" data-bbox-right="292.0" data-bbox-bottom="98.0"><circle class="netlab-pin-anchor" data-owner-id="4a80baad4013" data-pin-name="A" data-pin-role="passive" data-x="250.0" data-y="80.0" cx="250.0" cy="-80.0" r="0"/><circle class="netlab-pin-anchor" data-owner-id="4a80baad4013" data-pin-name="K" data-pin-role="passive" data-x="290.0" data-y="80.0" cx="290.0" cy="-80.0" r="0"/></g><g class="netlab-symbol" data-owner-id="d4153f68d847" data-kind="diode" data-name="D3" data-center-x="90.0" data-center-y="200.0" data-rotation="0.0" data-bbox-left="68.0" data-bbox-top="184.0" data-bbox-right="112.0" data-bbox-bottom="218.0"><circle class="netlab-pin-anchor" data-owner-id="d4153f68d847" data-pin-name="A" data-pin-role="passive" data-x="70.0" data-y="200.0" cx="70.0" cy="-200.0" r="0"/><circle class="netlab-pin-anchor" data-owner-id="d4153f68d847" data-pin-name="K" data-pin-role="passive" data-x="110.0" data-y="200.0" cx="110.0" cy="-200.0" r="0"/></g><g class="netlab-symbol" data-owner-id="0a7d078d9f39" data-kind="diode" data-name="D4" data-center-x="270.0" data-center-y="200.0" data-rotation="0.0" data-bbox-left="248.0" data-bbox-top="184.0" data-bbox-right="292.0" data-bbox-bottom="218.0"><circle class="netlab-pin-anchor" data-owner-id="0a7d078d9f39" data-pin-name="A" data-pin-role="passive" data-x="250.0" data-y="200.0" cx="250.0" cy="-200.0" r="0"/><circle class="netlab-pin-anchor" data-owner-id="0a7d078d9f39" data-pin-name="K" data-pin-role="passive" data-x="290.0" data-y="200.0" cx="290.0" cy="-200.0" r="0"/></g><g class="netlab-symbol" data-owner-id="4767ad80e2da" data-kind="resistor" data-name="RL" data-center-x="180.0" data-center-y="140.0" data-rotation="90.0" data-bbox-left="170.0" data-bbox-top="118.0" data-bbox-right="190.0" data-bbox-bottom="162.0"><circle class="netlab-pin-anchor" data-owner-id="4767ad80e2da" data-pin-name="1" data-pin-role="passive" data-x="180.0" data-y="120.0" cx="180.0" cy="-120.0" r="0"/><circle class="netlab-pin-anchor" data-owner-id="4767ad80e2da" data-pin-name="2" data-pin-role="passive" data-x="180.0" data-y="160.0" cx="180.0" cy="-160.0" r="0"/></g><g class="netlab-symbol" data-owner-id="c14e3dde339a" data-kind="vsource" data-name="V1" data-center-x="0.0" data-center-y="200.0" data-rotation="90.0" data-bbox-left="-12.0" data-bbox-top="178.0" data-bbox-right="12.0" data-bbox-bottom="222.0"><circle class="netlab-pin-anchor" data-owner-id="c14e3dde339a" data-pin-name="+" data-pin-role="output" data-x="-0.0" data-y="180.0" cx="-0.0" cy="-180.0" r="0"/><circle class="netlab-pin-anchor" data-owner-id="c14e3dde339a" data-pin-name="-" data-pin-role="output" data-x="0.0" data-y="220.0" cx="0.0" cy="-220.0" r="0"/></g><g class="netlab-wire" data-owner-id="0e384c228a48" data-net-id="64ad2f5b89eb" data-points="[[110.0,200.0],[55.0,200.0],[55.0,140.0],[0.0,140.0]]"><polyline points="110,200 55,200 55,140 0,140"/></g><g class="netlab-wire" data-owner-id="2d7b72e017cd" data-net-id="4ebfcc769539" data-points="[[290.0,200.0],[325.0,200.0],[325.0,140.0],[360.0,140.0]]"><polyline points="290,200 325,200 325,140 360,140"/></g><g class="netlab-wire" data-owner-id="34f974af1769" data-net-id="1a3cf95f9fc1" data-points="[[0.0,220.0],[90.0,220.0],[90.0,260.0],[180.0,260.0]]"><polyline points="0,220 90,220 90,260 180,260"/></g><g class="netlab-wire" data-owner-id="41170ab61945" data-net-id="64ad2f5b89eb" data-points="[[70.0,80.0],[35.0,80.0],[35.0,140.0],[0.0,140.0]]"><polyline points="70,80 35,80 35,140 0,140"/></g><g class="netlab-wire" data-owner-id="420a685ce4c6" data-net-id="1a3cf95f9fc1" data-points="[[70.0,200.0],[125.0,200.0],[125.0,260.0],[180.0,260.0]]"><polyline points="70,200 125,200 125,260 180,260"/></g><g class="netlab-wire" data-owner-id="86cc4995a660" data-net-id="4abd3985ba80" data-points="[[180.0,120.0],[180.0,20.0]]"><polyline points="180,120 180,20"/></g><g class="netlab-wire" data-owner-id="8ac1ce06be3d" data-net-id="4abd3985ba80" data-points="[[110.0,80.0],[145.0,80.0],[145.0,20.0],[180.0,20.0]]"><polyline points="110,80 145,80 145,20 180,20"/></g><g class="netlab-wire" data-owner-id="af0d3272a979" data-net-id="1a3cf95f9fc1" data-points="[[250.0,200.0],[215.0,200.0],[215.0,260.0],[180.0,260.0]]"><polyline points="250,200 215,200 215,260 180,260"/></g><g class="netlab-wire" data-owner-id="b428a4893300" data-net-id="4ebfcc769539" data-points="[[250.0,80.0],[305.0,80.0],[305.0,140.0],[360.0,140.0]]"><polyline points="250,80 305,80 305,140 360,140"/></g><g class="netlab-wire" data-owner-id="dfc722767450" data-net-id="64ad2f5b89eb" data-points="[[-0.0,180.0],[0.0,140.0]]"><polyline points="-0,180 0,140"/></g><g class="netlab-wire" data-owner-id="e7082b651425" data-net-id="1a3cf95f9fc1" data-points="[[180.0,160.0],[180.0,260.0]]"><polyline points="180,160 180,260"/></g><g class="netlab-wire" data-owner-id="fa1b03cf1519" data-net-id="4abd3985ba80" data-points="[[290.0,80.0],[235.0,80.0],[235.0,20.0],[180.0,20.0]]"><polyline points="290,80 235,80 235,20 180,20"/></g><circle class="netlab-junction" data-reason="branch" data-x="0.0" data-y="140.0" cx="0.0" cy="-140.0" r="1.6"/><circle class="netlab-junction" data-reason="branch" data-x="180.0" data-y="20.0" cx="180.0" cy="-20.0" r="1.6"/><circle class="netlab-junction" data-reason="branch" data-x="180.0" data-y="260.0" cx="180.0" cy="-260.0" r="1.6"/></g><metadata id="netlab-ir" data-schema="netlab-schematic-ir/1">{"crossings":[],"devices":[{"bbox":{"bottom":98.0,"left":68.0,"right":112.0,"top":64.0},"center":{"x":90.0,"y":80.0},"id":"cc9a0d848145","kind":"diode","name":"D1","params":{},"pins":[{"name":"A","required":true,"role":"passive","x":70.0,"y":80.0},{"name":"K","required":true,"role":"passive","x":110.0,"y":80.0}],"rotation_deg":0.0},{"bbox":{"bottom":98.0,"left":248.0,"right":292.0,"top":64.0},"center":{"x":270.0,"y":80.0},"id":"4a80baad4013","kind":"diode","name":"D2","params":{},"pins":[{"name":"A","required":true,"role":"passive","x":250.0,"y":80.0},{"name":"K","required":true,"role":"passive","x":290.0,"y":80.0}],"rotation_deg":0.0},{"bbox":{"bottom":218.0,"left":68.0,"right":112.0,"top":184.0},"center":{"x":90.0,"y":200.0},"id":"d4153f68d847","kind":"diode","name":"D3","params":{},"pins":[{"name":"A","required":true,"role":"passive","x":70.0,"y":200.0},{"name":"K","required":true,"role":"passive","x":110.0,"y":200.0}],"rotation_deg":0.0},{"bbox":{"bottom":218.0,"left":248.0,"right":292.0,"top":184.0},"center":{"x":270.0,"y":200.0},"id":"0a7d078d9f39","kind":"diode","name":"D4","params":{},"pins":[{"name":"A","required":true,"role":"passive","x":250.0,"y":200.0},{"name":"K","required":true,"role":"passive","x":290.0,"y":200.0}],"rotation_deg":0.0},{"bbox":{"bottom":162.0,"left":170.0,"right":190.0,"top":118.0},"center":{"x":180.0,"y":140.0},"id":"4767ad80e2da","kind":"resistor","name":"RL","params":{"R":100},"pins":[{"name":"1","required":true,"role":"passive","x":180.0,"y":120.0},{"name":"2","required":true,"role":"passive","x":180.0,"y":160.0}],"rotation_deg":90.0},{"bbox":{"bottom":222.0,"left":-12.0,"right":12.0,"top":178.0},"center":{"x":0.0,"y":200.0},"id":"c14e3dde339a","kind":"vsource","name":"V1","params":{"amplitude":12,"frequency":50,"offset":0,"wave":"sine"},"pins":[{"name":"+","required":true,"role":"output","x":-0.0,"y":180.0},{"name":"-","required":true,"role":"output","x":0.0,"y":220.0}],"rotation_deg":90.0}],"junctions":[{"reason":"branch","x":0.0,"y":140.0},{"reason":"branch","x":180.0,"y":20.0},{"reason":"branch","x":180.0,"y":260.0}],"labels":[{"anchor":{"x":270.0,"y":226.0},"owner_id":"0a7d078d9f39","placement":"below","role":"designator","text":"D4"},{"anchor":{"x":162.0,"y":140.0},"owner_id":"4767ad80e2da","placement":"left","role":"designator","text":"RL"},{"anchor":{"x":198.0,"y":140.0},"owner_id":"4767ad80e2da","placement":"right","role":"value","text":"100Ω"},{"anchor":{"x":270.0,"y":106.0},"owner_id":"4a80baad4013","placement":"below","role":"designator","text":"D2"},{"anchor":{"x":-20.0,"y":200.0},"owner_id":"c14e3dde339a","placement":"left","role":"designator","text":"V1"},{"anchor":{"x":90.0,"y":106.0},"owner_id":"cc9a0d848145","placement":"below","role":"designator","text":"D1"},{"anchor":{"x":90.0,"y":272.8},"owner_id":"d4153f68d847","placement":"below","role":"designator","text":"D3"}],"nets":[{"id":"1a3cf95f9fc1","is_ground":true,"members":[{"device":"0a7d078d9f39","pin":"A"},{"device":"4767ad80e2da","pin":"2"},{"device":"c14e3dde339a","pin":"-"},{"device":"d4153f68d847","pin":"A"}],"name":"NEG"},{"id":"4abd3985ba80","is_ground":false,"members":[{"device":"4767ad80e2da","pin":"1"},{"device":"4a80baad4013","pin":"K"},{"device":"cc9a0d848145","pin":"K"}],"name":"POS"},{"id":"4ebfcc769539","is_ground":false,"members":[{"device":"0a7d078d9f39","pin":"K"},{"device":"4a80baad4013","pin":"A"}],"name":"AC_R"},{"id":"64ad2f5b89eb","is_ground":false,"members":[{"device":"c14e3dde339a","pin":"+"},{"device":"cc9a0d848145","pin":"A"},{"device":"d4153f68d847","pin":"K"}],"name":"AC_L"}],"schema":"netlab-schematic-ir/1","stats":{"crossings":0,"devices":6,"junctions":3,"labels":7,"nodes":10,"unsupported":0,"warnings":0,"wires":12},"style":"gb","units":{"grid_mm":2.54,"mm_per_world":0.127,"svg":"pt","world":"netlab-world"},"unsupported":[],"warnings":[],"wires":[{"id":"0e384c228a48","net_id":"64ad2f5b89eb","points":[{"x":110.0,"y":200.0},{"x":55.0,"y":200.0},{"x":55.0,"y":140.0},{"x":0.0,"y":140.0}],"route_source":"orthogonal","source_pin":"K","target_pin":""},{"id":"2d7b72e017cd","net_id":"4ebfcc769539","points":[{"x":290.0,"y":200.0},{"x":325.0,"y":200.0},{"x":325.0,"y":140.0},{"x":360.0,"y":140.0}],"route_source":"orthogonal","source_pin":"K","target_pin":""},{"id":"34f974af1769","net_id":"1a3cf95f9fc1","points":[{"x":0.0,"y":220.0},{"x":90.0,"y":220.0},{"x":90.0,"y":260.0},{"x":180.0,"y":260.0}],"route_source":"orthogonal","source_pin":"-","target_pin":""},{"id":"41170ab61945","net_id":"64ad2f5b89eb","points":[{"x":70.0,"y":80.0},{"x":35.0,"y":80.0},{"x":35.0,"y":140.0},{"x":0.0,"y":140.0}],"route_source":"orthogonal","source_pin":"A","target_pin":""},{"id":"420a685ce4c6","net_id":"1a3cf95f9fc1","points":[{"x":70.0,"y":200.0},{"x":125.0,"y":200.0},{"x":125.0,"y":260.0},{"x":180.0,"y":260.0}],"route_source":"orthogonal","source_pin":"A","target_pin":""},{"id":"86cc4995a660","net_id":"4abd3985ba80","points":[{"x":180.0,"y":120.0},{"x":180.0,"y":20.0}],"route_source":"orthogonal","source_pin":"1","target_pin":""},{"id":"8ac1ce06be3d","net_id":"4abd3985ba80","points":[{"x":110.0,"y":80.0},{"x":145.0,"y":80.0},{"x":145.0,"y":20.0},{"x":180.0,"y":20.0}],"route_source":"orthogonal","source_pin":"K","target_pin":""},{"id":"af0d3272a979","net_id":"1a3cf95f9fc1","points":[{"x":250.0,"y":200.0},{"x":215.0,"y":200.0},{"x":215.0,"y":260.0},{"x":180.0,"y":260.0}],"route_source":"orthogonal","source_pin":"A","target_pin":""},{"id":"b428a4893300","net_id":"4ebfcc769539","points":[{"x":250.0,"y":80.0},{"x":305.0,"y":80.0},{"x":305.0,"y":140.0},{"x":360.0,"y":140.0}],"route_source":"orthogonal","source_pin":"A","target_pin":""},{"id":"dfc722767450","net_id":"64ad2f5b89eb","points":[{"x":-0.0,"y":180.0},{"x":0.0,"y":140.0}],"route_source":"orthogonal","source_pin":"+","target_pin":""},{"id":"e7082b651425","net_id":"1a3cf95f9fc1","points":[{"x":180.0,"y":160.0},{"x":180.0,"y":260.0}],"route_source":"orthogonal","source_pin":"2","target_pin":""},{"id":"fa1b03cf1519","net_id":"4abd3985ba80","points":[{"x":290.0,"y":80.0},{"x":235.0,"y":80.0},{"x":235.0,"y":20.0},{"x":180.0,"y":20.0}],"route_source":"orthogonal","source_pin":"K","target_pin":""}]}</metadata></g><text x="1402.93" y="979.052" text-anchor="end" font-family="Microsoft YaHei, sans-serif" font-size="7" fill="#777777">0 节点 · 0 元件 · gb · orthogonal · NetLab</text></svg>
+<g id="netlab-structure" display="none" data-schema="netlab-schematic-structure/1"><g class="netlab-symbol" data-owner-id="cc9a0d848145" data-kind="diode" data-name="D1" data-center-x="90.0" data-center-y="80.0" data-rotation="0.0" data-bbox-left="68.0" data-bbox-top="64.0" data-bbox-right="112.0" data-bbox-bottom="98.0"><circle class="netlab-pin-anchor" data-owner-id="cc9a0d848145" data-pin-name="A" data-pin-role="passive" data-x="70.0" data-y="80.0" cx="70.0" cy="-80.0" r="0"/><circle class="netlab-pin-anchor" data-owner-id="cc9a0d848145" data-pin-name="K" data-pin-role="passive" data-x="110.0" data-y="80.0" cx="110.0" cy="-80.0" r="0"/></g><g class="netlab-symbol" data-owner-id="4a80baad4013" data-kind="diode" data-name="D2" data-center-x="270.0" data-center-y="80.0" data-rotation="0.0" data-bbox-left="248.0" data-bbox-top="64.0" data-bbox-right="292.0" data-bbox-bottom="98.0"><circle class="netlab-pin-anchor" data-owner-id="4a80baad4013" data-pin-name="A" data-pin-role="passive" data-x="250.0" data-y="80.0" cx="250.0" cy="-80.0" r="0"/><circle class="netlab-pin-anchor" data-owner-id="4a80baad4013" data-pin-name="K" data-pin-role="passive" data-x="290.0" data-y="80.0" cx="290.0" cy="-80.0" r="0"/></g><g class="netlab-symbol" data-owner-id="d4153f68d847" data-kind="diode" data-name="D3" data-center-x="90.0" data-center-y="200.0" data-rotation="0.0" data-bbox-left="68.0" data-bbox-top="184.0" data-bbox-right="112.0" data-bbox-bottom="218.0"><circle class="netlab-pin-anchor" data-owner-id="d4153f68d847" data-pin-name="A" data-pin-role="passive" data-x="70.0" data-y="200.0" cx="70.0" cy="-200.0" r="0"/><circle class="netlab-pin-anchor" data-owner-id="d4153f68d847" data-pin-name="K" data-pin-role="passive" data-x="110.0" data-y="200.0" cx="110.0" cy="-200.0" r="0"/></g><g class="netlab-symbol" data-owner-id="0a7d078d9f39" data-kind="diode" data-name="D4" data-center-x="270.0" data-center-y="200.0" data-rotation="0.0" data-bbox-left="248.0" data-bbox-top="184.0" data-bbox-right="292.0" data-bbox-bottom="218.0"><circle class="netlab-pin-anchor" data-owner-id="0a7d078d9f39" data-pin-name="A" data-pin-role="passive" data-x="250.0" data-y="200.0" cx="250.0" cy="-200.0" r="0"/><circle class="netlab-pin-anchor" data-owner-id="0a7d078d9f39" data-pin-name="K" data-pin-role="passive" data-x="290.0" data-y="200.0" cx="290.0" cy="-200.0" r="0"/></g><g class="netlab-symbol" data-owner-id="4767ad80e2da" data-kind="resistor" data-name="RL" data-center-x="180.0" data-center-y="140.0" data-rotation="90.0" data-bbox-left="170.0" data-bbox-top="118.0" data-bbox-right="190.0" data-bbox-bottom="162.0"><circle class="netlab-pin-anchor" data-owner-id="4767ad80e2da" data-pin-name="1" data-pin-role="passive" data-x="180.0" data-y="120.0" cx="180.0" cy="-120.0" r="0"/><circle class="netlab-pin-anchor" data-owner-id="4767ad80e2da" data-pin-name="2" data-pin-role="passive" data-x="180.0" data-y="160.0" cx="180.0" cy="-160.0" r="0"/></g><g class="netlab-symbol" data-owner-id="c14e3dde339a" data-kind="vsource" data-name="V1" data-center-x="0.0" data-center-y="200.0" data-rotation="90.0" data-bbox-left="-12.0" data-bbox-top="178.0" data-bbox-right="12.0" data-bbox-bottom="222.0"><circle class="netlab-pin-anchor" data-owner-id="c14e3dde339a" data-pin-name="+" data-pin-role="output" data-x="-0.0" data-y="180.0" cx="-0.0" cy="-180.0" r="0"/><circle class="netlab-pin-anchor" data-owner-id="c14e3dde339a" data-pin-name="-" data-pin-role="output" data-x="0.0" data-y="220.0" cx="0.0" cy="-220.0" r="0"/></g><g class="netlab-wire" data-owner-id="0e384c228a48" data-net-id="64ad2f5b89eb" data-points="[[110.0,200.0],[120.0,200.0],[120.0,140.0],[0.0,140.0]]"><polyline points="110,200 120,200 120,140 0,140"/></g><g class="netlab-wire" data-owner-id="2d7b72e017cd" data-net-id="4ebfcc769539" data-points="[[290.0,200.0],[300.0,200.0],[300.0,140.0],[360.0,140.0]]"><polyline points="290,200 300,200 300,140 360,140"/></g><g class="netlab-wire" data-owner-id="34f974af1769" data-net-id="1a3cf95f9fc1" data-points="[[0.0,220.0],[0.0,260.0],[180.0,260.0]]"><polyline points="0,220 0,260 180,260"/></g><g class="netlab-wire" data-owner-id="41170ab61945" data-net-id="64ad2f5b89eb" data-points="[[70.0,80.0],[60.0,80.0],[60.0,140.0],[0.0,140.0]]"><polyline points="70,80 60,80 60,140 0,140"/></g><g class="netlab-wire" data-owner-id="420a685ce4c6" data-net-id="1a3cf95f9fc1" data-points="[[70.0,200.0],[60.0,200.0],[60.0,260.0],[180.0,260.0]]"><polyline points="70,200 60,200 60,260 180,260"/></g><g class="netlab-wire" data-owner-id="86cc4995a660" data-net-id="4abd3985ba80" data-points="[[180.0,120.0],[180.0,20.0]]"><polyline points="180,120 180,20"/></g><g class="netlab-wire" data-owner-id="8ac1ce06be3d" data-net-id="4abd3985ba80" data-points="[[110.0,80.0],[120.0,80.0],[120.0,20.0],[180.0,20.0]]"><polyline points="110,80 120,80 120,20 180,20"/></g><g class="netlab-wire" data-owner-id="af0d3272a979" data-net-id="1a3cf95f9fc1" data-points="[[250.0,200.0],[240.0,200.0],[240.0,260.0],[180.0,260.0]]"><polyline points="250,200 240,200 240,260 180,260"/></g><g class="netlab-wire" data-owner-id="b428a4893300" data-net-id="4ebfcc769539" data-points="[[250.0,80.0],[240.0,80.0],[240.0,140.0],[360.0,140.0]]"><polyline points="250,80 240,80 240,140 360,140"/></g><g class="netlab-wire" data-owner-id="dfc722767450" data-net-id="64ad2f5b89eb" data-points="[[-0.0,180.0],[-0.0,140.0]]"><polyline points="-0,180 -0,140"/></g><g class="netlab-wire" data-owner-id="e7082b651425" data-net-id="1a3cf95f9fc1" data-points="[[180.0,160.0],[180.0,260.0]]"><polyline points="180,160 180,260"/></g><g class="netlab-wire" data-owner-id="fa1b03cf1519" data-net-id="4abd3985ba80" data-points="[[290.0,80.0],[300.0,80.0],[300.0,20.0],[180.0,20.0]]"><polyline points="290,80 300,80 300,20 180,20"/></g><circle class="netlab-junction" data-reason="branch" data-x="0.0" data-y="140.0" cx="0.0" cy="-140.0" r="1.6"/><circle class="netlab-junction" data-reason="branch" data-x="180.0" data-y="20.0" cx="180.0" cy="-20.0" r="1.6"/><circle class="netlab-junction" data-reason="branch" data-x="180.0" data-y="260.0" cx="180.0" cy="-260.0" r="1.6"/></g><metadata id="netlab-ir" data-schema="netlab-schematic-ir/1">{"crossings":[],"devices":[{"bbox":{"bottom":98.0,"left":68.0,"right":112.0,"top":64.0},"center":{"x":90.0,"y":80.0},"id":"cc9a0d848145","kind":"diode","name":"D1","params":{},"pins":[{"name":"A","required":true,"role":"passive","x":70.0,"y":80.0},{"name":"K","required":true,"role":"passive","x":110.0,"y":80.0}],"rotation_deg":0.0},{"bbox":{"bottom":98.0,"left":248.0,"right":292.0,"top":64.0},"center":{"x":270.0,"y":80.0},"id":"4a80baad4013","kind":"diode","name":"D2","params":{},"pins":[{"name":"A","required":true,"role":"passive","x":250.0,"y":80.0},{"name":"K","required":true,"role":"passive","x":290.0,"y":80.0}],"rotation_deg":0.0},{"bbox":{"bottom":218.0,"left":68.0,"right":112.0,"top":184.0},"center":{"x":90.0,"y":200.0},"id":"d4153f68d847","kind":"diode","name":"D3","params":{},"pins":[{"name":"A","required":true,"role":"passive","x":70.0,"y":200.0},{"name":"K","required":true,"role":"passive","x":110.0,"y":200.0}],"rotation_deg":0.0},{"bbox":{"bottom":218.0,"left":248.0,"right":292.0,"top":184.0},"center":{"x":270.0,"y":200.0},"id":"0a7d078d9f39","kind":"diode","name":"D4","params":{},"pins":[{"name":"A","required":true,"role":"passive","x":250.0,"y":200.0},{"name":"K","required":true,"role":"passive","x":290.0,"y":200.0}],"rotation_deg":0.0},{"bbox":{"bottom":162.0,"left":170.0,"right":190.0,"top":118.0},"center":{"x":180.0,"y":140.0},"id":"4767ad80e2da","kind":"resistor","name":"RL","params":{"R":100},"pins":[{"name":"1","required":true,"role":"passive","x":180.0,"y":120.0},{"name":"2","required":true,"role":"passive","x":180.0,"y":160.0}],"rotation_deg":90.0},{"bbox":{"bottom":222.0,"left":-12.0,"right":12.0,"top":178.0},"center":{"x":0.0,"y":200.0},"id":"c14e3dde339a","kind":"vsource","name":"V1","params":{"amplitude":12,"frequency":50,"offset":0,"wave":"sine"},"pins":[{"name":"+","required":true,"role":"output","x":-0.0,"y":180.0},{"name":"-","required":true,"role":"output","x":0.0,"y":220.0}],"rotation_deg":90.0}],"grounds":[{"id":"1a3cf95f9fc1","net_id":"1a3cf95f9fc1","x":180.0,"y":260.0}],"junctions":[{"reason":"branch","x":0.0,"y":140.0},{"reason":"branch","x":180.0,"y":20.0},{"reason":"branch","x":180.0,"y":260.0}],"labels":[{"anchor":{"x":270.0,"y":226.0},"owner_id":"0a7d078d9f39","placement":"below","role":"designator","text":"D4"},{"anchor":{"x":162.0,"y":140.0},"owner_id":"4767ad80e2da","placement":"left","role":"designator","text":"RL"},{"anchor":{"x":198.0,"y":140.0},"owner_id":"4767ad80e2da","placement":"right","role":"value","text":"100Ω"},{"anchor":{"x":270.0,"y":106.0},"owner_id":"4a80baad4013","placement":"below","role":"designator","text":"D2"},{"anchor":{"x":-20.0,"y":200.0},"owner_id":"c14e3dde339a","placement":"left","role":"designator","text":"V1"},{"anchor":{"x":90.0,"y":106.0},"owner_id":"cc9a0d848145","placement":"below","role":"designator","text":"D1"},{"anchor":{"x":90.0,"y":226.0},"owner_id":"d4153f68d847","placement":"below","role":"designator","text":"D3"}],"nets":[{"id":"1a3cf95f9fc1","is_ground":true,"members":[{"device":"0a7d078d9f39","pin":"A"},{"device":"4767ad80e2da","pin":"2"},{"device":"c14e3dde339a","pin":"-"},{"device":"d4153f68d847","pin":"A"}],"name":"NEG"},{"id":"4abd3985ba80","is_ground":false,"members":[{"device":"4767ad80e2da","pin":"1"},{"device":"4a80baad4013","pin":"K"},{"device":"cc9a0d848145","pin":"K"}],"name":"POS"},{"id":"4ebfcc769539","is_ground":false,"members":[{"device":"0a7d078d9f39","pin":"K"},{"device":"4a80baad4013","pin":"A"}],"name":"AC_R"},{"id":"64ad2f5b89eb","is_ground":false,"members":[{"device":"c14e3dde339a","pin":"+"},{"device":"cc9a0d848145","pin":"A"},{"device":"d4153f68d847","pin":"K"}],"name":"AC_L"}],"schema":"netlab-schematic-ir/1","stats":{"crossings":0,"devices":6,"junctions":3,"labels":7,"nodes":10,"unsupported":0,"warnings":0,"wires":12},"style":"gb","units":{"grid_mm":2.54,"mm_per_world":0.127,"svg":"pt","world":"netlab-world"},"unsupported":[],"warnings":[],"wires":[{"id":"0e384c228a48","net_id":"64ad2f5b89eb","points":[{"x":110.0,"y":200.0},{"x":120.0,"y":200.0},{"x":120.0,"y":140.0},{"x":0.0,"y":140.0}],"route_source":"orthogonal","source_pin":"K","target_pin":""},{"id":"2d7b72e017cd","net_id":"4ebfcc769539","points":[{"x":290.0,"y":200.0},{"x":300.0,"y":200.0},{"x":300.0,"y":140.0},{"x":360.0,"y":140.0}],"route_source":"orthogonal","source_pin":"K","target_pin":""},{"id":"34f974af1769","net_id":"1a3cf95f9fc1","points":[{"x":0.0,"y":220.0},{"x":0.0,"y":260.0},{"x":180.0,"y":260.0}],"route_source":"orthogonal","source_pin":"-","target_pin":""},{"id":"41170ab61945","net_id":"64ad2f5b89eb","points":[{"x":70.0,"y":80.0},{"x":60.0,"y":80.0},{"x":60.0,"y":140.0},{"x":0.0,"y":140.0}],"route_source":"orthogonal","source_pin":"A","target_pin":""},{"id":"420a685ce4c6","net_id":"1a3cf95f9fc1","points":[{"x":70.0,"y":200.0},{"x":60.0,"y":200.0},{"x":60.0,"y":260.0},{"x":180.0,"y":260.0}],"route_source":"orthogonal","source_pin":"A","target_pin":""},{"id":"86cc4995a660","net_id":"4abd3985ba80","points":[{"x":180.0,"y":120.0},{"x":180.0,"y":20.0}],"route_source":"orthogonal","source_pin":"1","target_pin":""},{"id":"8ac1ce06be3d","net_id":"4abd3985ba80","points":[{"x":110.0,"y":80.0},{"x":120.0,"y":80.0},{"x":120.0,"y":20.0},{"x":180.0,"y":20.0}],"route_source":"orthogonal","source_pin":"K","target_pin":""},{"id":"af0d3272a979","net_id":"1a3cf95f9fc1","points":[{"x":250.0,"y":200.0},{"x":240.0,"y":200.0},{"x":240.0,"y":260.0},{"x":180.0,"y":260.0}],"route_source":"orthogonal","source_pin":"A","target_pin":""},{"id":"b428a4893300","net_id":"4ebfcc769539","points":[{"x":250.0,"y":80.0},{"x":240.0,"y":80.0},{"x":240.0,"y":140.0},{"x":360.0,"y":140.0}],"route_source":"orthogonal","source_pin":"A","target_pin":""},{"id":"dfc722767450","net_id":"64ad2f5b89eb","points":[{"x":-0.0,"y":180.0},{"x":-0.0,"y":140.0}],"route_source":"orthogonal","source_pin":"+","target_pin":""},{"id":"e7082b651425","net_id":"1a3cf95f9fc1","points":[{"x":180.0,"y":160.0},{"x":180.0,"y":260.0}],"route_source":"orthogonal","source_pin":"2","target_pin":""},{"id":"fa1b03cf1519","net_id":"4abd3985ba80","points":[{"x":290.0,"y":80.0},{"x":300.0,"y":80.0},{"x":300.0,"y":20.0},{"x":180.0,"y":20.0}],"route_source":"orthogonal","source_pin":"K","target_pin":""}]}</metadata></g><text x="167.827" y="141.646" text-anchor="end" font-family="Microsoft YaHei, sans-serif" font-size="6" fill="#777777">NetLab</text></svg>

@@ -1,305 +1,223 @@
 {
-  "crossings": [],
+  "schema": "netlab-schematic-ir/1",
+  "units": {
+    "world": "netlab-world",
+    "svg": "pt",
+    "mm_per_world": 0.127,
+    "grid_mm": 2.54
+  },
+  "style": "gb",
   "devices": [
     {
-      "bbox": {
-        "bottom": 98.0,
-        "left": 68.0,
-        "right": 112.0,
-        "top": 64.0
-      },
-      "center": {
-        "x": 90.0,
-        "y": 80.0
-      },
       "id": "cc9a0d848145",
       "kind": "diode",
       "name": "D1",
       "params": {},
+      "center": {
+        "x": 90.0,
+        "y": 80.0
+      },
+      "rotation_deg": 0.0,
+      "bbox": {
+        "left": 68.0,
+        "top": 64.0,
+        "right": 112.0,
+        "bottom": 98.0
+      },
       "pins": [
         {
           "name": "A",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 70.0,
           "y": 80.0
         },
         {
           "name": "K",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 110.0,
           "y": 80.0
         }
-      ],
-      "rotation_deg": 0.0
+      ]
     },
     {
-      "bbox": {
-        "bottom": 98.0,
-        "left": 248.0,
-        "right": 292.0,
-        "top": 64.0
-      },
-      "center": {
-        "x": 270.0,
-        "y": 80.0
-      },
       "id": "4a80baad4013",
       "kind": "diode",
       "name": "D2",
       "params": {},
+      "center": {
+        "x": 270.0,
+        "y": 80.0
+      },
+      "rotation_deg": 0.0,
+      "bbox": {
+        "left": 248.0,
+        "top": 64.0,
+        "right": 292.0,
+        "bottom": 98.0
+      },
       "pins": [
         {
           "name": "A",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 250.0,
           "y": 80.0
         },
         {
           "name": "K",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 290.0,
           "y": 80.0
         }
-      ],
-      "rotation_deg": 0.0
+      ]
     },
     {
-      "bbox": {
-        "bottom": 218.0,
-        "left": 68.0,
-        "right": 112.0,
-        "top": 184.0
-      },
-      "center": {
-        "x": 90.0,
-        "y": 200.0
-      },
       "id": "d4153f68d847",
       "kind": "diode",
       "name": "D3",
       "params": {},
+      "center": {
+        "x": 90.0,
+        "y": 200.0
+      },
+      "rotation_deg": 0.0,
+      "bbox": {
+        "left": 68.0,
+        "top": 184.0,
+        "right": 112.0,
+        "bottom": 218.0
+      },
       "pins": [
         {
           "name": "A",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 70.0,
           "y": 200.0
         },
         {
           "name": "K",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 110.0,
           "y": 200.0
         }
-      ],
-      "rotation_deg": 0.0
+      ]
     },
     {
-      "bbox": {
-        "bottom": 218.0,
-        "left": 248.0,
-        "right": 292.0,
-        "top": 184.0
-      },
-      "center": {
-        "x": 270.0,
-        "y": 200.0
-      },
       "id": "0a7d078d9f39",
       "kind": "diode",
       "name": "D4",
       "params": {},
+      "center": {
+        "x": 270.0,
+        "y": 200.0
+      },
+      "rotation_deg": 0.0,
+      "bbox": {
+        "left": 248.0,
+        "top": 184.0,
+        "right": 292.0,
+        "bottom": 218.0
+      },
       "pins": [
         {
           "name": "A",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 250.0,
           "y": 200.0
         },
         {
           "name": "K",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 290.0,
           "y": 200.0
         }
-      ],
-      "rotation_deg": 0.0
+      ]
     },
     {
-      "bbox": {
-        "bottom": 162.0,
-        "left": 170.0,
-        "right": 190.0,
-        "top": 118.0
-      },
-      "center": {
-        "x": 180.0,
-        "y": 140.0
-      },
       "id": "4767ad80e2da",
       "kind": "resistor",
       "name": "RL",
       "params": {
         "R": 100
       },
+      "center": {
+        "x": 180.0,
+        "y": 140.0
+      },
+      "rotation_deg": 90.0,
+      "bbox": {
+        "left": 170.0,
+        "top": 118.0,
+        "right": 190.0,
+        "bottom": 162.0
+      },
       "pins": [
         {
           "name": "1",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 180.0,
           "y": 120.0
         },
         {
           "name": "2",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 180.0,
           "y": 160.0
         }
-      ],
-      "rotation_deg": 90.0
+      ]
     },
     {
-      "bbox": {
-        "bottom": 222.0,
-        "left": -12.0,
-        "right": 12.0,
-        "top": 178.0
+      "id": "c14e3dde339a",
+      "kind": "vsource",
+      "name": "V1",
+      "params": {
+        "wave": "sine",
+        "offset": 0,
+        "amplitude": 12,
+        "frequency": 50
       },
       "center": {
         "x": 0.0,
         "y": 200.0
       },
-      "id": "c14e3dde339a",
-      "kind": "vsource",
-      "name": "V1",
-      "params": {
-        "amplitude": 12,
-        "frequency": 50,
-        "offset": 0,
-        "wave": "sine"
+      "rotation_deg": 90.0,
+      "bbox": {
+        "left": -12.0,
+        "top": 178.0,
+        "right": 12.0,
+        "bottom": 222.0
       },
       "pins": [
         {
           "name": "+",
-          "required": true,
           "role": "output",
+          "required": true,
           "x": -0.0,
           "y": 180.0
         },
         {
           "name": "-",
-          "required": true,
           "role": "output",
+          "required": true,
           "x": 0.0,
           "y": 220.0
         }
-      ],
-      "rotation_deg": 90.0
-    }
-  ],
-  "junctions": [
-    {
-      "reason": "branch",
-      "x": 0.0,
-      "y": 140.0
-    },
-    {
-      "reason": "branch",
-      "x": 180.0,
-      "y": 20.0
-    },
-    {
-      "reason": "branch",
-      "x": 180.0,
-      "y": 260.0
-    }
-  ],
-  "labels": [
-    {
-      "anchor": {
-        "x": 270.0,
-        "y": 226.0
-      },
-      "owner_id": "0a7d078d9f39",
-      "placement": "below",
-      "role": "designator",
-      "text": "D4"
-    },
-    {
-      "anchor": {
-        "x": 162.0,
-        "y": 140.0
-      },
-      "owner_id": "4767ad80e2da",
-      "placement": "left",
-      "role": "designator",
-      "text": "RL"
-    },
-    {
-      "anchor": {
-        "x": 198.0,
-        "y": 140.0
-      },
-      "owner_id": "4767ad80e2da",
-      "placement": "right",
-      "role": "value",
-      "text": "100Ω"
-    },
-    {
-      "anchor": {
-        "x": 270.0,
-        "y": 106.0
-      },
-      "owner_id": "4a80baad4013",
-      "placement": "below",
-      "role": "designator",
-      "text": "D2"
-    },
-    {
-      "anchor": {
-        "x": -20.0,
-        "y": 200.0
-      },
-      "owner_id": "c14e3dde339a",
-      "placement": "left",
-      "role": "designator",
-      "text": "V1"
-    },
-    {
-      "anchor": {
-        "x": 90.0,
-        "y": 106.0
-      },
-      "owner_id": "cc9a0d848145",
-      "placement": "below",
-      "role": "designator",
-      "text": "D1"
-    },
-    {
-      "anchor": {
-        "x": 90.0,
-        "y": 272.8
-      },
-      "owner_id": "d4153f68d847",
-      "placement": "below",
-      "role": "designator",
-      "text": "D3"
+      ]
     }
   ],
   "nets": [
     {
       "id": "1a3cf95f9fc1",
-      "is_ground": true,
+      "name": "NEG",
       "members": [
         {
           "device": "0a7d078d9f39",
@@ -318,11 +236,11 @@
           "pin": "A"
         }
       ],
-      "name": "NEG"
+      "is_ground": true
     },
     {
       "id": "4abd3985ba80",
-      "is_ground": false,
+      "name": "POS",
       "members": [
         {
           "device": "4767ad80e2da",
@@ -337,11 +255,11 @@
           "pin": "K"
         }
       ],
-      "name": "POS"
+      "is_ground": false
     },
     {
       "id": "4ebfcc769539",
-      "is_ground": false,
+      "name": "AC_R",
       "members": [
         {
           "device": "0a7d078d9f39",
@@ -352,11 +270,11 @@
           "pin": "A"
         }
       ],
-      "name": "AC_R"
+      "is_ground": false
     },
     {
       "id": "64ad2f5b89eb",
-      "is_ground": false,
+      "name": "AC_L",
       "members": [
         {
           "device": "c14e3dde339a",
@@ -371,29 +289,9 @@
           "pin": "K"
         }
       ],
-      "name": "AC_L"
+      "is_ground": false
     }
   ],
-  "schema": "netlab-schematic-ir/1",
-  "stats": {
-    "crossings": 0,
-    "devices": 6,
-    "junctions": 3,
-    "labels": 7,
-    "nodes": 10,
-    "unsupported": 0,
-    "warnings": 0,
-    "wires": 12
-  },
-  "style": "gb",
-  "units": {
-    "grid_mm": 2.54,
-    "mm_per_world": 0.127,
-    "svg": "pt",
-    "world": "netlab-world"
-  },
-  "unsupported": [],
-  "warnings": [],
   "wires": [
     {
       "id": "0e384c228a48",
@@ -404,11 +302,11 @@
           "y": 200.0
         },
         {
-          "x": 55.0,
+          "x": 120.0,
           "y": 200.0
         },
         {
-          "x": 55.0,
+          "x": 120.0,
           "y": 140.0
         },
         {
@@ -416,9 +314,9 @@
           "y": 140.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "K",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "2d7b72e017cd",
@@ -429,11 +327,11 @@
           "y": 200.0
         },
         {
-          "x": 325.0,
+          "x": 300.0,
           "y": 200.0
         },
         {
-          "x": 325.0,
+          "x": 300.0,
           "y": 140.0
         },
         {
@@ -441,9 +339,9 @@
           "y": 140.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "K",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "34f974af1769",
@@ -454,11 +352,7 @@
           "y": 220.0
         },
         {
-          "x": 90.0,
-          "y": 220.0
-        },
-        {
-          "x": 90.0,
+          "x": 0.0,
           "y": 260.0
         },
         {
@@ -466,9 +360,9 @@
           "y": 260.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "-",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "41170ab61945",
@@ -479,11 +373,11 @@
           "y": 80.0
         },
         {
-          "x": 35.0,
+          "x": 60.0,
           "y": 80.0
         },
         {
-          "x": 35.0,
+          "x": 60.0,
           "y": 140.0
         },
         {
@@ -491,9 +385,9 @@
           "y": 140.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "A",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "420a685ce4c6",
@@ -504,11 +398,11 @@
           "y": 200.0
         },
         {
-          "x": 125.0,
+          "x": 60.0,
           "y": 200.0
         },
         {
-          "x": 125.0,
+          "x": 60.0,
           "y": 260.0
         },
         {
@@ -516,9 +410,9 @@
           "y": 260.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "A",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "86cc4995a660",
@@ -533,9 +427,9 @@
           "y": 20.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "1",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "8ac1ce06be3d",
@@ -546,11 +440,11 @@
           "y": 80.0
         },
         {
-          "x": 145.0,
+          "x": 120.0,
           "y": 80.0
         },
         {
-          "x": 145.0,
+          "x": 120.0,
           "y": 20.0
         },
         {
@@ -558,9 +452,9 @@
           "y": 20.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "K",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "af0d3272a979",
@@ -571,11 +465,11 @@
           "y": 200.0
         },
         {
-          "x": 215.0,
+          "x": 240.0,
           "y": 200.0
         },
         {
-          "x": 215.0,
+          "x": 240.0,
           "y": 260.0
         },
         {
@@ -583,9 +477,9 @@
           "y": 260.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "A",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "b428a4893300",
@@ -596,11 +490,11 @@
           "y": 80.0
         },
         {
-          "x": 305.0,
+          "x": 240.0,
           "y": 80.0
         },
         {
-          "x": 305.0,
+          "x": 240.0,
           "y": 140.0
         },
         {
@@ -608,9 +502,9 @@
           "y": 140.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "A",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "dfc722767450",
@@ -621,13 +515,13 @@
           "y": 180.0
         },
         {
-          "x": 0.0,
+          "x": -0.0,
           "y": 140.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "+",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "e7082b651425",
@@ -642,9 +536,9 @@
           "y": 260.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "2",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "fa1b03cf1519",
@@ -655,11 +549,11 @@
           "y": 80.0
         },
         {
-          "x": 235.0,
+          "x": 300.0,
           "y": 80.0
         },
         {
-          "x": 235.0,
+          "x": 300.0,
           "y": 20.0
         },
         {
@@ -667,9 +561,119 @@
           "y": 20.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "K",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     }
-  ]
+  ],
+  "junctions": [
+    {
+      "x": 0.0,
+      "y": 140.0,
+      "reason": "branch"
+    },
+    {
+      "x": 180.0,
+      "y": 20.0,
+      "reason": "branch"
+    },
+    {
+      "x": 180.0,
+      "y": 260.0,
+      "reason": "branch"
+    }
+  ],
+  "crossings": [],
+  "labels": [
+    {
+      "text": "D4",
+      "anchor": {
+        "x": 270.0,
+        "y": 226.0
+      },
+      "placement": "below",
+      "owner_id": "0a7d078d9f39",
+      "role": "designator"
+    },
+    {
+      "text": "RL",
+      "anchor": {
+        "x": 162.0,
+        "y": 140.0
+      },
+      "placement": "left",
+      "owner_id": "4767ad80e2da",
+      "role": "designator"
+    },
+    {
+      "text": "100Ω",
+      "anchor": {
+        "x": 198.0,
+        "y": 140.0
+      },
+      "placement": "right",
+      "owner_id": "4767ad80e2da",
+      "role": "value"
+    },
+    {
+      "text": "D2",
+      "anchor": {
+        "x": 270.0,
+        "y": 106.0
+      },
+      "placement": "below",
+      "owner_id": "4a80baad4013",
+      "role": "designator"
+    },
+    {
+      "text": "V1",
+      "anchor": {
+        "x": -20.0,
+        "y": 200.0
+      },
+      "placement": "left",
+      "owner_id": "c14e3dde339a",
+      "role": "designator"
+    },
+    {
+      "text": "D1",
+      "anchor": {
+        "x": 90.0,
+        "y": 106.0
+      },
+      "placement": "below",
+      "owner_id": "cc9a0d848145",
+      "role": "designator"
+    },
+    {
+      "text": "D3",
+      "anchor": {
+        "x": 90.0,
+        "y": 226.0
+      },
+      "placement": "below",
+      "owner_id": "d4153f68d847",
+      "role": "designator"
+    }
+  ],
+  "grounds": [
+    {
+      "id": "1a3cf95f9fc1",
+      "x": 180.0,
+      "y": 260.0,
+      "net_id": "1a3cf95f9fc1"
+    }
+  ],
+  "unsupported": [],
+  "warnings": [],
+  "stats": {
+    "nodes": 10,
+    "devices": 6,
+    "wires": 12,
+    "junctions": 3,
+    "crossings": 0,
+    "labels": 7,
+    "unsupported": 0,
+    "warnings": 0
+  }
 }

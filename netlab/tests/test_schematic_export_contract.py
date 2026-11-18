@@ -22,8 +22,9 @@ def _load(name: str) -> dict:
 
 def test_pin_inventory_matches_element_specs() -> None:
     """真实 kind 清单：PINS 与 ELEMENT_SPECS 必须完全一致。"""
-    assert len(PINS) == 39
-    assert set(PINS) == set(ELEMENT_SPECS)
+    assert len(PINS) == 40
+    # ground 是场景接地标注，只作为符号渲染，不属于电路元件目录。
+    assert set(PINS) == set(ELEMENT_SPECS) | {"ground"}
     for kind, pins in PINS.items():
         assert pins, f"{kind} 没有引脚"
         assert all(pin.name for pin in pins)

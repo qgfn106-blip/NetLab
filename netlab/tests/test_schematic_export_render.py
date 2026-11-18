@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -127,3 +128,19 @@ def test_export_endpoint_exposes_diagnostics_and_options():
     assert body["warnings"] == []
     assert body["unsupported"] == []
     assert body["filename"] == "diag.svg"
+
+def test_rendered_svg_uses_physical_world_scale() -> None:
+    from netlab.core.compute.schematic_export import render_schematic_svg
+
+    fixture = Path(__file__).parent / "fixtures" / "schematic_export" / "two_bjt_regulator.json"
+    payload = json.loads(fixture.read_text(encoding="utf-8"))
+    svg = render_schematic_svg(build_schematic_export_ir(payload))
+    match = re.search(r'<svg[^>]*width="([0-9.]+)pt"[^>]*height="([0-9.]+)pt"', svg)
+    assert match, svg[:300]
+    width, height = float(match.group(1)), float(match.group(2))
+    # 1 world = 0.127 mm = 0.005 in；整图应在数英寸内，而不是 20 多英寸。
+    assert width < 400.0, width
+    assert height < 400.0, height
+    font_sizes = [float(value) for value in re.findall(r"font-size:\s*([0-9.]+)px", svg)]
+    assert font_sizes, svg[:300]
+    assert 5.0 <= min(font_sizes) <= 6.0, font_sizes

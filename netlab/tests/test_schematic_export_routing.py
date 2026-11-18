@@ -39,11 +39,20 @@ def _distance_to_segment(
 
 
 def _label_rect(label: dict) -> tuple[float, float, float, float]:
-    # 与实现相同的保守文本盒：高度 12 world，宽度按字符数估算。
+    # 与实现相同的保守文本盒：按照 placement 决定锚点贴齐方向。
     width = max(12.0, len(label["text"]) * 3.2)
     height = 12.0
     x = float(label["anchor"]["x"])
     y = float(label["anchor"]["y"])
+    placement = str(label.get("placement") or "center")
+    if placement == "right":
+        return (x, y - height / 2, x + width, y + height / 2)
+    if placement == "left":
+        return (x - width, y - height / 2, x, y + height / 2)
+    if placement == "above":
+        return (x - width / 2, y - height, x + width / 2, y)
+    if placement == "below":
+        return (x - width / 2, y, x + width / 2, y + height)
     return (x - width / 2, y - height / 2, x + width / 2, y + height / 2)
 
 
@@ -156,3 +165,32 @@ def test_wire_route_free_keeps_explicit_free_endpoints() -> None:
         {"x": wire["points"][0]["x"], "y": wire["points"][0]["y"]},
         {"x": wire["points"][-1]["x"], "y": wire["points"][-1]["y"]},
     ]
+
+def _inner_rect(bbox: dict, margin: float = 0.5) -> tuple[float, float, float, float]:
+    return (
+        float(bbox["left"]) + margin,
+        float(bbox["top"]) + margin,
+        float(bbox["right"]) - margin,
+        float(bbox["bottom"]) - margin,
+    )
+
+
+def test_orthogonal_routes_do_not_cross_device_bodies() -> None:
+    payload = json.loads((FIXTURES / "two_bjt_regulator.json").read_text(encoding="utf-8"))
+    data = build_schematic_export_ir(payload).to_dict()
+    devices = data["devices"]
+    for wire in data["wires"]:
+        for left, right in zip(wire["points"], wire["points"][1:]):
+            for device in devices:
+                if device["bbox"] is None:
+                    continue
+                # 引脚到 bbox 外的逃逸段允许贴着本器件，其他穿越一律不允许。
+                at_pin = any(
+                    abs(left["x"] - pin["x"]) <= 1e-6 and abs(left["y"] - pin["y"]) <= 1e-6
+                    or abs(right["x"] - pin["x"]) <= 1e-6 and abs(right["y"] - pin["y"]) <= 1e-6
+                    for pin in device["pins"]
+                )
+                rect = _inner_rect(device["bbox"])
+                hits = _segment_hits_rect(left["x"], left["y"], right["x"], right["y"], rect)
+                assert not hits or at_pin, (wire["id"], device["name"], left, right, device["bbox"])
+

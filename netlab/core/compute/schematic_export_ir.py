@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import copy
+import heapq
 import math
 from dataclasses import dataclass, field
 from typing import Any
@@ -27,8 +28,8 @@ EPSILON = 1e-9
 _DEVICE_ANCHOR_RADIUS = 20.0
 _NET_ANCHOR_RADIUS = 12.0
 _LABEL_OFFSET = 18.0
-_LABEL_TEXT_HEIGHT = 10.0
-_LABEL_TEXT_WIDTH_FACTOR = 3.2
+_LABEL_TEXT_HEIGHT = 15.0
+_LABEL_TEXT_WIDTH_FACTOR = 8.0
 _LABEL_CLEARANCE = 1.0
 
 _PARAM_UNITS = (
@@ -152,6 +153,16 @@ class IRJunction:
     def to_dict(self) -> dict[str, Any]:
         return {"x": float(self.x), "y": float(self.y), "reason": self.reason}
 
+@dataclass(frozen=True)
+class IRGround:
+    id: str
+    x: float
+    y: float
+    net_id: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"id": self.id, "x": self.x, "y": self.y, "net_id": self.net_id}
+
 
 @dataclass(frozen=True)
 class IRCrossing:
@@ -246,6 +257,7 @@ class SchematicExportIR:
     junctions: tuple[IRJunction, ...]
     crossings: tuple[IRCrossing, ...]
     labels: tuple[IRLabel, ...]
+    grounds: tuple[IRGround, ...]
     unsupported: tuple[IRUnsupported, ...]
     warnings: tuple[IRWarning, ...]
     stats: IRStats
@@ -266,6 +278,7 @@ class SchematicExportIR:
             "junctions": [item.to_dict() for item in self.junctions],
             "crossings": [item.to_dict() for item in self.crossings],
             "labels": [item.to_dict() for item in self.labels],
+            "grounds": [item.to_dict() for item in self.grounds],
             "unsupported": [item.to_dict() for item in self.unsupported],
             "warnings": [item.to_dict() for item in self.warnings],
             "stats": self.stats.to_dict(),
@@ -392,11 +405,21 @@ def _rotate_bbox(
     }
 
 
-def _label_rect(anchor: dict[str, float], text: str) -> tuple[float, float, float, float]:
+def _label_rect(
+    anchor: dict[str, float], text: str, placement: str = "center"
+) -> tuple[float, float, float, float]:
     width = max(12.0, len(text) * _LABEL_TEXT_WIDTH_FACTOR)
     height = _LABEL_TEXT_HEIGHT
     x = float(anchor["x"])
     y = float(anchor["y"])
+    if placement == "right":
+        return (x, y - height / 2.0, x + width, y + height / 2.0)
+    if placement == "left":
+        return (x - width, y - height / 2.0, x, y + height / 2.0)
+    if placement == "above":
+        return (x - width / 2.0, y - height, x + width / 2.0, y)
+    if placement == "below":
+        return (x - width / 2.0, y, x + width / 2.0, y + height)
     return (x - width / 2.0, y - height / 2.0, x + width / 2.0, y + height / 2.0)
 
 
@@ -408,6 +431,16 @@ def _rects_overlap(
 
 def _expand_rect(rect: tuple[float, float, float, float], margin: float) -> tuple[float, float, float, float]:
     return (rect[0] - margin, rect[1] - margin, rect[2] + margin, rect[3] + margin)
+
+
+def _rect_overlap_area(
+    left: tuple[float, float, float, float], right: tuple[float, float, float, float]
+) -> float:
+    width = min(left[2], right[2]) - max(left[0], right[0])
+    height = min(left[3], right[3]) - max(left[1], right[1])
+    if width <= 0.0 or height <= 0.0:
+        return 0.0
+    return width * height
 
 
 def _segment_hits_rect(
@@ -456,24 +489,24 @@ def _label_candidates(
     length = math.hypot(base_dx, base_dy) or _LABEL_OFFSET
     candidates: list[tuple[float, float]] = []
     for sign in (1.0, -1.0):
-        for factor in (1.0, 1.25, 1.5, 1.8, 2.2, 2.8):
+        for factor in (1.0, 1.25, 1.5, 1.8, 2.2, 2.8, 3.4, 4.2):
             distance = length * factor
             candidates.append(
                 (center["x"] + base_dx / length * distance * sign,
                  center["y"] + base_dy / length * distance * sign)
             )
     if bbox is not None:
-        gap = 16.0
         middle_x = (bbox["left"] + bbox["right"]) / 2.0
         middle_y = (bbox["top"] + bbox["bottom"]) / 2.0
-        candidates.extend(
-            [
-                (bbox["left"] - gap, middle_y),
-                (bbox["right"] + gap, middle_y),
-                (middle_x, bbox["top"] - gap),
-                (middle_x, bbox["bottom"] + gap),
-            ]
-        )
+        for gap in (8.0, 12.0, 16.0, 22.0, 30.0, 40.0, 52.0, 68.0):
+            candidates.extend(
+                [
+                    (bbox["left"] - gap, middle_y),
+                    (bbox["right"] + gap, middle_y),
+                    (middle_x, bbox["top"] - gap),
+                    (middle_x, bbox["bottom"] + gap),
+                ]
+            )
     return candidates
 
 
@@ -489,27 +522,39 @@ def _place_label(
 ) -> tuple[dict[str, float], str]:
     slot_x = float(slot.get("x", 0.0)) if isinstance(slot, dict) else 0.0
     slot_y = float(slot.get("y", 0.0)) if isinstance(slot, dict) else 0.0
-    base_dx, base_dy = _rotate(slot_x, slot_y, rotation)
     candidates = _label_candidates(center, rotation, slot_x, slot_y, bbox)
-    fallback = candidates[0]
     seen: set[tuple[float, float]] = set()
+    best: tuple[float, dict[str, float], str] | None = None
     for x, y in candidates:
         key = (_coord(x), _coord(y))
         if key in seen:
             continue
         seen.add(key)
         anchor = {"x": key[0], "y": key[1]}
-        rect = _label_rect(anchor, text)
-        if any(_rects_overlap(rect, other) for other in device_rects):
-            continue
+        placement = _placement_for(key[0] - center["x"], key[1] - center["y"])
+        rect = _label_rect(anchor, text, placement)
+        score = 0.0
+        for other in device_rects:
+            score += _rect_overlap_area(rect, other) * 100.0
         wire_clearance = _expand_rect(rect, 2.0)
-        if any(_segment_hits_rect(x1, y1, x2, y2, wire_clearance) for x1, y1, x2, y2 in wire_segments):
-            continue
-        if any(_rects_overlap(rect, other) for other in placed_rects):
-            continue
-        return anchor, _placement_for(base_dx, base_dy)
+        hits = sum(
+            1
+            for x1, y1, x2, y2 in wire_segments
+            if _segment_hits_rect(x1, y1, x2, y2, wire_clearance)
+        )
+        score += hits * 10000.0
+        for other in placed_rects:
+            score += _rect_overlap_area(rect, other) * 10.0
+        if score <= 0.0:
+            return anchor, placement
+        if best is None or score < best[0]:
+            best = (score, anchor, placement)
+    if best is not None:
+        return best[1], best[2]
+    fallback = candidates[0]
     anchor = {"x": _coord(fallback[0]), "y": _coord(fallback[1])}
-    return anchor, _placement_for(base_dx, base_dy)
+    placement = _placement_for(fallback[0] - center["x"], fallback[1] - center["y"])
+    return anchor, placement
 
 
 def _normalise_points(points: list[dict[str, float]], *, preserve_collinear: bool) -> list[dict[str, float]]:
@@ -534,6 +579,11 @@ def _normalise_points(points: list[dict[str, float]], *, preserve_collinear: boo
     return result
 
 
+_ROUTE_CLEARANCE = 3.0
+_ROUTE_ESCAPE = 8.0
+_ROUTE_BEND_PENALTY = 1.2
+
+
 def _orthogonal_points(start: dict[str, float], end: dict[str, float]) -> list[dict[str, float]]:
     dx = abs(end["x"] - start["x"])
     dy = abs(end["y"] - start["y"])
@@ -546,12 +596,138 @@ def _orthogonal_points(start: dict[str, float], end: dict[str, float]) -> list[d
     return [start, {"x": start["x"], "y": mid_y}, {"x": end["x"], "y": mid_y}, end]
 
 
+def _escape_point(pin: dict[str, float], bbox: dict[str, float] | None) -> dict[str, float]:
+    """从器件引脚沿最近一条 bbox 边向外退让，避免导线贴着符号走。"""
+    if not bbox:
+        return {"x": float(pin["x"]), "y": float(pin["y"])}
+    px, py = float(pin["x"]), float(pin["y"])
+    distances = (
+        ("left", abs(px - float(bbox["left"]))),
+        ("right", abs(px - float(bbox["right"]))),
+        ("top", abs(py - float(bbox["top"]))),
+        ("bottom", abs(py - float(bbox["bottom"]))),
+    )
+    side = min(distances, key=lambda item: item[1])[0]
+    if side == "left":
+        return {"x": float(bbox["left"]) - _ROUTE_ESCAPE, "y": py}
+    if side == "right":
+        return {"x": float(bbox["right"]) + _ROUTE_ESCAPE, "y": py}
+    if side == "top":
+        return {"x": px, "y": float(bbox["top"]) - _ROUTE_ESCAPE}
+    return {"x": px, "y": float(bbox["bottom"]) + _ROUTE_ESCAPE}
+
+
+def _obstacle_rects(obstacles: list[dict[str, float]] | None) -> list[tuple[float, float, float, float]]:
+    rects: list[tuple[float, float, float, float]] = []
+    for bbox in obstacles or ():
+        if not bbox:
+            continue
+        rects.append(
+            (
+                float(bbox["left"]) - _ROUTE_CLEARANCE,
+                float(bbox["top"]) - _ROUTE_CLEARANCE,
+                float(bbox["right"]) + _ROUTE_CLEARANCE,
+                float(bbox["bottom"]) + _ROUTE_CLEARANCE,
+            )
+        )
+    return rects
+
+
+def _axis_segment_blocked(
+    a: dict[str, float],
+    b: dict[str, float],
+    rects: list[tuple[float, float, float, float]],
+) -> bool:
+    # 内缩极小量：沿 bbox 外侧候选线走不算穿越。
+    for rect in rects:
+        inner = (rect[0] + 1e-7, rect[1] + 1e-7, rect[2] - 1e-7, rect[3] - 1e-7)
+        if _segment_hits_rect(a["x"], a["y"], b["x"], b["y"], inner):
+            return True
+    return False
+
+
+def _detour_points(
+    start: dict[str, float],
+    end: dict[str, float],
+    start_bbox: dict[str, float] | None,
+    end_bbox: dict[str, float] | None,
+    obstacles: list[dict[str, float]] | None,
+) -> list[dict[str, float]] | None:
+    """在器件 bbox 外侧做 Manhattan 最短路；失败时返回 None 交由旧折弯兜底。"""
+    rects = _obstacle_rects(obstacles)
+    if not rects:
+        return None
+    start_escape = _escape_point(start, start_bbox)
+    end_escape = _escape_point(end, end_bbox)
+    xs = {_coord(start_escape["x"]), _coord(end_escape["x"])}
+    ys = {_coord(start_escape["y"]), _coord(end_escape["y"])}
+    for left, top, right, bottom in rects:
+        xs.add(_coord(left))
+        xs.add(_coord(right))
+        ys.add(_coord(top))
+        ys.add(_coord(bottom))
+    x_list = sorted(xs)
+    y_list = sorted(ys)
+    x_index = {value: index for index, value in enumerate(x_list)}
+    y_index = {value: index for index, value in enumerate(y_list)}
+    start_key = (x_index[_coord(start_escape["x"])], y_index[_coord(start_escape["y"])])
+    goal_key = (x_index[_coord(end_escape["x"])], y_index[_coord(end_escape["y"])])
+
+    def point_at(key: tuple[int, int]) -> dict[str, float]:
+        return {"x": x_list[key[0]], "y": y_list[key[1]]}
+
+    inf = float("inf")
+    distances: dict[tuple[int, int, int], float] = {(*start_key, 0): 0.0}
+    previous: dict[tuple[int, int, int], tuple[int, int, int]] = {}
+    heap: list[tuple[float, int, int, int]] = [(0.0, start_key[0], start_key[1], 0)]
+    goal_state: tuple[int, int, int] | None = None
+    while heap:
+        cost, xi, yi, direction = heapq.heappop(heap)
+        state = (xi, yi, direction)
+        if cost > distances.get(state, inf):
+            continue
+        if (xi, yi) == goal_key:
+            goal_state = state
+            break
+        here = point_at((xi, yi))
+        for dxi, dyi, next_direction in ((1, 0, 1), (-1, 0, 1), (0, 1, 2), (0, -1, 2)):
+            nxi, nyi = xi + dxi, yi + dyi
+            if not (0 <= nxi < len(x_list) and 0 <= nyi < len(y_list)):
+                continue
+            there = point_at((nxi, nyi))
+            if _axis_segment_blocked(here, there, rects):
+                continue
+            step = math.hypot(there["x"] - here["x"], there["y"] - here["y"])
+            turn = _ROUTE_BEND_PENALTY if direction and direction != next_direction else 0.0
+            next_cost = cost + step + turn
+            next_state = (nxi, nyi, next_direction)
+            if next_cost < distances.get(next_state, inf) - EPSILON:
+                distances[next_state] = next_cost
+                previous[next_state] = state
+                heapq.heappush(heap, (next_cost, nxi, nyi, next_direction))
+    if goal_state is None:
+        return None
+    path: list[dict[str, float]] = []
+    state = goal_state
+    while True:
+        path.append(point_at((state[0], state[1])))
+        if state not in previous:
+            break
+        state = previous[state]
+    path.reverse()
+    return [start_escape, *path]
+
+
 def _route_points(
     start: dict[str, float],
     end: dict[str, float],
     route: str,
     waypoints: list[Any],
     route_mode: str,
+    *,
+    obstacles: list[dict[str, float]] | None = None,
+    start_bbox: dict[str, float] | None = None,
+    end_bbox: dict[str, float] | None = None,
 ) -> tuple[list[dict[str, float]], str]:
     route = (route or "auto").lower()
     explicit_waypoints = [_point(item) for item in waypoints if isinstance(item, (dict, list, tuple))]
@@ -562,11 +738,11 @@ def _route_points(
         return _normalise_points([start, end], preserve_collinear=True), "straight"
     if route == "free":
         return _normalise_points([start, end], preserve_collinear=True), "free"
-    if route == "orthogonal":
-        return _normalise_points(_orthogonal_points(start, end), preserve_collinear=False), "orthogonal"
     if route_mode == "free":
         return _normalise_points([start, end], preserve_collinear=True), "free"
-    return _normalise_points(_orthogonal_points(start, end), preserve_collinear=False), "orthogonal"
+    detour = _detour_points(start, end, start_bbox, end_bbox, obstacles)
+    points = [start, *detour, end] if detour is not None else _orthogonal_points(start, end)
+    return _normalise_points(points, preserve_collinear=False), "orthogonal"
 
 
 def _segment_point_distance(point: dict[str, float], a: dict[str, float], b: dict[str, float]) -> float:
@@ -879,8 +1055,18 @@ def build_schematic_export_ir(scene: Any, *, options: ExportOptions | None = Non
         start = _classify_wire_endpoint(source_id, source_pin, source_side, device_map, net_map)
         end = _classify_wire_endpoint(target_id, target_pin, target_side, device_map, net_map)
         waypoints = edge.get("waypoints") if isinstance(edge.get("waypoints"), list) else []
+        obstacles = [info.bbox for info in device_map.values() if info.bbox]
+        start_bbox = device_map[source_id].bbox if source_is_device and source_id in device_map else None
+        end_bbox = device_map[target_id].bbox if target_is_device and target_id in device_map else None
         points, route_source = _route_points(
-            start, end, str(edge.get("route") or "auto"), waypoints, options.route_mode
+            start,
+            end,
+            str(edge.get("route") or "auto"),
+            waypoints,
+            options.route_mode,
+            obstacles=obstacles,
+            start_bbox=start_bbox,
+            end_bbox=end_bbox,
         )
         if len(points) == 1:
             warn("zero_length_wire", f"导线 {edge_id} 起终点相同", edge_id)
@@ -968,6 +1154,10 @@ def build_schematic_export_ir(scene: Any, *, options: ExportOptions | None = Non
                     point = _segment_intersection(a1, a2, b1, b2)
                     if point is None:
                         continue
+                    junction_key = (round(point["x"], 9), round(point["y"], 9))
+                    if junction_key in junction_map:
+                        # 同一分支节点上的“交叉”是电气连接，不是几何交叉。
+                        continue
                     left_end = _at_endpoint(point, (a1, a2))
                     right_end = _at_endpoint(point, (b1, b2))
                     if left_end and right_end:
@@ -1031,7 +1221,7 @@ def build_schematic_export_ir(scene: Any, *, options: ExportOptions | None = Non
                     role=role,
                 )
             )
-            placed_rects.append(_label_rect(anchor, text))
+            placed_rects.append(_label_rect(anchor, text, placement))
 
     sorted_warnings = tuple(sorted(warnings, key=lambda item: (item.code, item.owner_id, item.message)))
     sorted_nets = tuple(sorted(net_objects.values(), key=lambda item: item.id))
@@ -1053,6 +1243,21 @@ def build_schematic_export_ir(scene: Any, *, options: ExportOptions | None = Non
         unsupported=len(sorted_unsupported),
         warnings=len(sorted_warnings),
     )
+    grounds = tuple(
+        sorted(
+            (
+                IRGround(
+                    id=node_id,
+                    x=_node_position(node)["x"],
+                    y=_node_position(node)["y"],
+                    net_id=node_id,
+                )
+                for node_id, node in net_map.items()
+                if str(node.get("kind") or "") == "ground"
+            ),
+            key=lambda item: item.id,
+        )
+    )
     return SchematicExportIR(
         style=options.style,
         devices=tuple(devices),
@@ -1061,6 +1266,7 @@ def build_schematic_export_ir(scene: Any, *, options: ExportOptions | None = Non
         junctions=sorted_junctions,
         crossings=sorted_crossings,
         labels=sorted_labels,
+        grounds=grounds,
         unsupported=sorted_unsupported,
         warnings=sorted_warnings,
         stats=stats,
@@ -1069,6 +1275,7 @@ def build_schematic_export_ir(scene: Any, *, options: ExportOptions | None = Non
 
 __all__ = [
     "SCHEMA",
+    "IRGround",
     "MM_PER_WORLD",
     "WORLD_PER_GRID",
     "GRID_MM",

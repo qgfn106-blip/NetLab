@@ -1,432 +1,273 @@
 {
-  "crossings": [
-    {
-      "over_wire_id": "34f974af1769",
-      "under_wire_id": "521dbd672b25",
-      "x": 110.0,
-      "y": 240.0
-    },
-    {
-      "over_wire_id": "11acc7000d32",
-      "under_wire_id": "521dbd672b25",
-      "x": 150.0,
-      "y": 240.0
-    },
-    {
-      "over_wire_id": "0a378fe5069f",
-      "under_wire_id": "a0a8c936b2b5",
-      "x": 300.0,
-      "y": 200.0
-    },
-    {
-      "over_wire_id": "a0a8c936b2b5",
-      "under_wire_id": "b31d94a5e512",
-      "x": 300.0,
-      "y": 200.0
-    },
-    {
-      "over_wire_id": "1ffba148fdbf",
-      "under_wire_id": "a0a8c936b2b5",
-      "x": 360.0,
-      "y": 200.0
-    },
-    {
-      "over_wire_id": "1ffba148fdbf",
-      "under_wire_id": "b51ad852569c",
-      "x": 360.0,
-      "y": 220.0
-    }
-  ],
+  "schema": "netlab-schematic-ir/1",
+  "units": {
+    "world": "netlab-world",
+    "svg": "pt",
+    "mm_per_world": 0.127,
+    "grid_mm": 2.54
+  },
+  "style": "gb",
   "devices": [
     {
-      "bbox": {
-        "bottom": 262.0,
-        "left": 342.0,
-        "right": 376.0,
-        "top": 218.0
-      },
-      "center": {
-        "x": 360.0,
-        "y": 240.0
-      },
       "id": "29d84fcbf1e2",
       "kind": "zener",
       "name": "DZ1",
       "params": {},
+      "center": {
+        "x": 360.0,
+        "y": 240.0
+      },
+      "rotation_deg": 90.0,
+      "bbox": {
+        "left": 342.0,
+        "top": 218.0,
+        "right": 376.0,
+        "bottom": 262.0
+      },
       "pins": [
         {
           "name": "A",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 360.0,
           "y": 220.0
         },
         {
           "name": "K",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 360.0,
           "y": 260.0
         }
-      ],
-      "rotation_deg": 90.0
+      ]
     },
     {
-      "bbox": {
-        "bottom": 88.0,
-        "left": 274.0,
-        "right": 326.0,
-        "top": 32.0
-      },
-      "center": {
-        "x": 300.0,
-        "y": 60.0
-      },
       "id": "db5623b4d098",
       "kind": "pnp",
       "name": "Q1",
       "params": {},
+      "center": {
+        "x": 300.0,
+        "y": 60.0
+      },
+      "rotation_deg": 0.0,
+      "bbox": {
+        "left": 274.0,
+        "top": 32.0,
+        "right": 326.0,
+        "bottom": 88.0
+      },
       "pins": [
         {
           "name": "C",
-          "required": true,
           "role": "passive",
-          "x": 300.0,
+          "required": true,
+          "x": 304.0,
           "y": 84.0
         },
         {
           "name": "B",
-          "required": true,
           "role": "input",
+          "required": true,
           "x": 276.0,
           "y": 60.0
         },
         {
           "name": "E",
-          "required": true,
           "role": "passive",
-          "x": 300.0,
+          "required": true,
+          "x": 304.0,
           "y": 36.0
         }
-      ],
-      "rotation_deg": 0.0
+      ]
     },
     {
-      "bbox": {
-        "bottom": 208.0,
-        "left": 274.0,
-        "right": 326.0,
-        "top": 152.0
-      },
-      "center": {
-        "x": 300.0,
-        "y": 180.0
-      },
       "id": "d37d0956d096",
       "kind": "npn",
       "name": "Q2",
       "params": {},
+      "center": {
+        "x": 300.0,
+        "y": 180.0
+      },
+      "rotation_deg": 0.0,
+      "bbox": {
+        "left": 274.0,
+        "top": 152.0,
+        "right": 326.0,
+        "bottom": 208.0
+      },
       "pins": [
         {
           "name": "C",
-          "required": true,
           "role": "passive",
-          "x": 300.0,
+          "required": true,
+          "x": 304.0,
           "y": 204.0
         },
         {
           "name": "B",
-          "required": true,
           "role": "input",
+          "required": true,
           "x": 276.0,
           "y": 180.0
         },
         {
           "name": "E",
-          "required": true,
           "role": "passive",
-          "x": 300.0,
+          "required": true,
+          "x": 304.0,
           "y": 156.0
         }
-      ],
-      "rotation_deg": 0.0
+      ]
     },
     {
-      "bbox": {
-        "bottom": 70.0,
-        "left": 78.0,
-        "right": 122.0,
-        "top": 50.0
-      },
-      "center": {
-        "x": 100.0,
-        "y": 60.0
-      },
       "id": "95ced8b1219b",
       "kind": "resistor",
       "name": "R1",
       "params": {
         "R": 1000
       },
+      "center": {
+        "x": 100.0,
+        "y": 60.0
+      },
+      "rotation_deg": 0.0,
+      "bbox": {
+        "left": 78.0,
+        "top": 50.0,
+        "right": 122.0,
+        "bottom": 70.0
+      },
       "pins": [
         {
           "name": "1",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 80.0,
           "y": 60.0
         },
         {
           "name": "2",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 120.0,
           "y": 60.0
         }
-      ],
-      "rotation_deg": 0.0
+      ]
     },
     {
-      "bbox": {
-        "bottom": 202.0,
-        "left": 370.0,
-        "right": 390.0,
-        "top": 158.0
-      },
-      "center": {
-        "x": 380.0,
-        "y": 180.0
-      },
       "id": "c857f42168f6",
       "kind": "resistor",
       "name": "R2",
       "params": {
         "R": 2000
       },
+      "center": {
+        "x": 380.0,
+        "y": 180.0
+      },
+      "rotation_deg": 90.0,
+      "bbox": {
+        "left": 370.0,
+        "top": 158.0,
+        "right": 390.0,
+        "bottom": 202.0
+      },
       "pins": [
         {
           "name": "1",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 380.0,
           "y": 160.0
         },
         {
           "name": "2",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 380.0,
           "y": 200.0
         }
-      ],
-      "rotation_deg": 90.0
+      ]
     },
     {
-      "bbox": {
-        "bottom": 250.0,
-        "left": 98.0,
-        "right": 142.0,
-        "top": 230.0
-      },
-      "center": {
-        "x": 120.0,
-        "y": 240.0
-      },
       "id": "09ffce442c51",
       "kind": "resistor",
       "name": "R3",
       "params": {
         "R": 1000
       },
+      "center": {
+        "x": 120.0,
+        "y": 240.0
+      },
+      "rotation_deg": 0.0,
+      "bbox": {
+        "left": 98.0,
+        "top": 230.0,
+        "right": 142.0,
+        "bottom": 250.0
+      },
       "pins": [
         {
           "name": "1",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 100.0,
           "y": 240.0
         },
         {
           "name": "2",
-          "required": true,
           "role": "passive",
+          "required": true,
           "x": 140.0,
           "y": 240.0
         }
-      ],
-      "rotation_deg": 0.0
+      ]
     },
     {
-      "bbox": {
-        "bottom": 172.0,
-        "left": -12.0,
-        "right": 12.0,
-        "top": 128.0
+      "id": "c14e3dde339a",
+      "kind": "vsource",
+      "name": "V1",
+      "params": {
+        "wave": "dc",
+        "offset": 24,
+        "amplitude": 0
       },
       "center": {
         "x": 0.0,
         "y": 150.0
       },
-      "id": "c14e3dde339a",
-      "kind": "vsource",
-      "name": "V1",
-      "params": {
-        "amplitude": 0,
-        "offset": 24,
-        "wave": "dc"
+      "rotation_deg": 90.0,
+      "bbox": {
+        "left": -12.0,
+        "top": 128.0,
+        "right": 12.0,
+        "bottom": 172.0
       },
       "pins": [
         {
           "name": "+",
-          "required": true,
           "role": "output",
+          "required": true,
           "x": -0.0,
           "y": 130.0
         },
         {
           "name": "-",
-          "required": true,
           "role": "output",
+          "required": true,
           "x": 0.0,
           "y": 170.0
         }
-      ],
-      "rotation_deg": 90.0
-    }
-  ],
-  "junctions": [
-    {
-      "reason": "branch",
-      "x": 0.0,
-      "y": 0.0
-    },
-    {
-      "reason": "branch",
-      "x": 200.0,
-      "y": 60.0
-    },
-    {
-      "reason": "branch",
-      "x": 200.0,
-      "y": 180.0
-    },
-    {
-      "reason": "branch",
-      "x": 220.0,
-      "y": 300.0
-    },
-    {
-      "reason": "branch",
-      "x": 420.0,
-      "y": 120.0
-    }
-  ],
-  "labels": [
-    {
-      "anchor": {
-        "x": 120.0,
-        "y": 258.0
-      },
-      "owner_id": "09ffce442c51",
-      "placement": "below",
-      "role": "designator",
-      "text": "R3"
-    },
-    {
-      "anchor": {
-        "x": 82.0,
-        "y": 240.0
-      },
-      "owner_id": "09ffce442c51",
-      "placement": "above",
-      "role": "value",
-      "text": "1000Ω"
-    },
-    {
-      "anchor": {
-        "x": 334.0,
-        "y": 240.0
-      },
-      "owner_id": "29d84fcbf1e2",
-      "placement": "left",
-      "role": "designator",
-      "text": "DZ1"
-    },
-    {
-      "anchor": {
-        "x": 100.0,
-        "y": 78.0
-      },
-      "owner_id": "95ced8b1219b",
-      "placement": "below",
-      "role": "designator",
-      "text": "R1"
-    },
-    {
-      "anchor": {
-        "x": 100.0,
-        "y": 42.0
-      },
-      "owner_id": "95ced8b1219b",
-      "placement": "above",
-      "role": "value",
-      "text": "1000Ω"
-    },
-    {
-      "anchor": {
-        "x": -20.0,
-        "y": 150.0
-      },
-      "owner_id": "c14e3dde339a",
-      "placement": "left",
-      "role": "designator",
-      "text": "V1"
-    },
-    {
-      "anchor": {
-        "x": 362.0,
-        "y": 180.0
-      },
-      "owner_id": "c857f42168f6",
-      "placement": "left",
-      "role": "designator",
-      "text": "R2"
-    },
-    {
-      "anchor": {
-        "x": 398.0,
-        "y": 180.0
-      },
-      "owner_id": "c857f42168f6",
-      "placement": "right",
-      "role": "value",
-      "text": "2000Ω"
-    },
-    {
-      "anchor": {
-        "x": 300.0,
-        "y": 244.8
-      },
-      "owner_id": "d37d0956d096",
-      "placement": "below",
-      "role": "designator",
-      "text": "Q2"
-    },
-    {
-      "anchor": {
-        "x": 300.0,
-        "y": 96.0
-      },
-      "owner_id": "db5623b4d098",
-      "placement": "below",
-      "role": "designator",
-      "text": "Q1"
+      ]
     }
   ],
   "nets": [
     {
       "id": "09b5e31766be",
-      "is_ground": false,
+      "name": "BASE2",
       "members": [
         {
           "device": "09ffce442c51",
@@ -441,11 +282,11 @@
           "pin": "B"
         }
       ],
-      "name": "BASE2"
+      "is_ground": false
     },
     {
       "id": "12033717d596",
-      "is_ground": false,
+      "name": "VIN",
       "members": [
         {
           "device": "95ced8b1219b",
@@ -460,11 +301,11 @@
           "pin": "E"
         }
       ],
-      "name": "VIN"
+      "is_ground": false
     },
     {
       "id": "50c8e3290dac",
-      "is_ground": false,
+      "name": "BASE1",
       "members": [
         {
           "device": "95ced8b1219b",
@@ -479,11 +320,11 @@
           "pin": "B"
         }
       ],
-      "name": "BASE1"
+      "is_ground": false
     },
     {
       "id": "904e27107863",
-      "is_ground": true,
+      "name": "GND",
       "members": [
         {
           "device": "09ffce442c51",
@@ -502,11 +343,11 @@
           "pin": "E"
         }
       ],
-      "name": "GND"
+      "is_ground": true
     },
     {
       "id": "a0284aaddef3",
-      "is_ground": false,
+      "name": "VOUT",
       "members": [
         {
           "device": "29d84fcbf1e2",
@@ -521,29 +362,9 @@
           "pin": "C"
         }
       ],
-      "name": "VOUT"
+      "is_ground": false
     }
   ],
-  "schema": "netlab-schematic-ir/1",
-  "stats": {
-    "crossings": 6,
-    "devices": 7,
-    "junctions": 5,
-    "labels": 10,
-    "nodes": 12,
-    "unsupported": 0,
-    "warnings": 0,
-    "wires": 16
-  },
-  "style": "gb",
-  "units": {
-    "grid_mm": 2.54,
-    "mm_per_world": 0.127,
-    "svg": "pt",
-    "world": "netlab-world"
-  },
-  "unsupported": [],
-  "warnings": [],
   "wires": [
     {
       "id": "0114431a1564",
@@ -558,34 +379,34 @@
           "y": 180.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "B",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "0a378fe5069f",
       "net_id": "50c8e3290dac",
       "points": [
         {
-          "x": 300.0,
+          "x": 304.0,
           "y": 204.0
         },
         {
-          "x": 300.0,
-          "y": 132.0
+          "x": 304.0,
+          "y": 216.0
         },
         {
           "x": 200.0,
-          "y": 132.0
+          "y": 216.0
         },
         {
           "x": 200.0,
           "y": 60.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "C",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "11acc7000d32",
@@ -596,11 +417,11 @@
           "y": 240.0
         },
         {
-          "x": 180.0,
+          "x": 150.0,
           "y": 240.0
         },
         {
-          "x": 180.0,
+          "x": 150.0,
           "y": 300.0
         },
         {
@@ -608,9 +429,9 @@
           "y": 300.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "2",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "12e10df8b02b",
@@ -621,11 +442,7 @@
           "y": 160.0
         },
         {
-          "x": 400.0,
-          "y": 160.0
-        },
-        {
-          "x": 400.0,
+          "x": 380.0,
           "y": 120.0
         },
         {
@@ -633,9 +450,9 @@
           "y": 120.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "1",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "1ffba148fdbf",
@@ -647,20 +464,20 @@
         },
         {
           "x": 360.0,
-          "y": 190.0
+          "y": 270.0
         },
         {
           "x": 420.0,
-          "y": 190.0
+          "y": 270.0
         },
         {
           "x": 420.0,
           "y": 120.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "K",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "34f974af1769",
@@ -671,11 +488,7 @@
           "y": 170.0
         },
         {
-          "x": 110.0,
-          "y": 170.0
-        },
-        {
-          "x": 110.0,
+          "x": 0.0,
           "y": 300.0
         },
         {
@@ -683,24 +496,20 @@
           "y": 300.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "-",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "4b330b45b884",
       "net_id": "a0284aaddef3",
       "points": [
         {
-          "x": 300.0,
+          "x": 304.0,
           "y": 84.0
         },
         {
-          "x": 360.0,
-          "y": 84.0
-        },
-        {
-          "x": 360.0,
+          "x": 304.0,
           "y": 120.0
         },
         {
@@ -708,24 +517,20 @@
           "y": 120.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "C",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "4cec4537bca0",
       "net_id": "12033717d596",
       "points": [
         {
-          "x": 300.0,
+          "x": 304.0,
           "y": 36.0
         },
         {
-          "x": 150.0,
-          "y": 36.0
-        },
-        {
-          "x": 150.0,
+          "x": 304.0,
           "y": 0.0
         },
         {
@@ -733,9 +538,9 @@
           "y": 0.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "E",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "51b60b9a22d5",
@@ -750,9 +555,9 @@
           "y": 60.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "2",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "521dbd672b25",
@@ -763,11 +568,11 @@
           "y": 240.0
         },
         {
-          "x": 150.0,
+          "x": 90.0,
           "y": 240.0
         },
         {
-          "x": 150.0,
+          "x": 90.0,
           "y": 180.0
         },
         {
@@ -775,9 +580,9 @@
           "y": 180.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "1",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "7fdb62ee80ca",
@@ -788,11 +593,11 @@
           "y": 60.0
         },
         {
-          "x": 40.0,
+          "x": 70.0,
           "y": 60.0
         },
         {
-          "x": 40.0,
+          "x": 70.0,
           "y": 0.0
         },
         {
@@ -800,9 +605,9 @@
           "y": 0.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "1",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "a0a8c936b2b5",
@@ -813,46 +618,46 @@
           "y": 200.0
         },
         {
-          "x": 290.0,
-          "y": 200.0
+          "x": 380.0,
+          "y": 211.0
         },
         {
-          "x": 290.0,
-          "y": 180.0
+          "x": 200.0,
+          "y": 211.0
         },
         {
           "x": 200.0,
           "y": 180.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "2",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "b31d94a5e512",
       "net_id": "904e27107863",
       "points": [
         {
-          "x": 300.0,
+          "x": 304.0,
           "y": 156.0
         },
         {
-          "x": 300.0,
-          "y": 228.0
+          "x": 304.0,
+          "y": 144.0
         },
         {
           "x": 220.0,
-          "y": 228.0
+          "y": 144.0
         },
         {
           "x": 220.0,
           "y": 300.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "E",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "b51ad852569c",
@@ -863,11 +668,15 @@
           "y": 220.0
         },
         {
-          "x": 290.0,
-          "y": 220.0
+          "x": 360.0,
+          "y": 210.0
         },
         {
-          "x": 290.0,
+          "x": 329.0,
+          "y": 210.0
+        },
+        {
+          "x": 329.0,
           "y": 300.0
         },
         {
@@ -875,9 +684,9 @@
           "y": 300.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "A",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "b99eb7b00b80",
@@ -892,9 +701,9 @@
           "y": 60.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "B",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     },
     {
       "id": "dfc722767450",
@@ -905,13 +714,206 @@
           "y": 130.0
         },
         {
-          "x": 0.0,
+          "x": -0.0,
           "y": 0.0
         }
       ],
-      "route_source": "orthogonal",
       "source_pin": "+",
-      "target_pin": ""
+      "target_pin": "",
+      "route_source": "orthogonal"
     }
-  ]
+  ],
+  "junctions": [
+    {
+      "x": 0.0,
+      "y": 0.0,
+      "reason": "branch"
+    },
+    {
+      "x": 200.0,
+      "y": 60.0,
+      "reason": "branch"
+    },
+    {
+      "x": 200.0,
+      "y": 180.0,
+      "reason": "branch"
+    },
+    {
+      "x": 220.0,
+      "y": 300.0,
+      "reason": "branch"
+    },
+    {
+      "x": 420.0,
+      "y": 120.0,
+      "reason": "branch"
+    }
+  ],
+  "crossings": [
+    {
+      "x": 200.0,
+      "y": 211.0,
+      "over_wire_id": "0a378fe5069f",
+      "under_wire_id": "a0a8c936b2b5"
+    },
+    {
+      "x": 220.0,
+      "y": 180.0,
+      "over_wire_id": "0114431a1564",
+      "under_wire_id": "b31d94a5e512"
+    },
+    {
+      "x": 220.0,
+      "y": 211.0,
+      "over_wire_id": "a0a8c936b2b5",
+      "under_wire_id": "b31d94a5e512"
+    },
+    {
+      "x": 220.0,
+      "y": 216.0,
+      "over_wire_id": "0a378fe5069f",
+      "under_wire_id": "b31d94a5e512"
+    },
+    {
+      "x": 304.0,
+      "y": 211.0,
+      "over_wire_id": "0a378fe5069f",
+      "under_wire_id": "a0a8c936b2b5"
+    },
+    {
+      "x": 329.0,
+      "y": 211.0,
+      "over_wire_id": "a0a8c936b2b5",
+      "under_wire_id": "b51ad852569c"
+    },
+    {
+      "x": 360.0,
+      "y": 211.0,
+      "over_wire_id": "a0a8c936b2b5",
+      "under_wire_id": "b51ad852569c"
+    }
+  ],
+  "labels": [
+    {
+      "text": "R3",
+      "anchor": {
+        "x": 120.0,
+        "y": 258.0
+      },
+      "placement": "below",
+      "owner_id": "09ffce442c51",
+      "role": "designator"
+    },
+    {
+      "text": "1000Ω",
+      "anchor": {
+        "x": 120.0,
+        "y": 222.0
+      },
+      "placement": "above",
+      "owner_id": "09ffce442c51",
+      "role": "value"
+    },
+    {
+      "text": "DZ1",
+      "anchor": {
+        "x": 321.0,
+        "y": 240.0
+      },
+      "placement": "left",
+      "owner_id": "29d84fcbf1e2",
+      "role": "designator"
+    },
+    {
+      "text": "R1",
+      "anchor": {
+        "x": 100.0,
+        "y": 78.0
+      },
+      "placement": "below",
+      "owner_id": "95ced8b1219b",
+      "role": "designator"
+    },
+    {
+      "text": "1000Ω",
+      "anchor": {
+        "x": 100.0,
+        "y": 42.0
+      },
+      "placement": "above",
+      "owner_id": "95ced8b1219b",
+      "role": "value"
+    },
+    {
+      "text": "V1",
+      "anchor": {
+        "x": -20.0,
+        "y": 150.0
+      },
+      "placement": "left",
+      "owner_id": "c14e3dde339a",
+      "role": "designator"
+    },
+    {
+      "text": "R2",
+      "anchor": {
+        "x": 362.0,
+        "y": 180.0
+      },
+      "placement": "left",
+      "owner_id": "c857f42168f6",
+      "role": "designator"
+    },
+    {
+      "text": "2000Ω",
+      "anchor": {
+        "x": 430.4,
+        "y": 180.0
+      },
+      "placement": "right",
+      "owner_id": "c857f42168f6",
+      "role": "value"
+    },
+    {
+      "text": "Q2",
+      "anchor": {
+        "x": 300.0,
+        "y": 259.2
+      },
+      "placement": "below",
+      "owner_id": "d37d0956d096",
+      "role": "designator"
+    },
+    {
+      "text": "Q1",
+      "anchor": {
+        "x": 300.0,
+        "y": 124.8
+      },
+      "placement": "below",
+      "owner_id": "db5623b4d098",
+      "role": "designator"
+    }
+  ],
+  "grounds": [
+    {
+      "id": "904e27107863",
+      "x": 220.0,
+      "y": 300.0,
+      "net_id": "904e27107863"
+    }
+  ],
+  "unsupported": [],
+  "warnings": [],
+  "stats": {
+    "nodes": 12,
+    "devices": 7,
+    "wires": 16,
+    "junctions": 5,
+    "crossings": 7,
+    "labels": 10,
+    "unsupported": 0,
+    "warnings": 0
+  }
 }

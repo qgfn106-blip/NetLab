@@ -29,7 +29,7 @@ _DEVICE_ANCHOR_RADIUS = 20.0
 _NET_ANCHOR_RADIUS = 12.0
 _LABEL_OFFSET = 18.0
 _LABEL_TEXT_HEIGHT = 15.0
-_LABEL_TEXT_WIDTH_FACTOR = 8.0
+_LABEL_TEXT_WIDTH_FACTOR = 10.5
 _LABEL_CLEARANCE = 1.0
 
 _PARAM_UNITS = (
@@ -505,6 +505,16 @@ def _label_candidates(
                     (bbox["right"] + gap, middle_y),
                     (middle_x, bbox["top"] - gap),
                     (middle_x, bbox["bottom"] + gap),
+                ]
+            )
+            # 器件四周被导线包围时，正上/正下也可能压在穿过器件中心的导线上；
+            # 补四个对角位置，让标签能同时避开器件与相邻导线。
+            candidates.extend(
+                [
+                    (bbox["left"] - gap, bbox["top"] - gap),
+                    (bbox["right"] + gap, bbox["top"] - gap),
+                    (bbox["left"] - gap, bbox["bottom"] + gap),
+                    (bbox["right"] + gap, bbox["bottom"] + gap),
                 ]
             )
     return candidates

@@ -608,10 +608,10 @@
     {
       "text": "100Ω",
       "anchor": {
-        "x": 198.0,
-        "y": 140.0
+        "x": 154.0,
+        "y": 102.0
       },
-      "placement": "right",
+      "placement": "above",
       "owner_id": "4767ad80e2da",
       "role": "value"
     },

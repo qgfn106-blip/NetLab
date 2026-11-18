@@ -114,6 +114,8 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-18 | fix(review): harden auth, transactions and trapezoidal integration |
+| 2026-11-18 | fix(d5): add solver shadow report for compute changes |
 | 2026-11-18 | feat: 完成 WP-0~WP-8 优化实施与非 FEM 验收 |
 | 2026-11-17 | fix(frontend): 补提交 app.ts 的 S3 调用点改动（修复 artifact drift 未提交文件） |
 | 2026-11-17 | refactor(frontend): F-01 S3 外提参数写回四函数到 param_commit.ts（行为字节等价，app.ts 7395→7300） |
@@ -132,8 +134,6 @@ python -m netlab.desktop
 | 2026-11-17 | chore(b5-02): python-tests.yml 保持仓库原有 CRLF 行尾（消除伪 diff） |
 | 2026-11-17 | test(b5-02): mathspec 测试纳入 root testpaths/CI + 低覆盖模块补测 |
 | 2026-11-17 | test(b5-01): v3-v7 历史 golden 强化（真实节点/边/state）并与 p2d 契约测试去重 |
-| 2026-11-17 | fix(docs): D9 保留设计规范文档的 Proposed 标记与示例正文（不违契约测试） |
-| 2026-11-17 | docs(status): 统一 12 份主库文档状态头为 5 类标签（D9，doc-only） |
 
 <!-- END LAST 20 UPDATES -->
 

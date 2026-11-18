@@ -229,6 +229,7 @@ class Inductor(CircuitElement):
         self.conductance = 0.0
         self.source_current = 0.0
         self._gear_ready = False
+        self._trapezoidal_started = False
 
     def reset(self) -> None:
         self.state["i"] = float(self.params.get("initial", 0.0))
@@ -236,6 +237,7 @@ class Inductor(CircuitElement):
         self.state.pop("i_prev", None)
         self.state.pop("gear_dt", None)
         self._gear_ready = False
+        self._trapezoidal_started = False
 
     def prepare(self, dt: float, time: float) -> None:
         super().prepare(dt, time)
@@ -256,6 +258,11 @@ class Inductor(CircuitElement):
                 self._gear_ready = True
                 self.conductance = dt / (1.5 * self.inductance)
                 self.source_current = (2.0 * previous_i - 0.5 * float(older_i)) / 1.5
+        elif not self._trapezoidal_started:
+            # 首步用后向欧拉启动：阶跃源下 v_L(0+)=V，若直接梯形法会把
+            # (v_n=0, v_{n+1}=V) 平均成半步，整条轨迹退化成一阶。
+            self.conductance = dt / self.inductance
+            self.source_current = previous_i
         else:
             self.conductance = dt / (2.0 * self.inductance)
             self.source_current = previous_i + self.conductance * previous_v
@@ -290,6 +297,8 @@ class Inductor(CircuitElement):
         if self.integration == "gear2":
             self.state["i_prev"] = previous_i
             self.state["gear_dt"] = float(ctx.dt)
+        if self.integration == "trapezoidal":
+            self._trapezoidal_started = True
         self.state["i"] = current
         self.state["v"] = voltage
         self.result = {
@@ -304,11 +313,14 @@ class Inductor(CircuitElement):
 
 
 def _source_value(params: dict[str, Any], dt: float, time: float, integration: str) -> float:
-    """P3：源在步内的取值。梯形法取步首/步末平均，避免单点采样把整链降到 1 阶。"""
-    end = waveform_value(params, time)
-    if integration == "trapezoidal" and dt > 0.0:
-        return 0.5 * (waveform_value(params, time - dt) + end)
-    return end
+    """P3：源在步末的取值。
+
+    电容/电感的梯形伴随模型已经带有上一步的 i_n/v_n 历史；若源再取步首/步末
+    平均，会对激励双重计权并引入半步滞后，整链退化成一阶。因此这里只取步末值，
+    由伴随模型自身完成梯形积分。
+    """
+    del dt, integration
+    return waveform_value(params, time)
 
 class VoltageSource(CircuitElement):
     kind = "vsource"

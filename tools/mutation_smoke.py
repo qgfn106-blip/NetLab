@@ -45,11 +45,22 @@ MUTANTS = [
     ("source-gain-2pct", ELEMENTS, 'ctx.rhs[row] = self.value * getattr(self, "source_scale", 1.0)', 'ctx.rhs[row] = 1.02 * self.value * getattr(self, "source_scale", 1.0)', None, True),
     ("capacitor-value-5pct", ELEMENTS, "cache = self.capacitance", "cache = 1.05 * self.capacitance", None, True),
     ("inductor-history-sign", ELEMENTS, "self.source_current = previous_i + self.conductance * previous_v", "self.source_current = previous_i - self.conductance * previous_v", None, True),
+    # F11：梯形积分源值必须取步末值；回退成半步平均会让正弦收敛阶掉到 ~1.0。
+    ("source-trapezoid-halving", ELEMENTS, "    return waveform_value(params, time)", "    return 0.5 * (waveform_value(params, time - dt) + waveform_value(params, time))", None, True),
+    # F12：电感梯形首步必须用后向欧拉启动，否则阶跃响应从半步起跳。
+    ("inductor-first-step-trapezoid", ELEMENTS, "        elif not self._trapezoidal_started:", "        elif False:", None, True),
     # 正控制：语义等价的注释变异必须存活，用来证明“survived”分类不是把所有变异都报成 killed。
     ("control-comment-only", ELEMENTS, "from __future__ import annotations", "from __future__ import annotations  # mutation positive control", "survived", False),
 ]
 
-PYTEST_ARGS = ["-m", "pytest", "netlab/tests/evals", "-q", "--tb=short", "-p", "no:cacheprovider"]
+# 除层 D 的解析/收敛用例外，还跑数值基准里的 RLC 收敛阶用例：
+# F11（源值半步平均）与 F12（电感首步）只会在这些用例上变红。
+PYTEST_ARGS = [
+    "-m", "pytest",
+    "netlab/tests/evals",
+    "netlab/tests/benchmarks/test_numerical_benchmarks.py",
+    "-q", "--tb=short", "-p", "no:cacheprovider",
+]
 
 
 def classify_outcome(

@@ -16,6 +16,8 @@ def _run_checker(tmp_path: Path) -> dict:
         cwd=ROOT,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=180,
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr

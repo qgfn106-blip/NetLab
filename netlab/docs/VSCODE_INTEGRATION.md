@@ -1,6 +1,6 @@
 # VS Code 集成（内嵌完整 IDE）
 
-> 最后更新：2026-11-07（§1 前端符号改指 `frontend/app.ts` 源码与行号）。2026-11-06（独立窗口 detach 已移除）。2026-11-02 实现：在 netlab HTML UI 内以浮窗承载完整 VS Code Web（终端 / 扩展 / 调试可用）。
+> 最后更新：2026-11-18（连接 token + 不再复用外部服务器；详见 §2）。2026-11-07（§1 前端符号改指 `frontend/app.ts` 源码与行号）。2026-11-06（独立窗口 detach 已移除）。2026-11-02 实现：在 netlab HTML UI 内以浮窗承载完整 VS Code Web（终端 / 扩展 / 调试可用）。
 > 采用 **官方 `code serve-web` 服务器 + 直接跨源 iframe**，不使用 code-server、不做反向代理。
 
 ## 1. 架构
@@ -43,13 +43,19 @@ NetlabExtras/vscode-server/server/vscode-server-win32-x64-web/   # 约 614 MB
 
 ```
 node.exe out/server-main.js --host 127.0.0.1 --port <8790 优先，占用才随机> \
-  --without-connection-token --server-base-path /code/ \
-  --disable-telemetry --accept-server-license-terms \
-  --disable-workspace-trust --default-folder <NETLAB_VSCODE_FOLDER>
+  --connection-token-file <每次启动随机 token 的临时文件> \
+  --server-base-path /code/ --disable-telemetry \
+  --accept-server-license-terms --disable-workspace-trust \
+  --default-folder <NETLAB_VSCODE_FOLDER>
 ```
 
-- 端口优先固定 8790（`NETLAB_VSCODE_PORT` 可改）；被占用才退化为随机空闲端口。
-- 就绪判定 = 轮询 `GET /code/` 返回 200（超时 40s）。
+- 端口优先固定 8790（`NETLAB_VSCODE_PORT` 可改）**且必须能 bind**；被占用直接换随机空闲端口。
+  不再复用 8790 上已有的服务器：旧实例可能没有 token，复用等于绕过鉴权。
+- token 由 `secrets.token_urlsafe(32)` 生成，写入 0600 临时文件；iframe URL 带
+  `?tkn=<token>`（VS Code 的查询参数名，不是 `t`），无 token 访问返回 401/403。
+- 就绪判定 = 轮询带 token 的 `GET /code/?tkn=...` 返回 200（超时 40s）。
+- 服务器始终只绑定 `127.0.0.1`；netlab 自身 API 的桌面 token 守卫不覆盖 8790，
+  因此 VS Code 的鉴权完全依赖上述连接 token。
 - 子进程 `CREATE_NO_WINDOW`，stdout/stderr 写 `%TEMP%/netlab-vscode-server.log`。
 - `atexit` + `server.py` lifespan 的 `finally` 调用 `vscode_bridge.shutdown()`，随 netlab 退出而终止。
 - `--disable-workspace-trust` 是**必须**的：否则 workbench 进入 Restricted Mode，内置扩展（Netlab 侧栏）不会加载。

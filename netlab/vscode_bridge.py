@@ -13,8 +13,13 @@
 WebView2 的磁盘缓存按 origin（含端口）分区。若每次随机端口，则每次启动都是新
 origin、缓存全部失效，workbench 的 ~21.5MB 前端包每次都要重新下载解析（冷启动
 实测 5–8s）；固定端口后同一 origin 命中缓存，二次打开只需 ~1.7s。若端口被别的
-程序占用，才退化到随机空闲端口。若 8790 上已有一个可响应的 VS Code 服务器
-（例如上次异常退出遗留的进程），直接复用它，不再重复拉起。
+程序占用，才退化到随机空闲端口。
+
+安全边界：服务器始终只绑定 ``127.0.0.1``，并用每次启动随机生成的
+``--connection-token-file`` 保护。没有 token 的请求（包括本机其他网页直接
+访问 8790）会得到 401/403；iframe 的 URL 带 ``?tkn=<token>``，由 VS Code
+自己种会话 cookie。**不再复用** 8790 上已有的服务器：旧实例可能是无 token 的，
+复用等于绕过鉴权；端口被占用时直接换空闲端口。
 
 服务器目录查找顺序（第一个含 ``out/server-main.js`` 的生效）：
 1. 环境变量 ``NETLAB_VSCODE_SERVER_DIR``；
@@ -28,6 +33,7 @@ import atexit
 import json
 import os
 import shutil
+import secrets
 import socket
 import subprocess
 import tempfile
@@ -35,6 +41,7 @@ import threading
 import time
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 from urllib.request import urlopen
 
 _HOST = "127.0.0.1"
@@ -47,7 +54,8 @@ _proc: subprocess.Popen | None = None
 _port: int | None = None
 _error: str | None = None
 _log_path: Path | None = None
-_external = False  # 复用了一个不是本进程拉起、但在目标端口上已可用的服务器
+_token: str | None = None
+_token_file: Path | None = None
 
 
 def _candidates() -> list[Path]:
@@ -197,14 +205,55 @@ def _bindable(port: int) -> bool:
         return False
 
 
-def _serves(port: int | None) -> bool:
+def _base_url(port: int) -> str:
+    return f"http://{_HOST}:{port}{_BASE_PATH}"
+
+
+def _authorized_url(port: int) -> str:
+    """带连接 token 的根 URL；token 缺失时退回不带 token 的 URL（仅用于诊断）。"""
+    url = _base_url(port)
+    if _token:
+        return f"{url}?tkn={quote(_token, safe='')}"
+    return url
+
+
+def _serves(port: int | None, token: str | None = None) -> bool:
+    """探测服务器是否已就绪；给了 token 时按真实鉴权 URL 探测。"""
     if not port:
         return False
+    url = f"{_base_url(port)}?tkn={quote(token, safe='')}" if token else _base_url(port)
     try:
-        with urlopen(f"http://{_HOST}:{port}{_BASE_PATH}", timeout=1.0) as resp:
+        with urlopen(url, timeout=1.0) as resp:
             return resp.status == 200
     except Exception:
         return False
+
+
+def _write_token_file(token: str) -> Path:
+    """把 token 写入仅当前用户可读的临时文件，供 --connection-token-file 使用。"""
+    fd, name = tempfile.mkstemp(prefix="netlab-vscode-token-", suffix=".txt")
+    try:
+        os.write(fd, token.encode("ascii"))
+    finally:
+        os.close(fd)
+    path = Path(name)
+    try:
+        os.chmod(path, 0o600)
+    except OSError:  # pragma: no cover - Windows 上 chmod 可能不生效
+        pass
+    return path
+
+
+def _cleanup_token_file() -> None:
+    global _token, _token_file
+    path = _token_file
+    _token = None
+    _token_file = None
+    if path is not None:
+        try:
+            path.unlink()
+        except OSError:
+            pass
 
 
 def _preferred_port() -> int:
@@ -226,11 +275,7 @@ def _default_folder() -> Path:
 
 
 def _running() -> bool:
-    if _proc is not None and _proc.poll() is None:
-        return True
-    if _external and _port is not None:
-        return _serves(_port)
-    return False
+    return _proc is not None and _proc.poll() is None
 
 
 def _snapshot() -> dict[str, Any]:
@@ -238,7 +283,7 @@ def _snapshot() -> dict[str, Any]:
     return {
         "available": find_server_dir() is not None,
         "running": running,
-        "url": f"http://{_HOST}:{_port}{_BASE_PATH}" if running and _port else None,
+        "url": _authorized_url(_port) if running and _port else None,
         "port": _port if running else None,
         "error": _error,
     }
@@ -254,18 +299,16 @@ def status(start_request: bool = False) -> dict[str, Any]:
 
 def start() -> dict[str, Any]:
     """拉起服务器（幂等）。返回与 :func:`status` 相同的状态字典。"""
-    global _proc, _port, _error, _log_path, _external
+    global _proc, _port, _error, _log_path, _token, _token_file
 
     with _lock:
         if _proc is not None and _proc.poll() is None:
-            return _snapshot()
-        if _external and _serves(_port):
             return _snapshot()
 
         _error = None
         _proc = None
         _port = None
-        _external = False
+        _cleanup_token_file()
 
         server_dir = find_server_dir()
         if server_dir is None:
@@ -281,13 +324,15 @@ def start() -> dict[str, Any]:
             return _snapshot()
 
         preferred = _preferred_port()
-        # 目标端口上已有可响应的服务器（上次遗留 / 另一个 netlab 实例）：直接复用。
-        if _serves(preferred):
-            _external = True
-            _port = preferred
-            return _snapshot()
-
+        # 端口固定是为了 WebView2 缓存；但绝不复用已在端口上的服务器
+        # （可能是旧的无 token 实例），占用时换空闲端口。
         port = preferred if _bindable(preferred) else _free_port()
+        _token = secrets.token_urlsafe(32)
+        try:
+            _token_file = _write_token_file(_token)
+        except OSError as exc:
+            _error = f"写入 VS Code Server 连接 token 失败：{exc}"
+            return _snapshot()
         _install_bundled_extensions(server_dir, node)
         cmd = [
             node,
@@ -296,7 +341,8 @@ def start() -> dict[str, Any]:
             _HOST,
             "--port",
             str(port),
-            "--without-connection-token",
+            "--connection-token-file",
+            str(_token_file),
             "--server-base-path",
             _BASE_PATH,
             "--disable-telemetry",
@@ -324,7 +370,7 @@ def start() -> dict[str, Any]:
             _error = f"启动 VS Code Server 失败：{exc}"
             return _snapshot()
 
-        _proc, _port, _external = proc, port, False
+        _proc, _port = proc, port
         deadline = time.time() + _START_TIMEOUT
         while time.time() < deadline:
             if proc.poll() is not None:
@@ -335,24 +381,21 @@ def start() -> dict[str, Any]:
                 _proc = None
                 _port = None
                 return _snapshot()
-            try:
-                with urlopen(f"http://{_HOST}:{port}{_BASE_PATH}", timeout=1.0) as resp:
-                    if resp.status == 200:
-                        return _snapshot()
-            except Exception:
-                time.sleep(0.25)
+            if _serves(port, _token):
+                return _snapshot()
+            time.sleep(0.25)
 
         _error = f"VS Code Server 启动超时（{_START_TIMEOUT:.0f}s），日志见 {_log_path}"
         return _snapshot()
 
 
 def shutdown() -> None:
-    """停止本进程拉起的子进程（应用退出时调用）；复用的外部服务器不处理。"""
-    global _proc, _external
+    """停止本进程拉起的子进程（应用退出时调用），并清理连接 token。"""
+    global _proc
     with _lock:
         proc = _proc
         _proc = None
-        _external = False
+        _cleanup_token_file()
         if proc is not None and proc.poll() is None:
             try:
                 proc.terminate()

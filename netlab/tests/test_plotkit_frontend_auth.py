@@ -115,7 +115,7 @@ def test_plotkit_child_api_accepts_same_origin_session_cookie(monkeypatch):
     """S3/C-5：桌面 token 走一次性 bootstrap 路径种 cookie，不进 URL 查询串。"""
     monkeypatch.setattr(server, "_DESKTOP_TOKEN", "audit-child-token")
     monkeypatch.setattr(server, "_DESKTOP_BOOTSTRAP", "boot-nonce")
-    client = TestClient(app)
+    client = TestClient(app, base_url="https://127.0.0.1")
 
     page = client.get("/__desktop_session__/boot-nonce", follow_redirects=False)
     assert page.status_code == 303
@@ -136,7 +136,7 @@ def test_query_token_no_longer_sets_session_cookie(monkeypatch):
     """C-5：``/?token=...`` 不再种 cookie，token 不得出现在 URL 查询串。"""
     monkeypatch.setattr(server, "_DESKTOP_TOKEN", "audit-child-token")
     monkeypatch.setattr(server, "_DESKTOP_BOOTSTRAP", "boot-nonce")
-    client = TestClient(app)
+    client = TestClient(app, base_url="https://127.0.0.1")
 
     page = client.get("/?token=audit-child-token")
     assert page.status_code == 200

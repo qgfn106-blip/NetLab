@@ -34,7 +34,7 @@ mutable_globals_whitelist:
     reason: PlotKit 挂载状态与同步锁，待 G1 后续迁移到 AppState 注入
     remove_by: "2026-12-31"
   - module: netlab.vscode_bridge
-    names: [_lock, _proc, _port, _error, _log_path]
+    names: [_lock, _proc, _port, _error, _log_path, _token, _token_file]
     reason: VS Code 子进程句柄，进程级单例
     remove_by: "2026-12-31"
   - module: netlab.server_analysis

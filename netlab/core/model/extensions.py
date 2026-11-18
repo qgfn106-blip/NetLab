@@ -361,9 +361,23 @@ def _safe_filename(kind: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", kind) + ".py"
 
 
+def _require_plain_dict(mapping: object, name: str) -> None:
+    """注册表必须是普通 dict。
+
+    clear + update 无法对 dict 子类保证原子性（子类可覆写 update 并在中途抛错，
+    留下半提交状态）。在快照/回滚前统一拒绝非普通 dict，让问题在修改注册表
+    之前暴露，而不是回滚时才发现。
+    """
+    if type(mapping) is not dict:
+        raise RuntimeError(f"{name} 必须是普通 dict，当前为 {type(mapping).__name__}")
+
+
 def _snapshot_registry() -> (
     tuple[dict[str, ComputeSpec], dict[str, MethodSpec], dict[str, Any]]
 ):
+    _require_plain_dict(COMPUTE_SPECS, "COMPUTE_SPECS")
+    _require_plain_dict(METHOD_SPECS, "METHOD_SPECS")
+    _require_plain_dict(_REGISTRY, "_REGISTRY")
     return dict(COMPUTE_SPECS), dict(METHOD_SPECS), dict(_REGISTRY)
 
 
@@ -371,6 +385,10 @@ def _restore_registry(
     snapshot: tuple[dict[str, ComputeSpec], dict[str, MethodSpec], dict[str, Any]],
 ) -> None:
     computes, methods, registry = snapshot
+    # 三项先全部检查再动任何一项，避免“第一项已清空、第二项拒绝”的跨表半提交。
+    _require_plain_dict(COMPUTE_SPECS, "COMPUTE_SPECS")
+    _require_plain_dict(METHOD_SPECS, "METHOD_SPECS")
+    _require_plain_dict(_REGISTRY, "_REGISTRY")
     COMPUTE_SPECS.clear()
     COMPUTE_SPECS.update(computes)
     METHOD_SPECS.clear()

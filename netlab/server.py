@@ -15,6 +15,7 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -122,8 +123,16 @@ DESKTOP_BOOTSTRAP_PREFIX = "/__desktop_session__/"
 _DESKTOP_BOOTSTRAP = os.environ.get("NETLAB_DESKTOP_BOOTSTRAP") or ""
 _DESKTOP_BOOTSTRAP_LOCK = threading.Lock()
 # 桌面会话 cookie：桌面外壳打开一次性 bootstrap 路径时由宿主种下，供同源 iframe
-# （PlotKit 子应用）自动携带；HttpOnly + SameSite=Strict，脚本读不到也跨站带不出。
+# （PlotKit 子应用）自动携带；HttpOnly + SameSite=Strict + Secure，脚本读不到也跨站带不出。
 DESKTOP_COOKIE_NAME = "netlab_desktop_token"
+#: 会话 cookie 有效期：只覆盖一次桌面使用，避免长期 token 永久留在浏览器里。
+DESKTOP_COOKIE_MAX_AGE = 8 * 60 * 60
+#: 无 token 时不应对本机暴露的元数据页面（OpenAPI 会列出全部接口）。
+DESKTOP_GUARDED_META_PATHS = frozenset(
+    {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
+)
+
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
 def _json_default(value: Any) -> Any:
@@ -250,7 +259,30 @@ def is_guarded_api_path(path: str) -> bool:
         path.startswith("/api/")
         or path == "/plotkit/api"
         or path.startswith("/plotkit/api/")
+        or path in DESKTOP_GUARDED_META_PATHS
     )
+
+
+def _token_equals(supplied: str, expected: str) -> bool:
+    """常量时间比较任意字符串；非 ASCII 头/路径不能把中间件打成 500。"""
+    if not supplied or not expected:
+        return False
+    return secrets.compare_digest(
+        supplied.encode("utf-8", "surrogateescape"),
+        expected.encode("utf-8", "surrogateescape"),
+    )
+
+
+def _is_loopback_host(value: str) -> bool:
+    """判断 Host/Origin 是否指向本机回环地址（防 DNS rebinding）。"""
+    text = (value or "").strip()
+    if not text:
+        return False
+    try:
+        hostname = urlsplit(f"//{text}").hostname
+    except ValueError:
+        return False
+    return hostname in _LOOPBACK_HOSTS
 
 
 @app.middleware("http")
@@ -260,16 +292,34 @@ async def desktop_token_guard(request: Request, call_next):
     token 可来自 ``X-Netlab-Token`` 请求头（宿主前端 api() 助手）或同源
     ``netlab_desktop_token`` cookie（PlotKit 子应用自己的 fetch/导航）。cookie 只在
     桌面外壳打开一次性 ``/__desktop_session__/<nonce>`` 路径时种下，HttpOnly +
-    SameSite=Strict；token 不进 URL 查询串。
+    SameSite=Strict + Secure + 8 小时 Max-Age；token 不进 URL 查询串。
     """
     path = request.url.path
     if _DESKTOP_TOKEN and path.startswith(DESKTOP_BOOTSTRAP_PREFIX):
         global _DESKTOP_BOOTSTRAP
+        # bootstrap 只在真正的本机页面打开时生效：恶意网页用 DNS rebinding
+        # 指向 127.0.0.1 时 Host/Origin 仍是外部域名，必须拒绝且不能消耗 nonce。
+        if not _is_loopback_host(request.headers.get("host", "")):
+            return JSONResponse(
+                status_code=404,
+                content={"detail": "桌面会话 bootstrap 仅限本机访问"},
+            )
+        origin = request.headers.get("origin", "")
+        if origin:
+            try:
+                origin_host = urlsplit(origin).netloc
+            except ValueError:
+                origin_host = ""
+            if not _is_loopback_host(origin_host):
+                return JSONResponse(
+                    status_code=404,
+                    content={"detail": "桌面会话 bootstrap 仅限本机访问"},
+                )
         supplied_bootstrap = path[len(DESKTOP_BOOTSTRAP_PREFIX):]
         matched = False
         with _DESKTOP_BOOTSTRAP_LOCK:
             expected = _DESKTOP_BOOTSTRAP
-            if expected and secrets.compare_digest(supplied_bootstrap, expected):
+            if _token_equals(supplied_bootstrap, expected):
                 # 一次性 nonce：成功交换 cookie 后立即失效，重放只能拿到 404。
                 _DESKTOP_BOOTSTRAP = ""
                 matched = True
@@ -281,6 +331,8 @@ async def desktop_token_guard(request: Request, call_next):
                 path="/",
                 httponly=True,
                 samesite="strict",
+                secure=True,
+                max_age=DESKTOP_COOKIE_MAX_AGE,
             )
             return response
         return JSONResponse(
@@ -294,7 +346,7 @@ async def desktop_token_guard(request: Request, call_next):
         _DESKTOP_TOKEN
         and is_guarded_api_path(path)
         and path != "/api/health"
-        and not secrets.compare_digest(supplied, _DESKTOP_TOKEN)
+        and not _token_equals(supplied, _DESKTOP_TOKEN)
     ):
         return JSONResponse(
             status_code=403,

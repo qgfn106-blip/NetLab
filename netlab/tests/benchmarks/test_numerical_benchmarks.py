@@ -295,6 +295,97 @@ def test_rlc_series_matches_scipy_dop853_reference() -> None:
     assert simulated == pytest.approx(float(solution.y[1, 0]), abs=3.0e-3)
 
 
+def _rlc_1khz_rms_error(step_dt: float, steps: int) -> float:
+    """1 kHz 串联 RLC 的电容电压轨迹相对 DOP853 参考解的 RMS 误差。"""
+    from scipy.integrate import solve_ivp
+
+    payload = build_template("rlc_series")
+    for edge in payload["edges"]:
+        if edge["name"] == "V1":
+            edge["params"].update({"wave": "sine", "amplitude": 1.0, "frequency": 1000.0})
+        elif edge["name"] == "C1":
+            edge["params"]["C"] = 1.0e-4
+    scene = Scene("circuit")
+    scene.load_payload(payload)
+    scene.integration = "trapezoidal"
+    simulated: list[float] = []
+    for _ in range(steps):
+        scene.step(step_dt)
+        simulated.append(_node_voltage(scene, "out"))
+    times = np.arange(1, steps + 1, dtype=float) * step_dt
+
+    resistance, inductance, capacitance = 10.0, 0.01, 1.0e-4
+
+    def rhs(time_value: float, state: list[float]) -> list[float]:
+        current, capacitor_voltage = state
+        source = math.sin(2.0 * math.pi * 1000.0 * time_value)
+        return [
+            (source - resistance * current - capacitor_voltage) / inductance,
+            current / capacitance,
+        ]
+
+    solution = solve_ivp(
+        rhs,
+        [0.0, float(times[-1])],
+        [0.0, 0.0],
+        method="DOP853",
+        rtol=1.0e-11,
+        atol=1.0e-12,
+        t_eval=times,
+    )
+    assert solution.success
+    residual = np.asarray(simulated) - solution.y[1]
+    return float(np.sqrt(np.mean(residual * residual)))
+
+
+def test_rlc_sine_trapezoidal_convergence_order() -> None:
+    """源取步末值后，梯形法对连续正弦激励应恢复二阶收敛（旧实现约一阶）。"""
+    coarse = _rlc_1khz_rms_error(1.0e-5, 500)
+    fine = _rlc_1khz_rms_error(5.0e-6, 1000)
+    assert coarse <= 2.0e-4
+    assert fine < coarse
+    assert math.log2(coarse / fine) >= 1.8
+
+
+def _rlc_step_rms_error(step_dt: float, steps: int) -> float:
+    from netlab.tests.evals.eval_helpers import (
+        node_voltage,
+        rlc_step_analytic,
+        rlc_step_scene,
+    )
+
+    scene = rlc_step_scene()
+    scene.integration = "trapezoidal"
+    simulated: list[float] = []
+    for _ in range(steps):
+        scene.step(step_dt)
+        simulated.append(node_voltage(scene, "out"))
+    residual = np.asarray(simulated) - np.asarray(
+        [rlc_step_analytic(index * step_dt) for index in range(1, steps + 1)]
+    )
+    return float(np.sqrt(np.mean(residual * residual)))
+
+
+def test_rlc_step_trapezoidal_convergence_order() -> None:
+    """阶跃源下电感首步用 BE 启动，梯形法应保持二阶收敛（旧实现约一阶）。"""
+    from netlab.tests.evals.eval_helpers import rlc_step_scene
+
+    scene = rlc_step_scene()
+    scene.integration = "trapezoidal"
+    engine = scene.ensure_engine()
+    scene.step(1.0e-5)
+    inductor = next(
+        element for element in engine.solver.elements if element.kind == "inductor"
+    )
+    # 阶跃后 i_L(0+)≈V·dt/L；旧实现取半步平均，只有约一半。
+    assert float(inductor.state["i"]) > 0.8 * 1.0e-5 / 0.01
+
+    coarse = _rlc_step_rms_error(1.0e-5, 500)
+    fine = _rlc_step_rms_error(5.0e-6, 1000)
+    assert fine < coarse
+    assert math.log2(coarse / fine) >= 1.8
+
+
 def test_diode_rectifier_nonlinear_transient_converges() -> None:
     """二极管整流（非线性器件族）在源跳变后每步收敛，输出电容电压为正且有限。"""
     scene = _template_scene("diode_rectifier")

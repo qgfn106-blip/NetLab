@@ -23,9 +23,11 @@ from ..core.model.project import (
     validate_project,
 )
 from ..core.model.workspace import load_settings
+from ..server_fem import FemConfigUpdateRequest
 
 router = APIRouter(tags=["project"])
 _LOGGER = logging.getLogger(__name__)
+_FEM_CONFIG_FIELDS = tuple(FemConfigUpdateRequest.model_fields)
 
 _service: Any = None
 _fem: Any = None
@@ -110,6 +112,25 @@ def _project_payload(request: ProjectExportRequest | None = None) -> dict[str, A
     return project
 
 
+def _snapshot_fem_config() -> dict[str, Any] | None:
+    """取 FEM 可回填的配置快照；FEM 不在事务内，失败时要手动恢复。"""
+    if _fem is None:
+        return None
+    state = _fem.snapshot(include_mesh=False)
+    if not isinstance(state, dict):
+        return None
+    config = state.get("config")
+    if isinstance(config, dict):
+        return {key: config[key] for key in _FEM_CONFIG_FIELDS if key in config}
+    return {key: state[key] for key in _FEM_CONFIG_FIELDS if key in state}
+
+
+def _restore_fem_config(snapshot: dict[str, Any] | None) -> None:
+    if not snapshot or _fem is None:
+        return
+    _fem.apply_config(dict(snapshot))
+
+
 def apply_project(
     project: dict[str, Any],
     trust_extensions: bool,
@@ -128,6 +149,7 @@ def apply_project(
     # parse → activate → validate → commit：扩展激活与后续校验/装载共享同一事务，
     # 任一阶段失败都会恢复扩展注册表，避免失败导入留下全局注册副作用。
     stage = "parse"
+    fem_before: dict[str, Any] | None = None
     with extensions.registry_transaction():
         try:
             stage = "activate"
@@ -153,6 +175,7 @@ def apply_project(
             stage = "apply_fem"
             fem_payload = project.get("fem") or {}
             if fem_payload:
+                fem_before = _snapshot_fem_config()
                 _fem.apply_config(fem_payload)
             stage = "commit"
             _service.load_project(
@@ -190,6 +213,11 @@ def apply_project(
                 },
             }
         except Exception:
+            if fem_before is not None:
+                try:
+                    _restore_fem_config(fem_before)
+                except Exception:
+                    _LOGGER.exception("project import failed to restore FEM config")
             _LOGGER.warning(
                 "project import failed at stage=%s", stage, exc_info=True
             )

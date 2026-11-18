@@ -155,3 +155,35 @@ def test_registry_transaction_restores_on_nested_error():
         raise AssertionError("expected RuntimeError")
     assert _registry_snapshot() == before
     assert "user.tx_gain2" not in extensions.used_kinds()
+
+
+class _ExplodingDict(dict):
+    def update(self, *args, **kwargs):  # pragma: no cover - 不应被调用
+        raise AssertionError("restore must not mutate a non-plain registry")
+
+
+def test_registry_transaction_rejects_replaced_container_before_writing(monkeypatch):
+    """S6：注册表被替换成 dict 子类时，事务在写入前失败，不留半提交状态。"""
+    original = extensions.COMPUTE_SPECS
+    replacement = _ExplodingDict(original)
+    monkeypatch.setattr(extensions, "COMPUTE_SPECS", replacement)
+
+    with pytest.raises(RuntimeError, match="普通 dict"):
+        with extensions.registry_transaction():
+            raise AssertionError("transaction body must not run")
+    assert dict(replacement) == dict(original)
+
+
+def test_restore_checks_all_registries_before_clearing_any(monkeypatch):
+    """S6：回滚先校验三张表，第二张不合规时第一张也不能被清空。"""
+    snapshot = extensions._snapshot_registry()
+    original_computes = dict(extensions.COMPUTE_SPECS)
+    original_registry = dict(extensions._REGISTRY)
+    monkeypatch.setattr(
+        extensions, "METHOD_SPECS", _ExplodingDict(extensions.METHOD_SPECS)
+    )
+
+    with pytest.raises(RuntimeError, match="普通 dict"):
+        extensions._restore_registry(snapshot)
+    assert dict(extensions.COMPUTE_SPECS) == original_computes
+    assert dict(extensions._REGISTRY) == original_registry

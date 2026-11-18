@@ -1,6 +1,6 @@
 # RHINE LAB · NETLAB
 
-> 最后更新：2026-11-15
+> 最后更新：2026-11-18
 
 > **节点拓扑、非线性动态、二维矢量，放在同一个可操作的本地仿真台。**
 > 纯本地运行：一个 Python 进程 + 一个浏览器页面，不依赖任何云服务或外网资源。
@@ -114,6 +114,8 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-18 | fix(desktop): export through native save dialog instead of silent blob download |
+| 2026-11-18 | fix(d5): add shadow report for trapezoidal source change |
 | 2026-11-18 | fix(review): harden auth, transactions and trapezoidal integration |
 | 2026-11-18 | fix(d5): add solver shadow report for compute changes |
 | 2026-11-18 | feat: 完成 WP-0~WP-8 优化实施与非 FEM 验收 |
@@ -132,8 +134,6 @@ python -m netlab.desktop
 | 2026-11-17 | fix(mathspec): D-B6-1 dt 校验移到 docstring 之后（保留 __doc__）+ 文档回归测试 |
 | 2026-11-17 | fix(mathspec): B6 csr 跨行判重修正 + 积分/hybrid/drivetrain dt<=0 校验 |
 | 2026-11-17 | chore(b5-02): python-tests.yml 保持仓库原有 CRLF 行尾（消除伪 diff） |
-| 2026-11-17 | test(b5-02): mathspec 测试纳入 root testpaths/CI + 低覆盖模块补测 |
-| 2026-11-17 | test(b5-01): v3-v7 历史 golden 强化（真实节点/边/state）并与 p2d 契约测试去重 |
 
 <!-- END LAST 20 UPDATES -->
 

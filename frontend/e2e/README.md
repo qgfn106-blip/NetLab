@@ -7,7 +7,7 @@ cd NetlabHome/frontend
 npm run e2e
 ```
 
-依次执行 `smoke.mjs`、`analysis_ux.mjs`、`appearance_ux.mjs`、`card_fields_ux.mjs`、`float_window_ux.mjs`。每个脚本会：
+依次执行 `smoke.mjs`、`analysis_ux.mjs`、`appearance_ux.mjs`、`card_fields_ux.mjs`、`float_window_ux.mjs`、`export_save_ux.mjs`。`export_save_ux.mjs` 用桩顶替原生对话框，断言桌面导出“把内容交给原生层 + 提示真实路径 + 取消不假成功 + 失败报错”。每个脚本会：
 
 1. 用 `harness.mjs` 启动独立的 `uvicorn netlab.server:app` 后端，轮询 `/api/health` 直到就绪；
 2. 用状态等待（`networkidle`、DOM 条件、`waitForResponse`）替代固定 sleep；

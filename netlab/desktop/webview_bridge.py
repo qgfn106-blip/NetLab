@@ -81,7 +81,13 @@ class WebviewBridge:
     def _autosave_path(self) -> Path:
         return _autosave_dir() / "autosave.netlab"
 
-    def _dialog(self, *, save: bool, default_name: str = "") -> str:
+    def _dialog(
+        self,
+        *,
+        save: bool,
+        default_name: str = "",
+        file_types: tuple[str, ...] | None = None,
+    ) -> str:
         import webview
 
         if self._window is None:
@@ -92,7 +98,7 @@ class WebviewBridge:
                     webview.SAVE_DIALOG,
                     directory=self._last_directory,
                     save_filename=default_name,
-                    file_types=_FILE_TYPES,
+                    file_types=file_types or _FILE_TYPES,
                 )
             else:
                 result = self._window.create_file_dialog(
@@ -145,6 +151,33 @@ class WebviewBridge:
             self._last_directory = str(Path(target).parent)
             self._dirty = False
             return target
+        except Exception as exc:
+            return f"__error__{exc}"
+
+    def save_text(self, default_name: str, text: str) -> str:
+        """把导出文本（SVG/JSON 等）写到用户在原生对话框里选的路径。
+
+        每次调用都弹保存对话框（导出必须显式选文件夹，不做静默落盘），
+        对话框默认停在上次用过的目录。文本按 UTF-8 + LF 写入，
+        避免 Windows 默认换行污染 SVG/JSON 的内容与哈希。
+        返回真实写入路径；用户取消返回 ""；失败返回 "__error__<原因>"。
+        """
+        try:
+            name = (default_name or "export.txt").strip() or "export.txt"
+            suffix = Path(name).suffix or ".txt"
+            file_types = (
+                f"{suffix.lstrip('.').upper()} 文件 (*{suffix})",
+                "所有文件 (*.*)",
+            )
+            path = self._dialog(save=True, default_name=name, file_types=file_types)
+            if not path:
+                return ""
+            target = Path(path)
+            if not target.suffix:
+                target = target.with_suffix(suffix)
+            target.write_text(str(text), encoding="utf-8", newline="\n")
+            self._last_directory = str(target.parent)
+            return str(target)
         except Exception as exc:
             return f"__error__{exc}"
 

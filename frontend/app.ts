@@ -3283,17 +3283,37 @@ function setStatusHint(hint: string): void {
     const payload = await task(() => api('/api/scene/export?include_state=false'), { dirty: false });
     if (!payload) return;
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const fileName = `netlab-${state.mode}-${stamp}.json`;
     const text = JSON.stringify(payload, null, 2);
+    if (await saveTextViaDesktop(text, fileName)) return;
     const blob = new Blob([text], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = el('a');
     link.href = url;
-    link.download = `netlab-${state.mode}-${stamp}.json`;
+    link.download = fileName;
     document.body.appendChild(link);
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
-    toast('场景已导出', 'ok', 1800);
+    toast('场景已交给浏览器下载', 'ok', 2400);
+  }
+
+  /**
+   * 桌面模式：走原生保存对话框，由用户选文件夹，返回真实写入路径。
+   * 返回 true = 已处理完（含用户取消，此时不提示成功）；false = 该走浏览器下载。
+   */
+  async function saveTextViaDesktop(text: string, defaultName: string): Promise<boolean> {
+    if (!desktopBridge()) return false;
+    const result = await callBridge('saveText', [defaultName, text]);
+    if (result === null) return false;
+    const path = String(result);
+    if (!path) return true;
+    if (path.startsWith('__error__')) {
+      toast(`导出失败：${path.slice('__error__'.length)}`, 'error', 7000);
+      return true;
+    }
+    toast(`已导出到 ${path}`, 'ok', 6000);
+    return true;
   }
 
   async function exportSchematic() {
@@ -3310,16 +3330,19 @@ function setStatusHint(hint: string): void {
       { dirty: false },
     );
     if (!payload?.svg) return;
-    const blob = new Blob([String(payload.svg)], { type: 'image/svg+xml' });
+    const svg = String(payload.svg);
+    const fileName = String(payload.filename || 'schematic.svg');
+    if (await saveTextViaDesktop(svg, fileName)) return;
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
     const link = el('a');
     link.href = url;
-    link.download = String(payload.filename || 'schematic.svg');
+    link.download = fileName;
     document.body.appendChild(link);
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
-    toast('原理图 SVG 已导出', 'ok', 1800);
+    toast('原理图 SVG 已交给浏览器下载', 'ok', 2400);
   }
 
   async function importSceneFile(file: File) {

@@ -42,6 +42,7 @@
     window.netlabDesktop = {
       saveProject: wrap("save_project"),
       saveProjectTo: wrap("save_project_to"),
+      saveText: wrap("save_text"),
       openProject: wrap("open_project"),
       openProjectPath: wrap("open_project_path"),
       currentPath: wrap("current_path"),

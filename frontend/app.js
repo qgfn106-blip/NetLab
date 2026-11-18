@@ -8,7 +8,7 @@ import { drawChart } from "./app/chart_draw.js";
 import { state, ui } from "./app/state.js";
 import { el, div, button, clone, isFormTarget } from "./app/ui.js";
 import { normalizeCardFields } from "./app/card_fields.js";
-import { toast, showBanner, hideBanner } from "./app/desktop.js";
+import { desktopBridge, callBridge, toast, showBanner, hideBanner } from "./app/desktop.js";
 import { api, jsonRequest } from "./app/net.js";
 import { openCacheDialog, checkCacheQuietly } from "./app/cache.js";
 import { appearancePanelTitle, collectAppearanceTargets, renderAppearancePanel } from "./app/appearance_panel.js";
@@ -2978,17 +2978,32 @@ function setStatusHint(hint) {
     const payload = await task(() => api("/api/scene/export?include_state=false"), { dirty: false });
     if (!payload) return;
     const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const fileName = `netlab-${state.mode}-${stamp}.json`;
     const text = JSON.stringify(payload, null, 2);
+    if (await saveTextViaDesktop(text, fileName)) return;
     const blob = new Blob([text], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = el("a");
     link.href = url;
-    link.download = `netlab-${state.mode}-${stamp}.json`;
+    link.download = fileName;
     document.body.appendChild(link);
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2e3);
-    toast("\u573A\u666F\u5DF2\u5BFC\u51FA", "ok", 1800);
+    toast("\u573A\u666F\u5DF2\u4EA4\u7ED9\u6D4F\u89C8\u5668\u4E0B\u8F7D", "ok", 2400);
+  }
+  async function saveTextViaDesktop(text, defaultName) {
+    if (!desktopBridge()) return false;
+    const result = await callBridge("saveText", [defaultName, text]);
+    if (result === null) return false;
+    const path = String(result);
+    if (!path) return true;
+    if (path.startsWith("__error__")) {
+      toast(`\u5BFC\u51FA\u5931\u8D25\uFF1A${path.slice("__error__".length)}`, "error", 7e3);
+      return true;
+    }
+    toast(`\u5DF2\u5BFC\u51FA\u5230 ${path}`, "ok", 6e3);
+    return true;
   }
   async function exportSchematic() {
     if (state.scene?.mode !== "circuit") {
@@ -3004,16 +3019,19 @@ function setStatusHint(hint) {
       { dirty: false }
     );
     if (!payload?.svg) return;
-    const blob = new Blob([String(payload.svg)], { type: "image/svg+xml" });
+    const svg = String(payload.svg);
+    const fileName = String(payload.filename || "schematic.svg");
+    if (await saveTextViaDesktop(svg, fileName)) return;
+    const blob = new Blob([svg], { type: "image/svg+xml" });
     const url = URL.createObjectURL(blob);
     const link = el("a");
     link.href = url;
-    link.download = String(payload.filename || "schematic.svg");
+    link.download = fileName;
     document.body.appendChild(link);
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2e3);
-    toast("\u539F\u7406\u56FE SVG \u5DF2\u5BFC\u51FA", "ok", 1800);
+    toast("\u539F\u7406\u56FE SVG \u5DF2\u4EA4\u7ED9\u6D4F\u89C8\u5668\u4E0B\u8F7D", "ok", 2400);
   }
   async function importSceneFile(file) {
     if (file.size > MAX_IMPORT_BYTES) {

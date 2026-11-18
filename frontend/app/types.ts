@@ -78,6 +78,13 @@ export interface UiPrefsRec {
   cardValue?: boolean;
   cardFields?: string[];
   showPins?: boolean;
+  gridSubdivisions?: number;
+  angleMode?: 'constrained' | 'free';
+  angleSet?: number[];
+  angleToleranceDeg?: number;
+  showOrigin?: boolean;
+  showRuler?: boolean;
+  adaptiveZoom?: boolean;
   [k: string]: unknown;
 }
 export interface PrefsRec {

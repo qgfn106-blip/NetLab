@@ -1,0 +1,675 @@
+{
+  "crossings": [],
+  "devices": [
+    {
+      "bbox": {
+        "bottom": 98.0,
+        "left": 68.0,
+        "right": 112.0,
+        "top": 64.0
+      },
+      "center": {
+        "x": 90.0,
+        "y": 80.0
+      },
+      "id": "cc9a0d848145",
+      "kind": "diode",
+      "name": "D1",
+      "params": {},
+      "pins": [
+        {
+          "name": "A",
+          "required": true,
+          "role": "passive",
+          "x": 70.0,
+          "y": 80.0
+        },
+        {
+          "name": "K",
+          "required": true,
+          "role": "passive",
+          "x": 110.0,
+          "y": 80.0
+        }
+      ],
+      "rotation_deg": 0.0
+    },
+    {
+      "bbox": {
+        "bottom": 98.0,
+        "left": 248.0,
+        "right": 292.0,
+        "top": 64.0
+      },
+      "center": {
+        "x": 270.0,
+        "y": 80.0
+      },
+      "id": "4a80baad4013",
+      "kind": "diode",
+      "name": "D2",
+      "params": {},
+      "pins": [
+        {
+          "name": "A",
+          "required": true,
+          "role": "passive",
+          "x": 250.0,
+          "y": 80.0
+        },
+        {
+          "name": "K",
+          "required": true,
+          "role": "passive",
+          "x": 290.0,
+          "y": 80.0
+        }
+      ],
+      "rotation_deg": 0.0
+    },
+    {
+      "bbox": {
+        "bottom": 218.0,
+        "left": 68.0,
+        "right": 112.0,
+        "top": 184.0
+      },
+      "center": {
+        "x": 90.0,
+        "y": 200.0
+      },
+      "id": "d4153f68d847",
+      "kind": "diode",
+      "name": "D3",
+      "params": {},
+      "pins": [
+        {
+          "name": "A",
+          "required": true,
+          "role": "passive",
+          "x": 70.0,
+          "y": 200.0
+        },
+        {
+          "name": "K",
+          "required": true,
+          "role": "passive",
+          "x": 110.0,
+          "y": 200.0
+        }
+      ],
+      "rotation_deg": 0.0
+    },
+    {
+      "bbox": {
+        "bottom": 218.0,
+        "left": 248.0,
+        "right": 292.0,
+        "top": 184.0
+      },
+      "center": {
+        "x": 270.0,
+        "y": 200.0
+      },
+      "id": "0a7d078d9f39",
+      "kind": "diode",
+      "name": "D4",
+      "params": {},
+      "pins": [
+        {
+          "name": "A",
+          "required": true,
+          "role": "passive",
+          "x": 250.0,
+          "y": 200.0
+        },
+        {
+          "name": "K",
+          "required": true,
+          "role": "passive",
+          "x": 290.0,
+          "y": 200.0
+        }
+      ],
+      "rotation_deg": 0.0
+    },
+    {
+      "bbox": {
+        "bottom": 162.0,
+        "left": 170.0,
+        "right": 190.0,
+        "top": 118.0
+      },
+      "center": {
+        "x": 180.0,
+        "y": 140.0
+      },
+      "id": "4767ad80e2da",
+      "kind": "resistor",
+      "name": "RL",
+      "params": {
+        "R": 100
+      },
+      "pins": [
+        {
+          "name": "1",
+          "required": true,
+          "role": "passive",
+          "x": 180.0,
+          "y": 120.0
+        },
+        {
+          "name": "2",
+          "required": true,
+          "role": "passive",
+          "x": 180.0,
+          "y": 160.0
+        }
+      ],
+      "rotation_deg": 90.0
+    },
+    {
+      "bbox": {
+        "bottom": 222.0,
+        "left": -12.0,
+        "right": 12.0,
+        "top": 178.0
+      },
+      "center": {
+        "x": 0.0,
+        "y": 200.0
+      },
+      "id": "c14e3dde339a",
+      "kind": "vsource",
+      "name": "V1",
+      "params": {
+        "amplitude": 12,
+        "frequency": 50,
+        "offset": 0,
+        "wave": "sine"
+      },
+      "pins": [
+        {
+          "name": "+",
+          "required": true,
+          "role": "output",
+          "x": -0.0,
+          "y": 180.0
+        },
+        {
+          "name": "-",
+          "required": true,
+          "role": "output",
+          "x": 0.0,
+          "y": 220.0
+        }
+      ],
+      "rotation_deg": 90.0
+    }
+  ],
+  "junctions": [
+    {
+      "reason": "branch",
+      "x": 0.0,
+      "y": 140.0
+    },
+    {
+      "reason": "branch",
+      "x": 180.0,
+      "y": 20.0
+    },
+    {
+      "reason": "branch",
+      "x": 180.0,
+      "y": 260.0
+    }
+  ],
+  "labels": [
+    {
+      "anchor": {
+        "x": 270.0,
+        "y": 226.0
+      },
+      "owner_id": "0a7d078d9f39",
+      "placement": "below",
+      "role": "designator",
+      "text": "D4"
+    },
+    {
+      "anchor": {
+        "x": 162.0,
+        "y": 140.0
+      },
+      "owner_id": "4767ad80e2da",
+      "placement": "left",
+      "role": "designator",
+      "text": "RL"
+    },
+    {
+      "anchor": {
+        "x": 198.0,
+        "y": 140.0
+      },
+      "owner_id": "4767ad80e2da",
+      "placement": "right",
+      "role": "value",
+      "text": "100Ω"
+    },
+    {
+      "anchor": {
+        "x": 270.0,
+        "y": 106.0
+      },
+      "owner_id": "4a80baad4013",
+      "placement": "below",
+      "role": "designator",
+      "text": "D2"
+    },
+    {
+      "anchor": {
+        "x": -20.0,
+        "y": 200.0
+      },
+      "owner_id": "c14e3dde339a",
+      "placement": "left",
+      "role": "designator",
+      "text": "V1"
+    },
+    {
+      "anchor": {
+        "x": 90.0,
+        "y": 106.0
+      },
+      "owner_id": "cc9a0d848145",
+      "placement": "below",
+      "role": "designator",
+      "text": "D1"
+    },
+    {
+      "anchor": {
+        "x": 90.0,
+        "y": 272.8
+      },
+      "owner_id": "d4153f68d847",
+      "placement": "below",
+      "role": "designator",
+      "text": "D3"
+    }
+  ],
+  "nets": [
+    {
+      "id": "1a3cf95f9fc1",
+      "is_ground": true,
+      "members": [
+        {
+          "device": "0a7d078d9f39",
+          "pin": "A"
+        },
+        {
+          "device": "4767ad80e2da",
+          "pin": "2"
+        },
+        {
+          "device": "c14e3dde339a",
+          "pin": "-"
+        },
+        {
+          "device": "d4153f68d847",
+          "pin": "A"
+        }
+      ],
+      "name": "NEG"
+    },
+    {
+      "id": "4abd3985ba80",
+      "is_ground": false,
+      "members": [
+        {
+          "device": "4767ad80e2da",
+          "pin": "1"
+        },
+        {
+          "device": "4a80baad4013",
+          "pin": "K"
+        },
+        {
+          "device": "cc9a0d848145",
+          "pin": "K"
+        }
+      ],
+      "name": "POS"
+    },
+    {
+      "id": "4ebfcc769539",
+      "is_ground": false,
+      "members": [
+        {
+          "device": "0a7d078d9f39",
+          "pin": "K"
+        },
+        {
+          "device": "4a80baad4013",
+          "pin": "A"
+        }
+      ],
+      "name": "AC_R"
+    },
+    {
+      "id": "64ad2f5b89eb",
+      "is_ground": false,
+      "members": [
+        {
+          "device": "c14e3dde339a",
+          "pin": "+"
+        },
+        {
+          "device": "cc9a0d848145",
+          "pin": "A"
+        },
+        {
+          "device": "d4153f68d847",
+          "pin": "K"
+        }
+      ],
+      "name": "AC_L"
+    }
+  ],
+  "schema": "netlab-schematic-ir/1",
+  "stats": {
+    "crossings": 0,
+    "devices": 6,
+    "junctions": 3,
+    "labels": 7,
+    "nodes": 10,
+    "unsupported": 0,
+    "warnings": 0,
+    "wires": 12
+  },
+  "style": "gb",
+  "units": {
+    "grid_mm": 2.54,
+    "mm_per_world": 0.127,
+    "svg": "pt",
+    "world": "netlab-world"
+  },
+  "unsupported": [],
+  "warnings": [],
+  "wires": [
+    {
+      "id": "0e384c228a48",
+      "net_id": "64ad2f5b89eb",
+      "points": [
+        {
+          "x": 110.0,
+          "y": 200.0
+        },
+        {
+          "x": 55.0,
+          "y": 200.0
+        },
+        {
+          "x": 55.0,
+          "y": 140.0
+        },
+        {
+          "x": 0.0,
+          "y": 140.0
+        }
+      ],
+      "route_source": "orthogonal",
+      "source_pin": "K",
+      "target_pin": ""
+    },
+    {
+      "id": "2d7b72e017cd",
+      "net_id": "4ebfcc769539",
+      "points": [
+        {
+          "x": 290.0,
+          "y": 200.0
+        },
+        {
+          "x": 325.0,
+          "y": 200.0
+        },
+        {
+          "x": 325.0,
+          "y": 140.0
+        },
+        {
+          "x": 360.0,
+          "y": 140.0
+        }
+      ],
+      "route_source": "orthogonal",
+      "source_pin": "K",
+      "target_pin": ""
+    },
+    {
+      "id": "34f974af1769",
+      "net_id": "1a3cf95f9fc1",
+      "points": [
+        {
+          "x": 0.0,
+          "y": 220.0
+        },
+        {
+          "x": 90.0,
+          "y": 220.0
+        },
+        {
+          "x": 90.0,
+          "y": 260.0
+        },
+        {
+          "x": 180.0,
+          "y": 260.0
+        }
+      ],
+      "route_source": "orthogonal",
+      "source_pin": "-",
+      "target_pin": ""
+    },
+    {
+      "id": "41170ab61945",
+      "net_id": "64ad2f5b89eb",
+      "points": [
+        {
+          "x": 70.0,
+          "y": 80.0
+        },
+        {
+          "x": 35.0,
+          "y": 80.0
+        },
+        {
+          "x": 35.0,
+          "y": 140.0
+        },
+        {
+          "x": 0.0,
+          "y": 140.0
+        }
+      ],
+      "route_source": "orthogonal",
+      "source_pin": "A",
+      "target_pin": ""
+    },
+    {
+      "id": "420a685ce4c6",
+      "net_id": "1a3cf95f9fc1",
+      "points": [
+        {
+          "x": 70.0,
+          "y": 200.0
+        },
+        {
+          "x": 125.0,
+          "y": 200.0
+        },
+        {
+          "x": 125.0,
+          "y": 260.0
+        },
+        {
+          "x": 180.0,
+          "y": 260.0
+        }
+      ],
+      "route_source": "orthogonal",
+      "source_pin": "A",
+      "target_pin": ""
+    },
+    {
+      "id": "86cc4995a660",
+      "net_id": "4abd3985ba80",
+      "points": [
+        {
+          "x": 180.0,
+          "y": 120.0
+        },
+        {
+          "x": 180.0,
+          "y": 20.0
+        }
+      ],
+      "route_source": "orthogonal",
+      "source_pin": "1",
+      "target_pin": ""
+    },
+    {
+      "id": "8ac1ce06be3d",
+      "net_id": "4abd3985ba80",
+      "points": [
+        {
+          "x": 110.0,
+          "y": 80.0
+        },
+        {
+          "x": 145.0,
+          "y": 80.0
+        },
+        {
+          "x": 145.0,
+          "y": 20.0
+        },
+        {
+          "x": 180.0,
+          "y": 20.0
+        }
+      ],
+      "route_source": "orthogonal",
+      "source_pin": "K",
+      "target_pin": ""
+    },
+    {
+      "id": "af0d3272a979",
+      "net_id": "1a3cf95f9fc1",
+      "points": [
+        {
+          "x": 250.0,
+          "y": 200.0
+        },
+        {
+          "x": 215.0,
+          "y": 200.0
+        },
+        {
+          "x": 215.0,
+          "y": 260.0
+        },
+        {
+          "x": 180.0,
+          "y": 260.0
+        }
+      ],
+      "route_source": "orthogonal",
+      "source_pin": "A",
+      "target_pin": ""
+    },
+    {
+      "id": "b428a4893300",
+      "net_id": "4ebfcc769539",
+      "points": [
+        {
+          "x": 250.0,
+          "y": 80.0
+        },
+        {
+          "x": 305.0,
+          "y": 80.0
+        },
+        {
+          "x": 305.0,
+          "y": 140.0
+        },
+        {
+          "x": 360.0,
+          "y": 140.0
+        }
+      ],
+      "route_source": "orthogonal",
+      "source_pin": "A",
+      "target_pin": ""
+    },
+    {
+      "id": "dfc722767450",
+      "net_id": "64ad2f5b89eb",
+      "points": [
+        {
+          "x": -0.0,
+          "y": 180.0
+        },
+        {
+          "x": 0.0,
+          "y": 140.0
+        }
+      ],
+      "route_source": "orthogonal",
+      "source_pin": "+",
+      "target_pin": ""
+    },
+    {
+      "id": "e7082b651425",
+      "net_id": "1a3cf95f9fc1",
+      "points": [
+        {
+          "x": 180.0,
+          "y": 160.0
+        },
+        {
+          "x": 180.0,
+          "y": 260.0
+        }
+      ],
+      "route_source": "orthogonal",
+      "source_pin": "2",
+      "target_pin": ""
+    },
+    {
+      "id": "fa1b03cf1519",
+      "net_id": "4abd3985ba80",
+      "points": [
+        {
+          "x": 290.0,
+          "y": 80.0
+        },
+        {
+          "x": 235.0,
+          "y": 80.0
+        },
+        {
+          "x": 235.0,
+          "y": 20.0
+        },
+        {
+          "x": 180.0,
+          "y": 20.0
+        }
+      ],
+      "route_source": "orthogonal",
+      "source_pin": "K",
+      "target_pin": ""
+    }
+  ]
+}

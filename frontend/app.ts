@@ -15,7 +15,9 @@ import { state, ui } from './app/state.js';
 import type { ApiOptions } from './app/net.js';
 import { el, div, button, clone, isFormTarget } from './app/ui.js';
 import { normalizeCardFields } from './app/card_fields.js';
+import { applyGridPayload, normaliseAngleSet } from './app/grid_prefs.js';
 import { desktopBridge, isDesktop, callBridge, toast, showBanner, hideBanner } from './app/desktop.js';
+import { openExportDialog, type ExportChoice, type ExportDestination, type ExportStyle } from './app/export_dialog.js';
 import { api, jsonRequest, plotkitFrameUrl } from './app/net.js';
 import { openCacheDialog, checkCacheQuietly } from './app/cache.js';
 import { appearancePanelTitle, collectAppearanceTargets, renderAppearancePanel } from './app/appearance_panel.js';
@@ -1353,7 +1355,7 @@ function setStatusHint(hint: string): void {
     items.push({ label: '自动布局', action: () => void autoLayout() });
     if (state.mode === 'circuit') {
       items.push({ sep: true });
-      items.push({ label: '导出原理图 SVG…', action: () => void exportSchematic() });
+      items.push({ label: '导出…', action: () => void openExport('schematic') });
     }
     openGenericMenu(ui.linkMenu, point.x, point.y, '画布', items);
   }
@@ -2894,20 +2896,122 @@ function setStatusHint(hint: string): void {
       markProjectDirty();
       toast(state.ui.snap ? '网格吸附已开启' : '网格吸附已关闭', 'info', 1800);
     });
-    const gridSelect = el('select', 'input');
-    for (const size of [10, 20, 50]) {
-      const option = el('option', null, `${size} 单位`);
-      option.value = String(size);
-      gridSelect.appendChild(option);
-    }
-    gridSelect.value = String(Number(state.ui.grid) || 20);
-    gridSelect.addEventListener('change', () => {
-      state.ui.grid = Number(gridSelect.value) || 20;
+    const spacing = document.createElement('input');
+    spacing.className = 'input';
+    spacing.type = 'number';
+    spacing.min = '5';
+    spacing.max = '80';
+    spacing.step = '1';
+    spacing.value = String(Number(state.ui.grid) || 20);
+    spacing.dataset.role = 'grid-spacing';
+    const setSpacing = (next: number) => {
+      const value = Math.max(5, Math.min(80, Math.round(next)));
+      state.ui.grid = value;
+      spacing.value = String(value);
+      markProjectDirty();
+      requestDraw();
+    };
+    spacing.addEventListener('change', () => setSpacing(Number(spacing.value) || 20));
+    const spacingMinus = button('−', 'btn tiny', () => setSpacing((Number(state.ui.grid) || 20) - 1));
+    spacingMinus.dataset.role = 'grid-spacing-minus';
+    const spacingPlus = button('＋', 'btn tiny', () => setSpacing((Number(state.ui.grid) || 20) + 1));
+    spacingPlus.dataset.role = 'grid-spacing-plus';
+    const spacingField = div('field');
+    spacingField.appendChild(el('label', null, '间距（单位）'));
+    spacingField.appendChild(spacing);
+    const spacingWrap = div('inline-fields');
+    spacingWrap.dataset.role = 'grid-spacing-control';
+    spacingWrap.append(spacingMinus, spacingField, spacingPlus);
+    gridRow.append(el('label', null, '吸附'), snapBox, spacingWrap);
+    gridSection.appendChild(gridRow);
+
+    const subRow = div('field-row');
+    const subInput = document.createElement('input');
+    subInput.className = 'input';
+    subInput.type = 'number';
+    subInput.min = '1';
+    subInput.max = '20';
+    subInput.step = '1';
+    subInput.value = String(Number(state.ui.gridSubdivisions) || 4);
+    subInput.dataset.role = 'grid-subdivisions';
+    subInput.addEventListener('change', () => {
+      state.ui.gridSubdivisions = Math.max(1, Math.min(20, Math.round(Number(subInput.value) || 4)));
       markProjectDirty();
       requestDraw();
     });
-    gridRow.append(el('label', null, '吸附'), snapBox, el('label', null, '标准网格'), gridSelect);
-    gridSection.appendChild(gridRow);
+    const showBox = document.createElement('input');
+    showBox.type = 'checkbox';
+    showBox.checked = state.ui.showGrid !== false;
+    showBox.dataset.role = 'grid-show';
+    showBox.addEventListener('change', () => { state.ui.showGrid = showBox.checked; markProjectDirty(); requestDraw(); });
+    const markersBox = document.createElement('input');
+    markersBox.type = 'checkbox';
+    markersBox.checked = state.ui.snapMarkers !== false;
+    markersBox.dataset.role = 'grid-markers';
+    markersBox.addEventListener('change', () => { state.ui.snapMarkers = markersBox.checked; markProjectDirty(); requestDraw(); });
+    subRow.append(el('label', null, '细分'), subInput, el('label', null, '显示网格'), showBox, el('label', null, '捕捉点'), markersBox);
+    gridSection.appendChild(subRow);
+
+    const angleRow = div('field-row');
+    const angleMode = el('select', 'input');
+    for (const [value, label] of [['constrained', '约束角集'], ['free', '自由角度']]) {
+      const option = el('option', null, label);
+      option.value = value;
+      angleMode.appendChild(option);
+    }
+    angleMode.value = state.ui.angleMode === 'free' ? 'free' : 'constrained';
+    angleMode.dataset.role = 'grid-angle-mode';
+    angleMode.addEventListener('change', () => { state.ui.angleMode = angleMode.value === 'free' ? 'free' : 'constrained'; markProjectDirty(); });
+    const tolerance = document.createElement('input');
+    tolerance.className = 'input';
+    tolerance.type = 'number';
+    tolerance.min = '0.5';
+    tolerance.max = '15';
+    tolerance.step = '0.5';
+    tolerance.value = String(Number(state.ui.angleToleranceDeg) || 3);
+    tolerance.dataset.role = 'grid-angle-tolerance';
+    tolerance.addEventListener('change', () => { state.ui.angleToleranceDeg = Math.max(0.5, Math.min(15, Number(tolerance.value) || 3)); markProjectDirty(); });
+    angleRow.append(el('label', null, '角度模式'), angleMode, el('label', null, '吸附容差°'), tolerance);
+    gridSection.appendChild(angleRow);
+
+    const angleSetRow = div('field-row');
+    angleSetRow.dataset.role = 'grid-angle-set';
+    angleSetRow.appendChild(el('label', null, '允许角度'));
+    const currentAngles = normaliseAngleSet(state.ui.angleSet);
+    for (const angle of [0, 45, 60, 90]) {
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.value = String(angle);
+      box.checked = currentAngles.includes(angle);
+      box.dataset.angle = String(angle);
+      box.addEventListener('change', () => {
+        const boxes = [...angleSetRow.querySelectorAll('input[type="checkbox"]')] as HTMLInputElement[];
+        state.ui.angleSet = normaliseAngleSet(boxes.filter((item) => item.checked).map((item) => Number(item.value)));
+        markProjectDirty();
+      });
+      angleSetRow.append(box, el('span', null, `${angle}°`));
+    }
+    gridSection.appendChild(angleSetRow);
+
+    const viewRow = div('field-row');
+    const originBox = document.createElement('input');
+    originBox.type = 'checkbox';
+    originBox.checked = state.ui.showOrigin !== false;
+    originBox.dataset.role = 'grid-show-origin';
+    originBox.addEventListener('change', () => { state.ui.showOrigin = originBox.checked; markProjectDirty(); requestDraw(); });
+    const rulerBox = document.createElement('input');
+    rulerBox.type = 'checkbox';
+    rulerBox.checked = Boolean(state.ui.showRuler);
+    rulerBox.dataset.role = 'grid-show-ruler';
+    rulerBox.addEventListener('change', () => { state.ui.showRuler = rulerBox.checked; markProjectDirty(); requestDraw(); });
+    const adaptiveBox = document.createElement('input');
+    adaptiveBox.type = 'checkbox';
+    adaptiveBox.checked = state.ui.adaptiveZoom !== false;
+    adaptiveBox.dataset.role = 'grid-adaptive-zoom';
+    adaptiveBox.addEventListener('change', () => { state.ui.adaptiveZoom = adaptiveBox.checked; markProjectDirty(); requestDraw(); });
+    viewRow.append(el('label', null, '显示原点'), originBox, el('label', null, '标尺'), rulerBox, el('label', null, '缩放自适应'), adaptiveBox);
+    gridSection.appendChild(viewRow);
+    gridSection.appendChild(div('help', '网格默认值随工程保存；只影响新建导线和导出，不会改写已有手工折点。'));
 
     const styleRow = div('field-row');
     const nodeStyleSelect = el('select', 'input');
@@ -2964,8 +3068,8 @@ function setStatusHint(hint: string): void {
 
     const dataSection = section('场景数据', 'JSON');
     const fileRow = div('file-row');
-    fileRow.appendChild(button('导出 JSON', 'btn', () => void exportScene()));
-    fileRow.appendChild(button('导出原理图 SVG', 'btn', () => void exportSchematic()));
+    fileRow.appendChild(button('导出 JSON', 'btn', () => void openExport('scene-data')));
+    fileRow.appendChild(button('导出原理图 SVG', 'btn', () => void openExport('schematic')));
     fileRow.appendChild(button('导入 JSON', 'btn', () => importInput.click()));
     dataSection.appendChild(fileRow);
     const importInput = el('input');
@@ -3279,13 +3383,13 @@ function setStatusHint(hint: string): void {
     toast('场景已清空', 'ok', 2000);
   }
 
-  async function exportScene() {
+  async function exportScene(destination: ExportDestination = 'browser-download') {
     const payload = await task(() => api('/api/scene/export?include_state=false'), { dirty: false });
-    if (!payload) return;
+    if (!payload) throw new Error('后端未返回场景数据');
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const fileName = `netlab-${state.mode}-${stamp}.json`;
     const text = JSON.stringify(payload, null, 2);
-    if (await saveTextViaDesktop(text, fileName)) return;
+    if (await saveTextViaDesktop(text, fileName, destination)) return;
     const blob = new Blob([text], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = el('a');
@@ -3301,38 +3405,55 @@ function setStatusHint(hint: string): void {
   /**
    * 桌面模式：走原生保存对话框，由用户选文件夹，返回真实写入路径。
    * 返回 true = 已处理完（含用户取消，此时不提示成功）；false = 该走浏览器下载。
+   * 显式选择桌面保存但桥不可用时抛错，避免静默降级成浏览器下载。
    */
-  async function saveTextViaDesktop(text: string, defaultName: string): Promise<boolean> {
-    if (!desktopBridge()) return false;
+  async function saveTextViaDesktop(
+    text: string,
+    defaultName: string,
+    destination: ExportDestination | 'auto' = 'auto',
+  ): Promise<boolean> {
+    if (destination === 'browser-download') return false;
+    if (!desktopBridge()) {
+      if (destination === 'desktop-save-dialog') throw new Error('当前环境没有桌面保存对话框，请改用浏览器下载');
+      return false;
+    }
     const result = await callBridge('saveText', [defaultName, text]);
-    if (result === null) return false;
+    if (result === null) {
+      if (destination === 'desktop-save-dialog') throw new Error('桌面保存桥未连接');
+      return false;
+    }
     const path = String(result);
     if (!path) return true;
     if (path.startsWith('__error__')) {
-      toast(`导出失败：${path.slice('__error__'.length)}`, 'error', 7000);
+      const message = path.slice('__error__'.length);
+      if (destination === 'desktop-save-dialog') throw new Error(message);
+      toast(`导出失败：${message}`, 'error', 7000);
       return true;
     }
     toast(`已导出到 ${path}`, 'ok', 6000);
     return true;
   }
 
-  async function exportSchematic() {
+  async function exportSchematic(
+    destination: ExportDestination = 'browser-download',
+    style: ExportStyle = 'follow-project',
+  ) {
     if (state.scene?.mode !== 'circuit') {
-      toast('原理图导出仅支持电路模式', 'info', 2600);
-      return;
+      throw new Error('原理图导出仅支持电路模式');
     }
     const params = new URLSearchParams({
       name: state.project?.name || '',
       network: state.currentNetwork?.name || '',
     });
+    if (style !== 'follow-project') params.set('style', style);
     const payload = await task(
       () => jsonRequest(`/api/export/schematic?${params.toString()}`, 'GET'),
       { dirty: false },
     );
-    if (!payload?.svg) return;
+    if (!payload?.svg) throw new Error('后端未返回原理图 SVG');
     const svg = String(payload.svg);
     const fileName = String(payload.filename || 'schematic.svg');
-    if (await saveTextViaDesktop(svg, fileName)) return;
+    if (await saveTextViaDesktop(svg, fileName, destination)) return;
     const blob = new Blob([svg], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
     const link = el('a');
@@ -3343,6 +3464,23 @@ function setStatusHint(hint: string): void {
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
     toast('原理图 SVG 已交给浏览器下载', 'ok', 2400);
+  }
+
+  async function performExport(choice: ExportChoice): Promise<void> {
+    if (choice.mode === 'scene-data') {
+      await exportScene(choice.destination);
+      return;
+    }
+    await exportSchematic(choice.destination, choice.style);
+  }
+
+  async function openExport(initialMode: 'schematic' | 'scene-data' = 'schematic'): Promise<void> {
+    await openExportDialog({
+      projectStyle: String(state.ui?.symbol || 'classic') === 'gb' ? 'gb' : 'classic',
+      initialMode,
+      desktopAvailable: Boolean(desktopBridge()),
+      run: performExport,
+    });
   }
 
   async function importSceneFile(file: File) {
@@ -4099,8 +4237,8 @@ function setStatusHint(hint: string): void {
           { label: '另存为…', action: () => void saveProject(true) },
           { sep: true },
           { label: '恢复自动保存', action: () => void recoverAutosave() },
-          { label: '导出场景 JSON', hint: 'Ctrl+Shift+E（下一票）', action: () => void exportScene() },
-          { label: '导出原理图 SVG…', hint: '电路场景导出当前视图', action: () => void exportSchematic() },
+          { label: '导出场景 JSON', hint: 'Ctrl+Shift+E', action: () => void openExport('scene-data') },
+          { label: '导出原理图 SVG…', hint: '统一导出窗口', action: () => void openExport('schematic') },
           { sep: true },
           { label: '退出服务', action: () => void shutdownApp() },
         ],
@@ -4654,12 +4792,7 @@ function setStatusHint(hint: string): void {
   function applyProjectUi(uiSettings: Record<string, unknown>) {
     if (!uiSettings || typeof uiSettings !== 'object') return;
     if (uiSettings.grid && typeof uiSettings.grid === 'object') {
-      if (typeof (uiSettings.grid as { [k: string]: unknown }).snap === 'boolean') state.ui.snap = (uiSettings.grid as { [k: string]: unknown }).snap as boolean;
-      if (typeof (uiSettings.grid as { [k: string]: unknown }).show === 'boolean') state.ui.showGrid = (uiSettings.grid as { [k: string]: unknown }).show as boolean;
-      if (typeof (uiSettings.grid as { [k: string]: unknown }).markers === 'boolean') state.ui.snapMarkers = (uiSettings.grid as { [k: string]: unknown }).markers as boolean;
-      if (typeof (uiSettings.grid as { [k: string]: unknown }).orthogonal === 'boolean') state.ui.circuitOrthogonal = (uiSettings.grid as { [k: string]: unknown }).orthogonal as boolean;
-      const size = Number((uiSettings.grid as { [k: string]: unknown }).size);
-      if (Number.isFinite(size) && size >= 5 && size <= 80) state.ui.grid = size;
+      applyGridPayload(state.ui as unknown as Record<string, unknown>, uiSettings.grid);
     }
     if (uiSettings.symbol === 'gb' || uiSettings.symbol === 'classic') {
       state.ui.symbol = uiSettings.symbol;
@@ -7006,8 +7139,7 @@ function setStatusHint(hint: string): void {
           void saveProject(false);
         } else if (key === 'e' && event.shiftKey) {
           event.preventDefault();
-          if (state.workspace === 'network') void exportScene();
-          else toast('有限元场不导出 JSON；可在「场」面板重建参数', 'info', 3000);
+          void openExport(state.workspace === 'network' ? 'scene-data' : 'schematic');
         } else if (key === 'z') {
           event.preventDefault();
           if (event.shiftKey) void redo();

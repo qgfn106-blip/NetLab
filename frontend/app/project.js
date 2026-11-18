@@ -6,6 +6,7 @@ import { desktopBridge, callBridge, isDesktop, showBanner, toast } from "./deskt
 import { baseName } from "../app.utils.js";
 import { activeTab } from "./model.js";
 import { normalizeCardFields } from "./card_fields.js";
+import { gridPrefsPayload } from "./grid_prefs.js";
 const projectActions = {};
 function setProjectActions(actions) {
   Object.assign(projectActions, actions);
@@ -156,13 +157,7 @@ async function buildProjectPayload() {
         view: state.view,
         tab: activeTab(),
         workspace: state.workspace,
-        grid: {
-          snap: Boolean(state.ui.snap),
-          size: Number(state.ui.grid) || 20,
-          show: state.ui.showGrid !== false,
-          markers: state.ui.snapMarkers !== false,
-          orthogonal: state.ui.circuitOrthogonal !== false
-        },
+        grid: gridPrefsPayload(state.ui),
         symbol: state.ui.symbol,
         nodeStyle: state.ui.nodeStyle || "circle",
         drawingMode: Boolean(state.ui.drawingMode),

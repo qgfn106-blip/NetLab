@@ -3,6 +3,7 @@ import { C, tokens } from './colors.js';
 import { GROUP_COLORS } from './constants.js';
 import { canvas, ctx } from './dom.js';
 import { state, ui } from './state.js';
+import { gridPrefsFromUi } from './grid_prefs.js';
 import { fmt } from '../app.utils.js';
 import { anchorPoint, devicePinScreen, edgePathPoints, nodeCenterScreen, worldToScreen } from './geometry.js';
 import { edgeDisplayData, getNodeSpec, nodeById, nodeDisplayData } from './model.js';
@@ -87,12 +88,36 @@ export function gridPattern(step: number, dpr: number, color: string) {
   }
 
 export function drawGrid(width: number, height: number) {
-    if (state.ui?.showGrid === false || state.ui?.drawingMode) return;
-    let step = (Number(state.ui?.grid) || 20) * state.view.k;
-    while (step < 12) step *= 2;
-    while (step > 84) step /= 2;
+    const prefs = gridPrefsFromUi(state.ui as unknown as Record<string, unknown>);
+    if (prefs.show === false || state.ui?.drawingMode) return;
+    let step = prefs.spacing * state.view.k;
+    if (prefs.adaptiveZoom) {
+      while (step < 12) step *= 2;
+      while (step > 84) step /= 2;
+    }
     const ox = ((state.view.x % step) + step) % step;
     const oy = ((state.view.y % step) + step) % step;
+
+    // 次级网格线：细分只在屏幕间距足够宽时绘制，避免低缩放时变成噪点。
+    const subdivisions = Math.max(1, Math.min(20, Math.round(prefs.subdivisions)));
+    const minor = step / subdivisions;
+    if (subdivisions > 1 && minor >= 8) {
+      ctx.save();
+      ctx.globalAlpha = 0.32;
+      ctx.strokeStyle = tokens().gridDot;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      for (let x = ox % minor; x < width; x += minor) {
+        ctx.moveTo(Math.round(x) + 0.5, 0);
+        ctx.lineTo(Math.round(x) + 0.5, height);
+      }
+      for (let y = oy % minor; y < height; y += minor) {
+        ctx.moveTo(0, Math.round(y) + 0.5);
+        ctx.lineTo(width, Math.round(y) + 0.5);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // 网格点用 CanvasPattern 平铺：一次 fillRect 取代 (w/step)*(h/step) 次 1px 填充
     // （1400×900、步距 20 时原本每帧 3000+ 次 fillRect，是画布重绘的主要开销）。
@@ -112,7 +137,7 @@ export function drawGrid(width: number, height: number) {
       }
     }
 
-    if (state.view.x > 0 && state.view.x < width) {
+    if (prefs.showOrigin !== false && state.view.x > 0 && state.view.x < width) {
       ctx.strokeStyle = tokens().gridAxis;
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -120,13 +145,28 @@ export function drawGrid(width: number, height: number) {
       ctx.lineTo(Math.round(state.view.x) + 0.5, height);
       ctx.stroke();
     }
-    if (state.view.y > 0 && state.view.y < height) {
+    if (prefs.showOrigin !== false && state.view.y > 0 && state.view.y < height) {
       ctx.strokeStyle = tokens().gridAxis;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, Math.round(state.view.y) + 0.5);
       ctx.lineTo(width, Math.round(state.view.y) + 0.5);
       ctx.stroke();
+    }
+    if (prefs.showRuler) {
+      ctx.save();
+      ctx.fillStyle = tokens().gridAxis;
+      ctx.font = '10px ui-monospace, Consolas, monospace';
+      ctx.textBaseline = 'top';
+      for (let x = ox; x < width; x += step) {
+        const worldX = Math.round((x - state.view.x) / state.view.k);
+        ctx.fillText(String(worldX), Math.round(x) + 2, 2);
+      }
+      for (let y = oy; y < height; y += step) {
+        const worldY = Math.round((y - state.view.y) / state.view.k);
+        ctx.fillText(String(worldY), 2, Math.round(y) + 2);
+      }
+      ctx.restore();
     }
 
     // CAD 式捕捉点：拖动时高亮最近的网格交点

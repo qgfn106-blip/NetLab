@@ -387,10 +387,12 @@ export function renderEdgeInspector(edge: EdgeItem) {
     const routeField = div('field');
     routeField.appendChild(numberedField('路由', '自动 / 直线 / 正交 / 手动'));
     const routeSelect = el('select');
+    routeSelect.dataset.role = 'edge-route';
     for (const [value, label] of [
       ['auto', '自动（曲线）'],
       ['straight', '直线'],
       ['orthogonal', '正交折线'],
+      ['free', '自由角度'],
       ['manual', '手动拐点'],
     ]) {
       const option = el('option', null, label);
@@ -403,6 +405,61 @@ export function renderEdgeInspector(edge: EdgeItem) {
     });
     routeField.appendChild(routeSelect);
     geometry.appendChild(routeField);
+    if (edge.kind === 'wire') {
+      const layout = (edge.layout && typeof edge.layout === 'object') ? { ...(edge.layout as Record<string, unknown>) } : {};
+      const angleRow = div('inline-fields');
+      angleRow.dataset.role = 'wire-angle-controls';
+      const modeField = div('field');
+      modeField.appendChild(numberedField('角度模式', '当前导线'));
+      const modeSelect = el('select');
+      modeSelect.dataset.role = 'wire-angle-mode';
+      for (const [value, label] of [['inherit', '跟随工程'], ['constrained', '约束角集'], ['free', '自由角度']]) {
+        const option = el('option', null, label);
+        option.value = value;
+        if (String(layout.angle_mode || 'inherit') === value) option.selected = true;
+        modeSelect.appendChild(option);
+      }
+      modeSelect.addEventListener('change', () => {
+        void patchEdgeGeometry(edge.id, { layout: { ...layout, angle_mode: modeSelect.value } });
+      });
+      modeField.appendChild(modeSelect);
+      angleRow.appendChild(modeField);
+      const setField = div('field');
+      setField.appendChild(numberedField('允许角度', ''));
+      const setWrap = div('inline-fields');
+      setWrap.dataset.role = 'wire-angle-set';
+      const currentAngles = Array.isArray(layout.angle_set) ? (layout.angle_set as unknown[]).map(Number) : [0, 45, 60, 90];
+      for (const angle of [0, 45, 60, 90]) {
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.value = String(angle);
+        box.checked = currentAngles.includes(angle);
+        box.dataset.angle = String(angle);
+        box.addEventListener('change', () => {
+          const boxes = [...setWrap.querySelectorAll('input[type="checkbox"]')] as HTMLInputElement[];
+          void patchEdgeGeometry(edge.id, { layout: { ...layout, angle_set: boxes.filter((item) => item.checked).map((item) => Number(item.value)) } });
+        });
+        setWrap.append(box, el('span', null, `${angle}°`));
+      }
+      setField.appendChild(setWrap);
+      angleRow.appendChild(setField);
+      const toleranceField = div('field');
+      toleranceField.appendChild(numberedField('容差°', ''));
+      const toleranceInput = document.createElement('input');
+      toleranceInput.className = 'input';
+      toleranceInput.type = 'number';
+      toleranceInput.min = '0.5';
+      toleranceInput.max = '15';
+      toleranceInput.step = '0.5';
+      toleranceInput.value = String(Number(layout.angle_tolerance_deg) || 3);
+      toleranceInput.dataset.role = 'wire-angle-tolerance';
+      toleranceInput.addEventListener('change', () => {
+        void patchEdgeGeometry(edge.id, { layout: { ...layout, angle_tolerance_deg: Math.max(0.5, Math.min(15, Number(toleranceInput.value) || 3)) } });
+      });
+      toleranceField.appendChild(toleranceInput);
+      angleRow.appendChild(toleranceField);
+      geometry.appendChild(angleRow);
+    }
 
     const anchorsRow = div('inline-fields');
     for (const [key, label] of [['source', '起点锚点'], ['target', '终点锚点']]) {
@@ -579,12 +636,23 @@ export function renderEdgeInspector(edge: EdgeItem) {
       if (sourcePortBox) payload.source_port = (sourcePortBox as HTMLInputElement).value;
       if (targetPortBox) payload.target_port = (targetPortBox as HTMLInputElement).value;
       const waypointBox = form.querySelector('[data-role="waypoints"]');
+      const routeBox = form.querySelector('[data-role="edge-route"]') as HTMLSelectElement | null;
       if (waypointBox) {
         payload.waypoints = [...waypointBox.querySelectorAll('[data-role="waypoint-row"]')].map((row) => ({
           x: Number((row.querySelector('[data-role="waypoint-x"]') as HTMLInputElement).value) || 0,
           y: Number((row.querySelector('[data-role="waypoint-y"]') as HTMLInputElement).value) || 0,
         }));
-        payload.route = (payload.waypoints as Array<{ x: number; y: number }>).length ? 'manual' : 'auto';
+        payload.route = (payload.waypoints as Array<{ x: number; y: number }>).length ? 'manual' : (routeBox?.value || 'auto');
+      }
+      const angleModeBox = form.querySelector('[data-role="wire-angle-mode"]') as HTMLSelectElement | null;
+      if (angleModeBox) {
+        const layout = (edge.layout && typeof edge.layout === 'object') ? { ...(edge.layout as Record<string, unknown>) } : {};
+        layout.angle_mode = angleModeBox.value;
+        const setBoxes = [...form.querySelectorAll('[data-role="wire-angle-set"] input[type="checkbox"]')] as HTMLInputElement[];
+        if (setBoxes.length) layout.angle_set = setBoxes.filter((item) => item.checked).map((item) => Number(item.value));
+        const toleranceBox = form.querySelector('[data-role="wire-angle-tolerance"]') as HTMLInputElement | null;
+        if (toleranceBox) layout.angle_tolerance_deg = Math.max(0.5, Math.min(15, Number(toleranceBox.value) || 3));
+        payload.layout = layout;
       }
       const enabledBox = form.querySelector('[data-role="enabled"]');
       if (enabledBox) payload.enabled = Boolean((enabledBox as HTMLInputElement).checked);

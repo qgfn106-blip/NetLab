@@ -1,5 +1,5 @@
 import { isAnalysisEnvelope } from "./analysis_chart.js";
-import { compareTableHtml, mergeCompareEnvelopes, metricsHtml } from "./analysis_workbench_results.js";
+import { compareTableHtml, mergeCompareEnvelopes, metricsHtml, transferSummaryHtml } from "./analysis_workbench_results.js";
 import { readWorkbenchUi, writeWorkbenchUi } from "./analysis_workbench_layout.js";
 import { AnalysisCanvasWorkspace } from "./analysis_workbench_canvas.js";
 import {
@@ -69,6 +69,7 @@ class AnalysisWorkbench {
       '  <div class="awb-resize" data-awb-resize="nav" title="\u62D6\u52A8\u8C03\u6574\u5BFC\u822A\u5BBD"></div>',
       '  <section class="awb-stage">',
       '    <div class="awb-toolbar" data-awb="toolbar"></div>',
+      '    <div class="awb-transfer-host" data-awb="transfer-host"></div>',
       '    <div class="awb-canvas-host" data-awb="chart"></div>',
       "  </section>",
       '  <div class="awb-resize" data-awb-resize="detail" title="\u62D6\u52A8\u8C03\u6574\u8BE6\u60C5\u5BBD"></div>',
@@ -80,6 +81,7 @@ class AnalysisWorkbench {
     this.navHost = this.host.querySelector('[data-awb="nav"]');
     this.detailHost = this.host.querySelector('[data-awb="detail"]');
     this.toolbarHost = this.host.querySelector('[data-awb="toolbar"]');
+    this.transferHost = this.host.querySelector('[data-awb="transfer-host"]');
     const chartHost = this.host.querySelector('[data-awb="chart"]');
     this.statusHost = this.host.querySelector('[data-awb="status"]');
     this.spawnWorkspace(chartHost);
@@ -394,6 +396,7 @@ class AnalysisWorkbench {
     const run = this.lastRuns[this.activeKind] || null;
     const metrics = run?.envelope?.metrics || {};
     const summary = describeRunStatus(run?.envelope);
+    if (this.transferHost) this.transferHost.innerHTML = transferSummaryHtml(run?.raw);
     const lines = [
       "\u72B6\u6001\uFF1A" + (active?.label || "\u2014"),
       "\u6307\u7EB9\uFF1A" + shortFingerprint(active?.fingerprint),

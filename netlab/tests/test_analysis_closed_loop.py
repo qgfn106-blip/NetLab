@@ -53,6 +53,9 @@ def test_explicit_closed_loop_bode_compares_synth_and_direct() -> None:
     assert any("T_direct" in label for label in labels)
     assert body["parity_max_rel"] is not None
     assert envelope["metrics"]["parity_max_rel"] == pytest.approx(body["parity_max_rel"])
+    assert body["transfer_role"] == "closed_loop"
+    assert body["transfer_function"]["supported"] is True
+    assert body["transfer_function"]["expression"].startswith("(")
 
 
 def test_explicit_closed_loop_step_returns_time_envelope() -> None:
@@ -70,6 +73,8 @@ def test_explicit_closed_loop_step_returns_time_envelope() -> None:
     )
     assert body["kind"] == "loop_step"
     assert body["display"] == "step"
+    assert body["transfer_role"] == "closed_loop"
+    assert body["transfer_function"]["supported"] is True
     envelope = body["envelopes"]["time"]
     assert envelope["kind"] == "time"
     assert envelope["source"]["kind"] == "loop_step"
@@ -95,3 +100,7 @@ def test_virtual_feedback_warns_and_stays_marked() -> None:
     codes = {str(item.get("code")) for item in body["warnings"]}
     assert "no_physical_loop" in codes
     assert body["source"]["break_kind"] == "virtual"
+    assert body["transfer_role"] == "open_loop"
+    assert body["transfer_function"]["supported"] is True
+    assert body["closed_loop_transfer_function"]["supported"] is True
+    assert body["closed_loop_transfer_function"]["expression"] != body["transfer_function"]["expression"]

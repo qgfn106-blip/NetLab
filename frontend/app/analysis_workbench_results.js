@@ -1,4 +1,30 @@
 import { STATE_COLORS, escapeHtml } from "./analysis_workbench_meta.js";
+function readTransfer(value) {
+  if (!value || typeof value !== "object") return null;
+  const info = value;
+  if (info.supported !== true || typeof info.expression !== "string" || !info.expression) return null;
+  return info;
+}
+function transferItemHtml(label, info) {
+  const order = typeof info.order === "number" ? String(info.order) : "\u2014";
+  const relative = typeof info.relative_order === "number" ? String(info.relative_order) : "\u2014";
+  return '<span class="anal-transfer-item"><b>' + label + "</b> = <code>" + escapeHtml(info.expression || "") + '</code><span class="anal-transfer-meta">\u9636\u6570 ' + order + " \xB7 \u76F8\u5BF9\u9636 " + relative + "</span></span>";
+}
+function transferSummaryHtml(raw) {
+  if (!raw) return "";
+  const openLoop = readTransfer(raw["transfer_function"]);
+  const closedLoop = readTransfer(raw["closed_loop_transfer_function"]);
+  const role = raw["transfer_role"] === "closed_loop" ? "closed_loop" : "open_loop";
+  const items = [];
+  if (role === "closed_loop") {
+    if (openLoop) items.push(transferItemHtml("\u95ED\u73AF T(s)", openLoop));
+  } else {
+    if (openLoop) items.push(transferItemHtml("\u5F00\u73AF G(s)", openLoop));
+    if (closedLoop) items.push(transferItemHtml("\u95ED\u73AF T(s)", closedLoop));
+  }
+  if (!items.length) return "";
+  return '<div class="anal-transfer" data-awb="transfer">' + items.join("") + "</div>";
+}
 function mergeCompareEnvelopes(results) {
   const base = JSON.parse(JSON.stringify(results[0].envelope));
   base.curves = [];
@@ -52,5 +78,6 @@ function metricsHtml(raw) {
 export {
   compareTableHtml,
   mergeCompareEnvelopes,
-  metricsHtml
+  metricsHtml,
+  transferSummaryHtml
 };

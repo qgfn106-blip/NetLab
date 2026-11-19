@@ -108,6 +108,8 @@ try {
   await page.locator('[data-awb="frequency-path"]').selectOption('descriptor_linearized');
   await page.locator('[data-awb="run"]').click();
   await page.waitForFunction(() => (document.querySelector('.awb-status')?.textContent || '').includes('描述器线性化'), null, { timeout: 20000 });
+  const transferText = await page.locator('[data-awb="transfer"]').innerText();
+  assert(transferText.includes('开环 G(s)'), 'Bode 未显示开环 G(s): ' + transferText);
 
   // 4c) 未选择实体断环元件时，闭环 Bode/阶跃走虚拟单位负反馈并显示提示。
   await page.locator('.awb-nav-item[data-kind="loop_closed"]').click();
@@ -116,6 +118,8 @@ try {
   await page.locator('[data-awb="run"]').click();
   await page.waitForFunction(() => (document.querySelector('.awb-status')?.textContent || '').includes('虚拟单位负反馈'), null, { timeout: 20000 });
   assert((await page.locator('.awb-canvas-title').allInnerTexts()).some((text) => text.includes('闭环 Bode')), '闭环 Bode 子画布未创建');
+  const loopTransferText = await page.locator('[data-awb="transfer"]').innerText();
+  assert(loopTransferText.includes('开环 G(s)') && loopTransferText.includes('闭环 T(s)'), '虚拟闭环未显示 G(s)/T(s): ' + loopTransferText);
   await page.locator('.awb-nav-item[data-kind="loop_step"]').click();
   await page.waitForFunction(() => !document.querySelector('.awb-toolbar')?.classList.contains('busy'), null, { timeout: 20000 });
   await page.locator('[data-awb="element"]').selectOption('__virtual__');

@@ -2,6 +2,45 @@
 import type { AnalysisEnvelope, AnalysisMarker } from './analysis_chart.js';
 import { STATE_COLORS, escapeHtml } from './analysis_workbench_meta.js';
 
+
+export interface TransferInfo {
+  supported?: boolean;
+  expression?: string;
+  order?: number;
+  relative_order?: number;
+  reason?: string;
+}
+
+function readTransfer(value: unknown): TransferInfo | null {
+  if (!value || typeof value !== 'object') return null;
+  const info = value as TransferInfo;
+  if (info.supported !== true || typeof info.expression !== 'string' || !info.expression) return null;
+  return info;
+}
+
+function transferItemHtml(label: string, info: TransferInfo): string {
+  const order = typeof info.order === 'number' ? String(info.order) : '—';
+  const relative = typeof info.relative_order === 'number' ? String(info.relative_order) : '—';
+  return '<span class="anal-transfer-item"><b>' + label + '</b> = <code>' + escapeHtml(info.expression || '') +
+    '</code><span class="anal-transfer-meta">阶数 ' + order + ' · 相对阶 ' + relative + '</span></span>';
+}
+
+export function transferSummaryHtml(raw?: Record<string, unknown>): string {
+  if (!raw) return '';
+  const openLoop = readTransfer(raw['transfer_function']);
+  const closedLoop = readTransfer(raw['closed_loop_transfer_function']);
+  const role = raw['transfer_role'] === 'closed_loop' ? 'closed_loop' : 'open_loop';
+  const items: string[] = [];
+  if (role === 'closed_loop') {
+    if (openLoop) items.push(transferItemHtml('闭环 T(s)', openLoop));
+  } else {
+    if (openLoop) items.push(transferItemHtml('开环 G(s)', openLoop));
+    if (closedLoop) items.push(transferItemHtml('闭环 T(s)', closedLoop));
+  }
+  if (!items.length) return '';
+  return '<div class="anal-transfer" data-awb="transfer">' + items.join('') + '</div>';
+}
+
 export interface CompareResult {
   state_id: string;
   label: string;

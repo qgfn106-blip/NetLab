@@ -2122,6 +2122,10 @@ body { grid-template-columns: minmax(0, 1fr); }
 }
 #analBypassPoles, #analBypassZeros { flex: none; max-height: 140px; }
 .anal-transfer { padding: 6px 10px 2px; font-size: calc(12px * var(--ui-font-scale, 1)); color: var(--text-primary); overflow-wrap: anywhere; }
+.awb-transfer-host { flex: none; }
+.awb-transfer-host:empty { display: none; }
+.anal-transfer-item { margin-right: 18px; }
+.anal-transfer-meta { margin-left: 6px; color: var(--muted, #7b7266); font-size: 0.85em; }
 .anal-transfer code { font-family: ui-monospace, monospace; }
 .anal-metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; padding: 6px 10px; }
 .anal-metrics-grid > div { border: var(--ui-line, 1px) solid var(--line, #d9d3c7); border-radius: 8px; padding: 6px 8px; background: var(--panel-bg); }

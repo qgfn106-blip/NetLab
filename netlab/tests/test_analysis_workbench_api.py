@@ -143,6 +143,9 @@ def test_workbench_closed_loop_with_virtual_feedback_has_parity_curves(client) -
     assert envelope["source"]["loop_origin"] == "virtual_unit_feedback"
     assert "no_physical_loop" in {str(item.get("code")) for item in envelope["warnings"]}
     assert body["raw"]["display"] == "closed_loop"
+    assert body["raw"]["transfer_role"] == "open_loop"
+    assert body["raw"]["transfer_function"]["supported"] is True
+    assert body["raw"]["closed_loop_transfer_function"]["supported"] is True
 
 
 def test_workbench_closed_loop_step_returns_time_envelope(client) -> None:
@@ -155,6 +158,8 @@ def test_workbench_closed_loop_step_returns_time_envelope(client) -> None:
     assert envelope["kind"] == "time"
     assert envelope["source"]["kind"] == "loop_step"
     assert envelope["axes"][0]["unit"] == "s"
+    assert body["raw"]["transfer_role"] == "open_loop"
+    assert body["raw"]["transfer_function"]["supported"] is True
 
 
 def test_workbench_accepts_poles_kind(client) -> None:

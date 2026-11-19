@@ -38,6 +38,7 @@ from .circuit.descriptor_analysis import (
     analyze_poles,
     analyze_zeros,
     build_output_matrices,
+    closed_loop_transfer_function,
     descriptor_step_response,
     descriptor_transfer_function,
     descriptor_transient_response,
@@ -1727,6 +1728,8 @@ def _virtual_loop_analysis(
          "f_start": float(f_start), "f_stop": float(f_stop), "points": int(points),
          "op_present": bool(operating_point)},
     )
+    open_loop_transfer = tf.get("transfer_function")
+    closed_loop_transfer = closed_loop_transfer_function(open_loop_transfer)
     if display == "step":
         step_payload = dict((tf.get("envelopes") or {}).get("time") or {})
         if not step_payload:
@@ -1751,6 +1754,9 @@ def _virtual_loop_analysis(
             "fingerprint": fingerprint_value,
             "envelopes": {"time": step_payload},
             "source": source_payload,
+            "transfer_function": open_loop_transfer,
+            "closed_loop_transfer_function": closed_loop_transfer,
+            "transfer_role": "open_loop",
         }
     if display == "closed_loop":
         closed_mag = 20.0 * np.log10(np.maximum(np.abs(closed), 1e-300))
@@ -1797,6 +1803,9 @@ def _virtual_loop_analysis(
         "fingerprint": fingerprint_value,
         "envelopes": {"bode": bode_payload},
         "source": source_payload,
+        "transfer_function": open_loop_transfer,
+        "closed_loop_transfer_function": closed_loop_transfer,
+        "transfer_role": "open_loop",
     }
 
 
@@ -1967,6 +1976,12 @@ def loop_analysis(
                     detail={"parity_max_rel": extraction.parity_max_rel},
                 )
             )
+    try:
+        physical_transfer = descriptor_transfer_function(
+            model, extraction.input_source, extraction.output_name
+        )
+    except Exception as exc:  # noqa: BLE001 - 传函不可得时不应中断整个环路分析
+        physical_transfer = {"supported": False, "reason": str(exc)}
     if display == "step":
         steps = int(round(float(step_duration) / max(float(step_dt), 1e-12)))
         actual_dt = float(step_dt)
@@ -2014,6 +2029,8 @@ def loop_analysis(
             "fingerprint": fingerprint_value,
             "envelopes": {"time": step_envelope_payload},
             "source": {**source_payload, "kind": "loop_step"},
+            "transfer_function": physical_transfer,
+            "transfer_role": "closed_loop",
         }
     return {
         "ok": True,
@@ -2046,6 +2063,8 @@ def loop_analysis(
         "fingerprint": fingerprint_value,
         "envelopes": {"bode": bode_payload},
         "source": source_payload,
+        "transfer_function": physical_transfer,
+        "transfer_role": "closed_loop",
     }
 
 

@@ -792,6 +792,68 @@ def descriptor_transfer_function(
         "zeros": _complex_list(zeros),
     }
 
+def closed_loop_transfer_function(
+    open_loop: dict[str, Any] | None,
+    *,
+    feedback_sign: float = 1.0,
+) -> dict[str, Any] | None:
+    """由开环 G(s) 合成闭环 T(s)=G/(1±G) 的系数表示。"""
+    if not isinstance(open_loop, dict) or not open_loop.get("supported"):
+        return None
+    numerator_raw = open_loop.get("numerator_coeffs")
+    denominator_raw = open_loop.get("denominator_coeffs")
+    if not isinstance(numerator_raw, (list, tuple)) or not isinstance(
+        denominator_raw, (list, tuple)
+    ):
+        return None
+
+    def _as_complex(item: Any) -> complex:
+        if isinstance(item, (list, tuple)) and len(item) == 2:
+            return complex(float(item[0]), float(item[1]))
+        return complex(float(item))
+
+    try:
+        numerator = np.asarray([_as_complex(item) for item in numerator_raw], dtype=np.complex128)
+        denominator = np.asarray(
+            [_as_complex(item) for item in denominator_raw], dtype=np.complex128
+        )
+    except (TypeError, ValueError):
+        return None
+    if numerator.size == 0 or denominator.size == 0:
+        return None
+    closed_denominator = np.polyadd(
+        denominator, numerator if feedback_sign >= 0 else -numerator
+    )
+    if closed_denominator.size == 0:
+        return None
+    numerator = _real_if_close(numerator)
+    closed_denominator = _real_if_close(closed_denominator)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        dc_value = np.polyval(numerator, 0.0) / np.polyval(closed_denominator, 0.0)
+    dc_gain = float(np.real(dc_value)) if np.isfinite(dc_value) else None
+    order = int(closed_denominator.size - 1)
+    relative_order = max(0, order - int(numerator.size - 1))
+    return {
+        "supported": True,
+        "expression": f"({_poly_text(numerator)}) / ({_poly_text(closed_denominator)})",
+        "numerator": _poly_text(numerator),
+        "denominator": _poly_text(closed_denominator),
+        "numerator_coeffs": [
+            float(np.real(item)) if abs(np.imag(item)) < 1e-10
+            else [float(np.real(item)), float(np.imag(item))]
+            for item in numerator
+        ],
+        "denominator_coeffs": [
+            float(np.real(item)) if abs(np.imag(item)) < 1e-10
+            else [float(np.real(item)), float(np.imag(item))]
+            for item in closed_denominator
+        ],
+        "order": order,
+        "relative_order": relative_order,
+        "dc_gain": dc_gain,
+        "dc_gain_finite": bool(dc_gain is not None and np.isfinite(dc_gain)),
+    }
+
 
 __all__ = [
     "PoleResult",
@@ -801,6 +863,7 @@ __all__ = [
     "analyze_zeros",
     "build_output_matrices",
     "check_pencil_regularity",
+    "closed_loop_transfer_function",
     "descriptor_poles",
     "descriptor_step_response",
     "descriptor_transient_response",

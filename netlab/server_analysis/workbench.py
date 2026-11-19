@@ -110,13 +110,34 @@ def _simulation_for_state(state: Any) -> Simulation:
     return Simulation(scene)
 
 
+_OPERATING_POINT_KINDS = frozenset(
+    {"bode", "time", "poles", "loop", "loop_closed", "loop_step", "nyquist"}
+)
+
+
+def _auto_operating_point(
+    sim: Simulation, kind: str, operating_point: dict[str, Any] | None
+) -> dict[str, Any] | None:
+    """缺少线性化工作点时，先求一次 DC 工作点，供非线性电路小信号分析使用。"""
+    if operating_point or kind not in _OPERATING_POINT_KINDS:
+        return operating_point
+    try:
+        result = sim.operating_point()
+    except Exception:
+        return None
+    values = result.get("node_voltages") if isinstance(result, dict) else None
+    return values or None
+
+
 def _run_state(state: Any, kind: str, params: dict[str, Any]) -> dict[str, Any]:
     sim = _simulation_for_state(state)
     ranges = dict(state.ranges or {})
     merged = {**ranges, **params}
     input_source = merged.get("input_source") or state.input_source
     output = merged.get("output") or state.output
-    operating_point = merged.get("operating_point", state.operating_point)
+    operating_point = _auto_operating_point(
+        sim, kind, merged.get("operating_point", state.operating_point)
+    )
     f_start = float(merged.get("f_start", 1.0))
     f_stop = float(merged.get("f_stop", 1_000_000.0))
     points = int(merged.get("points", 241))

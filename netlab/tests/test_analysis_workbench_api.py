@@ -190,3 +190,51 @@ def test_workbench_export_returns_manifest(client) -> None:
     )
     assert csv_response.status_code == 200, csv_response.text
     assert csv_response.content.startswith("\ufeff".encode("utf-8"))
+
+
+def _diode_payload(label: str = "Diode") -> dict:
+    scene = Scene("circuit")
+    gnd = scene.add_node(name="gnd", kind="ground")
+    vin = scene.add_node(name="vin", kind="node")
+    out = scene.add_node(name="out", kind="node")
+    scene.add_edge(
+        name="V1",
+        source=vin.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 0.7, "amplitude": 1.0},
+    )
+    scene.add_edge(name="R1", source=vin.id, target=out.id, kind="resistor", params={"R": 1000.0})
+    scene.add_edge(
+        name="D1",
+        source=out.id,
+        target=gnd.id,
+        kind="diode",
+        params={"Is": 1e-14, "n": 1.0, "temperature": 300.0, "rs": 0.0},
+    )
+    return {
+        "label": label,
+        "circuit": scene.to_payload(include_state=False),
+        "input_source": "V1",
+        "output": "out",
+        "ranges": {"f_start": 1.0, "f_stop": 1.0e5, "points": 41},
+    }
+
+
+def test_workbench_auto_supplies_dc_operating_point_for_nonlinear(client):
+    session_id = _new_session(client, "非线性自动工作点")
+    response = client.post(
+        "/api/analysis/workbench/state",
+        json={
+            "session_id": session_id,
+            "action": "add",
+            "state": _diode_payload(),
+            "select": True,
+        },
+    )
+    assert response.status_code == 200, response.text
+    state_id = response.json()["state"]["state_id"]
+
+    body = _run(client, session_id, state_id, "bode")
+    assert body["ok"] is True
+    assert body["raw"]["operating_point_supplied"] is True

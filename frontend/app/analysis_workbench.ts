@@ -7,7 +7,7 @@
  *  - 多状态对比时把各自信封叠到同一坐标系（只做显示层合并）。
  */
 import { isAnalysisEnvelope, type AnalysisEnvelope } from './analysis_chart.js';
-import { compareTableHtml, mergeCompareEnvelopes, metricsHtml } from './analysis_workbench_results.js';
+import { compareTableHtml, mergeCompareEnvelopes, metricsHtml, transferSummaryHtml } from './analysis_workbench_results.js';
 import { readWorkbenchUi, writeWorkbenchUi, type LayoutMode, type WorkbenchUiRec } from './analysis_workbench_layout.js';
 import { AnalysisCanvasWorkspace } from './analysis_workbench_canvas.js';
 import {
@@ -45,6 +45,7 @@ export class AnalysisWorkbench {
   private navHost!: HTMLElement;
   private contextHost!: HTMLElement;
   private toolbarHost!: HTMLElement;
+  private transferHost!: HTMLElement;
   private statusHost!: HTMLElement;
   private session: WorkbenchSessionRec | null = null;
   private sessionId = '';
@@ -86,6 +87,7 @@ export class AnalysisWorkbench {
       '  <div class="awb-resize" data-awb-resize="nav" title="拖动调整导航宽"></div>',
       '  <section class="awb-stage">',
       '    <div class="awb-toolbar" data-awb="toolbar"></div>',
+      '    <div class="awb-transfer-host" data-awb="transfer-host"></div>',
       '    <div class="awb-canvas-host" data-awb="chart"></div>',
       '  </section>',
       '  <div class="awb-resize" data-awb-resize="detail" title="拖动调整详情宽"></div>',
@@ -97,6 +99,7 @@ export class AnalysisWorkbench {
     this.navHost = this.host.querySelector('[data-awb="nav"]') as HTMLElement;
     this.detailHost = this.host.querySelector('[data-awb="detail"]') as HTMLElement;
     this.toolbarHost = this.host.querySelector('[data-awb="toolbar"]') as HTMLElement;
+    this.transferHost = this.host.querySelector('[data-awb="transfer-host"]') as HTMLElement;
     const chartHost = this.host.querySelector('[data-awb="chart"]') as HTMLElement;
     this.statusHost = this.host.querySelector('[data-awb="status"]') as HTMLElement;
     this.spawnWorkspace(chartHost);
@@ -421,6 +424,7 @@ export class AnalysisWorkbench {
     const run = this.lastRuns[this.activeKind] || null;
     const metrics = run?.envelope?.metrics || {};
     const summary = describeRunStatus(run?.envelope);
+    if (this.transferHost) this.transferHost.innerHTML = transferSummaryHtml(run?.raw);
     const lines = [
       '状态：' + (active?.label || '—'),
       '指纹：' + shortFingerprint(active?.fingerprint),

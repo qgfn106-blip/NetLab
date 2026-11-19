@@ -53,7 +53,7 @@ def test_probe_available():
 
     result = plotkit_bridge.probe()
     assert result["state"] == "available", result
-    assert str(result["version"]).startswith("0.2."), result
+    assert str(result["version"]).startswith("0.3."), result
 
 
 def test_probe_missing(monkeypatch):

@@ -44,21 +44,21 @@ def test_probe_incompatible_below_min(monkeypatch) -> None:
 
 
 def test_probe_available_inside_range(monkeypatch) -> None:
-    _fake_plotkit(monkeypatch, "0.2.1")
-    result = plotkit_bridge.probe()
-    assert result["state"] == "available"
-    assert result["version"] == "0.2.1"
-
-
-def test_probe_incompatible_at_max(monkeypatch) -> None:
     _fake_plotkit(monkeypatch, "0.3.0")
     result = plotkit_bridge.probe()
-    assert result["state"] == "incompatible"
+    assert result["state"] == "available"
     assert result["version"] == "0.3.0"
 
 
+def test_probe_incompatible_at_max(monkeypatch) -> None:
+    _fake_plotkit(monkeypatch, "0.4.0")
+    result = plotkit_bridge.probe()
+    assert result["state"] == "incompatible"
+    assert result["version"] == "0.4.0"
+
+
 def test_probe_prefers_public_probe(monkeypatch) -> None:
-    _fake_plotkit(monkeypatch, "0.2.1", probe=lambda: {"state": "available", "detail": "ok"})
+    _fake_plotkit(monkeypatch, "0.3.0", probe=lambda: {"state": "available", "detail": "ok"})
     result = plotkit_bridge.probe()
     assert result["state"] == "available"
     assert result["detail"] == "ok"

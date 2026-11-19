@@ -27,8 +27,8 @@ import { state } from './state.js';
 import type { CircuitPayload, CompareResponse, RunResponse, SessionResponse, StateResponse, WorkbenchSessionRec, WorkbenchStateRec } from './analysis_workbench_types.js';
 
 import {
-  KIND_HINTS, KIND_LABELS, STATE_COLORS, describeRunStatus, escapeHtml,
-  loopElementOptions, num, optionHtml, shortFingerprint, type AnalysisKind,
+  KIND_HINTS, KIND_LABELS, STATE_COLORS, describeRunStatus, electricalCircuitNodes, escapeHtml,
+  independentCircuitSources, loopElementOptions, num, optionHtml, shortFingerprint, type AnalysisKind,
 } from './analysis_workbench_meta.js';
 
 const LAYOUT_OPTIONS: Array<[LayoutMode, string]> = [['grid', '网格'], ['tile', '平铺'], ['split', '分割'], ['max', '最大化']];
@@ -284,19 +284,18 @@ export class AnalysisWorkbench {
   }
 
   private sourceOptions(selected?: string | null): string {
-    const edges = this.circuit?.edges || [];
-    const sources = edges.filter((edge) => ['vsource', 'isource'].includes(String(edge.kind || '')));
+    const sources = independentCircuitSources(this.circuit?.nodes, this.circuit?.edges);
     if (!sources.length) return optionHtml('', '（无独立源）', true);
-    return sources.map((edge) => {
-      const name = String(edge.name || '');
-      return optionHtml(name, name + ' · ' + String(edge.kind || ''), name === String(selected || ''));
-    }).join('');
+    return sources.map((source) => optionHtml(
+      source.name,
+      source.name + ' · ' + source.kind,
+      source.name === String(selected || ''),
+    )).join('');
   }
 
   private outputOptions(selected?: string | null): string {
-    const nodes = this.circuit?.nodes || [];
+    const nodes = electricalCircuitNodes(this.circuit?.nodes);
     const names = nodes
-      .filter((node) => node.kind !== 'ground')
       .map((node) => String(node.name || ''))
       .filter(Boolean);
     if (!names.length) return optionHtml('', '（无节点）', true);
@@ -515,8 +514,8 @@ export class AnalysisWorkbench {
     const active = this.activeState();
     const input = (this.navHost.querySelector('[data-awb="input"]') as HTMLSelectElement | null)?.value
       || active?.input_source
-      || String((this.circuit?.edges || []).find((edge) => String(edge.kind || '') === 'vsource')?.name || '');
-    const nodes = (this.circuit?.nodes || []).filter((node) => node.kind !== 'ground');
+      || String(independentCircuitSources(this.circuit?.nodes, this.circuit?.edges)[0]?.name || '');
+    const nodes = electricalCircuitNodes(this.circuit?.nodes);
     const preferred = nodes.find((node) => String(node.name || '').toLowerCase() === 'out')
       || nodes.find((node) => /out|vout|load/i.test(String(node.name || '')))
       || nodes[nodes.length - 1];
@@ -587,7 +586,7 @@ export class AnalysisWorkbench {
   }
 
   private async loadLoopCandidatesIfNeeded(): Promise<void> {
-    if (this.activeKind !== 'loop' && this.activeKind !== 'nyquist') return;
+    if (!['loop', 'loop_closed', 'loop_step', 'nyquist'].includes(this.activeKind)) return;
     try {
       const response = await analysisLoopsRequest({}) as { candidates?: Array<Record<string, unknown>>; items?: Array<Record<string, unknown>> };
       this.loopCandidates = response.candidates || response.items || [];

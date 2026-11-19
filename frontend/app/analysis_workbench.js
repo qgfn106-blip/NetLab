@@ -19,7 +19,9 @@ import {
   KIND_HINTS,
   KIND_LABELS,
   describeRunStatus,
+  electricalCircuitNodes,
   escapeHtml,
+  independentCircuitSources,
   loopElementOptions,
   optionHtml,
   shortFingerprint
@@ -260,17 +262,17 @@ class AnalysisWorkbench {
     return "\u5DE5\u4F5C\u70B9 \xB7 \u7A33\u5B9A\u6027";
   }
   sourceOptions(selected) {
-    const edges = this.circuit?.edges || [];
-    const sources = edges.filter((edge) => ["vsource", "isource"].includes(String(edge.kind || "")));
+    const sources = independentCircuitSources(this.circuit?.nodes, this.circuit?.edges);
     if (!sources.length) return optionHtml("", "\uFF08\u65E0\u72EC\u7ACB\u6E90\uFF09", true);
-    return sources.map((edge) => {
-      const name = String(edge.name || "");
-      return optionHtml(name, name + " \xB7 " + String(edge.kind || ""), name === String(selected || ""));
-    }).join("");
+    return sources.map((source) => optionHtml(
+      source.name,
+      source.name + " \xB7 " + source.kind,
+      source.name === String(selected || "")
+    )).join("");
   }
   outputOptions(selected) {
-    const nodes = this.circuit?.nodes || [];
-    const names = nodes.filter((node) => node.kind !== "ground").map((node) => String(node.name || "")).filter(Boolean);
+    const nodes = electricalCircuitNodes(this.circuit?.nodes);
+    const names = nodes.map((node) => String(node.name || "")).filter(Boolean);
     if (!names.length) return optionHtml("", "\uFF08\u65E0\u8282\u70B9\uFF09", true);
     return names.map((name) => optionHtml(name, name, name === String(selected || ""))).join("");
   }
@@ -477,8 +479,8 @@ class AnalysisWorkbench {
   }
   portDefaults() {
     const active = this.activeState();
-    const input = this.navHost.querySelector('[data-awb="input"]')?.value || active?.input_source || String((this.circuit?.edges || []).find((edge) => String(edge.kind || "") === "vsource")?.name || "");
-    const nodes = (this.circuit?.nodes || []).filter((node) => node.kind !== "ground");
+    const input = this.navHost.querySelector('[data-awb="input"]')?.value || active?.input_source || String(independentCircuitSources(this.circuit?.nodes, this.circuit?.edges)[0]?.name || "");
+    const nodes = electricalCircuitNodes(this.circuit?.nodes);
     const preferred = nodes.find((node) => String(node.name || "").toLowerCase() === "out") || nodes.find((node) => /out|vout|load/i.test(String(node.name || ""))) || nodes[nodes.length - 1];
     const output = this.navHost.querySelector('[data-awb="output"]')?.value || active?.output || String(preferred?.name || "");
     return { input_source: input, output };
@@ -540,7 +542,7 @@ class AnalysisWorkbench {
     };
   }
   async loadLoopCandidatesIfNeeded() {
-    if (this.activeKind !== "loop" && this.activeKind !== "nyquist") return;
+    if (!["loop", "loop_closed", "loop_step", "nyquist"].includes(this.activeKind)) return;
     try {
       const response = await analysisLoopsRequest({});
       this.loopCandidates = response.candidates || response.items || [];

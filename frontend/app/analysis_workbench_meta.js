@@ -33,6 +33,30 @@ function num(value, fallback) {
 function optionHtml(value, label, selected) {
   return '<option value="' + escapeHtml(value) + '"' + (selected ? " selected" : "") + ">" + escapeHtml(label) + "</option>";
 }
+function independentCircuitSources(nodes, edges) {
+  const result = [];
+  const seen = /* @__PURE__ */ new Set();
+  const push = (name, kind) => {
+    if (!name || seen.has(name)) return;
+    seen.add(name);
+    result.push({ name, kind });
+  };
+  for (const node of nodes || []) {
+    const params = node.params || {};
+    const element = String(params.element || node.element || "").toLowerCase();
+    if (String(node.kind || "") === "device" && ["vsource", "isource"].includes(element)) {
+      push(String(node.name || ""), element);
+    }
+  }
+  for (const edge of edges || []) {
+    const kind = String(edge.kind || "").toLowerCase();
+    if (["vsource", "isource"].includes(kind)) push(String(edge.name || ""), kind);
+  }
+  return result;
+}
+function electricalCircuitNodes(nodes) {
+  return (nodes || []).filter((node) => String(node.kind || "") === "node");
+}
 function loopElementOptions(candidates, activeElement, allowVirtual) {
   const candidatesHtml = candidates.map((candidate) => {
     const element = String(candidate.element || "");
@@ -56,7 +80,9 @@ export {
   KIND_LABELS,
   STATE_COLORS,
   describeRunStatus,
+  electricalCircuitNodes,
   escapeHtml,
+  independentCircuitSources,
   loopElementOptions,
   num,
   optionHtml,

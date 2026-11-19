@@ -44,6 +44,42 @@ export function optionHtml(value: string, label: string, selected: boolean): str
   return '<option value="' + escapeHtml(value) + '"' + (selected ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
 }
 
+export interface WorkbenchCircuitSource {
+  name: string;
+  kind: string;
+}
+
+/** 独立源在工程 v8 中是 nodes[] 里的 device 节点（params.element），
+ *  legacy /api/scene 载荷则放在 edges[].kind；两种都要兼容。 */
+export function independentCircuitSources(
+  nodes: Array<Record<string, unknown>> | undefined,
+  edges: Array<Record<string, unknown>> | undefined,
+): WorkbenchCircuitSource[] {
+  const result: WorkbenchCircuitSource[] = [];
+  const seen = new Set<string>();
+  const push = (name: string, kind: string): void => {
+    if (!name || seen.has(name)) return;
+    seen.add(name);
+    result.push({ name, kind });
+  };
+  for (const node of nodes || []) {
+    const params = (node.params || {}) as Record<string, unknown>;
+    const element = String(params.element || node.element || '').toLowerCase();
+    if (String(node.kind || '') === 'device' && ['vsource', 'isource'].includes(element)) {
+      push(String(node.name || ''), element);
+    }
+  }
+  for (const edge of edges || []) {
+    const kind = String(edge.kind || '').toLowerCase();
+    if (['vsource', 'isource'].includes(kind)) push(String(edge.name || ''), kind);
+  }
+  return result;
+}
+
+export function electricalCircuitNodes(nodes: Array<Record<string, unknown>> | undefined): Array<Record<string, unknown>> {
+  return (nodes || []).filter((node) => String(node.kind || '') === 'node');
+}
+
 export function loopElementOptions(candidates: Array<Record<string, unknown>>, activeElement: string, allowVirtual: boolean): string {
   const candidatesHtml = candidates.map((candidate) => {
     const element = String(candidate.element || '');

@@ -111,10 +111,14 @@ try {
 
   // 4c) 未选择实体断环元件时，闭环 Bode/阶跃走虚拟单位负反馈并显示提示。
   await page.locator('.awb-nav-item[data-kind="loop_closed"]').click();
+  await page.waitForFunction(() => !document.querySelector('.awb-toolbar')?.classList.contains('busy'), null, { timeout: 20000 });
+  await page.locator('[data-awb="element"]').selectOption('__virtual__');
   await page.locator('[data-awb="run"]').click();
   await page.waitForFunction(() => (document.querySelector('.awb-status')?.textContent || '').includes('虚拟单位负反馈'), null, { timeout: 20000 });
   assert((await page.locator('.awb-canvas-title').allInnerTexts()).some((text) => text.includes('闭环 Bode')), '闭环 Bode 子画布未创建');
   await page.locator('.awb-nav-item[data-kind="loop_step"]').click();
+  await page.waitForFunction(() => !document.querySelector('.awb-toolbar')?.classList.contains('busy'), null, { timeout: 20000 });
+  await page.locator('[data-awb="element"]').selectOption('__virtual__');
   await page.locator('[data-awb="run"]').click();
   await page.waitForFunction(() => (document.querySelector('.awb-status')?.textContent || '').includes('虚拟单位负反馈'), null, { timeout: 20000 });
   assert((await page.locator('.awb-canvas-title').allInnerTexts()).some((text) => text.includes('闭环阶跃')), '闭环阶跃子画布未创建');

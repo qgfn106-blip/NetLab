@@ -21,7 +21,7 @@ export interface PlotSpec {
 }
 
 export interface ProjectV6 {
-  v: 6;
+  v: 8;
   name: string;
   scene: Record<string, unknown>;
   blocks?: Array<unknown>;
@@ -31,11 +31,13 @@ export interface ProjectV6 {
 export const CONTRACT_VERSIONS = {
   channel_key: 1,
   frame: 1,
-  project: 6,
+  project: 8,
   plot_spec: "0.1",
 } as const;
 
 export const PLOTKIT_API_VERSION = "1";
+export const REQUIRED_PLUGIN_IDS: readonly string[] = ["netlab.plotkit"];
+export const PLOTKIT_REQUIRED_CAPABILITIES: readonly string[] = ["analysis_markers", "analysis_envelopes", "linked_cursor"];
 
 export const PLOT_SEMANTICS = {
   timeField: "t",

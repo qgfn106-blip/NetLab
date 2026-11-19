@@ -26,6 +26,7 @@ from .contracts import (
     PLOT_SYNC_PULL_LIMIT,
     PLOTKIT_MAX_EXCLUSIVE,
     PLOTKIT_MIN,
+    PLOTKIT_REQUIRED_CAPABILITIES,
 )
 from .core.model.channels import ChannelKey
 
@@ -126,8 +127,50 @@ def probe() -> dict[str, Any]:
     return {
         "state": "incompatible",
         "version": version,
-        "detail": f"PlotKit {version or '未知版本'} 不在 >=0.2,<0.3 兼容范围内",
+        "detail": (
+            f"PlotKit {version or '未知版本'} 不在 "
+            +
+            f">={_fmt_version(PLOTKIT_MIN)},<{_fmt_version(PLOTKIT_MAX_EXCLUSIVE)} 兼容范围内"
+        ),
     }
+
+
+def _fmt_version(parts: tuple[int, ...]) -> str:
+    return ".".join(str(part) for part in parts)
+
+
+def required_capability_issues(info: dict[str, Any] | None = None) -> list[str]:
+    """D7 门禁：必需插件的能力声明必须齐全，缺一项也不能 ready。"""
+    payload = dict(info or probe())
+    if payload.get("state") != "available":
+        return [str(payload.get("detail") or "PlotKit 不可用")]
+    features = set(map(str, payload.get("features") or ()))
+    issues = [
+        f"PlotKit 缺少分析能力：{name}"
+        for name in PLOTKIT_REQUIRED_CAPABILITIES
+        if name not in features
+    ]
+    if not plugin_available():
+        issues.append(f"必需插件 {PLUGIN_ID} 目录缺失：{PLUGIN_DIR}")
+    elif not plugin_enabled():
+        issues.append(f"必需插件 {PLUGIN_ID} 被禁用；分析工作台不允许降级")
+    return issues
+
+
+def require_ready() -> dict[str, Any]:
+    """启动门禁：任何缺项都抛 RuntimeError（带实际/期望版本与能力名）。"""
+    payload = dict(probe())
+    issues = required_capability_issues(payload)
+    if issues:
+        expected = (
+            f">={_fmt_version(PLOTKIT_MIN)},<{_fmt_version(PLOTKIT_MAX_EXCLUSIVE)}，"
+            f"能力 {sorted(PLOTKIT_REQUIRED_CAPABILITIES)}"
+        )
+        actual = payload.get("version") or "missing"
+        raise RuntimeError(
+            "PlotKit 必需插件未就绪：" + "；".join(issues) + f"（实际 {actual}，期望 {expected}）"
+        )
+    return payload
 
 
 def _load_development_source(src: Path) -> None:
@@ -188,7 +231,7 @@ def ensure_plotkit_importable() -> bool:
     _LAST_ERROR = (
         "PlotKit 未安装（"
         + installed_error
-        + "）；请 pip install 'plotkit>=0.2,<0.3'，或设置 NETLAB_PLOTKIT_SRC 指向开发源码"
+        + "）；请 pip install 'plotkit>=0.3,<0.4'，或设置 NETLAB_PLOTKIT_SRC 指向开发源码"
     )
     return False
 

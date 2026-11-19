@@ -1,4 +1,4 @@
-// 浮窗可用性 e2e：深色主题下小信号旁路对比度、右下角缩放柄、窗口视口约束。
+// 浮窗可用性 e2e：深色主题下分析工作台对比度、右下角缩放柄、窗口视口约束。
 import { setTimeout as sleep } from 'node:timers/promises';
 import { chromium } from 'playwright-core';
 import { beginFlow, startBackend } from './harness.mjs';
@@ -118,44 +118,45 @@ try {
   if (await page.locator('#guideClose').isVisible()) await page.locator('#guideClose').click();
   assert((await page.evaluate(() => document.documentElement.dataset.theme)) === 'dark', '深色主题未生效');
 
-  // 打开电路分析 → 小信号旁路
+  // 打开电路分析工作台（Bode）
   await page.locator('.panel-tab[data-group="analysis"]').click();
   await page.locator('button[data-sub="analysis"]').click();
   await page.getByRole('button', { name: '推导', exact: true }).click();
   await page.waitForSelector('#analWin', { state: 'visible', timeout: 5000 });
-  await page.locator('#analRunBypass').click();
-  await page.waitForFunction(() => (document.querySelector('#analBypassTransfer')?.textContent || '').includes('G(s)'), null, { timeout: 15000 });
+  await page.waitForSelector('#analWorkbench.awb .analysis-chart-canvas', { state: 'visible', timeout: 15000 });
+  await page.waitForFunction(() => document.querySelectorAll('#analWorkbench .analysis-metrics-grid > div').length > 0, null, { timeout: 15000 });
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 
-  // 1) 指标卡：深色下背景必须为深色令牌，文字对比度 ≥ 4.5
-  const cardColors = await page.locator('#analBypassSummary > div').first().evaluate((el) => {
+  // 1) 上下文条：深色下背景必须为深色令牌，文字对比度 ≥ 4.5
+  const cardColors = await page.locator('#analWorkbench .analysis-metrics-grid > div').first().evaluate((el) => {
     const cs = getComputedStyle(el);
     return { bg: cs.backgroundColor, fg: cs.color };
   });
   const cardBg = parseRgb(cardColors.bg);
   const cardFg = parseRgb(cardColors.fg);
-  assert(cardBg && cardFg, `指标卡颜色无法解析: ${JSON.stringify(cardColors)}`);
-  assert(luminance(cardBg) < 0.25, `指标卡背景仍为浅色: ${cardColors.bg}`);
-  assert(contrast(cardFg, cardBg) >= 4.5, `指标卡文字对比度不足: ${contrast(cardFg, cardBg).toFixed(2)}`);
+  assert(cardBg && cardFg, `上下文条颜色无法解析: ${JSON.stringify(cardColors)}`);
+  assert(luminance(cardBg) < 0.25, `上下文条背景仍为浅色: ${cardColors.bg}`);
+  assert(contrast(cardFg, cardBg) >= 4.5, `上下文条文字对比度不足: ${contrast(cardFg, cardBg).toFixed(2)}`);
 
-  // 2) 画布容器与极点表同样走深色令牌
-  const canvasBg = parseRgb(await page.locator('#analBypassBode').evaluate((el) => getComputedStyle(el).backgroundColor));
-  assert(canvasBg && luminance(canvasBg) < 0.25, `Bode 画布背景仍为浅色: ${canvasBg}`);
-  const thColors = await page.locator('#analBypassPoles th').first().evaluate((el) => {
+  // 2) 工作台与详情表同样走深色令牌
+  const canvasBg = parseRgb(await page.locator('#analWorkbench.awb').evaluate((el) => getComputedStyle(el).backgroundColor));
+  assert(canvasBg && luminance(canvasBg) < 0.25, `工作台背景仍为浅色: ${canvasBg}`);
+  const detailColors = await page.locator('#analWorkbench .awb-detail').evaluate((el) => {
     const cs = getComputedStyle(el);
     return { bg: cs.backgroundColor, fg: cs.color };
   });
-  const thBg = parseRgb(thColors.bg);
-  const thFg = parseRgb(thColors.fg);
-  assert(thBg && thFg, `极点表颜色无法解析: ${JSON.stringify(thColors)}`);
-  assert(contrast(thFg, thBg) >= 4.5, `极点表表头对比度不足: ${contrast(thFg, thBg).toFixed(2)}`);
+  const panelBg = parseRgb(detailColors.bg);
+  const panelFg = parseRgb(detailColors.fg);
+  assert(panelBg && panelFg, `详情面板颜色无法解析: ${JSON.stringify(detailColors)}`);
+  assert(luminance(panelBg) < 0.25, `详情面板背景仍为浅色: ${detailColors.bg}`);
+  assert(contrast(panelFg, panelBg) >= 4.5, `详情面板文字对比度不足: ${contrast(panelFg, panelBg).toFixed(2)}`);
 
   // 3) 首次打开尺寸必须与响应式 CSS 一致（不能被入场动画的 scale 写死成略小尺寸）
   const win = page.locator('#analWin');
   const before = await win.boundingBox();
   const vp0 = page.viewportSize();
-  const expectedW = Math.min(760, vp0.width * 0.92);
-  const expectedH = Math.min(580, vp0.height * 0.8);
+  const expectedW = Math.min(1180, vp0.width * 0.95);
+  const expectedH = Math.min(760, vp0.height * 0.88);
   assert(Math.abs(before.width - expectedW) <= 2 && Math.abs(before.height - expectedH) <= 2, `首次打开尺寸异常: ${before.width}x${before.height}，期望 ${expectedW}x${expectedH}`);
 
   // 4) 右下角缩放柄：拖拽应改变窗口尺寸

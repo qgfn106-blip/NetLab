@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ..common.limits import LimitError, NetlabError, ValidationError, json_safe
+from .analysis_workbench_schema import normalize_analysis_workbench, ui_with_analysis_workbench
 from .path_guard import ensure_allowed_path
 from .scene import MODES, Scene
 from .engine_registry import plugin_modes
@@ -33,7 +34,7 @@ if TYPE_CHECKING:
     from .contracts.simulation import SimulationProtocol as Simulation  # noqa: F401
 
 PROJECT_FORMAT = "netlab-project"
-PROJECT_VERSION = 7
+PROJECT_VERSION = 8
 APP_VERSION = "2.1.0"
 MAX_PROJECT_BYTES = 8_000_000
 PROJECT_SUFFIX = ".netlab"
@@ -277,7 +278,7 @@ def build_project_from_networks(
         "networks": cloned,
         "current": current,
         "fem": fem_payload,
-        "ui": json_safe(ui or {}, where="界面设置"),
+        "ui": ui_with_analysis_workbench(ui),
         "blocks": (
             [
                 {
@@ -646,6 +647,16 @@ def _migrate_v6(payload: dict[str, Any], version: int) -> None:
     payload["metadata"] = metadata
 
 
+def _migrate_v8(payload: dict[str, Any], version: int) -> None:
+    # v8：工程 ui 新增分析工作台布局；旧工程按默认布局补齐。
+    payload["ui"] = ui_with_analysis_workbench(payload.get("ui"))
+    metadata = payload.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+    metadata.setdefault("migrated_analysis_workbench", f"v{version}")
+    payload["metadata"] = metadata
+
+
 def _migrate_v7(payload: dict[str, Any], version: int) -> None:
     # v7：每条网络新增可选的「工作台状态」列表；旧工程按空列表补齐。
     for network in payload.get("networks") or []:
@@ -667,6 +678,7 @@ SCHEMA_MIGRATIONS: dict[int, Any] = {
     5: _migrate_v5,
     6: _migrate_v6,
     7: _migrate_v7,
+    8: _migrate_v8,
 }
 _MIGRATION_STEPS: tuple[int, ...] = tuple(sorted(SCHEMA_MIGRATIONS))
 
@@ -716,7 +728,7 @@ def migrate_project(payload: dict[str, Any]) -> dict[str, Any]:
                 "networks": [network],
                 "current": network["id"],
                 "fem": {},
-                "ui": {},
+                "ui": ui_with_analysis_workbench({}),
                 "blocks": [],
                 "extensions": [],
                 "plugins": [],
@@ -945,6 +957,7 @@ def validate_project(
     profile = ui.get("profile")
     if profile is not None and not isinstance(profile, str):
         raise ValidationError("工程的 ui.profile 必须是字符串")
+    ui["analysis_workbench"] = normalize_analysis_workbench(ui.get("analysis_workbench"))
 
     extensions = project.get("extensions") or []
     if not isinstance(extensions, list):

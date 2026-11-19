@@ -170,7 +170,8 @@ async function buildProjectPayload() {
         symbolScale: Number(state.ui.symbolScale) || 1.2,
         glyphColor: state.ui.glyphColor || "#1f5f5b",
         numericPrecision: state.prefs.numericPrecision === "standard" ? "standard" : "exact",
-        numericDigits: Math.max(3, Math.min(17, Number(state.prefs.numericDigits) || 6))
+        numericDigits: Math.max(3, Math.min(17, Number(state.prefs.numericDigits) || 6)),
+        analysis_workbench: state.ui.analysis_workbench
       }
     })
   });

@@ -1,5 +1,4 @@
-"""R26 前端入口护栏：DC 工作点 / AC 扫频 / 小信号旁路必须能从界面发起。"""
-
+"""D11 前端入口护栏：电路分析统一工作台，旧 Canvas 分析图已退役。"""
 from pathlib import Path
 
 FRONTEND = Path(__file__).resolve().parents[2] / "frontend"
@@ -9,62 +8,66 @@ def _read(name: str) -> str:
     return (FRONTEND / name).read_text(encoding="utf-8")
 
 
-def test_index_has_analysis_window() -> None:
+def test_index_has_unified_analysis_window() -> None:
     html = _read("index.html")
     assert 'id="analWin"' in html
     assert 'id="analRunOp"' in html
-    assert 'id="analRunAc"' in html
-    assert 'id="analAcCanvas"' in html
-    # 三个页签
-    assert 'data-anal="op"' in html and 'data-anal="ac"' in html
-    assert 'data-anal="bypass"' in html
-
-
-def test_index_has_circuit_bypass_controls() -> None:
-    html = _read("index.html")
-    for element_id in (
-        "analBypassInput",
-        "analBypassOutput",
-        "analBypassDt",
-        "analBypassDuration",
+    assert 'id="analWorkbench"' in html
+    assert 'data-anal="op"' in html and 'data-anal="workbench"' in html
+    for legacy in (
+        "analRunAc",
+        "analAcCanvas",
         "analRunBypass",
         "analRunBypassBode",
         "analBypassBode",
         "analBypassStep",
-        "analBypassPoles",
-        "analBypassZeros",
-        "analBypassTransfer",
-        "analBypassSummary",
     ):
-        assert f'id="{element_id}"' in html
-    assert "非录波后处理" in html
-    assert "基于 DC 工作点线性化" in html
+        assert f'id="{legacy}"' not in html, f"旧分析控件 {legacy} 应已退役"
 
 
-def test_app_calls_solver_analysis_endpoints() -> None:
-    js = (
-        _read("app.ts")
-        + "\n"
-        + _read("app/ac_analysis.ts")
-        + "\n"
-        + _read("app/analysis_client.ts")
+def test_index_no_legacy_canvas_controls() -> None:
+    html = _read("index.html")
+    assert "DC 工作点" in html
+    assert "分析工作台" in html
+    assert "非录波后处理" not in html
+    assert "基于 DC 工作点线性化" not in html
+
+
+def test_app_calls_workbench_endpoints() -> None:
+    js = "\n".join(
+        _read(name)
+        for name in (
+            "app.ts",
+            "app/ac_analysis.ts",
+            "app/analysis_client.ts",
+            "app/analysis_workbench.ts",
+            "app/analysis_chart.ts",
+        )
     )
-    assert "/api/operating-point" in js
-    assert "/api/ac-sweep" in js
-    assert "/api/analysis/tf" in js
-    assert "function openAnalysis(" in js
-    assert "function runOperatingPoint(" in js
-    assert "function runAcSweep(" in js
-    assert "function fillBypassSources(" in js
-    assert "function drawBypassBode(" in js
-    assert "function drawBypassStep(" in js
-    assert "function runCircuitBypass(" in js
-    assert "function bypassSummary(" in js
-    assert "function niceAxisTicks(" in js
-    # 菜单入口
+    for endpoint in (
+        "/api/operating-point",
+        "/api/analysis/tf",
+        "/api/analysis/loop",
+        "/api/analysis/nyquist",
+        "/api/analysis/workbench/sessions",
+        "/api/analysis/workbench/run",
+    ):
+        assert endpoint in js, f"缺少分析端点 {endpoint}"
+    for fn in (
+        "function openAnalysis(",
+        "function runOperatingPoint(",
+        "function openAnalysisWorkbench(",
+        "function createAnalysisChart(",
+        "function niceAxisTicks(",
+    ):
+        assert fn in js, f"缺少入口函数 {fn}"
+    for retired in (
+        "function drawAcChart(",
+        "function drawBypassBode(",
+        "function drawBypassStep(",
+        "function runCircuitBypass(",
+    ):
+        assert retired not in js, f"旧 Canvas 入口 {retired} 应已删除"
+    assert "电路分析工作台" in js
     assert "DC 工作点（.op）" in js
-    assert "AC 扫频（Bode）" in js
-    assert "小信号分析（旁路）" in js
-    assert "导出原理图 SVG" in js
-    assert "function openPrecomputeDialog(" in js
-    assert "小信号分析（旁路）" in js
+    assert "PlotKit 渲染内核" in js

@@ -169,6 +169,7 @@ export async function buildProjectPayload() {
           glyphColor: state.ui.glyphColor || '#1f5f5b',
           numericPrecision: state.prefs.numericPrecision === 'standard' ? 'standard' : 'exact',
           numericDigits: Math.max(3, Math.min(17, Number(state.prefs.numericDigits) || 6)),
+          analysis_workbench: (state.ui as unknown as Record<string, unknown>).analysis_workbench,
         },
       }),
     });

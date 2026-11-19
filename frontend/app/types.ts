@@ -461,8 +461,7 @@ export interface State {
   phaseTimer: number;
   shuttingDown: boolean;
   project: ProjectRec;
-  acResult?: unknown;
-  acRevision?: number | null;
+
   floatZ?: number;
   hoverWaypoint?: HoverWaypointRec | null;
   plotkitActive?: boolean;

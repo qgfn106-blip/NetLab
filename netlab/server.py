@@ -84,10 +84,24 @@ async def lifespan(_app: FastAPI):
     SERVICE.ensure_assembled()
     SERVICE.ensure_thread()
     FEM.ensure_thread()
+    manager = get_plugin_manager()
+    manager.scan(load=True)
+    # D7：PlotKit 变成必需内部插件，启动顺序固定为
+    # 扫描 -> 注册必需插件 -> 探针（版本 + 能力）-> 挂载 -> ready；
+    # 任一步不满足就直接失败，不允许带着「分析图不可用」的降级状态启动。
+    issues = manager.required_issues()
     try:
-        get_plugin_manager().scan(load=True)
-    except Exception:  # pragma: no cover - 插件错误不能阻止主程序启动
-        pass
+        probe_info = plotkit_bridge.require_ready()
+    except RuntimeError as exc:
+        raise RuntimeError(f"NetLab 启动失败：{exc}") from exc
+    if issues:
+        detail = "；".join(str(item.get("reason") or item) for item in issues)
+        raise RuntimeError(f"NetLab 启动失败：必需插件未就绪：{detail}")
+    if not PLOTKIT_MOUNTED:
+        raise RuntimeError(
+            "NetLab 启动失败：必需插件 netlab.plotkit 已安装但 PlotKit 子应用挂载失败，"
+            f"诊断：{plotkit_bridge.diagnose()}"
+        )
     try:
         yield
     finally:

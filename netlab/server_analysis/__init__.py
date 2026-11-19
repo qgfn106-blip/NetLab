@@ -53,6 +53,26 @@ class AnalysisTFRequest(BaseModel):
     delay_pade_order: int = 3
 
 
+class AnalysisLoopRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    element: str = Field(min_length=1)
+    input_source: str | None = None
+    output: str | None = None
+    feedback_sign: Literal[1.0, -1.0] = 1.0
+    f_start: float = Field(default=1.0, gt=0.0)
+    f_stop: float = Field(default=1_000_000.0, gt=0.0)
+    points: int = Field(default=241, ge=2, le=2001)
+    scale: Literal["log", "lin"] = "log"
+    operating_point: dict[str, float] | None = None
+
+
+class AnalysisBreakRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    operating_point: dict[str, float] | None = None
+
+
 class AnalysisPhaseRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -191,6 +211,54 @@ def analysis_tf(request: AnalysisTFRequest) -> dict[str, Any]:
     )
 
 
+@router.post("/api/analysis/loops")
+def analysis_loops(request: AnalysisBreakRequest) -> dict[str, Any]:
+    return _analysis_call(
+        lambda: analysis.break_points(
+            _service.current, operating_point=request.operating_point
+        ),
+        "断环候选",
+    )
+
+
+@router.post("/api/analysis/loop")
+def analysis_loop(request: AnalysisLoopRequest) -> dict[str, Any]:
+    return _analysis_call(
+        lambda: analysis.loop_analysis(
+            _service.current,
+            element=request.element,
+            input_source=request.input_source,
+            output=request.output,
+            feedback_sign=request.feedback_sign,
+            f_start=request.f_start,
+            f_stop=request.f_stop,
+            points=request.points,
+            scale=request.scale,
+            operating_point=request.operating_point,
+        ),
+        "回路增益分析",
+    )
+
+
+@router.post("/api/analysis/nyquist")
+def analysis_nyquist(request: AnalysisLoopRequest) -> dict[str, Any]:
+    return _analysis_call(
+        lambda: analysis.nyquist_analysis(
+            _service.current,
+            element=request.element,
+            input_source=request.input_source,
+            output=request.output,
+            feedback_sign=request.feedback_sign,
+            f_start=request.f_start,
+            f_stop=request.f_stop,
+            points=request.points,
+            scale=request.scale,
+            operating_point=request.operating_point,
+        ),
+        "Nyquist 分析",
+    )
+
+
 @router.post("/api/analysis/phase")
 def analysis_phase(request: AnalysisPhaseRequest) -> dict[str, Any]:
     return _analysis_call(
@@ -240,4 +308,7 @@ def build_router(
     global _service, _current_workspace
     _service = service
     _current_workspace = current_workspace
+    from .workbench import router as workbench_router
+
+    router.include_router(workbench_router)
     return router

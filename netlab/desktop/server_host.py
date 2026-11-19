@@ -73,7 +73,29 @@ class ServerHost:
         self._thread.start()
         self._ready = _wait_ready(self.url)
         if not self._ready:
-            raise RuntimeError(f"本地服务未能在 {self.url} 启动")
+            reasons: list[str] = []
+            try:
+                from netlab.plotkit_bridge import last_error, probe
+
+                state = probe()
+                reasons.append(
+                    f"PlotKit={state.get('state')}/{state.get('version') or '未知'}"
+                    + (f"（{last_error()}）" if last_error() else "")
+                )
+            except Exception as exc:  # pragma: no cover - 诊断本身不能掩盖主错误
+                reasons.append(f"PlotKit 诊断失败：{exc}")
+            try:
+                from netlab.core.model.plugins import get_plugin_manager
+
+                issues = get_plugin_manager().required_issues()
+                reasons.extend(str(item.get("reason")) for item in issues)
+            except Exception as exc:  # pragma: no cover
+                reasons.append(f"插件诊断失败：{exc}")
+            detail = "；".join(part for part in reasons if part)
+            raise RuntimeError(
+                f"本地服务未能在 {self.url} 启动"
+                + (f"：{detail}" if detail else "（请查看桌面日志中的 startup failed）")
+            )
 
     @property
     def ready(self) -> bool:

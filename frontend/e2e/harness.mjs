@@ -1,6 +1,6 @@
 // 前端 e2e 共用装置：后端日志、Playwright trace、截图、控制台记录、稳定等待。
 import { spawn } from 'node:child_process';
-import { mkdirSync, openSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, openSync, writeFileSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -18,6 +18,9 @@ export function artifactsDir(name) {
 
 export async function startBackend({ port, name }) {
   const dir = artifactsDir(name);
+  // 工作树验证：优先使用同级的 PlotKit 工作树，避免拿到全局 editable 的旧版本。
+  const plotkitSrc = process.env.E2E_PLOTKIT_SRC || path.join(ROOT, '..', 'analysis-wb-plotkit', 'src');
+  const pythonPath = [existsSync(plotkitSrc) ? plotkitSrc : null, ROOT, '.'].filter(Boolean).join(path.delimiter);
   const logPath = path.join(dir, 'backend.log');
   const logFd = openSync(logPath, 'a');
   const server = spawn(
@@ -25,7 +28,7 @@ export async function startBackend({ port, name }) {
     ['-m', 'uvicorn', 'netlab.server:app', '--port', String(port), '--log-level', 'info'],
     {
       cwd: ROOT,
-      env: { ...process.env, PYTHONPATH: '.' },
+      env: { ...process.env, PYTHONPATH: pythonPath },
       stdio: ['ignore', logFd, logFd],
     },
   );

@@ -1,7 +1,7 @@
 // 设置窗与引导（S5-39 从 app.ts 迁出）
 import { $, $$ } from './dom.js';
 import { button } from './ui.js';
-import { closeAnalysis, fillAcSources, selectAnalTab, runOperatingPoint, runAcSweep } from './ac_analysis.js';
+import { closeAnalysis, selectAnalTab, runOperatingPoint } from './ac_analysis.js';
 import { initFloatWindow, placeFloatWindow, raiseFloatWindow } from './float.js';
 import { modeLabel } from './model.js';
 import { openDoc } from './docs.js';

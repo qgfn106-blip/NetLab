@@ -127,10 +127,12 @@ const changedBodies = [...currentBodies.entries()]
 const allowlistPath = path.join(frontendDir, 'tools', 'parity_body_allowlist.json');
 const allowlist = JSON.parse(readFileSync(allowlistPath, 'utf8'));
 const allowedBodies = new Set(Array.isArray(allowlist.allowed_bodies) ? allowlist.allowed_bodies : []);
+const removedDeclarations = new Set(Array.isArray(allowlist.removed_declarations) ? allowlist.removed_declarations : []);
+const unexpectedMissing = missing.filter((name) => !removedDeclarations.has(name));
 const uncoveredDiff = diffUncovered(uncovered, Array.isArray(allowlist.uncovered_files) ? allowlist.uncovered_files : []);
 const unexpectedBodies = changedBodies.filter((name) => !allowedBodies.has(name));
-if (missing.length || duplicates.length || missingJs.length || untrackedJs.length || unexpectedBodies.length || !uncoveredDiff.ok) {
-  if (missing.length) console.error(`MISSING declarations: ${missing.join(', ')}`);
+if (unexpectedMissing.length || duplicates.length || missingJs.length || untrackedJs.length || unexpectedBodies.length || !uncoveredDiff.ok) {
+  if (unexpectedMissing.length) console.error(`MISSING declarations: ${unexpectedMissing.join(', ')}`);
   if (duplicates.length) console.error(`DUPLICATE declarations:\n${duplicates.join('\n')}`);
   if (missingJs.length) console.error(`MISSING built JS: ${missingJs.join(', ')}`);
   if (untrackedJs.length) console.error(`UNTRACKED built JS: ${untrackedJs.join(', ')}`);
@@ -141,6 +143,8 @@ if (missing.length || duplicates.length || missingJs.length || untrackedJs.lengt
 }
 const allowedChangedBodies = changedBodies.filter((name) => allowedBodies.has(name));
 if (allowedChangedBodies.length) console.error(`WARN changed bodies (tracked allowlist): ${allowedChangedBodies.join(', ')}`);
+const intentionalRemovals = missing.filter((name) => removedDeclarations.has(name));
+if (intentionalRemovals.length) console.error(`WARN intentional removals (tracked allowlist): ${intentionalRemovals.join(', ')}`);
 
 for (const rel of uncovered) {
   const baseHash = baseWhole.get(rel);

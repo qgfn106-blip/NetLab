@@ -38,7 +38,7 @@ import { loadUiPrefs, setAppearanceActions } from "./app/appearance.js";
 import { initAppearanceControls, saveAutosaveSetting, refreshTelemetryQuality, setAppearanceControlActions } from "./app/appearance_controls.js";
 import { setGeometryActions, worldToScreen, screenToWorld, nodeDiameter, nodeRect, devicePinScreen, snapWorld, portOut, edgeEndpointHit, waypointHitAt, anchorSideFor, edgePathPoints, pathMidpoint, distanceToPath } from "./app/geometry.js";
 import { analysisSignalKey, runAnalysisMetrics, runAnalysisSpectrum, runAnalysisPeriod, runAnalysisMath, runAnalysisTransfer, analysisTFSummary, runAnalysisTF, drawAnalysisTF, exportTFStateSpace, sendTFToPlotKit, sendPhaseToPlotKit, exportAnalysisCsv, drawAnalysisSpectrum, setAnalysisActions } from "./app/analysis.js";
-import { openAnalysis, closeAnalysis, drawAcChart } from "./app/ac_analysis.js";
+import { openAnalysis, closeAnalysis } from "./app/ac_analysis.js";
 import { runPrecomputeWithProgress, syncAfterPrecompute, initPlotkitDataBar, setPlotkitDataActions } from "./app/plotkit_data.js";
 import { openVscode } from "./app/plotkit_frame.js";
 import { initAnalWin, initDocWin, setWindowActions } from "./app/windows.js";
@@ -90,13 +90,6 @@ function setStatusHint(hint) {
     state.scene = snapshot.scene;
     state.sim = sim;
     const nextRevision = snapshot.scene.revision ?? null;
-    if (state.acResult && state.acRevision !== null && nextRevision !== state.acRevision) {
-      state.acResult = null;
-      const acMeta = $("#analAcMeta");
-      if (acMeta) acMeta.textContent = "\u7535\u8DEF\u5DF2\u53D8\u5316\uFF0C\u8BF7\u91CD\u65B0\u626B\u9891";
-      if (ui.analWin && !ui.analWin.hidden) requestAnimationFrame(() => drawAcChart());
-    }
-    state.acRevision = nextRevision;
     if (resetFrames || state.precomputedRevision != null && nextRevision !== state.precomputedRevision) {
       state.precomputedSeconds = null;
       state.precomputedRevision = null;
@@ -3967,8 +3960,7 @@ function setStatusHint(hint) {
           { label: "\u6027\u80FD\u9762\u677F", action: () => switchTab("analysis") },
           { label: "\u7F13\u5B58\u4F53\u68C0\u4E0E\u6E05\u7406\u2026", hint: "\u53EA\u6E05\u53EF\u518D\u751F\u6210\u7684\u7F13\u5B58\uFF0C\u4E0D\u78B0\u5DE5\u7A0B\u4E0E\u81EA\u52A8\u4FDD\u5B58", action: () => openCacheDialog() },
           { label: "DC \u5DE5\u4F5C\u70B9\uFF08.op\uFF09", hint: "\u4E0D\u63A8\u8FDB\u4EFF\u771F\uFF0C\u9759\u9ED8\u89E3\u4E00\u6B21\u9759\u6001\u7535\u8DEF", action: () => openAnalysis("op") },
-          { label: "AC \u626B\u9891\uFF08Bode\uFF09\u2026", hint: "\u5148\u6C42\u5DE5\u4F5C\u70B9\u518D\u9010\u9891\u70B9\u6C42\u89E3", action: () => openAnalysis("ac") },
-          { label: "\u5C0F\u4FE1\u53F7\u5206\u6790\uFF08\u65C1\u8DEF\uFF09\u2026", hint: "\u5DE5\u4F5C\u70B9\u7EBF\u6027\u5316 \xB7 \u6781\u70B9 / \u96F6\u70B9 / \u9636\u8DC3 / Bode", action: () => openAnalysis("bypass") },
+          { label: "\u7535\u8DEF\u5206\u6790\u5DE5\u4F5C\u53F0\u2026", hint: "Bode / \u65F6\u57DF / Nyquist / \u73AF\u8DEF \xB7 \u591A\u72B6\u6001\u5BF9\u6BD4", action: () => openAnalysis("wb-analysis") },
           { label: "\u8FC1\u79FB\u573A\u666F\u4E3A\u5668\u4EF6\u6A21\u578B\uFF08R20\uFF09", hint: "\u5143\u4EF6\u8FB9 \u2192 \u5668\u4EF6\u8282\u70B9 + \u5F15\u811A\u5BFC\u7EBF", action: () => void migrateSceneToDevices() },
           { label: "\u65B0\u5EFA\u8FDE\u7EBF\uFF08\u9009\u62E9\u7AEF\u70B9\uFF09\u2026", hint: "\u7F51\u7EDC\u2194\u7F51\u7EDC\u7EAF\u5BFC\u7EBF / \u5668\u4EF6\u5F15\u811A\u2194\u7F51\u7EDC", action: () => openWireDialog() }
         ]
@@ -4417,6 +4409,9 @@ function setStatusHint(hint) {
     }
     if (Number.isFinite(Number(uiSettings.symbolScale))) state.ui.symbolScale = clamp(Number(uiSettings.symbolScale), 0.6, 2.5);
     if (typeof uiSettings.glyphColor === "string") state.ui.glyphColor = uiSettings.glyphColor;
+    if (uiSettings.analysis_workbench && typeof uiSettings.analysis_workbench === "object") {
+      state.ui.analysis_workbench = uiSettings.analysis_workbench;
+    }
     applyNumericProjectUi(uiSettings);
     requestDraw();
   }
@@ -4786,6 +4781,7 @@ function setStatusHint(hint) {
     host.appendChild(head);
     const toolbar = div("blocks-toolbar");
     toolbar.append(
+      button("\u6253\u5F00\u7535\u8DEF\u5206\u6790\u5DE5\u4F5C\u53F0", "btn tiny primary", () => openAnalysis("ac")),
       button("\u9884\u8BA1\u7B97\u9009\u4E2D\u72B6\u6001", "btn tiny", () => void wbPrecomputeSelected()),
       button("\u7EDF\u4E00\u4EFF\u771F\u8BBE\u7F6E", "btn tiny", () => void wbUnifySim()),
       button("\u751F\u6210\u5BF9\u6BD4\u56FE", "btn tiny primary", () => void wbGenerateCompare()),

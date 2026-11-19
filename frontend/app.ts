@@ -49,7 +49,7 @@ import { ACCENT_SWATCHES, PREF_CACHE_KEY, PREF_DEFAULTS, FONT_SCALES, RADIUS_STE
 import { initAppearanceControls, resetAppearance, saveAutosaveSetting, TelemetryQuality, formatQualityNumber, setQualityText, refreshTelemetryQuality, setAppearanceControlActions } from './app/appearance_controls.js';
 import { setGeometryActions, worldToScreen, screenToWorld, nodeDiameter, nodeRect, isModuleNode, devicePinGroups, deviceWorldSize, deviceRect, devicePinLocal, devicePinWired, deviceSupplyLabel, deviceMissingPins, deviceImplicitGroundPin, deviceInactive, devicePinScreen, snapWorld, portOut, portIn, curveFor, nodeCenterScreen, anchorPoint, edgeEndpointHit, waypointHitAt, anchorSideFor, anchorScreenPoint, edgePathPoints, pathSegments, pathPointAt, pathMidpoint, pathEndAngle, distanceToPath, vectorForNode, bezierPoint } from './app/geometry.js';
 import { analysisSignalKey, analysisGet, setAnalysisOutput, runAnalysisMetrics, runAnalysisSpectrum, runAnalysisPeriod, runAnalysisMath, runAnalysisTransfer, fmtComplex, analysisTFSummary, runAnalysisTF, drawAnalysisTF, tfRange, drawTFBode, tfBodeCursorFromEvent, attachTfCursor, drawTFStep, drawTFPoles, exportTFStateSpace, sendCurveToPlotKit, sendTFToPlotKit, phaseSeriesForPlotKit, sendPhaseToPlotKit, exportAnalysisCsv, drawAnalysisSpectrum, setAnalysisActions } from './app/analysis.js';
-import { analEscape, analNum, analToken, analysisWarn, openAnalysis, closeAnalysis, selectAnalTab, fillAcSources, runOperatingPoint, runAcSweep, drawAcChart } from './app/ac_analysis.js';
+import { analEscape, analNum, analToken, analysisWarn, openAnalysis, closeAnalysis, selectAnalTab, runOperatingPoint } from './app/ac_analysis.js';
 import { pkChannelCache, pkKeyShort, pkCheckedKeys, renderPkChannels, showPkChannelLoadError, refreshPkChannels, retryPlotkit, reloadPlotkitFrame, PrecomputeProgress, mountPrecomputeBar, paintPrecomputeBar, runPrecomputeWithProgress, syncAfterPrecompute, applyPkChannels, pkKeysForSelectedNode, initPlotkitDataBar, setPlotkitDataActions } from './app/plotkit_data.js';
 import { plotkitReady, layoutPlotkitWindow, togglePlotkitDock, ensurePlotkitFrame, placePlotkit, openPlotkit, closePlotkit, vscodeStarting, ensureVscodeFrame, openVscode, closeVscode, vscodeWasUsed, maybePrewarmVscode } from './app/plotkit_frame.js';
 import { initAnalWin, initDocWin, setWindowActions } from './app/windows.js';
@@ -148,13 +148,6 @@ function setStatusHint(hint: string): void {
     state.sim = sim;
     // 电路变了（revision 变化），旧的扫频结果不再成立：清掉缓存并提示重算
     const nextRevision = snapshot.scene.revision ?? null;
-    if (state.acResult && state.acRevision !== null && nextRevision !== state.acRevision) {
-      state.acResult = null;
-      const acMeta = $('#analAcMeta');
-      if (acMeta) acMeta.textContent = '电路已变化，请重新扫频';
-      if (ui.analWin && !ui.analWin.hidden) requestAnimationFrame(() => drawAcChart());
-    }
-    state.acRevision = nextRevision;
     // 场景被重置或替换后，旧预计算数据不再对应，恢复“首次运行提示”
     if (resetFrames || (state.precomputedRevision != null && nextRevision !== state.precomputedRevision)) {
       state.precomputedSeconds = null;
@@ -4328,8 +4321,7 @@ function setStatusHint(hint: string): void {
           { label: '性能面板', action: () => switchTab('analysis') },
           { label: '缓存体检与清理…', hint: '只清可再生成的缓存，不碰工程与自动保存', action: () => openCacheDialog() },
           { label: 'DC 工作点（.op）', hint: '不推进仿真，静默解一次静态电路', action: () => openAnalysis('op') },
-          { label: 'AC 扫频（Bode）…', hint: '先求工作点再逐频点求解', action: () => openAnalysis('ac') },
-          { label: '小信号分析（旁路）…', hint: '工作点线性化 · 极点 / 零点 / 阶跃 / Bode', action: () => openAnalysis('bypass') },
+          { label: '电路分析工作台…', hint: 'Bode / 时域 / Nyquist / 环路 · 多状态对比', action: () => openAnalysis('wb-analysis') },
           { label: '迁移场景为器件模型（R20）', hint: '元件边 → 器件节点 + 引脚导线', action: () => void migrateSceneToDevices() },
           { label: '新建连线（选择端点）…', hint: '网络↔网络纯导线 / 器件引脚↔网络', action: () => openWireDialog() },
         ],
@@ -4812,6 +4804,9 @@ function setStatusHint(hint: string): void {
     }
     if (Number.isFinite(Number(uiSettings.symbolScale))) state.ui.symbolScale = clamp(Number(uiSettings.symbolScale), 0.6, 2.5);
     if (typeof uiSettings.glyphColor === 'string') state.ui.glyphColor = uiSettings.glyphColor;
+    if (uiSettings.analysis_workbench && typeof uiSettings.analysis_workbench === 'object') {
+      (state.ui as unknown as Record<string, unknown>).analysis_workbench = uiSettings.analysis_workbench;
+    }
     applyNumericProjectUi(uiSettings); requestDraw();
   }
 
@@ -5298,6 +5293,7 @@ function setStatusHint(hint: string): void {
     // 工具条：预计算 / 统一仿真 / 生成对比 / 信号窗浮出-停靠
     const toolbar = div('blocks-toolbar');
     toolbar.append(
+      button('打开电路分析工作台', 'btn tiny primary', () => openAnalysis('ac')),
       button('预计算选中状态', 'btn tiny', () => void wbPrecomputeSelected()),
       button('统一仿真设置', 'btn tiny', () => void wbUnifySim()),
       button('生成对比图', 'btn tiny primary', () => void wbGenerateCompare()),

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from netlab.core.compute import analysis
+from netlab.core.compute.circuit import descriptor_analysis
 from netlab.core.compute.simulation import Simulation
 from netlab.core.model.scene import Scene
 
@@ -104,3 +106,78 @@ def test_virtual_feedback_warns_and_stays_marked() -> None:
     assert body["transfer_function"]["supported"] is True
     assert body["closed_loop_transfer_function"]["supported"] is True
     assert body["closed_loop_transfer_function"]["expression"] != body["transfer_function"]["expression"]
+
+
+def test_closed_loop_transfer_function_rejects_unsupported_inputs() -> None:
+    assert descriptor_analysis.closed_loop_transfer_function(None) is None
+    assert descriptor_analysis.closed_loop_transfer_function({"supported": False}) is None
+    assert (
+        descriptor_analysis.closed_loop_transfer_function(
+            {"supported": True, "numerator_coeffs": "bad", "denominator_coeffs": [1.0]}
+        )
+        is None
+    )
+
+
+def test_closed_loop_transfer_function_handles_complex_and_invalid_coefficients() -> None:
+    body = descriptor_analysis.closed_loop_transfer_function(
+        {
+            "supported": True,
+            "numerator_coeffs": [[1.0, 1.0]],
+            "denominator_coeffs": [[1.0, 0.0]],
+        }
+    )
+    assert body is not None
+    assert body["supported"] is True
+    assert (
+        descriptor_analysis.closed_loop_transfer_function(
+            {"supported": True, "numerator_coeffs": ["bad"], "denominator_coeffs": [1.0]}
+        )
+        is None
+    )
+    assert (
+        descriptor_analysis.closed_loop_transfer_function(
+            {"supported": True, "numerator_coeffs": [], "denominator_coeffs": [1.0]}
+        )
+        is None
+    )
+    assert (
+        descriptor_analysis.closed_loop_transfer_function(
+            {"supported": True, "numerator_coeffs": [1.0], "denominator_coeffs": []}
+        )
+        is None
+    )
+
+
+def test_closed_loop_transfer_function_guards_empty_polyadd(monkeypatch) -> None:
+    monkeypatch.setattr(
+        descriptor_analysis.np,
+        "polyadd",
+        lambda *_: np.asarray([], dtype=np.complex128),
+    )
+    body = descriptor_analysis.closed_loop_transfer_function(
+        {"supported": True, "numerator_coeffs": [1.0], "denominator_coeffs": [1.0, 2.0]}
+    )
+    assert body is None
+
+
+def test_physical_closed_loop_survives_transfer_expression_failure(monkeypatch) -> None:
+    def _unavailable_transfer(*args, **kwargs):
+        raise RuntimeError("transfer unavailable")
+
+    monkeypatch.setattr(analysis, "descriptor_transfer_function", _unavailable_transfer)
+    body = analysis.loop_analysis(
+        Simulation(_vcvs_amplifier()),
+        element="E1",
+        input_source="V1",
+        output="out",
+        f_start=10.0,
+        f_stop=1000.0,
+        points=21,
+        display="closed_loop",
+    )
+    assert body["transfer_role"] == "closed_loop"
+    assert body["transfer_function"] == {
+        "supported": False,
+        "reason": "transfer unavailable",
+    }

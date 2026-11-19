@@ -114,6 +114,8 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-20 | fix(analysis): 工作台自动求解非线性电路 DC 工作点 |
+| 2026-11-20 | fix(analysis): 工作台输入源兼容工程 v8 device 节点 |
 | 2026-11-20 | test(plotkit): 兼容矩阵与公开 API 断言更新到 0.3 |
 | 2026-11-19 | fix(ci): 修复 ground 契约、schemdraw 可选依赖与 PlotKit 必需插件安装 |
 | 2026-11-19 | feat(analysis): 电路分析工作台落地 PlotKit 渲染与多子画布 |
@@ -132,8 +134,6 @@ python -m netlab.desktop
 | 2026-11-17 | test(frontend): 修正 drawChart 等价测试 activeTab mock 使真正执行 + 断言每场景>50 指令（D-B60-1） |
 | 2026-11-17 | refactor(frontend): F-01 S1b-3 外提 drawChart 到 chart_draw.ts（app.ts 7679→7479） |
 | 2026-11-17 | refactor(frontend): F-01 S1b-2 外提 drawModulePreview 到 module_preview.ts（app.ts 7770→7679） |
-| 2026-11-17 | refactor(frontend): F-01 S1b-1 外提 drawWbSubplot 至 app/wb_subplot（依赖显式化，指令序列等价） |
-| 2026-11-17 | refactor(frontend): F-01 S1a 外提零依赖 UI 小工具至 app/ui_helpers（app.ts 7982→7869，字节等价） |
 
 <!-- END LAST 20 UPDATES -->
 

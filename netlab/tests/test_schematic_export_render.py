@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from netlab.core.compute.schematic_export_ir import build_schematic_export_ir
-
 pytest.importorskip("schemdraw")
+
+from netlab.core.compute.schematic_export_ir import build_schematic_export_ir
 
 
 def _fixture() -> dict:

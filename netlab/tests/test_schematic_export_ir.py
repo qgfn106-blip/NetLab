@@ -6,6 +6,10 @@ import copy
 import json
 from pathlib import Path
 
+import pytest
+
+pytest.importorskip("schemdraw")
+
 from netlab.core.compute.schematic_export_ir import (
     ExportOptions,
     build_schematic_export_ir,

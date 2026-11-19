@@ -10,6 +10,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Checkout PlotKit (required plugin)
+        uses: actions/checkout@v4
+        with:
+          repository: qgfn106-blip/PlotKit
+          path: .plotkit-src
+
       - name: Build image
         run: docker build -t netlab:ci .
 

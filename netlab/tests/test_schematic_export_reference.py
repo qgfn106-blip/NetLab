@@ -5,6 +5,10 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import pytest
+
+pytest.importorskip("schemdraw")
+
 from netlab.core.compute.schematic_symbols import supported_kinds
 
 DOCS = Path(__file__).parent.parent.parent / "docs" / "schematic_reference"

@@ -5,6 +5,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
+pytest.importorskip("schemdraw")
+
 from netlab.core.compute.schematic_export_ir import build_schematic_export_ir
 from netlab.core.compute.schematic_symbols import symbol_spec
 

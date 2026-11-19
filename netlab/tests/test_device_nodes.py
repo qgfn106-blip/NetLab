@@ -289,7 +289,8 @@ def test_device_wire_api(client):
 
 
 @pytest.mark.parametrize(
-    "element", sorted(__import__("netlab.core.model.ports", fromlist=["PINS"]).PINS)
+    "element",
+    sorted(set(__import__("netlab.core.model.ports", fromlist=["PINS"]).PINS) - {"ground"}),
 )
 def test_all_circuit_kinds_accept_device_nodes(element):
     from netlab.core.model.ports import pins_for_device

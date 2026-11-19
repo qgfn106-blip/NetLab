@@ -78,6 +78,13 @@ export interface UiPrefsRec {
   cardValue?: boolean;
   cardFields?: string[];
   showPins?: boolean;
+  gridSubdivisions?: number;
+  angleMode?: 'constrained' | 'free';
+  angleSet?: number[];
+  angleToleranceDeg?: number;
+  showOrigin?: boolean;
+  showRuler?: boolean;
+  adaptiveZoom?: boolean;
   [k: string]: unknown;
 }
 export interface PrefsRec {
@@ -454,8 +461,7 @@ export interface State {
   phaseTimer: number;
   shuttingDown: boolean;
   project: ProjectRec;
-  acResult?: unknown;
-  acRevision?: number | null;
+
   floatZ?: number;
   hoverWaypoint?: HoverWaypointRec | null;
   plotkitActive?: boolean;

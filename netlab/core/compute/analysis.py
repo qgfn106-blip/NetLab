@@ -24,6 +24,15 @@ from . import complex_support as complex_layer
 from . import transfer as transfer_math
 from .exact_input import to_exact as _to_exact
 from .circuit.descriptor import DescriptorModel
+from .circuit.analysis_envelopes import bode_envelope, scene_fingerprint, step_envelope
+from .circuit.fft_frequency import (
+    approximation_envelope,
+    estimate_transfer_fft,
+    multisine,
+)
+from .circuit.loop_analysis import break_candidates, extract_controlled_source_loop
+from .circuit.nyquist import nyquist_envelope, stability_margins
+from .circuit.analysis_contract import curve, warning
 from .circuit.descriptor_analysis import (
     UnsupportedAnalysisError,
     analyze_poles,
@@ -31,8 +40,9 @@ from .circuit.descriptor_analysis import (
     build_output_matrices,
     descriptor_step_response,
     descriptor_transfer_function,
+    descriptor_transient_response,
 )
-from ..common.limits import MAX_NODES, ComputeError
+from ..common.limits import MAX_NODES, ComputeError, ValidationError
 from .statespace import StateSpaceModel
 
 
@@ -774,6 +784,133 @@ def _circuit_metrics(
     }
 
 
+def _fft_frequency_trace(
+    model: Any,
+    input_source: str | None,
+    output: str,
+    *,
+    sample_dt: float,
+    sample_duration: float,
+    f_start: float,
+    f_stop: float,
+    points: int,
+    probe_frequencies: Any,
+    probe_magnitude_db: Any,
+    probe_phase_deg: Any,
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """第二条频响通路：多正弦时域激励 -> 加窗 FFT 近似。
+
+    只用于旁证；稳定性仍以描述器零极点为准。返回 (近似信封, 与描述器
+    参考结果的逐点比较)。频段受采样率与仿真时长限制，实际有效频段写入
+    source.band。
+    """
+    dt = max(float(sample_dt), 1.0e-9)
+    duration = max(float(sample_duration), 0.1)
+    max_samples = 60_000
+    if duration / dt > max_samples:
+        duration = max_samples * dt
+    lo = max(float(f_start), 20.0 / duration)
+    hi = min(float(f_stop), 0.45 / dt)
+    if not np.isfinite(lo) or not np.isfinite(hi) or lo >= hi:
+        raise AnalysisError(
+            "FFT 近似频段不可用：请增大 step_duration 或减小 step_dt，"
+            "使频率范围覆盖至少一个十倍频程"
+        )
+    # 让多正弦频率落在 FFT 整数 bin 上，避免非整周期截断造成相位泄漏。
+    count = min(max(8, int(points)), 24)
+    raw = np.geomspace(lo, hi, count)
+    bins = np.unique(np.round(raw * duration).astype(int))
+    bins = bins[(bins >= 1) & (bins / duration < 0.5 / dt)]
+    if bins.size < 4:
+        raise AnalysisError("FFT 近似频点不足：请增大 step_duration 或 points")
+    frequencies = bins.astype(float) / duration
+    excitation = multisine(
+        frequencies.tolist(),
+        sample_rate_hz=1.0 / dt,
+        duration_s=duration,
+        amplitude=1.0,
+    )
+    transient = descriptor_transient_response(
+        model,
+        input_source,
+        output,
+        excitation["values"],
+        dt=dt,
+    )
+    estimate = estimate_transfer_fft(
+        excitation["values"],
+        transient["values"],
+        dt,
+        window="hann",
+        coherence_min=0.15,
+        f_min=float(frequencies[0]),
+        f_max=float(frequencies[-1]),
+    )
+    payload = approximation_envelope(estimate, source="fft_trajectory")
+    payload["source"] = {
+        **dict(payload.get("source") or {}),
+        "domain": "circuit",
+        "mode": "circuit",
+        "model": "fft_trajectory",
+        "input_source": input_source,
+        "output": output,
+        "path": "fft_trajectory",
+        "approximate": True,
+        "band": [float(frequencies[0]), float(frequencies[-1])],
+    }
+    comparison: dict[str, Any] | None = None
+    reference_f = np.asarray(list(probe_frequencies), dtype=float)
+    reference_db = np.asarray(list(probe_magnitude_db), dtype=float)
+    reference_phase = np.asarray(list(probe_phase_deg), dtype=float)
+    if reference_f.size >= 2:
+        estimate_f = np.asarray(estimate.frequencies_hz, dtype=float)
+        estimate_mag = np.asarray(estimate.magnitude, dtype=float)
+        estimate_phase = np.asarray(estimate.phase_deg, dtype=float)
+        valid = np.asarray(estimate.valid, dtype=bool)
+        valid &= (estimate_f >= float(reference_f[0])) & (estimate_f <= float(reference_f[-1]))
+        valid &= np.isfinite(estimate_mag) & np.isfinite(estimate_phase)
+        if np.any(valid):
+            points_f = estimate_f[valid]
+            ref_mag = 10.0 ** (reference_db / 20.0)
+            ref_real = np.interp(points_f, reference_f, ref_mag * np.cos(np.radians(reference_phase)))
+            ref_imag = np.interp(points_f, reference_f, ref_mag * np.sin(np.radians(reference_phase)))
+            ref_complex = ref_real + 1j * ref_imag
+            est_complex = estimate_mag[valid] * np.exp(1j * np.radians(estimate_phase[valid]))
+            relative = np.abs(est_complex - ref_complex) / np.maximum(np.abs(ref_complex), 1.0e-12)
+            rows = []
+            for index in range(points_f.size):
+                nearest = int(np.abs(reference_f - points_f[index]).argmin())
+                rows.append(
+                    {
+                        "frequency_hz": round(float(points_f[index]), 6),
+                        "reference_mag_db": round(float(reference_db[nearest]), 6),
+                        "approx_mag_db": round(float(20.0 * np.log10(max(estimate_mag[valid][index], 1.0e-300))), 6),
+                        "reference_phase_deg": round(float(reference_phase[nearest]), 6),
+                        "approx_phase_deg": round(float(estimate_phase[valid][index]), 6),
+                        "relative_error": round(float(relative[index]), 6),
+                    }
+                )
+            comparison = {
+                "reference_path": "descriptor_linearized",
+                "approx_path": "fft_trajectory",
+                "band": [float(points_f[0]), float(points_f[-1])],
+                "points": rows,
+                "mean_relative_error": round(float(np.mean(relative)), 6),
+                "max_relative_error": round(float(np.max(relative)), 6),
+            }
+            if float(np.max(relative)) > 0.15:
+                payload.setdefault("warnings", []).append(
+                    warning(
+                        "fft_comparison_deviation",
+                        "FFT 近似与描述器线性化结果偏差较大，仅作旁证；稳定性以描述器结果为准。",
+                        severity="warning",
+                    )
+                )
+    if comparison is not None:
+        payload.setdefault("evidence", {})["comparison"] = comparison
+    return payload, comparison
+
+
 def _circuit_tf_analysis(
     sim: Any,
     *,
@@ -786,9 +923,18 @@ def _circuit_tf_analysis(
     f_stop: float,
     points: int,
     scale: str,
+    frequency_path: str = "descriptor_linearized",
     budget_s: float | None = None,
 ) -> dict[str, Any]:
-    """电路小信号旁路分析：Descriptor 状态空间 + 零极点 + 阶跃 + Bode。"""
+    """电路小信号旁路分析：Descriptor 状态空间 + 零极点 + 阶跃 + Bode。
+
+    frequency_path 选择频响通路：descriptor_linearized（默认，权威）或
+    fft_trajectory（时域多正弦激励 + FFT 近似，仅旁证）。
+    """
+    if frequency_path not in ("descriptor_linearized", "fft_trajectory"):
+        raise AnalysisError(
+            f"未知频响通路 {frequency_path!r}；只支持 descriptor_linearized / fft_trajectory"
+        )
     if sim is None:
         raise AnalysisError("mode=circuit 时必须提供电路仿真")
     scene = getattr(sim, "scene", None)
@@ -916,6 +1062,106 @@ def _circuit_tf_analysis(
         "关键指标计算",
         lambda: _circuit_metrics(transfer, poles_payload, step, bode, output),
     )
+    _deadline_check("结果封装")
+
+    # ---- PlotKit 信封（netlab-analysis-result/1）---------------------------
+    probe_payload = (bode.get("probes") or {}).get(output) or {}
+    probe_frequencies = np.asarray(
+        probe_payload.get("frequencies", bode.get("frequencies", [])), dtype=float
+    )
+    probe_db = np.asarray(probe_payload.get("db", []), dtype=float)
+    probe_phase = np.asarray(probe_payload.get("phase_deg", []), dtype=float)
+    source_payload = {
+        "domain": "circuit",
+        "mode": "circuit",
+        "model": "descriptor_linearized",
+        "path": "descriptor_linearized",
+        "input_source": input_source,
+        "output": output,
+        "operating_point_supplied": bool(operating_point),
+    }
+    analysis_params = {
+        "kind": "circuit_tf",
+        "input_source": input_source,
+        "output": output,
+        "operating_point": dict(operating_point or {}),
+        "step_dt": float(step_dt),
+        "step_duration": float(step_duration),
+        "f_start": float(f_start),
+        "f_stop": float(f_stop),
+        "points": int(points),
+        "scale": str(scale),
+        "frequency_path": str(frequency_path),
+    }
+    scene_params = {key: value for key, value in analysis_params.items() if key != "operating_point"}
+    analysis_fp = scene_fingerprint(scene, {**scene_params, "op_present": bool(operating_point)})
+
+    input_amplitude: float | None = None
+    try:
+        for edge in (getattr(scene, "edges", {}) or {}).values():
+            if getattr(edge, "name", "") == input_source:
+                raw = (getattr(edge, "params", {}) or {}).get("amplitude")
+                input_amplitude = float(raw) if raw is not None else None
+                break
+    except (TypeError, ValueError):
+        input_amplitude = None
+
+    envelope_warnings = []
+    if not metrics.get("stable", False):
+        envelope_warnings.append(
+            warning(
+                "unstable",
+                "系统存在非负实部极点，闭环/开环响应可能发散；请检查反馈与参数。",
+            )
+        )
+
+    comparison: dict[str, Any] | None = None
+    if frequency_path == "fft_trajectory":
+        bode_payload, comparison = _fft_frequency_trace(
+            model,
+            input_source,
+            output,
+            sample_dt=float(step_dt),
+            sample_duration=float(step_duration),
+            f_start=float(f_start),
+            f_stop=float(f_stop),
+            points=int(points),
+            probe_frequencies=probe_frequencies,
+            probe_magnitude_db=probe_db,
+            probe_phase_deg=probe_phase,
+        )
+        bode_payload["metrics"] = {
+            "metrics": metrics,
+            "stable": None,
+            "approximate": True,
+            "frequency_path": "fft_trajectory",
+        }
+    else:
+        bode_payload = bode_envelope(
+            frequencies=probe_frequencies,
+            magnitude_db=probe_db,
+            phase_deg=probe_phase,
+            source=source_payload,
+            output=output,
+            poles=poles_payload.get("finite", []),
+            zeros=zeros_payload.get("finite", []),
+            metrics={"metrics": metrics, "stable": bool(metrics.get("stable", False))},
+            warnings=envelope_warnings,
+            fingerprint_value=analysis_fp,
+            bandwidth_hz=(metrics.get("bode") or {}).get("bandwidth_hz"),
+            resonant_peak_db=(metrics.get("bode") or {}).get("resonant_peak_db"),
+            resonant_frequency_hz=(metrics.get("bode") or {}).get("resonant_frequency_hz"),
+        )
+    time_payload = step_envelope(
+        times=step.get("times", []),
+        values=step.get("values", []),
+        source=source_payload,
+        output=output,
+        input_amplitude=input_amplitude,
+        metrics=metrics,
+        warnings=envelope_warnings,
+        fingerprint_value=analysis_fp,
+    )
 
     matrices = {
         "A": system.A,
@@ -959,6 +1205,10 @@ def _circuit_tf_analysis(
         "step": step,
         "step_dt": float(step.get("dt", step_dt)) if isinstance(step, dict) else float(step_dt),
         "bode": bode,
+        "frequency_path": str(frequency_path),
+        "frequency_comparison": comparison,
+        "fingerprint": analysis_fp,
+        "envelopes": {"bode": bode_payload, "time": time_payload},
         "assumptions": [
             "基于 DC 工作点线性化的 Descriptor 状态空间",
             "Bode 与零极点同源：DescriptorModel.frequency_response",
@@ -995,6 +1245,7 @@ def tf_analysis(
     duration: float | None = None,
     points: int = 240,
     delay_pade_order: int = 3,
+    frequency_path: str = "descriptor_linearized",
 ) -> dict[str, Any]:
     """s 域传递函数分析：Bode、阶跃、零极点、稳定性。
 
@@ -1017,6 +1268,7 @@ def tf_analysis(
                 f_stop=f_stop,
                 points=points,
                 scale=scale,
+                frequency_path=frequency_path,
             )
         scene_mode = getattr(getattr(sim, "scene", None), "mode", None)
         if scene_mode is not None and scene_mode != "signal":
@@ -1358,6 +1610,537 @@ def frequency_response(
             }
         ),
         "source": "complex analysis layer（R39）",
+    }
+
+
+
+def _loop_model(
+    sim: Any, operating_point: dict[str, float] | None
+) -> tuple[Any, DescriptorModel]:
+    if sim is None:
+        raise AnalysisError("断环分析必须提供电路仿真")
+    scene = getattr(sim, "scene", None)
+    if scene is None or getattr(scene, "mode", None) != "circuit":
+        raise AnalysisError("断环分析需要 circuit 模式场景")
+    try:
+        model = DescriptorModel.from_scene(scene, operating_point=operating_point)
+    except ComputeError as exc:
+        raise AnalysisError(f"断环状态空间构建失败：{exc}") from exc
+    return scene, model
+
+
+def break_points(sim: Any, *, operating_point: dict[str, float] | None = None) -> dict[str, Any]:
+    """列出当前电路可断环的受控源，供前端选择。"""
+    scene, model = _loop_model(sim, operating_point)
+    candidates = break_candidates(model)
+    for item in candidates:
+        for key in ("control_a", "control_b", "output_a", "output_b"):
+            node_id = item.get(key)
+            node = model.index.node_by_id.get(node_id) if node_id is not None else None
+            item[key] = str(getattr(node, "name", None) or node_id)
+    return {
+        "ok": True,
+        "candidates": candidates,
+        "scene": {
+            "mode": getattr(scene, "mode", "circuit"),
+            "elements": len(getattr(scene, "edges", {}) or {}),
+        },
+    }
+
+
+def _virtual_loop_analysis(
+    sim: Any,
+    *,
+    input_source: str | None,
+    output: str | None,
+    feedback_sign: float,
+    f_start: float,
+    f_stop: float,
+    points: int,
+    scale: str,
+    display: str,
+    step_dt: float,
+    step_duration: float,
+    operating_point: dict[str, float] | None,
+) -> dict[str, Any]:
+    """无实体断环时，用虚拟单位负反馈展示 G/(1+G)（明确标注，不参与判稳）。"""
+    if not input_source or not output:
+        raise AnalysisError("虚拟单位负反馈需要 input_source 与 output")
+    tf = tf_analysis(
+        sim,
+        mode="circuit",
+        input_source=input_source,
+        output=output,
+        operating_point=operating_point,
+        step_dt=step_dt,
+        step_duration=step_duration,
+        f_start=f_start,
+        f_stop=f_stop,
+        points=points,
+        scale=scale,
+    )
+    bode = tf.get("bode") or {}
+    probe = (bode.get("probes") or {}).get(output) or bode
+    frequencies = np.asarray(probe.get("frequencies") or bode.get("frequencies") or [], dtype=float)
+    magnitude_db = np.asarray(probe.get("db") or bode.get("db") or [], dtype=float)
+    phase_deg = np.asarray(probe.get("phase_deg") or bode.get("phase_deg") or [], dtype=float)
+    count = min(frequencies.size, magnitude_db.size, phase_deg.size)
+    frequencies = frequencies[:count]
+    magnitude_db = magnitude_db[:count]
+    phase_deg = phase_deg[:count]
+    if count == 0:
+        raise AnalysisError("虚拟单位负反馈无法取得频响数据")
+    forward = 10.0 ** (magnitude_db / 20.0) * np.exp(1j * np.radians(phase_deg))
+    closed = forward / (1.0 + forward)
+    margins = stability_margins(frequencies, forward, feedback_sign=1.0)
+    source_payload = {
+        "domain": "circuit",
+        "mode": "circuit",
+        "model": "descriptor_linearized",
+        "path": "descriptor_linearized",
+        "kind": "loop",
+        "loop_origin": "virtual_unit_feedback",
+        "break_element": "__virtual__",
+        "break_kind": "virtual",
+        "input_source": input_source,
+        "output": output,
+        "feedback_sign": 1.0,
+        "operating_point_supplied": bool(operating_point),
+    }
+    warning_items = [
+        warning(
+            "no_physical_loop",
+            "电路未选择实体断环元件，当前按虚拟单位负反馈显示 G/(1+G)，不代表实际反馈拓扑。",
+            severity="warning",
+        )
+    ]
+    metrics = {
+        "phase_margin_deg": margins["phase_margin_deg"],
+        "gain_margin_db": margins["gain_margin_db"],
+        "stable_from_margins": margins["stable_from_margins"],
+        "gain_crossings": margins["gain_crossings"],
+        "phase_crossings": margins["phase_crossings"],
+    }
+    fingerprint_value = scene_fingerprint(
+        sim.scene,
+        {"kind": "virtual_loop", "input_source": input_source, "output": output,
+         "f_start": float(f_start), "f_stop": float(f_stop), "points": int(points),
+         "op_present": bool(operating_point)},
+    )
+    if display == "step":
+        step_payload = dict((tf.get("envelopes") or {}).get("time") or {})
+        if not step_payload:
+            raise AnalysisError("虚拟单位负反馈缺少阶跃结果")
+        step_payload["source"] = {**source_payload, "kind": "loop_step"}
+        step_payload["warnings"] = [*(step_payload.get("warnings") or []), *warning_items]
+        step_payload["metrics"] = {**metrics, "approximate_closed_loop": True}
+        return {
+            "ok": True,
+            "kind": "loop_step",
+            "display": "step",
+            "element": "__virtual__",
+            "break_kind": "virtual",
+            "input_source": input_source,
+            "output": output,
+            "feedback_sign": 1.0,
+            "loop_origin": "virtual_unit_feedback",
+            "parity_max_rel": None,
+            "poles": tf.get("poles"),
+            "metrics": metrics,
+            "warnings": warning_items,
+            "fingerprint": fingerprint_value,
+            "envelopes": {"time": step_payload},
+            "source": source_payload,
+        }
+    if display == "closed_loop":
+        closed_mag = 20.0 * np.log10(np.maximum(np.abs(closed), 1e-300))
+        closed_phase = np.degrees(np.unwrap(np.angle(closed)))
+        bode_payload = bode_envelope(
+            frequencies=frequencies,
+            magnitude_db=closed_mag,
+            phase_deg=closed_phase,
+            source={**source_payload, "kind": "loop_closed"},
+            output=f"T({output}) 虚拟单位负反馈",
+            poles=(tf.get("poles") or {}).get("finite", []),
+            metrics=dict(metrics),
+            warnings=warning_items,
+            fingerprint_value=fingerprint_value,
+        )
+        bode_payload["curves"][0]["label"] = "闭环 T(s) 幅值"
+        bode_payload["curves"][1]["label"] = "闭环 T(s) 相位"
+    else:
+        bode_payload = dict((tf.get("envelopes") or {}).get("bode") or {})
+        if not bode_payload:
+            raise AnalysisError("虚拟单位负反馈缺少 Bode 结果")
+        bode_payload["source"] = source_payload
+        bode_payload["warnings"] = [*(bode_payload.get("warnings") or []), *warning_items]
+        bode_payload["metrics"] = {**metrics, "approximate_closed_loop": False}
+    return {
+        "ok": True,
+        "kind": "loop",
+        "display": display,
+        "element": "__virtual__",
+        "break_kind": "virtual",
+        "input_source": input_source,
+        "output": output,
+        "feedback_sign": 1.0,
+        "loop_origin": "virtual_unit_feedback",
+        "frequencies_hz": [float(value) for value in frequencies],
+        "loop_gain": _complex_list(forward),
+        "forward_gain": _complex_list(forward),
+        "closed_loop": _complex_list(closed),
+        "direct_response": None,
+        "parity_max_rel": None,
+        "poles": tf.get("poles"),
+        "metrics": metrics,
+        "warnings": warning_items,
+        "fingerprint": fingerprint_value,
+        "envelopes": {"bode": bode_payload},
+        "source": source_payload,
+    }
+
+
+def loop_analysis(
+    sim: Any,
+    *,
+    element: str | None = "",
+    input_source: str | None = None,
+    output: str | None = None,
+    feedback_sign: float = 1.0,
+    f_start: float = 1.0,
+    f_stop: float = 1_000_000.0,
+    points: int = 241,
+    scale: str = "log",
+    display: str = "loop",
+    step_dt: float = 1.0e-5,
+    step_duration: float = 5.0e-3,
+    operating_point: dict[str, float] | None = None,
+) -> dict[str, Any]:
+    """断环分析：回路增益 Bode / 闭环 T(s) Bode / 直接闭环阶跃。
+
+    display=loop 返回 L(s) 的 Bode 与稳定裕度；closed_loop 返回 T(s) 与
+    直接闭环响应两条曲线；step 返回直接闭环阶跃响应。element 为空或
+    "__virtual__" 时按虚拟单位负反馈 G/(1+G) 展示，并明确告警。
+    """
+    if display not in ("loop", "closed_loop", "step"):
+        raise AnalysisError(f"未知闭环显示 {display!r}；只支持 loop / closed_loop / step")
+    if not element or element == "__virtual__":
+        return _virtual_loop_analysis(
+            sim,
+            input_source=input_source,
+            output=output,
+            feedback_sign=feedback_sign,
+            f_start=f_start,
+            f_stop=f_stop,
+            points=points,
+            scale=scale,
+            display=display,
+            step_dt=step_dt,
+            step_duration=step_duration,
+            operating_point=operating_point,
+        )
+    scene, model = _loop_model(sim, operating_point)
+    frequencies = _frequency_axis(f_start, f_stop, points, scale)
+    try:
+        extraction = extract_controlled_source_loop(
+            model,
+            element,
+            frequencies,
+            input_source=input_source,
+            output=output,
+            feedback_sign=feedback_sign,
+        )
+    except (ComputeError, ValidationError, ValueError) as exc:
+        raise AnalysisError(f"断环分析失败：{exc}") from exc
+
+    margins = stability_margins(
+        frequencies, extraction.loop_gain, feedback_sign=feedback_sign
+    )
+    source_payload = {
+        "domain": "circuit",
+        "mode": "circuit",
+        "model": "descriptor_linearized",
+        "path": "descriptor_linearized",
+        "kind": "loop",
+        "break_element": extraction.element,
+        "break_kind": extraction.kind,
+        "input_source": extraction.input_source,
+        "output": extraction.output_name,
+        "feedback_sign": float(feedback_sign),
+        "operating_point_supplied": bool(operating_point),
+    }
+    analysis_params = {
+        "kind": "circuit_loop",
+        "element": extraction.element,
+        "input_source": extraction.input_source,
+        "output": extraction.output_name,
+        "feedback_sign": float(feedback_sign),
+        "f_start": float(f_start),
+        "f_stop": float(f_stop),
+        "points": int(points),
+        "scale": str(scale),
+        "display": str(display),
+        "step_dt": float(step_dt),
+        "step_duration": float(step_duration),
+    }
+    fingerprint_value = scene_fingerprint(
+        scene, {**analysis_params, "op_present": bool(operating_point)}
+    )
+
+    magnitude_db = 20.0 * np.log10(np.maximum(np.abs(extraction.loop_gain), 1e-300))
+    phase_deg = np.degrees(np.unwrap(np.angle(extraction.loop_gain)))
+    envelope_warnings = list(extraction.warnings)
+    if margins["stable_from_margins"] is False:
+        envelope_warnings.append(
+            warning(
+                "loop_negative_margin",
+                "回路增益裕度为负，闭环可能不稳定",
+                severity="warning",
+            )
+        )
+    bode_payload = bode_envelope(
+        frequencies=frequencies,
+        magnitude_db=magnitude_db,
+        phase_deg=phase_deg,
+        source=source_payload,
+        output=f"L({extraction.element})",
+        poles=extraction.poles.get("finite", []),
+        zeros=(),
+        metrics={
+            "phase_margin_deg": margins["phase_margin_deg"],
+            "gain_margin_db": margins["gain_margin_db"],
+            "stable_from_margins": margins["stable_from_margins"],
+        },
+        warnings=envelope_warnings,
+        fingerprint_value=fingerprint_value,
+    )
+    if display == "closed_loop":
+        closed_mag = 20.0 * np.log10(np.maximum(np.abs(extraction.closed_loop), 1e-300))
+        closed_phase = np.degrees(np.unwrap(np.angle(extraction.closed_loop)))
+        bode_payload = bode_envelope(
+            frequencies=frequencies,
+            magnitude_db=closed_mag,
+            phase_deg=closed_phase,
+            source={**source_payload, "kind": "loop_closed"},
+            output=f"T({extraction.element})",
+            poles=extraction.poles.get("finite", []),
+            zeros=(),
+            metrics={
+                "phase_margin_deg": margins["phase_margin_deg"],
+                "gain_margin_db": margins["gain_margin_db"],
+                "stable_from_margins": margins["stable_from_margins"],
+                "parity_max_rel": extraction.parity_max_rel,
+            },
+            warnings=envelope_warnings,
+            fingerprint_value=fingerprint_value,
+        )
+        bode_payload["curves"][0]["label"] = "闭环 T_synth 幅值"
+        bode_payload["curves"][1]["label"] = "闭环 T_synth 相位"
+        if extraction.direct_response is not None:
+            direct_mag = 20.0 * np.log10(
+                np.maximum(np.abs(extraction.direct_response), 1e-300)
+            )
+            direct_phase = np.degrees(np.unwrap(np.angle(extraction.direct_response)))
+            bode_payload["curves"].append(
+                curve(
+                    "closed_loop_direct_mag",
+                    label="直接闭环 T_direct 幅值",
+                    x_axis="f",
+                    y_axis="mag_db",
+                    x=[float(value) for value in frequencies],
+                    y=[float(value) for value in direct_mag],
+                    style="dashed",
+                    category="loop",
+                    detail={"parity_max_rel": extraction.parity_max_rel},
+                )
+            )
+            bode_payload["curves"].append(
+                curve(
+                    "closed_loop_direct_phase",
+                    label="直接闭环 T_direct 相位",
+                    x_axis="f",
+                    y_axis="phase_deg",
+                    x=[float(value) for value in frequencies],
+                    y=[float(value) for value in direct_phase],
+                    style="dashed",
+                    category="loop",
+                    detail={"parity_max_rel": extraction.parity_max_rel},
+                )
+            )
+    if display == "step":
+        steps = int(round(float(step_duration) / max(float(step_dt), 1e-12)))
+        actual_dt = float(step_dt)
+        if steps > 2000:
+            actual_dt = float(step_duration) / 2000.0
+        step_payload = descriptor_step_response(
+            model,
+            extraction.input_source,
+            extraction.output_name,
+            t_end=float(step_duration),
+            dt=actual_dt,
+        )
+        step_envelope_payload = step_envelope(
+            times=step_payload.get("times", []),
+            values=step_payload.get("values", []),
+            source={**source_payload, "kind": "loop_step"},
+            output=extraction.output_name,
+            metrics={
+                "phase_margin_deg": margins["phase_margin_deg"],
+                "gain_margin_db": margins["gain_margin_db"],
+                "stable_from_margins": margins["stable_from_margins"],
+                "parity_max_rel": extraction.parity_max_rel,
+            },
+            warnings=envelope_warnings,
+            fingerprint_value=fingerprint_value,
+        )
+        return {
+            "ok": True,
+            "kind": "loop_step",
+            "display": "step",
+            "element": extraction.element,
+            "break_kind": extraction.kind,
+            "input_source": extraction.input_source,
+            "output": extraction.output_name,
+            "feedback_sign": float(feedback_sign),
+            "parity_max_rel": extraction.parity_max_rel,
+            "poles": extraction.poles,
+            "metrics": {
+                "phase_margin_deg": margins["phase_margin_deg"],
+                "gain_margin_db": margins["gain_margin_db"],
+                "stable_from_margins": margins["stable_from_margins"],
+                "parity_max_rel": extraction.parity_max_rel,
+            },
+            "warnings": envelope_warnings,
+            "fingerprint": fingerprint_value,
+            "envelopes": {"time": step_envelope_payload},
+            "source": {**source_payload, "kind": "loop_step"},
+        }
+    return {
+        "ok": True,
+        "display": display,
+        "kind": "loop",
+        "element": extraction.element,
+        "break_kind": extraction.kind,
+        "input_source": extraction.input_source,
+        "output": extraction.output_name,
+        "feedback_sign": float(feedback_sign),
+        "frequencies_hz": [float(value) for value in frequencies],
+        "loop_gain": _complex_list(extraction.loop_gain),
+        "forward_gain": _complex_list(extraction.forward_gain),
+        "closed_loop": _complex_list(extraction.closed_loop),
+        "direct_response": (
+            _complex_list(extraction.direct_response)
+            if extraction.direct_response is not None
+            else None
+        ),
+        "parity_max_rel": extraction.parity_max_rel,
+        "poles": extraction.poles,
+        "metrics": {
+            "phase_margin_deg": margins["phase_margin_deg"],
+            "gain_margin_db": margins["gain_margin_db"],
+            "stable_from_margins": margins["stable_from_margins"],
+            "gain_crossings": margins["gain_crossings"],
+            "phase_crossings": margins["phase_crossings"],
+        },
+        "warnings": envelope_warnings,
+        "fingerprint": fingerprint_value,
+        "envelopes": {"bode": bode_payload},
+        "source": source_payload,
+    }
+
+
+def nyquist_analysis(
+    sim: Any,
+    *,
+    element: str,
+    input_source: str | None = None,
+    output: str | None = None,
+    feedback_sign: float = 1.0,
+    f_start: float = 1.0,
+    f_stop: float = 1_000_000.0,
+    points: int = 401,
+    scale: str = "log",
+    operating_point: dict[str, float] | None = None,
+) -> dict[str, Any]:
+    """受控源断环：Nyquist 轮廓、包围数、P/N/Z 与稳定裕度。"""
+    scene, model = _loop_model(sim, operating_point)
+    if not element:
+        raise AnalysisError("Nyquist 分析必须选择受控源 element")
+    frequencies = _frequency_axis(f_start, f_stop, points, scale)
+    try:
+        extraction = extract_controlled_source_loop(
+            model,
+            element,
+            frequencies,
+            input_source=input_source,
+            output=output,
+            feedback_sign=feedback_sign,
+        )
+    except (ComputeError, ValidationError, ValueError) as exc:
+        raise AnalysisError(f"Nyquist 分析失败：{exc}") from exc
+
+    source_payload = {
+        "domain": "circuit",
+        "mode": "circuit",
+        "model": "descriptor_linearized",
+        "kind": "nyquist",
+        "break_element": extraction.element,
+        "break_kind": extraction.kind,
+        "input_source": extraction.input_source,
+        "output": extraction.output_name,
+        "feedback_sign": float(feedback_sign),
+        "operating_point_supplied": bool(operating_point),
+    }
+    analysis_params = {
+        "kind": "circuit_nyquist",
+        "element": extraction.element,
+        "input_source": extraction.input_source,
+        "output": extraction.output_name,
+        "feedback_sign": float(feedback_sign),
+        "f_start": float(f_start),
+        "f_stop": float(f_stop),
+        "points": int(points),
+        "scale": str(scale),
+    }
+    fingerprint_value = scene_fingerprint(
+        scene, {**analysis_params, "op_present": bool(operating_point)}
+    )
+    payload = nyquist_envelope(
+        frequencies,
+        extraction.loop_gain,
+        source=source_payload,
+        poles=extraction.poles,
+        feedback_sign=feedback_sign,
+        element=extraction.element,
+        output=extraction.output_name,
+        fingerprint_value=fingerprint_value,
+        evidence={
+            "parity_max_rel": extraction.parity_max_rel,
+            "break_kind": extraction.kind,
+        },
+    )
+    metrics = dict(payload.get("metrics") or {})
+    warnings_list = list(payload.get("warnings") or [])
+    for item in extraction.warnings:
+        if item not in warnings_list:
+            warnings_list.append(item)
+    payload["warnings"] = warnings_list
+    return {
+        "ok": True,
+        "kind": "nyquist",
+        "element": extraction.element,
+        "break_kind": extraction.kind,
+        "input_source": extraction.input_source,
+        "output": extraction.output_name,
+        "feedback_sign": float(feedback_sign),
+        "frequencies_hz": [float(value) for value in frequencies],
+        "loop_gain": _complex_list(extraction.loop_gain),
+        "poles": extraction.poles,
+        "metrics": metrics,
+        "warnings": warnings_list,
+        "fingerprint": fingerprint_value,
+        "envelopes": {"nyquist": payload},
+        "source": source_payload,
     }
 
 

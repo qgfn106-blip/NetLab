@@ -1,10 +1,18 @@
 # C2 双版本兼容矩阵（唯一真源；netlab/contracts/generated.py 由此生成）
 api_version: "1"
 plotkit:
-  min: "0.2.0"
-  max_exclusive: "0.3.0"
+  min: "0.3.0"
+  max_exclusive: "0.4.0"
+# D7：缺少或不兼容这些插件时，NetLab 不能进入 ready（分析工作台无降级路径）。
+required_plugins:
+  - netlab.plotkit
+# D7：宿主启动时要求 PlotKit probe().features 至少包含这些分析能力名。
+plotkit_capabilities:
+  - analysis_markers
+  - analysis_envelopes
+  - linked_cursor
 schemas:
   channel_key: 1
   frame: 1
-  project: 6
+  project: 8
   plot_spec: "0.1"

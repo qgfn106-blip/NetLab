@@ -89,54 +89,48 @@ try {
   page.on('pageerror', (error) => errors.push(String(error)));
   page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
   flow = await beginFlow(browser, page, 'analysis_ux', errors);
-  await page.addInitScript(() => {
-    window.__netlabCanvasTexts = [];
-    const original = CanvasRenderingContext2D.prototype.fillText;
-    CanvasRenderingContext2D.prototype.fillText = function (text, ...args) {
-      window.__netlabCanvasTexts.push(String(text));
-      return original.call(this, text, ...args);
-    };
-  });
 
   await page.goto(BASE + '/', { waitUntil: 'networkidle' });
   await page.waitForSelector('#btnRun', { state: 'visible', timeout: 15000 });
   if (await page.locator('#guideClose').isVisible()) await page.locator('#guideClose').click();
 
-  // 1) 电路模式旧「推导」入口应转到小信号旁路，而不是发 mode=signal 请求。
+  // 1) 电路模式「推导」入口进入统一分析工作台（PlotKit 渲染，无旧 Canvas 图表）。
   await page.locator('.panel-tab[data-group="analysis"]').click();
   await page.locator('button[data-sub="analysis"]').click();
   await page.getByRole('button', { name: '推导', exact: true }).click();
   await page.waitForSelector('#analWin', { state: 'visible', timeout: 5000 });
-  assert(await page.locator('[data-anal="bypass"]').evaluate((el) => el.classList.contains('active')), 'mode 入口未切到 bypass tab');
+  assert(await page.locator('[data-anal="workbench"]').evaluate((el) => el.classList.contains('active')), 'mode 入口未切到 workbench tab');
+  await page.waitForSelector('#analWorkbench.awb', { state: 'visible', timeout: 15000 });
 
-  // 2) 运行旁路后应有 G(s)、关键指标和极点表。
-  await page.locator('#analRunBypass').click();
-  await page.waitForFunction(() => (document.querySelector('#analBypassTransfer')?.textContent || '').includes('G(s)'), null, { timeout: 15000 });
-  const transfer = await page.locator('#analBypassTransfer').innerText();
-  const summary = await page.locator('#analBypassSummary').innerText();
-  const poles = await page.locator('#analBypassPoles').innerText();
-  assert(transfer.includes('s + 1000') || transfer.includes('1000'), `传递函数异常: ${transfer}`);
-  assert(summary.includes('DC 增益') && summary.includes('上升时间'), `指标摘要异常: ${summary}`);
-  assert(poles.includes('-1000'), `极点表异常: ${poles}`);
+  // 2) 工作台必须由 PlotKit 画布承载，旧分析 Canvas 已退役且不回退。
+  await page.waitForSelector('.analysis-chart-canvas', { state: 'visible', timeout: 20000 });
+  assert(await page.locator('.analysis-chart-canvas').count() > 0, 'PlotKit 分析画布缺失');
+  for (const retired of ['#analAcCanvas', '#analBypassBode', '#analBypassStep', '#analRunBypass']) {
+    assert(await page.locator(retired).count() === 0, `旧分析画布仍在: ${retired}`);
+  }
 
-  // 3) 画布刻度应来自自适应 nice ticks，而不是固定等分。
-  await page.waitForFunction(() => (window.__netlabCanvasTexts || []).length > 0, null, { timeout: 5000 });
-  const canvasTexts = await page.evaluate(() => window.__netlabCanvasTexts || []);
-  const canvasNum = (text) => {
-    const match = String(text).replace('−', '-').match(/-?\d+(?:\.\d+)?/);
-    return match ? Number(match[0]) : NaN;
-  };
-  assert(canvasTexts.some((text) => /dB/.test(text) && canvasNum(text) < 0), `未看到负 dB 刻度: ${canvasTexts.slice(-20)}`);
-  assert(canvasTexts.some((text) => /^-?\d+\.\d+/.test(String(text).replace('−', '-'))), `未看到小数刻度: ${canvasTexts.slice(-20)}`);
+  // 3) 读数与关键点证据应由后端 envelope 提供。
+  await page.waitForFunction(() => (document.querySelector('.analysis-chart-readout')?.textContent || '').includes('滚轮缩放'), null, { timeout: 15000 });
+  const chartBox = await page.locator('.analysis-chart-canvas').boundingBox();
+  assert(chartBox, '分析画布没有布局尺寸');
+  await page.mouse.move(chartBox.x + chartBox.width * 0.45, chartBox.y + chartBox.height * 0.35, { steps: 3 });
+  await page.waitForFunction(() => /f\s*=\s*\d/.test(document.querySelector('.analysis-chart-readout')?.textContent || ''), null, { timeout: 8000 });
+  const readout = await page.locator('.analysis-chart-readout').innerText();
+  assert(/f\s*=\s*\d/.test(readout), `读数缺少频率: ${readout}`);
+  await page.locator('#analWinClose').click();
+  await page.waitForSelector('#analWin', { state: 'hidden', timeout: 5000 });
 
   // 4) 文件菜单应直接提供原理图 SVG 导出。
   await page.locator('#menuItems .menu > button').filter({ hasText: '文件' }).click();
   const exportItem = page.locator('.menu.open .menu-item').filter({ hasText: '导出原理图 SVG…' });
   await exportItem.waitFor({ state: 'visible', timeout: 3000 });
-  const firstExport = page.waitForResponse((response) => response.url().includes('/api/export/schematic'), { timeout: 5000 });
   await exportItem.click();
+  await page.waitForSelector('#modal:not(.hidden)', { timeout: 3000 });
+  const firstExport = page.waitForResponse((response) => response.url().includes('/api/export/schematic'), { timeout: 8000 });
+  await page.locator('#modal .modal-actions button').filter({ hasText: '导出' }).click();
   await firstExport;
   assert(exportCalls === 1, `文件菜单导出未调用 API: ${exportCalls}`);
+  await page.waitForSelector('#modal', { state: 'hidden', timeout: 5000 });
   await page.keyboard.press('Escape');
 
   // 5) 画布右键也应提供同一导出入口。
@@ -145,12 +139,15 @@ try {
     button: 'right',
     position: { x: Math.max(20, (graphBox?.width || 800) - 40), y: Math.max(20, (graphBox?.height || 600) - 40) },
   });
-  const contextExport = page.locator('#linkMenu .popup-item').filter({ hasText: '导出原理图 SVG…' });
+  const contextExport = page.locator('#linkMenu .popup-item').filter({ hasText: '导出…' });
   await contextExport.waitFor({ state: 'visible', timeout: 3000 });
-  const secondExport = page.waitForResponse((response) => response.url().includes('/api/export/schematic'), { timeout: 5000 });
   await contextExport.click();
+  await page.waitForSelector('#modal:not(.hidden)', { timeout: 3000 });
+  const secondExport = page.waitForResponse((response) => response.url().includes('/api/export/schematic'), { timeout: 8000 });
+  await page.locator('#modal .modal-actions button').filter({ hasText: '导出' }).click();
   await secondExport;
   assert(exportCalls === 2, `画布右键导出未调用 API: ${exportCalls}`);
+  await page.waitForSelector('#modal', { state: 'hidden', timeout: 5000 });
   await page.keyboard.press('Escape');
 
   // 6) 顶部「运行 → 预计算…」打开统一弹窗。

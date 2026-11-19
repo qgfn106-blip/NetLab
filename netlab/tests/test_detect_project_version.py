@@ -29,14 +29,14 @@ def test_scene_json_returns_project_version() -> None:
     assert P.detect_project_version(scene) == P.PROJECT_VERSION
 
 
-@pytest.mark.parametrize("v", [0, 1, 2, 3, 4, 5, 6, 7])
+@pytest.mark.parametrize("v", [0, 1, 2, 3, 4, 5, 6, 7, 8])
 def test_known_versions_return_self(v: int) -> None:
     assert P.detect_project_version(_proj(v)) == v
 
 
 def test_future_version_rejected() -> None:
     with pytest.raises(ValidationError):
-        P.detect_project_version(_proj(8))
+        P.detect_project_version(_proj(9))
 
 
 def test_bool_is_int_quirk_preserved() -> None:

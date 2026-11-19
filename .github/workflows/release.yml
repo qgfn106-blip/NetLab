@@ -27,6 +27,20 @@ jobs:
       - name: Twine check
         run: python -m twine check dist/*
 
+      - name: Verify plotkit is a required dependency
+        run: |
+          python - <<'PY'
+          import glob, zipfile
+          wheel = glob.glob("dist/*.whl")[0]
+          with zipfile.ZipFile(wheel) as zf:
+              metadata = next(n for n in zf.namelist() if n.endswith(".dist-info/METADATA"))
+              text = zf.read(metadata).decode("utf-8")
+          requires = [line for line in text.splitlines() if line.startswith("Requires-Dist: plotkit")]
+          assert requires, "wheel METADATA 缺少 plotkit 必需依赖"
+          assert not any("extra == \"plotkit\"" in line for line in requires), "plotkit 不应再是可选 extra"
+          print(requires[0])
+          PY
+
       - name: SHA256SUMS
         working-directory: dist
         run: sha256sum * > SHA256SUMS

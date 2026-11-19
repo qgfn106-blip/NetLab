@@ -72,6 +72,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Checkout PlotKit (required plugin)
+        uses: actions/checkout@v4
+        with:
+          repository: qgfn106-blip/PlotKit
+          path: .plotkit-src
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -93,7 +99,7 @@ jobs:
         run: npx playwright-core install --with-deps chromium
 
       - name: Install server deps
-        run: pip install fastapi uvicorn numpy scipy jsonschema
+        run: pip install fastapi uvicorn numpy scipy jsonschema ./.plotkit-src
 
       - name: L1 browser e2e
         working-directory: .

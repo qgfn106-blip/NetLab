@@ -54,6 +54,9 @@ LOCKFILE_NAME = "plugins_state.json"
 MAX_MANIFEST_BYTES = 200_000
 ID_RE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$")
 SEMVER_RE = re.compile(r"^(\d+)\.(\d+)(?:\.(\d+))?(?:[-+][0-9A-Za-z.-]+)?$")
+# D7：这些插件是 NetLab 主流程的硬前置（分析工作台依赖 PlotKit），
+# 不允许用户禁用；旧状态文件里的遗留禁用记录在加载时清除。
+REQUIRED_PLUGIN_IDS = frozenset({"netlab.plotkit"})
 CAPABILITIES = {
     "compute",
     "method",
@@ -293,6 +296,8 @@ class PluginManager:
             self._disabled = set(map(str, payload.get("disabled") or []))
         except (OSError, ValueError, TypeError):
             self._disabled = set()
+        # 必需插件不允许禁用：清掉历史遗留的禁用记录，避免升级后静默缺失。
+        self._disabled -= REQUIRED_PLUGIN_IDS
 
     def _save_state(self) -> None:
         try:
@@ -662,6 +667,10 @@ class PluginManager:
             record = self._records.get(plugin_id)
             if record is None:
                 raise KeyError(plugin_id)
+            if not enabled and plugin_id in REQUIRED_PLUGIN_IDS:
+                raise ValidationError(
+                    f"插件 {plugin_id} 是必需插件（分析工作台依赖），不能被禁用"
+                )
             if enabled:
                 self._disabled.discard(plugin_id)
             else:
@@ -672,6 +681,31 @@ class PluginManager:
             if enabled:
                 self._load_record(record)
             return record.summary()
+
+    def required_issues(self) -> list[dict[str, Any]]:
+        """必需插件缺失/未加载时返回具体原因，供启动门禁直接展示。"""
+        issues: list[dict[str, Any]] = []
+        for plugin_id in sorted(REQUIRED_PLUGIN_IDS):
+            record = self._records.get(plugin_id)
+            if record is None:
+                issues.append(
+                    {
+                        "plugin_id": plugin_id,
+                        "status": "missing",
+                        "reason": f"未在 {self.root} 找到必需插件 {plugin_id}",
+                    }
+                )
+                continue
+            if record.status != "loaded":
+                issues.append(
+                    {
+                        "plugin_id": plugin_id,
+                        "status": record.status,
+                        "reason": record.error
+                        or f"必需插件 {plugin_id} 未加载（状态 {record.status}）",
+                    }
+                )
+        return issues
 
     def summaries(self) -> list[dict[str, Any]]:
         return [record.summary() for record in self._records.values()]

@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 API_VERSION = "1"
-PLOTKIT_MIN = (0, 2, 0)
-PLOTKIT_MAX_EXCLUSIVE = (0, 3, 0)
-SCHEMA_VERSIONS = {"channel_key": 1, "frame": 1, "plot_spec": "0.1", "project": 6}
+PLOTKIT_MIN = (0, 3, 0)
+PLOTKIT_MAX_EXCLUSIVE = (0, 4, 0)
+REQUIRED_PLUGIN_IDS = ('netlab.plotkit',)
+PLOTKIT_REQUIRED_CAPABILITIES = ('analysis_markers', 'analysis_envelopes', 'linked_cursor')
+SCHEMA_VERSIONS = {"channel_key": 1, "frame": 1, "plot_spec": "0.1", "project": 8}
 
 PLOT_TIME_FIELD = 't'
 PLOT_VALUE_FIELD = 'values'

@@ -11,6 +11,8 @@ RUN pip install --no-cache-dir -r /app/netlab/requirements.txt \
     && pip install --no-cache-dir pytest httpx sympy jsonschema PyYAML
 
 COPY . /app
+# PlotKit 是必需插件；CI 在构建上下文预置 .plotkit-src，存在时安装。
+RUN if [ -d /app/.plotkit-src ]; then pip install --no-cache-dir /app/.plotkit-src; fi
 COPY netlab/tests/fixtures/projects /app/MyProject/
 
 EXPOSE 8010

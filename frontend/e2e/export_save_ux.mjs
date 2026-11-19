@@ -121,13 +121,18 @@ try {
   const openFileMenu = async () => {
     await page.locator('#menuItems .menu > button').filter({ hasText: '文件' }).click();
   };
+  const submitExportDialog = async () => {
+    await page.waitForSelector('#modal:not(.hidden) #modalCard .modal-actions .btn.primary', { timeout: 4000 });
+    await page.locator('#modal:not(.hidden) #modalCard .modal-actions .btn.primary').click();
+  };
 
   // 1) 原理图导出：应把 SVG 文本交给原生保存层，并提示真实路径。
   await openFileMenu();
   const svgItem = page.locator('.menu.open .menu-item').filter({ hasText: '导出原理图 SVG…' });
   await svgItem.waitFor({ state: 'visible', timeout: 3000 });
-  const firstExport = page.waitForResponse((r) => r.url().includes('/api/export/schematic'), { timeout: 5000 });
   await svgItem.click();
+  const firstExport = page.waitForResponse((r) => r.url().includes('/api/export/schematic'), { timeout: 5000 });
+  await submitExportDialog();
   await firstExport;
   await page.waitForFunction(
     () => (window.__saveCalls || []).length === 1,
@@ -151,8 +156,9 @@ try {
   await openFileMenu();
   const svgAgain = page.locator('.menu.open .menu-item').filter({ hasText: '导出原理图 SVG…' });
   await svgAgain.waitFor({ state: 'visible', timeout: 3000 });
-  const secondExport = page.waitForResponse((r) => r.url().includes('/api/export/schematic'), { timeout: 5000 });
   await svgAgain.click();
+  const secondExport = page.waitForResponse((r) => r.url().includes('/api/export/schematic'), { timeout: 5000 });
+  await submitExportDialog();
   await secondExport;
   await page.waitForFunction(
     () => (window.__saveCalls || []).length === 2,
@@ -169,11 +175,12 @@ try {
   await openFileMenu();
   const svgFail = page.locator('.menu.open .menu-item').filter({ hasText: '导出原理图 SVG…' });
   await svgFail.waitFor({ state: 'visible', timeout: 3000 });
-  const thirdExport = page.waitForResponse((r) => r.url().includes('/api/export/schematic'), { timeout: 5000 });
   await svgFail.click();
+  const thirdExport = page.waitForResponse((r) => r.url().includes('/api/export/schematic'), { timeout: 5000 });
+  await submitExportDialog();
   await thirdExport;
   await page.waitForFunction(
-    () => (document.querySelector('#toasts')?.textContent || '').includes('导出失败：磁盘已满'),
+    () => (document.querySelector('#modalCard .export-error')?.textContent || '').includes('导出失败：磁盘已满'),
     null,
     { timeout: 5000 },
   );
@@ -186,6 +193,9 @@ try {
   const jsonItem = page.locator('.menu.open .menu-item').filter({ hasText: '导出场景 JSON' });
   await jsonItem.waitFor({ state: 'visible', timeout: 3000 });
   await jsonItem.click();
+  const jsonResponse = page.waitForResponse((r) => r.url().includes('/api/scene/export'), { timeout: 5000 });
+  await submitExportDialog();
+  await jsonResponse;
   await page.waitForFunction(
     () => (window.__saveCalls || []).some((call) => String(call.name).endsWith('.json')),
     null,
@@ -202,8 +212,28 @@ try {
   );
   await page.keyboard.press('Escape');
 
+  // 5) 统一导出窗口的四个维度互相独立，模式切换重算格式，取消不产生副作用。
+  await openFileMenu();
+  const dialogItem = page.locator('.menu.open .menu-item').filter({ hasText: '导出原理图 SVG…' });
+  await dialogItem.waitFor({ state: 'visible', timeout: 3000 });
+  await dialogItem.click();
+  const dialog = page.locator('#modal:not(.hidden) #modalCard');
+  await dialog.waitFor({ state: 'visible', timeout: 4000 });
+  assert(await dialog.locator('select').count() === 5, '导出窗口应有 5 个独立选择器');
+  assert(await dialog.locator('select[data-role="renderer"]').isDisabled(), '渲染器应固定为 SchemDraw');
+  assert(await dialog.locator('select[data-role="format"]').inputValue() === 'svg', '原理图默认格式应为 SVG');
+  await dialog.locator('select[data-role="mode"]').selectOption('scene-data');
+  assert(await dialog.locator('select[data-role="format"]').inputValue() === 'json', '场景数据默认格式应为 JSON');
+  await dialog.locator('select[data-role="mode"]').selectOption('schematic');
+  await dialog.locator('select[data-role="style"]').selectOption('classic');
+  assert((await dialog.locator('.export-preview').innerText()).includes('经典'), '预览未反映经典样式');
+  const beforeCancel = await page.evaluate(() => (window.__saveCalls || []).length);
+  await dialog.locator('.modal-actions .btn').filter({ hasText: '取消' }).click();
+  assert(await page.locator('#modal').evaluate((el) => el.classList.contains('hidden')), '取消后窗口应关闭');
+  assert(await page.evaluate(() => (window.__saveCalls || []).length) === beforeCancel, '取消不应触发保存');
+
   assert(errors.length === 0, `页面控制台报错: ${errors.join(' | ')}`);
-  console.log('export save e2e: OK (schematic path, cancel silence, failure error, scene json)');
+  console.log('export save e2e: OK (schematic path, cancel silence, failure error, scene json, dialog constraints)');
 } catch (error) {
   failure = error;
   throw error;

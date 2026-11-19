@@ -1,0 +1,449 @@
+{
+  "mode": "circuit",
+  "nodes": [
+    {
+      "id": "12033717d596",
+      "name": "VIN",
+      "kind": "node",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "a0284aaddef3",
+      "name": "VOUT",
+      "kind": "node",
+      "position": {
+        "x": 420,
+        "y": 120
+      }
+    },
+    {
+      "id": "904e27107863",
+      "name": "GND",
+      "kind": "ground",
+      "position": {
+        "x": 220,
+        "y": 300
+      }
+    },
+    {
+      "id": "50c8e3290dac",
+      "name": "BASE1",
+      "kind": "node",
+      "position": {
+        "x": 200,
+        "y": 60
+      }
+    },
+    {
+      "id": "09b5e31766be",
+      "name": "BASE2",
+      "kind": "node",
+      "position": {
+        "x": 200,
+        "y": 180
+      }
+    },
+    {
+      "id": "c14e3dde339a",
+      "name": "V1",
+      "kind": "device",
+      "params": {
+        "element": "vsource",
+        "wave": "dc",
+        "offset": 24,
+        "amplitude": 0
+      },
+      "data": {
+        "rotation": 90
+      },
+      "state": {},
+      "position": {
+        "x": 0,
+        "y": 150
+      },
+      "size": {}
+    },
+    {
+      "id": "95ced8b1219b",
+      "name": "R1",
+      "kind": "device",
+      "params": {
+        "element": "resistor",
+        "R": 1000
+      },
+      "data": {
+        "rotation": 0
+      },
+      "state": {},
+      "position": {
+        "x": 100,
+        "y": 60
+      },
+      "size": {}
+    },
+    {
+      "id": "db5623b4d098",
+      "name": "Q1",
+      "kind": "device",
+      "params": {
+        "element": "pnp"
+      },
+      "data": {
+        "rotation": 0
+      },
+      "state": {},
+      "position": {
+        "x": 300,
+        "y": 60
+      },
+      "size": {}
+    },
+    {
+      "id": "d37d0956d096",
+      "name": "Q2",
+      "kind": "device",
+      "params": {
+        "element": "npn"
+      },
+      "data": {
+        "rotation": 0
+      },
+      "state": {},
+      "position": {
+        "x": 300,
+        "y": 180
+      },
+      "size": {}
+    },
+    {
+      "id": "c857f42168f6",
+      "name": "R2",
+      "kind": "device",
+      "params": {
+        "element": "resistor",
+        "R": 2000
+      },
+      "data": {
+        "rotation": 90
+      },
+      "state": {},
+      "position": {
+        "x": 380,
+        "y": 180
+      },
+      "size": {}
+    },
+    {
+      "id": "09ffce442c51",
+      "name": "R3",
+      "kind": "device",
+      "params": {
+        "element": "resistor",
+        "R": 1000
+      },
+      "data": {
+        "rotation": 0
+      },
+      "state": {},
+      "position": {
+        "x": 120,
+        "y": 240
+      },
+      "size": {}
+    },
+    {
+      "id": "29d84fcbf1e2",
+      "name": "DZ1",
+      "kind": "device",
+      "params": {
+        "element": "zener"
+      },
+      "data": {
+        "rotation": 90
+      },
+      "state": {},
+      "position": {
+        "x": 360,
+        "y": 240
+      },
+      "size": {}
+    }
+  ],
+  "edges": [
+    {
+      "id": "dfc722767450",
+      "name": "V1.+",
+      "source": "c14e3dde339a",
+      "target": "12033717d596",
+      "kind": "wire",
+      "params": {},
+      "state": {},
+      "delay": false,
+      "enabled": true,
+      "route": "auto",
+      "waypoints": [],
+      "anchors": {},
+      "layout": {},
+      "source_pin": "+",
+      "target_pin": ""
+    },
+    {
+      "id": "34f974af1769",
+      "name": "V1.-",
+      "source": "c14e3dde339a",
+      "target": "904e27107863",
+      "kind": "wire",
+      "params": {},
+      "state": {},
+      "delay": false,
+      "enabled": true,
+      "route": "auto",
+      "waypoints": [],
+      "anchors": {},
+      "layout": {},
+      "source_pin": "-",
+      "target_pin": ""
+    },
+    {
+      "id": "7fdb62ee80ca",
+      "name": "R1.1",
+      "source": "95ced8b1219b",
+      "target": "12033717d596",
+      "kind": "wire",
+      "params": {},
+      "state": {},
+      "delay": false,
+      "enabled": true,
+      "route": "auto",
+      "waypoints": [],
+      "anchors": {},
+      "layout": {},
+      "source_pin": "1",
+      "target_pin": ""
+    },
+    {
+      "id": "51b60b9a22d5",
+      "name": "R1.2",
+      "source": "95ced8b1219b",
+      "target": "50c8e3290dac",
+      "kind": "wire",
+      "params": {},
+      "state": {},
+      "delay": false,
+      "enabled": true,
+      "route": "auto",
+      "waypoints": [],
+      "anchors": {},
+      "layout": {},
+      "source_pin": "2",
+      "target_pin": ""
+    },
+    {
+      "id": "4cec4537bca0",
+      "name": "Q1.E",
+      "source": "db5623b4d098",
+      "target": "12033717d596",
+      "kind": "wire",
+      "params": {},
+      "state": {},
+      "delay": false,
+      "enabled": true,
+      "route": "auto",
+      "waypoints": [],
+      "anchors": {},
+      "layout": {},
+      "source_pin": "E",
+      "target_pin": ""
+    },
+    {
+      "id": "4b330b45b884",
+      "name": "Q1.C",
+      "source": "db5623b4d098",
+      "target": "a0284aaddef3",
+      "kind": "wire",
+      "params": {},
+      "state": {},
+      "delay": false,
+      "enabled": true,
+      "route": "auto",
+      "waypoints": [],
+      "anchors": {},
+      "layout": {},
+      "source_pin": "C",
+      "target_pin": ""
+    },
+    {
+      "id": "b99eb7b00b80",
+      "name": "Q1.B",
+      "source": "db5623b4d098",
+      "target": "50c8e3290dac",
+      "kind": "wire",
+      "params": {},
+      "state": {},
+      "delay": false,
+      "enabled": true,
+      "route": "auto",
+      "waypoints": [],
+      "anchors": {},
+      "layout": {},
+      "source_pin": "B",
+      "target_pin": ""
+    },
+    {
+      "id": "0a378fe5069f",
+      "name": "Q2.C",
+      "source": "d37d0956d096",
+      "target": "50c8e3290dac",
+      "kind": "wire",
+      "params": {},
+      "state": {},
+      "delay": false,
+      "enabled": true,
+      "route": "auto",
+      "waypoints": [],
+      "anchors": {},
+      "layout": {},
+      "source_pin": "C",
+      "target_pin": ""
+    },
+    {
+      "id": "0114431a1564",
+      "name": "Q2.B",
+      "source": "d37d0956d096",
+      "target": "09b5e31766be",
+      "kind": "wire",
+      "params": {},
+      "state": {},
+      "delay": false,
+      "enabled": true,
+      "route": "auto",
+      "waypoints": [],
+      "anchors": {},
+      "layout": {},
+      "source_pin": "B",
+      "target_pin": ""
+    },
+    {
+      "id": "b31d94a5e512",
+      "name": "Q2.E",
+      "source": "d37d0956d096",
+      "target": "904e27107863",
+      "kind": "wire",
+      "params": {},
+      "state": {},
+      "delay": false,
+      "enabled": true,
+      "route": "auto",
+      "waypoints": [],
+      "anchors": {},
+      "layout": {},
+      "source_pin": "E",
+      "target_pin": ""
+    },
+    {
+      "id": "12e10df8b02b",
+      "name": "R2.1",
+      "source": "c857f42168f6",
+      "target": "a0284aaddef3",
+      "kind": "wire",
+      "params": {},
+      "state": {},
+      "delay": false,
+      "enabled": true,
+      "route": "auto",
+      "waypoints": [],
+      "anchors": {},
+      "layout": {},
+      "source_pin": "1",
+      "target_pin": ""
+    },
+    {
+      "id": "a0a8c936b2b5",
+      "name": "R2.2",
+      "source": "c857f42168f6",
+      "target": "09b5e31766be",
+      "kind": "wire",
+      "params": {},
+      "state": {},
+      "delay": false,
+      "enabled": true,
+      "route": "auto",
+      "waypoints": [],
+      "anchors": {},
+      "layout": {},
+      "source_pin": "2",
+      "target_pin": ""
+    },
+    {
+      "id": "521dbd672b25",
+      "name": "R3.1",
+      "source": "09ffce442c51",
+      "target": "09b5e31766be",
+      "kind": "wire",
+      "params": {},
+      "state": {},
+      "delay": false,
+      "enabled": true,
+      "route": "auto",
+      "waypoints": [],
+      "anchors": {},
+      "layout": {},
+      "source_pin": "1",
+      "target_pin": ""
+    },
+    {
+      "id": "11acc7000d32",
+      "name": "R3.2",
+      "source": "09ffce442c51",
+      "target": "904e27107863",
+      "kind": "wire",
+      "params": {},
+      "state": {},
+      "delay": false,
+      "enabled": true,
+      "route": "auto",
+      "waypoints": [],
+      "anchors": {},
+      "layout": {},
+      "source_pin": "2",
+      "target_pin": ""
+    },
+    {
+      "id": "1ffba148fdbf",
+      "name": "DZ1.K",
+      "source": "29d84fcbf1e2",
+      "target": "a0284aaddef3",
+      "kind": "wire",
+      "params": {},
+      "state": {},
+      "delay": false,
+      "enabled": true,
+      "route": "auto",
+      "waypoints": [],
+      "anchors": {},
+      "layout": {},
+      "source_pin": "K",
+      "target_pin": ""
+    },
+    {
+      "id": "b51ad852569c",
+      "name": "DZ1.A",
+      "source": "29d84fcbf1e2",
+      "target": "904e27107863",
+      "kind": "wire",
+      "params": {},
+      "state": {},
+      "delay": false,
+      "enabled": true,
+      "route": "auto",
+      "waypoints": [],
+      "anchors": {},
+      "layout": {},
+      "source_pin": "A",
+      "target_pin": ""
+    }
+  ]
+}

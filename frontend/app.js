@@ -8,7 +8,9 @@ import { drawChart } from "./app/chart_draw.js";
 import { state, ui } from "./app/state.js";
 import { el, div, button, clone, isFormTarget } from "./app/ui.js";
 import { normalizeCardFields } from "./app/card_fields.js";
+import { applyGridPayload, normaliseAngleSet } from "./app/grid_prefs.js";
 import { desktopBridge, callBridge, toast, showBanner, hideBanner } from "./app/desktop.js";
+import { openExportDialog } from "./app/export_dialog.js";
 import { api, jsonRequest } from "./app/net.js";
 import { openCacheDialog, checkCacheQuietly } from "./app/cache.js";
 import { appearancePanelTitle, collectAppearanceTargets, renderAppearancePanel } from "./app/appearance_panel.js";
@@ -36,7 +38,7 @@ import { loadUiPrefs, setAppearanceActions } from "./app/appearance.js";
 import { initAppearanceControls, saveAutosaveSetting, refreshTelemetryQuality, setAppearanceControlActions } from "./app/appearance_controls.js";
 import { setGeometryActions, worldToScreen, screenToWorld, nodeDiameter, nodeRect, devicePinScreen, snapWorld, portOut, edgeEndpointHit, waypointHitAt, anchorSideFor, edgePathPoints, pathMidpoint, distanceToPath } from "./app/geometry.js";
 import { analysisSignalKey, runAnalysisMetrics, runAnalysisSpectrum, runAnalysisPeriod, runAnalysisMath, runAnalysisTransfer, analysisTFSummary, runAnalysisTF, drawAnalysisTF, exportTFStateSpace, sendTFToPlotKit, sendPhaseToPlotKit, exportAnalysisCsv, drawAnalysisSpectrum, setAnalysisActions } from "./app/analysis.js";
-import { openAnalysis, closeAnalysis, drawAcChart } from "./app/ac_analysis.js";
+import { openAnalysis, closeAnalysis } from "./app/ac_analysis.js";
 import { runPrecomputeWithProgress, syncAfterPrecompute, initPlotkitDataBar, setPlotkitDataActions } from "./app/plotkit_data.js";
 import { openVscode } from "./app/plotkit_frame.js";
 import { initAnalWin, initDocWin, setWindowActions } from "./app/windows.js";
@@ -88,13 +90,6 @@ function setStatusHint(hint) {
     state.scene = snapshot.scene;
     state.sim = sim;
     const nextRevision = snapshot.scene.revision ?? null;
-    if (state.acResult && state.acRevision !== null && nextRevision !== state.acRevision) {
-      state.acResult = null;
-      const acMeta = $("#analAcMeta");
-      if (acMeta) acMeta.textContent = "\u7535\u8DEF\u5DF2\u53D8\u5316\uFF0C\u8BF7\u91CD\u65B0\u626B\u9891";
-      if (ui.analWin && !ui.analWin.hidden) requestAnimationFrame(() => drawAcChart());
-    }
-    state.acRevision = nextRevision;
     if (resetFrames || state.precomputedRevision != null && nextRevision !== state.precomputedRevision) {
       state.precomputedSeconds = null;
       state.precomputedRevision = null;
@@ -1184,7 +1179,7 @@ function setStatusHint(hint) {
     items.push({ label: "\u81EA\u52A8\u5E03\u5C40", action: () => void autoLayout() });
     if (state.mode === "circuit") {
       items.push({ sep: true });
-      items.push({ label: "\u5BFC\u51FA\u539F\u7406\u56FE SVG\u2026", action: () => void exportSchematic() });
+      items.push({ label: "\u5BFC\u51FA\u2026", action: () => void openExport("schematic") });
     }
     openGenericMenu(ui.linkMenu, point.x, point.y, "\u753B\u5E03", items);
   }
@@ -2607,20 +2602,144 @@ function setStatusHint(hint) {
       markProjectDirty();
       toast(state.ui.snap ? "\u7F51\u683C\u5438\u9644\u5DF2\u5F00\u542F" : "\u7F51\u683C\u5438\u9644\u5DF2\u5173\u95ED", "info", 1800);
     });
-    const gridSelect = el("select", "input");
-    for (const size of [10, 20, 50]) {
-      const option = el("option", null, `${size} \u5355\u4F4D`);
-      option.value = String(size);
-      gridSelect.appendChild(option);
-    }
-    gridSelect.value = String(Number(state.ui.grid) || 20);
-    gridSelect.addEventListener("change", () => {
-      state.ui.grid = Number(gridSelect.value) || 20;
+    const spacing = document.createElement("input");
+    spacing.className = "input";
+    spacing.type = "number";
+    spacing.min = "5";
+    spacing.max = "80";
+    spacing.step = "1";
+    spacing.value = String(Number(state.ui.grid) || 20);
+    spacing.dataset.role = "grid-spacing";
+    const setSpacing = (next) => {
+      const value = Math.max(5, Math.min(80, Math.round(next)));
+      state.ui.grid = value;
+      spacing.value = String(value);
+      markProjectDirty();
+      requestDraw();
+    };
+    spacing.addEventListener("change", () => setSpacing(Number(spacing.value) || 20));
+    const spacingMinus = button("\u2212", "btn tiny", () => setSpacing((Number(state.ui.grid) || 20) - 1));
+    spacingMinus.dataset.role = "grid-spacing-minus";
+    const spacingPlus = button("\uFF0B", "btn tiny", () => setSpacing((Number(state.ui.grid) || 20) + 1));
+    spacingPlus.dataset.role = "grid-spacing-plus";
+    const spacingField = div("field");
+    spacingField.appendChild(el("label", null, "\u95F4\u8DDD\uFF08\u5355\u4F4D\uFF09"));
+    spacingField.appendChild(spacing);
+    const spacingWrap = div("inline-fields");
+    spacingWrap.dataset.role = "grid-spacing-control";
+    spacingWrap.append(spacingMinus, spacingField, spacingPlus);
+    gridRow.append(el("label", null, "\u5438\u9644"), snapBox, spacingWrap);
+    gridSection.appendChild(gridRow);
+    const subRow = div("field-row");
+    const subInput = document.createElement("input");
+    subInput.className = "input";
+    subInput.type = "number";
+    subInput.min = "1";
+    subInput.max = "20";
+    subInput.step = "1";
+    subInput.value = String(Number(state.ui.gridSubdivisions) || 4);
+    subInput.dataset.role = "grid-subdivisions";
+    subInput.addEventListener("change", () => {
+      state.ui.gridSubdivisions = Math.max(1, Math.min(20, Math.round(Number(subInput.value) || 4)));
       markProjectDirty();
       requestDraw();
     });
-    gridRow.append(el("label", null, "\u5438\u9644"), snapBox, el("label", null, "\u6807\u51C6\u7F51\u683C"), gridSelect);
-    gridSection.appendChild(gridRow);
+    const showBox = document.createElement("input");
+    showBox.type = "checkbox";
+    showBox.checked = state.ui.showGrid !== false;
+    showBox.dataset.role = "grid-show";
+    showBox.addEventListener("change", () => {
+      state.ui.showGrid = showBox.checked;
+      markProjectDirty();
+      requestDraw();
+    });
+    const markersBox = document.createElement("input");
+    markersBox.type = "checkbox";
+    markersBox.checked = state.ui.snapMarkers !== false;
+    markersBox.dataset.role = "grid-markers";
+    markersBox.addEventListener("change", () => {
+      state.ui.snapMarkers = markersBox.checked;
+      markProjectDirty();
+      requestDraw();
+    });
+    subRow.append(el("label", null, "\u7EC6\u5206"), subInput, el("label", null, "\u663E\u793A\u7F51\u683C"), showBox, el("label", null, "\u6355\u6349\u70B9"), markersBox);
+    gridSection.appendChild(subRow);
+    const angleRow = div("field-row");
+    const angleMode = el("select", "input");
+    for (const [value, label] of [["constrained", "\u7EA6\u675F\u89D2\u96C6"], ["free", "\u81EA\u7531\u89D2\u5EA6"]]) {
+      const option = el("option", null, label);
+      option.value = value;
+      angleMode.appendChild(option);
+    }
+    angleMode.value = state.ui.angleMode === "free" ? "free" : "constrained";
+    angleMode.dataset.role = "grid-angle-mode";
+    angleMode.addEventListener("change", () => {
+      state.ui.angleMode = angleMode.value === "free" ? "free" : "constrained";
+      markProjectDirty();
+    });
+    const tolerance = document.createElement("input");
+    tolerance.className = "input";
+    tolerance.type = "number";
+    tolerance.min = "0.5";
+    tolerance.max = "15";
+    tolerance.step = "0.5";
+    tolerance.value = String(Number(state.ui.angleToleranceDeg) || 3);
+    tolerance.dataset.role = "grid-angle-tolerance";
+    tolerance.addEventListener("change", () => {
+      state.ui.angleToleranceDeg = Math.max(0.5, Math.min(15, Number(tolerance.value) || 3));
+      markProjectDirty();
+    });
+    angleRow.append(el("label", null, "\u89D2\u5EA6\u6A21\u5F0F"), angleMode, el("label", null, "\u5438\u9644\u5BB9\u5DEE\xB0"), tolerance);
+    gridSection.appendChild(angleRow);
+    const angleSetRow = div("field-row");
+    angleSetRow.dataset.role = "grid-angle-set";
+    angleSetRow.appendChild(el("label", null, "\u5141\u8BB8\u89D2\u5EA6"));
+    const currentAngles = normaliseAngleSet(state.ui.angleSet);
+    for (const angle of [0, 45, 60, 90]) {
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.value = String(angle);
+      box.checked = currentAngles.includes(angle);
+      box.dataset.angle = String(angle);
+      box.addEventListener("change", () => {
+        const boxes = [...angleSetRow.querySelectorAll('input[type="checkbox"]')];
+        state.ui.angleSet = normaliseAngleSet(boxes.filter((item) => item.checked).map((item) => Number(item.value)));
+        markProjectDirty();
+      });
+      angleSetRow.append(box, el("span", null, `${angle}\xB0`));
+    }
+    gridSection.appendChild(angleSetRow);
+    const viewRow = div("field-row");
+    const originBox = document.createElement("input");
+    originBox.type = "checkbox";
+    originBox.checked = state.ui.showOrigin !== false;
+    originBox.dataset.role = "grid-show-origin";
+    originBox.addEventListener("change", () => {
+      state.ui.showOrigin = originBox.checked;
+      markProjectDirty();
+      requestDraw();
+    });
+    const rulerBox = document.createElement("input");
+    rulerBox.type = "checkbox";
+    rulerBox.checked = Boolean(state.ui.showRuler);
+    rulerBox.dataset.role = "grid-show-ruler";
+    rulerBox.addEventListener("change", () => {
+      state.ui.showRuler = rulerBox.checked;
+      markProjectDirty();
+      requestDraw();
+    });
+    const adaptiveBox = document.createElement("input");
+    adaptiveBox.type = "checkbox";
+    adaptiveBox.checked = state.ui.adaptiveZoom !== false;
+    adaptiveBox.dataset.role = "grid-adaptive-zoom";
+    adaptiveBox.addEventListener("change", () => {
+      state.ui.adaptiveZoom = adaptiveBox.checked;
+      markProjectDirty();
+      requestDraw();
+    });
+    viewRow.append(el("label", null, "\u663E\u793A\u539F\u70B9"), originBox, el("label", null, "\u6807\u5C3A"), rulerBox, el("label", null, "\u7F29\u653E\u81EA\u9002\u5E94"), adaptiveBox);
+    gridSection.appendChild(viewRow);
+    gridSection.appendChild(div("help", "\u7F51\u683C\u9ED8\u8BA4\u503C\u968F\u5DE5\u7A0B\u4FDD\u5B58\uFF1B\u53EA\u5F71\u54CD\u65B0\u5EFA\u5BFC\u7EBF\u548C\u5BFC\u51FA\uFF0C\u4E0D\u4F1A\u6539\u5199\u5DF2\u6709\u624B\u5DE5\u6298\u70B9\u3002"));
     const styleRow = div("field-row");
     const nodeStyleSelect = el("select", "input");
     for (const [value, label] of [["circle", "\u7A7A\u5FC3\u5706"], ["dot", "\u5B9E\u5FC3\u70B9"], ["box", "\u5C0F\u65B9\u6846"]]) {
@@ -2678,8 +2797,8 @@ function setStatusHint(hint) {
     updateProjectPanel();
     const dataSection = section("\u573A\u666F\u6570\u636E", "JSON");
     const fileRow = div("file-row");
-    fileRow.appendChild(button("\u5BFC\u51FA JSON", "btn", () => void exportScene()));
-    fileRow.appendChild(button("\u5BFC\u51FA\u539F\u7406\u56FE SVG", "btn", () => void exportSchematic()));
+    fileRow.appendChild(button("\u5BFC\u51FA JSON", "btn", () => void openExport("scene-data")));
+    fileRow.appendChild(button("\u5BFC\u51FA\u539F\u7406\u56FE SVG", "btn", () => void openExport("schematic")));
     fileRow.appendChild(button("\u5BFC\u5165 JSON", "btn", () => importInput.click()));
     dataSection.appendChild(fileRow);
     const importInput = el("input");
@@ -2974,13 +3093,13 @@ function setStatusHint(hint) {
     fitView();
     toast("\u573A\u666F\u5DF2\u6E05\u7A7A", "ok", 2e3);
   }
-  async function exportScene() {
+  async function exportScene(destination = "browser-download") {
     const payload = await task(() => api("/api/scene/export?include_state=false"), { dirty: false });
-    if (!payload) return;
+    if (!payload) throw new Error("\u540E\u7AEF\u672A\u8FD4\u56DE\u573A\u666F\u6570\u636E");
     const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-").slice(0, 19);
     const fileName = `netlab-${state.mode}-${stamp}.json`;
     const text = JSON.stringify(payload, null, 2);
-    if (await saveTextViaDesktop(text, fileName)) return;
+    if (await saveTextViaDesktop(text, fileName, destination)) return;
     const blob = new Blob([text], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = el("a");
@@ -2992,36 +3111,45 @@ function setStatusHint(hint) {
     setTimeout(() => URL.revokeObjectURL(url), 2e3);
     toast("\u573A\u666F\u5DF2\u4EA4\u7ED9\u6D4F\u89C8\u5668\u4E0B\u8F7D", "ok", 2400);
   }
-  async function saveTextViaDesktop(text, defaultName) {
-    if (!desktopBridge()) return false;
+  async function saveTextViaDesktop(text, defaultName, destination = "auto") {
+    if (destination === "browser-download") return false;
+    if (!desktopBridge()) {
+      if (destination === "desktop-save-dialog") throw new Error("\u5F53\u524D\u73AF\u5883\u6CA1\u6709\u684C\u9762\u4FDD\u5B58\u5BF9\u8BDD\u6846\uFF0C\u8BF7\u6539\u7528\u6D4F\u89C8\u5668\u4E0B\u8F7D");
+      return false;
+    }
     const result = await callBridge("saveText", [defaultName, text]);
-    if (result === null) return false;
+    if (result === null) {
+      if (destination === "desktop-save-dialog") throw new Error("\u684C\u9762\u4FDD\u5B58\u6865\u672A\u8FDE\u63A5");
+      return false;
+    }
     const path = String(result);
     if (!path) return true;
     if (path.startsWith("__error__")) {
-      toast(`\u5BFC\u51FA\u5931\u8D25\uFF1A${path.slice("__error__".length)}`, "error", 7e3);
+      const message = path.slice("__error__".length);
+      if (destination === "desktop-save-dialog") throw new Error(message);
+      toast(`\u5BFC\u51FA\u5931\u8D25\uFF1A${message}`, "error", 7e3);
       return true;
     }
     toast(`\u5DF2\u5BFC\u51FA\u5230 ${path}`, "ok", 6e3);
     return true;
   }
-  async function exportSchematic() {
+  async function exportSchematic(destination = "browser-download", style = "follow-project") {
     if (state.scene?.mode !== "circuit") {
-      toast("\u539F\u7406\u56FE\u5BFC\u51FA\u4EC5\u652F\u6301\u7535\u8DEF\u6A21\u5F0F", "info", 2600);
-      return;
+      throw new Error("\u539F\u7406\u56FE\u5BFC\u51FA\u4EC5\u652F\u6301\u7535\u8DEF\u6A21\u5F0F");
     }
     const params = new URLSearchParams({
       name: state.project?.name || "",
       network: state.currentNetwork?.name || ""
     });
+    if (style !== "follow-project") params.set("style", style);
     const payload = await task(
       () => jsonRequest(`/api/export/schematic?${params.toString()}`, "GET"),
       { dirty: false }
     );
-    if (!payload?.svg) return;
+    if (!payload?.svg) throw new Error("\u540E\u7AEF\u672A\u8FD4\u56DE\u539F\u7406\u56FE SVG");
     const svg = String(payload.svg);
     const fileName = String(payload.filename || "schematic.svg");
-    if (await saveTextViaDesktop(svg, fileName)) return;
+    if (await saveTextViaDesktop(svg, fileName, destination)) return;
     const blob = new Blob([svg], { type: "image/svg+xml" });
     const url = URL.createObjectURL(blob);
     const link = el("a");
@@ -3032,6 +3160,21 @@ function setStatusHint(hint) {
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2e3);
     toast("\u539F\u7406\u56FE SVG \u5DF2\u4EA4\u7ED9\u6D4F\u89C8\u5668\u4E0B\u8F7D", "ok", 2400);
+  }
+  async function performExport(choice) {
+    if (choice.mode === "scene-data") {
+      await exportScene(choice.destination);
+      return;
+    }
+    await exportSchematic(choice.destination, choice.style);
+  }
+  async function openExport(initialMode = "schematic") {
+    await openExportDialog({
+      projectStyle: String(state.ui?.symbol || "classic") === "gb" ? "gb" : "classic",
+      initialMode,
+      desktopAvailable: Boolean(desktopBridge()),
+      run: performExport
+    });
   }
   async function importSceneFile(file) {
     if (file.size > MAX_IMPORT_BYTES) {
@@ -3726,8 +3869,8 @@ function setStatusHint(hint) {
           { label: "\u53E6\u5B58\u4E3A\u2026", action: () => void saveProject(true) },
           { sep: true },
           { label: "\u6062\u590D\u81EA\u52A8\u4FDD\u5B58", action: () => void recoverAutosave() },
-          { label: "\u5BFC\u51FA\u573A\u666F JSON", hint: "Ctrl+Shift+E\uFF08\u4E0B\u4E00\u7968\uFF09", action: () => void exportScene() },
-          { label: "\u5BFC\u51FA\u539F\u7406\u56FE SVG\u2026", hint: "\u7535\u8DEF\u573A\u666F\u5BFC\u51FA\u5F53\u524D\u89C6\u56FE", action: () => void exportSchematic() },
+          { label: "\u5BFC\u51FA\u573A\u666F JSON", hint: "Ctrl+Shift+E", action: () => void openExport("scene-data") },
+          { label: "\u5BFC\u51FA\u539F\u7406\u56FE SVG\u2026", hint: "\u7EDF\u4E00\u5BFC\u51FA\u7A97\u53E3", action: () => void openExport("schematic") },
           { sep: true },
           { label: "\u9000\u51FA\u670D\u52A1", action: () => void shutdownApp() }
         ]
@@ -3817,8 +3960,7 @@ function setStatusHint(hint) {
           { label: "\u6027\u80FD\u9762\u677F", action: () => switchTab("analysis") },
           { label: "\u7F13\u5B58\u4F53\u68C0\u4E0E\u6E05\u7406\u2026", hint: "\u53EA\u6E05\u53EF\u518D\u751F\u6210\u7684\u7F13\u5B58\uFF0C\u4E0D\u78B0\u5DE5\u7A0B\u4E0E\u81EA\u52A8\u4FDD\u5B58", action: () => openCacheDialog() },
           { label: "DC \u5DE5\u4F5C\u70B9\uFF08.op\uFF09", hint: "\u4E0D\u63A8\u8FDB\u4EFF\u771F\uFF0C\u9759\u9ED8\u89E3\u4E00\u6B21\u9759\u6001\u7535\u8DEF", action: () => openAnalysis("op") },
-          { label: "AC \u626B\u9891\uFF08Bode\uFF09\u2026", hint: "\u5148\u6C42\u5DE5\u4F5C\u70B9\u518D\u9010\u9891\u70B9\u6C42\u89E3", action: () => openAnalysis("ac") },
-          { label: "\u5C0F\u4FE1\u53F7\u5206\u6790\uFF08\u65C1\u8DEF\uFF09\u2026", hint: "\u5DE5\u4F5C\u70B9\u7EBF\u6027\u5316 \xB7 \u6781\u70B9 / \u96F6\u70B9 / \u9636\u8DC3 / Bode", action: () => openAnalysis("bypass") },
+          { label: "\u7535\u8DEF\u5206\u6790\u5DE5\u4F5C\u53F0\u2026", hint: "Bode / \u65F6\u57DF / Nyquist / \u73AF\u8DEF \xB7 \u591A\u72B6\u6001\u5BF9\u6BD4", action: () => openAnalysis("wb-analysis") },
           { label: "\u8FC1\u79FB\u573A\u666F\u4E3A\u5668\u4EF6\u6A21\u578B\uFF08R20\uFF09", hint: "\u5143\u4EF6\u8FB9 \u2192 \u5668\u4EF6\u8282\u70B9 + \u5F15\u811A\u5BFC\u7EBF", action: () => void migrateSceneToDevices() },
           { label: "\u65B0\u5EFA\u8FDE\u7EBF\uFF08\u9009\u62E9\u7AEF\u70B9\uFF09\u2026", hint: "\u7F51\u7EDC\u2194\u7F51\u7EDC\u7EAF\u5BFC\u7EBF / \u5668\u4EF6\u5F15\u811A\u2194\u7F51\u7EDC", action: () => openWireDialog() }
         ]
@@ -4247,12 +4389,7 @@ function setStatusHint(hint) {
   function applyProjectUi(uiSettings) {
     if (!uiSettings || typeof uiSettings !== "object") return;
     if (uiSettings.grid && typeof uiSettings.grid === "object") {
-      if (typeof uiSettings.grid.snap === "boolean") state.ui.snap = uiSettings.grid.snap;
-      if (typeof uiSettings.grid.show === "boolean") state.ui.showGrid = uiSettings.grid.show;
-      if (typeof uiSettings.grid.markers === "boolean") state.ui.snapMarkers = uiSettings.grid.markers;
-      if (typeof uiSettings.grid.orthogonal === "boolean") state.ui.circuitOrthogonal = uiSettings.grid.orthogonal;
-      const size = Number(uiSettings.grid.size);
-      if (Number.isFinite(size) && size >= 5 && size <= 80) state.ui.grid = size;
+      applyGridPayload(state.ui, uiSettings.grid);
     }
     if (uiSettings.symbol === "gb" || uiSettings.symbol === "classic") {
       state.ui.symbol = uiSettings.symbol;
@@ -4272,6 +4409,9 @@ function setStatusHint(hint) {
     }
     if (Number.isFinite(Number(uiSettings.symbolScale))) state.ui.symbolScale = clamp(Number(uiSettings.symbolScale), 0.6, 2.5);
     if (typeof uiSettings.glyphColor === "string") state.ui.glyphColor = uiSettings.glyphColor;
+    if (uiSettings.analysis_workbench && typeof uiSettings.analysis_workbench === "object") {
+      state.ui.analysis_workbench = uiSettings.analysis_workbench;
+    }
     applyNumericProjectUi(uiSettings);
     requestDraw();
   }
@@ -4641,6 +4781,7 @@ function setStatusHint(hint) {
     host.appendChild(head);
     const toolbar = div("blocks-toolbar");
     toolbar.append(
+      button("\u6253\u5F00\u7535\u8DEF\u5206\u6790\u5DE5\u4F5C\u53F0", "btn tiny primary", () => openAnalysis("ac")),
       button("\u9884\u8BA1\u7B97\u9009\u4E2D\u72B6\u6001", "btn tiny", () => void wbPrecomputeSelected()),
       button("\u7EDF\u4E00\u4EFF\u771F\u8BBE\u7F6E", "btn tiny", () => void wbUnifySim()),
       button("\u751F\u6210\u5BF9\u6BD4\u56FE", "btn tiny primary", () => void wbGenerateCompare()),
@@ -6309,8 +6450,7 @@ function setStatusHint(hint) {
           void saveProject(false);
         } else if (key === "e" && event.shiftKey) {
           event.preventDefault();
-          if (state.workspace === "network") void exportScene();
-          else toast("\u6709\u9650\u5143\u573A\u4E0D\u5BFC\u51FA JSON\uFF1B\u53EF\u5728\u300C\u573A\u300D\u9762\u677F\u91CD\u5EFA\u53C2\u6570", "info", 3e3);
+          void openExport(state.workspace === "network" ? "scene-data" : "schematic");
         } else if (key === "z") {
           event.preventDefault();
           if (event.shiftKey) void redo();

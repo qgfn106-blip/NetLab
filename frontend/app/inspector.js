@@ -365,10 +365,12 @@ function renderEdgeInspector(edge) {
   const routeField = div("field");
   routeField.appendChild(numberedField("\u8DEF\u7531", "\u81EA\u52A8 / \u76F4\u7EBF / \u6B63\u4EA4 / \u624B\u52A8"));
   const routeSelect = el("select");
+  routeSelect.dataset.role = "edge-route";
   for (const [value, label] of [
     ["auto", "\u81EA\u52A8\uFF08\u66F2\u7EBF\uFF09"],
     ["straight", "\u76F4\u7EBF"],
     ["orthogonal", "\u6B63\u4EA4\u6298\u7EBF"],
+    ["free", "\u81EA\u7531\u89D2\u5EA6"],
     ["manual", "\u624B\u52A8\u62D0\u70B9"]
   ]) {
     const option = el("option", null, label);
@@ -381,6 +383,61 @@ function renderEdgeInspector(edge) {
   });
   routeField.appendChild(routeSelect);
   geometry.appendChild(routeField);
+  if (edge.kind === "wire") {
+    const layout = edge.layout && typeof edge.layout === "object" ? { ...edge.layout } : {};
+    const angleRow = div("inline-fields");
+    angleRow.dataset.role = "wire-angle-controls";
+    const modeField = div("field");
+    modeField.appendChild(numberedField("\u89D2\u5EA6\u6A21\u5F0F", "\u5F53\u524D\u5BFC\u7EBF"));
+    const modeSelect = el("select");
+    modeSelect.dataset.role = "wire-angle-mode";
+    for (const [value, label] of [["inherit", "\u8DDF\u968F\u5DE5\u7A0B"], ["constrained", "\u7EA6\u675F\u89D2\u96C6"], ["free", "\u81EA\u7531\u89D2\u5EA6"]]) {
+      const option = el("option", null, label);
+      option.value = value;
+      if (String(layout.angle_mode || "inherit") === value) option.selected = true;
+      modeSelect.appendChild(option);
+    }
+    modeSelect.addEventListener("change", () => {
+      void patchEdgeGeometry(edge.id, { layout: { ...layout, angle_mode: modeSelect.value } });
+    });
+    modeField.appendChild(modeSelect);
+    angleRow.appendChild(modeField);
+    const setField = div("field");
+    setField.appendChild(numberedField("\u5141\u8BB8\u89D2\u5EA6", ""));
+    const setWrap = div("inline-fields");
+    setWrap.dataset.role = "wire-angle-set";
+    const currentAngles = Array.isArray(layout.angle_set) ? layout.angle_set.map(Number) : [0, 45, 60, 90];
+    for (const angle of [0, 45, 60, 90]) {
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.value = String(angle);
+      box.checked = currentAngles.includes(angle);
+      box.dataset.angle = String(angle);
+      box.addEventListener("change", () => {
+        const boxes = [...setWrap.querySelectorAll('input[type="checkbox"]')];
+        void patchEdgeGeometry(edge.id, { layout: { ...layout, angle_set: boxes.filter((item) => item.checked).map((item) => Number(item.value)) } });
+      });
+      setWrap.append(box, el("span", null, `${angle}\xB0`));
+    }
+    setField.appendChild(setWrap);
+    angleRow.appendChild(setField);
+    const toleranceField = div("field");
+    toleranceField.appendChild(numberedField("\u5BB9\u5DEE\xB0", ""));
+    const toleranceInput = document.createElement("input");
+    toleranceInput.className = "input";
+    toleranceInput.type = "number";
+    toleranceInput.min = "0.5";
+    toleranceInput.max = "15";
+    toleranceInput.step = "0.5";
+    toleranceInput.value = String(Number(layout.angle_tolerance_deg) || 3);
+    toleranceInput.dataset.role = "wire-angle-tolerance";
+    toleranceInput.addEventListener("change", () => {
+      void patchEdgeGeometry(edge.id, { layout: { ...layout, angle_tolerance_deg: Math.max(0.5, Math.min(15, Number(toleranceInput.value) || 3)) } });
+    });
+    toleranceField.appendChild(toleranceInput);
+    angleRow.appendChild(toleranceField);
+    geometry.appendChild(angleRow);
+  }
   const anchorsRow = div("inline-fields");
   for (const [key, label] of [["source", "\u8D77\u70B9\u951A\u70B9"], ["target", "\u7EC8\u70B9\u951A\u70B9"]]) {
     const wrap = div("field");
@@ -546,12 +603,23 @@ async function applyInspector(options = {}) {
     if (sourcePortBox) payload.source_port = sourcePortBox.value;
     if (targetPortBox) payload.target_port = targetPortBox.value;
     const waypointBox = form.querySelector('[data-role="waypoints"]');
+    const routeBox = form.querySelector('[data-role="edge-route"]');
     if (waypointBox) {
       payload.waypoints = [...waypointBox.querySelectorAll('[data-role="waypoint-row"]')].map((row) => ({
         x: Number(row.querySelector('[data-role="waypoint-x"]').value) || 0,
         y: Number(row.querySelector('[data-role="waypoint-y"]').value) || 0
       }));
-      payload.route = payload.waypoints.length ? "manual" : "auto";
+      payload.route = payload.waypoints.length ? "manual" : routeBox?.value || "auto";
+    }
+    const angleModeBox = form.querySelector('[data-role="wire-angle-mode"]');
+    if (angleModeBox) {
+      const layout = edge.layout && typeof edge.layout === "object" ? { ...edge.layout } : {};
+      layout.angle_mode = angleModeBox.value;
+      const setBoxes = [...form.querySelectorAll('[data-role="wire-angle-set"] input[type="checkbox"]')];
+      if (setBoxes.length) layout.angle_set = setBoxes.filter((item) => item.checked).map((item) => Number(item.value));
+      const toleranceBox = form.querySelector('[data-role="wire-angle-tolerance"]');
+      if (toleranceBox) layout.angle_tolerance_deg = Math.max(0.5, Math.min(15, Number(toleranceBox.value) || 3));
+      payload.layout = layout;
     }
     const enabledBox = form.querySelector('[data-role="enabled"]');
     if (enabledBox) payload.enabled = Boolean(enabledBox.checked);

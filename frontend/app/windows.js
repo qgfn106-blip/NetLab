@@ -1,6 +1,7 @@
 import { activeTab } from "./model.js";
-import { closeAnalysis, drawAcChart, drawBypassCharts, fillAcSources, fillBypassSources, runAcSweep, runCircuitBypass, runOperatingPoint, selectAnalTab } from "./ac_analysis.js";
+import { closeAnalysis, runOperatingPoint, selectAnalTab } from "./ac_analysis.js";
 import { closeDoc, searchDocs } from "./docs.js";
+import { openAnalysisWorkbench } from "./analysis_workbench.js";
 import { closePlotkit, closeVscode, layoutPlotkitWindow, maybePrewarmVscode, placePlotkit, togglePlotkitDock } from "./plotkit_frame.js";
 import { initFloatWindow } from "./float.js";
 import { $, $$ } from "./dom.js";
@@ -23,23 +24,15 @@ function initAnalWin() {
   win.querySelector("#analWinClose")?.addEventListener("click", closeAnalysis);
   for (const btn of $$(".anal-tab")) {
     btn.addEventListener("click", () => {
-      selectAnalTab(btn.dataset.anal || "op");
-      if (btn.dataset.anal === "ac") fillAcSources();
-      if (btn.dataset.anal === "bypass") fillBypassSources();
+      const tab = btn.dataset.anal || "op";
+      selectAnalTab(tab);
+      if (tab === "workbench") openAnalysisWorkbench();
     });
   }
   $("#analRunOp")?.addEventListener("click", () => void runOperatingPoint());
-  $("#analRunAc")?.addEventListener("click", () => void runAcSweep());
-  $("#analRunBypass")?.addEventListener("click", () => void runCircuitBypass());
-  $("#analRunBypassBode")?.addEventListener("click", () => void runCircuitBypass());
   initFloatWindow(win, "analGeo", { minWidth: 560, minHeight: 420 });
   window.addEventListener("resize", () => {
-    if (!win.hidden && !win.querySelector('.anal-pane[data-anal-pane="ac"]')?.hidden) {
-      drawAcChart();
-    }
-    if (!win.hidden && !win.querySelector('.anal-pane[data-anal-pane="bypass"]')?.hidden) {
-      drawBypassCharts();
-    }
+    if (!win.hidden) window.dispatchEvent(new CustomEvent("netlab:analysis-resize"));
   });
 }
 function initDocWin() {

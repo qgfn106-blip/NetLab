@@ -98,8 +98,8 @@ async function runAnalysisMath() {
 }
 async function runAnalysisTransfer() {
   if ((state.scene?.mode || state.mode) === "circuit") {
-    toast("\u7535\u8DEF\u573A\u666F\u8BF7\u4F7F\u7528\u300C\u5C0F\u4FE1\u53F7\u5206\u6790\uFF08\u65C1\u8DEF\uFF09\u300D\u7684 G(s) / \u96F6\u6781\u70B9 / \u9636\u8DC3\u7ED3\u679C\u3002", "info", 4200);
-    openAnalysis("bypass");
+    toast("\u7535\u8DEF\u573A\u666F\u8BF7\u4F7F\u7528\u300C\u7535\u8DEF\u5206\u6790\u5DE5\u4F5C\u53F0\u300D\u67E5\u770B G(s) / Bode / \u65F6\u57DF\u7ED3\u679C\u3002", "info", 4200);
+    openAnalysis("ac");
     return;
   }
   const input = $("#analysisInputNode")?.value?.trim();

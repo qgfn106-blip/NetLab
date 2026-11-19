@@ -57,7 +57,7 @@ PARAM_KEYS = {
 def test_element_groups_cover_all_kinds():
     """R22/D46：全部元件落组；R15 第四批新增「功率电子与电机」，组数允许扩展。"""
     catalog = {entry["kind"]: entry for entry in element_catalog()}
-    assert set(catalog) == set(PINS)
+    assert set(catalog) == set(PINS) - {"ground"}
     assert len(ELEMENT_GROUP_ORDER) >= 10
     for kind, entry in catalog.items():
         assert entry["group"] in ELEMENT_GROUP_ORDER, f"{kind} 未分类：{entry['group']}"

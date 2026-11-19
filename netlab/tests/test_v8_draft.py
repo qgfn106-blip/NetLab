@@ -64,14 +64,13 @@ def _v7_payload() -> dict:
     }
 
 
-def test_draft_is_not_activated() -> None:
-    assert project_mod.PROJECT_VERSION == 7
-    assert 8 not in project_mod.SCHEMA_MIGRATIONS
-    # 现有迁移链不会产出 version=8
+def test_v8_is_activated() -> None:
+    assert project_mod.PROJECT_VERSION == 8
+    assert 8 in project_mod.SCHEMA_MIGRATIONS
     out = project_mod.migrate_project(copy.deepcopy(_v7_payload()))
-    assert out["version"] == 7
+    assert out["version"] == 8
+    assert out["ui"]["analysis_workbench"]["schema"] == "netlab-analysis-workbench/1"
     assert "presentation" not in out
-    assert "schema_version" not in out
 
 
 def test_mapping() -> None:

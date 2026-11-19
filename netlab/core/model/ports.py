@@ -75,6 +75,7 @@ PINS: dict[str, tuple[PinSpec, ...]] = {
     "diode": _pins(("A", "passive"), ("K", "passive")),
     "led": _pins(("A", "passive"), ("K", "passive")),
     "zener": _pins(("A", "passive"), ("K", "passive")),
+    "ground": _pins(("GND", "passive", False)),
     "opamp": _pins(
         ("IN+", "input"),
         ("IN-", "input"),

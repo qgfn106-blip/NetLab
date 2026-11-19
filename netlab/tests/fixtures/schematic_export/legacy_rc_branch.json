@@ -1,0 +1,133 @@
+{
+  "mode": "circuit",
+  "nodes": [
+    {
+      "id": "a00000000001",
+      "name": "SRC",
+      "kind": "node",
+      "position": {
+        "x": 0,
+        "y": 80
+      }
+    },
+    {
+      "id": "a00000000002",
+      "name": "MID",
+      "kind": "node",
+      "position": {
+        "x": 120,
+        "y": 80
+      }
+    },
+    {
+      "id": "a00000000003",
+      "name": "OUT",
+      "kind": "node",
+      "position": {
+        "x": 240,
+        "y": 40
+      }
+    },
+    {
+      "id": "a00000000004",
+      "name": "GND",
+      "kind": "ground",
+      "position": {
+        "x": 120,
+        "y": 200
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e00000000001",
+      "name": "V1",
+      "source": "a00000000001",
+      "target": "a00000000004",
+      "kind": "vsource",
+      "params": {
+        "wave": "dc",
+        "offset": 5,
+        "amplitude": 0
+      },
+      "layout": {
+        "x": 0,
+        "y": 140,
+        "rot": 90
+      }
+    },
+    {
+      "id": "e00000000002",
+      "name": "R1",
+      "source": "a00000000001",
+      "target": "a00000000002",
+      "kind": "resistor",
+      "params": {
+        "R": 1000
+      },
+      "layout": {
+        "x": 60,
+        "y": 80,
+        "rot": 0
+      }
+    },
+    {
+      "id": "e00000000003",
+      "name": "R2",
+      "source": "a00000000002",
+      "target": "a00000000004",
+      "kind": "resistor",
+      "params": {
+        "R": 2000
+      },
+      "layout": {
+        "x": 120,
+        "y": 140,
+        "rot": 90
+      }
+    },
+    {
+      "id": "e00000000004",
+      "name": "C1",
+      "source": "a00000000002",
+      "target": "a00000000003",
+      "kind": "capacitor",
+      "params": {
+        "C": 1e-06
+      },
+      "layout": {
+        "x": 180,
+        "y": 80,
+        "rot": 0
+      }
+    },
+    {
+      "id": "e00000000005",
+      "name": "R3",
+      "source": "a00000000003",
+      "target": "a00000000004",
+      "kind": "resistor",
+      "params": {
+        "R": 3000
+      },
+      "layout": {
+        "x": 240,
+        "y": 120,
+        "rot": 90
+      }
+    },
+    {
+      "id": "e00000000006",
+      "name": "D1",
+      "source": "a00000000003",
+      "target": "a00000000004",
+      "kind": "diode",
+      "params": {},
+      "layout": {
+        "x": 280,
+        "y": 120,
+        "rot": 90
+      }
+    }
+  ]
+}

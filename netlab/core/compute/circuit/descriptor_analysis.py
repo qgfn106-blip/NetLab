@@ -58,6 +58,8 @@ Kronecker 结构，尚未实现，会显式抛出 :class:`UnsupportedAnalysisErr
 
 from __future__ import annotations
 
+from typing import Any, Sequence
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -800,10 +802,58 @@ __all__ = [
     "build_output_matrices",
     "check_pencil_regularity",
     "descriptor_poles",
+    "descriptor_step_response",
+    "descriptor_transient_response",
     "descriptor_transfer_function",
     "descriptor_zeros",
     "is_regular_pencil",
 ]
+
+
+def descriptor_transient_response(
+    model: DescriptorModel,
+    input_source: str | None,
+    probe: str,
+    input_values: Sequence[float],
+    *,
+    dt: float,
+) -> dict[str, Any]:
+    """规则 index-1 Descriptor 系统对任意输入序列的时域响应（隐式 Euler）。
+
+    ``input_values[k]`` 是 t=0, dt, 2dt, ... 时刻的激励；返回从 t=0 开始
+    的节点电压输出，长度与输入一致。仅支持非接地节点电压探针，奇异系统
+    由 ``numpy.linalg.LinAlgError`` 明确报错。
+    """
+    import numpy as np
+
+    if dt <= 0.0:
+        raise ValueError("dt 必须为正")
+    samples = np.asarray(list(input_values), dtype=float).reshape(-1)
+    if samples.size < 2:
+        raise ValueError("激励序列至少需要两个采样点")
+    if not np.all(np.isfinite(samples)):
+        raise ValueError("激励序列包含非有限值")
+    system = model.build(input_source)
+    node_id = model.index.node_name_to_id.get(probe, probe)
+    position = model.index.node_index.get(str(node_id))
+    if position is None:
+        raise UnsupportedAnalysisError("时域分析只支持非接地节点电压探针")
+    c = np.zeros(model.index.size)
+    c[position] = 1.0
+    x = np.zeros(model.index.size, dtype=float)
+    values = [float(c @ x)]
+    lhs = system.E + dt * system.A
+    b = np.asarray(system.B, dtype=float).reshape(-1)
+    for index in range(1, samples.size):
+        rhs = system.E @ x + dt * b * samples[index - 1]
+        x = np.linalg.solve(lhs, rhs)
+        values.append(float(c @ x))
+    return {
+        "probe": probe,
+        "times": [index * dt for index in range(samples.size)],
+        "values": values,
+        "dt": dt,
+    }
 
 
 def descriptor_step_response(

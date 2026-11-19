@@ -10,6 +10,9 @@ tmp_ret = collect_all('webview')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('pythonnet')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+# D7：PlotKit 是必需插件，静态渲染内核/模板必须一起打包，否则打包版分析图必然缺失。
+tmp_ret = collect_all('plotkit')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(

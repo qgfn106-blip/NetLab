@@ -23,8 +23,25 @@
    }
   ],
   "plugins": [],
-  "ui": {},
-  "version": 7
+  "ui": {
+   "analysis_workbench": {
+    "active_analysis": "bode",
+    "canvases": [],
+    "layout": {
+     "cols": 1,
+     "mode": "grid",
+     "order": [],
+     "rows": 1
+    },
+    "schema": "netlab-analysis-workbench/1",
+    "selected_state_ids": [],
+    "sizes": {
+     "detail": 320,
+     "sidebar": 280
+    }
+   }
+  },
+  "version": 8
  },
  "v0": {
   "app": "netlab 2.1.0",
@@ -34,6 +51,7 @@
   "fem": {},
   "format": "netlab-project",
   "metadata": {
+   "migrated_analysis_workbench": "v0",
    "migrated_devices": "v0",
    "migrated_from_networks": "v0",
    "migrated_plugins": "v0",
@@ -56,9 +74,25 @@
   ],
   "plugins": [],
   "ui": {
+   "analysis_workbench": {
+    "active_analysis": "bode",
+    "canvases": [],
+    "layout": {
+     "cols": 1,
+     "mode": "grid",
+     "order": [],
+     "rows": 1
+    },
+    "schema": "netlab-analysis-workbench/1",
+    "selected_state_ids": [],
+    "sizes": {
+     "detail": 320,
+     "sidebar": 280
+    }
+   },
    "profile": "netlab-ui/1"
   },
-  "version": 7
+  "version": 8
  },
  "v1": {
   "app": "netlab 2.1.0",
@@ -68,6 +102,7 @@
   "fem": {},
   "format": "netlab-project",
   "metadata": {
+   "migrated_analysis_workbench": "v1",
    "migrated_devices": "v1",
    "migrated_from_networks": "v1",
    "migrated_plugins": "v1",
@@ -90,9 +125,25 @@
   ],
   "plugins": [],
   "ui": {
+   "analysis_workbench": {
+    "active_analysis": "bode",
+    "canvases": [],
+    "layout": {
+     "cols": 1,
+     "mode": "grid",
+     "order": [],
+     "rows": 1
+    },
+    "schema": "netlab-analysis-workbench/1",
+    "selected_state_ids": [],
+    "sizes": {
+     "detail": 320,
+     "sidebar": 280
+    }
+   },
    "profile": "netlab-ui/1"
   },
-  "version": 7
+  "version": 8
  },
  "v2": {
   "app": "netlab 2.1.0",
@@ -102,6 +153,7 @@
   "fem": {},
   "format": "netlab-project",
   "metadata": {
+   "migrated_analysis_workbench": "v2",
    "migrated_devices": "v2",
    "migrated_plugins": "v2",
    "migrated_rails": "v2",
@@ -123,9 +175,25 @@
   ],
   "plugins": [],
   "ui": {
+   "analysis_workbench": {
+    "active_analysis": "bode",
+    "canvases": [],
+    "layout": {
+     "cols": 1,
+     "mode": "grid",
+     "order": [],
+     "rows": 1
+    },
+    "schema": "netlab-analysis-workbench/1",
+    "selected_state_ids": [],
+    "sizes": {
+     "detail": 320,
+     "sidebar": 280
+    }
+   },
    "profile": "netlab-ui/1"
   },
-  "version": 7
+  "version": 8
  },
  "v2_nonempty_scene": {
   "app": "netlab 2.1.0",
@@ -135,6 +203,7 @@
   "fem": {},
   "format": "netlab-project",
   "metadata": {
+   "migrated_analysis_workbench": "v2",
    "migrated_devices": "v2",
    "migrated_plugins": "v2",
    "migrated_rails": "v2",
@@ -167,9 +236,25 @@
   ],
   "plugins": [],
   "ui": {
+   "analysis_workbench": {
+    "active_analysis": "bode",
+    "canvases": [],
+    "layout": {
+     "cols": 1,
+     "mode": "grid",
+     "order": [],
+     "rows": 1
+    },
+    "schema": "netlab-analysis-workbench/1",
+    "selected_state_ids": [],
+    "sizes": {
+     "detail": 320,
+     "sidebar": 280
+    }
+   },
    "profile": "netlab-ui/1"
   },
-  "version": 7
+  "version": 8
  },
  "v3": {
   "app": "netlab 2.1.0",
@@ -179,6 +264,7 @@
   "fem": {},
   "format": "netlab-project",
   "metadata": {
+   "migrated_analysis_workbench": "v3",
    "migrated_devices": "v3",
    "migrated_plugins": "v3",
    "migrated_rails": "v3",
@@ -268,9 +354,25 @@
   ],
   "plugins": [],
   "ui": {
+   "analysis_workbench": {
+    "active_analysis": "bode",
+    "canvases": [],
+    "layout": {
+     "cols": 1,
+     "mode": "grid",
+     "order": [],
+     "rows": 1
+    },
+    "schema": "netlab-analysis-workbench/1",
+    "selected_state_ids": [],
+    "sizes": {
+     "detail": 320,
+     "sidebar": 280
+    }
+   },
    "profile": "netlab-ui/1"
   },
-  "version": 7
+  "version": 8
  },
  "v4": {
   "app": "netlab 2.1.0",
@@ -280,6 +382,7 @@
   "fem": {},
   "format": "netlab-project",
   "metadata": {
+   "migrated_analysis_workbench": "v4",
    "migrated_plugins": "v4",
    "migrated_rails": "v4",
    "migrated_states": "v4"
@@ -368,9 +471,25 @@
   ],
   "plugins": [],
   "ui": {
+   "analysis_workbench": {
+    "active_analysis": "bode",
+    "canvases": [],
+    "layout": {
+     "cols": 1,
+     "mode": "grid",
+     "order": [],
+     "rows": 1
+    },
+    "schema": "netlab-analysis-workbench/1",
+    "selected_state_ids": [],
+    "sizes": {
+     "detail": 320,
+     "sidebar": 280
+    }
+   },
    "profile": "netlab-ui/1"
   },
-  "version": 7
+  "version": 8
  },
  "v5": {
   "app": "netlab 2.1.0",
@@ -380,6 +499,7 @@
   "fem": {},
   "format": "netlab-project",
   "metadata": {
+   "migrated_analysis_workbench": "v5",
    "migrated_plugins": "v5",
    "migrated_states": "v5"
   },
@@ -467,9 +587,25 @@
   ],
   "plugins": [],
   "ui": {
+   "analysis_workbench": {
+    "active_analysis": "bode",
+    "canvases": [],
+    "layout": {
+     "cols": 1,
+     "mode": "grid",
+     "order": [],
+     "rows": 1
+    },
+    "schema": "netlab-analysis-workbench/1",
+    "selected_state_ids": [],
+    "sizes": {
+     "detail": 320,
+     "sidebar": 280
+    }
+   },
    "profile": "netlab-ui/1"
   },
-  "version": 7
+  "version": 8
  },
  "v6": {
   "app": "netlab 2.1.0",
@@ -479,6 +615,7 @@
   "fem": {},
   "format": "netlab-project",
   "metadata": {
+   "migrated_analysis_workbench": "v6",
    "migrated_states": "v6"
   },
   "name": "未命名工程",
@@ -564,8 +701,25 @@
    }
   ],
   "plugins": [],
-  "ui": {},
-  "version": 7
+  "ui": {
+   "analysis_workbench": {
+    "active_analysis": "bode",
+    "canvases": [],
+    "layout": {
+     "cols": 1,
+     "mode": "grid",
+     "order": [],
+     "rows": 1
+    },
+    "schema": "netlab-analysis-workbench/1",
+    "selected_state_ids": [],
+    "sizes": {
+     "detail": 320,
+     "sidebar": 280
+    }
+   }
+  },
+  "version": 8
  },
  "v7": {
   "app": "netlab 2.1.0",
@@ -574,6 +728,9 @@
   "extensions": [],
   "fem": {},
   "format": "netlab-project",
+  "metadata": {
+   "migrated_analysis_workbench": "v7"
+  },
   "name": "未命名工程",
   "networks": [
    {
@@ -656,7 +813,24 @@
    }
   ],
   "plugins": [],
-  "ui": {},
-  "version": 7
+  "ui": {
+   "analysis_workbench": {
+    "active_analysis": "bode",
+    "canvases": [],
+    "layout": {
+     "cols": 1,
+     "mode": "grid",
+     "order": [],
+     "rows": 1
+    },
+    "schema": "netlab-analysis-workbench/1",
+    "selected_state_ids": [],
+    "sizes": {
+     "detail": 320,
+     "sidebar": 280
+    }
+   }
+  },
+  "version": 8
  }
 }

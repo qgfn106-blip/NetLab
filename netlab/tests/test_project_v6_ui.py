@@ -47,7 +47,7 @@ def test_v5_project_migrates_to_v6_with_plugins_and_ui() -> None:
         "metadata": {},
     }
     migrated = migrate_project(old)
-    assert migrated["version"] == PROJECT_VERSION == 7
+    assert migrated["version"] == PROJECT_VERSION == 8
     assert migrated["plugins"] == []
     assert migrated["ui"]["profile"] == "netlab-ui/1"
     assert migrated["metadata"]["migrated_plugins"] == "v5"

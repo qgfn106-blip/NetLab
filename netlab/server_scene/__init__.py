@@ -249,12 +249,29 @@ def build_router(
         return fast_json(service.scene.to_payload(include_state=include_state))
 
     @router.get("/api/export/schematic")
-    def export_schematic(name: str = Query(""), network: str = Query("")) -> dict[str, Any]:
-        """R18/R19：用 SchemDraw 把当前电路场景直接输出为静态 SVG。"""
-        from ..core.compute.schematic_export import scene_to_svg, svg_filename
+    def export_schematic(
+        name: str = Query(""),
+        network: str = Query(""),
+        style: str = Query("gb"),
+        route: str = Query("orthogonal"),
+        values: bool = Query(True),
+    ) -> dict[str, Any]:
+        """R18/R19 + S4：通过 IR 输出静态 SVG，并返回警告/不支持/统计。"""
+        from ..core.compute.schematic_export import export_schematic_document
 
-        svg = scene_to_svg(service.scene, project_name=name, network_name=network)
-        return {"ok": True, "svg": svg, "filename": svg_filename(name)}
+        try:
+            return export_schematic_document(
+                service.scene,
+                project_name=name,
+                network_name=network,
+                style=style,
+                route=route,
+                include_values=values,
+            )
+        except ValidationError:
+            raise
+        except Exception as exc:
+            raise ValidationError(str(exc)) from exc
 
     @router.post("/api/scene")
     def import_scene(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:

@@ -103,8 +103,8 @@ export async function runAnalysisMath() {
 
 export async function runAnalysisTransfer() {
     if ((state.scene?.mode || state.mode) === 'circuit') {
-      toast('电路场景请使用「小信号分析（旁路）」的 G(s) / 零极点 / 阶跃结果。', 'info', 4200);
-      openAnalysis('bypass');
+      toast('电路场景请使用「电路分析工作台」查看 G(s) / Bode / 时域结果。', 'info', 4200);
+      openAnalysis('ac');
       return;
     }
     const input = ($('#analysisInputNode') as HTMLInputElement)?.value?.trim();

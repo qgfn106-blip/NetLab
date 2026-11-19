@@ -26,10 +26,10 @@ def test_channel_key_invalid() -> None:
 
 def test_frame_and_project_and_plot_spec() -> None:
     validate("frame", {"t": 1.5, "values": {"a": 1.0}, "v": 1})
-    validate("project", {"v": 6, "name": "demo", "scene": {"nodes": []}})
+    validate("project", {"v": 8, "name": "demo", "scene": {"nodes": []}})
     validate("plot_spec", {"spec_version": "0.1", "figure": {}, "layers": []})
     assert API_VERSION == "1"
-    assert SCHEMA_VERSIONS["project"] == 6
+    assert SCHEMA_VERSIONS["project"] == 8
 
 
 def test_generated_artifacts_are_in_sync() -> None:

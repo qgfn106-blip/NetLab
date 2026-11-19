@@ -35,6 +35,8 @@ def commits(limit: int = 80) -> list[tuple[str, str, str]]:
         # 过滤噪音：merge 提交、纯 status-only / chore(status) / chore(ci) 不进入「最近更新」
         if subject.startswith("Merge ") or subject.startswith("chore(status)") or subject.startswith("chore(ci)"):
             continue
+        # 有些历史提交把多行说明塞进了 subject，表格里必须压成单行。
+        subject = subject.replace("\r", " ").replace("\n", " ").replace("\\n", " ").strip()
         rows.append((sha, date, subject))
         if len(rows) == 20:
             break

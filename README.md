@@ -114,6 +114,12 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-20 | test(plotkit): 兼容矩阵与公开 API 断言更新到 0.3 |
+| 2026-11-19 | fix(ci): 修复 ground 契约、schemdraw 可选依赖与 PlotKit 必需插件安装 |
+| 2026-11-19 | feat(analysis): 电路分析工作台落地 PlotKit 渲染与多子画布 |
+| 2026-11-19 | fix(schematic): keep device labels clear of wires and pins |
+| 2026-11-19 | fix(schematic): align GB symbols, grounding and export typography |
+| 2026-11-19 | feat(schematic): 实现 GB 原理图导出 S0-S7  - 新增 IR、符号库、正交路由与标签避让 - 接入 SVG/JSON 统一导出窗口与桌面保存 - 增加工程网格、导线检查器与项目回读 - 补充结构 oracle、符号对照、E2E 与人工签收材料 |
 | 2026-11-18 | fix(desktop): export through native save dialog instead of silent blob download |
 | 2026-11-18 | fix(d5): add shadow report for trapezoidal source change |
 | 2026-11-18 | fix(review): harden auth, transactions and trapezoidal integration |
@@ -128,12 +134,6 @@ python -m netlab.desktop
 | 2026-11-17 | refactor(frontend): F-01 S1b-2 外提 drawModulePreview 到 module_preview.ts（app.ts 7770→7679） |
 | 2026-11-17 | refactor(frontend): F-01 S1b-1 外提 drawWbSubplot 至 app/wb_subplot（依赖显式化，指令序列等价） |
 | 2026-11-17 | refactor(frontend): F-01 S1a 外提零依赖 UI 小工具至 app/ui_helpers（app.ts 7982→7869，字节等价） |
-| 2026-11-17 | test(frontend): F-05 verify_app_parity 未覆盖运行时文件白名单+整文件告警（零行为） |
-| 2026-11-17 | test(b7): 更新 frontend api 契约——shutdown 经 api() 单缝，裸 fetch 仅 helper 内 |
-| 2026-11-17 | fix(b7): F-02 shutdown 走 api()/桌面原生关闭; F-03 numeric-precision 与 settings 串扰最小修 |
-| 2026-11-17 | fix(mathspec): D-B6-1 dt 校验移到 docstring 之后（保留 __doc__）+ 文档回归测试 |
-| 2026-11-17 | fix(mathspec): B6 csr 跨行判重修正 + 积分/hybrid/drivetrain dt<=0 校验 |
-| 2026-11-17 | chore(b5-02): python-tests.yml 保持仓库原有 CRLF 行尾（消除伪 diff） |
 
 <!-- END LAST 20 UPDATES -->
 

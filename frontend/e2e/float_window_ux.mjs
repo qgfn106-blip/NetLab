@@ -159,7 +159,23 @@ try {
   const expectedH = Math.min(760, vp0.height * 0.88);
   assert(Math.abs(before.width - expectedW) <= 2 && Math.abs(before.height - expectedH) <= 2, `首次打开尺寸异常: ${before.width}x${before.height}，期望 ${expectedW}x${expectedH}`);
 
-  // 4) 右下角缩放柄：拖拽应改变窗口尺寸
+  // 4) 大窗口允许部分移出视口，但标题栏抓取区仍必须可见
+  const head = page.locator('#analWin .floatwin-head');
+  const head0 = await head.boundingBox();
+  await page.mouse.move(head0.x + 120, head0.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(head0.x - 140, head0.y + 20, { steps: 8 });
+  await page.mouse.up();
+  const shifted = await win.boundingBox();
+  assert(shifted.x < 8, `大窗口应允许部分移出视口，实际 x=${shifted.x}`);
+  assert(shifted.x + shifted.width > 160, '窗口抓取区被移出视口');
+  const head1 = await head.boundingBox();
+  await page.mouse.move(Math.max(20, head1.x + 120), head1.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(Math.max(20, head1.x + 120) + 260, head1.y + 20, { steps: 8 });
+  await page.mouse.up();
+
+  // 5) 右下角缩放柄：拖拽应改变窗口尺寸
   const grip = page.locator('#analWin .floatwin-resize');
   const gb = await grip.boundingBox();
   assert(gb && gb.width >= 16 && gb.height >= 16, `缩放柄尺寸异常: ${JSON.stringify(gb)}`);
@@ -171,7 +187,7 @@ try {
   assert(after.width > before.width + 80, `缩放柄未改变宽度: ${before.width} -> ${after.width}`);
   assert(after.height > before.height + 50, `缩放柄未改变高度: ${before.height} -> ${after.height}`);
 
-  // 5) 视口约束：窗口被撑出视口后重新打开应回拉到可见区域
+  // 6) 视口约束：窗口被撑出视口后重新打开应回拉到可见区域
   await page.evaluate(() => {
     const el = document.querySelector('#analWin');
     el.style.width = '3000px';
@@ -185,7 +201,28 @@ try {
   const clamped = await win.boundingBox();
   const viewport = page.viewportSize();
   assert(clamped.width <= viewport.width && clamped.height <= viewport.height, `窗口未收缩到视口内: ${clamped.width}x${clamped.height}`);
-  assert(clamped.x >= 0 && clamped.y >= 40 && clamped.x + clamped.width <= viewport.width + 1 && clamped.y + clamped.height <= viewport.height + 1, `窗口位置越界: ${JSON.stringify(clamped)}`);
+  assert(clamped.y >= 40 && clamped.x + clamped.width > 160 && clamped.x + clamped.width <= viewport.width + 1 && clamped.y + clamped.height <= viewport.height + 1, `窗口位置越界或抓取区不可见: ${JSON.stringify(clamped)}`);
+
+  // 7) 最大化：四周留 12px inset；退出后恢复原尺寸
+  await page.locator('#analWin .floatwin-max').click();
+  await sleep(120);
+  const maximized = await win.boundingBox();
+  assert(Math.abs(maximized.x - 12) <= 2 && Math.abs(maximized.x + maximized.width - (viewport.width - 12)) <= 2, `最大化左右 inset 异常: ${JSON.stringify(maximized)}`);
+  assert(maximized.y >= 8 && maximized.y <= 110 && maximized.y + maximized.height <= viewport.height - 10, `最大化上下 inset 异常: ${JSON.stringify(maximized)}`);
+  await page.locator('#analWin .floatwin-max').click();
+  await sleep(120);
+  const restored = await win.boundingBox();
+  assert(Math.abs(restored.width - clamped.width) <= 2 && Math.abs(restored.height - clamped.height) <= 2, `取消最大化未恢复原尺寸: ${JSON.stringify(restored)}`);
+
+  // 8) 浏览器视口变化后窗口仍应保持在视口内
+  const originalViewport = page.viewportSize();
+  const smaller = { width: Math.max(900, Math.round(originalViewport.width * 0.7)), height: Math.max(560, Math.round(originalViewport.height * 0.7)) };
+  await page.setViewportSize(smaller);
+  await sleep(200);
+  const resized = await win.boundingBox();
+  assert(resized.width <= smaller.width && resized.height <= smaller.height, `viewport 缩小后窗口越界: ${JSON.stringify(resized)}`);
+  await page.setViewportSize(originalViewport);
+  await sleep(200);
 
   assert(errors.length === 0, `页面报错: ${errors.join(' | ')}`);
   console.log('float_window_ux e2e OK');

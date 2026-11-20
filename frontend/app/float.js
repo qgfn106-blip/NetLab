@@ -1,19 +1,28 @@
 import { clamp } from "../app.utils.js";
 import { state, ui } from "./state.js";
+const FLOAT_MARGIN = 8;
+const FLOAT_TOP = 40;
+const FLOAT_GRAB_X = 160;
+const FLOAT_GRAB_Y = 40;
 function clampFloatWindow(root) {
   if (!root || root.hidden) return;
   if (root.classList.contains("maximized") || root.classList.contains("minimized")) return;
-  const margin = 8;
   const measuredWidth = root.offsetWidth;
   const measuredHeight = root.offsetHeight;
   if (!measuredWidth || !measuredHeight) return;
-  const width = Math.min(measuredWidth, Math.max(320, window.innerWidth - margin * 2));
-  const height = Math.min(measuredHeight, Math.max(240, window.innerHeight - 40 - margin));
+  const width = Math.min(measuredWidth, Math.max(1, window.innerWidth - FLOAT_MARGIN * 2));
+  const height = Math.min(measuredHeight, Math.max(1, window.innerHeight - FLOAT_TOP - FLOAT_MARGIN));
+  const keepX = Math.min(FLOAT_GRAB_X, width);
+  const keepY = Math.min(FLOAT_GRAB_Y, height);
+  const minLeft = FLOAT_MARGIN - (width - keepX);
+  const maxLeft = Math.max(minLeft, window.innerWidth - keepX - FLOAT_MARGIN);
+  const minTop = FLOAT_TOP;
+  const maxTop = Math.max(minTop, window.innerHeight - keepY - FLOAT_MARGIN);
   const positioned = root.classList.contains("moved") || !!root.style.left || !!root.style.top;
   if (!positioned && Math.abs(width - measuredWidth) < 1 && Math.abs(height - measuredHeight) < 1) return;
   const rect = root.getBoundingClientRect();
-  const left = clamp(rect.left, margin, Math.max(margin, window.innerWidth - width - margin));
-  const top = clamp(rect.top, 40, Math.max(40, window.innerHeight - height - margin));
+  const left = clamp(rect.left, minLeft, maxLeft);
+  const top = clamp(rect.top, minTop, maxTop);
   if (Math.abs(left - rect.left) < 1 && Math.abs(top - rect.top) < 1 && Math.abs(width - measuredWidth) < 1 && Math.abs(height - measuredHeight) < 1) return;
   root.classList.add("moved");
   root.style.left = `${Math.round(left)}px`;
@@ -51,11 +60,25 @@ function raiseFloatWindow(root) {
 }
 function toggleFloatMaximize(root, key) {
   if (!root) return;
-  root.classList.toggle("maximized");
-  if (!root.classList.contains("maximized")) placeFloatWindow(root, key);
+  if (!root.classList.contains("maximized")) {
+    const rect = root.getBoundingClientRect();
+    state[key] = {
+      left: rect.left,
+      top: rect.top,
+      width: root.offsetWidth,
+      height: root.offsetHeight
+    };
+    root.classList.remove("minimized");
+    root.classList.add("maximized");
+    return;
+  }
+  root.classList.remove("maximized");
+  placeFloatWindow(root, key);
 }
 function initFloatWindow(root, key, spec = {}) {
   if (!root) return;
+  if (root.dataset.floatBound === "1") return;
+  root.dataset.floatBound = "1";
   const minWidth = spec.minWidth || 420;
   const minHeight = spec.minHeight || 320;
   root.addEventListener("pointerdown", () => raiseFloatWindow(root), true);
@@ -72,11 +95,14 @@ function initFloatWindow(root, key, spec = {}) {
     head.addEventListener("pointermove", (event) => {
       if (!drag) return;
       const rect = root.getBoundingClientRect();
-      const maxTop = Math.max(40, window.innerHeight - rect.height - 8);
-      const maxLeft = Math.max(8, window.innerWidth - 140);
+      const keepX = Math.min(FLOAT_GRAB_X, rect.width);
+      const keepY = Math.min(FLOAT_GRAB_Y, rect.height);
+      const minLeft = FLOAT_MARGIN - (rect.width - keepX);
+      const maxLeft = Math.max(minLeft, window.innerWidth - keepX - FLOAT_MARGIN);
+      const maxTop = Math.max(FLOAT_TOP, window.innerHeight - keepY - FLOAT_MARGIN);
       state[key] = {
-        left: clamp(event.clientX - drag.dx, 8, maxLeft),
-        top: clamp(event.clientY - drag.dy, 40, maxTop),
+        left: clamp(event.clientX - drag.dx, minLeft, maxLeft),
+        top: clamp(event.clientY - drag.dy, FLOAT_TOP, maxTop),
         width: rect.width,
         height: rect.height
       };
@@ -93,7 +119,13 @@ function initFloatWindow(root, key, spec = {}) {
     });
   }
   root.querySelector(".floatwin-min")?.addEventListener("click", () => {
-    root.classList.toggle("minimized");
+    if (root.classList.contains("minimized")) {
+      root.classList.remove("minimized");
+      placeFloatWindow(root, key);
+    } else {
+      root.classList.remove("maximized");
+      root.classList.add("minimized");
+    }
   });
   root.querySelector(".floatwin-max")?.addEventListener("click", () => toggleFloatMaximize(root, key));
   const grip = root.querySelector(".floatwin-resize");
@@ -121,6 +153,14 @@ function initFloatWindow(root, key, spec = {}) {
     grip.addEventListener("pointerup", stopResize);
     grip.addEventListener("pointercancel", stopResize);
   }
+  const onViewportChange = () => {
+    if (root.hidden) return;
+    if (root.classList.contains("maximized") || root.classList.contains("minimized")) return;
+    placeFloatWindow(root, key);
+  };
+  window.addEventListener("resize", onViewportChange);
+  window.addEventListener("orientationchange", onViewportChange);
+  document.addEventListener("fullscreenchange", onViewportChange);
 }
 export {
   clampFloatWindow,

@@ -114,6 +114,9 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-20 | chore(reports): 补充跨域桥小信号修复影子报告 |
+| 2026-11-20 | fix(circuit): 跨域桥元件按传感器电压受控并补真实传递测试 |
+| 2026-11-20 | chore(reports): 补充断环工作点改动的影子报告 |
 | 2026-11-20 | fix(circuit): 支持跨域桥元件线性化并自动补全断环工作点 |
 | 2026-11-20 | test(frontend): 竞态断言改为结果归属判定并暴露画布结果键 |
 | 2026-11-20 | refactor(frontend): 拆分工作台与图表模块以满足 S5 行数上限 |
@@ -131,9 +134,6 @@ python -m netlab.desktop
 | 2026-11-19 | fix(ci): 修复 ground 契约、schemdraw 可选依赖与 PlotKit 必需插件安装 |
 | 2026-11-19 | feat(analysis): 电路分析工作台落地 PlotKit 渲染与多子画布 |
 | 2026-11-19 | fix(schematic): keep device labels clear of wires and pins |
-| 2026-11-19 | fix(schematic): align GB symbols, grounding and export typography |
-| 2026-11-19 | feat(schematic): 实现 GB 原理图导出 S0-S7  - 新增 IR、符号库、正交路由与标签避让 - 接入 SVG/JSON 统一导出窗口与桌面保存 - 增加工程网格、导线检查器与项目回读 - 补充结构 oracle、符号对照、E2E 与人工签收材料 |
-| 2026-11-18 | fix(desktop): export through native save dialog instead of silent blob download |
 
 <!-- END LAST 20 UPDATES -->
 

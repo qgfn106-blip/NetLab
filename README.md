@@ -114,6 +114,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-20 | refactor(frontend): 拆分工作台与图表模块以满足 S5 行数上限 |
 | 2026-11-20 | chore(frontend): 补充 pnpm-lock.yaml 锁定前端依赖版本 |
 | 2026-11-20 | fix(frontend): 工作台复核修正（请求竞态E2E/游标守卫单源/导出作用域） |
 | 2026-11-20 | fix(frontend): 多画布工作台契约修复（结果归属/命令上下文/游标单位/导出绑定） |
@@ -133,7 +134,6 @@ python -m netlab.desktop
 | 2026-11-18 | fix(desktop): export through native save dialog instead of silent blob download |
 | 2026-11-18 | fix(d5): add shadow report for trapezoidal source change |
 | 2026-11-18 | fix(review): harden auth, transactions and trapezoidal integration |
-| 2026-11-18 | fix(d5): add solver shadow report for compute changes |
 
 <!-- END LAST 20 UPDATES -->
 

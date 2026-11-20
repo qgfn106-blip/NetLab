@@ -114,6 +114,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-20 | fix(circuit): 修正桥增益与直流偏置处理并补充输出节点说明 |
 | 2026-11-20 | chore(reports): 补充跨域桥小信号修复影子报告 |
 | 2026-11-20 | fix(circuit): 跨域桥元件按传感器电压受控并补真实传递测试 |
 | 2026-11-20 | chore(reports): 补充断环工作点改动的影子报告 |
@@ -133,7 +134,6 @@ python -m netlab.desktop
 | 2026-11-20 | test(plotkit): 兼容矩阵与公开 API 断言更新到 0.3 |
 | 2026-11-19 | fix(ci): 修复 ground 契约、schemdraw 可选依赖与 PlotKit 必需插件安装 |
 | 2026-11-19 | feat(analysis): 电路分析工作台落地 PlotKit 渲染与多子画布 |
-| 2026-11-19 | fix(schematic): keep device labels clear of wires and pins |
 
 <!-- END LAST 20 UPDATES -->
 

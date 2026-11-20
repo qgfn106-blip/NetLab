@@ -43,6 +43,13 @@ SUPPORTED_KINDS = frozenset(
     }
 )
 
+#: 信号桥接元件：在描述符模型中按理想接口处理。
+#: sensor 为高阻电压测量（两脚各对地漏电），actuator 为理想电压源，actuator_i 为理想电流源。
+BRIDGE_SENSOR_KINDS = frozenset({"sensor"})
+BRIDGE_VSOURCE_KINDS = frozenset({"actuator"})
+BRIDGE_ISOURCE_KINDS = frozenset({"actuator_i"})
+BRIDGE_KINDS = BRIDGE_SENSOR_KINDS | BRIDGE_VSOURCE_KINDS | BRIDGE_ISOURCE_KINDS
+
 #: 仅用于错误提示归类的已知非线性器件。
 NONLINEAR_KINDS = frozenset(
     {
@@ -184,7 +191,9 @@ class DescriptorIndex:
 
         inductors = [element for element in elements if element.kind == "inductor"]
         voltage_sources = [
-            element for element in elements if element.kind == "vsource"
+            element
+            for element in elements
+            if element.kind == "vsource" or element.kind in BRIDGE_VSOURCE_KINDS
         ]
         vcvs = [element for element in elements if element.kind == "vcvs"]
         opamps = [
@@ -366,6 +375,8 @@ class DescriptorModel:
         nonlinear: list[CircuitElement] = []
         unsupported: list[CircuitElement] = []
         for element in elements:
+            if element.kind in BRIDGE_KINDS:
+                continue
             if getattr(element, "nonlinear", False) or element.kind in NONLINEAR_KINDS:
                 nonlinear.append(element)
             elif element.kind not in SUPPORTED_KINDS:
@@ -388,7 +399,7 @@ class DescriptorModel:
         """校验元素集合能否在工作点处线性化。"""
         unsupported: list[CircuitElement] = []
         for element in elements:
-            if element.kind in SUPPORTED_KINDS:
+            if element.kind in SUPPORTED_KINDS or element.kind in BRIDGE_KINDS:
                 continue
             if element.kind in LINEARIZABLE_NONLINEAR_KINDS:
                 continue
@@ -464,9 +475,9 @@ class DescriptorModel:
         rhs = np.zeros(self.index.size, dtype=float)
         for element in self.elements:
             value = float(waveform_value(element.params, 0.0))
-            if element.kind == "vsource":
+            if element.kind == "vsource" or element.kind in BRIDGE_VSOURCE_KINDS:
                 rhs[self.index.vsource_index[element.name]] += value
-            elif element.kind == "isource":
+            elif element.kind == "isource" or element.kind in BRIDGE_ISOURCE_KINDS:
                 ai = self.index.node_index.get(element.a)
                 bi = self.index.node_index.get(element.b)
                 if ai is not None:
@@ -530,7 +541,13 @@ class DescriptorModel:
                 if bi is not None:
                     A[row, bi] -= 1.0
                 E[row, row] -= float(element.inductance)
-            elif kind == "vsource":
+            elif kind == "sensor":
+                # 高阻电压测量：两脚各自对地 1e-12 漏电，等价于开路。
+                for node in (element.a, element.b):
+                    position = index.node_index.get(node)
+                    if position is not None:
+                        A[position, position] += 1.0e-12
+            elif kind == "vsource" or kind in BRIDGE_VSOURCE_KINDS:
                 row = index.branch_index[element.name]
                 ai = index.node_index.get(element.a)
                 bi = index.node_index.get(element.b)
@@ -570,7 +587,7 @@ class DescriptorModel:
                     A[bi, ci] -= gm
                 if bi is not None and di is not None:
                     A[bi, di] += gm
-            elif kind == "isource":
+            elif kind == "isource" or kind in BRIDGE_ISOURCE_KINDS:
                 # 独立电流源只进入 B 向量，不改变 A/E。
                 continue
         return A, E

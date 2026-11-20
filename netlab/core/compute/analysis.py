@@ -1615,6 +1615,25 @@ def frequency_response(
 
 
 
+def _resolve_operating_point(
+    sim: Any, operating_point: dict[str, float] | None
+) -> dict[str, float] | None:
+    """断环分析缺少工作点时，先求一次直流工作点。
+
+    含运放/二极管等非线性器件的电路必须在工作点处线性化，否则
+    DescriptorModel 会拒收这些元件；这里自动补一次 DC 工作点，
+    对纯线性电路没有影响。
+    """
+    if operating_point:
+        return operating_point
+    try:
+        result = sim.operating_point()
+    except Exception:
+        return None
+    values = result.get("node_voltages") if isinstance(result, dict) else None
+    return values or None
+
+
 def _loop_model(
     sim: Any, operating_point: dict[str, float] | None
 ) -> tuple[Any, DescriptorModel]:
@@ -1623,6 +1642,7 @@ def _loop_model(
     scene = getattr(sim, "scene", None)
     if scene is None or getattr(scene, "mode", None) != "circuit":
         raise AnalysisError("断环分析需要 circuit 模式场景")
+    operating_point = _resolve_operating_point(sim, operating_point)
     try:
         model = DescriptorModel.from_scene(scene, operating_point=operating_point)
     except ComputeError as exc:

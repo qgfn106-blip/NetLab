@@ -114,6 +114,14 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-20 | chore(frontend): 补充 pnpm-lock.yaml 锁定前端依赖版本 |
+| 2026-11-20 | fix(frontend): 工作台复核修正（请求竞态E2E/游标守卫单源/导出作用域） |
+| 2026-11-20 | fix(frontend): 多画布工作台契约修复（结果归属/命令上下文/游标单位/导出绑定） |
+| 2026-11-20 | fix(descriptor): QZ 奇异判定刻度不变（等化后判定，修复量级悬殊误判奇异） |
+| 2026-11-20 | fix(circuit): 直流工作点二极管假收敛修复（真实工作点残差）  - _true_residual 在 mode="dc" 时对 SEED_TRUE_POINT 元件（二极管）按真实结电压重线性化，   并还原 iteration_guess，避免以有限幅切残差当收敛证据；瞬态保持原限幅轨迹以隔离回归。 - 新增 CircuitElement.SEED_TRUE_POINT / seed_true_point 与 Diode.seed_true_point。 - 新增 KCL 回归测试：Is=1e-14,Vs=2V 收敛到 Vout≈0.6623V 且 I_D==I_R1。  Fixes: 审计 BUG1（二极管直流工作点假收敛，KCL 违反 ~1e12A） |
+| 2026-11-20 | test(analysis): 补充闭环传函边界与异常路径覆盖 |
+| 2026-11-20 | chore(analysis): 补充 D-5 求解器影响影子报告 |
+| 2026-11-20 | fix(analysis): 恢复工作台开环/闭环传递函数显示 |
 | 2026-11-20 | fix(analysis): 工作台自动求解非线性电路 DC 工作点 |
 | 2026-11-20 | fix(analysis): 工作台输入源兼容工程 v8 device 节点 |
 | 2026-11-20 | test(plotkit): 兼容矩阵与公开 API 断言更新到 0.3 |
@@ -126,14 +134,6 @@ python -m netlab.desktop
 | 2026-11-18 | fix(d5): add shadow report for trapezoidal source change |
 | 2026-11-18 | fix(review): harden auth, transactions and trapezoidal integration |
 | 2026-11-18 | fix(d5): add solver shadow report for compute changes |
-| 2026-11-18 | feat: 完成 WP-0~WP-8 优化实施与非 FEM 验收 |
-| 2026-11-17 | fix(frontend): 补提交 app.ts 的 S3 调用点改动（修复 artifact drift 未提交文件） |
-| 2026-11-17 | refactor(frontend): F-01 S3 外提参数写回四函数到 param_commit.ts（行为字节等价，app.ts 7395→7300） |
-| 2026-11-17 | test(frontend): D-B61-1 补 closeModal 直达用例（隐藏/清卡/resolve false） |
-| 2026-11-17 | refactor(frontend): F-01 S2 外提对话框到 dialogs_build.ts（零行为；app.ts 7479→7395） |
-| 2026-11-17 | test(frontend): 修正 drawChart 等价测试 activeTab mock 使真正执行 + 断言每场景>50 指令（D-B60-1） |
-| 2026-11-17 | refactor(frontend): F-01 S1b-3 外提 drawChart 到 chart_draw.ts（app.ts 7679→7479） |
-| 2026-11-17 | refactor(frontend): F-01 S1b-2 外提 drawModulePreview 到 module_preview.ts（app.ts 7770→7679） |
 
 <!-- END LAST 20 UPDATES -->
 

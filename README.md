@@ -114,6 +114,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-20 | test(frontend): 竞态断言改为结果归属判定并暴露画布结果键 |
 | 2026-11-20 | refactor(frontend): 拆分工作台与图表模块以满足 S5 行数上限 |
 | 2026-11-20 | chore(frontend): 补充 pnpm-lock.yaml 锁定前端依赖版本 |
 | 2026-11-20 | fix(frontend): 工作台复核修正（请求竞态E2E/游标守卫单源/导出作用域） |
@@ -133,7 +134,6 @@ python -m netlab.desktop
 | 2026-11-19 | feat(schematic): 实现 GB 原理图导出 S0-S7  - 新增 IR、符号库、正交路由与标签避让 - 接入 SVG/JSON 统一导出窗口与桌面保存 - 增加工程网格、导线检查器与项目回读 - 补充结构 oracle、符号对照、E2E 与人工签收材料 |
 | 2026-11-18 | fix(desktop): export through native save dialog instead of silent blob download |
 | 2026-11-18 | fix(d5): add shadow report for trapezoidal source change |
-| 2026-11-18 | fix(review): harden auth, transactions and trapezoidal integration |
 
 <!-- END LAST 20 UPDATES -->
 

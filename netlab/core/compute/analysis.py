@@ -1614,22 +1614,23 @@ def frequency_response(
     }
 
 
-
 def _resolve_operating_point(
     sim: Any, operating_point: dict[str, float] | None
 ) -> dict[str, float] | None:
     """断环分析缺少工作点时，先求一次直流工作点。
 
     含运放/二极管等非线性器件的电路必须在工作点处线性化，否则
-    DescriptorModel 会拒收这些元件；这里自动补一次 DC 工作点，
-    对纯线性电路没有影响。
+    DescriptorModel 会拒收这些元件；这里自动补一次 DC 工作点。纯线性
+    电路也会额外求解一次，但结果与器件线性化无关。
     """
     if operating_point:
         return operating_point
     try:
         result = sim.operating_point()
-    except Exception:
-        return None
+    except Exception as exc:
+        raise AnalysisError(
+            f"断环分析需要直流工作点，但工作点求解失败：{exc}"
+        ) from exc
     values = result.get("node_voltages") if isinstance(result, dict) else None
     return values or None
 

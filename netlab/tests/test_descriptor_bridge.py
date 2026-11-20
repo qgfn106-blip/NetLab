@@ -7,7 +7,9 @@ from netlab.core.model.scene import Scene
 
 
 def _bridge_scene(
-    sensor_element: str = "sensor", actuator_element: str = "actuator"
+    sensor_element: str = "sensor",
+    actuator_element: str = "actuator",
+    actuator_gain: float = 1.0,
 ) -> Scene:
     scene = Scene("circuit")
     gnd = scene.add_node(name="gnd", kind="ground")
@@ -28,7 +30,11 @@ def _bridge_scene(
         name="R2", source=out.id, target=gnd.id, kind="resistor", params={"R": 1000.0}
     )
     scene.add_edge(
-        name="R3", source=act_out.id, target=gnd.id, kind="resistor", params={"R": 1000.0}
+        name="R3",
+        source=act_out.id,
+        target=gnd.id,
+        kind="resistor",
+        params={"R": 1000.0},
     )
 
     sensor = scene.add_node(
@@ -53,12 +59,16 @@ def _bridge_scene(
         params={
             "element": actuator_element,
             "source": "sensor.voltage",
-            "gain": 1.0,
+            "gain": actuator_gain,
             "offset": 0.0,
         },
     )
     scene.add_edge(
-        name="act_out", source=actuator.id, target=act_out.id, kind="wire", source_pin="OUT"
+        name="act_out",
+        source=actuator.id,
+        target=act_out.id,
+        kind="wire",
+        source_pin="OUT",
     )
     scene.add_edge(
         name="act_gnd", source=actuator.id, target=gnd.id, kind="wire", source_pin="GND"
@@ -90,3 +100,26 @@ def test_descriptor_accepts_sensor_and_actuator() -> None:
     assert len(magnitudes) == 2
     assert all(abs(value) > 0.0 for value in magnitudes)
 
+
+def test_descriptor_bridge_voltage_actuator_transfer_matches_network() -> None:
+    scene = _bridge_scene()
+    op = scene.ensure_engine().solver.operating_point()
+    model = DescriptorModel.from_scene(scene, operating_point=op)
+    data = model.frequency_response(
+        [10.0, 1000.0], input_source="V1", probes=["act_out"]
+    )
+    magnitudes = data["probes"]["act_out"]["magnitude"]
+    # sensor 取 R1/R2 分压 0.5，actuator 单位增益理想 VCVS 应把该电压送到 act_out。
+    assert all(abs(value - 0.5) < 1.0e-6 for value in magnitudes)
+
+
+def test_descriptor_bridge_current_actuator_transfer_matches_network() -> None:
+    scene = _bridge_scene("if_voltage_to_signal", "if_signal_to_current", 1.0e-3)
+    op = scene.ensure_engine().solver.operating_point()
+    model = DescriptorModel.from_scene(scene, operating_point=op)
+    data = model.frequency_response(
+        [10.0, 1000.0], input_source="V1", probes=["act_out"]
+    )
+    magnitudes = data["probes"]["act_out"]["magnitude"]
+    # 1 mA/V 电流受控源在 1 kΩ 负载上得到 0.5 V。
+    assert all(abs(value - 0.5) < 1.0e-6 for value in magnitudes)

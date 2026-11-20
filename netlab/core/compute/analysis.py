@@ -1952,7 +1952,7 @@ def loop_analysis(
             magnitude_db=closed_mag,
             phase_deg=closed_phase,
             source={**source_payload, "kind": "loop_closed"},
-            output=f"T({extraction.element})",
+            output=f"T({extraction.output_name})",
             poles=extraction.poles.get("finite", []),
             zeros=(),
             metrics={

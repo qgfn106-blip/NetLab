@@ -239,6 +239,27 @@ def _sorted_eigenpairs(
     return values[order], vectors[:, order]
 
 
+def _equilibrated_pencil(
+    A: np.ndarray, E_matrix: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """对矩阵铅笔（A, E）做对称对角等化，使 QZ 奇异判定的阈值尺度可比。
+
+    对 D(A + sE)D 用同一正对角阵 D 缩放：det(D(A+sE)D) = det(D)^2 * det(A+sE)，
+    而 det(D) != 0，故 det(A+sE) 的零点不变（正则性不变）；但元素量级被拉平，
+    避免 A 中量级悬殊的对角项（如 1 与 4.4e13）让全局最大尺度生成的阈值把
+    真实有限项误判为零。
+    """
+    magnitude = np.maximum(np.abs(A), np.abs(E_matrix))
+    row_scale = magnitude.max(axis=1)
+    column_scale = magnitude.max(axis=0)
+    scale = np.sqrt(np.maximum(row_scale, column_scale))
+    scale[scale == 0.0] = 1.0
+    inv = 1.0 / scale
+    scaled_a = (A * inv[:, None]) * inv[None, :]
+    scaled_e = (E_matrix * inv[:, None]) * inv[None, :]
+    return scaled_a, scaled_e
+
+
 def is_regular_pencil(source: Any, E: Any | None = None) -> bool:
     """检查矩阵铅笔 ``(A, E)`` 是否正则。
 
@@ -259,14 +280,16 @@ def is_regular_pencil(source: Any, E: Any | None = None) -> bool:
         ComputeError: QZ 分解失败。
     """
     A, E_matrix = _coerce_pencil(source, E)
+    # 先对等化再做 QZ，使全局残差阈值对整体缩放、对量级悬殊的各元素都尺度不变。
+    scaled_a, scaled_e = _equilibrated_pencil(A, E_matrix)
     try:
-        AA, BB, _Q, _Z = linalg.qz(A, E_matrix, output="complex")
+        AA, BB, _Q, _Z = linalg.qz(scaled_a, scaled_e, output="complex")
     except linalg.LinAlgError as exc:  # pragma: no cover - LAPACK 失败极难触发
         raise ComputeError(f"矩阵铅笔正则性检查失败：{exc}") from exc
 
     diagonal_a = np.abs(np.diag(AA))
     diagonal_b = np.abs(np.diag(BB))
-    scale = max(_matrix_norm(A), _matrix_norm(E_matrix))
+    scale = max(_matrix_norm(scaled_a), _matrix_norm(scaled_e))
     tolerance = _REGULARITY_FACTOR * A.shape[0] * np.finfo(float).eps * scale
     singular_pairs = (diagonal_a <= tolerance) & (diagonal_b <= tolerance)
     return not bool(np.any(singular_pairs))

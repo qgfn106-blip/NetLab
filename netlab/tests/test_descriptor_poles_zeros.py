@@ -224,6 +224,27 @@ def test_all_zero_pencil_is_singular() -> None:
         analyze_poles(np.zeros((2, 2)), np.zeros((2, 2)))
 
 
+def test_regular_pencil_is_scale_invariant_across_magnitude_gap() -> None:
+    """审计 BUG2 回归：A 对角项量级悬殊（1 与 4.42e13）但 det(A+sE) 不恒为零，
+    正则性检查不得因全局最大尺度生成的阈值把真实有限项误判为奇异。
+    """
+    A = np.diag([1.0, 4.42e13])
+    E = np.zeros((2, 2))
+    # E=0 时 det(A+sE)=det(A)=4.42e13 != 0，铅笔正则。
+    assert is_regular_pencil(A, E) is True
+    # 整体缩放任然保持正则（尺度不变性）。
+    assert is_regular_pencil(A * 1.0e-30, E) is True
+    assert is_regular_pencil(A * 1.0e30, E) is True
+
+
+def test_singular_pencil_detected_under_extreme_scaling() -> None:
+    """奇异铅笔在整体缩放后仍须被判为奇异（等化不掩盖真奇异）。"""
+    A = np.diag([1.0, 0.0])
+    E = np.zeros((2, 2))
+    assert is_regular_pencil(A, E) is False
+    assert is_regular_pencil(A * 1.0e13, E) is False
+
+
 # ---------------------------------------------------------------------------
 # M4.3 传输零点
 # ---------------------------------------------------------------------------

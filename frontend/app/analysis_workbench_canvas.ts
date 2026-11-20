@@ -154,6 +154,9 @@ export class AnalysisCanvasWorkspace {
     entry.chart.setEnvelope(envelope);
     entry.rec.result_key = resultKey;
     entry.rec.result_keys = resultKeys && resultKeys.length ? resultKeys : undefined;
+    // 结果归属对外可见：E2E 可直接断言慢响应没有写到别的画布。
+    if (resultKey) entry.tile.dataset.resultKey = resultKey;
+    else delete entry.tile.dataset.resultKey;
     if (savedView) {
       entry.chart.applyViewState(savedView);
       entry.viewState = undefined;
@@ -166,6 +169,7 @@ export class AnalysisCanvasWorkspace {
       entry.chart.setEnvelope(null);
       entry.rec.result_key = undefined;
       entry.rec.result_keys = undefined;
+      delete entry.tile.dataset.resultKey;
       entry.viewState = undefined;
     }
   }

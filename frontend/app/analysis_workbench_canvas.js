@@ -105,6 +105,8 @@ class AnalysisCanvasWorkspace {
     entry.chart.setEnvelope(envelope);
     entry.rec.result_key = resultKey;
     entry.rec.result_keys = resultKeys && resultKeys.length ? resultKeys : void 0;
+    if (resultKey) entry.tile.dataset.resultKey = resultKey;
+    else delete entry.tile.dataset.resultKey;
     if (savedView) {
       entry.chart.applyViewState(savedView);
       entry.viewState = void 0;
@@ -116,6 +118,7 @@ class AnalysisCanvasWorkspace {
       entry.chart.setEnvelope(null);
       entry.rec.result_key = void 0;
       entry.rec.result_keys = void 0;
+      delete entry.tile.dataset.resultKey;
       entry.viewState = void 0;
     }
   }

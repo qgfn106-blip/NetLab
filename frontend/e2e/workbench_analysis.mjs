@@ -184,7 +184,8 @@ try {
   await page.waitForTimeout(200);
 
   // 7d) 请求竞态：Bode 慢请求未返回时切到 Nyquist，旧响应不得写入新活动画布。
-  const beforeRace = await nyquistCanvas.screenshot();
+  const nyquistKeyBefore = await nyquistTile.getAttribute('data-result-key');
+  const bodeKeyBefore = await bodeTile.getAttribute('data-result-key');
   let delayedRuns = 0;
   await page.route('**/api/analysis/workbench/run', async (route) => {
     delayedRuns += 1;
@@ -200,8 +201,9 @@ try {
   await page.waitForTimeout(400);
   assert(delayedRuns === 1, '请求竞态用例未拦截到 Bode 慢请求: ' + delayedRuns);
   assert(await page.locator('.awb-nav-item[data-kind="nyquist"]').evaluate((el) => el.classList.contains('active')), '慢响应返回后活动分析漂移');
-  const afterRace = await nyquistCanvas.screenshot();
-  assert(beforeRace.equals(afterRace), 'Bode 慢响应串写到了 Nyquist 画布');
+  const nyquistKeyAfter = await nyquistTile.getAttribute('data-result-key');
+  // 设计：类型已切换时旧响应被丢弃，绝不写入新画布；这里只断言 Nyquist 结果未被污染。
+  assert(nyquistKeyAfter === nyquistKeyBefore, 'Bode 慢响应串写到了 Nyquist 画布: ' + nyquistKeyBefore + ' -> ' + nyquistKeyAfter);
   await page.unroute('**/api/analysis/workbench/run');
 
   // 8) 快照两个状态并进入多状态对比。

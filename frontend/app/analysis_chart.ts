@@ -26,6 +26,8 @@ import {
   zoomRange,
 } from './analysis_chart_detail.js';
 import { loadPlot2D, type Plot2DApi, type PlotAxis, type PlotRenderResult } from './analysis_chart_plot.js';
+import { chartXAxisKey, chartXUnit, cursorAxisCompatible } from './analysis_chart_utils.js';
+export { isAnalysisEnvelope } from './analysis_chart_utils.js';
 
 import type {
   AnalysisAxis,
@@ -70,17 +72,6 @@ function logSafeRange(lo: number, hi: number): [number, number] {
   const la = Math.log10(lo) - 0.02;
   const lb = Math.log10(hi) + 0.02;
   return [Math.pow(10, la), Math.pow(10, lb)];
-}
-
-
-export function isAnalysisEnvelope(value: unknown): value is AnalysisEnvelope {
-  if (!value || typeof value !== 'object') return false;
-  const rec = value as Record<string, unknown>;
-  return rec.schema === 'netlab-analysis-result/1'
-    && typeof rec.kind === 'string'
-    && Array.isArray(rec.axes)
-    && Array.isArray(rec.curves)
-    && Array.isArray(rec.markers);
 }
 
 export class AnalysisChart {
@@ -221,23 +212,9 @@ export class AnalysisChart {
     this.renderDetail();
   }
 
-  /** 当前信封主 x 轴的物理单位（无则空串）。游标跨画布同步时用于校验轴兼容性。 */
-  xUnit(): string {
-    return this.envelope?.axes?.[0]?.unit || '';
-  }
-
-  /** 主 x 轴的稳定身份（单位|轴 id）；空单位轴也各有身份，避免 Hz/秒/无量纲互串。 */
-  xAxisKey(): string {
-    const axis = this.envelope?.axes?.[0];
-    return axis ? (axis.unit || '') + '|' + axis.id : '';
-  }
 
   setCursorFrequency(frequency: number | null, source = 'external', unit = '', axisKey = ''): void {
-    // 只在同轴（单位与轴 id 均一致）之间同步游标；频率、时间秒、Nyquist 实部不得互串。
-    if (frequency !== null) {
-      const targetKey = this.xAxisKey();
-      if (!axisKey || !targetKey || axisKey !== targetKey) return;
-    }
+    if (frequency !== null && !cursorAxisCompatible(this.envelope, axisKey)) return;
     this.cursorFrequency = frequency;
     this.cursorSource = source;
     this.drawOverlay();
@@ -270,7 +247,7 @@ export class AnalysisChart {
       this.cursorSource = '';
       this.drawOverlay();
       // 离开图表必须清除自身游标并广播，否则链接游标/状态栏会残留上一张图的值。
-      this.options.events?.onCursor?.(null, 'chart', this.xUnit(), this.xAxisKey());
+      this.options.events?.onCursor?.(null, 'chart', chartXUnit(this.envelope), chartXAxisKey(this.envelope));
     });
     this.canvasWrap.addEventListener('dblclick', () => this.resetView());
   }
@@ -654,7 +631,7 @@ export class AnalysisChart {
       this.cursorFrequency = bestMarker.x;
       this.drawOverlay();
       this.updateReadout(bestMarker);
-      this.options.events?.onCursor?.(bestMarker.x, 'chart', this.xUnit(), this.xAxisKey());
+      this.options.events?.onCursor?.(bestMarker.x, 'chart', chartXUnit(this.envelope), chartXAxisKey(this.envelope));
       return;
     }
     const curve = this.nearestCurve(envelope, axis, px);
@@ -663,7 +640,7 @@ export class AnalysisChart {
       this.hoverPoint = null;
       this.cursorFrequency = null;
       this.drawOverlay();
-      this.options.events?.onCursor?.(null, 'chart', this.xUnit(), this.xAxisKey());
+      this.options.events?.onCursor?.(null, 'chart', chartXUnit(this.envelope), chartXAxisKey(this.envelope));
       return;
     }
     const index = curve.index;
@@ -676,7 +653,7 @@ export class AnalysisChart {
     this.positionTooltip(px, py);
     this.drawOverlay();
     this.updateReadout(null, curve.curve, index);
-    this.options.events?.onCursor?.(x, 'chart', this.xUnit(), this.xAxisKey());
+    this.options.events?.onCursor?.(x, 'chart', chartXUnit(this.envelope), chartXAxisKey(this.envelope));
   }
 
   private nearestCurve(envelope: AnalysisEnvelope, axis: PlotAxis, px: number): { curve: AnalysisCurve; index: number } | null {

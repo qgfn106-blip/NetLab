@@ -15,6 +15,8 @@ import {
   zoomRange
 } from "./analysis_chart_detail.js";
 import { loadPlot2D } from "./analysis_chart_plot.js";
+import { chartXAxisKey, chartXUnit, cursorAxisCompatible } from "./analysis_chart_utils.js";
+import { isAnalysisEnvelope } from "./analysis_chart_utils.js";
 function paddedRange(lo, hi, fraction = 0.05) {
   const [a, b] = clampRange(lo, hi);
   const span = b - a;
@@ -25,11 +27,6 @@ function logSafeRange(lo, hi) {
   const la = Math.log10(lo) - 0.02;
   const lb = Math.log10(hi) + 0.02;
   return [Math.pow(10, la), Math.pow(10, lb)];
-}
-function isAnalysisEnvelope(value) {
-  if (!value || typeof value !== "object") return false;
-  const rec = value;
-  return rec.schema === "netlab-analysis-result/1" && typeof rec.kind === "string" && Array.isArray(rec.axes) && Array.isArray(rec.curves) && Array.isArray(rec.markers);
 }
 class AnalysisChart {
   constructor(host, options = {}) {
@@ -141,20 +138,8 @@ class AnalysisChart {
   refreshDetail() {
     this.renderDetail();
   }
-  /** 当前信封主 x 轴的物理单位（无则空串）。游标跨画布同步时用于校验轴兼容性。 */
-  xUnit() {
-    return this.envelope?.axes?.[0]?.unit || "";
-  }
-  /** 主 x 轴的稳定身份（单位|轴 id）；空单位轴也各有身份，避免 Hz/秒/无量纲互串。 */
-  xAxisKey() {
-    const axis = this.envelope?.axes?.[0];
-    return axis ? (axis.unit || "") + "|" + axis.id : "";
-  }
   setCursorFrequency(frequency, source = "external", unit = "", axisKey = "") {
-    if (frequency !== null) {
-      const targetKey = this.xAxisKey();
-      if (!axisKey || !targetKey || axisKey !== targetKey) return;
-    }
+    if (frequency !== null && !cursorAxisCompatible(this.envelope, axisKey)) return;
     this.cursorFrequency = frequency;
     this.cursorSource = source;
     this.drawOverlay();
@@ -183,7 +168,7 @@ class AnalysisChart {
       this.cursorFrequency = null;
       this.cursorSource = "";
       this.drawOverlay();
-      this.options.events?.onCursor?.(null, "chart", this.xUnit(), this.xAxisKey());
+      this.options.events?.onCursor?.(null, "chart", chartXUnit(this.envelope), chartXAxisKey(this.envelope));
     });
     this.canvasWrap.addEventListener("dblclick", () => this.resetView());
   }
@@ -551,7 +536,7 @@ class AnalysisChart {
       this.cursorFrequency = bestMarker.x;
       this.drawOverlay();
       this.updateReadout(bestMarker);
-      this.options.events?.onCursor?.(bestMarker.x, "chart", this.xUnit(), this.xAxisKey());
+      this.options.events?.onCursor?.(bestMarker.x, "chart", chartXUnit(this.envelope), chartXAxisKey(this.envelope));
       return;
     }
     const curve = this.nearestCurve(envelope, axis, px);
@@ -560,7 +545,7 @@ class AnalysisChart {
       this.hoverPoint = null;
       this.cursorFrequency = null;
       this.drawOverlay();
-      this.options.events?.onCursor?.(null, "chart", this.xUnit(), this.xAxisKey());
+      this.options.events?.onCursor?.(null, "chart", chartXUnit(this.envelope), chartXAxisKey(this.envelope));
       return;
     }
     const index = curve.index;
@@ -573,7 +558,7 @@ class AnalysisChart {
     this.positionTooltip(px, py);
     this.drawOverlay();
     this.updateReadout(null, curve.curve, index);
-    this.options.events?.onCursor?.(x, "chart", this.xUnit(), this.xAxisKey());
+    this.options.events?.onCursor?.(x, "chart", chartXUnit(this.envelope), chartXAxisKey(this.envelope));
   }
   nearestCurve(envelope, axis, px) {
     let best = null;

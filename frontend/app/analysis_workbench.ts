@@ -30,43 +30,25 @@ import {
   KIND_HINTS, KIND_LABELS, STATE_COLORS, describeRunStatus, electricalCircuitNodes, escapeHtml,
   independentCircuitSources, loopElementOptions, num, optionHtml, shortFingerprint, type AnalysisKind,
 } from './analysis_workbench_meta.js';
+import { WorkbenchActions } from './analysis_workbench_actions.js';
 
-const LAYOUT_OPTIONS: Array<[LayoutMode, string]> = [['grid', '网格'], ['tile', '平铺'], ['split', '分割'], ['max', '最大化']];
 
-export class AnalysisWorkbench {
-  private readonly host: HTMLElement;
+export class AnalysisWorkbench extends WorkbenchActions {
   private readonly options: { onKindChange?: (kind: AnalysisKind) => void };
-  private workspace: AnalysisCanvasWorkspace | null = null;
   private initialUi: WorkbenchUiRec;
   private restoredUi: boolean;
   private mounting = false;
   private sizes = { sidebar: 280, detail: 320 };
   private detailHost!: HTMLElement;
-  private navHost!: HTMLElement;
   private contextHost!: HTMLElement;
-  private toolbarHost!: HTMLElement;
-  private transferHost!: HTMLElement;
-  private statusHost!: HTMLElement;
-  private session: WorkbenchSessionRec | null = null;
-  private sessionId = '';
   private activeKind: AnalysisKind = 'bode';
   /** 仅用户显式切换分析类型时才更新；自动打开/工程载入不得覆盖工程保存的当前分析。 */
   private persistedKind: AnalysisKind = 'bode';
-  private params = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: 1 };
-  private frequencyPath = 'descriptor_linearized';
   private circuit: CircuitPayload | null = null;
-  private loopCandidates: Array<Record<string, unknown>> = [];
-  private busy = false;
-  private compareMode = false;
-  private compareSelection = new Set<string>();
-  private layout: LayoutMode = 'grid';
   private mounted = false;
-  private lastRuns: Record<string, RunResponse> = {};
-  private exportFormat = 'png';
-  private exportScope: 'subcanvas' | 'canvas' = 'subcanvas';
-  private lastCursor: { frequency: number; unit: string; canvasId: string } | null = null;
 
   constructor(host: HTMLElement, options: { onKindChange?: (kind: AnalysisKind) => void } = {}) {
+    super();
     this.host = host;
     this.options = options;
     const saved = readWorkbenchUi((state.ui as unknown as Record<string, unknown>)['analysis_workbench']);
@@ -193,11 +175,11 @@ export class AnalysisWorkbench {
   }
 
   /** 当前生效的分析类型：以活动画布为准，无活动画布时回落到上次导航类型。 */
-  private currentKind(): AnalysisKind {
+  protected currentKind(): AnalysisKind {
     return this.workspace?.activeKind || this.activeKind;
   }
 
-  private selectedCanvas(): WorkbenchCanvasRec | null {
+  protected selectedCanvas(): WorkbenchCanvasRec | null {
     return this.workspace?.activeCanvas || null;
   }
 
@@ -375,145 +357,12 @@ export class AnalysisWorkbench {
     frequencyPath?.addEventListener('change', () => { this.frequencyPath = frequencyPath.value === 'fft_trajectory' ? 'fft_trajectory' : 'descriptor_linearized'; });
   }
 
-  private renderToolbar(): void {
-    const active = this.activeState();
-    const kind = this.currentKind();
-    const selected = this.selectedCanvas();
-    const hasCanvas = Boolean(selected);
-    const cache = this.runForCanvas(this.workspace?.activeCanvas?.canvas_id)?.cache;
-    const stale = cache && cache['stale'] === true;
-    this.toolbarHost.innerHTML = [
-      '<div class="awb-toolbar-title"><b>' + (hasCanvas ? KIND_LABELS[kind] : '未选择画布') + '</b><span>' + escapeHtml(hasCanvas ? (selected?.title || active?.label || '—') : '请选择或新建画布') + '</span></div>',
-      '<div class="awb-toolbar-meta">' + this.cacheBadge() + '</div>',
-      '<div class="awb-toolbar-actions">',
-      this.compareMode ? '<button type="button" class="btn tiny" data-awb="compare-run">对比选中状态</button>' : '',
-      '  <select class="awb-select tiny" data-awb="layout" title="画布布局">' +
-        LAYOUT_OPTIONS.map(([mode, label]) => optionHtml(mode, label, this.layout === mode)).join('') +
-        '</select>',
-      '  <select class="awb-select tiny" data-awb="export-format" title="导出格式">' +
-        ['png', 'svg', 'pdf', 'spec', 'csv', 'json', 'zip'].map((fmt) => optionHtml(fmt, fmt.toUpperCase(), fmt === this.exportFormat)).join('') +
-        '</select>',
-      '  <select class="awb-select tiny" data-awb="export-scope" title="导出范围">' +
-        optionHtml('subcanvas', '当前画布', this.exportScope === 'subcanvas') +
-        optionHtml('canvas', '全部状态', this.exportScope === 'canvas') +
-        '</select>',
-      '  <button type="button" class="btn tiny" data-awb="export"' + (hasCanvas ? '' : ' disabled') + '>导出</button>',
-      '  <button type="button" class="btn tiny primary" data-awb="run"' + (hasCanvas ? '' : ' disabled') + '>运行' + (stale ? '（结果已过期）' : '') + '</button>',
-      '</div>',
-    ].join('');
-    this.toolbarHost.querySelector('[data-awb="run"]')?.addEventListener('click', () => { void this.run(); });
-    (this.toolbarHost.querySelector('[data-awb="layout"]') as HTMLSelectElement | null)?.addEventListener('change', (event) => {
-      this.layout = ((event.target as HTMLSelectElement).value || 'grid') as LayoutMode;
-      this.applyLayout();
-      this.persist();
-    });
-    this.toolbarHost.querySelector('[data-awb="compare-run"]')?.addEventListener('click', () => { void this.runCompare(); });
-    (this.toolbarHost.querySelector('[data-awb="export-format"]') as HTMLSelectElement | null)?.addEventListener('change', (event) => {
-      this.exportFormat = String((event.target as HTMLSelectElement).value || 'png');
-    });
-    (this.toolbarHost.querySelector('[data-awb="export-scope"]') as HTMLSelectElement | null)?.addEventListener('change', (event) => {
-      this.exportScope = (event.target as HTMLSelectElement).value === 'canvas' ? 'canvas' : 'subcanvas';
-    });
-    this.toolbarHost.querySelector('[data-awb="export"]')?.addEventListener('click', () => { void this.exportResult(); });
-  }
 
-  private async exportResult(): Promise<void> {
-    if (!this.sessionId) {
-      toast('分析会话尚未就绪，无法导出', 'error', 4000);
-      return;
-    }
-    const active = this.activeState();
-    if (!active) {
-      toast('请先快照并选择一个分析状态', 'error', 4000);
-      return;
-    }
-    const kind = this.currentKind();
-    const canvas = this.selectedCanvas();
-    if (this.exportScope === 'subcanvas' && !canvas) {
-      toast('请选择一个画布后再导出', 'error', 4000);
-      return;
-    }
-    if (!this.runForCanvas(canvas?.canvas_id) && !this.session?.results?.length) {
-      toast('请先运行分析再导出', 'error', 4000);
-      return;
-    }
-    const allIds = this.session?.states?.map((item) => item.state_id) || [active.state_id];
-    const compared = this.compareMode && this.compareSelection.size >= 2 ? [...this.compareSelection] : allIds;
-    const stateIds = this.exportScope === 'canvas' ? compared : [active.state_id];
-    // 仅“当前画布”导出绑定单画布结果 key；多状态导出不应被单个画布结果过度过滤。
-    const resultIds = this.exportScope === 'subcanvas'
-      ? (canvas?.result_keys?.length ? canvas.result_keys : canvas?.result_key ? [canvas.result_key] : undefined)
-      : undefined;
-    try {
-      this.toolbarHost.classList.add('busy');
-      const response = await workbenchExportRequest({
-        session_id: this.sessionId,
-        scope: this.exportScope,
-        canvas_id: this.exportScope === 'subcanvas' ? (canvas?.canvas_id || kind) : undefined,
-        state_ids: stateIds,
-        kind: kind === 'metrics' ? undefined : kind,
-        format: this.exportFormat,
-        ...(resultIds ? { result_ids: resultIds } : {}),
-        source_path: undefined,
-      });
-      const disposition = response.headers.get('Content-Disposition') || '';
-      const matched = /filename="?([^";]+)"?/.exec(disposition);
-      const fallback = `netlab-analysis.${this.exportFormat === 'spec' ? 'plotkit.json' : this.exportFormat}`;
-      const filename = matched ? matched[1] : fallback;
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 2000);
-      toast('已导出 ' + filename, 'success', 3000);
-    } catch (error) {
-      toast('导出失败：' + (error as Error).message, 'error', 5000);
-    } finally {
-      this.toolbarHost.classList.remove('busy');
-    }
-  }
 
-  private runForCanvas(canvasId?: string | null): RunResponse | null {
-    if (!canvasId) return null;
-    return this.lastRuns[canvasId] || null;
-  }
 
-  private cacheBadge(): string {
-    if (!this.workspace?.activeCanvas) return '<span class="awb-badge">未选择画布</span>';
-    const run = this.runForCanvas(this.workspace.activeCanvas.canvas_id);
-    const cache = run?.cache;
-    if (!cache) return '<span class="awb-badge">尚未运行</span>';
-    if (cache['stale'] === true) return '<span class="awb-badge stale">结果已过期</span>';
-    return '<span class="awb-badge">' + (cache['cached'] === true ? '缓存命中' : '已计算') + ' · ' + shortFingerprint(run?.fingerprint) + '</span>';
-  }
 
-  private renderStatus(): void {
-    if (!this.workspace?.activeCanvas) {
-      if (this.transferHost) this.transferHost.innerHTML = '';
-      this.statusHost.textContent = '未选择画布';
-      return;
-    }
-    const active = this.activeState();
-    const run = this.runForCanvas(this.workspace.activeCanvas.canvas_id);
-    const summary = describeRunStatus(run?.envelope);
-    if (this.transferHost) this.transferHost.innerHTML = transferSummaryHtml(run?.raw);
-    const lines = [
-      '状态：' + (active?.label || '—'),
-      '指纹：' + shortFingerprint(active?.fingerprint),
-      '来源：' + summary.source,
-      '稳定：' + summary.stability,
-    ];
-    if (this.lastCursor) {
-      lines.push('光标：' + this.lastCursor.frequency.toPrecision(7) + (this.lastCursor.unit ? ' ' + this.lastCursor.unit : ''));
-    }
-    this.statusHost.textContent = lines.join(' · ');
-  }
 
-  private activeState(): WorkbenchStateRec | undefined {
+  protected activeState(): WorkbenchStateRec | undefined {
     const session = this.session;
     if (!session) return undefined;
     const activeId = session.active_state_id || session.selected_state_id;
@@ -668,7 +517,7 @@ export class AnalysisWorkbench {
     };
   }
 
-  private async loadLoopCandidatesIfNeeded(): Promise<void> {
+  protected async loadLoopCandidatesIfNeeded(): Promise<void> {
     if (!['loop', 'loop_closed', 'loop_step', 'nyquist'].includes(this.activeKind)) return;
     try {
       const response = await analysisLoopsRequest({}) as { candidates?: Array<Record<string, unknown>>; items?: Array<Record<string, unknown>> };
@@ -679,7 +528,7 @@ export class AnalysisWorkbench {
     }
   }
 
-  private async run(targetKind?: AnalysisKind): Promise<void> {
+  protected async run(targetKind?: AnalysisKind): Promise<void> {
     if (this.busy) return;
     const kind = targetKind || this.currentKind();
     const active = this.activeState();
@@ -729,45 +578,8 @@ export class AnalysisWorkbench {
     }
   }
 
-  private async runParams(kind: AnalysisKind = this.currentKind()): Promise<Record<string, unknown> | null> {
-    const input = (this.navHost.querySelector('[data-awb="input"]') as HTMLSelectElement | null)?.value || '';
-    const output = (this.navHost.querySelector('[data-awb="output"]') as HTMLSelectElement | null)?.value || '';
-    if (!input || !output) {
-      toast('请选择输入源与输出节点', 'error', 4000);
-      return null;
-    }
-    const params: Record<string, unknown> = {
-      input_source: input,
-      output,
-      f_start: this.params.f_start,
-      f_stop: this.params.f_stop,
-      points: Math.round(this.params.points),
-      step_dt: this.params.step_dt,
-      step_duration: this.params.step_duration,
-    };
-    if (kind === 'bode' || kind === 'poles') params.frequency_path = this.frequencyPath;
-    const loopKind = kind === 'loop' || kind === 'loop_closed' || kind === 'loop_step';
-    if (loopKind || kind === 'nyquist') {
-      const select = this.navHost.querySelector('[data-awb="element"]') as HTMLSelectElement | null;
-      let element = select?.value || '';
-      if (element === '__virtual__' && !loopKind) element = '';
-      if (!element && this.loopCandidates.length) element = String(this.loopCandidates[0].element || '');
-      if (!element && !loopKind) {
-        await this.loadLoopCandidatesIfNeeded();
-        element = String(this.loopCandidates[0]?.element || '');
-      }
-      if (!element && loopKind) element = '__virtual__';
-      if (!element) {
-        toast('Nyquist 分析需要选择一个受控源作为断环点（VCVS/VCCS）', 'error', 5000);
-        return null;
-      }
-      params.element = element;
-      params.feedback_sign = this.params.feedback_sign;
-    }
-    return params;
-  }
 
-  private async runCompare(): Promise<void> {
+  protected async runCompare(): Promise<void> {
     const ids = Array.from(this.compareSelection);
     if (ids.length < 2) {
       toast('对比至少选择两个状态', 'warn', 4000);
@@ -872,12 +684,12 @@ export class AnalysisWorkbench {
     this.host.style.setProperty('--awb-detail-width', this.sizes.detail + 'px');
   }
 
-  private applyLayout(): void {
+  protected applyLayout(): void {
     this.host.dataset.layout = this.layout;
     this.workspace?.setLayout(this.layout, false);
   }
 
-  private persist(): void {
+  protected persist(): void {
     try {
       const uiState = state.ui as unknown as Record<string, unknown>;
       const canvases = this.workspace?.persist() || [];

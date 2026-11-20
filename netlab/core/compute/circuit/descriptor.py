@@ -11,8 +11,8 @@
 
 支持元件：电阻、电容、电感、独立电压源、独立电流源、VCVS、VCCS 与固定状态
 开关。跨域桥元件 sensor 按高阻电压测量处理，actuator/actuator_i 按受控于
-``source`` 所指传感器电压的理想电压源/电流源处理。二极管（含齐纳/LED）、BJT、
-MOSFET、运放/比较器可在给定直流工作点通过
+``source`` 所指传感器电压的理想受控电压源/电流源（VCVS/VCCS）处理。二极管
+（含齐纳/LED）、BJT、MOSFET、运放/比较器可在给定直流工作点通过
 ``operating_point``/``linearize`` 入口按各自解析小信号模型线性化；未给出工作
 点时仍显式抛出 :class:`ComputeError`，不做静默线性化降级。
 """
@@ -498,8 +498,7 @@ class DescriptorModel:
                 control = self._bridge_control_nodes(element)
                 ai = self.index.node_index.get(element.a)
                 bi = self.index.node_index.get(element.b)
-                fallback = float(element.params.get("offset", 0.0) or 0.0)
-                offset = value if control is None else fallback
+                offset = 0.0 if control is not None else value
                 if ai is not None:
                     rhs[ai] -= offset
                 if bi is not None:
@@ -543,6 +542,11 @@ class DescriptorModel:
         if node_id is not None:
             return node_id, None
         return None
+
+    def _bridge_gain(self, element: CircuitElement) -> float:
+        """读取桥元件增益；缺省为 1.0，显式 0.0 不做真值替换。"""
+        value = element.params.get("gain")
+        return 1.0 if value is None else float(value)
 
     def _assemble_matrices(self) -> tuple[np.ndarray, np.ndarray]:
         """装配不随频率变化的 A、E 矩阵。"""
@@ -600,7 +604,7 @@ class DescriptorModel:
                 if kind in BRIDGE_VSOURCE_KINDS:
                     control = self._bridge_control_nodes(element)
                     if control is not None:
-                        gain = float(element.params.get("gain", 1.0) or 1.0)
+                        gain = self._bridge_gain(element)
                         ci = index.node_index.get(control[0])
                         di = index.node_index.get(control[1])
                         if ci is not None:
@@ -642,7 +646,7 @@ class DescriptorModel:
                 if kind in BRIDGE_ISOURCE_KINDS:
                     control = self._bridge_control_nodes(element)
                     if control is not None:
-                        gm = float(element.params.get("gain", 1.0) or 1.0)
+                        gm = self._bridge_gain(element)
                         ai = index.node_index.get(element.a)
                         bi = index.node_index.get(element.b)
                         ci = index.node_index.get(control[0])

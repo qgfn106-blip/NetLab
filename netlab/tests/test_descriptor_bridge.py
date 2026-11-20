@@ -123,3 +123,13 @@ def test_descriptor_bridge_current_actuator_transfer_matches_network() -> None:
     magnitudes = data["probes"]["act_out"]["magnitude"]
     # 1 mA/V 电流受控源在 1 kΩ 负载上得到 0.5 V。
     assert all(abs(value - 0.5) < 1.0e-6 for value in magnitudes)
+
+
+def test_descriptor_bridge_zero_gain_keeps_actuator_disabled() -> None:
+    scene = _bridge_scene("sensor", "actuator", 0.0)
+    op = scene.ensure_engine().solver.operating_point()
+    model = DescriptorModel.from_scene(scene, operating_point=op)
+    data = model.frequency_response(
+        [10.0, 1000.0], input_source="V1", probes=["act_out"]
+    )
+    assert all(abs(value) < 1.0e-12 for value in data["probes"]["act_out"]["magnitude"])

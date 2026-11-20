@@ -1627,7 +1627,7 @@ def _resolve_operating_point(
         return operating_point
     try:
         result = sim.operating_point()
-    except Exception as exc:
+    except (ComputeError, ValidationError, ValueError) as exc:
         raise AnalysisError(
             f"断环分析需要直流工作点，但工作点求解失败：{exc}"
         ) from exc

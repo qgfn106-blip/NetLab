@@ -92,6 +92,12 @@ try {
   const readout = await page.locator('.analysis-chart-readout').innerText();
   assert(/dB|°|Hz/.test(readout), '悬停读数缺少频率/幅值/相位: ' + readout);
 
+  // 3b) 离开图表必须清除游标，状态栏不得残留上一张图的值。
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(200);
+  const afterLeave = await page.locator('.awb-status').innerText();
+  assert(!afterLeave.includes('光标'), '离开图表后状态栏仍残留光标: ' + afterLeave);
+
   // 4) 滚轮缩放与复位按钮可用（不抛错）。
   await page.mouse.wheel(0, -320);
   await sleep(300);
@@ -149,6 +155,33 @@ try {
   await page.waitForFunction(() => document.querySelector('[data-awb="chart"] .awb-canvas-grid')?.dataset.layout === 'split', null, { timeout: 4000 });
   assert(await page.locator('.awb-canvas-tile').count() >= 2, '布局切换后子画布丢失');
 
+  // 7b) 关闭当前活动画布后，工具栏/命令上下文跟随新的活动画布，不残留旧选择。
+  const activeTile = page.locator('.awb-canvas-tile.active');
+  assert(await activeTile.count() === 1, '活动画布标记不唯一');
+  await activeTile.locator('.awb-canvas-head button').last().click();
+  await page.waitForTimeout(300);
+  const toolbarTitle = await page.locator('.awb-toolbar-title b').innerText();
+  assert(toolbarTitle.length > 0, '关闭活动画布后工具栏标题为空');
+  assert((await page.locator('.awb-canvas-tile.active').count()) === 1, '关闭活动画布后未选中剩余画布');
+  // 后续步骤依赖 Nyquist 为当前分析，关闭实验完成后切回，避免影响原有断言。
+  await page.locator('.awb-nav-item[data-kind="nyquist"]').click();
+  await page.waitForFunction(() => document.querySelector('.awb-nav-item[data-kind="nyquist"]')?.classList.contains('active'), null, { timeout: 4000 });
+
+  // 7c) Bode 悬停不得把 Hz 游标写入 Nyquist（实部为空单位轴），跨轴不得互串。
+  const bodeTile = page.locator('.awb-canvas-tile').filter({ has: page.locator('.awb-canvas-title', { hasText: /^Bode$/ }) }).first();
+  const nyquistTile = page.locator('.awb-canvas-tile').filter({ has: page.locator('.awb-canvas-title', { hasText: /^Nyquist$/ }) }).first();
+  const bodeCanvas = bodeTile.locator('canvas').first();
+  const nyquistCanvas = nyquistTile.locator('canvas').first();
+  await bodeCanvas.scrollIntoViewIfNeeded();
+  const beforeNyquist = await nyquistCanvas.screenshot();
+  const bodeBox = await bodeCanvas.boundingBox();
+  assert(bodeBox, 'Bode 画布不可见');
+  await page.mouse.move(bodeBox.x + bodeBox.width * 0.62, bodeBox.y + bodeBox.height * 0.5);
+  await page.waitForTimeout(300);
+  const afterNyquist = await nyquistCanvas.screenshot();
+  assert(beforeNyquist.equals(afterNyquist), 'Bode 悬停把游标串到了 Nyquist 画布');
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(200);
   // 8) 快照两个状态并进入多状态对比。
   await page.locator('[data-awb="snapshot"]').click();
   await sleep(800);
@@ -163,6 +196,17 @@ try {
   await page.locator('[data-awb="compare-run"]').click();
   await page.waitForFunction(() => (document.querySelector('.awb-detail')?.textContent || '').includes('多状态对比'), null, { timeout: 20000 });
   assert((await page.locator('.awb-detail').innerText()).includes('多状态对比'), '对比详情未出现');
+
+  // 8b) 导出请求必须绑定当前画布实际结果 key（result_ids），不能只按状态+类型盲查。
+  const exportReqPromise = page.waitForRequest((req) => req.url().includes('/api/analysis/workbench/export') && req.method() === 'POST');
+  const exportDownloadPromise = page.waitForEvent('download');
+  await page.locator('[data-awb="export"]').click();
+  const exportReq = await exportReqPromise;
+  const exportBody = exportReq.postDataJSON();
+  assert(Array.isArray(exportBody.result_ids) && exportBody.result_ids.length >= 1, '导出未绑定画布实际结果 result_ids: ' + JSON.stringify(exportBody));
+  const exportDownload = await exportDownloadPromise;
+  await exportDownload.path();
+  await page.waitForTimeout(300);
 
   // 9) 保存工程后再载入：布局、画布注册表与当前分析恢复（AC-15/AC-20）。
   const downloadPromise = page.waitForEvent('download');
@@ -183,9 +227,18 @@ try {
   await page.locator('#menuItems .menu > button').filter({ hasText: '工具' }).click();
   await page.locator('.menu.open .menu-item').filter({ hasText: '电路分析工作台' }).click();
   await page.waitForSelector('#analWorkbench.awb', { state: 'visible', timeout: 15000 });
+  await page.waitForFunction(() => document.querySelector('#analWorkbench')?.dataset.awbReady === '1', null, { timeout: 20000 });
   await page.waitForFunction(() => document.querySelectorAll('.awb-canvas-tile').length >= 2, null, { timeout: 15000 });
   assert(await page.locator('.awb-nav-item[data-kind="nyquist"]').evaluate((el) => el.classList.contains('active')), '重新载入后未恢复 Nyquist');
   assert(await page.locator('[data-awb="layout"]').inputValue() === 'split', '重新载入后未恢复分割布局');
+  // 9b) 每个已保存画布都应恢复结果，不能只有当前画布可用。
+  const restoredTiles = await page.locator('.awb-canvas-tile').count();
+  for (let index = 0; index < restoredTiles; index += 1) {
+    await page.locator('.awb-canvas-tile').nth(index).locator('.awb-canvas-title').click();
+    await page.waitForTimeout(200);
+    const badge = await page.locator('.awb-toolbar-meta .awb-badge').innerText();
+    assert(!badge.includes('尚未运行'), '重新载入后第 ' + (index + 1) + ' 个画布未恢复结果: ' + badge);
+  }
 
   // 10) 无未捕获前端错误。
   assert(errors.length === 0, '前端错误: ' + errors.join(' | '));

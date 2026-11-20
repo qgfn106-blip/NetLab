@@ -17,6 +17,10 @@ export interface WorkbenchCanvasRec {
   slot_id: number;
   title: string;
   view_state?: Record<string, unknown>;
+  /** 该画布最近一次成功运行的结果 key（导出时绑定实际结果，避免同状态同类型串结果）。 */
+  result_key?: string;
+  /** 多状态对比时该画布对应的各状态结果 key（导出绑定用）。 */
+  result_keys?: string[];
 }
 
 export interface WorkbenchLayoutRec {
@@ -73,6 +77,8 @@ function normalizeCanvas(value: unknown, index: number): WorkbenchCanvasRec | nu
     slot_id: integer(value.slot_id, index, 0, 63),
     title: typeof value.title === 'string' && value.title ? value.title : '',
     ...(view ? { view_state: view } : {}),
+    ...(typeof value.result_key === 'string' && value.result_key ? { result_key: value.result_key } : {}),
+    ...(Array.isArray(value.result_keys) ? { result_keys: value.result_keys.filter((item): item is string => typeof item === 'string' && item !== '') } : {}),
   };
 }
 

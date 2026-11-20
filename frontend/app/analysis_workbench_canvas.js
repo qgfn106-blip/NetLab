@@ -28,8 +28,21 @@ class AnalysisCanvasWorkspace {
   get activeCanvasId() {
     return this.activeId;
   }
+  /** 当前活动画布的分析类型；无活动画布时返回 null（空选择状态）。 */
+  get activeKind() {
+    const entry = this.entries.find((item) => item.rec.canvas_id === this.activeId);
+    return entry ? entry.rec.kind : null;
+  }
+  /** 当前活动画布的登记记录；无活动画布时返回 null。 */
+  get activeCanvas() {
+    const entry = this.entries.find((item) => item.rec.canvas_id === this.activeId);
+    return entry ? { ...entry.rec } : null;
+  }
   hasKind(kind) {
     return this.entries.some((entry) => entry.rec.kind === kind);
+  }
+  hasCanvas(canvasId) {
+    return this.entries.some((entry) => entry.rec.canvas_id === canvasId);
   }
   activateKind(kind) {
     const existing = this.entries.find((entry) => entry.rec.kind === kind);
@@ -85,20 +98,35 @@ class AnalysisCanvasWorkspace {
   get layout() {
     return this.layoutMode;
   }
-  setEnvelope(kind, envelope) {
-    const entry = this.entries.find((item) => item.rec.kind === kind);
+  setEnvelope(canvasId, envelope, resultKey, resultKeys) {
+    const entry = this.entries.find((item) => item.rec.canvas_id === canvasId);
     if (!entry) return;
     const savedView = entry.viewState;
     entry.chart.setEnvelope(envelope);
+    entry.rec.result_key = resultKey;
+    entry.rec.result_keys = resultKeys && resultKeys.length ? resultKeys : void 0;
     if (savedView) {
       entry.chart.applyViewState(savedView);
       entry.viewState = void 0;
     }
   }
-  setCursor(frequency, sourceCanvasId = "") {
+  /** 清除所有子画布结果（状态/参数变化后防止旧曲线冒充新结果）。 */
+  clearAllEnvelopes() {
+    for (const entry of this.entries) {
+      entry.chart.setEnvelope(null);
+      entry.rec.result_key = void 0;
+      entry.rec.result_keys = void 0;
+      entry.viewState = void 0;
+    }
+  }
+  setCursor(frequency, sourceCanvasId = "", unit = "", axisKey = "") {
     for (const entry of this.entries) {
       if (entry.rec.canvas_id === sourceCanvasId) continue;
-      entry.chart.setCursorFrequency(frequency, "linked");
+      if (frequency !== null) {
+        const targetKey = entry.chart.xAxisKey();
+        if (!axisKey || !targetKey || axisKey !== targetKey) continue;
+      }
+      entry.chart.setCursorFrequency(frequency, "linked", unit, axisKey);
     }
   }
   refreshActiveDetail() {
@@ -162,7 +190,7 @@ class AnalysisCanvasWorkspace {
       title: rec.title || KIND_LABELS[rec.kind],
       detailHost: null,
       events: {
-        onCursor: (frequency, source) => this.events.onCursor?.(frequency, source, rec.canvas_id),
+        onCursor: (frequency, source, unit, axisKey) => this.events.onCursor?.(frequency, source, rec.canvas_id, unit, axisKey),
         onPin: () => this.events.onPin?.(rec.canvas_id),
         onViewChange: () => this.events.onChange?.()
       }

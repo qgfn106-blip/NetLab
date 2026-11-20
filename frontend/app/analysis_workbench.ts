@@ -8,7 +8,7 @@
  */
 import { isAnalysisEnvelope, type AnalysisEnvelope } from './analysis_chart.js';
 import { compareTableHtml, mergeCompareEnvelopes, metricsHtml, transferSummaryHtml } from './analysis_workbench_results.js';
-import { readWorkbenchUi, writeWorkbenchUi, type LayoutMode, type WorkbenchUiRec } from './analysis_workbench_layout.js';
+import { readWorkbenchUi, writeWorkbenchUi, type LayoutMode, type WorkbenchCanvasRec, type WorkbenchUiRec } from './analysis_workbench_layout.js';
 import { AnalysisCanvasWorkspace } from './analysis_workbench_canvas.js';
 import {
   analysisLoopsRequest,
@@ -50,6 +50,8 @@ export class AnalysisWorkbench {
   private session: WorkbenchSessionRec | null = null;
   private sessionId = '';
   private activeKind: AnalysisKind = 'bode';
+  /** 仅用户显式切换分析类型时才更新；自动打开/工程载入不得覆盖工程保存的当前分析。 */
+  private persistedKind: AnalysisKind = 'bode';
   private params = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: 1 };
   private frequencyPath = 'descriptor_linearized';
   private circuit: CircuitPayload | null = null;
@@ -59,10 +61,11 @@ export class AnalysisWorkbench {
   private compareSelection = new Set<string>();
   private layout: LayoutMode = 'grid';
   private mounted = false;
-  private lastRun: RunResponse | null = null;
-  private lastRuns: Partial<Record<AnalysisKind, RunResponse>> = {};
+  private restoring = false;
+  private lastRuns: Record<string, RunResponse> = {};
   private exportFormat = 'png';
   private exportScope: 'subcanvas' | 'canvas' = 'subcanvas';
+  private lastCursor: { frequency: number; unit: string; canvasId: string } | null = null;
 
   constructor(host: HTMLElement, options: { onKindChange?: (kind: AnalysisKind) => void } = {}) {
     this.host = host;
@@ -71,6 +74,7 @@ export class AnalysisWorkbench {
     this.initialUi = saved.ui;
     this.restoredUi = saved.restored;
     this.activeKind = saved.ui.active_analysis;
+    this.persistedKind = saved.ui.active_analysis;
     this.layout = saved.ui.layout.mode;
     this.sizes = { ...saved.ui.sizes };
     this.compareSelection = new Set(saved.ui.selected_state_ids);
@@ -119,21 +123,26 @@ export class AnalysisWorkbench {
 
   async open(kind?: AnalysisKind): Promise<void> {
     this.reloadSavedUi();
+    this.host.dataset.awbReady = '0';
     this.mount();
-    this.setKind(kind || this.initialUi.active_analysis);
+    this.setKind(kind || this.initialUi.active_analysis, false);
     await this.ensureSession();
     if (!this.session?.states.length) await this.snapshotCurrent('当前电路');
     else this.syncCircuitFromState();
     this.renderAll();
-    if (this.activeKind !== 'metrics') await this.run();
+    // 打开工作台时按画布逐个恢复结果（服务端缓存命中），避免非活动图空白。
+    await this.restoreCanvasResults(kind || this.initialUi.active_analysis);
+    // 恢复过程会切换活动画布，最后按工程保存的当前分析重新选中。
+    this.setKind(kind || this.initialUi.active_analysis, false);
+    this.host.dataset.awbReady = '1';
   }
 
   private spawnWorkspace(chartHost: HTMLElement): void {
     this.mounting = true;
     this.workspace = new AnalysisCanvasWorkspace(chartHost, this.detailHost, this.initialUi.canvases, this.layout, {
-      onCursor: (frequency, source, canvasId) => this.onCursor(frequency, source, canvasId),
+      onCursor: (frequency, source, canvasId, unit, axisKey) => this.onCursor(frequency, source, canvasId, unit, axisKey),
       onPin: () => this.renderToolbar(),
-      onChange: () => { if (!this.mounting) this.persist(); },
+      onChange: () => this.onWorkspaceChange(),
     });
     this.mounting = false;
     this.applyLayout();
@@ -143,6 +152,7 @@ export class AnalysisWorkbench {
     const saved = readWorkbenchUi((state.ui as unknown as Record<string, unknown>)['analysis_workbench']);
     this.initialUi = saved.ui;
     this.restoredUi = saved.restored;
+    this.persistedKind = saved.ui.active_analysis;
     this.layout = saved.ui.layout.mode;
     this.sizes = { ...saved.ui.sizes };
     this.compareSelection = new Set(saved.ui.selected_state_ids);
@@ -155,7 +165,8 @@ export class AnalysisWorkbench {
     }
   }
 
-  setKind(kind: AnalysisKind): void {
+  setKind(kind: AnalysisKind, persistActive = true): void {
+    if (persistActive) this.persistedKind = kind;
     this.activeKind = kind;
     this.options.onKindChange?.(kind);
     if (this.mounted) {
@@ -180,6 +191,52 @@ export class AnalysisWorkbench {
     this.renderToolbar();
     this.renderStatus();
     this.workspace?.refreshActiveDetail();
+  }
+
+  /** 当前生效的分析类型：以活动画布为准，无活动画布时回落到上次导航类型。 */
+  private currentKind(): AnalysisKind {
+    return this.workspace?.activeKind || this.activeKind;
+  }
+
+  private selectedCanvas(): WorkbenchCanvasRec | null {
+    return this.workspace?.activeCanvas || null;
+  }
+
+  /** 画布选择变化：同步命令上下文（工具栏/详情/导出/运行）到新的活动画布。 */
+  private onWorkspaceChange(): void {
+    if (this.mounting) return;
+    const kind = this.workspace?.activeKind;
+    if (kind) this.activeKind = kind;
+    if (!this.workspace?.activeCanvas) this.lastCursor = null;
+    this.renderNav();
+    this.renderToolbar();
+    this.renderStatus();
+    // 画布选择变化不写回 active_analysis：仅显式 setKind（用户导航）才持久化当前分析，
+    // 否则工程载入时的画布重建会把保存的“当前分析”覆盖成首个画布类型。
+  }
+
+  /** 清除本地结果缓存与画布结果（状态/参数变化后防止旧结果冒充新结果）。 */
+  private clearLocalResults(): void {
+    this.lastRuns = {};
+    this.lastCursor = null;
+    this.workspace?.clearAllEnvelopes();
+  }
+
+  /** 按已有画布逐个恢复结果（同类型多画布也各自恢复），服务端有缓存时直接命中。 */
+  private async restoreCanvasResults(desired: AnalysisKind): Promise<void> {
+    const canvases = (this.workspace?.canvases || []).filter((canvas) => canvas.kind !== 'metrics');
+    this.restoring = true;
+    try {
+      for (const canvas of canvases) {
+        this.workspace?.activate(canvas.canvas_id);
+        await this.run(canvas.kind);
+      }
+    } finally {
+      this.restoring = false;
+    }
+    // 恢复过程会切换活动画布；结束后回到工程保存的当前分析，避免选择漂移。
+    if (canvases.length) this.workspace?.activateKind(desired);
+    this.renderAll();
   }
 
   private renderContext(): void {
@@ -326,10 +383,13 @@ export class AnalysisWorkbench {
 
   private renderToolbar(): void {
     const active = this.activeState();
-    const cache = this.lastRuns[this.activeKind]?.cache;
+    const kind = this.currentKind();
+    const selected = this.selectedCanvas();
+    const hasCanvas = Boolean(selected);
+    const cache = this.runForCanvas(this.workspace?.activeCanvas?.canvas_id)?.cache;
     const stale = cache && cache['stale'] === true;
     this.toolbarHost.innerHTML = [
-      '<div class="awb-toolbar-title"><b>' + KIND_LABELS[this.activeKind] + '</b><span>' + escapeHtml(active?.label || '—') + '</span></div>',
+      '<div class="awb-toolbar-title"><b>' + (hasCanvas ? KIND_LABELS[kind] : '未选择画布') + '</b><span>' + escapeHtml(hasCanvas ? (selected?.title || active?.label || '—') : '请选择或新建画布') + '</span></div>',
       '<div class="awb-toolbar-meta">' + this.cacheBadge() + '</div>',
       '<div class="awb-toolbar-actions">',
       this.compareMode ? '<button type="button" class="btn tiny" data-awb="compare-run">对比选中状态</button>' : '',
@@ -343,8 +403,8 @@ export class AnalysisWorkbench {
         optionHtml('subcanvas', '当前画布', this.exportScope === 'subcanvas') +
         optionHtml('canvas', '全部状态', this.exportScope === 'canvas') +
         '</select>',
-      '  <button type="button" class="btn tiny" data-awb="export">导出</button>',
-      '  <button type="button" class="btn tiny primary" data-awb="run">运行' + (stale ? '（结果已过期）' : '') + '</button>',
+      '  <button type="button" class="btn tiny" data-awb="export"' + (hasCanvas ? '' : ' disabled') + '>导出</button>',
+      '  <button type="button" class="btn tiny primary" data-awb="run"' + (hasCanvas ? '' : ' disabled') + '>运行' + (stale ? '（结果已过期）' : '') + '</button>',
       '</div>',
     ].join('');
     this.toolbarHost.querySelector('[data-awb="run"]')?.addEventListener('click', () => { void this.run(); });
@@ -373,22 +433,31 @@ export class AnalysisWorkbench {
       toast('请先快照并选择一个分析状态', 'error', 4000);
       return;
     }
-    if (!this.lastRun && !this.session?.results?.length) {
+    const kind = this.currentKind();
+    const canvas = this.selectedCanvas();
+    if (this.exportScope === 'subcanvas' && !canvas) {
+      toast('请选择一个画布后再导出', 'error', 4000);
+      return;
+    }
+    if (!this.runForCanvas(canvas?.canvas_id) && !this.session?.results?.length) {
       toast('请先运行分析再导出', 'error', 4000);
       return;
     }
     const allIds = this.session?.states?.map((item) => item.state_id) || [active.state_id];
-    const selected = this.compareMode && this.compareSelection.size >= 2 ? [...this.compareSelection] : allIds;
-    const stateIds = this.exportScope === 'canvas' ? selected : [active.state_id];
+    const compared = this.compareMode && this.compareSelection.size >= 2 ? [...this.compareSelection] : allIds;
+    const stateIds = this.exportScope === 'canvas' ? compared : [active.state_id];
+    // 绑定当前画布实际结果 key；缺失时才让后端退回按状态+类型查询。
+    const resultIds = canvas?.result_keys?.length ? canvas.result_keys : canvas?.result_key ? [canvas.result_key] : undefined;
     try {
       this.toolbarHost.classList.add('busy');
       const response = await workbenchExportRequest({
         session_id: this.sessionId,
         scope: this.exportScope,
-        canvas_id: this.exportScope === 'subcanvas' ? this.activeKind : undefined,
+        canvas_id: this.exportScope === 'subcanvas' ? (canvas?.canvas_id || kind) : undefined,
         state_ids: stateIds,
-        kind: this.activeKind === 'metrics' ? undefined : this.activeKind,
+        kind: kind === 'metrics' ? undefined : kind,
         format: this.exportFormat,
+        ...(resultIds ? { result_ids: resultIds } : {}),
         source_path: undefined,
       });
       const disposition = response.headers.get('Content-Disposition') || '';
@@ -412,17 +481,28 @@ export class AnalysisWorkbench {
     }
   }
 
+  private runForCanvas(canvasId?: string | null): RunResponse | null {
+    if (!canvasId) return null;
+    return this.lastRuns[canvasId] || null;
+  }
+
   private cacheBadge(): string {
-    const cache = this.lastRun?.cache;
+    if (!this.workspace?.activeCanvas) return '<span class="awb-badge">未选择画布</span>';
+    const run = this.runForCanvas(this.workspace.activeCanvas.canvas_id);
+    const cache = run?.cache;
     if (!cache) return '<span class="awb-badge">尚未运行</span>';
     if (cache['stale'] === true) return '<span class="awb-badge stale">结果已过期</span>';
-    return '<span class="awb-badge">' + (cache['cached'] === true ? '缓存命中' : '已计算') + ' · ' + shortFingerprint(this.lastRun?.fingerprint) + '</span>';
+    return '<span class="awb-badge">' + (cache['cached'] === true ? '缓存命中' : '已计算') + ' · ' + shortFingerprint(run?.fingerprint) + '</span>';
   }
 
   private renderStatus(): void {
+    if (!this.workspace?.activeCanvas) {
+      if (this.transferHost) this.transferHost.innerHTML = '';
+      this.statusHost.textContent = '未选择画布';
+      return;
+    }
     const active = this.activeState();
-    const run = this.lastRuns[this.activeKind] || null;
-    const metrics = run?.envelope?.metrics || {};
+    const run = this.runForCanvas(this.workspace.activeCanvas.canvas_id);
     const summary = describeRunStatus(run?.envelope);
     if (this.transferHost) this.transferHost.innerHTML = transferSummaryHtml(run?.raw);
     const lines = [
@@ -431,6 +511,9 @@ export class AnalysisWorkbench {
       '来源：' + summary.source,
       '稳定：' + summary.stability,
     ];
+    if (this.lastCursor) {
+      lines.push('光标：' + this.lastCursor.frequency.toPrecision(7) + (this.lastCursor.unit ? ' ' + this.lastCursor.unit : ''));
+    }
     this.statusHost.textContent = lines.join(' · ');
   }
 
@@ -504,7 +587,7 @@ export class AnalysisWorkbench {
         select: true,
       }) as StateResponse;
       if (response.session) this.session = response.session;
-      this.lastRun = null;
+      this.clearLocalResults();
       this.renderAll();
       this.loadLoopCandidatesIfNeeded();
     } catch (error) {
@@ -544,7 +627,7 @@ export class AnalysisWorkbench {
         select: true,
       }) as StateResponse;
       if (response.session) this.session = response.session;
-      this.lastRun = null;
+      this.clearLocalResults();
       toast('已更新状态「' + active.label + '」的电路快照', 'info', 3000);
       this.renderAll();
     } catch (error) {
@@ -557,7 +640,7 @@ export class AnalysisWorkbench {
     try {
       const response = await workbenchStateRequest({ session_id: this.sessionId, action: 'select', state_id: stateId, select: true }) as StateResponse;
       if (response.session) this.session = response.session;
-      this.lastRun = null;
+      this.clearLocalResults();
       this.syncCircuitFromState();
       this.renderAll();
       if (this.activeKind !== 'metrics') void this.run();
@@ -571,7 +654,7 @@ export class AnalysisWorkbench {
     try {
       await workbenchInvalidateRequest({ session_id: this.sessionId, reason: '当前电路已修改' });
       this.compareSelection.clear();
-      this.lastRun = null;
+      this.clearLocalResults();
       this.renderAll();
       toast('会话结果已标记过期；重新运行可刷新。', 'warn', 3000);
     } catch (error) {
@@ -600,30 +683,44 @@ export class AnalysisWorkbench {
     }
   }
 
-  private async run(): Promise<void> {
+  private async run(targetKind?: AnalysisKind): Promise<void> {
     if (this.busy) return;
+    const kind = targetKind || this.currentKind();
     const active = this.activeState();
-    if (!active || !this.sessionId) {
+    const sessionId = this.sessionId;
+    if (!active || !sessionId) {
       toast('请先快照当前电路并选择状态', 'error', 4000);
+      return;
+    }
+    // 请求开始时冻结身份：会话/状态/分析类型/目标画布；只允许该身份落地结果。
+    const stateId = active.state_id;
+    const canvasId = this.workspace?.activeCanvas?.canvas_id || '';
+    if (!canvasId) {
+      toast('请选择一个画布', 'error', 4000);
       return;
     }
     this.busy = true;
     this.toolbarHost.classList.add('busy');
     try {
-      if (this.activeKind === 'metrics') {
-        const response = await workbenchRunRequest({ session_id: this.sessionId, state_id: active.state_id, kind: 'metrics', params: {} }) as RunResponse;
-        this.lastRun = response;
-        this.lastRuns[this.activeKind] = response;
+      let response: RunResponse;
+      if (kind === 'metrics') {
+        response = await workbenchRunRequest({ session_id: sessionId, state_id: stateId, kind: 'metrics', params: {} }) as RunResponse;
+      } else {
+        const params = await this.runParams(kind);
+        if (!params) return;
+        response = await workbenchRunRequest({ session_id: sessionId, state_id: stateId, kind, params }) as RunResponse;
+        if (!response.envelope || !isAnalysisEnvelope(response.envelope)) throw new Error('后端未返回合法分析信封');
+      }
+      // 只有请求身份仍成立时才写入，防止慢响应把旧结果覆盖到新选择/新类型上。
+      if (sessionId !== this.sessionId || stateId !== this.activeState()?.state_id || kind !== this.currentKind()) return;
+      if (!this.workspace?.hasCanvas(canvasId)) return;
+      this.lastRuns[canvasId] = response;
+      if (kind === 'metrics') {
         this.renderMetrics(response.raw || {});
       } else {
-        const params = await this.runParams();
-        if (!params) return;
-        const response = await workbenchRunRequest({ session_id: this.sessionId, state_id: active.state_id, kind: this.activeKind, params }) as RunResponse;
-        if (!response.envelope || !isAnalysisEnvelope(response.envelope)) throw new Error('后端未返回合法分析信封');
-        this.lastRun = response;
-        this.lastRuns[this.activeKind] = response;
-        this.workspace?.activateKind(this.activeKind);
-        this.workspace?.setEnvelope(this.activeKind, response.envelope);
+        const key = typeof response.cache?.['key'] === 'string' ? response.cache['key'] : undefined;
+        const target = canvasId;
+        if (target) this.workspace?.setEnvelope(target, response.envelope as AnalysisEnvelope, key);
       }
       this.renderToolbar();
       this.renderStatus();
@@ -636,7 +733,7 @@ export class AnalysisWorkbench {
     }
   }
 
-  private async runParams(): Promise<Record<string, unknown> | null> {
+  private async runParams(kind: AnalysisKind = this.currentKind()): Promise<Record<string, unknown> | null> {
     const input = (this.navHost.querySelector('[data-awb="input"]') as HTMLSelectElement | null)?.value || '';
     const output = (this.navHost.querySelector('[data-awb="output"]') as HTMLSelectElement | null)?.value || '';
     if (!input || !output) {
@@ -652,9 +749,9 @@ export class AnalysisWorkbench {
       step_dt: this.params.step_dt,
       step_duration: this.params.step_duration,
     };
-    if (this.activeKind === 'bode' || this.activeKind === 'poles') params.frequency_path = this.frequencyPath;
-    const loopKind = this.activeKind === 'loop' || this.activeKind === 'loop_closed' || this.activeKind === 'loop_step';
-    if (loopKind || this.activeKind === 'nyquist') {
+    if (kind === 'bode' || kind === 'poles') params.frequency_path = this.frequencyPath;
+    const loopKind = kind === 'loop' || kind === 'loop_closed' || kind === 'loop_step';
+    if (loopKind || kind === 'nyquist') {
       const select = this.navHost.querySelector('[data-awb="element"]') as HTMLSelectElement | null;
       let element = select?.value || '';
       if (element === '__virtual__' && !loopKind) element = '';
@@ -680,25 +777,41 @@ export class AnalysisWorkbench {
       toast('对比至少选择两个状态', 'warn', 4000);
       return;
     }
+    const MAX_COMPARE = 8;
+    if (ids.length > MAX_COMPARE) {
+      toast('一次最多对比 ' + MAX_COMPARE + ' 个状态，当前已选 ' + ids.length + ' 个，请减少后再试', 'error', 5000);
+      return;
+    }
     if (this.busy || !this.sessionId) return;
+    const sessionId = this.sessionId;
+    const kind = this.currentKind();
+    const canvasId = this.workspace?.activeCanvas?.canvas_id || '';
+    if (!canvasId) {
+      toast('请选择一个画布', 'error', 4000);
+      return;
+    }
     this.busy = true;
     try {
-      const params = await this.runParams();
+      const params = await this.runParams(kind);
       if (!params) return;
       const results: Array<{state_id: string; label: string; envelope: AnalysisEnvelope}> = [];
-      for (const stateId of ids.slice(0, 8)) {
-        const response = await workbenchRunRequest({ session_id: this.sessionId, state_id: stateId, kind: this.activeKind, params }) as RunResponse;
+      const resultKeys: string[] = [];
+      for (const stateId of ids) {
+        const response = await workbenchRunRequest({ session_id: sessionId, state_id: stateId, kind, params }) as RunResponse;
         if (response.envelope && isAnalysisEnvelope(response.envelope)) {
           const label = this.session?.states.find((item) => item.state_id === stateId)?.label || stateId;
           results.push({ state_id: stateId, label, envelope: response.envelope });
+          const key = typeof response.cache?.['key'] === 'string' ? response.cache['key'] : undefined;
+          if (key) resultKeys.push(key);
         }
       }
       if (results.length < 2) throw new Error('至少两个状态返回了可对比结果');
+      // 对比属于请求时的类型；若期间用户切换了分析类型，丢弃旧结果。
+      if (sessionId !== this.sessionId || kind !== this.currentKind() || !this.workspace?.hasCanvas(canvasId)) return;
       const merged = this.mergeEnvelopes(results);
-      this.workspace?.activateKind(this.activeKind);
-      this.workspace?.setEnvelope(this.activeKind, merged);
+      this.workspace?.setEnvelope(canvasId, merged, undefined, resultKeys);
       this.renderCompareTable(results);
-      this.statusHost.textContent = '对比 ' + results.length + ' 个状态 · ' + KIND_LABELS[this.activeKind];
+      this.statusHost.textContent = '对比 ' + results.length + ' 个状态 · ' + KIND_LABELS[kind];
     } catch (error) {
       toast('对比失败：' + (error as Error).message, 'error', 6500);
     } finally {
@@ -720,10 +833,16 @@ export class AnalysisWorkbench {
     this.detailHost.innerHTML = metricsHtml(raw);
   }
 
-  private onCursor(frequency: number | null, source: string, canvasId = ''): void {
-    if (frequency === null) return;
-    this.workspace?.setCursor(frequency, canvasId);
-    this.statusHost.textContent = '光标 f = ' + frequency.toPrecision(7) + ' Hz · ' + source;
+  private onCursor(frequency: number | null, source: string, canvasId = '', unit = '', axisKey = ''): void {
+    void source;
+    this.workspace?.setCursor(frequency, canvasId, unit, axisKey);
+    if (frequency === null) {
+      this.lastCursor = null;
+      this.renderStatus();
+      return;
+    }
+    this.lastCursor = { frequency, unit, canvasId };
+    this.renderStatus();
   }
 
   private beginResize(event: PointerEvent, handle: HTMLElement): void {
@@ -768,7 +887,7 @@ export class AnalysisWorkbench {
       const canvases = this.workspace?.persist() || [];
       uiState.analysis_workbench = writeWorkbenchUi({
         schema: 'netlab-analysis-workbench/1',
-        active_analysis: this.activeKind,
+        active_analysis: this.persistedKind,
         canvases,
         layout: { mode: this.layout, rows: 1, cols: 1, order: canvases.map((item) => item.canvas_id) },
         sizes: this.sizes,

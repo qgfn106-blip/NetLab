@@ -35,6 +35,8 @@ class AnalysisWorkbench {
     this.session = null;
     this.sessionId = "";
     this.activeKind = "bode";
+    /** 仅用户显式切换分析类型时才更新；自动打开/工程载入不得覆盖工程保存的当前分析。 */
+    this.persistedKind = "bode";
     this.params = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: 1 };
     this.frequencyPath = "descriptor_linearized";
     this.circuit = null;
@@ -44,16 +46,18 @@ class AnalysisWorkbench {
     this.compareSelection = /* @__PURE__ */ new Set();
     this.layout = "grid";
     this.mounted = false;
-    this.lastRun = null;
+    this.restoring = false;
     this.lastRuns = {};
     this.exportFormat = "png";
     this.exportScope = "subcanvas";
+    this.lastCursor = null;
     this.host = host;
     this.options = options;
     const saved = readWorkbenchUi(state.ui["analysis_workbench"]);
     this.initialUi = saved.ui;
     this.restoredUi = saved.restored;
     this.activeKind = saved.ui.active_analysis;
+    this.persistedKind = saved.ui.active_analysis;
     this.layout = saved.ui.layout.mode;
     this.sizes = { ...saved.ui.sizes };
     this.compareSelection = new Set(saved.ui.selected_state_ids);
@@ -100,22 +104,23 @@ class AnalysisWorkbench {
   }
   async open(kind) {
     this.reloadSavedUi();
+    this.host.dataset.awbReady = "0";
     this.mount();
-    this.setKind(kind || this.initialUi.active_analysis);
+    this.setKind(kind || this.initialUi.active_analysis, false);
     await this.ensureSession();
     if (!this.session?.states.length) await this.snapshotCurrent("\u5F53\u524D\u7535\u8DEF");
     else this.syncCircuitFromState();
     this.renderAll();
-    if (this.activeKind !== "metrics") await this.run();
+    await this.restoreCanvasResults(kind || this.initialUi.active_analysis);
+    this.setKind(kind || this.initialUi.active_analysis, false);
+    this.host.dataset.awbReady = "1";
   }
   spawnWorkspace(chartHost) {
     this.mounting = true;
     this.workspace = new AnalysisCanvasWorkspace(chartHost, this.detailHost, this.initialUi.canvases, this.layout, {
-      onCursor: (frequency, source, canvasId) => this.onCursor(frequency, source, canvasId),
+      onCursor: (frequency, source, canvasId, unit, axisKey) => this.onCursor(frequency, source, canvasId, unit, axisKey),
       onPin: () => this.renderToolbar(),
-      onChange: () => {
-        if (!this.mounting) this.persist();
-      }
+      onChange: () => this.onWorkspaceChange()
     });
     this.mounting = false;
     this.applyLayout();
@@ -124,6 +129,7 @@ class AnalysisWorkbench {
     const saved = readWorkbenchUi(state.ui["analysis_workbench"]);
     this.initialUi = saved.ui;
     this.restoredUi = saved.restored;
+    this.persistedKind = saved.ui.active_analysis;
     this.layout = saved.ui.layout.mode;
     this.sizes = { ...saved.ui.sizes };
     this.compareSelection = new Set(saved.ui.selected_state_ids);
@@ -135,7 +141,8 @@ class AnalysisWorkbench {
       this.applySizes();
     }
   }
-  setKind(kind) {
+  setKind(kind, persistActive = true) {
+    if (persistActive) this.persistedKind = kind;
     this.activeKind = kind;
     this.options.onKindChange?.(kind);
     if (this.mounted) {
@@ -158,6 +165,44 @@ class AnalysisWorkbench {
     this.renderToolbar();
     this.renderStatus();
     this.workspace?.refreshActiveDetail();
+  }
+  /** 当前生效的分析类型：以活动画布为准，无活动画布时回落到上次导航类型。 */
+  currentKind() {
+    return this.workspace?.activeKind || this.activeKind;
+  }
+  selectedCanvas() {
+    return this.workspace?.activeCanvas || null;
+  }
+  /** 画布选择变化：同步命令上下文（工具栏/详情/导出/运行）到新的活动画布。 */
+  onWorkspaceChange() {
+    if (this.mounting) return;
+    const kind = this.workspace?.activeKind;
+    if (kind) this.activeKind = kind;
+    if (!this.workspace?.activeCanvas) this.lastCursor = null;
+    this.renderNav();
+    this.renderToolbar();
+    this.renderStatus();
+  }
+  /** 清除本地结果缓存与画布结果（状态/参数变化后防止旧结果冒充新结果）。 */
+  clearLocalResults() {
+    this.lastRuns = {};
+    this.lastCursor = null;
+    this.workspace?.clearAllEnvelopes();
+  }
+  /** 按已有画布逐个恢复结果（同类型多画布也各自恢复），服务端有缓存时直接命中。 */
+  async restoreCanvasResults(desired) {
+    const canvases = (this.workspace?.canvases || []).filter((canvas) => canvas.kind !== "metrics");
+    this.restoring = true;
+    try {
+      for (const canvas of canvases) {
+        this.workspace?.activate(canvas.canvas_id);
+        await this.run(canvas.kind);
+      }
+    } finally {
+      this.restoring = false;
+    }
+    if (canvases.length) this.workspace?.activateKind(desired);
+    this.renderAll();
   }
   renderContext() {
     const active = this.activeState();
@@ -302,18 +347,21 @@ class AnalysisWorkbench {
   }
   renderToolbar() {
     const active = this.activeState();
-    const cache = this.lastRuns[this.activeKind]?.cache;
+    const kind = this.currentKind();
+    const selected = this.selectedCanvas();
+    const hasCanvas = Boolean(selected);
+    const cache = this.runForCanvas(this.workspace?.activeCanvas?.canvas_id)?.cache;
     const stale = cache && cache["stale"] === true;
     this.toolbarHost.innerHTML = [
-      '<div class="awb-toolbar-title"><b>' + KIND_LABELS[this.activeKind] + "</b><span>" + escapeHtml(active?.label || "\u2014") + "</span></div>",
+      '<div class="awb-toolbar-title"><b>' + (hasCanvas ? KIND_LABELS[kind] : "\u672A\u9009\u62E9\u753B\u5E03") + "</b><span>" + escapeHtml(hasCanvas ? selected?.title || active?.label || "\u2014" : "\u8BF7\u9009\u62E9\u6216\u65B0\u5EFA\u753B\u5E03") + "</span></div>",
       '<div class="awb-toolbar-meta">' + this.cacheBadge() + "</div>",
       '<div class="awb-toolbar-actions">',
       this.compareMode ? '<button type="button" class="btn tiny" data-awb="compare-run">\u5BF9\u6BD4\u9009\u4E2D\u72B6\u6001</button>' : "",
       '  <select class="awb-select tiny" data-awb="layout" title="\u753B\u5E03\u5E03\u5C40">' + LAYOUT_OPTIONS.map(([mode, label]) => optionHtml(mode, label, this.layout === mode)).join("") + "</select>",
       '  <select class="awb-select tiny" data-awb="export-format" title="\u5BFC\u51FA\u683C\u5F0F">' + ["png", "svg", "pdf", "spec", "csv", "json", "zip"].map((fmt) => optionHtml(fmt, fmt.toUpperCase(), fmt === this.exportFormat)).join("") + "</select>",
       '  <select class="awb-select tiny" data-awb="export-scope" title="\u5BFC\u51FA\u8303\u56F4">' + optionHtml("subcanvas", "\u5F53\u524D\u753B\u5E03", this.exportScope === "subcanvas") + optionHtml("canvas", "\u5168\u90E8\u72B6\u6001", this.exportScope === "canvas") + "</select>",
-      '  <button type="button" class="btn tiny" data-awb="export">\u5BFC\u51FA</button>',
-      '  <button type="button" class="btn tiny primary" data-awb="run">\u8FD0\u884C' + (stale ? "\uFF08\u7ED3\u679C\u5DF2\u8FC7\u671F\uFF09" : "") + "</button>",
+      '  <button type="button" class="btn tiny" data-awb="export"' + (hasCanvas ? "" : " disabled") + ">\u5BFC\u51FA</button>",
+      '  <button type="button" class="btn tiny primary" data-awb="run"' + (hasCanvas ? "" : " disabled") + ">\u8FD0\u884C" + (stale ? "\uFF08\u7ED3\u679C\u5DF2\u8FC7\u671F\uFF09" : "") + "</button>",
       "</div>"
     ].join("");
     this.toolbarHost.querySelector('[data-awb="run"]')?.addEventListener("click", () => {
@@ -347,22 +395,30 @@ class AnalysisWorkbench {
       toast("\u8BF7\u5148\u5FEB\u7167\u5E76\u9009\u62E9\u4E00\u4E2A\u5206\u6790\u72B6\u6001", "error", 4e3);
       return;
     }
-    if (!this.lastRun && !this.session?.results?.length) {
+    const kind = this.currentKind();
+    const canvas = this.selectedCanvas();
+    if (this.exportScope === "subcanvas" && !canvas) {
+      toast("\u8BF7\u9009\u62E9\u4E00\u4E2A\u753B\u5E03\u540E\u518D\u5BFC\u51FA", "error", 4e3);
+      return;
+    }
+    if (!this.runForCanvas(canvas?.canvas_id) && !this.session?.results?.length) {
       toast("\u8BF7\u5148\u8FD0\u884C\u5206\u6790\u518D\u5BFC\u51FA", "error", 4e3);
       return;
     }
     const allIds = this.session?.states?.map((item) => item.state_id) || [active.state_id];
-    const selected = this.compareMode && this.compareSelection.size >= 2 ? [...this.compareSelection] : allIds;
-    const stateIds = this.exportScope === "canvas" ? selected : [active.state_id];
+    const compared = this.compareMode && this.compareSelection.size >= 2 ? [...this.compareSelection] : allIds;
+    const stateIds = this.exportScope === "canvas" ? compared : [active.state_id];
+    const resultIds = canvas?.result_keys?.length ? canvas.result_keys : canvas?.result_key ? [canvas.result_key] : void 0;
     try {
       this.toolbarHost.classList.add("busy");
       const response = await workbenchExportRequest({
         session_id: this.sessionId,
         scope: this.exportScope,
-        canvas_id: this.exportScope === "subcanvas" ? this.activeKind : void 0,
+        canvas_id: this.exportScope === "subcanvas" ? canvas?.canvas_id || kind : void 0,
         state_ids: stateIds,
-        kind: this.activeKind === "metrics" ? void 0 : this.activeKind,
+        kind: kind === "metrics" ? void 0 : kind,
         format: this.exportFormat,
+        ...resultIds ? { result_ids: resultIds } : {},
         source_path: void 0
       });
       const disposition = response.headers.get("Content-Disposition") || "";
@@ -385,16 +441,26 @@ class AnalysisWorkbench {
       this.toolbarHost.classList.remove("busy");
     }
   }
+  runForCanvas(canvasId) {
+    if (!canvasId) return null;
+    return this.lastRuns[canvasId] || null;
+  }
   cacheBadge() {
-    const cache = this.lastRun?.cache;
+    if (!this.workspace?.activeCanvas) return '<span class="awb-badge">\u672A\u9009\u62E9\u753B\u5E03</span>';
+    const run = this.runForCanvas(this.workspace.activeCanvas.canvas_id);
+    const cache = run?.cache;
     if (!cache) return '<span class="awb-badge">\u5C1A\u672A\u8FD0\u884C</span>';
     if (cache["stale"] === true) return '<span class="awb-badge stale">\u7ED3\u679C\u5DF2\u8FC7\u671F</span>';
-    return '<span class="awb-badge">' + (cache["cached"] === true ? "\u7F13\u5B58\u547D\u4E2D" : "\u5DF2\u8BA1\u7B97") + " \xB7 " + shortFingerprint(this.lastRun?.fingerprint) + "</span>";
+    return '<span class="awb-badge">' + (cache["cached"] === true ? "\u7F13\u5B58\u547D\u4E2D" : "\u5DF2\u8BA1\u7B97") + " \xB7 " + shortFingerprint(run?.fingerprint) + "</span>";
   }
   renderStatus() {
+    if (!this.workspace?.activeCanvas) {
+      if (this.transferHost) this.transferHost.innerHTML = "";
+      this.statusHost.textContent = "\u672A\u9009\u62E9\u753B\u5E03";
+      return;
+    }
     const active = this.activeState();
-    const run = this.lastRuns[this.activeKind] || null;
-    const metrics = run?.envelope?.metrics || {};
+    const run = this.runForCanvas(this.workspace.activeCanvas.canvas_id);
     const summary = describeRunStatus(run?.envelope);
     if (this.transferHost) this.transferHost.innerHTML = transferSummaryHtml(run?.raw);
     const lines = [
@@ -403,6 +469,9 @@ class AnalysisWorkbench {
       "\u6765\u6E90\uFF1A" + summary.source,
       "\u7A33\u5B9A\uFF1A" + summary.stability
     ];
+    if (this.lastCursor) {
+      lines.push("\u5149\u6807\uFF1A" + this.lastCursor.frequency.toPrecision(7) + (this.lastCursor.unit ? " " + this.lastCursor.unit : ""));
+    }
     this.statusHost.textContent = lines.join(" \xB7 ");
   }
   activeState() {
@@ -471,7 +540,7 @@ class AnalysisWorkbench {
         select: true
       });
       if (response.session) this.session = response.session;
-      this.lastRun = null;
+      this.clearLocalResults();
       this.renderAll();
       this.loadLoopCandidatesIfNeeded();
     } catch (error) {
@@ -503,7 +572,7 @@ class AnalysisWorkbench {
         select: true
       });
       if (response.session) this.session = response.session;
-      this.lastRun = null;
+      this.clearLocalResults();
       toast("\u5DF2\u66F4\u65B0\u72B6\u6001\u300C" + active.label + "\u300D\u7684\u7535\u8DEF\u5FEB\u7167", "info", 3e3);
       this.renderAll();
     } catch (error) {
@@ -515,7 +584,7 @@ class AnalysisWorkbench {
     try {
       const response = await workbenchStateRequest({ session_id: this.sessionId, action: "select", state_id: stateId, select: true });
       if (response.session) this.session = response.session;
-      this.lastRun = null;
+      this.clearLocalResults();
       this.syncCircuitFromState();
       this.renderAll();
       if (this.activeKind !== "metrics") void this.run();
@@ -528,7 +597,7 @@ class AnalysisWorkbench {
     try {
       await workbenchInvalidateRequest({ session_id: this.sessionId, reason: "\u5F53\u524D\u7535\u8DEF\u5DF2\u4FEE\u6539" });
       this.compareSelection.clear();
-      this.lastRun = null;
+      this.clearLocalResults();
       this.renderAll();
       toast("\u4F1A\u8BDD\u7ED3\u679C\u5DF2\u6807\u8BB0\u8FC7\u671F\uFF1B\u91CD\u65B0\u8FD0\u884C\u53EF\u5237\u65B0\u3002", "warn", 3e3);
     } catch (error) {
@@ -554,30 +623,42 @@ class AnalysisWorkbench {
       this.loopCandidates = [];
     }
   }
-  async run() {
+  async run(targetKind) {
     if (this.busy) return;
+    const kind = targetKind || this.currentKind();
     const active = this.activeState();
-    if (!active || !this.sessionId) {
+    const sessionId = this.sessionId;
+    if (!active || !sessionId) {
       toast("\u8BF7\u5148\u5FEB\u7167\u5F53\u524D\u7535\u8DEF\u5E76\u9009\u62E9\u72B6\u6001", "error", 4e3);
+      return;
+    }
+    const stateId = active.state_id;
+    const canvasId = this.workspace?.activeCanvas?.canvas_id || "";
+    if (!canvasId) {
+      toast("\u8BF7\u9009\u62E9\u4E00\u4E2A\u753B\u5E03", "error", 4e3);
       return;
     }
     this.busy = true;
     this.toolbarHost.classList.add("busy");
     try {
-      if (this.activeKind === "metrics") {
-        const response = await workbenchRunRequest({ session_id: this.sessionId, state_id: active.state_id, kind: "metrics", params: {} });
-        this.lastRun = response;
-        this.lastRuns[this.activeKind] = response;
+      let response;
+      if (kind === "metrics") {
+        response = await workbenchRunRequest({ session_id: sessionId, state_id: stateId, kind: "metrics", params: {} });
+      } else {
+        const params = await this.runParams(kind);
+        if (!params) return;
+        response = await workbenchRunRequest({ session_id: sessionId, state_id: stateId, kind, params });
+        if (!response.envelope || !isAnalysisEnvelope(response.envelope)) throw new Error("\u540E\u7AEF\u672A\u8FD4\u56DE\u5408\u6CD5\u5206\u6790\u4FE1\u5C01");
+      }
+      if (sessionId !== this.sessionId || stateId !== this.activeState()?.state_id || kind !== this.currentKind()) return;
+      if (!this.workspace?.hasCanvas(canvasId)) return;
+      this.lastRuns[canvasId] = response;
+      if (kind === "metrics") {
         this.renderMetrics(response.raw || {});
       } else {
-        const params = await this.runParams();
-        if (!params) return;
-        const response = await workbenchRunRequest({ session_id: this.sessionId, state_id: active.state_id, kind: this.activeKind, params });
-        if (!response.envelope || !isAnalysisEnvelope(response.envelope)) throw new Error("\u540E\u7AEF\u672A\u8FD4\u56DE\u5408\u6CD5\u5206\u6790\u4FE1\u5C01");
-        this.lastRun = response;
-        this.lastRuns[this.activeKind] = response;
-        this.workspace?.activateKind(this.activeKind);
-        this.workspace?.setEnvelope(this.activeKind, response.envelope);
+        const key = typeof response.cache?.["key"] === "string" ? response.cache["key"] : void 0;
+        const target = canvasId;
+        if (target) this.workspace?.setEnvelope(target, response.envelope, key);
       }
       this.renderToolbar();
       this.renderStatus();
@@ -589,7 +670,7 @@ class AnalysisWorkbench {
       this.toolbarHost.classList.remove("busy");
     }
   }
-  async runParams() {
+  async runParams(kind = this.currentKind()) {
     const input = this.navHost.querySelector('[data-awb="input"]')?.value || "";
     const output = this.navHost.querySelector('[data-awb="output"]')?.value || "";
     if (!input || !output) {
@@ -605,9 +686,9 @@ class AnalysisWorkbench {
       step_dt: this.params.step_dt,
       step_duration: this.params.step_duration
     };
-    if (this.activeKind === "bode" || this.activeKind === "poles") params.frequency_path = this.frequencyPath;
-    const loopKind = this.activeKind === "loop" || this.activeKind === "loop_closed" || this.activeKind === "loop_step";
-    if (loopKind || this.activeKind === "nyquist") {
+    if (kind === "bode" || kind === "poles") params.frequency_path = this.frequencyPath;
+    const loopKind = kind === "loop" || kind === "loop_closed" || kind === "loop_step";
+    if (loopKind || kind === "nyquist") {
       const select = this.navHost.querySelector('[data-awb="element"]');
       let element = select?.value || "";
       if (element === "__virtual__" && !loopKind) element = "";
@@ -632,25 +713,40 @@ class AnalysisWorkbench {
       toast("\u5BF9\u6BD4\u81F3\u5C11\u9009\u62E9\u4E24\u4E2A\u72B6\u6001", "warn", 4e3);
       return;
     }
+    const MAX_COMPARE = 8;
+    if (ids.length > MAX_COMPARE) {
+      toast("\u4E00\u6B21\u6700\u591A\u5BF9\u6BD4 " + MAX_COMPARE + " \u4E2A\u72B6\u6001\uFF0C\u5F53\u524D\u5DF2\u9009 " + ids.length + " \u4E2A\uFF0C\u8BF7\u51CF\u5C11\u540E\u518D\u8BD5", "error", 5e3);
+      return;
+    }
     if (this.busy || !this.sessionId) return;
+    const sessionId = this.sessionId;
+    const kind = this.currentKind();
+    const canvasId = this.workspace?.activeCanvas?.canvas_id || "";
+    if (!canvasId) {
+      toast("\u8BF7\u9009\u62E9\u4E00\u4E2A\u753B\u5E03", "error", 4e3);
+      return;
+    }
     this.busy = true;
     try {
-      const params = await this.runParams();
+      const params = await this.runParams(kind);
       if (!params) return;
       const results = [];
-      for (const stateId of ids.slice(0, 8)) {
-        const response = await workbenchRunRequest({ session_id: this.sessionId, state_id: stateId, kind: this.activeKind, params });
+      const resultKeys = [];
+      for (const stateId of ids) {
+        const response = await workbenchRunRequest({ session_id: sessionId, state_id: stateId, kind, params });
         if (response.envelope && isAnalysisEnvelope(response.envelope)) {
           const label = this.session?.states.find((item) => item.state_id === stateId)?.label || stateId;
           results.push({ state_id: stateId, label, envelope: response.envelope });
+          const key = typeof response.cache?.["key"] === "string" ? response.cache["key"] : void 0;
+          if (key) resultKeys.push(key);
         }
       }
       if (results.length < 2) throw new Error("\u81F3\u5C11\u4E24\u4E2A\u72B6\u6001\u8FD4\u56DE\u4E86\u53EF\u5BF9\u6BD4\u7ED3\u679C");
+      if (sessionId !== this.sessionId || kind !== this.currentKind() || !this.workspace?.hasCanvas(canvasId)) return;
       const merged = this.mergeEnvelopes(results);
-      this.workspace?.activateKind(this.activeKind);
-      this.workspace?.setEnvelope(this.activeKind, merged);
+      this.workspace?.setEnvelope(canvasId, merged, void 0, resultKeys);
       this.renderCompareTable(results);
-      this.statusHost.textContent = "\u5BF9\u6BD4 " + results.length + " \u4E2A\u72B6\u6001 \xB7 " + KIND_LABELS[this.activeKind];
+      this.statusHost.textContent = "\u5BF9\u6BD4 " + results.length + " \u4E2A\u72B6\u6001 \xB7 " + KIND_LABELS[kind];
     } catch (error) {
       toast("\u5BF9\u6BD4\u5931\u8D25\uFF1A" + error.message, "error", 6500);
     } finally {
@@ -668,10 +764,16 @@ class AnalysisWorkbench {
     if (!this.detailHost) return;
     this.detailHost.innerHTML = metricsHtml(raw);
   }
-  onCursor(frequency, source, canvasId = "") {
-    if (frequency === null) return;
-    this.workspace?.setCursor(frequency, canvasId);
-    this.statusHost.textContent = "\u5149\u6807 f = " + frequency.toPrecision(7) + " Hz \xB7 " + source;
+  onCursor(frequency, source, canvasId = "", unit = "", axisKey = "") {
+    void source;
+    this.workspace?.setCursor(frequency, canvasId, unit, axisKey);
+    if (frequency === null) {
+      this.lastCursor = null;
+      this.renderStatus();
+      return;
+    }
+    this.lastCursor = { frequency, unit, canvasId };
+    this.renderStatus();
   }
   beginResize(event, handle) {
     event.preventDefault();
@@ -712,7 +814,7 @@ class AnalysisWorkbench {
       const canvases = this.workspace?.persist() || [];
       uiState.analysis_workbench = writeWorkbenchUi({
         schema: "netlab-analysis-workbench/1",
-        active_analysis: this.activeKind,
+        active_analysis: this.persistedKind,
         canvases,
         layout: { mode: this.layout, rows: 1, cols: 1, order: canvases.map((item) => item.canvas_id) },
         sizes: this.sizes,

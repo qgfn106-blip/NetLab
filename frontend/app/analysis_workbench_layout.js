@@ -34,7 +34,9 @@ function normalizeCanvas(value, index) {
     figure_id: typeof value.figure_id === "string" && value.figure_id ? value.figure_id : "f1",
     slot_id: integer(value.slot_id, index, 0, 63),
     title: typeof value.title === "string" && value.title ? value.title : "",
-    ...view ? { view_state: view } : {}
+    ...view ? { view_state: view } : {},
+    ...typeof value.result_key === "string" && value.result_key ? { result_key: value.result_key } : {},
+    ...Array.isArray(value.result_keys) ? { result_keys: value.result_keys.filter((item) => typeof item === "string" && item !== "") } : {}
   };
 }
 function readWorkbenchUi(value) {

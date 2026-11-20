@@ -141,7 +141,20 @@ class AnalysisChart {
   refreshDetail() {
     this.renderDetail();
   }
-  setCursorFrequency(frequency, source = "external") {
+  /** 当前信封主 x 轴的物理单位（无则空串）。游标跨画布同步时用于校验轴兼容性。 */
+  xUnit() {
+    return this.envelope?.axes?.[0]?.unit || "";
+  }
+  /** 主 x 轴的稳定身份（单位|轴 id）；空单位轴也各有身份，避免 Hz/秒/无量纲互串。 */
+  xAxisKey() {
+    const axis = this.envelope?.axes?.[0];
+    return axis ? (axis.unit || "") + "|" + axis.id : "";
+  }
+  setCursorFrequency(frequency, source = "external", unit = "", axisKey = "") {
+    if (frequency !== null) {
+      const targetKey = this.xAxisKey();
+      if (!axisKey || !targetKey || axisKey !== targetKey) return;
+    }
     this.cursorFrequency = frequency;
     this.cursorSource = source;
     this.drawOverlay();
@@ -167,7 +180,10 @@ class AnalysisChart {
       this.tooltip.hidden = true;
       this.hovered = null;
       this.hoverPoint = null;
+      this.cursorFrequency = null;
+      this.cursorSource = "";
       this.drawOverlay();
+      this.options.events?.onCursor?.(null, "chart", this.xUnit(), this.xAxisKey());
     });
     this.canvasWrap.addEventListener("dblclick", () => this.resetView());
   }
@@ -535,13 +551,16 @@ class AnalysisChart {
       this.cursorFrequency = bestMarker.x;
       this.drawOverlay();
       this.updateReadout(bestMarker);
+      this.options.events?.onCursor?.(bestMarker.x, "chart", this.xUnit(), this.xAxisKey());
       return;
     }
     const curve = this.nearestCurve(envelope, axis, px);
     if (!curve) {
       this.tooltip.hidden = true;
       this.hoverPoint = null;
+      this.cursorFrequency = null;
       this.drawOverlay();
+      this.options.events?.onCursor?.(null, "chart", this.xUnit(), this.xAxisKey());
       return;
     }
     const index = curve.index;
@@ -554,7 +573,7 @@ class AnalysisChart {
     this.positionTooltip(px, py);
     this.drawOverlay();
     this.updateReadout(null, curve.curve, index);
-    this.options.events?.onCursor?.(x, "chart");
+    this.options.events?.onCursor?.(x, "chart", this.xUnit(), this.xAxisKey());
   }
   nearestCurve(envelope, axis, px) {
     let best = null;

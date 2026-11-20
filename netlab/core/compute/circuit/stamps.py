@@ -67,6 +67,8 @@ class StampContext:
     mode: str = "tran"
     #: 交流分析的角频率（rad/s）；mode="ac" 时由求解器逐点设置。
     omega: float = 0.0
+    #: True 时 stamp 必须在“真实工作点”求值（供 _true_residual 精确重线性化）。
+    true_point: bool = False
 
     def voltage(self, node_id: str) -> float:
         position = self.index.get(node_id)

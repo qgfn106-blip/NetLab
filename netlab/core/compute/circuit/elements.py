@@ -52,6 +52,9 @@ class CircuitElement:
     #: 避免 operating_point()/ac_sweep() 提交后的缓存泄漏到后续瞬态。
     CACHED_STATE_ATTRS: tuple[str, ...] = ()
 
+    #: 是否需要 _true_residual 在真实工作点重建线性化点（仅强非线性元件）。
+    SEED_TRUE_POINT: bool = False
+
     def reset(self) -> None:
         """清空历史（保留参数）。子类覆盖。"""
         self.iteration_guess.clear()
@@ -64,6 +67,10 @@ class CircuitElement:
         raise NotImplementedError
 
     def update_guess(self, ctx: StampContext) -> None:
+        del ctx
+
+    def seed_true_point(self, ctx: StampContext) -> None:
+        """在真实工作点重建线性化点（默认无实时状态，无需处理）。"""
         del ctx
 
     def commit(self, ctx: StampContext) -> None:
@@ -574,6 +581,15 @@ class Diode(CircuitElement):
         new_voltage = ctx.voltage(self.junction) - ctx.voltage(self.b)
         old_voltage = float(self.iteration_guess.get("vd", self.state["vd"]))
         self.iteration_guess["vd"] = self._limit(new_voltage, old_voltage)
+
+    SEED_TRUE_POINT = True
+
+    def seed_true_point(self, ctx: StampContext) -> None:
+        """真实工作点：不做 PN 限幅，按实际结电压线性化（供精确残差）。"""
+        new_voltage = ctx.voltage(self.junction) - ctx.voltage(self.b)
+        self.iteration_guess["vd"] = (
+            new_voltage if math.isfinite(new_voltage) else float(self.state["vd"])
+        )
 
     def _limit(self, vnew: float, vold: float) -> float:
         """PN 结电压限幅，避免 Newton 迭代在指数区过冲。"""

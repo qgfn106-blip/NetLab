@@ -118,6 +118,42 @@ def test_diode_forward_bias_and_exponential_limit() -> None:
     assert diode._conductance(0.0)[0] == pytest.approx(0.0)
 
 
+def test_diode_dc_operating_point_satisfies_kcl_small_saturation_current() -> None:
+    """审计 §3.3 回归：小 Is + 高压必须收敛到真解且满足 KCL，不得出现假收敛。
+
+    旧实现以有限幅切残差当收敛证据，Is=1e-14、Vs=2V 时会在 Vout≈2V（漏电几乎为 0）
+    处伪收敛，二极管电流与环境电流差 ~1e12 A，严重违反 KCL。
+    """
+    op = _solve(
+        [
+            ("V1", (VoltageSource, _vsource("in", "gnd", 2.0))),
+            ("R1", (Resistor, {"a": "in", "b": "out", "params": {"R": 1000.0}, "state": {}})),
+            (
+                "D1",
+                (
+                    Diode,
+                    {
+                        "a": "out",
+                        "b": "gnd",
+                        "params": {"Is": 1e-14, "n": 1.0, "temperature": 300.0},
+                        "state": {},
+                    },
+                ),
+            ),
+        ],
+        node_names=["gnd", "in", "out"],
+    )
+    vout = op["node_voltages"]["out"]
+    i_diode = op["elements"]["D1"]["current"]
+    i_resistor = op["elements"]["R1"]["current"]
+    # 解析解 Vout≈0.6623 V，I≈1.3377 mA（Is=1e-14, R=1k, Vs=2V）
+    assert vout == pytest.approx(0.6623, abs=5e-3)
+    assert i_diode == pytest.approx(1.3377e-3, rel=5e-2)
+    # KCL：流过电阻的电流必须等于二极管电流，不允许假收敛
+    assert i_diode == pytest.approx(i_resistor, rel=1e-6, abs=1e-9)
+    assert abs(i_diode - i_resistor) < 1e-6
+
+
 def test_capacitor_and_inductor_initial_conditions_and_gear2_first_step() -> None:
     capacitor = Capacitor(
         name="Cinit",

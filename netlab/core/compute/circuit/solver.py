@@ -600,9 +600,23 @@ class CircuitSolver:
             time=self.time,
             iteration=0,
             mode=mode,
+            true_point=True,
         )
-        for element in self.elements:
-            element.stamp(ctx)
+        # 仅在直流工作点（mode="dc"）按真实工作点重建强非线性元件的线性化点；
+        # 瞬态沿用原有限幅猜测，避免改变既有瞬态收敛轨迹（回归隔离）。
+        guess_backup = []
+        if mode == "dc":
+            for element in self.elements:
+                if getattr(element, "SEED_TRUE_POINT", False):
+                    guess_backup.append((element, dict(element.iteration_guess)))
+                    element.seed_true_point(ctx)
+        try:
+            for element in self.elements:
+                element.stamp(ctx)
+        finally:
+            for element, saved in guess_backup:
+                element.iteration_guess.clear()
+                element.iteration_guess.update(saved)
         return self._residual_metric(matrix, solution, rhs, dt)
 
     @staticmethod

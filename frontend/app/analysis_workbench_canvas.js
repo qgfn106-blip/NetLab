@@ -122,10 +122,6 @@ class AnalysisCanvasWorkspace {
   setCursor(frequency, sourceCanvasId = "", unit = "", axisKey = "") {
     for (const entry of this.entries) {
       if (entry.rec.canvas_id === sourceCanvasId) continue;
-      if (frequency !== null) {
-        const targetKey = entry.chart.xAxisKey();
-        if (!axisKey || !targetKey || axisKey !== targetKey) continue;
-      }
       entry.chart.setCursorFrequency(frequency, "linked", unit, axisKey);
     }
   }

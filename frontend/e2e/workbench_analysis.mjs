@@ -182,6 +182,28 @@ try {
   assert(beforeNyquist.equals(afterNyquist), 'Bode 悬停把游标串到了 Nyquist 画布');
   await page.mouse.move(5, 5);
   await page.waitForTimeout(200);
+
+  // 7d) 请求竞态：Bode 慢请求未返回时切到 Nyquist，旧响应不得写入新活动画布。
+  const beforeRace = await nyquistCanvas.screenshot();
+  let delayedRuns = 0;
+  await page.route('**/api/analysis/workbench/run', async (route) => {
+    delayedRuns += 1;
+    await sleep(1200);
+    const response = await route.fetch();
+    await route.fulfill({ response });
+  });
+  const slowResponse = page.waitForResponse((res) => res.url().includes('/api/analysis/workbench/run') && res.request().method() === 'POST');
+  await page.locator('.awb-nav-item[data-kind="bode"]').click();
+  await page.locator('.awb-nav-item[data-kind="nyquist"]').click();
+  await page.waitForFunction(() => document.querySelector('.awb-nav-item[data-kind="nyquist"]')?.classList.contains('active'), null, { timeout: 4000 });
+  await slowResponse;
+  await page.waitForTimeout(400);
+  assert(delayedRuns === 1, '请求竞态用例未拦截到 Bode 慢请求: ' + delayedRuns);
+  assert(await page.locator('.awb-nav-item[data-kind="nyquist"]').evaluate((el) => el.classList.contains('active')), '慢响应返回后活动分析漂移');
+  const afterRace = await nyquistCanvas.screenshot();
+  assert(beforeRace.equals(afterRace), 'Bode 慢响应串写到了 Nyquist 画布');
+  await page.unroute('**/api/analysis/workbench/run');
+
   // 8) 快照两个状态并进入多状态对比。
   await page.locator('[data-awb="snapshot"]').click();
   await sleep(800);

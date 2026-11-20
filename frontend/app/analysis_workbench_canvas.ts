@@ -173,10 +173,7 @@ export class AnalysisCanvasWorkspace {
   setCursor(frequency: number | null, sourceCanvasId = '', unit = '', axisKey = ''): void {
     for (const entry of this.entries) {
       if (entry.rec.canvas_id === sourceCanvasId) continue;
-      if (frequency !== null) {
-        const targetKey = entry.chart.xAxisKey();
-        if (!axisKey || !targetKey || axisKey !== targetKey) continue;
-      }
+      // 轴兼容判断由 chart.setCursorFrequency 单点负责，避免两层重复守卫漂移。
       entry.chart.setCursorFrequency(frequency, 'linked', unit, axisKey);
     }
   }

@@ -46,7 +46,6 @@ class AnalysisWorkbench {
     this.compareSelection = /* @__PURE__ */ new Set();
     this.layout = "grid";
     this.mounted = false;
-    this.restoring = false;
     this.lastRuns = {};
     this.exportFormat = "png";
     this.exportScope = "subcanvas";
@@ -192,14 +191,9 @@ class AnalysisWorkbench {
   /** 按已有画布逐个恢复结果（同类型多画布也各自恢复），服务端有缓存时直接命中。 */
   async restoreCanvasResults(desired) {
     const canvases = (this.workspace?.canvases || []).filter((canvas) => canvas.kind !== "metrics");
-    this.restoring = true;
-    try {
-      for (const canvas of canvases) {
-        this.workspace?.activate(canvas.canvas_id);
-        await this.run(canvas.kind);
-      }
-    } finally {
-      this.restoring = false;
+    for (const canvas of canvases) {
+      this.workspace?.activate(canvas.canvas_id);
+      await this.run(canvas.kind);
     }
     if (canvases.length) this.workspace?.activateKind(desired);
     this.renderAll();
@@ -408,7 +402,7 @@ class AnalysisWorkbench {
     const allIds = this.session?.states?.map((item) => item.state_id) || [active.state_id];
     const compared = this.compareMode && this.compareSelection.size >= 2 ? [...this.compareSelection] : allIds;
     const stateIds = this.exportScope === "canvas" ? compared : [active.state_id];
-    const resultIds = canvas?.result_keys?.length ? canvas.result_keys : canvas?.result_key ? [canvas.result_key] : void 0;
+    const resultIds = this.exportScope === "subcanvas" ? canvas?.result_keys?.length ? canvas.result_keys : canvas?.result_key ? [canvas.result_key] : void 0 : void 0;
     try {
       this.toolbarHost.classList.add("busy");
       const response = await workbenchExportRequest({

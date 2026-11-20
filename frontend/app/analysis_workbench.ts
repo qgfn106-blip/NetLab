@@ -61,7 +61,6 @@ export class AnalysisWorkbench {
   private compareSelection = new Set<string>();
   private layout: LayoutMode = 'grid';
   private mounted = false;
-  private restoring = false;
   private lastRuns: Record<string, RunResponse> = {};
   private exportFormat = 'png';
   private exportScope: 'subcanvas' | 'canvas' = 'subcanvas';
@@ -225,14 +224,9 @@ export class AnalysisWorkbench {
   /** 按已有画布逐个恢复结果（同类型多画布也各自恢复），服务端有缓存时直接命中。 */
   private async restoreCanvasResults(desired: AnalysisKind): Promise<void> {
     const canvases = (this.workspace?.canvases || []).filter((canvas) => canvas.kind !== 'metrics');
-    this.restoring = true;
-    try {
-      for (const canvas of canvases) {
-        this.workspace?.activate(canvas.canvas_id);
-        await this.run(canvas.kind);
-      }
-    } finally {
-      this.restoring = false;
+    for (const canvas of canvases) {
+      this.workspace?.activate(canvas.canvas_id);
+      await this.run(canvas.kind);
     }
     // 恢复过程会切换活动画布；结束后回到工程保存的当前分析，避免选择漂移。
     if (canvases.length) this.workspace?.activateKind(desired);
@@ -446,8 +440,10 @@ export class AnalysisWorkbench {
     const allIds = this.session?.states?.map((item) => item.state_id) || [active.state_id];
     const compared = this.compareMode && this.compareSelection.size >= 2 ? [...this.compareSelection] : allIds;
     const stateIds = this.exportScope === 'canvas' ? compared : [active.state_id];
-    // 绑定当前画布实际结果 key；缺失时才让后端退回按状态+类型查询。
-    const resultIds = canvas?.result_keys?.length ? canvas.result_keys : canvas?.result_key ? [canvas.result_key] : undefined;
+    // 仅“当前画布”导出绑定单画布结果 key；多状态导出不应被单个画布结果过度过滤。
+    const resultIds = this.exportScope === 'subcanvas'
+      ? (canvas?.result_keys?.length ? canvas.result_keys : canvas?.result_key ? [canvas.result_key] : undefined)
+      : undefined;
     try {
       this.toolbarHost.classList.add('busy');
       const response = await workbenchExportRequest({

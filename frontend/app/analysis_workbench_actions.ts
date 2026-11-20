@@ -6,7 +6,7 @@ import { workbenchExportRequest } from './analysis_client.js';
 import { toast } from './desktop.js';
 import type { RunResponse, WorkbenchSessionRec, WorkbenchStateRec } from './analysis_workbench_types.js';
 import {
-  KIND_LABELS, describeRunStatus, escapeHtml, optionHtml, shortFingerprint, type AnalysisKind,
+  KIND_LABELS, describeRunStatus, escapeHtml, optionHtml, shortFingerprint, loopFeedbackOutput, type AnalysisKind,
 } from './analysis_workbench_meta.js';
 
 const LAYOUT_OPTIONS: Array<[LayoutMode, string]> = [['grid', '网格'], ['tile', '平铺'], ['split', '分割'], ['max', '最大化']];
@@ -218,6 +218,13 @@ export abstract class WorkbenchActions {
       }
       params.element = element;
       params.feedback_sign = this.params.feedback_sign;
+      const feedbackOutput = loopFeedbackOutput(this.loopCandidates, element, output);
+      if (feedbackOutput && feedbackOutput !== output) {
+        params.output = feedbackOutput;
+        const outputSelect = this.navHost.querySelector('[data-awb="output"]') as HTMLSelectElement | null;
+        if (outputSelect) outputSelect.value = feedbackOutput;
+        toast(`闭环分析输出已自动改为反馈节点 ${feedbackOutput}（避免取到监测级导致环路一致性告警）`, 'warn', 6000);
+      }
     }
     return params;
   }

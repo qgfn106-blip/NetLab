@@ -6,7 +6,8 @@ import {
   describeRunStatus,
   escapeHtml,
   optionHtml,
-  shortFingerprint
+  shortFingerprint,
+  loopFeedbackOutput
 } from "./analysis_workbench_meta.js";
 const LAYOUT_OPTIONS = [["grid", "\u7F51\u683C"], ["tile", "\u5E73\u94FA"], ["split", "\u5206\u5272"], ["max", "\u6700\u5927\u5316"]];
 class WorkbenchActions {
@@ -189,6 +190,13 @@ class WorkbenchActions {
       }
       params.element = element;
       params.feedback_sign = this.params.feedback_sign;
+      const feedbackOutput = loopFeedbackOutput(this.loopCandidates, element, output);
+      if (feedbackOutput && feedbackOutput !== output) {
+        params.output = feedbackOutput;
+        const outputSelect = this.navHost.querySelector('[data-awb="output"]');
+        if (outputSelect) outputSelect.value = feedbackOutput;
+        toast(`\u95ED\u73AF\u5206\u6790\u8F93\u51FA\u5DF2\u81EA\u52A8\u6539\u4E3A\u53CD\u9988\u8282\u70B9 ${feedbackOutput}\uFF08\u907F\u514D\u53D6\u5230\u76D1\u6D4B\u7EA7\u5BFC\u81F4\u73AF\u8DEF\u4E00\u81F4\u6027\u544A\u8B66\uFF09`, "warn", 6e3);
+      }
     }
     return params;
   }

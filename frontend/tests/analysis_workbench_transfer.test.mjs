@@ -24,6 +24,11 @@ test('实体断环只把实际闭环 T(s) 作为主传函', () => {
   assert.doesNotMatch(html, /开环 G\(s\)/);
 });
 
+test('实体闭环传函显示实际输出节点', () => {
+  const html = transferSummaryHtml({ transfer_role: 'closed_loop', transfer_function: open, output: 'n4_copy' });
+  assert.match(html, /输出 n4_copy/);
+});
+
 test('缺失或不可支持的传函不渲染空壳', () => {
   assert.equal(transferSummaryHtml(undefined), '');
   assert.equal(transferSummaryHtml({ transfer_function: { supported: false } }), '');

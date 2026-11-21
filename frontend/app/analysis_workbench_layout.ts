@@ -6,25 +6,14 @@
  * 本模块只做数据规范化，不依赖 DOM。
  */
 import type { AnalysisKind } from './analysis_workbench_meta.js';
-import type { WorkbenchLayoutRecV2 } from './analysis_workbench_layout_tree.js';
+import type { WorkbenchCanvasRec, WorkbenchLayoutRecV2 } from './analysis_workbench_layout_tree.js';
 import { emptyLayout, normalizeLayout } from './analysis_workbench_layout_tree.js';
+
+export type { WorkbenchCanvasRec } from './analysis_workbench_layout_tree.js';
 
 export const WORKBENCH_SCHEMA = 'netlab-analysis-workbench/2';
 export const LEGACY_WORKBENCH_SCHEMA = 'netlab-analysis-workbench/1';
 export const WORKBENCH_KINDS: AnalysisKind[] = ['bode', 'time', 'nyquist', 'loop', 'metrics', 'poles', 'loop_closed', 'loop_step'];
-
-export interface WorkbenchCanvasRec {
-  canvas_id: string;
-  kind: AnalysisKind;
-  figure_id: string;
-  slot_id: number;
-  title: string;
-  view_state?: Record<string, unknown>;
-  /** 该画布最近一次成功运行的结果 key（导出时绑定实际结果，避免同状态同类型串结果）。 */
-  result_key?: string;
-  /** 多状态对比时该画布对应的各状态结果 key（导出绑定用）。 */
-  result_keys?: string[];
-}
 
 export interface WorkbenchUiRec {
   schema: string;

@@ -6,7 +6,20 @@
  *  - auto 表示旧的网格/平铺自动排列，仅用于兼容与排列预设。
  * 本模块不依赖 DOM，便于单元测试与工程序列化。
  */
-import type { WorkbenchCanvasRec } from './analysis_workbench_layout.js';
+import type { AnalysisKind } from './analysis_workbench_meta.js';
+
+export interface WorkbenchCanvasRec {
+  canvas_id: string;
+  kind: AnalysisKind;
+  figure_id: string;
+  slot_id: number;
+  title: string;
+  view_state?: Record<string, unknown>;
+  /** 该画布最近一次成功运行的结果 key（导出时绑定实际结果，避免同状态同类型串结果）。 */
+  result_key?: string;
+  /** 多状态对比时该画布对应的各状态结果 key（导出绑定用）。 */
+  result_keys?: string[];
+}
 
 export type LayoutNode =
   | { type: 'canvas'; canvasId: string }

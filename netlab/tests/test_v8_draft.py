@@ -69,7 +69,7 @@ def test_v8_is_activated() -> None:
     assert 8 in project_mod.SCHEMA_MIGRATIONS
     out = project_mod.migrate_project(copy.deepcopy(_v7_payload()))
     assert out["version"] == 8
-    assert out["ui"]["analysis_workbench"]["schema"] == "netlab-analysis-workbench/1"
+    assert out["ui"]["analysis_workbench"]["schema"] == "netlab-analysis-workbench/2"
     assert "presentation" not in out
 
 

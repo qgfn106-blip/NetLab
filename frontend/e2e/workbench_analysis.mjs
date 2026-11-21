@@ -151,8 +151,8 @@ try {
   assert((await tiles.count()) >= 2, '子画布注册表未记录 Bode/Nyquist');
   const titles = await page.locator('.awb-canvas-title').allInnerTexts();
   assert(titles.some((text) => text.includes('Bode')) && titles.some((text) => text.includes('Nyquist')), '子画布标题缺少分析类型: ' + titles.join(','));
-  await page.locator('[data-awb="layout"]').selectOption('split');
-  await page.waitForFunction(() => document.querySelector('[data-awb="chart"] .awb-canvas-grid')?.dataset.layout === 'split', null, { timeout: 4000 });
+  await page.locator('[data-awb="layout"]').selectOption('row');
+  await page.waitForFunction(() => !!document.querySelector('[data-awb="chart"] .awb-split[data-axis="row"]'), null, { timeout: 4000 });
   assert(await page.locator('.awb-canvas-tile').count() >= 2, '布局切换后子画布丢失');
 
   // 7b) 关闭当前活动画布后，工具栏/命令上下文跟随新的活动画布，不残留旧选择。
@@ -241,7 +241,8 @@ try {
   assert(savedPath, '工程文件未下载');
   const saved = JSON.parse(await readFile(savedPath, 'utf8'));
   const savedWorkbench = saved?.ui?.analysis_workbench;
-  assert(savedWorkbench?.layout?.mode === 'split', '工程未保存工作台布局: ' + JSON.stringify(savedWorkbench?.layout || null));
+  const savedRoot = savedWorkbench?.layout?.tabs?.[0]?.root;
+  assert(savedRoot?.type === 'split' && savedRoot?.axis === 'row', '工程未保存工作台布局: ' + JSON.stringify(savedWorkbench?.layout || null));
   assert((savedWorkbench?.canvases || []).length >= 2, '工程未保存画布注册表');
   assert(savedWorkbench?.active_analysis === 'nyquist', '工程未保存当前分析: ' + String(savedWorkbench?.active_analysis));
   await page.locator('input[type="file"][accept*=".netlab"]').setInputFiles(savedPath);
@@ -254,7 +255,8 @@ try {
   await page.waitForFunction(() => document.querySelector('#analWorkbench')?.dataset.awbReady === '1', null, { timeout: 20000 });
   await page.waitForFunction(() => document.querySelectorAll('.awb-canvas-tile').length >= 2, null, { timeout: 15000 });
   assert(await page.locator('.awb-nav-item[data-kind="nyquist"]').evaluate((el) => el.classList.contains('active')), '重新载入后未恢复 Nyquist');
-  assert(await page.locator('[data-awb="layout"]').inputValue() === 'split', '重新载入后未恢复分割布局');
+  assert(await page.locator('[data-awb="layout"]').inputValue() === 'row', '重新载入后未恢复分割布局');
+  assert(await page.locator('.awb-split[data-axis="row"]').count() > 0, '重新载入后未渲染左右分割树');
   // 9b) 每个已保存画布都应恢复结果，不能只有当前画布可用。
   const restoredTiles = await page.locator('.awb-canvas-tile').count();
   for (let index = 0; index < restoredTiles; index += 1) {
@@ -263,6 +265,28 @@ try {
     const badge = await page.locator('.awb-toolbar-meta .awb-badge').innerText();
     assert(!badge.includes('尚未运行'), '重新载入后第 ' + (index + 1) + ' 个画布未恢复结果: ' + badge);
   }
+
+  // 9c) 1024px 下侧栏自动折叠，画布区保持最小宽度且无横向溢出。
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.waitForTimeout(300);
+  const narrowChrome = await page.locator('#analWorkbench').evaluate((el) => {
+    const body = el.querySelector('.awb-body');
+    const stage = el.querySelector('.awb-stage');
+    return {
+      nav: el.getAttribute('data-nav-collapsed'),
+      detail: el.getAttribute('data-detail-collapsed'),
+      stageWidth: stage?.clientWidth || 0,
+      bodyWidth: body?.scrollWidth || 0,
+      bodyClient: body?.clientWidth || 0,
+    };
+  });
+  assert(narrowChrome.nav === 'true', '1024px 下导航未自动折叠');
+  assert(narrowChrome.detail === 'true', '1024px 下详情未自动折叠');
+  assert(narrowChrome.stageWidth >= 520, '1024px 下画布区宽度不足 520px: ' + narrowChrome.stageWidth);
+  assert(narrowChrome.bodyWidth <= narrowChrome.bodyClient + 1, '1024px 下工作台出现横向溢出');
+  await page.screenshot({ path: flow.dir + '/workbench-1024.png', fullPage: false });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.waitForTimeout(300);
 
   // 10) 无未捕获前端错误。
   assert(errors.length === 0, '前端错误: ' + errors.join(' | '));

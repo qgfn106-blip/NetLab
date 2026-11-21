@@ -601,11 +601,18 @@ function setStatusHint(hint) {
           if (item?.position) origins.set(id, { x: item.position.x, y: item.position.y });
         }
         if (origins.size > 1) {
+          const waypointOrigins = /* @__PURE__ */ new Map();
+          for (const edgeItem of state.scene?.edges || []) {
+            if (!edgeItem.waypoints?.length) continue;
+            if (!origins.has(edgeItem.source) || !origins.has(edgeItem.target)) continue;
+            waypointOrigins.set(edgeItem.id, edgeItem.waypoints.map((point2) => ({ ...point2 })));
+          }
           state.drag = {
             type: "nodes",
             startX: point.x,
             startY: point.y,
             origins,
+            waypoints: waypointOrigins,
             moved: false
           };
           canvas.setPointerCapture(event.pointerId);
@@ -741,12 +748,29 @@ function setStatusHint(hint) {
       const dx = (point.x - drag.startX) / k;
       const dy = (point.y - drag.startY) / k;
       const origins = drag.origins;
+      let appliedDx = dx;
+      let appliedDy = dy;
+      let firstOrigin = true;
       for (const [id, origin] of origins) {
         const node = nodeById(id);
         if (!node?.position) continue;
         const snapped = snapWorld(origin.x + dx, origin.y + dy, event.altKey);
+        if (firstOrigin) {
+          appliedDx = snapped.x - origin.x;
+          appliedDy = snapped.y - origin.y;
+          firstOrigin = false;
+        }
         node.position.x = snapped.x;
         node.position.y = snapped.y;
+      }
+      const waypointOrigins = drag.waypoints;
+      for (const [edgeId, points] of waypointOrigins || []) {
+        const edgeItem = edgeById(edgeId);
+        if (!edgeItem) continue;
+        edgeItem.waypoints = points.map((point2) => ({
+          x: Math.round((point2.x + appliedDx) * 100) / 100,
+          y: Math.round((point2.y + appliedDy) * 100) / 100
+        }));
       }
       drag.moved = true;
       requestDraw();
@@ -771,7 +795,7 @@ function setStatusHint(hint) {
       requestDraw();
     }
   }
-  function onPointerUp(event) {
+  async function onPointerUp(event) {
     const drag = state.drag;
     state.drag = null;
     state.hoverWaypoint = null;
@@ -806,10 +830,21 @@ function setStatusHint(hint) {
       return;
     }
     if (drag.type === "nodes" && drag.moved) {
+      await pushUndoSnapshot();
+      const waypointOrigins = drag.waypoints;
+      for (const [edgeId] of waypointOrigins || []) {
+        const edgeItem = edgeById(edgeId);
+        if (!edgeItem) continue;
+        await task(
+          () => jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, "PATCH", { waypoints: edgeItem.waypoints || [] }),
+          { history: false }
+        );
+      }
       const origins = drag.origins;
       for (const id of origins.keys()) queuePositionSave(id);
     }
     if (drag.type === "node" && drag.moved) {
+      await pushUndoSnapshot();
       queuePositionSave(drag.id);
     }
     if (drag.type === "resize" && drag.moved) {
@@ -1089,7 +1124,7 @@ function setStatusHint(hint) {
         }
         items.push({
           label: "\u9009\u4E2D\u6574\u6761\u7F51\u7EDC",
-          hint: "\u540C\u7AEF\u70B9\u7684\u5BFC\u7EBF\u4E00\u8D77\u9009\u4E2D",
+          hint: "\u76F8\u8FDE\u7684\u5BFC\u7EBF\u6574\u6BB5\u4E00\u8D77\u9009\u4E2D",
           action: () => selectWireNetwork(hit.edge)
         });
       }
@@ -1851,6 +1886,7 @@ function setStatusHint(hint) {
       toast("\u81F3\u5C11\u9009\u4E2D\u4E24\u4E2A\u8282\u70B9/\u5668\u4EF6\u624D\u80FD\u5BF9\u9F50", "info", 2400);
       return;
     }
+    await pushUndoSnapshot();
     const xs = targets.map((node) => node.position.x);
     const ys = targets.map((node) => node.position.y);
     const minX = Math.min(...xs);
@@ -1882,6 +1918,7 @@ function setStatusHint(hint) {
       toast("\u7B49\u8DDD\u5206\u5E03\u81F3\u5C11\u9700\u8981\u4E09\u4E2A\u8282\u70B9/\u5668\u4EF6", "info", 2400);
       return;
     }
+    await pushUndoSnapshot();
     const key = axis === "y" ? "y" : "x";
     const sorted = [...targets].sort((a, b) => a.position[key] - b.position[key]);
     const first = sorted[0].position[key];
@@ -1902,15 +1939,33 @@ function setStatusHint(hint) {
     }
   }
   function selectWireNetwork(edge) {
-    const ends = /* @__PURE__ */ new Set([edge.source, edge.target]);
-    const wires = (state.scene?.edges || []).filter(
-      (item) => item.kind === "wire" && (ends.has(item.source) || ends.has(item.target))
-    );
-    state.multi.nodes = new Set(ends);
-    state.multi.edges = new Set(wires.map((item) => item.id));
+    const adjacency = /* @__PURE__ */ new Map();
+    for (const item of state.scene?.edges || []) {
+      if (item.kind !== "wire") continue;
+      if (!adjacency.has(item.source)) adjacency.set(item.source, []);
+      if (!adjacency.has(item.target)) adjacency.set(item.target, []);
+      adjacency.get(item.source).push({ edge: item, other: item.target });
+      adjacency.get(item.target).push({ edge: item, other: item.source });
+    }
+    const endpoints = /* @__PURE__ */ new Set([edge.source, edge.target]);
+    const selectedWires = /* @__PURE__ */ new Map();
+    if (edge.kind === "wire") selectedWires.set(edge.id, edge);
+    const queue = [edge.source, edge.target];
+    while (queue.length) {
+      const id = queue.shift();
+      for (const link of adjacency.get(id) || []) {
+        selectedWires.set(link.edge.id, link.edge);
+        if (!endpoints.has(link.other)) {
+          endpoints.add(link.other);
+          queue.push(link.other);
+        }
+      }
+    }
+    state.multi.nodes = endpoints;
+    state.multi.edges = new Set(selectedWires.keys());
     state.selection = { type: null, id: null };
     requestDraw();
-    toast(`\u5DF2\u9009\u4E2D ${wires.length} \u6761\u5BFC\u7EBF / ${ends.size} \u4E2A\u7AEF\u70B9`, "info", 2200);
+    toast(`\u5DF2\u9009\u4E2D ${selectedWires.size} \u6761\u5BFC\u7EBF / ${endpoints.size} \u4E2A\u7AEF\u70B9`, "info", 2200);
   }
   async function addWireWaypoint(edge) {
     const source = nodeById(edge.source);
@@ -2280,6 +2335,7 @@ function setStatusHint(hint) {
       toast("\u753B\u5E03\u4E2D\u8FD8\u6CA1\u6709\u8282\u70B9", "info", 1800);
       return;
     }
+    await pushUndoSnapshot();
     const edges = (state.scene?.edges || []).filter((edge) => edge.enabled);
     const ids = new Set(nodes.map((node) => node.id));
     const layer = new Map(nodes.map((node) => [node.id, 0]));
@@ -6439,7 +6495,9 @@ function setStatusHint(hint) {
         if (!ui.modal.classList.contains("hidden")) closeModal();
         return;
       }
-      if (isFormTarget(event.target)) return;
+      const formTarget = isFormTarget(event.target);
+      const buttonTarget = formTarget && event.target.tagName === "BUTTON";
+      if (formTarget && !(buttonTarget && (event.ctrlKey || event.metaKey))) return;
       if (event.ctrlKey || event.metaKey) {
         const key = event.key.toLowerCase();
         if (key === "s" && event.altKey) {

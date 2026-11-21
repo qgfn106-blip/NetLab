@@ -1,14 +1,17 @@
-/* 分析工作台布局/画布登记的持久化模型。
+/* 分析工作台布局/画布登记的持久化模型（schema v2）。
  *
- * 只做数据规范化，不依赖 DOM：工程文件 ui.analysis_workbench 与前端运行时共用
- * 同一份结构，旧工程缺失或字段损坏时回落到默认值，并在 restored=false 时提示。
+ * v2 把布局从全局 grid/tile/split/max 模式改为 Tab → SplitTree → Leaf：
+ * 工程保存 tabs（每个标签页一棵 LayoutNode 树）、当前标签页、侧栏宽度与折叠状态。
+ * 旧工程（schema /1 的 mode/rows/cols/order）在读取时自动迁移。
+ * 本模块只做数据规范化，不依赖 DOM。
  */
 import type { AnalysisKind } from './analysis_workbench_meta.js';
+import type { WorkbenchLayoutRecV2 } from './analysis_workbench_layout_tree.js';
+import { emptyLayout, normalizeLayout } from './analysis_workbench_layout_tree.js';
 
-export const WORKBENCH_SCHEMA = 'netlab-analysis-workbench/1';
+export const WORKBENCH_SCHEMA = 'netlab-analysis-workbench/2';
+export const LEGACY_WORKBENCH_SCHEMA = 'netlab-analysis-workbench/1';
 export const WORKBENCH_KINDS: AnalysisKind[] = ['bode', 'time', 'nyquist', 'loop', 'metrics', 'poles', 'loop_closed', 'loop_step'];
-export type LayoutMode = 'grid' | 'tile' | 'split' | 'max';
-export const WORKBENCH_LAYOUT_MODES: LayoutMode[] = ['grid', 'tile', 'split', 'max'];
 
 export interface WorkbenchCanvasRec {
   canvas_id: string;
@@ -23,19 +26,13 @@ export interface WorkbenchCanvasRec {
   result_keys?: string[];
 }
 
-export interface WorkbenchLayoutRec {
-  mode: LayoutMode;
-  rows: number;
-  cols: number;
-  order: string[];
-}
-
 export interface WorkbenchUiRec {
   schema: string;
   active_analysis: AnalysisKind;
   canvases: WorkbenchCanvasRec[];
-  layout: WorkbenchLayoutRec;
+  layout: WorkbenchLayoutRecV2;
   sizes: { sidebar: number; detail: number };
+  collapsed: { sidebar: boolean; detail: boolean };
   selected_state_ids: string[];
 }
 
@@ -44,8 +41,9 @@ export function defaultWorkbenchUi(): WorkbenchUiRec {
     schema: WORKBENCH_SCHEMA,
     active_analysis: 'bode',
     canvases: [],
-    layout: { mode: 'grid', rows: 1, cols: 1, order: [] },
+    layout: emptyLayout(),
     sizes: { sidebar: 280, detail: 320 },
+    collapsed: { sidebar: false, detail: false },
     selected_state_ids: [],
   };
 }
@@ -87,42 +85,41 @@ export function readWorkbenchUi(value: unknown): { ui: WorkbenchUiRec; restored:
   const ui = defaultWorkbenchUi();
   if (!isRecord(value)) return { ui, restored: false };
   const source = value;
+  let restored = source.schema === WORKBENCH_SCHEMA;
   const seen = new Set<string>();
   const canvases: WorkbenchCanvasRec[] = [];
   if (Array.isArray(source.canvases)) {
-    for (const [index, item] of source.canvases.entries()) {
-      const canvas = normalizeCanvas(item, index);
-      if (!canvas || seen.has(canvas.canvas_id)) continue;
-      seen.add(canvas.canvas_id);
-      canvases.push(canvas);
-    }
+    source.canvases.forEach((item, index) => {
+      const rec = normalizeCanvas(item, index);
+      if (!rec || seen.has(rec.canvas_id)) return;
+      seen.add(rec.canvas_id);
+      rec.slot_id = canvases.length;
+      canvases.push(rec);
+    });
   }
   ui.canvases = canvases;
-  const active = asKind(source.active_analysis);
-  ui.active_analysis = active || canvases[0]?.kind || 'bode';
-
-  const layout = isRecord(source.layout) ? source.layout : {};
-  if (WORKBENCH_LAYOUT_MODES.includes(layout.mode as never)) {
-    ui.layout.mode = layout.mode as WorkbenchLayoutRec['mode'];
+  ui.active_analysis = asKind(source.active_analysis) || 'bode';
+  const legacy = source.schema === LEGACY_WORKBENCH_SCHEMA || (isRecord(source.layout) && !Array.isArray(source.layout.tabs));
+  ui.layout = normalizeLayout(source.layout, canvases.map((canvas) => canvas.canvas_id), legacy);
+  if (isRecord(source.sizes)) {
+    ui.sizes = {
+      sidebar: integer(source.sizes.sidebar, 280, 160, 640),
+      detail: integer(source.sizes.detail, 320, 200, 720),
+    };
   }
-  ui.layout.rows = integer(layout.rows, 1, 1, 8);
-  ui.layout.cols = integer(layout.cols, 1, 1, 8);
-  const order = Array.isArray(layout.order)
-    ? layout.order.filter((id): id is string => typeof id === 'string' && seen.has(id))
-    : [];
-  ui.layout.order = order.length ? order : canvases.map((canvas) => canvas.canvas_id);
-
-  const sizes = isRecord(source.sizes) ? source.sizes : {};
-  ui.sizes.sidebar = integer(sizes.sidebar, 280, 160, 640);
-  ui.sizes.detail = integer(sizes.detail, 320, 200, 720);
-
+  if (isRecord(source.collapsed)) {
+    ui.collapsed = {
+      sidebar: source.collapsed.sidebar === true,
+      detail: source.collapsed.detail === true,
+    };
+  }
   if (Array.isArray(source.selected_state_ids)) {
-    ui.selected_state_ids = [...new Set(source.selected_state_ids.filter((id): id is string => typeof id === 'string' && id !== ''))].slice(0, 8);
+    ui.selected_state_ids = [...new Set(source.selected_state_ids.filter((item): item is string => typeof item === 'string' && item !== ''))].slice(0, 8);
   }
-  return { ui, restored: true };
+  if (!restored && Array.isArray(source.canvases) && source.canvases.length) restored = true;
+  return { ui, restored };
 }
 
-/** 写入工程文件前再规范化一次，避免运行时产生的临时字段漏进工程。 */
 export function writeWorkbenchUi(value: WorkbenchUiRec): WorkbenchUiRec {
   return readWorkbenchUi(value).ui;
 }

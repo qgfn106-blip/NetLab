@@ -8,7 +8,8 @@
  */
 import { isAnalysisEnvelope, type AnalysisEnvelope } from './analysis_chart.js';
 import { compareTableHtml, mergeCompareEnvelopes, metricsHtml, transferSummaryHtml } from './analysis_workbench_results.js';
-import { readWorkbenchUi, writeWorkbenchUi, type LayoutMode, type WorkbenchCanvasRec, type WorkbenchUiRec } from './analysis_workbench_layout.js';
+import { readWorkbenchUi, writeWorkbenchUi, WORKBENCH_SCHEMA, type WorkbenchCanvasRec, type WorkbenchUiRec } from './analysis_workbench_layout.js';
+import { emptyLayout, type LayoutPreset } from './analysis_workbench_layout_tree.js';
 import { AnalysisCanvasWorkspace } from './analysis_workbench_canvas.js';
 import {
   analysisLoopsRequest,
@@ -39,6 +40,12 @@ export class AnalysisWorkbench extends WorkbenchActions {
   private restoredUi: boolean;
   private mounting = false;
   private sizes = { sidebar: 280, detail: 320 };
+  private collapsed = { sidebar: false, detail: false };
+  /** 用户显式选择；窄屏自动折叠不覆盖它，恢复宽屏时还原。 */
+  private preferredCollapsed = { sidebar: false, detail: false };
+  private responsiveNarrow = false;
+  private responsiveObserver: ResizeObserver | null = null;
+  private focusMode = false;
   private detailHost!: HTMLElement;
   private contextHost!: HTMLElement;
   private activeKind: AnalysisKind = 'bode';
@@ -56,8 +63,9 @@ export class AnalysisWorkbench extends WorkbenchActions {
     this.restoredUi = saved.restored;
     this.activeKind = saved.ui.active_analysis;
     this.persistedKind = saved.ui.active_analysis;
-    this.layout = saved.ui.layout.mode;
     this.sizes = { ...saved.ui.sizes };
+    this.collapsed = { ...saved.ui.collapsed };
+    this.preferredCollapsed = { ...saved.ui.collapsed };
     this.compareSelection = new Set(saved.ui.selected_state_ids);
   }
 
@@ -89,12 +97,19 @@ export class AnalysisWorkbench extends WorkbenchActions {
     this.statusHost = this.host.querySelector('[data-awb="status"]') as HTMLElement;
     this.spawnWorkspace(chartHost);
     this.applySizes();
+    this.applyChrome();
+    this.observeResponsiveChrome();
     this.host.querySelectorAll('[data-awb-resize]').forEach((handle) => {
       handle.addEventListener('pointerdown', (event) => this.beginResize(event as PointerEvent, handle as HTMLElement));
     });
     this.applyLayout();
     this.host.addEventListener('keydown', (event) => {
-      if ((event as KeyboardEvent).key === 'Escape' && this.compareMode) {
+      if ((event as KeyboardEvent).key !== 'Escape') return;
+      if (this.focusMode) {
+        this.focusMode = false;
+        this.applyChrome();
+        this.persist();
+      } else if (this.compareMode) {
         this.compareMode = false;
         this.renderContext();
       }
@@ -120,7 +135,7 @@ export class AnalysisWorkbench extends WorkbenchActions {
 
   private spawnWorkspace(chartHost: HTMLElement): void {
     this.mounting = true;
-    this.workspace = new AnalysisCanvasWorkspace(chartHost, this.detailHost, this.initialUi.canvases, this.layout, {
+    this.workspace = new AnalysisCanvasWorkspace(chartHost, this.detailHost, this.initialUi.canvases, this.initialUi.layout, {
       onCursor: (frequency, source, canvasId, unit, axisKey) => this.onCursor(frequency, source, canvasId, unit, axisKey),
       onPin: () => this.renderToolbar(),
       onChange: () => this.onWorkspaceChange(),
@@ -134,15 +149,19 @@ export class AnalysisWorkbench extends WorkbenchActions {
     this.initialUi = saved.ui;
     this.restoredUi = saved.restored;
     this.persistedKind = saved.ui.active_analysis;
-    this.layout = saved.ui.layout.mode;
     this.sizes = { ...saved.ui.sizes };
+    this.collapsed = { ...saved.ui.collapsed };
+    this.preferredCollapsed = { ...saved.ui.collapsed };
     this.compareSelection = new Set(saved.ui.selected_state_ids);
+    this.responsiveNarrow = false;
     if (this.mounted && this.workspace) {
       this.workspace.destroy();
       this.workspace = null;
       const chartHost = this.host.querySelector('[data-awb="chart"]') as HTMLElement | null;
       if (chartHost) this.spawnWorkspace(chartHost);
       this.applySizes();
+      this.applyChrome();
+      this.syncResponsiveChrome();
     }
   }
 
@@ -160,6 +179,8 @@ export class AnalysisWorkbench extends WorkbenchActions {
   }
 
   destroy(): void {
+    this.responsiveObserver?.disconnect();
+    this.responsiveObserver = null;
     this.workspace?.destroy();
     this.workspace = null;
     this.host.innerHTML = '';
@@ -684,9 +705,61 @@ export class AnalysisWorkbench extends WorkbenchActions {
     this.host.style.setProperty('--awb-detail-width', this.sizes.detail + 'px');
   }
 
+  /** 侧栏折叠/专注模式只改变外壳，不触碰画布布局树。 */
+  private applyChrome(): void {
+    this.host.dataset.navCollapsed = this.collapsed.sidebar ? 'true' : 'false';
+    this.host.dataset.detailCollapsed = this.collapsed.detail ? 'true' : 'false';
+    this.host.dataset.focus = this.focusMode ? 'true' : 'false';
+    this.host.classList.toggle('awb-focus', this.focusMode);
+  }
+
+  /** 工作台宽度 < 1100px 时自动折叠导航与详情；恢复宽屏时还原用户偏好。 */
+  private observeResponsiveChrome(): void {
+    this.responsiveObserver?.disconnect();
+    this.responsiveObserver = null;
+    this.responsiveNarrow = false;
+    this.syncResponsiveChrome();
+    if (typeof ResizeObserver === 'undefined') return;
+    this.responsiveObserver = new ResizeObserver(() => this.syncResponsiveChrome());
+    this.responsiveObserver.observe(this.host);
+  }
+
+  private syncResponsiveChrome(): void {
+    const width = this.host.clientWidth;
+    if (!width) return;
+    const narrow = width < 1100;
+    if (narrow === this.responsiveNarrow) return;
+    this.responsiveNarrow = narrow;
+    this.collapsed = narrow ? { sidebar: true, detail: true } : { ...this.preferredCollapsed };
+    this.applyChrome();
+  }
+
+  protected toggleSidebar(): void {
+    this.collapsed.sidebar = !this.collapsed.sidebar;
+    this.preferredCollapsed.sidebar = this.collapsed.sidebar;
+    this.applyChrome();
+    this.persist();
+  }
+
+  protected toggleDetail(): void {
+    this.collapsed.detail = !this.collapsed.detail;
+    this.preferredCollapsed.detail = this.collapsed.detail;
+    this.applyChrome();
+    this.persist();
+  }
+
+  protected toggleFocus(): void {
+    this.focusMode = !this.focusMode;
+    this.applyChrome();
+    this.persist();
+  }
+
+  protected setLayoutPreset(preset: LayoutPreset): void {
+    this.workspace?.setPreset(preset);
+  }
+
   protected applyLayout(): void {
-    this.host.dataset.layout = this.layout;
-    this.workspace?.setLayout(this.layout, false);
+    this.host.dataset.layout = this.workspace?.layout || 'auto';
   }
 
   protected persist(): void {
@@ -694,11 +767,12 @@ export class AnalysisWorkbench extends WorkbenchActions {
       const uiState = state.ui as unknown as Record<string, unknown>;
       const canvases = this.workspace?.persist() || [];
       uiState.analysis_workbench = writeWorkbenchUi({
-        schema: 'netlab-analysis-workbench/1',
+        schema: WORKBENCH_SCHEMA,
         active_analysis: this.persistedKind,
         canvases,
-        layout: { mode: this.layout, rows: 1, cols: 1, order: canvases.map((item) => item.canvas_id) },
+        layout: this.workspace?.layoutTree || emptyLayout(),
         sizes: this.sizes,
+        collapsed: this.preferredCollapsed,
         selected_state_ids: Array.from(this.compareSelection),
       });
     } catch (error) {

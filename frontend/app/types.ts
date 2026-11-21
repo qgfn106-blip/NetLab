@@ -225,6 +225,8 @@ export interface DragRec {
   originY?: number;
   startDiameter?: number;
   moved?: boolean;
+  origins?: Map<string, { x: number; y: number }>;
+  waypoints?: Map<string, { x: number; y: number }[]>;
   [k: string]: unknown;
 }
 export interface SnapshotRec { scene?: SceneRec; sim?: SimRec; limits?: LimitsRec; [k: string]: unknown }

@@ -114,6 +114,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-21 | test(schema): 补齐工作台 v2 校验分支覆盖至 97% |
 | 2026-11-21 | test(golden): 更新工作台 v2 schema 迁移 golden 快照 |
 | 2026-11-21 | chore(reports): 补充工作台布局改动的 D-5 影子报告 |
 | 2026-11-21 | fix(arch): 移动 WorkbenchCanvasRec 类型打断 layout 与 layout_tree 循环依赖 |
@@ -133,7 +134,6 @@ python -m netlab.desktop
 | 2026-11-20 | fix(frontend): 工作台复核修正（请求竞态E2E/游标守卫单源/导出作用域） |
 | 2026-11-20 | fix(frontend): 多画布工作台契约修复（结果归属/命令上下文/游标单位/导出绑定） |
 | 2026-11-20 | fix(descriptor): QZ 奇异判定刻度不变（等化后判定，修复量级悬殊误判奇异） |
-| 2026-11-20 | fix(circuit): 直流工作点二极管假收敛修复（真实工作点残差）  - _true_residual 在 mode="dc" 时对 SEED_TRUE_POINT 元件（二极管）按真实结电压重线性化，   并还原 iteration_guess，避免以有限幅切残差当收敛证据；瞬态保持原限幅轨迹以隔离回归。 - 新增 CircuitElement.SEED_TRUE_POINT / seed_true_point 与 Diode.seed_true_point。 - 新增 KCL 回归测试：Is=1e-14,Vs=2V 收敛到 Vout≈0.6623V 且 I_D==I_R1。  Fixes: 审计 BUG1（二极管直流工作点假收敛，KCL 违反 ~1e12A） |
 
 <!-- END LAST 20 UPDATES -->
 

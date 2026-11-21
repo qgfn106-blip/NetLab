@@ -114,6 +114,10 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-21 | feat(workbench): 工作台布局 v2（Tab/SplitTree）、布局撤销重做与导线整网拖动修复 |
+| 2026-11-20 | fix(ui): 浮窗允许部分移出视口并裁剪子图绘图 |
+| 2026-11-20 | fix(analysis): 闭环传函证据栏显示实际输出节点 |
+| 2026-11-20 | fix(analysis): 断环闭环输出自动落到反馈节点 |
 | 2026-11-20 | fix(circuit): 修正桥增益与直流偏置处理并补充输出节点说明 |
 | 2026-11-20 | chore(reports): 补充跨域桥小信号修复影子报告 |
 | 2026-11-20 | fix(circuit): 跨域桥元件按传感器电压受控并补真实传递测试 |
@@ -130,10 +134,6 @@ python -m netlab.desktop
 | 2026-11-20 | chore(analysis): 补充 D-5 求解器影响影子报告 |
 | 2026-11-20 | fix(analysis): 恢复工作台开环/闭环传递函数显示 |
 | 2026-11-20 | fix(analysis): 工作台自动求解非线性电路 DC 工作点 |
-| 2026-11-20 | fix(analysis): 工作台输入源兼容工程 v8 device 节点 |
-| 2026-11-20 | test(plotkit): 兼容矩阵与公开 API 断言更新到 0.3 |
-| 2026-11-19 | fix(ci): 修复 ground 契约、schemdraw 可选依赖与 PlotKit 必需插件安装 |
-| 2026-11-19 | feat(analysis): 电路分析工作台落地 PlotKit 渲染与多子画布 |
 
 <!-- END LAST 20 UPDATES -->
 

@@ -114,6 +114,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-21 | fix(ci): 消除 parity 重复声明并拆出菜单模块满足 S5 行数上限 |
 | 2026-11-21 | feat(workbench): 工作台布局 v2（Tab/SplitTree）、布局撤销重做与导线整网拖动修复 |
 | 2026-11-20 | fix(ui): 浮窗允许部分移出视口并裁剪子图绘图 |
 | 2026-11-20 | fix(analysis): 闭环传函证据栏显示实际输出节点 |
@@ -133,7 +134,6 @@ python -m netlab.desktop
 | 2026-11-20 | test(analysis): 补充闭环传函边界与异常路径覆盖 |
 | 2026-11-20 | chore(analysis): 补充 D-5 求解器影响影子报告 |
 | 2026-11-20 | fix(analysis): 恢复工作台开环/闭环传递函数显示 |
-| 2026-11-20 | fix(analysis): 工作台自动求解非线性电路 DC 工作点 |
 
 <!-- END LAST 20 UPDATES -->
 

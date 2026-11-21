@@ -36,7 +36,7 @@ export const LAYOUT_PRESETS: Array<[LayoutPreset, string]> = [
 const RATIO_MIN = 0.15;
 const RATIO_MAX = 0.85;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+function isRecordNode(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
@@ -93,7 +93,7 @@ export function rootForCanvasIds(canvasIds: string[], preset: LayoutPreset = 'au
 }
 
 function normalizeNode(value: unknown, valid: Set<string>, used: Set<string>): LayoutNode | null {
-  if (!isRecord(value)) return null;
+  if (!isRecordNode(value)) return null;
   const type = value.type;
   if (type === 'canvas') {
     const id = typeof value.canvasId === 'string' ? value.canvasId : '';
@@ -139,12 +139,12 @@ function normalizeNode(value: unknown, valid: Set<string>, used: Set<string>): L
 
 /** v1 layout（mode/rows/cols/order）→ v2 单标签页。 */
 export function migrateV1Layout(value: unknown, canvasIds: string[]): WorkbenchLayoutRecV2 {
-  const order = isRecord(value) && Array.isArray(value.order)
+  const order = isRecordNode(value) && Array.isArray(value.order)
     ? value.order.filter((id): id is string => typeof id === 'string' && canvasIds.includes(id))
     : [];
   const ids = order.length ? order : canvasIds;
   if (!ids.length) return emptyLayout();
-  const mode = isRecord(value) && typeof value.mode === 'string' ? value.mode : 'grid';
+  const mode = isRecordNode(value) && typeof value.mode === 'string' ? value.mode : 'grid';
   const preset: LayoutPreset = mode === 'split' ? 'row' : 'auto';
   const root = rootForCanvasIds(ids, preset);
   return { tabs: root ? [{ id: 'tab-1', title: '主视图', root }] : [], activeTab: root ? 'tab-1' : '' };
@@ -167,15 +167,15 @@ function appendMissing(root: LayoutNode | null, ids: string[]): LayoutNode | nul
 
 /** 规范化任意来源的 v2 layout；无效数据回落到按 canvasIds 生成默认布局。 */
 export function normalizeLayout(value: unknown, canvasIds: string[], legacy: boolean): WorkbenchLayoutRecV2 {
-  if (legacy || (isRecord(value) && !Array.isArray(value.tabs))) return migrateV1Layout(value, canvasIds);
-  if (!isRecord(value)) return migrateV1Layout(null, canvasIds);
+  if (legacy || (isRecordNode(value) && !Array.isArray(value.tabs))) return migrateV1Layout(value, canvasIds);
+  if (!isRecordNode(value)) return migrateV1Layout(null, canvasIds);
   const valid = new Set(canvasIds);
   const used = new Set<string>();
   const tabs: WorkbenchTabRec[] = [];
   const rawTabs = Array.isArray(value.tabs) ? value.tabs : [];
   const seenTabIds = new Set<string>();
   rawTabs.forEach((raw, index) => {
-    if (!isRecord(raw)) return;
+    if (!isRecordNode(raw)) return;
     const id = typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : 'tab-' + (index + 1);
     if (seenTabIds.has(id)) return;
     const root = normalizeNode(raw.root, valid, used);

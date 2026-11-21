@@ -15,6 +15,7 @@ import {
   removeCanvasFromLayout,
   splitCanvasInLayout
 } from "./analysis_workbench_layout_tree.js";
+import { WorkbenchMenu } from "./analysis_workbench_menu.js";
 function newCanvasId() {
   try {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -69,8 +70,7 @@ class AnalysisCanvasWorkspace {
     this.dragTabId = "";
     this.dropTargetId = "";
     this.dropPosition = "";
-    this.menu = null;
-    this.menuAway = null;
+    this.menu = new WorkbenchMenu();
     this.host = host;
     this.detailHost = detailHost;
     this.events = events;
@@ -408,51 +408,10 @@ class AnalysisCanvasWorkspace {
     this.render();
     this.events.onChange?.();
   }
-  openMenu(anchor, items) {
-    this.closeMenu();
-    const menu = document.createElement("div");
-    menu.className = "awb-menu";
-    menu.dataset.awb = "menu";
-    for (const item of items) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "awb-menu-item";
-      button.textContent = item.label;
-      button.disabled = item.disabled === true;
-      button.addEventListener("click", () => {
-        this.closeMenu();
-        item.action();
-      });
-      menu.append(button);
-    }
-    document.body.append(menu);
-    const rect = anchor.getBoundingClientRect();
-    menu.style.left = Math.max(8, Math.min(window.innerWidth - menu.offsetWidth - 8, rect.left)) + "px";
-    menu.style.top = Math.max(8, Math.min(window.innerHeight - menu.offsetHeight - 8, rect.bottom + 4)) + "px";
-    this.menu = menu;
-    window.setTimeout(() => {
-      const away = (event) => {
-        if (this.menu && !this.menu.contains(event.target)) this.closeMenu();
-      };
-      this.menuAway = away;
-      if (!this.menu) return;
-      window.addEventListener("pointerdown", away);
-    }, 0);
-  }
-  closeMenu() {
-    if (this.menuAway) {
-      window.removeEventListener("pointerdown", this.menuAway);
-      this.menuAway = null;
-    }
-    if (this.menu) {
-      this.menu.remove();
-      this.menu = null;
-    }
-  }
   openTileMenu(canvasId, anchor) {
     const entry = this.entry(canvasId);
     if (!entry) return;
-    this.openMenu(anchor, [
+    this.menu.open(anchor, [
       { label: "\u5411\u53F3\u5206\u5272", action: () => this.splitCanvas(canvasId, "row", "after") },
       { label: "\u5411\u4E0B\u5206\u5272", action: () => this.splitCanvas(canvasId, "column", "after") },
       { label: "\u590D\u5236\u5B50\u56FE", action: () => this.duplicateCanvas(canvasId) },
@@ -462,7 +421,7 @@ class AnalysisCanvasWorkspace {
     ]);
   }
   openTabMenu(tabId, anchor) {
-    this.openMenu(anchor, [
+    this.menu.open(anchor, [
       { label: "\u91CD\u547D\u540D", action: () => {
         const tab = findTab(this.layoutRec, tabId);
         if (!tab) return;
@@ -725,7 +684,7 @@ class AnalysisCanvasWorkspace {
     active?.chart.setDetailHost(this.detailHost);
   }
   destroy() {
-    this.closeMenu();
+    this.menu.close();
     for (const entry of this.entries) entry.chart.destroy();
     this.entries.length = 0;
     this.root.remove();

@@ -27,6 +27,7 @@ import {
   removeCanvasFromLayout,
   splitCanvasInLayout,
 } from './analysis_workbench_layout_tree.js';
+import { WorkbenchMenu } from './analysis_workbench_menu.js';
 
 export interface CanvasWorkspaceEvents {
   onCursor?(frequency: number | null, source: string, canvasId: string, unit?: string, axisKey?: string): void;
@@ -40,12 +41,6 @@ interface CanvasEntry {
   body: HTMLElement;
   chart: AnalysisChart;
   viewState?: Record<string, unknown>;
-}
-
-interface MenuItem {
-  label: string;
-  action(): void;
-  disabled?: boolean;
 }
 
 function newCanvasId(): string {
@@ -113,8 +108,7 @@ export class AnalysisCanvasWorkspace {
   private dragTabId = '';
   private dropTargetId = '';
   private dropPosition = '';
-  private menu: HTMLElement | null = null;
-  private menuAway: ((event: PointerEvent) => void) | null = null;
+  private readonly menu = new WorkbenchMenu();
 
   constructor(
     host: HTMLElement,
@@ -473,53 +467,10 @@ export class AnalysisCanvasWorkspace {
     this.events.onChange?.();
   }
 
-  private openMenu(anchor: HTMLElement, items: MenuItem[]): void {
-    this.closeMenu();
-    const menu = document.createElement('div');
-    menu.className = 'awb-menu';
-    menu.dataset.awb = 'menu';
-    for (const item of items) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'awb-menu-item';
-      button.textContent = item.label;
-      button.disabled = item.disabled === true;
-      button.addEventListener('click', () => {
-        this.closeMenu();
-        item.action();
-      });
-      menu.append(button);
-    }
-    document.body.append(menu);
-    const rect = anchor.getBoundingClientRect();
-    menu.style.left = Math.max(8, Math.min(window.innerWidth - menu.offsetWidth - 8, rect.left)) + 'px';
-    menu.style.top = Math.max(8, Math.min(window.innerHeight - menu.offsetHeight - 8, rect.bottom + 4)) + 'px';
-    this.menu = menu;
-    window.setTimeout(() => {
-      const away = (event: PointerEvent): void => {
-        if (this.menu && !this.menu.contains(event.target as Node)) this.closeMenu();
-      };
-      this.menuAway = away;
-      if (!this.menu) return;
-      window.addEventListener('pointerdown', away);
-    }, 0);
-  }
-
-  private closeMenu(): void {
-    if (this.menuAway) {
-      window.removeEventListener('pointerdown', this.menuAway);
-      this.menuAway = null;
-    }
-    if (this.menu) {
-      this.menu.remove();
-      this.menu = null;
-    }
-  }
-
   private openTileMenu(canvasId: string, anchor: HTMLElement): void {
     const entry = this.entry(canvasId);
     if (!entry) return;
-    this.openMenu(anchor, [
+    this.menu.open(anchor, [
       { label: '向右分割', action: () => this.splitCanvas(canvasId, 'row', 'after') },
       { label: '向下分割', action: () => this.splitCanvas(canvasId, 'column', 'after') },
       { label: '复制子图', action: () => this.duplicateCanvas(canvasId) },
@@ -530,7 +481,7 @@ export class AnalysisCanvasWorkspace {
   }
 
   private openTabMenu(tabId: string, anchor: HTMLElement): void {
-    this.openMenu(anchor, [
+    this.menu.open(anchor, [
       { label: '重命名', action: () => {
         const tab = findTab(this.layoutRec, tabId);
         if (!tab) return;
@@ -823,7 +774,7 @@ export class AnalysisCanvasWorkspace {
   }
 
   destroy(): void {
-    this.closeMenu();
+    this.menu.close();
     for (const entry of this.entries) entry.chart.destroy();
     this.entries.length = 0;
     this.root.remove();

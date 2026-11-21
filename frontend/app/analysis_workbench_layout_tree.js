@@ -6,7 +6,7 @@ const LAYOUT_PRESETS = [
 ];
 const RATIO_MIN = 0.15;
 const RATIO_MAX = 0.85;
-function isRecord(value) {
+function isRecordNode(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function clampRatio(value) {
@@ -55,7 +55,7 @@ function rootForCanvasIds(canvasIds, preset = "auto") {
   return build(ids);
 }
 function normalizeNode(value, valid, used) {
-  if (!isRecord(value)) return null;
+  if (!isRecordNode(value)) return null;
   const type = value.type;
   if (type === "canvas") {
     const id = typeof value.canvasId === "string" ? value.canvasId : "";
@@ -97,10 +97,10 @@ function normalizeNode(value, valid, used) {
   return null;
 }
 function migrateV1Layout(value, canvasIds) {
-  const order = isRecord(value) && Array.isArray(value.order) ? value.order.filter((id) => typeof id === "string" && canvasIds.includes(id)) : [];
+  const order = isRecordNode(value) && Array.isArray(value.order) ? value.order.filter((id) => typeof id === "string" && canvasIds.includes(id)) : [];
   const ids = order.length ? order : canvasIds;
   if (!ids.length) return emptyLayout();
-  const mode = isRecord(value) && typeof value.mode === "string" ? value.mode : "grid";
+  const mode = isRecordNode(value) && typeof value.mode === "string" ? value.mode : "grid";
   const preset = mode === "split" ? "row" : "auto";
   const root = rootForCanvasIds(ids, preset);
   return { tabs: root ? [{ id: "tab-1", title: "\u4E3B\u89C6\u56FE", root }] : [], activeTab: root ? "tab-1" : "" };
@@ -119,15 +119,15 @@ function appendMissing(root, ids) {
   return { type: "split", axis: "row", ratio: 0.7, first: root, second: rootForCanvasIds(missing, "auto") };
 }
 function normalizeLayout(value, canvasIds, legacy) {
-  if (legacy || isRecord(value) && !Array.isArray(value.tabs)) return migrateV1Layout(value, canvasIds);
-  if (!isRecord(value)) return migrateV1Layout(null, canvasIds);
+  if (legacy || isRecordNode(value) && !Array.isArray(value.tabs)) return migrateV1Layout(value, canvasIds);
+  if (!isRecordNode(value)) return migrateV1Layout(null, canvasIds);
   const valid = new Set(canvasIds);
   const used = /* @__PURE__ */ new Set();
   const tabs = [];
   const rawTabs = Array.isArray(value.tabs) ? value.tabs : [];
   const seenTabIds = /* @__PURE__ */ new Set();
   rawTabs.forEach((raw, index) => {
-    if (!isRecord(raw)) return;
+    if (!isRecordNode(raw)) return;
     const id = typeof raw.id === "string" && raw.id.trim() ? raw.id.trim() : "tab-" + (index + 1);
     if (seenTabIds.has(id)) return;
     const root = normalizeNode(raw.root, valid, used);

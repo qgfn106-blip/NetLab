@@ -125,6 +125,7 @@ python -m netlab.run
 - **DC 工作点**：各节点稳态电压与元件电流（电容视为开路、电感视为短路）。
 - **AC 扫频**：在指定工作点线性化，输出幅频/相频（Bode）数据；Bode 图上移动鼠标即可连续读数，`←/→` 吸附相邻采样点（`Shift` ×10）。
 - **周期估计**：全窗 + 前 65% 子窗 + 后 35% 子窗逐窗打分（R11 多窗口），并给出 `score_std/period_std`，越小说明周期性越稳定。
+- **断环 / 闭环 / Nyquist**：分析工作台用断环法求开环 L(s)、闭环 T(s) 与 Nyquist 判据。`output` 必须取反馈节点（例如 `控制工程实验2.netlab` 的 `n4_copy`）；若误取监测级 `n9`，环路 parity 不闭合并抛出 `loop_parity_failed`。
 - **统一频响（R39）**：信号流与电路都可走 `POST /api/analysis/frequency`，返回 `real/imag/magnitude/phase_deg/db`；信号流用复数图 `(I-W(jω))y=b`，延迟边按精确 `e^{-jωT}`，电路复用复数 MNA。
 
 这些接口也可通过 HTTP 调用（`GET /api/operating-point`、`GET /api/ac-sweep`、`POST /api/analysis/frequency`），方便脚本化。

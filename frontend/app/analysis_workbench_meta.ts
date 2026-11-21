@@ -80,6 +80,21 @@ export function electricalCircuitNodes(nodes: Array<Record<string, unknown>> | u
   return (nodes || []).filter((node) => String(node.kind || '') === 'node');
 }
 
+/** 闭环/奈氏断环时选择反馈节点：优先受控源控制端，其次输出端，避免误取监测级。 */
+export function loopFeedbackOutput(
+  candidates: Array<Record<string, unknown>>,
+  activeElement: string,
+  currentOutput: string,
+): string {
+  const active = String(activeElement || '');
+  const candidate = candidates.find((item) => String(item.element || '') === active) || candidates[0];
+  if (!candidate) return String(currentOutput || '');
+  const allowed = [String(candidate.control_a || ''), String(candidate.output_a || '')].filter(Boolean);
+  const current = String(currentOutput || '');
+  if (allowed.includes(current)) return current;
+  return allowed[0] || current;
+}
+
 export function loopElementOptions(candidates: Array<Record<string, unknown>>, activeElement: string, allowVirtual: boolean): string {
   const candidatesHtml = candidates.map((candidate) => {
     const element = String(candidate.element || '');

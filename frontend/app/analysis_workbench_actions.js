@@ -1,4 +1,5 @@
 import { transferSummaryHtml } from "./analysis_workbench_results.js";
+import { LAYOUT_PRESETS } from "./analysis_workbench_layout_tree.js";
 import { workbenchExportRequest } from "./analysis_client.js";
 import { toast } from "./desktop.js";
 import {
@@ -6,9 +7,9 @@ import {
   describeRunStatus,
   escapeHtml,
   optionHtml,
-  shortFingerprint
+  shortFingerprint,
+  loopFeedbackOutput
 } from "./analysis_workbench_meta.js";
-const LAYOUT_OPTIONS = [["grid", "\u7F51\u683C"], ["tile", "\u5E73\u94FA"], ["split", "\u5206\u5272"], ["max", "\u6700\u5927\u5316"]];
 class WorkbenchActions {
   constructor() {
     this.workspace = null;
@@ -20,7 +21,6 @@ class WorkbenchActions {
     this.busy = false;
     this.compareMode = false;
     this.compareSelection = /* @__PURE__ */ new Set();
-    this.layout = "grid";
     this.lastRuns = {};
     this.exportFormat = "png";
     this.exportScope = "subcanvas";
@@ -38,7 +38,10 @@ class WorkbenchActions {
       '<div class="awb-toolbar-meta">' + this.cacheBadge() + "</div>",
       '<div class="awb-toolbar-actions">',
       this.compareMode ? '<button type="button" class="btn tiny" data-awb="compare-run">\u5BF9\u6BD4\u9009\u4E2D\u72B6\u6001</button>' : "",
-      '  <select class="awb-select tiny" data-awb="layout" title="\u753B\u5E03\u5E03\u5C40">' + LAYOUT_OPTIONS.map(([mode, label]) => optionHtml(mode, label, this.layout === mode)).join("") + "</select>",
+      '  <button type="button" class="btn tiny awb-icon-btn" data-awb="sidebar-collapse" title="\u6298\u53E0/\u5C55\u5F00\u5DE6\u4FA7\u5BFC\u822A">\u25E7</button>',
+      '  <button type="button" class="btn tiny awb-icon-btn" data-awb="detail-collapse" title="\u6298\u53E0/\u5C55\u5F00\u53F3\u4FA7\u8BE6\u60C5">\u25E8</button>',
+      '  <button type="button" class="btn tiny awb-icon-btn" data-awb="focus" title="\u4E13\u6CE8\u6A21\u5F0F\uFF08Esc \u9000\u51FA\uFF09">\u26F6</button>',
+      '  <select class="awb-select tiny" data-awb="layout" title="\u753B\u5E03\u5E03\u5C40">' + LAYOUT_PRESETS.map(([preset, label]) => optionHtml(preset, label, (this.workspace?.layout || "auto") === preset)).join("") + "</select>",
       '  <select class="awb-select tiny" data-awb="export-format" title="\u5BFC\u51FA\u683C\u5F0F">' + ["png", "svg", "pdf", "spec", "csv", "json", "zip"].map((fmt) => optionHtml(fmt, fmt.toUpperCase(), fmt === this.exportFormat)).join("") + "</select>",
       '  <select class="awb-select tiny" data-awb="export-scope" title="\u5BFC\u51FA\u8303\u56F4">' + optionHtml("subcanvas", "\u5F53\u524D\u753B\u5E03", this.exportScope === "subcanvas") + optionHtml("canvas", "\u5168\u90E8\u72B6\u6001", this.exportScope === "canvas") + "</select>",
       '  <button type="button" class="btn tiny" data-awb="export"' + (hasCanvas ? "" : " disabled") + ">\u5BFC\u51FA</button>",
@@ -49,10 +52,11 @@ class WorkbenchActions {
       void this.run();
     });
     this.toolbarHost.querySelector('[data-awb="layout"]')?.addEventListener("change", (event) => {
-      this.layout = event.target.value || "grid";
-      this.applyLayout();
-      this.persist();
+      this.setLayoutPreset(event.target.value || "auto");
     });
+    this.toolbarHost.querySelector('[data-awb="sidebar-collapse"]')?.addEventListener("click", () => this.toggleSidebar());
+    this.toolbarHost.querySelector('[data-awb="detail-collapse"]')?.addEventListener("click", () => this.toggleDetail());
+    this.toolbarHost.querySelector('[data-awb="focus"]')?.addEventListener("click", () => this.toggleFocus());
     this.toolbarHost.querySelector('[data-awb="compare-run"]')?.addEventListener("click", () => {
       void this.runCompare();
     });
@@ -189,6 +193,13 @@ class WorkbenchActions {
       }
       params.element = element;
       params.feedback_sign = this.params.feedback_sign;
+      const feedbackOutput = loopFeedbackOutput(this.loopCandidates, element, output);
+      if (feedbackOutput && feedbackOutput !== output) {
+        params.output = feedbackOutput;
+        const outputSelect = this.navHost.querySelector('[data-awb="output"]');
+        if (outputSelect) outputSelect.value = feedbackOutput;
+        toast(`\u95ED\u73AF\u5206\u6790\u8F93\u51FA\u5DF2\u81EA\u52A8\u6539\u4E3A\u53CD\u9988\u8282\u70B9 ${feedbackOutput}\uFF08\u907F\u514D\u53D6\u5230\u76D1\u6D4B\u7EA7\u5BFC\u81F4\u73AF\u8DEF\u4E00\u81F4\u6027\u544A\u8B66\uFF09`, "warn", 6e3);
+      }
     }
     return params;
   }

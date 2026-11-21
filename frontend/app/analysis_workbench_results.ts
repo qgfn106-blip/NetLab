@@ -18,11 +18,12 @@ function readTransfer(value: unknown): TransferInfo | null {
   return info;
 }
 
-function transferItemHtml(label: string, info: TransferInfo): string {
+function transferItemHtml(label: string, info: TransferInfo, output: string): string {
   const order = typeof info.order === 'number' ? String(info.order) : '—';
   const relative = typeof info.relative_order === 'number' ? String(info.relative_order) : '—';
+  const suffix = output ? ' · 输出 ' + escapeHtml(output) : '';
   return '<span class="anal-transfer-item"><b>' + label + '</b> = <code>' + escapeHtml(info.expression || '') +
-    '</code><span class="anal-transfer-meta">阶数 ' + order + ' · 相对阶 ' + relative + '</span></span>';
+    '</code><span class="anal-transfer-meta">阶数 ' + order + ' · 相对阶 ' + relative + suffix + '</span></span>';
 }
 
 export function transferSummaryHtml(raw?: Record<string, unknown>): string {
@@ -30,12 +31,13 @@ export function transferSummaryHtml(raw?: Record<string, unknown>): string {
   const openLoop = readTransfer(raw['transfer_function']);
   const closedLoop = readTransfer(raw['closed_loop_transfer_function']);
   const role = raw['transfer_role'] === 'closed_loop' ? 'closed_loop' : 'open_loop';
+  const output = typeof raw['output'] === 'string' ? raw['output'] : '';
   const items: string[] = [];
   if (role === 'closed_loop') {
-    if (openLoop) items.push(transferItemHtml('闭环 T(s)', openLoop));
+    if (openLoop) items.push(transferItemHtml('闭环 T(s)', openLoop, output));
   } else {
-    if (openLoop) items.push(transferItemHtml('开环 G(s)', openLoop));
-    if (closedLoop) items.push(transferItemHtml('闭环 T(s)', closedLoop));
+    if (openLoop) items.push(transferItemHtml('开环 G(s)', openLoop, output));
+    if (closedLoop) items.push(transferItemHtml('闭环 T(s)', closedLoop, output));
   }
   if (!items.length) return '';
   return '<div class="anal-transfer" data-awb="transfer">' + items.join('') + '</div>';

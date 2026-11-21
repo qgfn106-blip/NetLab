@@ -10,7 +10,9 @@
 支路电流组成。频域响应通过求解 ``(A + jωE) X = B`` 得到，不显式求逆。
 
 支持元件：电阻、电容、电感、独立电压源、独立电流源、VCVS、VCCS 与固定状态
-开关。二极管（含齐纳/LED）、BJT、MOSFET、运放/比较器可在给定直流工作点通过
+开关。跨域桥元件 sensor 按高阻电压测量处理，actuator/actuator_i 按受控于
+``source`` 所指传感器电压的理想受控电压源/电流源（VCVS/VCCS）处理。二极管
+（含齐纳/LED）、BJT、MOSFET、运放/比较器可在给定直流工作点通过
 ``operating_point``/``linearize`` 入口按各自解析小信号模型线性化；未给出工作
 点时仍显式抛出 :class:`ComputeError`，不做静默线性化降级。
 """
@@ -42,6 +44,14 @@ SUPPORTED_KINDS = frozenset(
         "switch",
     }
 )
+
+#: 信号桥接元件：在描述符模型中按理想接口处理。
+#: sensor 为高阻电压测量（两脚各对地漏电）；actuator/actuator_i 依 source 字段
+#: 受控于传感器电压，分别按理想 VCVS/VCCS 处理。
+BRIDGE_SENSOR_KINDS = frozenset({"sensor"})
+BRIDGE_VSOURCE_KINDS = frozenset({"actuator"})
+BRIDGE_ISOURCE_KINDS = frozenset({"actuator_i"})
+BRIDGE_KINDS = BRIDGE_SENSOR_KINDS | BRIDGE_VSOURCE_KINDS | BRIDGE_ISOURCE_KINDS
 
 #: 仅用于错误提示归类的已知非线性器件。
 NONLINEAR_KINDS = frozenset(
@@ -184,7 +194,9 @@ class DescriptorIndex:
 
         inductors = [element for element in elements if element.kind == "inductor"]
         voltage_sources = [
-            element for element in elements if element.kind == "vsource"
+            element
+            for element in elements
+            if element.kind == "vsource" or element.kind in BRIDGE_VSOURCE_KINDS
         ]
         vcvs = [element for element in elements if element.kind == "vcvs"]
         opamps = [
@@ -366,6 +378,8 @@ class DescriptorModel:
         nonlinear: list[CircuitElement] = []
         unsupported: list[CircuitElement] = []
         for element in elements:
+            if element.kind in BRIDGE_KINDS:
+                continue
             if getattr(element, "nonlinear", False) or element.kind in NONLINEAR_KINDS:
                 nonlinear.append(element)
             elif element.kind not in SUPPORTED_KINDS:
@@ -388,7 +402,7 @@ class DescriptorModel:
         """校验元素集合能否在工作点处线性化。"""
         unsupported: list[CircuitElement] = []
         for element in elements:
-            if element.kind in SUPPORTED_KINDS:
+            if element.kind in SUPPORTED_KINDS or element.kind in BRIDGE_KINDS:
                 continue
             if element.kind in LINEARIZABLE_NONLINEAR_KINDS:
                 continue
@@ -463,9 +477,16 @@ class DescriptorModel:
         """
         rhs = np.zeros(self.index.size, dtype=float)
         for element in self.elements:
-            value = float(waveform_value(element.params, 0.0))
+            if element.kind in ("vsource", "isource"):
+                value = float(waveform_value(element.params, 0.0))
+            else:
+                value = float(element.params.get("offset", 0.0) or 0.0)
             if element.kind == "vsource":
                 rhs[self.index.vsource_index[element.name]] += value
+            elif element.kind in BRIDGE_VSOURCE_KINDS:
+                row = self.index.vsource_index[element.name]
+                control = self._bridge_control_nodes(element)
+                rhs[row] += 0.0 if control is not None else value
             elif element.kind == "isource":
                 ai = self.index.node_index.get(element.a)
                 bi = self.index.node_index.get(element.b)
@@ -473,6 +494,15 @@ class DescriptorModel:
                     rhs[ai] -= value
                 if bi is not None:
                     rhs[bi] += value
+            elif element.kind in BRIDGE_ISOURCE_KINDS:
+                control = self._bridge_control_nodes(element)
+                ai = self.index.node_index.get(element.a)
+                bi = self.index.node_index.get(element.b)
+                offset = 0.0 if control is not None else value
+                if ai is not None:
+                    rhs[ai] -= offset
+                if bi is not None:
+                    rhs[bi] += offset
         solution = np.linalg.solve(self.A, rhs)
         denominator = float(np.linalg.norm(self.A)) * float(np.linalg.norm(solution)) + float(np.linalg.norm(rhs)) + _EPS
         residual = float(np.linalg.norm(self.A @ solution - rhs)) / denominator
@@ -493,6 +523,31 @@ class DescriptorModel:
         }
 
     # ---- 矩阵装配 ---------------------------------------------------------
+    def _bridge_control_nodes(
+        self, element: CircuitElement
+    ) -> tuple[str, str | None] | None:
+        """解析跨域桥 actuator 的 source 字段，返回 (控制正端, 控制负端)。
+
+        ``source`` 形如 ``sensor.voltage``；传感器按两脚电压差控制。若 source
+        指向普通节点，则以该节点对地电压控制。无法解析时返回 ``None``。
+        """
+        source = str(element.params.get("source") or "").strip()
+        if not source:
+            return None
+        name, _, _field = source.partition(".")
+        target = self.index.element_by_name.get(name)
+        if target is not None and target.kind in BRIDGE_SENSOR_KINDS:
+            return target.a, target.b
+        node_id = self.index.node_name_to_id.get(name)
+        if node_id is not None:
+            return node_id, None
+        return None
+
+    def _bridge_gain(self, element: CircuitElement) -> float:
+        """读取桥元件增益；缺省为 1.0，显式 0.0 不做真值替换。"""
+        value = element.params.get("gain")
+        return 1.0 if value is None else float(value)
+
     def _assemble_matrices(self) -> tuple[np.ndarray, np.ndarray]:
         """装配不随频率变化的 A、E 矩阵。"""
         size = self.index.size
@@ -530,7 +585,13 @@ class DescriptorModel:
                 if bi is not None:
                     A[row, bi] -= 1.0
                 E[row, row] -= float(element.inductance)
-            elif kind == "vsource":
+            elif kind == "sensor":
+                # 高阻电压测量：两脚各自对地 1e-12 漏电，等价于开路。
+                for node in (element.a, element.b):
+                    position = index.node_index.get(node)
+                    if position is not None:
+                        A[position, position] += 1.0e-12
+            elif kind == "vsource" or kind in BRIDGE_VSOURCE_KINDS:
                 row = index.branch_index[element.name]
                 ai = index.node_index.get(element.a)
                 bi = index.node_index.get(element.b)
@@ -540,6 +601,16 @@ class DescriptorModel:
                 if bi is not None:
                     A[bi, row] -= 1.0
                     A[row, bi] -= 1.0
+                if kind in BRIDGE_VSOURCE_KINDS:
+                    control = self._bridge_control_nodes(element)
+                    if control is not None:
+                        gain = self._bridge_gain(element)
+                        ci = index.node_index.get(control[0])
+                        di = index.node_index.get(control[1])
+                        if ci is not None:
+                            A[row, ci] -= gain
+                        if di is not None:
+                            A[row, di] += gain
             elif kind == "vcvs":
                 row = index.branch_index[element.name]
                 ai = index.node_index.get(element.a)
@@ -570,8 +641,24 @@ class DescriptorModel:
                     A[bi, ci] -= gm
                 if bi is not None and di is not None:
                     A[bi, di] += gm
-            elif kind == "isource":
-                # 独立电流源只进入 B 向量，不改变 A/E。
+            elif kind == "isource" or kind in BRIDGE_ISOURCE_KINDS:
+                # 独立电流源只进入 B 向量；跨域桥电流源按受控 VCCS 处理。
+                if kind in BRIDGE_ISOURCE_KINDS:
+                    control = self._bridge_control_nodes(element)
+                    if control is not None:
+                        gm = self._bridge_gain(element)
+                        ai = index.node_index.get(element.a)
+                        bi = index.node_index.get(element.b)
+                        ci = index.node_index.get(control[0])
+                        di = index.node_index.get(control[1])
+                        if ai is not None and ci is not None:
+                            A[ai, ci] += gm
+                        if ai is not None and di is not None:
+                            A[ai, di] -= gm
+                        if bi is not None and ci is not None:
+                            A[bi, ci] -= gm
+                        if bi is not None and di is not None:
+                            A[bi, di] += gm
                 continue
         return A, E
 

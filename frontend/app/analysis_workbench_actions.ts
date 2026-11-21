@@ -1,15 +1,14 @@
 /* 分析工作台动作层：工具栏、导出、状态栏与运行参数（从主模块拆出以满足 S5 模块行数约束）。 */
 import { transferSummaryHtml } from './analysis_workbench_results.js';
-import type { LayoutMode, WorkbenchCanvasRec } from './analysis_workbench_layout.js';
+import type { WorkbenchCanvasRec } from './analysis_workbench_layout.js';
+import { LAYOUT_PRESETS, type LayoutPreset } from './analysis_workbench_layout_tree.js';
 import { AnalysisCanvasWorkspace } from './analysis_workbench_canvas.js';
 import { workbenchExportRequest } from './analysis_client.js';
 import { toast } from './desktop.js';
 import type { RunResponse, WorkbenchSessionRec, WorkbenchStateRec } from './analysis_workbench_types.js';
 import {
-  KIND_LABELS, describeRunStatus, escapeHtml, optionHtml, shortFingerprint, type AnalysisKind,
+  KIND_LABELS, describeRunStatus, escapeHtml, optionHtml, shortFingerprint, loopFeedbackOutput, type AnalysisKind,
 } from './analysis_workbench_meta.js';
-
-const LAYOUT_OPTIONS: Array<[LayoutMode, string]> = [['grid', '网格'], ['tile', '平铺'], ['split', '分割'], ['max', '最大化']];
 
 export abstract class WorkbenchActions {
   protected host!: HTMLElement;
@@ -26,7 +25,6 @@ export abstract class WorkbenchActions {
   protected busy = false;
   protected compareMode = false;
   protected compareSelection = new Set<string>();
-  protected layout: LayoutMode = 'grid';
   protected lastRuns: Record<string, RunResponse> = {};
   protected exportFormat = 'png';
   protected exportScope: 'subcanvas' | 'canvas' = 'subcanvas';
@@ -40,6 +38,10 @@ export abstract class WorkbenchActions {
   protected abstract runCompare(): Promise<void>;
   protected abstract persist(): void;
   protected abstract applyLayout(): void;
+  protected abstract setLayoutPreset(preset: LayoutPreset): void;
+  protected abstract toggleSidebar(): void;
+  protected abstract toggleDetail(): void;
+  protected abstract toggleFocus(): void;
 
   protected renderToolbar(): void {
     const active = this.activeState();
@@ -53,8 +55,11 @@ export abstract class WorkbenchActions {
       '<div class="awb-toolbar-meta">' + this.cacheBadge() + '</div>',
       '<div class="awb-toolbar-actions">',
       this.compareMode ? '<button type="button" class="btn tiny" data-awb="compare-run">对比选中状态</button>' : '',
+      '  <button type="button" class="btn tiny awb-icon-btn" data-awb="sidebar-collapse" title="折叠/展开左侧导航">◧</button>',
+      '  <button type="button" class="btn tiny awb-icon-btn" data-awb="detail-collapse" title="折叠/展开右侧详情">◨</button>',
+      '  <button type="button" class="btn tiny awb-icon-btn" data-awb="focus" title="专注模式（Esc 退出）">⛶</button>',
       '  <select class="awb-select tiny" data-awb="layout" title="画布布局">' +
-        LAYOUT_OPTIONS.map(([mode, label]) => optionHtml(mode, label, this.layout === mode)).join('') +
+        LAYOUT_PRESETS.map(([preset, label]) => optionHtml(preset, label, (this.workspace?.layout || 'auto') === preset)).join('') +
         '</select>',
       '  <select class="awb-select tiny" data-awb="export-format" title="导出格式">' +
         ['png', 'svg', 'pdf', 'spec', 'csv', 'json', 'zip'].map((fmt) => optionHtml(fmt, fmt.toUpperCase(), fmt === this.exportFormat)).join('') +
@@ -69,10 +74,11 @@ export abstract class WorkbenchActions {
     ].join('');
     this.toolbarHost.querySelector('[data-awb="run"]')?.addEventListener('click', () => { void this.run(); });
     (this.toolbarHost.querySelector('[data-awb="layout"]') as HTMLSelectElement | null)?.addEventListener('change', (event) => {
-      this.layout = ((event.target as HTMLSelectElement).value || 'grid') as LayoutMode;
-      this.applyLayout();
-      this.persist();
+      this.setLayoutPreset(((event.target as HTMLSelectElement).value || 'auto') as LayoutPreset);
     });
+    this.toolbarHost.querySelector('[data-awb="sidebar-collapse"]')?.addEventListener('click', () => this.toggleSidebar());
+    this.toolbarHost.querySelector('[data-awb="detail-collapse"]')?.addEventListener('click', () => this.toggleDetail());
+    this.toolbarHost.querySelector('[data-awb="focus"]')?.addEventListener('click', () => this.toggleFocus());
     this.toolbarHost.querySelector('[data-awb="compare-run"]')?.addEventListener('click', () => { void this.runCompare(); });
     (this.toolbarHost.querySelector('[data-awb="export-format"]') as HTMLSelectElement | null)?.addEventListener('change', (event) => {
       this.exportFormat = String((event.target as HTMLSelectElement).value || 'png');
@@ -218,6 +224,13 @@ export abstract class WorkbenchActions {
       }
       params.element = element;
       params.feedback_sign = this.params.feedback_sign;
+      const feedbackOutput = loopFeedbackOutput(this.loopCandidates, element, output);
+      if (feedbackOutput && feedbackOutput !== output) {
+        params.output = feedbackOutput;
+        const outputSelect = this.navHost.querySelector('[data-awb="output"]') as HTMLSelectElement | null;
+        if (outputSelect) outputSelect.value = feedbackOutput;
+        toast(`闭环分析输出已自动改为反馈节点 ${feedbackOutput}（避免取到监测级导致环路一致性告警）`, 'warn', 6000);
+      }
     }
     return params;
   }

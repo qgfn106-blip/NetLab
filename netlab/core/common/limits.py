@@ -172,10 +172,10 @@ def as_dict(value: Any, field: str, *, max_fields: int = MAX_FIELDS) -> dict[str
     return value
 
 
-def json_safe(value: Any, *, where: str = "数据", _depth: int = 0) -> Any:
+def json_safe(value: Any, *, where: str = "数据", max_depth: int = MAX_DEPTH, _depth: int = 0) -> Any:
     """校验并**深拷贝**为纯 JSON 结构；同时拒绝不安全或不合理的值。"""
-    if _depth > MAX_DEPTH:
-        raise ValidationError(f"{where}嵌套过深（上限 {MAX_DEPTH} 层）")
+    if _depth > max_depth:
+        raise ValidationError(f"{where}嵌套过深（上限 {max_depth} 层）")
     if value is None or isinstance(value, bool):
         return value
     if isinstance(value, str):
@@ -199,7 +199,7 @@ def json_safe(value: Any, *, where: str = "数据", _depth: int = 0) -> Any:
     if isinstance(value, (list, tuple)):
         if len(value) > MAX_ARRAY:
             raise ValidationError(f"{where}中的数组最多 {MAX_ARRAY} 项")
-        return [json_safe(item, where=where, _depth=_depth + 1) for item in value]
+        return [json_safe(item, where=where, max_depth=max_depth, _depth=_depth + 1) for item in value]
     if isinstance(value, dict):
         if len(value) > MAX_FIELDS:
             raise ValidationError(f"{where}最多 {MAX_FIELDS} 个键")
@@ -209,7 +209,7 @@ def json_safe(value: Any, *, where: str = "数据", _depth: int = 0) -> Any:
                 raise ValidationError(f"{where}的键必须是非空字符串")
             if len(key) > MAX_NAME:
                 raise ValidationError(f"{where}中的键过长")
-            result[key] = json_safe(item, where=where, _depth=_depth + 1)
+            result[key] = json_safe(item, where=where, max_depth=max_depth, _depth=_depth + 1)
         return result
     raise ValidationError(f"{where}包含不支持的类型：{type(value).__name__}")
 

@@ -57,6 +57,15 @@ function independentCircuitSources(nodes, edges) {
 function electricalCircuitNodes(nodes) {
   return (nodes || []).filter((node) => String(node.kind || "") === "node");
 }
+function loopFeedbackOutput(candidates, activeElement, currentOutput) {
+  const active = String(activeElement || "");
+  const candidate = candidates.find((item) => String(item.element || "") === active) || candidates[0];
+  if (!candidate) return String(currentOutput || "");
+  const allowed = [String(candidate.control_a || ""), String(candidate.output_a || "")].filter(Boolean);
+  const current = String(currentOutput || "");
+  if (allowed.includes(current)) return current;
+  return allowed[0] || current;
+}
 function loopElementOptions(candidates, activeElement, allowVirtual) {
   const candidatesHtml = candidates.map((candidate) => {
     const element = String(candidate.element || "");
@@ -84,6 +93,7 @@ export {
   escapeHtml,
   independentCircuitSources,
   loopElementOptions,
+  loopFeedbackOutput,
   num,
   optionHtml,
   shortFingerprint

@@ -171,6 +171,16 @@ def test_json_safe_rejects_too_deep():
         json_safe(nested)
 
 
+def test_json_safe_allows_custom_depth_for_ui_layout():
+    nested: list = []
+    cursor = nested
+    for _ in range(9):
+        child: list = []
+        cursor.append(child)
+        cursor = child
+    assert json_safe(nested, max_depth=32) == nested
+
+
 def test_as_number_list_type_length_and_items():
     assert as_number_list([1, 2.5], "xs") == [1.0, 2.5]
     with pytest.raises(ValidationError):

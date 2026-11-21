@@ -114,26 +114,26 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-21 | test(schema): 补齐工作台 v2 校验分支覆盖至 97% |
+| 2026-11-21 | test(golden): 更新工作台 v2 schema 迁移 golden 快照 |
+| 2026-11-21 | chore(reports): 补充工作台布局改动的 D-5 影子报告 |
+| 2026-11-21 | fix(arch): 移动 WorkbenchCanvasRec 类型打断 layout 与 layout_tree 循环依赖 |
+| 2026-11-21 | fix(ci): 消除 parity 重复声明并拆出菜单模块满足 S5 行数上限 |
+| 2026-11-21 | feat(workbench): 工作台布局 v2（Tab/SplitTree）、布局撤销重做与导线整网拖动修复 |
+| 2026-11-20 | fix(ui): 浮窗允许部分移出视口并裁剪子图绘图 |
+| 2026-11-20 | fix(analysis): 闭环传函证据栏显示实际输出节点 |
+| 2026-11-20 | fix(analysis): 断环闭环输出自动落到反馈节点 |
+| 2026-11-20 | fix(circuit): 修正桥增益与直流偏置处理并补充输出节点说明 |
+| 2026-11-20 | chore(reports): 补充跨域桥小信号修复影子报告 |
+| 2026-11-20 | fix(circuit): 跨域桥元件按传感器电压受控并补真实传递测试 |
+| 2026-11-20 | chore(reports): 补充断环工作点改动的影子报告 |
+| 2026-11-20 | fix(circuit): 支持跨域桥元件线性化并自动补全断环工作点 |
 | 2026-11-20 | test(frontend): 竞态断言改为结果归属判定并暴露画布结果键 |
 | 2026-11-20 | refactor(frontend): 拆分工作台与图表模块以满足 S5 行数上限 |
 | 2026-11-20 | chore(frontend): 补充 pnpm-lock.yaml 锁定前端依赖版本 |
 | 2026-11-20 | fix(frontend): 工作台复核修正（请求竞态E2E/游标守卫单源/导出作用域） |
 | 2026-11-20 | fix(frontend): 多画布工作台契约修复（结果归属/命令上下文/游标单位/导出绑定） |
 | 2026-11-20 | fix(descriptor): QZ 奇异判定刻度不变（等化后判定，修复量级悬殊误判奇异） |
-| 2026-11-20 | fix(circuit): 直流工作点二极管假收敛修复（真实工作点残差）  - _true_residual 在 mode="dc" 时对 SEED_TRUE_POINT 元件（二极管）按真实结电压重线性化，   并还原 iteration_guess，避免以有限幅切残差当收敛证据；瞬态保持原限幅轨迹以隔离回归。 - 新增 CircuitElement.SEED_TRUE_POINT / seed_true_point 与 Diode.seed_true_point。 - 新增 KCL 回归测试：Is=1e-14,Vs=2V 收敛到 Vout≈0.6623V 且 I_D==I_R1。  Fixes: 审计 BUG1（二极管直流工作点假收敛，KCL 违反 ~1e12A） |
-| 2026-11-20 | test(analysis): 补充闭环传函边界与异常路径覆盖 |
-| 2026-11-20 | chore(analysis): 补充 D-5 求解器影响影子报告 |
-| 2026-11-20 | fix(analysis): 恢复工作台开环/闭环传递函数显示 |
-| 2026-11-20 | fix(analysis): 工作台自动求解非线性电路 DC 工作点 |
-| 2026-11-20 | fix(analysis): 工作台输入源兼容工程 v8 device 节点 |
-| 2026-11-20 | test(plotkit): 兼容矩阵与公开 API 断言更新到 0.3 |
-| 2026-11-19 | fix(ci): 修复 ground 契约、schemdraw 可选依赖与 PlotKit 必需插件安装 |
-| 2026-11-19 | feat(analysis): 电路分析工作台落地 PlotKit 渲染与多子画布 |
-| 2026-11-19 | fix(schematic): keep device labels clear of wires and pins |
-| 2026-11-19 | fix(schematic): align GB symbols, grounding and export typography |
-| 2026-11-19 | feat(schematic): 实现 GB 原理图导出 S0-S7  - 新增 IR、符号库、正交路由与标签避让 - 接入 SVG/JSON 统一导出窗口与桌面保存 - 增加工程网格、导线检查器与项目回读 - 补充结构 oracle、符号对照、E2E 与人工签收材料 |
-| 2026-11-18 | fix(desktop): export through native save dialog instead of silent blob download |
-| 2026-11-18 | fix(d5): add shadow report for trapezoidal source change |
 
 <!-- END LAST 20 UPDATES -->
 

@@ -5,11 +5,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from netlab.core.compute.analysis import break_points
 from netlab.core.compute.circuit import DescriptorModel
 from netlab.core.compute.circuit.loop_analysis import (
     break_candidates,
     extract_controlled_source_loop,
 )
+from netlab.core.compute.simulation import Simulation
 from netlab.core.model.scene import Scene
 
 
@@ -37,6 +39,50 @@ def _non_inverting_amplifier(gain: float = 1.0e5, r1: float = 1.0e3, r2: float =
     scene.add_edge(name="R1", source=n.id, target=gnd.id, kind="resistor", params={"R": r1})
     scene.add_edge(name="R2", source=out.id, target=n.id, kind="resistor", params={"R": r2})
     return scene
+
+
+def _opamp_with_breakable_vcvs() -> Scene:
+    """含非线性运放的断环场景：不显式给工作点时也必须能列出候选。"""
+    scene = Scene("circuit")
+    gnd = scene.add_node(name="gnd", kind="ground")
+    vin = scene.add_node(name="vin", kind="node")
+    vn = scene.add_node(name="vn", kind="node")
+    out = scene.add_node(name="out", kind="node")
+    out2 = scene.add_node(name="out2", kind="node")
+    scene.add_edge(
+        name="V1",
+        source=vin.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 0.5, "amplitude": 1.0},
+    )
+    scene.add_edge(name="R1", source=vin.id, target=vn.id, kind="resistor", params={"R": 1.0e3})
+    scene.add_edge(name="R2", source=vn.id, target=out.id, kind="resistor", params={"R": 1.0e4})
+    scene.add_edge(
+        name="OP1",
+        source=out.id,
+        target=gnd.id,
+        kind="opamp",
+        params={"vp": gnd.id, "vn": vn.id, "gain": 1.0e5, "vmax": 15.0},
+    )
+    scene.add_edge(
+        name="E1",
+        source=out2.id,
+        target=gnd.id,
+        kind="vcvs",
+        params={"gain": 1.0, "control_source": vn.id, "control_target": gnd.id},
+    )
+    scene.add_edge(name="RL", source=out2.id, target=gnd.id, kind="resistor", params={"R": 1.0e4})
+    return scene
+
+
+def test_break_points_resolves_operating_point_for_nonlinear_scene() -> None:
+    # 运放必须在直流工作点处线性化；break_points 未显式收到工作点时自动补求。
+    result = break_points(Simulation(_opamp_with_breakable_vcvs()))
+    assert result["ok"] is True
+    assert [item["element"] for item in result["candidates"]] == ["E1"]
+    assert result["candidates"][0]["control_a"] == "vn"
+    assert result["candidates"][0]["output_a"] == "out2"
 
 
 def test_break_candidates_reports_control_and_output() -> None:

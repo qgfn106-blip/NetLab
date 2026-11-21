@@ -1,13 +1,15 @@
-const WORKBENCH_SCHEMA = "netlab-analysis-workbench/1";
+import { emptyLayout, normalizeLayout } from "./analysis_workbench_layout_tree.js";
+const WORKBENCH_SCHEMA = "netlab-analysis-workbench/2";
+const LEGACY_WORKBENCH_SCHEMA = "netlab-analysis-workbench/1";
 const WORKBENCH_KINDS = ["bode", "time", "nyquist", "loop", "metrics", "poles", "loop_closed", "loop_step"];
-const WORKBENCH_LAYOUT_MODES = ["grid", "tile", "split", "max"];
 function defaultWorkbenchUi() {
   return {
     schema: WORKBENCH_SCHEMA,
     active_analysis: "bode",
     canvases: [],
-    layout: { mode: "grid", rows: 1, cols: 1, order: [] },
+    layout: emptyLayout(),
     sizes: { sidebar: 280, detail: 320 },
+    collapsed: { sidebar: false, detail: false },
     selected_state_ids: []
   };
 }
@@ -43,41 +45,46 @@ function readWorkbenchUi(value) {
   const ui = defaultWorkbenchUi();
   if (!isRecord(value)) return { ui, restored: false };
   const source = value;
+  let restored = source.schema === WORKBENCH_SCHEMA;
   const seen = /* @__PURE__ */ new Set();
   const canvases = [];
   if (Array.isArray(source.canvases)) {
-    for (const [index, item] of source.canvases.entries()) {
-      const canvas = normalizeCanvas(item, index);
-      if (!canvas || seen.has(canvas.canvas_id)) continue;
-      seen.add(canvas.canvas_id);
-      canvases.push(canvas);
-    }
+    source.canvases.forEach((item, index) => {
+      const rec = normalizeCanvas(item, index);
+      if (!rec || seen.has(rec.canvas_id)) return;
+      seen.add(rec.canvas_id);
+      rec.slot_id = canvases.length;
+      canvases.push(rec);
+    });
   }
   ui.canvases = canvases;
-  const active = asKind(source.active_analysis);
-  ui.active_analysis = active || canvases[0]?.kind || "bode";
-  const layout = isRecord(source.layout) ? source.layout : {};
-  if (WORKBENCH_LAYOUT_MODES.includes(layout.mode)) {
-    ui.layout.mode = layout.mode;
+  ui.active_analysis = asKind(source.active_analysis) || "bode";
+  const legacy = source.schema === LEGACY_WORKBENCH_SCHEMA || isRecord(source.layout) && !Array.isArray(source.layout.tabs);
+  ui.layout = normalizeLayout(source.layout, canvases.map((canvas) => canvas.canvas_id), legacy);
+  if (isRecord(source.sizes)) {
+    ui.sizes = {
+      sidebar: integer(source.sizes.sidebar, 280, 160, 640),
+      detail: integer(source.sizes.detail, 320, 200, 720)
+    };
   }
-  ui.layout.rows = integer(layout.rows, 1, 1, 8);
-  ui.layout.cols = integer(layout.cols, 1, 1, 8);
-  const order = Array.isArray(layout.order) ? layout.order.filter((id) => typeof id === "string" && seen.has(id)) : [];
-  ui.layout.order = order.length ? order : canvases.map((canvas) => canvas.canvas_id);
-  const sizes = isRecord(source.sizes) ? source.sizes : {};
-  ui.sizes.sidebar = integer(sizes.sidebar, 280, 160, 640);
-  ui.sizes.detail = integer(sizes.detail, 320, 200, 720);
+  if (isRecord(source.collapsed)) {
+    ui.collapsed = {
+      sidebar: source.collapsed.sidebar === true,
+      detail: source.collapsed.detail === true
+    };
+  }
   if (Array.isArray(source.selected_state_ids)) {
-    ui.selected_state_ids = [...new Set(source.selected_state_ids.filter((id) => typeof id === "string" && id !== ""))].slice(0, 8);
+    ui.selected_state_ids = [...new Set(source.selected_state_ids.filter((item) => typeof item === "string" && item !== ""))].slice(0, 8);
   }
-  return { ui, restored: true };
+  if (!restored && Array.isArray(source.canvases) && source.canvases.length) restored = true;
+  return { ui, restored };
 }
 function writeWorkbenchUi(value) {
   return readWorkbenchUi(value).ui;
 }
 export {
+  LEGACY_WORKBENCH_SCHEMA,
   WORKBENCH_KINDS,
-  WORKBENCH_LAYOUT_MODES,
   WORKBENCH_SCHEMA,
   defaultWorkbenchUi,
   readWorkbenchUi,

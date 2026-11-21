@@ -60,7 +60,7 @@ def test_each_legacy_version_reaches_current(version: int) -> None:
         # v7 步：每条网络补齐 states 列表
         assert isinstance(network.get("states"), list)
     # v8 步：工程 UI 补齐分析工作台布局
-    assert out["ui"]["analysis_workbench"]["schema"] == "netlab-analysis-workbench/1"
+    assert out["ui"]["analysis_workbench"]["schema"] == "netlab-analysis-workbench/2"
 
 
 def test_v6_payload_gets_states_and_is_idempotent() -> None:

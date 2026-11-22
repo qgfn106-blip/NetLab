@@ -564,6 +564,33 @@ class Network:
                     components.append(list(reversed(component)))
         return components
 
+    def algebraic_cycle_groups(self) -> list[dict[str, Any]]:
+        """返回每个反馈环（强连通分量）的节点与内部有向边，供环路候选枚举。
+
+        只统计 enabled 且非延迟的连接；SCC 节点数 > 1 或存在自环即视为反馈环。
+        不在此做断点选择或多环拆分，交由分析层处理。
+        """
+        edges = self._enabled_edges(include_delayed=False)
+        adjacency: dict[Node, list[Node]] = {node: [] for node in self.nodes}
+        for connection in edges:
+            adjacency[connection.source].append(connection.target)
+        groups: list[dict[str, Any]] = []
+        for component in self._strongly_connected_components(self.nodes, adjacency):
+            members = set(component)
+            internal = [
+                connection
+                for connection in edges
+                if connection.source in members and connection.target in members
+            ]
+            if not internal:
+                continue
+            if len(component) == 1 and not any(
+                connection.source is connection.target for connection in internal
+            ):
+                continue
+            groups.append({"nodes": list(component), "edges": internal})
+        return groups
+
     def algebraic_cycles(self) -> list[list[str]]:
         """返回不经过延迟边的强连通分量（即无法按拓扑排序的代数环）。"""
         adjacency: dict[Node, list[Node]] = {node: [] for node in self.nodes}

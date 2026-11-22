@@ -198,6 +198,7 @@ def _run_state(state: Any, kind: str, params: dict[str, Any]) -> dict[str, Any]:
             lambda: analysis.loop_analysis(
                 sim,
                 element=str(element or "__virtual__"),
+                loop_probe=merged.get("loop_probe"),
                 input_source=input_source,
                 output=output,
                 feedback_sign=feedback_sign,

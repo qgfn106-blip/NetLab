@@ -102,10 +102,17 @@ def test_virtual_feedback_warns_and_stays_marked() -> None:
     codes = {str(item.get("code")) for item in body["warnings"]}
     assert "no_physical_loop" in codes
     assert body["source"]["break_kind"] == "virtual"
-    assert body["transfer_role"] == "open_loop"
+    # 无断环时只能给出真实闭环 T(s)，绝不把闭环误标为开环。
+    assert body["transfer_role"] == "closed_loop"
     assert body["transfer_function"]["supported"] is True
+    assert body["transfer_function"]["expression"].startswith("(")
     assert body["closed_loop_transfer_function"]["supported"] is True
-    assert body["closed_loop_transfer_function"]["expression"] != body["transfer_function"]["expression"]
+    assert body["closed_loop_transfer_function"]["expression"] == body["transfer_function"]["expression"]
+    # 没有实体断环就没有真实开环 L(s)，必须 fail-closed 不返回假开环。
+    assert body["open_loop_transfer_function"]["supported"] is False
+    # 旧 bug 把闭环再反馈一次得到 9.99939/(s^2+10.0002s+99.996)，这里断言其已消失。
+    assert "99.996" not in body["closed_loop_transfer_function"]["expression"]
+    assert "9.99939" not in body["closed_loop_transfer_function"]["expression"]
 
 
 def test_closed_loop_transfer_function_rejects_unsupported_inputs() -> None:

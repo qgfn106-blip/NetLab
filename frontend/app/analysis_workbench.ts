@@ -12,7 +12,6 @@ import { readWorkbenchUi, writeWorkbenchUi, WORKBENCH_SCHEMA, type WorkbenchCanv
 import { emptyLayout, type LayoutPreset } from './analysis_workbench_layout_tree.js';
 import { AnalysisCanvasWorkspace } from './analysis_workbench_canvas.js';
 import {
-  analysisLoopsRequest,
   workbenchCompareRequest,
   workbenchCreateSessionRequest,
   workbenchExportRequest,
@@ -32,6 +31,7 @@ import {
   independentCircuitSources, loopElementOptions, num, optionHtml, shortFingerprint, type AnalysisKind,
 } from './analysis_workbench_meta.js';
 import { WorkbenchActions } from './analysis_workbench_actions.js';
+import { loopListHtml } from './analysis_workbench_loops.js';
 
 
 export class AnalysisWorkbench extends WorkbenchActions {
@@ -175,6 +175,7 @@ export class AnalysisWorkbench extends WorkbenchActions {
       this.renderToolbar();
       this.renderStatus();
       this.persist();
+      if (kind === 'loop') void this.loadLoopGroupsIfNeeded();
     }
   }
 
@@ -292,9 +293,13 @@ export class AnalysisWorkbench extends WorkbenchActions {
     const allowVirtual = this.activeKind === 'loop' || this.activeKind === 'loop_closed' || this.activeKind === 'loop_step';
     const loopOptions = loopElementOptions(this.loopCandidates, activeElement, allowVirtual);
     const needLoop = allowVirtual || this.activeKind === 'nyquist';
+    const loopPanel = this.activeKind === 'loop'
+      ? '<div class="awb-nav-title">环路缩略图</div>' + loopListHtml(this.loopGroups, this.selectedLoopId, this.loopCandidates)
+      : '';
     this.navHost.innerHTML = [
       '<div class="awb-nav-title">分析</div>',
       '<div class="awb-nav-kinds">' + kinds + '</div>',
+      loopPanel,
       '<div class="awb-nav-title">状态</div>',
       '<div class="awb-state-list">' + states + '</div>',
       '<div class="awb-nav-title">参数</div>',
@@ -315,12 +320,14 @@ export class AnalysisWorkbench extends WorkbenchActions {
       button.addEventListener('click', () => {
         this.setKind(button.getAttribute('data-kind') as AnalysisKind);
         void this.loadLoopCandidatesIfNeeded();
+        void this.loadLoopGroupsIfNeeded();
         if (!this.busy) void this.run();
       });
     });
     this.navHost.querySelectorAll('[data-state-id]').forEach((button) => {
       button.addEventListener('click', () => { void this.selectState(button.getAttribute('data-state-id') || ''); });
     });
+    this.bindLoopNavHandlers();
     this.navHost.querySelectorAll('[data-compare-state]').forEach((input) => {
       input.addEventListener('change', () => {
         const id = (input as HTMLInputElement).getAttribute('data-compare-state') || '';
@@ -538,16 +545,8 @@ export class AnalysisWorkbench extends WorkbenchActions {
     };
   }
 
-  protected async loadLoopCandidatesIfNeeded(): Promise<void> {
-    if (!['loop', 'loop_closed', 'loop_step', 'nyquist'].includes(this.activeKind)) return;
-    try {
-      const response = await analysisLoopsRequest({}) as { candidates?: Array<Record<string, unknown>>; items?: Array<Record<string, unknown>> };
-      this.loopCandidates = response.candidates || response.items || [];
-      this.renderNav();
-    } catch (error) {
-      this.loopCandidates = [];
-    }
-  }
+  protected refreshNavigation(): void { this.renderNav(); }
+  protected activeAnalysisKind(): AnalysisKind { return this.activeKind; }
 
   protected async run(targetKind?: AnalysisKind): Promise<void> {
     if (this.busy) return;

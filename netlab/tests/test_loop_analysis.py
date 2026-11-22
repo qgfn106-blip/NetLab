@@ -114,6 +114,21 @@ def test_vcvs_loop_gain_and_closed_loop_parity() -> None:
     assert result.poles["on_imaginary_axis"] is False
 
 
+def test_vcvs_analytic_open_loop_matches_numeric_return_ratio() -> None:
+    # 断环后解析开环 L(s) 必须与数值返回比一致；同相放大器为静态网络，L 为常数增益 1e4。
+    model = DescriptorModel.from_scene(_non_inverting_amplifier())
+    frequencies = np.logspace(0.0, 3.0, 16)
+    result = extract_controlled_source_loop(
+        model, "E1", frequencies, input_source="V1", output="out"
+    )
+    analytic = result.open_loop_transfer
+    assert analytic is not None
+    assert analytic["supported"] is True
+    assert analytic["order"] == 0
+    assert "10000" in analytic["expression"]
+    assert analytic["parity_max_rel"] < 1e-6
+
+
 def test_positive_feedback_sign_changes_closed_loop() -> None:
     scene = _non_inverting_amplifier(gain=1.5, r1=1.0e3, r2=1.0e3)
     model = DescriptorModel.from_scene(scene)

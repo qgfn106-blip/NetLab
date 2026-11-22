@@ -15,7 +15,7 @@ export const KIND_HINTS: Record<AnalysisKind, string> = {
   bode: '开环/闭环频响：幅值、相位、极点零点与关键点',
   time: '阶跃/脉冲响应：峰值、上升、调节时间',
   nyquist: '回路增益轮廓、-1 点包围与稳定裕度',
-  loop: '显式断环 G/H/T，或未断环时按虚拟单位负反馈显示 G/(1+G)',
+  loop: '显式断环求开环 L(s) 与闭环 T(s)；未断环时仅显示直接求得的闭环 T(s)',
   metrics: '工作点与稳定性指标汇总',
   poles: '开环传函极点/零点与稳定裕度',
   loop_closed: '闭环 T(s)=L/(1+L)：合成与直接闭环幅相核对',

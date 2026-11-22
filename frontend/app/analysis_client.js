@@ -17,6 +17,12 @@ function analysisTfApi(body, options = {}) {
 function analysisLoopsRequest(body) {
   return jsonRequest("/api/analysis/loops", "POST", body);
 }
+function analysisLoopCandidatesRequest(body) {
+  return jsonRequest("/api/analysis/loops/candidates", "POST", body);
+}
+function analysisLoopFromBreakRequest(body) {
+  return jsonRequest("/api/analysis/loops/from-break", "POST", body);
+}
 function analysisLoopRequest(body) {
   return jsonRequest("/api/analysis/loop", "POST", body);
 }
@@ -70,6 +76,8 @@ async function workbenchExportRequest(body) {
 export {
   acSweepRequest,
   analysisExportRequest,
+  analysisLoopCandidatesRequest,
+  analysisLoopFromBreakRequest,
   analysisLoopRequest,
   analysisLoopsRequest,
   analysisNyquistRequest,

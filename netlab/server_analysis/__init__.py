@@ -56,7 +56,8 @@ class AnalysisTFRequest(BaseModel):
 class AnalysisLoopRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    element: str = Field(min_length=1)
+    element: str = ""
+    loop_probe: dict[str, Any] | None = None
     input_source: str | None = None
     output: str | None = None
     feedback_sign: Literal[1.0, -1.0] = 1.0
@@ -70,6 +71,19 @@ class AnalysisLoopRequest(BaseModel):
 class AnalysisBreakRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    operating_point: dict[str, float] | None = None
+
+
+class AnalysisLoopCandidatesRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    operating_point: dict[str, float] | None = None
+
+
+class AnalysisLoopFromBreakRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    break_id: str = Field(min_length=1)
     operating_point: dict[str, float] | None = None
 
 
@@ -221,12 +235,35 @@ def analysis_loops(request: AnalysisBreakRequest) -> dict[str, Any]:
     )
 
 
+@router.post("/api/analysis/loops/candidates")
+def analysis_loop_candidates(request: AnalysisLoopCandidatesRequest) -> dict[str, Any]:
+    return _analysis_call(
+        lambda: analysis.loop_candidates(
+            _service.current, operating_point=request.operating_point
+        ),
+        "环路候选",
+    )
+
+
+@router.post("/api/analysis/loops/from-break")
+def analysis_loop_from_break(request: AnalysisLoopFromBreakRequest) -> dict[str, Any]:
+    return _analysis_call(
+        lambda: analysis.loop_from_break(
+            _service.current,
+            break_id=request.break_id,
+            operating_point=request.operating_point,
+        ),
+        "按支路选环",
+    )
+
+
 @router.post("/api/analysis/loop")
 def analysis_loop(request: AnalysisLoopRequest) -> dict[str, Any]:
     return _analysis_call(
         lambda: analysis.loop_analysis(
             _service.current,
             element=request.element,
+            loop_probe=request.loop_probe,
             input_source=request.input_source,
             output=request.output,
             feedback_sign=request.feedback_sign,

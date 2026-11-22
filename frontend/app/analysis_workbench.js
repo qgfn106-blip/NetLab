@@ -4,7 +4,6 @@ import { readWorkbenchUi, writeWorkbenchUi, WORKBENCH_SCHEMA } from "./analysis_
 import { emptyLayout } from "./analysis_workbench_layout_tree.js";
 import { AnalysisCanvasWorkspace } from "./analysis_workbench_canvas.js";
 import {
-  analysisLoopsRequest,
   workbenchCreateSessionRequest,
   workbenchInvalidateRequest,
   workbenchRunRequest,
@@ -26,6 +25,7 @@ import {
   shortFingerprint
 } from "./analysis_workbench_meta.js";
 import { WorkbenchActions } from "./analysis_workbench_actions.js";
+import { loopListHtml } from "./analysis_workbench_loops.js";
 class AnalysisWorkbench extends WorkbenchActions {
   constructor(host, options = {}) {
     super();
@@ -154,6 +154,7 @@ class AnalysisWorkbench extends WorkbenchActions {
       this.renderToolbar();
       this.renderStatus();
       this.persist();
+      if (kind === "loop") void this.loadLoopGroupsIfNeeded();
     }
   }
   destroy() {
@@ -260,9 +261,11 @@ class AnalysisWorkbench extends WorkbenchActions {
     const allowVirtual = this.activeKind === "loop" || this.activeKind === "loop_closed" || this.activeKind === "loop_step";
     const loopOptions = loopElementOptions(this.loopCandidates, activeElement, allowVirtual);
     const needLoop = allowVirtual || this.activeKind === "nyquist";
+    const loopPanel = this.activeKind === "loop" ? '<div class="awb-nav-title">\u73AF\u8DEF\u7F29\u7565\u56FE</div>' + loopListHtml(this.loopGroups, this.selectedLoopId, this.loopCandidates) : "";
     this.navHost.innerHTML = [
       '<div class="awb-nav-title">\u5206\u6790</div>',
       '<div class="awb-nav-kinds">' + kinds + "</div>",
+      loopPanel,
       '<div class="awb-nav-title">\u72B6\u6001</div>',
       '<div class="awb-state-list">' + states + "</div>",
       '<div class="awb-nav-title">\u53C2\u6570</div>',
@@ -283,6 +286,7 @@ class AnalysisWorkbench extends WorkbenchActions {
       button.addEventListener("click", () => {
         this.setKind(button.getAttribute("data-kind"));
         void this.loadLoopCandidatesIfNeeded();
+        void this.loadLoopGroupsIfNeeded();
         if (!this.busy) void this.run();
       });
     });
@@ -291,6 +295,7 @@ class AnalysisWorkbench extends WorkbenchActions {
         void this.selectState(button.getAttribute("data-state-id") || "");
       });
     });
+    this.bindLoopNavHandlers();
     this.navHost.querySelectorAll("[data-compare-state]").forEach((input) => {
       input.addEventListener("change", () => {
         const id = input.getAttribute("data-compare-state") || "";
@@ -484,15 +489,11 @@ class AnalysisWorkbench extends WorkbenchActions {
       step_duration: this.params.step_duration
     };
   }
-  async loadLoopCandidatesIfNeeded() {
-    if (!["loop", "loop_closed", "loop_step", "nyquist"].includes(this.activeKind)) return;
-    try {
-      const response = await analysisLoopsRequest({});
-      this.loopCandidates = response.candidates || response.items || [];
-      this.renderNav();
-    } catch (error) {
-      this.loopCandidates = [];
-    }
+  refreshNavigation() {
+    this.renderNav();
+  }
+  activeAnalysisKind() {
+    return this.activeKind;
   }
   async run(targetKind) {
     if (this.busy) return;

@@ -3,12 +3,13 @@ import { transferSummaryHtml } from './analysis_workbench_results.js';
 import type { WorkbenchCanvasRec } from './analysis_workbench_layout.js';
 import { LAYOUT_PRESETS, type LayoutPreset } from './analysis_workbench_layout_tree.js';
 import { AnalysisCanvasWorkspace } from './analysis_workbench_canvas.js';
-import { workbenchExportRequest } from './analysis_client.js';
+import { analysisLoopCandidatesRequest, analysisLoopFromBreakRequest, analysisLoopsRequest, workbenchExportRequest } from './analysis_client.js';
 import { toast } from './desktop.js';
 import type { RunResponse, WorkbenchSessionRec, WorkbenchStateRec } from './analysis_workbench_types.js';
 import {
   KIND_LABELS, describeRunStatus, escapeHtml, optionHtml, shortFingerprint, loopFeedbackOutput, type AnalysisKind,
 } from './analysis_workbench_meta.js';
+import { controlledBreakForGroup } from './analysis_workbench_loops.js';
 
 export abstract class WorkbenchActions {
   protected host!: HTMLElement;
@@ -22,6 +23,9 @@ export abstract class WorkbenchActions {
   protected params = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: 1 };
   protected frequencyPath = 'descriptor_linearized';
   protected loopCandidates: Array<Record<string, unknown>> = [];
+  protected loopGroups: Array<Record<string, unknown>> = [];
+  protected selectedLoopId = '';
+  protected selectedLoopGroup: Record<string, unknown> | null = null;
   protected busy = false;
   protected compareMode = false;
   protected compareSelection = new Set<string>();
@@ -33,7 +37,8 @@ export abstract class WorkbenchActions {
   protected abstract selectedCanvas(): WorkbenchCanvasRec | null;
   protected abstract currentKind(): AnalysisKind;
   protected abstract activeState(): WorkbenchStateRec | undefined;
-  protected abstract loadLoopCandidatesIfNeeded(): Promise<void>;
+  protected abstract refreshNavigation(): void;
+  protected abstract activeAnalysisKind(): AnalysisKind;
   protected abstract run(targetKind?: AnalysisKind): Promise<void>;
   protected abstract runCompare(): Promise<void>;
   protected abstract persist(): void;
@@ -190,6 +195,75 @@ export abstract class WorkbenchActions {
   }
 
 
+  protected async loadLoopCandidatesIfNeeded(): Promise<void> {
+    if (!['loop', 'loop_closed', 'loop_step', 'nyquist'].includes(this.activeAnalysisKind())) return;
+    try {
+      const response = await analysisLoopsRequest({}) as { candidates?: Array<Record<string, unknown>>; items?: Array<Record<string, unknown>> };
+      this.loopCandidates = response.candidates || response.items || [];
+      this.refreshNavigation();
+    } catch (error) {
+      this.loopCandidates = [];
+    }
+  }
+
+  protected async loadLoopGroupsIfNeeded(): Promise<void> {
+    if (this.activeAnalysisKind() !== 'loop') return;
+    try {
+      const response = await analysisLoopCandidatesRequest({}) as { loops?: Array<Record<string, unknown>> };
+      this.loopGroups = response.loops || [];
+      this.refreshNavigation();
+    } catch (error) {
+      this.loopGroups = [];
+    }
+  }
+
+  /** 一次点击选中整条环路：记住成员与建议断点，并把可用的受控源断点同步到断环元件下拉。 */
+  protected selectLoopGroup(group: Record<string, unknown>): void {
+    this.selectedLoopGroup = group;
+    this.selectedLoopId = String(group.loop_id || '');
+    this.params.feedback_sign = Number(group.feedback_sign) === -1 ? -1 : 1;
+    const element = controlledBreakForGroup(group, this.loopCandidates);
+    this.refreshNavigation();
+    const select = this.navHost.querySelector('[data-awb="element"]') as HTMLSelectElement | null;
+    if (element && select) select.value = element;
+    if (!element) {
+      toast('该环路没有可断开的 VCVS/VCCS 受控源，无法定义唯一开环 L(s)，仅显示闭环 T(s)', 'info', 6000);
+    }
+  }
+
+  /** 电路模式：用户点选一条反馈支路后，由后端搜索包含它的闭合环并加入缩略图。 */
+  protected async loopFromBreak(breakId: string): Promise<void> {
+    if (!breakId) return;
+    try {
+      const response = await analysisLoopFromBreakRequest({ break_id: breakId }) as { ok?: boolean; loop?: Record<string, unknown>; reason?: string };
+      if (response.ok === false || !response.loop) {
+        toast(String(response.reason || '该支路不在闭合反馈环中'), 'error', 5000);
+        return;
+      }
+      const group = response.loop;
+      const groupId = String(group.loop_id || '');
+      this.loopGroups = [group, ...this.loopGroups.filter((item) => String(item.loop_id || '') !== groupId)];
+      this.selectLoopGroup(group);
+      await this.loadLoopCandidatesIfNeeded();
+    } catch (error) {
+      toast('按支路选环失败：' + (error instanceof Error ? error.message : String(error)), 'error', 5000);
+    }
+  }
+
+  /** 绑定缩略图与候选断点的点击：一次点击选中整环或按支路搜索闭合环。 */
+  protected bindLoopNavHandlers(): void {
+    this.navHost.querySelectorAll('[data-loop-id]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const id = button.getAttribute('data-loop-id') || '';
+        const group = this.loopGroups.find((item) => String(item.loop_id || '') === id);
+        if (group) this.selectLoopGroup(group);
+      });
+    });
+    this.navHost.querySelectorAll('[data-loop-break]').forEach((button) => {
+      button.addEventListener('click', () => { void this.loopFromBreak(button.getAttribute('data-loop-break') || ''); });
+    });
+  }
+
   protected async runParams(kind: AnalysisKind = this.currentKind()): Promise<Record<string, unknown> | null> {
     const input = (this.navHost.querySelector('[data-awb="input"]') as HTMLSelectElement | null)?.value || '';
     const output = (this.navHost.querySelector('[data-awb="output"]') as HTMLSelectElement | null)?.value || '';
@@ -211,11 +285,18 @@ export abstract class WorkbenchActions {
     if (loopKind || kind === 'nyquist') {
       const select = this.navHost.querySelector('[data-awb="element"]') as HTMLSelectElement | null;
       let element = select?.value || '';
+      if (this.selectedLoopGroup) {
+        const loopElement = controlledBreakForGroup(this.selectedLoopGroup, this.loopCandidates);
+        if (loopElement) element = loopElement;
+      }
       if (element === '__virtual__' && !loopKind) element = '';
       if (!element && this.loopCandidates.length) element = String(this.loopCandidates[0].element || '');
       if (!element && !loopKind) {
         await this.loadLoopCandidatesIfNeeded();
         element = String(this.loopCandidates[0]?.element || '');
+      }
+      if (!element && loopKind && this.selectedLoopGroup) {
+        toast('所选环路不含 VCVS/VCCS 受控源，无法定义唯一开环 L(s)，仅显示闭环 T(s)', 'info', 5000);
       }
       if (!element && loopKind) element = '__virtual__';
       if (!element) {

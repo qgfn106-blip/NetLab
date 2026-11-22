@@ -13,15 +13,17 @@ function transferItemHtml(label, info, output) {
 }
 function transferSummaryHtml(raw) {
   if (!raw) return "";
-  const openLoop = readTransfer(raw["transfer_function"]);
+  const primary = readTransfer(raw["transfer_function"]);
+  const openLoop = readTransfer(raw["open_loop_transfer_function"]);
   const closedLoop = readTransfer(raw["closed_loop_transfer_function"]);
   const role = raw["transfer_role"] === "closed_loop" ? "closed_loop" : "open_loop";
   const output = typeof raw["output"] === "string" ? raw["output"] : "";
   const items = [];
   if (role === "closed_loop") {
-    if (openLoop) items.push(transferItemHtml("\u95ED\u73AF T(s)", openLoop, output));
+    if (primary) items.push(transferItemHtml("\u95ED\u73AF T(s)", primary, output));
+    if (openLoop) items.push(transferItemHtml("\u5F00\u73AF L(s)", openLoop, output));
   } else {
-    if (openLoop) items.push(transferItemHtml("\u5F00\u73AF G(s)", openLoop, output));
+    if (primary) items.push(transferItemHtml("\u5F00\u73AF G(s)", primary, output));
     if (closedLoop) items.push(transferItemHtml("\u95ED\u73AF T(s)", closedLoop, output));
   }
   if (!items.length) return "";

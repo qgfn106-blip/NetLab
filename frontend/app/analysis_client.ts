@@ -27,6 +27,16 @@ export function analysisLoopsRequest(body: unknown) {
   return jsonRequest('/api/analysis/loops', 'POST', body);
 }
 
+/** 信号流自动候选环（SCC 分组）。 */
+export function analysisLoopCandidatesRequest(body: unknown) {
+  return jsonRequest('/api/analysis/loops/candidates', 'POST', body);
+}
+
+/** 电路模式：按点选的反馈支路搜索闭合环。 */
+export function analysisLoopFromBreakRequest(body: unknown) {
+  return jsonRequest('/api/analysis/loops/from-break', 'POST', body);
+}
+
 /** 回路增益 / 闭环传函分析。 */
 export function analysisLoopRequest(body: unknown) {
   return jsonRequest('/api/analysis/loop', 'POST', body);

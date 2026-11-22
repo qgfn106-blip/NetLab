@@ -125,7 +125,7 @@ try {
   await page.waitForFunction(() => (document.querySelector('.awb-status')?.textContent || '').includes('虚拟单位负反馈'), null, { timeout: 20000 });
   assert((await page.locator('.awb-canvas-title').allInnerTexts()).some((text) => text.includes('闭环 Bode')), '闭环 Bode 子画布未创建');
   const loopTransferText = await page.locator('[data-awb="transfer"]').innerText();
-  assert(loopTransferText.includes('开环 G(s)') && loopTransferText.includes('闭环 T(s)'), '虚拟闭环未显示 G(s)/T(s): ' + loopTransferText);
+  assert(loopTransferText.includes('闭环 T(s)') && !loopTransferText.includes('开环'), '虚拟闭环应只显示 T(s) 且不冒充开环: ' + loopTransferText);
   await page.locator('.awb-nav-item[data-kind="loop_step"]').click();
   await page.waitForFunction(() => !document.querySelector('.awb-toolbar')?.classList.contains('busy'), null, { timeout: 20000 });
   await page.locator('[data-awb="element"]').selectOption('__virtual__');

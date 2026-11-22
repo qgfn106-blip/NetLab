@@ -68,6 +68,28 @@ def test_break_candidates_list_controlled_sources(client) -> None:
     assert candidate["control_b"] == "n"
 
 
+def test_loop_candidates_endpoint_lists_circuit_breaks(client) -> None:
+    _load(client, _vcvs_amplifier())
+    response = client.post("/api/analysis/loops/candidates", json={})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["ok"] is True
+    assert body["mode"] == "circuit"
+    assert body["loops"] == []
+    assert [item["element"] for item in body["break_candidates"]] == ["E1"]
+
+
+def test_loop_from_break_endpoint_returns_member_loop(client) -> None:
+    _load(client, _vcvs_amplifier())
+    response = client.post("/api/analysis/loops/from-break", json={"break_id": "R2"})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["ok"] is True
+    assert body["mode"] == "circuit"
+    assert set(body["loop"]["member_edge_names"]) == {"E1", "R1", "R2"}
+    assert body["loop"]["suggested_break_id"] == body["loop"]["candidate_breaks"][0]["break_id"]
+
+
 def test_loop_endpoint_returns_loop_gain_and_parity(client) -> None:
     _load(client, _vcvs_amplifier())
     response = client.post("/api/analysis/loop", json=_body())
@@ -87,6 +109,24 @@ def test_loop_endpoint_returns_loop_gain_and_parity(client) -> None:
     assert envelope["kind"] == "bode"
     assert envelope["axes"][0]["id"] == "f"
     assert len(envelope["curves"]) == 2
+
+
+def test_loop_probe_resolves_controlled_source_without_fixture(client) -> None:
+    _load(client, _vcvs_amplifier())
+    response = client.post(
+        "/api/analysis/loop",
+        json=_body(element="", loop_probe={"break_id": "R2"}),
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["ok"] is True
+    assert body["probe"] == "virtual_branch"
+    assert body["element"] == "E1"
+    assert body["loop_id"].startswith("loop-")
+    analytic = body["open_loop_transfer_function"]
+    assert analytic["supported"] is True
+    assert "10000" in analytic["expression"]
+    assert analytic["parity_max_rel"] < 1e-6
 
 
 def test_nyquist_endpoint_reports_p_n_z(client) -> None:

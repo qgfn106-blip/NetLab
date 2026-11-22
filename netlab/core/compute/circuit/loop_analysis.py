@@ -24,7 +24,7 @@ import numpy as np
 
 from ...common.limits import ComputeError, ValidationError
 from .descriptor import DescriptorModel, DescriptorSystem
-from .descriptor_analysis import analyze_poles, build_output_matrices
+from .descriptor_analysis import analyze_poles, analyze_zeros, build_output_matrices
 
 __all__ = [
     "LoopExtraction",
@@ -54,6 +54,7 @@ class LoopExtraction:
     parity_max_rel: float | None
     poles: dict[str, Any] = field(default_factory=dict)
     warnings: tuple[dict[str, Any], ...] = ()
+    open_loop_transfer: dict[str, Any] | None = None
 
 
 def _frequency_array(frequencies: Any) -> np.ndarray:
@@ -173,6 +174,118 @@ def _solve(matrix: np.ndarray, rhs: np.ndarray, omega: float) -> np.ndarray:
         ) from exc
 
 
+def _poly_expr(coeffs: np.ndarray) -> str:
+    """把按降幂排列的多项式系数渲染为可读表达式（自变量为复频率 s）。"""
+    values = np.real_if_close(np.asarray(coeffs, dtype=np.complex128).reshape(-1))
+    terms: list[str] = []
+    degree = values.size - 1
+    for index, raw in enumerate(values):
+        power = degree - index
+        value = complex(raw)
+        if abs(value) < 1e-14:
+            continue
+        if abs(value.imag) > 1e-9:
+            coeff = f"{value.real:.6g}{value.imag:+.6g}j"
+        else:
+            coeff = f"{value.real:.6g}"
+        if power == 0:
+            terms.append(coeff)
+        elif power == 1:
+            terms.append(f"{coeff}*s")
+        else:
+            terms.append(f"{coeff}*s^{power}")
+    if not terms:
+        return "0"
+    return " + ".join(terms).replace("+ -", "- ")
+
+
+def _analytic_open_loop(
+    model: DescriptorModel,
+    element: Any,
+    A: np.ndarray,
+    E: np.ndarray,
+    test: np.ndarray,
+    freqs: np.ndarray,
+    loop_values: np.ndarray,
+) -> dict[str, Any] | None:
+    """在已打补丁的断环铅笔上解析求开环 L(s)，并以数值返回比做一致性校验。
+
+    仅对 VCVS 提供解析式（VCCS 断环语义不同，直接返回 unsupported）。
+    解析与数值返回比不一致时返回 unsupported，绝不返回可疑解析式。
+    """
+    if element.kind != "vcvs":
+        return {"supported": False, "reason": "VCCS 断环暂不提供解析开环表达式"}
+    try:
+        size = int(A.shape[0])
+        control = np.zeros(size, dtype=np.complex128)
+        ci = model.index.node_index.get(element.control_a)
+        di = model.index.node_index.get(element.control_b)
+        if ci is not None:
+            control[ci] += 1.0
+        if di is not None:
+            control[di] -= 1.0
+        if not np.any(control):
+            return {"supported": False, "reason": "受控源控制端无有效节点，无法解析开环"}
+        factor = -float(element.gain)  # 与数值返回比 loop_value = -gain*control_test 同号
+        poles = np.asarray(analyze_poles(A, E).finite_poles, dtype=np.complex128)
+        zeros = np.asarray(
+            analyze_zeros(
+                A, E, test.reshape(-1, 1), control.reshape(1, -1), np.zeros((1, 1))
+            ).finite_zeros,
+            dtype=np.complex128,
+        )
+        den = np.poly(poles) if poles.size else np.array([1.0])
+        num = np.poly(zeros) if zeros.size else np.array([1.0])
+        sample = None
+        for candidate in (1.0, 10.0, 1j, 1j * 10.0, 100.0):
+            try:
+                x = np.linalg.solve(candidate * E + A, test.astype(np.complex128))
+            except np.linalg.LinAlgError:
+                continue
+            h = factor * complex(control @ x)
+            den_v = np.polyval(den, candidate)
+            num_v = np.polyval(num, candidate)
+            if abs(den_v) < 1e-12 or abs(num_v) < 1e-30 or not np.isfinite(h):
+                continue
+            sample = h * den_v / num_v
+            break
+        if sample is None:
+            return {"supported": False, "reason": "无法确定解析开环定标，跳过解析解"}
+        num = num * sample
+        rel_max = 0.0
+        checked = 0
+        for frequency, reference in zip(freqs, loop_values):
+            if abs(reference) < 1e-9:
+                continue
+            s = 1j * 2.0 * np.pi * float(frequency)
+            den_v = np.polyval(den, s)
+            if abs(den_v) < 1e-30:
+                continue
+            approx = np.polyval(num, s) / den_v
+            rel = abs(approx - reference) / max(abs(reference), 1e-12)
+            rel_max = max(rel_max, float(rel))
+            checked += 1
+        if checked == 0 or rel_max > _PARITY_TOL:
+            return {
+                "supported": False,
+                "reason": f"解析开环与数值返回比不一致（最大相对误差 {rel_max:.3g}），不采用",
+            }
+        num_real = np.real_if_close(num)
+        den_real = np.real_if_close(den)
+        return {
+            "supported": True,
+            "expression": f"({_poly_expr(num_real)}) / ({_poly_expr(den_real)})",
+            "order": int(max(len(num_real), len(den_real)) - 1),
+            "relative_order": int(len(den_real) - len(num_real)),
+            "parity_max_rel": float(rel_max),
+            "source": "descriptor_broken_pencil",
+        }
+    except ComputeError as exc:
+        return {"supported": False, "reason": f"解析开环提取失败：{exc}"}
+    except Exception as exc:  # noqa: BLE001 - 解析失败一律降级，不影响数值结果
+        return {"supported": False, "reason": f"解析开环提取失败：{exc}"}
+
+
 def extract_controlled_source_loop(
     model: DescriptorModel,
     element_name: str,
@@ -269,6 +382,8 @@ def extract_controlled_source_loop(
         relative = np.abs(closed - direct) / scale
         parity = float(np.max(relative)) if relative.size else None
 
+    open_loop_transfer = _analytic_open_loop(model, element, A, E, test, freqs, loop_values)
+
     warnings: list[dict[str, Any]] = []
     if parity is not None and parity > _PARITY_TOL:
         warnings.append(
@@ -328,4 +443,5 @@ def extract_controlled_source_loop(
         parity_max_rel=parity,
         poles=poles_payload,
         warnings=tuple(warnings),
+        open_loop_transfer=open_loop_transfer,
     )

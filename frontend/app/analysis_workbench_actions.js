@@ -1,6 +1,6 @@
 import { transferSummaryHtml } from "./analysis_workbench_results.js";
 import { LAYOUT_PRESETS } from "./analysis_workbench_layout_tree.js";
-import { workbenchExportRequest } from "./analysis_client.js";
+import { analysisLoopCandidatesRequest, analysisLoopFromBreakRequest, analysisLoopsRequest, workbenchExportRequest } from "./analysis_client.js";
 import { toast } from "./desktop.js";
 import {
   KIND_LABELS,
@@ -10,6 +10,7 @@ import {
   shortFingerprint,
   loopFeedbackOutput
 } from "./analysis_workbench_meta.js";
+import { controlledBreakForGroup } from "./analysis_workbench_loops.js";
 class WorkbenchActions {
   constructor() {
     this.workspace = null;
@@ -18,6 +19,9 @@ class WorkbenchActions {
     this.params = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: 1 };
     this.frequencyPath = "descriptor_linearized";
     this.loopCandidates = [];
+    this.loopGroups = [];
+    this.selectedLoopId = "";
+    this.selectedLoopGroup = null;
     this.busy = false;
     this.compareMode = false;
     this.compareSelection = /* @__PURE__ */ new Set();
@@ -159,6 +163,72 @@ class WorkbenchActions {
     }
     this.statusHost.textContent = lines.join(" \xB7 ");
   }
+  async loadLoopCandidatesIfNeeded() {
+    if (!["loop", "loop_closed", "loop_step", "nyquist"].includes(this.activeAnalysisKind())) return;
+    try {
+      const response = await analysisLoopsRequest({});
+      this.loopCandidates = response.candidates || response.items || [];
+      this.refreshNavigation();
+    } catch (error) {
+      this.loopCandidates = [];
+    }
+  }
+  async loadLoopGroupsIfNeeded() {
+    if (this.activeAnalysisKind() !== "loop") return;
+    try {
+      const response = await analysisLoopCandidatesRequest({});
+      this.loopGroups = response.loops || [];
+      this.refreshNavigation();
+    } catch (error) {
+      this.loopGroups = [];
+    }
+  }
+  /** 一次点击选中整条环路：记住成员与建议断点，并把可用的受控源断点同步到断环元件下拉。 */
+  selectLoopGroup(group) {
+    this.selectedLoopGroup = group;
+    this.selectedLoopId = String(group.loop_id || "");
+    this.params.feedback_sign = Number(group.feedback_sign) === -1 ? -1 : 1;
+    const element = controlledBreakForGroup(group, this.loopCandidates);
+    this.refreshNavigation();
+    const select = this.navHost.querySelector('[data-awb="element"]');
+    if (element && select) select.value = element;
+    if (!element) {
+      toast("\u8BE5\u73AF\u8DEF\u6CA1\u6709\u53EF\u65AD\u5F00\u7684 VCVS/VCCS \u53D7\u63A7\u6E90\uFF0C\u65E0\u6CD5\u5B9A\u4E49\u552F\u4E00\u5F00\u73AF L(s)\uFF0C\u4EC5\u663E\u793A\u95ED\u73AF T(s)", "info", 6e3);
+    }
+  }
+  /** 电路模式：用户点选一条反馈支路后，由后端搜索包含它的闭合环并加入缩略图。 */
+  async loopFromBreak(breakId) {
+    if (!breakId) return;
+    try {
+      const response = await analysisLoopFromBreakRequest({ break_id: breakId });
+      if (response.ok === false || !response.loop) {
+        toast(String(response.reason || "\u8BE5\u652F\u8DEF\u4E0D\u5728\u95ED\u5408\u53CD\u9988\u73AF\u4E2D"), "error", 5e3);
+        return;
+      }
+      const group = response.loop;
+      const groupId = String(group.loop_id || "");
+      this.loopGroups = [group, ...this.loopGroups.filter((item) => String(item.loop_id || "") !== groupId)];
+      this.selectLoopGroup(group);
+      await this.loadLoopCandidatesIfNeeded();
+    } catch (error) {
+      toast("\u6309\u652F\u8DEF\u9009\u73AF\u5931\u8D25\uFF1A" + (error instanceof Error ? error.message : String(error)), "error", 5e3);
+    }
+  }
+  /** 绑定缩略图与候选断点的点击：一次点击选中整环或按支路搜索闭合环。 */
+  bindLoopNavHandlers() {
+    this.navHost.querySelectorAll("[data-loop-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const id = button.getAttribute("data-loop-id") || "";
+        const group = this.loopGroups.find((item) => String(item.loop_id || "") === id);
+        if (group) this.selectLoopGroup(group);
+      });
+    });
+    this.navHost.querySelectorAll("[data-loop-break]").forEach((button) => {
+      button.addEventListener("click", () => {
+        void this.loopFromBreak(button.getAttribute("data-loop-break") || "");
+      });
+    });
+  }
   async runParams(kind = this.currentKind()) {
     const input = this.navHost.querySelector('[data-awb="input"]')?.value || "";
     const output = this.navHost.querySelector('[data-awb="output"]')?.value || "";
@@ -180,11 +250,18 @@ class WorkbenchActions {
     if (loopKind || kind === "nyquist") {
       const select = this.navHost.querySelector('[data-awb="element"]');
       let element = select?.value || "";
+      if (this.selectedLoopGroup) {
+        const loopElement = controlledBreakForGroup(this.selectedLoopGroup, this.loopCandidates);
+        if (loopElement) element = loopElement;
+      }
       if (element === "__virtual__" && !loopKind) element = "";
       if (!element && this.loopCandidates.length) element = String(this.loopCandidates[0].element || "");
       if (!element && !loopKind) {
         await this.loadLoopCandidatesIfNeeded();
         element = String(this.loopCandidates[0]?.element || "");
+      }
+      if (!element && loopKind && this.selectedLoopGroup) {
+        toast("\u6240\u9009\u73AF\u8DEF\u4E0D\u542B VCVS/VCCS \u53D7\u63A7\u6E90\uFF0C\u65E0\u6CD5\u5B9A\u4E49\u552F\u4E00\u5F00\u73AF L(s)\uFF0C\u4EC5\u663E\u793A\u95ED\u73AF T(s)", "info", 5e3);
       }
       if (!element && loopKind) element = "__virtual__";
       if (!element) {

@@ -201,14 +201,14 @@ try {
   const clamped = await win.boundingBox();
   const viewport = page.viewportSize();
   assert(clamped.width <= viewport.width && clamped.height <= viewport.height, `窗口未收缩到视口内: ${clamped.width}x${clamped.height}`);
-  assert(clamped.y >= 40 && clamped.x + clamped.width > 160 && clamped.x + clamped.width <= viewport.width + 1 && clamped.y + clamped.height <= viewport.height + 1, `窗口位置越界或抓取区不可见: ${JSON.stringify(clamped)}`);
+  assert(clamped.y >= 0 && clamped.x + clamped.width > 160 && clamped.x + clamped.width <= viewport.width + 1 && clamped.y + clamped.height <= viewport.height + 1, `窗口位置越界或抓取区不可见: ${JSON.stringify(clamped)}`);
 
-  // 7) 最大化：四周留 12px inset；退出后恢复原尺寸
+  // 7) 最大化：铺满整个视口，不保留上部/四周间隙；退出后恢复原尺寸
   await page.locator('#analWin .floatwin-max').click();
   await sleep(120);
   const maximized = await win.boundingBox();
-  assert(Math.abs(maximized.x - 12) <= 2 && Math.abs(maximized.x + maximized.width - (viewport.width - 12)) <= 2, `最大化左右 inset 异常: ${JSON.stringify(maximized)}`);
-  assert(maximized.y >= 8 && maximized.y <= 110 && maximized.y + maximized.height <= viewport.height - 10, `最大化上下 inset 异常: ${JSON.stringify(maximized)}`);
+  assert(Math.abs(maximized.x) <= 2 && Math.abs(maximized.y) <= 2, `最大化左上角未贴边: ${JSON.stringify(maximized)}`);
+  assert(Math.abs(maximized.width - viewport.width) <= 2 && Math.abs(maximized.height - viewport.height) <= 2, `最大化未铺满视口: ${JSON.stringify({maximized, viewport})}`);
   await page.locator('#analWin .floatwin-max').click();
   await sleep(120);
   const restored = await win.boundingBox();

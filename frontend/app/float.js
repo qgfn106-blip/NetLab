@@ -1,7 +1,7 @@
 import { clamp } from "../app.utils.js";
 import { state, ui } from "./state.js";
 const FLOAT_MARGIN = 8;
-const FLOAT_TOP = 40;
+const FLOAT_TOP = 0;
 const FLOAT_GRAB_X = 160;
 const FLOAT_GRAB_Y = 40;
 function clampFloatWindow(root) {

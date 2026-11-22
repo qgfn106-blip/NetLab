@@ -3,7 +3,8 @@ import { clamp } from '../app.utils.js';
 import { state, ui } from './state.js';
 
   const FLOAT_MARGIN = 8;
-  const FLOAT_TOP = 40;
+  // 上部不单独限高：允许窗口顶边贴到视口顶部，最大化时可铺满全屏。
+  const FLOAT_TOP = 0;
   // 大窗口无法整体放进视口时，至少要保留这么宽/高的抓取区，避免窗口被边界“钉死”。
   const FLOAT_GRAB_X = 160;
   const FLOAT_GRAB_Y = 40;

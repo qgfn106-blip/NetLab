@@ -921,12 +921,6 @@ def validate_project(
             network.get("states", []), network_name=str(label)
         )
 
-    # 上面的 `trial.to_payload()` 会把场景规范化（补齐新增参数默认值、字段顺序等）。
-    # 规范化是程序自己的行为，不是文件被篡改；这里同步重算校验和，保证
-    # 「校验一次后的工程对象再次校验」仍然通过（打开工程会走两次 validate_project）。
-    if project.get("checksum"):
-        project["checksum"] = compute_checksum(project)
-
     fem_payload = project.get("fem") or {}
     if not isinstance(fem_payload, dict):
         raise ValidationError("工程的 fem 必须是对象")
@@ -967,6 +961,10 @@ def validate_project(
             raise ValidationError(f"第 {index + 1} 个扩展缺少 code 字符串")
         if len(item["code"]) > 200_000:
             raise LimitError("单个扩展代码不能超过 200 KB")
+    # 场景与 analysis_workbench 的规范化都是程序自身行为，不是文件被篡改；
+    # 必须在所有规范化完成后再重算校验和，确保「打开工程两次校验」仍然通过。
+    if project.get("checksum"):
+        project["checksum"] = compute_checksum(project)
     return project
 
 

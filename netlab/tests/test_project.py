@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -14,6 +15,7 @@ from netlab.core.model.project import (
     atomic_write,
     build_project,
     compute_checksum,
+    load_project,
     migrate_project,
     project_scene_payload,
     validate_project,
@@ -345,3 +347,68 @@ def test_project_rejects_cyclic_blocks():
     payload["checksum"] = compute_checksum(payload)
     with pytest.raises(ValidationError, match="循环引用"):
         validate_project(payload)
+
+
+def test_validate_migrates_legacy_workbench_and_keeps_checksum():
+    simulation = build_simulation()
+    try:
+        project = build_project(simulation, name="legacy-workbench")
+    finally:
+        simulation.shutdown()
+    project["ui"]["analysis_workbench"] = {
+        "schema": "netlab-analysis-workbench/1",
+        "active_analysis": "bode",
+        "canvases": [
+            {
+                "canvas_id": "legacy-canvas",
+                "kind": "bode",
+                "figure_id": "f1",
+                "slot_id": 0,
+                "title": "Bode",
+            }
+        ],
+        "layout": {
+            "mode": "grid",
+            "rows": 1,
+            "cols": 1,
+            "order": ["legacy-canvas"],
+        },
+        "sizes": {"sidebar": 280, "detail": 320},
+        "selected_state_ids": [],
+    }
+    project["checksum"] = compute_checksum(project)
+
+    validated = validate_project(project)
+    workbench = validated["ui"]["analysis_workbench"]
+    assert workbench["schema"] == "netlab-analysis-workbench/2"
+    assert workbench["layout"]["tabs"][0]["root"]["canvasIds"] == ["legacy-canvas"]
+    assert validated["checksum"] == compute_checksum(validated)
+
+    # 打开工程会走两次校验；第二次必须仍然通过，且能生成场景载荷。
+    payload = project_scene_payload(validated)
+    assert len(payload["nodes"]) == len(project["networks"][0]["scene"]["nodes"])
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "grid_inverter_avg.netlab",
+        "grid_inverter_current.netlab",
+        "grid_inverter_switch.netlab",
+        "pll_template.netlab",
+        "underdamped_control.netlab",
+        "二次控制.netlab",
+        "控制工程实验.netlab",
+        "控制工程实验2.netlab",
+        "控制工程实验2_闭环分析示范.netlab",
+        "未命名工程.netlab",
+    ],
+)
+def test_myproject_files_open_with_current_schema(name):
+    path = Path(__file__).resolve().parents[2] / "MyProject" / name
+    if not path.exists():
+        pytest.skip(f"本地 MyProject 样例不存在：{path}")
+    project = load_project(path)
+    payload = project_scene_payload(project)
+    assert isinstance(payload.get("nodes"), list)
+    assert project["version"] == 8

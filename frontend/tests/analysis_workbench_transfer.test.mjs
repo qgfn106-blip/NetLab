@@ -18,6 +18,19 @@ test('通用频响把主传函标为开环 G(s) 并另列闭环 T(s)', () => {
   assert.match(html, /阶数 1 · 相对阶 1/);
 });
 
+test('环路页显式断环显示开环 L(s)，不再标 G(s)', () => {
+  const html = transferSummaryHtml({
+    kind: 'loop',
+    display: 'loop',
+    transfer_role: 'open_loop',
+    transfer_function: open,
+  });
+  assert.match(html, /开环 L\(s\)/);
+  assert.doesNotMatch(html, /开环 G\(s\)/);
+  assert.doesNotMatch(html, /闭环 T\(s\)/);
+});
+
+
 test('实体断环把实际闭环 T(s) 作为主传函', () => {
   const html = transferSummaryHtml({ transfer_role: 'closed_loop', transfer_function: open });
   assert.match(html, /闭环 T\(s\)/);

@@ -96,7 +96,7 @@ def test_virtual_feedback_warns_and_stays_marked() -> None:
         f_start=10.0,
         f_stop=1000.0,
         points=21,
-        display="loop",
+        display="closed_loop",
     )
     assert body["loop_origin"] == "virtual_unit_feedback"
     codes = {str(item.get("code")) for item in body["warnings"]}
@@ -113,6 +113,39 @@ def test_virtual_feedback_warns_and_stays_marked() -> None:
     # 旧 bug 把闭环再反馈一次得到 9.99939/(s^2+10.0002s+99.996)，这里断言其已消失。
     assert "99.996" not in body["closed_loop_transfer_function"]["expression"]
     assert "9.99939" not in body["closed_loop_transfer_function"]["expression"]
+
+
+def test_virtual_feedback_is_not_allowed_to_pose_as_open_loop() -> None:
+    with pytest.raises(analysis.AnalysisError, match="实体断环"):
+        analysis.loop_analysis(
+            Simulation(_vcvs_amplifier()),
+            element="",
+            input_source="V1",
+            output="out",
+            f_start=10.0,
+            f_stop=1000.0,
+            points=21,
+            display="loop",
+        )
+
+
+def test_explicit_open_loop_is_marked_open() -> None:
+    body = analysis.loop_analysis(
+        Simulation(_vcvs_amplifier()),
+        element="E1",
+        input_source="V1",
+        output="out",
+        f_start=10.0,
+        f_stop=1000.0,
+        points=21,
+        display="loop",
+    )
+    assert body["display"] == "loop"
+    assert body["transfer_role"] == "open_loop"
+    assert body["transfer_function"]["supported"] is True
+    assert body["transfer_function"]["expression"] == body["open_loop_transfer_function"]["expression"]
+    curve = body["envelopes"]["bode"]["curves"][0]
+    assert curve["detail"]["output"] == "L(E1)"
 
 
 def test_closed_loop_transfer_function_rejects_unsupported_inputs() -> None:

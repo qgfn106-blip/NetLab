@@ -112,6 +112,26 @@ def _run_kind(client, session_id: str, state_id: str, kind: str, params: dict | 
     return body
 
 
+def test_workbench_bode_is_labeled_closed_loop(client) -> None:
+    session_id = _new_session(client, "Bode 闭环")
+    state_id = _add_state(client, session_id)
+    body = _run_kind(client, session_id, state_id, "bode")
+    assert body["raw"]["transfer_role"] == "closed_loop"
+    assert body["raw"]["transfer_function"]["supported"] is True
+    assert body["raw"]["transfer_function"]["expression"]
+
+
+def test_workbench_loop_without_break_is_rejected(client) -> None:
+    session_id = _new_session(client, "环路无断点")
+    state_id = _add_state(client, session_id)
+    response = client.post(
+        "/api/analysis/workbench/run",
+        json={"session_id": session_id, "state_id": state_id, "kind": "loop", "params": {}},
+    )
+    assert response.status_code == 422, response.text
+    assert "实体断环" in response.text
+
+
 def test_workbench_fft_frequency_path_is_approximate_and_compared(client) -> None:
     session_id = _new_session(client, "FFT 通路")
     state_id = _add_state(client, session_id)

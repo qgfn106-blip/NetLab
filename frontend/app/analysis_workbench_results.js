@@ -17,13 +17,14 @@ function transferSummaryHtml(raw) {
   const openLoop = readTransfer(raw["open_loop_transfer_function"]);
   const closedLoop = readTransfer(raw["closed_loop_transfer_function"]);
   const role = raw["transfer_role"] === "closed_loop" ? "closed_loop" : "open_loop";
+  const openLoopPage = raw["kind"] === "loop" && raw["display"] === "loop";
   const output = typeof raw["output"] === "string" ? raw["output"] : "";
   const items = [];
   if (role === "closed_loop") {
     if (primary) items.push(transferItemHtml("\u95ED\u73AF T(s)", primary, output));
     if (openLoop) items.push(transferItemHtml("\u5F00\u73AF L(s)", openLoop, output));
   } else {
-    if (primary) items.push(transferItemHtml("\u5F00\u73AF G(s)", primary, output));
+    if (primary) items.push(transferItemHtml(openLoopPage ? "\u5F00\u73AF L(s)" : "\u5F00\u73AF G(s)", primary, output));
     if (closedLoop) items.push(transferItemHtml("\u95ED\u73AF T(s)", closedLoop, output));
   }
   if (!items.length) return "";

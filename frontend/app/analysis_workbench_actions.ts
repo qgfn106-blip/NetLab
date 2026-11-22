@@ -281,7 +281,9 @@ export abstract class WorkbenchActions {
       step_duration: this.params.step_duration,
     };
     if (kind === 'bode' || kind === 'poles') params.frequency_path = this.frequencyPath;
-    const loopKind = kind === 'loop' || kind === 'loop_closed' || kind === 'loop_step';
+    const openLoopKind = kind === 'loop';
+    const closedLoopKind = kind === 'loop_closed' || kind === 'loop_step';
+    const loopKind = openLoopKind || closedLoopKind;
     if (loopKind || kind === 'nyquist') {
       const select = this.navHost.querySelector('[data-awb="element"]') as HTMLSelectElement | null;
       let element = select?.value || '';
@@ -289,16 +291,24 @@ export abstract class WorkbenchActions {
         const loopElement = controlledBreakForGroup(this.selectedLoopGroup, this.loopCandidates);
         if (loopElement) element = loopElement;
       }
-      if (element === '__virtual__' && !loopKind) element = '';
+      if (element === '__virtual__' && !closedLoopKind) element = '';
       if (!element && this.loopCandidates.length) element = String(this.loopCandidates[0].element || '');
       if (!element && !loopKind) {
         await this.loadLoopCandidatesIfNeeded();
         element = String(this.loopCandidates[0]?.element || '');
       }
-      if (!element && loopKind && this.selectedLoopGroup) {
+      if (!element && openLoopKind) {
+        await this.loadLoopCandidatesIfNeeded();
+        element = String(this.loopCandidates[0]?.element || '');
+      }
+      if (!element && openLoopKind) {
+        toast('环路分析必须选择实体断环点；未断环无法求开环 L(s)', 'error', 5000);
+        return null;
+      }
+      if (!element && closedLoopKind && this.selectedLoopGroup) {
         toast('所选环路不含 VCVS/VCCS 受控源，无法定义唯一开环 L(s)，仅显示闭环 T(s)', 'info', 5000);
       }
-      if (!element && loopKind) element = '__virtual__';
+      if (!element && closedLoopKind) element = '__virtual__';
       if (!element) {
         toast('Nyquist 分析需要选择一个受控源作为断环点（VCVS/VCCS）', 'error', 5000);
         return null;

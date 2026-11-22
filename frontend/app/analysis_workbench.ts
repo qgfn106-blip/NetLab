@@ -277,7 +277,7 @@ export class AnalysisWorkbench extends WorkbenchActions {
   private renderNav(): void {
     const active = this.activeState();
     const activeId = active?.state_id || '';
-    const kinds = (['bode', 'time', 'nyquist', 'loop', 'loop_closed', 'loop_step', 'poles', 'metrics'] as AnalysisKind[]).map((kind) =>
+    const kinds = (['bode', 'time', 'nyquist', 'loop', 'loop_closed', 'loop_step'] as AnalysisKind[]).map((kind) =>
       '<button type="button" class="awb-nav-item' + (kind === this.activeKind ? ' active' : '') + '" data-kind="' + kind + '">'
       + '<span class="awb-nav-label">' + KIND_LABELS[kind] + '</span><span class="awb-nav-sub">' + this.kindSub(kind) + '</span></button>'
     ).join('');
@@ -290,9 +290,9 @@ export class AnalysisWorkbench extends WorkbenchActions {
         + '<span>' + escapeHtml(item.label) + '</span><span class="awb-state-meta">' + shortFingerprint(item.fingerprint) + '</span></button></label>';
     }).join('') || '<div class="awb-empty">还没有状态。点上方「快照当前电路」。</div>';
     const activeElement = String(active?.loop_element || '');
-    const allowVirtual = this.activeKind === 'loop' || this.activeKind === 'loop_closed' || this.activeKind === 'loop_step';
+    const allowVirtual = this.activeKind === 'loop_closed' || this.activeKind === 'loop_step';
     const loopOptions = loopElementOptions(this.loopCandidates, activeElement, allowVirtual);
-    const needLoop = allowVirtual || this.activeKind === 'nyquist';
+    const needLoop = allowVirtual || this.activeKind === 'loop' || this.activeKind === 'nyquist';
     const loopPanel = this.activeKind === 'loop'
       ? '<div class="awb-nav-title">环路缩略图</div>' + loopListHtml(this.loopGroups, this.selectedLoopId, this.loopCandidates)
       : '';
@@ -340,10 +340,12 @@ export class AnalysisWorkbench extends WorkbenchActions {
   }
 
   private kindSub(kind: AnalysisKind): string {
-    if (kind === 'bode') return '频响 · 极点/零点';
-    if (kind === 'time') return '阶跃 · 峰值/调节';
+    if (kind === 'bode') return '闭环频响 · 幅相/关键点';
+    if (kind === 'time') return '闭环阶跃 · 峰值/调节';
     if (kind === 'nyquist') return '轮廓 · P/N/Z';
-    if (kind === 'loop') return '断环 · G/H/T';
+    if (kind === 'loop') return '断环 · 开环 L(s)';
+    if (kind === 'loop_closed') return '闭环对照 · 合成/直接';
+    if (kind === 'loop_step') return '闭环阶跃 · 峰值/调节';
     return '工作点 · 稳定性';
   }
 

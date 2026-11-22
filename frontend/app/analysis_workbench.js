@@ -249,7 +249,7 @@ class AnalysisWorkbench extends WorkbenchActions {
   renderNav() {
     const active = this.activeState();
     const activeId = active?.state_id || "";
-    const kinds = ["bode", "time", "nyquist", "loop", "loop_closed", "loop_step", "poles", "metrics"].map(
+    const kinds = ["bode", "time", "nyquist", "loop", "loop_closed", "loop_step"].map(
       (kind) => '<button type="button" class="awb-nav-item' + (kind === this.activeKind ? " active" : "") + '" data-kind="' + kind + '"><span class="awb-nav-label">' + KIND_LABELS[kind] + '</span><span class="awb-nav-sub">' + this.kindSub(kind) + "</span></button>"
     ).join("");
     const states = (this.session?.states || []).map((item) => {
@@ -258,9 +258,9 @@ class AnalysisWorkbench extends WorkbenchActions {
       return '<label class="awb-state-item' + (selected ? " selected" : "") + '">' + (this.compareMode ? '<input type="checkbox" data-compare-state="' + escapeHtml(item.state_id) + '"' + (checked ? " checked" : "") + ">" : "") + '<button type="button" class="awb-state-button" data-state-id="' + escapeHtml(item.state_id) + '"><span>' + escapeHtml(item.label) + '</span><span class="awb-state-meta">' + shortFingerprint(item.fingerprint) + "</span></button></label>";
     }).join("") || '<div class="awb-empty">\u8FD8\u6CA1\u6709\u72B6\u6001\u3002\u70B9\u4E0A\u65B9\u300C\u5FEB\u7167\u5F53\u524D\u7535\u8DEF\u300D\u3002</div>';
     const activeElement = String(active?.loop_element || "");
-    const allowVirtual = this.activeKind === "loop" || this.activeKind === "loop_closed" || this.activeKind === "loop_step";
+    const allowVirtual = this.activeKind === "loop_closed" || this.activeKind === "loop_step";
     const loopOptions = loopElementOptions(this.loopCandidates, activeElement, allowVirtual);
-    const needLoop = allowVirtual || this.activeKind === "nyquist";
+    const needLoop = allowVirtual || this.activeKind === "loop" || this.activeKind === "nyquist";
     const loopPanel = this.activeKind === "loop" ? '<div class="awb-nav-title">\u73AF\u8DEF\u7F29\u7565\u56FE</div>' + loopListHtml(this.loopGroups, this.selectedLoopId, this.loopCandidates) : "";
     this.navHost.innerHTML = [
       '<div class="awb-nav-title">\u5206\u6790</div>',
@@ -307,10 +307,12 @@ class AnalysisWorkbench extends WorkbenchActions {
     this.bindParamInputs();
   }
   kindSub(kind) {
-    if (kind === "bode") return "\u9891\u54CD \xB7 \u6781\u70B9/\u96F6\u70B9";
-    if (kind === "time") return "\u9636\u8DC3 \xB7 \u5CF0\u503C/\u8C03\u8282";
+    if (kind === "bode") return "\u95ED\u73AF\u9891\u54CD \xB7 \u5E45\u76F8/\u5173\u952E\u70B9";
+    if (kind === "time") return "\u95ED\u73AF\u9636\u8DC3 \xB7 \u5CF0\u503C/\u8C03\u8282";
     if (kind === "nyquist") return "\u8F6E\u5ED3 \xB7 P/N/Z";
-    if (kind === "loop") return "\u65AD\u73AF \xB7 G/H/T";
+    if (kind === "loop") return "\u65AD\u73AF \xB7 \u5F00\u73AF L(s)";
+    if (kind === "loop_closed") return "\u95ED\u73AF\u5BF9\u7167 \xB7 \u5408\u6210/\u76F4\u63A5";
+    if (kind === "loop_step") return "\u95ED\u73AF\u9636\u8DC3 \xB7 \u5CF0\u503C/\u8C03\u8282";
     return "\u5DE5\u4F5C\u70B9 \xB7 \u7A33\u5B9A\u6027";
   }
   sourceOptions(selected) {

@@ -32,6 +32,8 @@ export function transferSummaryHtml(raw?: Record<string, unknown>): string {
   const openLoop = readTransfer(raw['open_loop_transfer_function']);
   const closedLoop = readTransfer(raw['closed_loop_transfer_function']);
   const role = raw['transfer_role'] === 'closed_loop' ? 'closed_loop' : 'open_loop';
+  // 显式断环的“环路”页显示开环 L(s)；通用 Bode/时域才标 G(s)。
+  const openLoopPage = raw['kind'] === 'loop' && raw['display'] === 'loop';
   const output = typeof raw['output'] === 'string' ? raw['output'] : '';
   const items: string[] = [];
   if (role === 'closed_loop') {
@@ -39,8 +41,8 @@ export function transferSummaryHtml(raw?: Record<string, unknown>): string {
     if (primary) items.push(transferItemHtml('闭环 T(s)', primary, output));
     if (openLoop) items.push(transferItemHtml('开环 L(s)', openLoop, output));
   } else {
-    // 通用频响（Bode/根轨迹等）：transfer_function 是电路开环传函 G(s)；闭环另列。
-    if (primary) items.push(transferItemHtml('开环 G(s)', primary, output));
+    // 只有显式断环的“环路”页会走 open_loop 角色；开环量只标 L(s)，绝不冒充闭环。
+    if (primary) items.push(transferItemHtml(openLoopPage ? '开环 L(s)' : '开环 G(s)', primary, output));
     if (closedLoop) items.push(transferItemHtml('闭环 T(s)', closedLoop, output));
   }
   if (!items.length) return '';

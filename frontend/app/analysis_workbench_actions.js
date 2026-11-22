@@ -246,7 +246,9 @@ class WorkbenchActions {
       step_duration: this.params.step_duration
     };
     if (kind === "bode" || kind === "poles") params.frequency_path = this.frequencyPath;
-    const loopKind = kind === "loop" || kind === "loop_closed" || kind === "loop_step";
+    const openLoopKind = kind === "loop";
+    const closedLoopKind = kind === "loop_closed" || kind === "loop_step";
+    const loopKind = openLoopKind || closedLoopKind;
     if (loopKind || kind === "nyquist") {
       const select = this.navHost.querySelector('[data-awb="element"]');
       let element = select?.value || "";
@@ -254,16 +256,24 @@ class WorkbenchActions {
         const loopElement = controlledBreakForGroup(this.selectedLoopGroup, this.loopCandidates);
         if (loopElement) element = loopElement;
       }
-      if (element === "__virtual__" && !loopKind) element = "";
+      if (element === "__virtual__" && !closedLoopKind) element = "";
       if (!element && this.loopCandidates.length) element = String(this.loopCandidates[0].element || "");
       if (!element && !loopKind) {
         await this.loadLoopCandidatesIfNeeded();
         element = String(this.loopCandidates[0]?.element || "");
       }
-      if (!element && loopKind && this.selectedLoopGroup) {
+      if (!element && openLoopKind) {
+        await this.loadLoopCandidatesIfNeeded();
+        element = String(this.loopCandidates[0]?.element || "");
+      }
+      if (!element && openLoopKind) {
+        toast("\u73AF\u8DEF\u5206\u6790\u5FC5\u987B\u9009\u62E9\u5B9E\u4F53\u65AD\u73AF\u70B9\uFF1B\u672A\u65AD\u73AF\u65E0\u6CD5\u6C42\u5F00\u73AF L(s)", "error", 5e3);
+        return null;
+      }
+      if (!element && closedLoopKind && this.selectedLoopGroup) {
         toast("\u6240\u9009\u73AF\u8DEF\u4E0D\u542B VCVS/VCCS \u53D7\u63A7\u6E90\uFF0C\u65E0\u6CD5\u5B9A\u4E49\u552F\u4E00\u5F00\u73AF L(s)\uFF0C\u4EC5\u663E\u793A\u95ED\u73AF T(s)", "info", 5e3);
       }
-      if (!element && loopKind) element = "__virtual__";
+      if (!element && closedLoopKind) element = "__virtual__";
       if (!element) {
         toast("Nyquist \u5206\u6790\u9700\u8981\u9009\u62E9\u4E00\u4E2A\u53D7\u63A7\u6E90\u4F5C\u4E3A\u65AD\u73AF\u70B9\uFF08VCVS/VCCS\uFF09", "error", 5e3);
         return null;

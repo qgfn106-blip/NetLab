@@ -64,6 +64,8 @@ try {
   await page.waitForSelector('#analWin', { state: 'visible', timeout: 5000 });
   await page.waitForSelector('#analWorkbench.awb', { state: 'visible', timeout: 8000 });
   assert(await page.locator('.anal-tab[data-anal="workbench"]').evaluate((el) => el.classList.contains('active')), '未切到分析工作台页签');
+  assert((await page.locator('.awb-nav-item[data-kind="poles"]').count()) === 0, '分析菜单不应再有独立极点/零点项');
+  assert((await page.locator('.awb-nav-item[data-kind="metrics"]').count()) === 0, '分析菜单不应再有独立指标项');
 
   // 2) Bode 由 PlotKit 画布渲染，旧分析 Canvas 不再存在。
   await page.waitForSelector('.analysis-chart-canvas', { state: 'visible', timeout: 15000 });
@@ -115,7 +117,8 @@ try {
   await page.locator('[data-awb="run"]').click();
   await page.waitForFunction(() => (document.querySelector('.awb-status')?.textContent || '').includes('描述器线性化'), null, { timeout: 20000 });
   const transferText = await page.locator('[data-awb="transfer"]').innerText();
-  assert(transferText.includes('开环 G(s)'), 'Bode 未显示开环 G(s): ' + transferText);
+  assert(transferText.includes('闭环 T(s)'), 'Bode 未显示闭环 T(s): ' + transferText);
+  assert(!transferText.includes('开环 G(s)'), 'Bode 不应再冒充开环 G(s): ' + transferText);
 
   // 4c) 未选择实体断环元件时，闭环 Bode/阶跃走虚拟单位负反馈并显示提示。
   await page.locator('.awb-nav-item[data-kind="loop_closed"]').click();

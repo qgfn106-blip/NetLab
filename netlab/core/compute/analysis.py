@@ -1201,6 +1201,8 @@ def _circuit_tf_analysis(
         "poles": poles_payload,
         "zeros": zeros_payload,
         "transfer_function": transfer,
+        "closed_loop_transfer_function": transfer,
+        "transfer_role": "closed_loop",
         "metrics": metrics,
         "step": step,
         "step_dt": float(step.get("dt", step_dt)) if isinstance(step, dict) else float(step_dt),
@@ -2100,7 +2102,8 @@ def loop_analysis(
 
     display=loop 返回 L(s) 的 Bode 与稳定裕度；closed_loop 返回 T(s) 与
     直接闭环响应两条曲线；step 返回直接闭环阶跃响应。element 为空或
-    "__virtual__" 时仅显示直接求得的闭环 T(s)，明确告警无法给出开环 L(s)。
+    "__virtual__" 时仅允许 closed_loop/step（直接闭环 T(s)）；display=loop
+    必须显式断环，绝不把闭环冒充开环 L(s)。
     """
     if display not in ("loop", "closed_loop", "step"):
         raise AnalysisError(f"未知闭环显示 {display!r}；只支持 loop / closed_loop / step")
@@ -2112,6 +2115,11 @@ def loop_analysis(
         )
         probe_mode = "virtual_branch"
     if not element or element == "__virtual__":
+        if display == "loop":
+            raise AnalysisError(
+                "环路分析必须选择实体断环点，未断环无法求开环 L(s)；"
+                "如需直接闭环响应请改用闭环 Bode/阶跃。"
+            )
         return _virtual_loop_analysis(
             sim,
             input_source=input_source,
@@ -2346,9 +2354,11 @@ def loop_analysis(
         "fingerprint": fingerprint_value,
         "envelopes": {"bode": bode_payload},
         "source": source_payload,
-        "transfer_function": physical_transfer,
+        "transfer_function": (
+            extraction.open_loop_transfer if display == "loop" else physical_transfer
+        ),
         "open_loop_transfer_function": extraction.open_loop_transfer,
-        "transfer_role": "closed_loop",
+        "transfer_role": "open_loop" if display == "loop" else "closed_loop",
     }
 
 

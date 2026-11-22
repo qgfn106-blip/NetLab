@@ -13,7 +13,7 @@ export type { WorkbenchCanvasRec } from './analysis_workbench_layout_tree.js';
 
 export const WORKBENCH_SCHEMA = 'netlab-analysis-workbench/2';
 export const LEGACY_WORKBENCH_SCHEMA = 'netlab-analysis-workbench/1';
-export const WORKBENCH_KINDS: AnalysisKind[] = ['bode', 'time', 'nyquist', 'loop', 'metrics', 'poles', 'loop_closed', 'loop_step'];
+export const WORKBENCH_KINDS: AnalysisKind[] = ['bode', 'time', 'nyquist', 'loop', 'loop_closed', 'loop_step'];
 
 export interface WorkbenchUiRec {
   schema: string;

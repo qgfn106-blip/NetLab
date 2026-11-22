@@ -6,7 +6,9 @@ const KIND_LABELS = {
   metrics: "\u6307\u6807",
   poles: "\u6781\u70B9/\u96F6\u70B9",
   loop_closed: "\u95ED\u73AF Bode",
-  loop_step: "\u95ED\u73AF\u9636\u8DC3"
+  loop_step: "\u95ED\u73AF\u9636\u8DC3",
+  step_open: "\u5F00\u73AF\u9636\u8DC3",
+  nyquist_closed: "\u95ED\u73AF Nyquist"
 };
 const KIND_HINTS = {
   bode: "\u95ED\u73AF T(s) \u9891\u54CD\uFF1A\u5E45\u503C\u3001\u76F8\u4F4D\u3001\u6781\u70B9\u96F6\u70B9\u4E0E\u5173\u952E\u70B9",
@@ -16,7 +18,9 @@ const KIND_HINTS = {
   metrics: "\u5DE5\u4F5C\u70B9\u4E0E\u7A33\u5B9A\u6027\u6307\u6807\u6C47\u603B",
   poles: "\u5F00\u73AF\u4F20\u51FD\u6781\u70B9/\u96F6\u70B9\u4E0E\u7A33\u5B9A\u88D5\u5EA6",
   loop_closed: "\u95ED\u73AF T(s)=L/(1+L)\uFF1A\u5408\u6210\u4E0E\u76F4\u63A5\u95ED\u73AF\u5E45\u76F8\u6838\u5BF9",
-  loop_step: "\u95ED\u73AF\u9636\u8DC3\u54CD\u5E94\u4E0E\u7A33\u5B9A\u88D5\u5EA6"
+  loop_step: "\u95ED\u73AF\u9636\u8DC3\u54CD\u5E94\u4E0E\u7A33\u5B9A\u88D5\u5EA6",
+  step_open: "\u771F\u5B9E\u65AD\u73AF\u540E\u5F00\u73AF L(s) \u7684\u9636\u8DC3\u54CD\u5E94",
+  nyquist_closed: "\u76F4\u63A5\u95ED\u73AF T(s) \u7684\u9891\u7387\u8F68\u8FF9\uFF08\u4E0D\u542B\u65AD\u73AF\uFF09"
 };
 const STATE_COLORS = ["#9b7247", "#7a6fb0", "#4f8a8b", "#c05a7a", "#6f8f45", "#b07a3a"];
 function escapeHtml(text) {
@@ -61,7 +65,9 @@ function loopFeedbackOutput(candidates, activeElement, currentOutput) {
   const active = String(activeElement || "");
   const candidate = candidates.find((item) => String(item.element || "") === active) || candidates[0];
   if (!candidate) return String(currentOutput || "");
-  const allowed = [String(candidate.control_a || ""), String(candidate.output_a || "")].filter(Boolean);
+  const kind = String(candidate.kind || "");
+  const rawNodes = kind === "opamp" || kind === "comparator" ? [candidate.output_a, candidate.control_b, candidate.output_b] : [candidate.control_a, candidate.output_a, candidate.control_b, candidate.output_b];
+  const allowed = rawNodes.map((value) => String(value || "")).filter((value) => value !== "" && value !== "gnd");
   const current = String(currentOutput || "");
   if (allowed.includes(current)) return current;
   return allowed[0] || current;

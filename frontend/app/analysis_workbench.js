@@ -144,12 +144,12 @@ class AnalysisWorkbench extends WorkbenchActions {
       this.syncResponsiveChrome();
     }
   }
-  setKind(kind, persistActive = true) {
+  setKind(kind, persistActive = true, activateCanvas = true) {
     if (persistActive) this.persistedKind = kind;
     this.activeKind = kind;
     this.options.onKindChange?.(kind);
     if (this.mounted) {
-      if (kind !== "metrics") this.workspace?.activateKind(kind);
+      if (kind !== "metrics" && activateCanvas) this.workspace?.activateKind(kind);
       this.renderNav();
       this.renderToolbar();
       this.renderStatus();
@@ -249,18 +249,36 @@ class AnalysisWorkbench extends WorkbenchActions {
   renderNav() {
     const active = this.activeState();
     const activeId = active?.state_id || "";
-    const kinds = ["bode", "time", "nyquist", "loop", "loop_closed", "loop_step"].map(
-      (kind) => '<button type="button" class="awb-nav-item' + (kind === this.activeKind ? " active" : "") + '" data-kind="' + kind + '"><span class="awb-nav-label">' + KIND_LABELS[kind] + '</span><span class="awb-nav-sub">' + this.kindSub(kind) + "</span></button>"
-    ).join("");
+    const activeNavKind = this.activeKind === "loop_closed" ? "bode" : this.activeKind === "loop_step" ? "time" : this.activeKind;
+    const groups = [
+      { label: "Bode \u56FE", options: [
+        { kind: "loop", label: "\u5F00\u73AF L(s)", title: "Bode \xB7 \u5F00\u73AF L(s)" },
+        { kind: "bode", label: "\u95ED\u73AF T(s)", title: "Bode" }
+      ] },
+      { label: "\u65F6\u57DF\u5206\u6790", options: [
+        { kind: "step_open", label: "\u5F00\u73AF", title: "\u65F6\u57DF \xB7 \u5F00\u73AF L(s)" },
+        { kind: "time", label: "\u95ED\u73AF", title: "\u65F6\u57DF" }
+      ] },
+      { label: "\u5948\u6C0F\u56FE", options: [
+        { kind: "nyquist", label: "\u5F00\u73AF", title: "Nyquist" },
+        { kind: "nyquist_closed", label: "\u95ED\u73AF", title: "Nyquist \xB7 \u95ED\u73AF T(s)" }
+      ] }
+    ];
+    const kinds = groups.map((group) => {
+      const groupActive = group.options.some((item) => item.kind === activeNavKind);
+      const actions = group.options.map(
+        (item) => '<button type="button" class="awb-nav-item awb-nav-action' + (item.kind === activeNavKind ? " active" : "") + '" data-kind="' + item.kind + '" data-title="' + item.title + '">' + item.label + "</button>"
+      ).join("");
+      return '<div class="awb-nav-group' + (groupActive ? " active" : "") + '"><div class="awb-nav-group-title">' + group.label + '</div><div class="awb-nav-options">' + actions + "</div></div>";
+    }).join("");
     const states = (this.session?.states || []).map((item) => {
       const selected = item.state_id === activeId;
       const checked = this.compareSelection.has(item.state_id);
       return '<label class="awb-state-item' + (selected ? " selected" : "") + '">' + (this.compareMode ? '<input type="checkbox" data-compare-state="' + escapeHtml(item.state_id) + '"' + (checked ? " checked" : "") + ">" : "") + '<button type="button" class="awb-state-button" data-state-id="' + escapeHtml(item.state_id) + '"><span>' + escapeHtml(item.label) + '</span><span class="awb-state-meta">' + shortFingerprint(item.fingerprint) + "</span></button></label>";
     }).join("") || '<div class="awb-empty">\u8FD8\u6CA1\u6709\u72B6\u6001\u3002\u70B9\u4E0A\u65B9\u300C\u5FEB\u7167\u5F53\u524D\u7535\u8DEF\u300D\u3002</div>';
     const activeElement = String(active?.loop_element || "");
-    const allowVirtual = this.activeKind === "loop_closed" || this.activeKind === "loop_step";
-    const loopOptions = loopElementOptions(this.loopCandidates, activeElement, allowVirtual);
-    const needLoop = allowVirtual || this.activeKind === "loop" || this.activeKind === "nyquist";
+    const loopOptions = loopElementOptions(this.loopCandidates, activeElement, false);
+    const needLoop = this.activeKind === "loop" || this.activeKind === "step_open" || this.activeKind === "nyquist";
     const loopPanel = this.activeKind === "loop" ? '<div class="awb-nav-title">\u73AF\u8DEF\u7F29\u7565\u56FE</div>' + loopListHtml(this.loopGroups, this.selectedLoopId, this.loopCandidates) : "";
     this.navHost.innerHTML = [
       '<div class="awb-nav-title">\u5206\u6790</div>',
@@ -284,10 +302,7 @@ class AnalysisWorkbench extends WorkbenchActions {
     ].join("");
     this.navHost.querySelectorAll("[data-kind]").forEach((button) => {
       button.addEventListener("click", () => {
-        this.setKind(button.getAttribute("data-kind"));
-        void this.loadLoopCandidatesIfNeeded();
-        void this.loadLoopGroupsIfNeeded();
-        if (!this.busy) void this.run();
+        void this.openAnalysis(button.getAttribute("data-kind"), button.getAttribute("data-title") || void 0);
       });
     });
     this.navHost.querySelectorAll("[data-state-id]").forEach((button) => {
@@ -306,13 +321,26 @@ class AnalysisWorkbench extends WorkbenchActions {
     });
     this.bindParamInputs();
   }
+  /** 点击子菜单总是新建画布，避免同类分析只能有一张图。 */
+  async openAnalysis(kind, title) {
+    this.setKind(kind, true, false);
+    this.workspace?.addKind(kind, title || KIND_LABELS[kind]);
+    this.renderNav();
+    this.renderToolbar();
+    this.renderStatus();
+    await this.loadLoopCandidatesIfNeeded();
+    await this.loadLoopGroupsIfNeeded();
+    if (!this.busy) await this.run(kind);
+  }
   kindSub(kind) {
     if (kind === "bode") return "\u95ED\u73AF\u9891\u54CD \xB7 \u5E45\u76F8/\u5173\u952E\u70B9";
     if (kind === "time") return "\u95ED\u73AF\u9636\u8DC3 \xB7 \u5CF0\u503C/\u8C03\u8282";
-    if (kind === "nyquist") return "\u8F6E\u5ED3 \xB7 P/N/Z";
+    if (kind === "nyquist") return "\u5F00\u73AF\u8F6E\u5ED3 \xB7 P/N/Z";
     if (kind === "loop") return "\u65AD\u73AF \xB7 \u5F00\u73AF L(s)";
     if (kind === "loop_closed") return "\u95ED\u73AF\u5BF9\u7167 \xB7 \u5408\u6210/\u76F4\u63A5";
     if (kind === "loop_step") return "\u95ED\u73AF\u9636\u8DC3 \xB7 \u5CF0\u503C/\u8C03\u8282";
+    if (kind === "step_open") return "\u65AD\u73AF \xB7 \u5F00\u73AF L(s) \u9636\u8DC3";
+    if (kind === "nyquist_closed") return "\u76F4\u63A5\u95ED\u73AF \xB7 T(s) \u8F6E\u5ED3";
     return "\u5DE5\u4F5C\u70B9 \xB7 \u7A33\u5B9A\u6027";
   }
   sourceOptions(selected) {

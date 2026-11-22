@@ -684,6 +684,17 @@ export class AnalysisCanvasWorkspace {
     return this.addCanvas(rec);
   }
 
+  addKind(kind: WorkbenchCanvasRec['kind'], title?: string): string {
+    const rec: WorkbenchCanvasRec = {
+      canvas_id: newCanvasId(),
+      kind,
+      figure_id: 'f1',
+      slot_id: this.entries.length,
+      title: title || KIND_LABELS[kind],
+    };
+    return this.addCanvas(rec);
+  }
+
   hasKind(kind: WorkbenchCanvasRec['kind']): boolean {
     return this.entries.some((item) => item.rec.kind === kind);
   }

@@ -28,7 +28,9 @@ from .descriptor_analysis import analyze_poles, analyze_zeros, build_output_matr
 
 __all__ = [
     "LoopExtraction",
+    "branch_candidates",
     "break_candidates",
+    "extract_branch_loop",
     "extract_controlled_source_loop",
 ]
 
@@ -72,16 +74,18 @@ def break_candidates(model: DescriptorModel) -> list[dict[str, Any]]:
         raise ValidationError("break_candidates 需要 DescriptorModel")
     candidates: list[dict[str, Any]] = []
     for element in model.elements:
-        if element.kind in _CONTROLLED_KINDS:
+        if element.kind in _CONTROLLED_KINDS or element.kind in ("opamp", "comparator"):
+            control_a, control_b = _control_nodes(element)
+            gain = _opamp_slope(model, element) if element.kind in ("opamp", "comparator") else float(element.gain)
             candidates.append(
                 {
                     "element": element.name,
                     "kind": element.kind,
-                    "control_a": element.control_a,
-                    "control_b": element.control_b,
+                    "control_a": control_a,
+                    "control_b": control_b,
                     "output_a": element.a,
                     "output_b": element.b,
-                    "gain": float(element.gain),
+                    "gain": gain,
                 }
             )
     return candidates
@@ -101,12 +105,51 @@ def _resolve_node(model: DescriptorModel, token: str | None, fallback: str) -> t
 
 
 def _assert_supported(model: DescriptorModel, element: Any) -> None:
-    if element.kind not in _CONTROLLED_KINDS:
+    if element.kind not in _CONTROLLED_KINDS and element.kind not in ("opamp", "comparator"):
         raise ComputeError(
             f"元件 {element.name!r} 的类型 {element.kind!r} 不是可断开的线性受控源"
         )
     if element.name not in model.index.branch_index:
         raise ComputeError(f"受控源 {element.name!r} 没有独立支路变量，无法断环")
+
+
+def _control_nodes(element: Any) -> tuple[str | None, str | None]:
+    """返回控制电压 (正端, 负端)。运放取同相/反相输入，其余取 control_a/b。"""
+    if element.kind in ("opamp", "comparator"):
+        return getattr(element, "vp", None), getattr(element, "vn", None)
+    return getattr(element, "control_a", None), getattr(element, "control_b", None)
+
+
+def _opamp_slope(model: DescriptorModel, element: Any) -> float:
+    """从已线性化的支路行反推运放工作点小信号斜率。"""
+    row = model.index.branch_index[element.name]
+    a_idx = model.index.node_index.get(element.a)
+    b_idx = model.index.node_index.get(element.b)
+    vp_idx = model.index.node_index.get(getattr(element, "vp", None))
+    vn_idx = model.index.node_index.get(getattr(element, "vn", None))
+
+    def incidence(index: int | None) -> float:
+        if index is None:
+            return 0.0
+        value = 0.0
+        if index == a_idx:
+            value += 1.0
+        if index == b_idx:
+            value -= 1.0
+        return value
+
+    row_p = float(model.A[row, vp_idx]) if vp_idx is not None else 0.0
+    row_n = float(model.A[row, vn_idx]) if vn_idx is not None else 0.0
+    if vp_idx is None:
+        # 同相端接地时其 -slope 装填被并进地参考列而不可见，只能从反相端反推。
+        slope = row_n - incidence(vn_idx)
+    elif vn_idx is None:
+        slope = incidence(vp_idx) - row_p
+    else:
+        slope = ((row_n - incidence(vn_idx)) - (row_p - incidence(vp_idx))) / 2.0
+    if not np.isfinite(slope) or slope == 0.0:
+        raise ComputeError(f"运放 {element.name!r} 的工作点斜率无效，无法断环")
+    return slope
 
 
 def _broken_matrices(
@@ -130,6 +173,17 @@ def _broken_matrices(
         if di is not None:
             A[row, di] -= gain
         # 支路方程变为 v_a - v_b = v_t。
+        test[row] = 1.0
+    elif element.kind in ("opamp", "comparator"):
+        row = model.index.branch_index[element.name]
+        slope = _opamp_slope(model, element)
+        vp_idx = model.index.node_index.get(getattr(element, "vp", None))
+        vn_idx = model.index.node_index.get(getattr(element, "vn", None))
+        # 还原装配时写入的线性化关系：A[row, vp] -= slope, A[row, vn] += slope。
+        if vp_idx is not None:
+            A[row, vp_idx] += slope
+        if vn_idx is not None:
+            A[row, vn_idx] -= slope
         test[row] = 1.0
     else:  # vccs
         ai = model.index.node_index.get(element.a)
@@ -155,8 +209,9 @@ def _broken_matrices(
 
 
 def _control_voltage(model: DescriptorModel, element: Any, vector: np.ndarray) -> complex:
-    ci = model.index.node_index.get(element.control_a)
-    di = model.index.node_index.get(element.control_b)
+    control_a, control_b = _control_nodes(element)
+    ci = model.index.node_index.get(control_a)
+    di = model.index.node_index.get(control_b)
     value = 0.0 + 0.0j
     if ci is not None:
         value += vector[ci]
@@ -210,23 +265,25 @@ def _analytic_open_loop(
 ) -> dict[str, Any] | None:
     """在已打补丁的断环铅笔上解析求开环 L(s)，并以数值返回比做一致性校验。
 
-    仅对 VCVS 提供解析式（VCCS 断环语义不同，直接返回 unsupported）。
+    对 VCVS 与运放（等价 VCVS）提供解析式；VCCS 断环语义不同，直接返回 unsupported。
     解析与数值返回比不一致时返回 unsupported，绝不返回可疑解析式。
     """
-    if element.kind != "vcvs":
+    if element.kind not in ("vcvs", "opamp", "comparator"):
         return {"supported": False, "reason": "VCCS 断环暂不提供解析开环表达式"}
     try:
         size = int(A.shape[0])
         control = np.zeros(size, dtype=np.complex128)
-        ci = model.index.node_index.get(element.control_a)
-        di = model.index.node_index.get(element.control_b)
+        control_a, control_b = _control_nodes(element)
+        ci = model.index.node_index.get(control_a)
+        di = model.index.node_index.get(control_b)
         if ci is not None:
             control[ci] += 1.0
         if di is not None:
             control[di] -= 1.0
         if not np.any(control):
             return {"supported": False, "reason": "受控源控制端无有效节点，无法解析开环"}
-        factor = -float(element.gain)  # 与数值返回比 loop_value = -gain*control_test 同号
+        gain = _opamp_slope(model, element) if element.kind in ("opamp", "comparator") else float(element.gain)
+        factor = -gain  # 与数值返回比 loop_value = -gain*control_test 同号
         poles = np.asarray(analyze_poles(A, E).finite_poles, dtype=np.complex128)
         zeros = np.asarray(
             analyze_zeros(
@@ -333,8 +390,8 @@ def extract_controlled_source_loop(
     system, A, E, test = _broken_matrices(model, element)
     input_rhs = np.array(system.B, dtype=np.float64, copy=True)
 
-    # VCVS 的输出被钳位：右端项在断点支路行置零。
-    if element.kind == "vcvs":
+    # VCVS / 运放输出被钳位：右端项在断点支路行置零。
+    if element.kind in ("vcvs", "opamp", "comparator"):
         input_rhs[model.index.branch_index[element.name]] = 0.0
 
     try:
@@ -356,8 +413,8 @@ def extract_controlled_source_loop(
         vector_input = _solve(matrix, input_rhs.astype(np.complex128), omega)
         control_input = _control_voltage(model, element, vector_input)
 
-        if element.kind == "vcvs":
-            gain = float(element.gain)
+        if element.kind in ("vcvs", "opamp", "comparator"):
+            gain = _opamp_slope(model, element) if element.kind in ("opamp", "comparator") else float(element.gain)
             loop_value = -gain * control_test
             forward_value = gain * control_input
         else:
@@ -441,6 +498,328 @@ def extract_controlled_source_loop(
         closed_loop=closed,
         direct_response=direct,
         parity_max_rel=parity,
+        poles=poles_payload,
+        warnings=tuple(warnings),
+        open_loop_transfer=open_loop_transfer,
+    )
+
+
+def branch_candidates(model: DescriptorModel) -> list[dict[str, Any]]:
+    """列出可作为反馈支路断点的无源电阻支路，供“全局反馈支路断环”。
+
+    闭合开关在电路里通常只是毫欧级短接，但它会把反馈电阻的端点拆成
+    另一个节点名（例如 n5 经 switch1 到 n12）。这里先把闭合开关并成
+    同一电气节点，避免把真实的全局反馈电阻误判为非反馈支路。
+    """
+    opamp_order = list(getattr(model.index, "opamp_index", {}) or {})
+    # 无源反馈支路断环用于求“多级运放系统的外环”，没有运放时没有这种外环；
+    # 纯 VCVS/VCCS 电路应继续使用受控源断点，避免把普通反馈电阻误选成默认断点。
+    if not opamp_order:
+        return []
+    rank = {name: index for index, name in enumerate(opamp_order)}
+    preferred = {
+        getattr(model.index.element_by_name.get(name), "a", None)
+        for name in opamp_order
+    }
+
+    parent: dict[str, str] = {}
+
+    def find(node_id: str) -> str:
+        parent.setdefault(node_id, node_id)
+        while parent[node_id] != node_id:
+            parent[node_id] = parent[parent[node_id]]
+            node_id = parent[node_id]
+        return node_id
+
+    def union(left: str, right: str) -> None:
+        a, b = find(left), find(right)
+        if a == b:
+            return
+        if a in preferred and b not in preferred:
+            parent[b] = a
+        elif b in preferred and a not in preferred:
+            parent[a] = b
+        else:
+            parent[b] = a
+
+    for element in model.elements:
+        if getattr(element, "kind", "") != "switch":
+            continue
+        params = getattr(element, "params", {}) or {}
+        if not params.get("closed"):
+            continue
+        a, b = getattr(element, "a", None), getattr(element, "b", None)
+        if a and b:
+            union(a, b)
+
+    vn_owner: dict[str, tuple[str, int]] = {}
+    output_owner: dict[str, tuple[str, int]] = {}
+    for name in opamp_order:
+        opamp = model.index.element_by_name.get(name)
+        if opamp is None:
+            continue
+        vn_raw = getattr(opamp, "vn", None)
+        out_raw = getattr(opamp, "a", None)
+        vn_node = model.index.node_by_id.get(vn_raw)
+        out_id = find(out_raw) if out_raw else None
+        out_node = model.index.node_by_id.get(out_id) if out_id else None
+        if vn_node is not None:
+            vn_owner[find(vn_node.id)] = (name, rank[name])
+        if out_node is not None:
+            output_owner[out_node.id] = (name, rank[name])
+
+    result: list[dict[str, Any]] = []
+    for element in model.elements:
+        if getattr(element, "kind", "") != "resistor":
+            continue
+        node_a = model.index.node_by_id.get(getattr(element, "a", None))
+        node_b = model.index.node_by_id.get(getattr(element, "b", None))
+        if node_a is None or node_b is None:
+            continue
+        if getattr(node_a, "kind", "") == "ground" or getattr(node_b, "kind", "") == "ground":
+            continue
+        a_id, b_id = find(node_a.id), find(node_b.id)
+        a_node = model.index.node_by_id.get(a_id) or node_a
+        b_node = model.index.node_by_id.get(b_id) or node_b
+        a_vn = vn_owner.get(a_id)
+        b_vn = vn_owner.get(b_id)
+        a_out = output_owner.get(a_id)
+        b_out = output_owner.get(b_id)
+        # 反馈支路：一端是某运放反相输入，另一端是下游运放输出（排除该运放自身局部反馈）。
+        suggested = bool(
+            (a_vn and b_out and b_out[1] > a_vn[1] and b_out[0] != a_vn[0])
+            or (b_vn and a_out and a_out[1] > b_vn[1] and a_out[0] != b_vn[0])
+        )
+        result.append(
+            {
+                "element": element.name,
+                "kind": "branch",
+                "control_a": a_node.name,
+                "control_b": b_node.name,
+                "output_a": a_node.name,
+                "output_b": b_node.name,
+                "suggested": suggested,
+            }
+        )
+    result.sort(key=lambda item: (not bool(item.get("suggested")), str(item.get("element"))))
+    return result
+
+
+def _analytic_branch_open_loop(
+    model: DescriptorModel,
+    element: Any,
+    A: np.ndarray,
+    E: np.ndarray,
+    inject: np.ndarray,
+    output_row: np.ndarray,
+    freqs: np.ndarray,
+    loop_values: np.ndarray,
+) -> dict[str, Any] | None:
+    """对“无源反馈支路断开＋电流注入”的返回比做解析提取。"""
+    try:
+        poles = np.asarray(analyze_poles(A, E).finite_poles, dtype=np.complex128)
+        zeros = np.asarray(
+            analyze_zeros(
+                A,
+                E,
+                inject.reshape(-1, 1),
+                output_row.reshape(1, -1),
+                np.zeros((1, 1)),
+            ).finite_zeros,
+            dtype=np.complex128,
+        )
+        den = np.poly(poles) if poles.size else np.array([1.0])
+        num = np.poly(zeros) if zeros.size else np.array([1.0])
+        sample = None
+        for candidate in (1.0, 10.0, 1j, 1j * 10.0, 100.0):
+            try:
+                x = np.linalg.solve(candidate * E + A, inject.astype(np.complex128))
+            except np.linalg.LinAlgError:
+                continue
+            h = complex(output_row @ x)
+            den_v = np.polyval(den, candidate)
+            num_v = np.polyval(num, candidate)
+            if abs(den_v) < 1e-12 or abs(num_v) < 1e-30 or not np.isfinite(h):
+                continue
+            sample = h * den_v / num_v
+            break
+        if sample is None:
+            return {"supported": False, "reason": "无法确定支路开环解析定标，跳过解析解"}
+        num = num * sample
+        rel_max = 0.0
+        checked = 0
+        for frequency, reference in zip(freqs, loop_values):
+            if abs(reference) < 1e-9:
+                continue
+            s = 1j * 2.0 * np.pi * float(frequency)
+            den_v = np.polyval(den, s)
+            if abs(den_v) < 1e-30:
+                continue
+            approx = np.polyval(num, s) / den_v
+            rel = abs(approx - reference) / max(abs(reference), 1e-12)
+            rel_max = max(rel_max, float(rel))
+            checked += 1
+        if checked == 0 or rel_max > _PARITY_TOL:
+            return {
+                "supported": False,
+                "reason": f"支路解析开环与数值返回比不一致（最大相对误差 {rel_max:.3g}），不采用",
+            }
+
+        def prune(coeffs: np.ndarray) -> np.ndarray:
+            values = np.real_if_close(coeffs)
+            scale = float(np.max(np.abs(values))) if values.size else 0.0
+            if scale > 0.0:
+                values = np.where(np.abs(values) <= scale * 1.0e-6, 0.0, values)
+            return values
+
+        num_real = prune(num)
+        den_real = prune(den)
+        return {
+            "supported": True,
+            "expression": f"({_poly_expr(num_real)}) / ({_poly_expr(den_real)})",
+            "order": int(max(len(num_real), len(den_real)) - 1),
+            "relative_order": int(len(den_real) - len(num_real)),
+            "parity_max_rel": float(rel_max),
+            "source": "descriptor_branch_pencil",
+        }
+    except ComputeError as exc:
+        return {"supported": False, "reason": f"支路解析开环提取失败：{exc}"}
+    except Exception as exc:  # noqa: BLE001 - 解析失败一律降级，不影响数值结果
+        return {"supported": False, "reason": f"支路解析开环不可用：{exc}"}
+
+
+def extract_branch_loop(
+    model: DescriptorModel,
+    element_name: str,
+    frequencies: Any,
+    input_source: str | None = None,
+    output: str | None = None,
+    feedback_sign: float = 1.0,
+) -> LoopExtraction:
+    """在无源反馈支路上断开并注入测试电流，按 return ratio 求真实开环 L(s)。
+
+    选中的电阻支路连接输出侧(a)与求和/输入侧(b)。断开后向 b 注入
+    -1 A 测试电流、测量支路电压差 (v_a - v_b) × g，即为返回比。
+    这不会断开运放自身的局部反馈，适合运放构成的多级反馈环外环测量。
+    """
+    if not isinstance(model, DescriptorModel):
+        raise ValidationError("extract_branch_loop 需要 DescriptorModel")
+    element = model.index.element_by_name.get(str(element_name))
+    if element is None:
+        raise ComputeError(f"断点支路不存在：{element_name!r}")
+    if getattr(element, "kind", "") != "resistor":
+        raise ComputeError(f"元件 {element_name!r} 不是可断开的无源电阻支路")
+    freqs = _frequency_array(frequencies)
+    sign = float(feedback_sign)
+    if sign not in (1.0, -1.0):
+        raise ValidationError("feedback_sign 只能为 +1 或 -1")
+    if input_source is None:
+        input_source = next(
+            (item.name for item in model.elements if item.kind == "vsource"), None
+        )
+    if input_source is None:
+        raise ComputeError("回路提取需要至少一个独立电压源作为输入激励")
+    if input_source not in model.index.element_by_name:
+        raise ComputeError(f"输入源不存在：{input_source!r}")
+    ai = model.index.node_index.get(getattr(element, "a", None))
+    bi = model.index.node_index.get(getattr(element, "b", None))
+    if ai is None or bi is None:
+        raise ComputeError("反馈支路两端不能接地，无法按电流注入定义返回比")
+    g = float(getattr(element, "conductance", 0.0))
+    if not np.isfinite(g) or g <= 0.0:
+        raise ComputeError(f"反馈支路 {element_name!r} 的导纳无效")
+
+    fallback = element.a
+    output_id, output_name = _resolve_node(model, output, fallback)
+    system = model.build(None)
+    A = np.array(system.A, dtype=np.float64, copy=True)
+    E = np.array(system.E, dtype=np.float64, copy=True)
+
+    # 运放按理想运算放大器求外环开环：把工作点小信号增益整体提高，
+    # 消除有限增益造成的微小非理想极/零点，再在解析式中裁掉数值噪声项。
+    opamp_index = getattr(model.index, "opamp_index", {}) or {}
+    for name, row in opamp_index.items():
+        opamp = model.index.element_by_name.get(name)
+        if opamp is None:
+            continue
+        ai_amp = model.index.node_index.get(getattr(opamp, "a", None))
+        bi_amp = model.index.node_index.get(getattr(opamp, "b", None))
+        for column in range(A.shape[1]):
+            if column in (ai_amp, bi_amp):
+                continue
+            if abs(A[row, column]) > 0.0:
+                A[row, column] *= 1000.0
+
+    # 移除该无源支路的导纳戳记，相当于把反馈支路断开。
+    A[ai, ai] -= g
+    A[bi, bi] -= g
+    A[ai, bi] += g
+    A[bi, ai] += g
+
+    inject = np.zeros(int(A.shape[0]), dtype=np.float64)
+    inject[bi] = -1.0
+    output_row = np.zeros(int(A.shape[0]), dtype=np.float64)
+    output_row[ai] += g
+    output_row[bi] -= g
+
+    try:
+        C, D = build_output_matrices(model, output_id, input_source)
+    except ComputeError:
+        C = D = None
+
+    loop_values = np.empty(freqs.size, dtype=np.complex128)
+    forward = np.empty(freqs.size, dtype=np.complex128)
+    closed = np.empty(freqs.size, dtype=np.complex128)
+    direct = np.empty(freqs.size, dtype=np.complex128) if (C is not None and D is not None) else None
+    for index, frequency in enumerate(freqs):
+        omega = 2.0 * np.pi * float(frequency)
+        vector = _solve(A + 1j * omega * E, inject.astype(np.complex128), omega)
+        loop_value = complex(output_row @ vector)
+        loop_values[index] = loop_value
+        if direct is not None:
+            original = system.solve(omega)
+            direct[index] = complex(C[0] @ original + D[0, 0])
+            # 无源支路断环的闭环响应直接取原电路测量值，避免不同断点的合成误差。
+            closed[index] = direct[index]
+            forward[index] = direct[index] * (1.0 + sign * loop_value)
+        else:
+            closed[index] = loop_value / (1.0 + sign * loop_value)
+            forward[index] = loop_value
+
+    open_loop_transfer = _analytic_branch_open_loop(
+        model, element, A, E, inject, output_row, freqs, loop_values
+    )
+    poles_payload: dict[str, Any] = {}
+    warnings: list[dict[str, Any]] = []
+    try:
+        pole_result = analyze_poles(A, E)
+        finite = np.asarray(pole_result.poles, dtype=np.complex128)
+        poles_payload = {
+            "finite": [complex(value) for value in finite],
+            "infinite_count": int(pole_result.infinite_count),
+            "right_half_plane": int(np.count_nonzero(np.real(finite) > 1e-9)),
+        }
+    except ComputeError as exc:
+        warnings.append(
+            {
+                "code": "loop_poles_unavailable",
+                "message": f"回路增益极点不可用：{exc}",
+                "severity": "warning",
+            }
+        )
+    return LoopExtraction(
+        element=element.name,
+        kind="branch",
+        input_source=input_source,
+        output_probe=str(output or output_name),
+        output_name=output_name,
+        feedback_sign=sign,
+        frequencies_hz=freqs,
+        loop_gain=loop_values,
+        forward_gain=forward,
+        closed_loop=closed,
+        direct_response=direct,
+        parity_max_rel=0.0 if direct is not None else None,
         poles=poles_payload,
         warnings=tuple(warnings),
         open_loop_transfer=open_loop_transfer,

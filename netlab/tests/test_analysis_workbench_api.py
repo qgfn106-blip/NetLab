@@ -121,6 +121,15 @@ def test_workbench_bode_is_labeled_closed_loop(client) -> None:
     assert body["raw"]["transfer_function"]["expression"]
 
 
+def test_workbench_nyquist_closed_is_labeled_closed_loop(client) -> None:
+    session_id = _new_session(client, "Nyquist 闭环")
+    state_id = _add_state(client, session_id)
+    body = _run_kind(client, session_id, state_id, "nyquist_closed")
+    assert body["envelope"]["kind"] == "nyquist"
+    assert body["raw"]["transfer_role"] == "closed_loop"
+    assert body["envelope"]["curves"]
+
+
 def test_workbench_loop_without_break_is_rejected(client) -> None:
     session_id = _new_session(client, "环路无断点")
     state_id = _add_state(client, session_id)

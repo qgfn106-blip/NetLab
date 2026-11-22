@@ -1,4 +1,4 @@
-export type AnalysisKind = 'bode' | 'time' | 'nyquist' | 'loop' | 'metrics' | 'poles' | 'loop_closed' | 'loop_step';
+export type AnalysisKind = 'bode' | 'time' | 'nyquist' | 'loop' | 'metrics' | 'poles' | 'loop_closed' | 'loop_step' | 'step_open' | 'nyquist_closed';
 
 export const KIND_LABELS: Record<AnalysisKind, string> = {
   bode: 'Bode',
@@ -9,6 +9,8 @@ export const KIND_LABELS: Record<AnalysisKind, string> = {
   poles: '极点/零点',
   loop_closed: '闭环 Bode',
   loop_step: '闭环阶跃',
+  step_open: '开环阶跃',
+  nyquist_closed: '闭环 Nyquist',
 };
 
 export const KIND_HINTS: Record<AnalysisKind, string> = {
@@ -20,6 +22,8 @@ export const KIND_HINTS: Record<AnalysisKind, string> = {
   poles: '开环传函极点/零点与稳定裕度',
   loop_closed: '闭环 T(s)=L/(1+L)：合成与直接闭环幅相核对',
   loop_step: '闭环阶跃响应与稳定裕度',
+  step_open: '真实断环后开环 L(s) 的阶跃响应',
+  nyquist_closed: '直接闭环 T(s) 的频率轨迹（不含断环）',
 };
 
 export const STATE_COLORS = ['#9b7247', '#7a6fb0', '#4f8a8b', '#c05a7a', '#6f8f45', '#b07a3a'];
@@ -80,7 +84,7 @@ export function electricalCircuitNodes(nodes: Array<Record<string, unknown>> | u
   return (nodes || []).filter((node) => String(node.kind || '') === 'node');
 }
 
-/** 闭环/奈氏断环时选择反馈节点：优先受控源控制端，其次输出端，避免误取监测级。 */
+/** 闭环/奈氏断环时选择反馈节点：优先真实输出端，过滤地/空名，避免误取同相输入 gnd 或监测级。 */
 export function loopFeedbackOutput(
   candidates: Array<Record<string, unknown>>,
   activeElement: string,
@@ -89,7 +93,13 @@ export function loopFeedbackOutput(
   const active = String(activeElement || '');
   const candidate = candidates.find((item) => String(item.element || '') === active) || candidates[0];
   if (!candidate) return String(currentOutput || '');
-  const allowed = [String(candidate.control_a || ''), String(candidate.output_a || '')].filter(Boolean);
+  const kind = String(candidate.kind || '');
+  const rawNodes = kind === 'opamp' || kind === 'comparator'
+    ? [candidate.output_a, candidate.control_b, candidate.output_b]
+    : [candidate.control_a, candidate.output_a, candidate.control_b, candidate.output_b];
+  const allowed = rawNodes
+    .map((value) => String(value || ''))
+    .filter((value) => value !== '' && value !== 'gnd');
   const current = String(currentOutput || '');
   if (allowed.includes(current)) return current;
   return allowed[0] || current;

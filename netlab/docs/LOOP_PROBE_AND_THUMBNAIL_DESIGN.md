@@ -3,6 +3,7 @@
 - 状态：已实现核心目标①②＋解析开环 L(s)，③虚拟支路探针（`analysis.loop_analysis(..., loop_probe={break_id, loop_id})`：按用户点选的反馈支路找所属闭合环，在分析副本中选环内已有 VCVS/VCCS 作矩阵级断点，不向电路插入 BRK；环内无线性受控源时 fail-closed 仅显示闭环 T(s)），⑤信号流候选环后端枚举（`analysis.loop_candidates` + `/api/analysis/loops/candidates`），电路模式按支路选环（`analysis.loop_from_break` + `/api/analysis/loops/from-break`），以及④⑤环路缩略图交互前端（`analysis_workbench_loops.ts`：SVG 缩略图、点击一次选中整环、自动填 member_node_ids/member_edge_ids 快照、把环内 VCVS/VCCS 断点同步到断环元件）
 - 日期：2026-11-21（同日完成核心断环修复）
 - 实现要点：`loop_analysis` 新增可选 `loop_probe`（LoopProbeSpec：break_id/loop_id），虚拟探针优先于旧 `element=VCVS/VCCS` 路径，返回体带 `loop_id` 与 `probe="virtual_branch"`；无实体断环只返回闭环 T(s)（transfer_role=closed_loop，open_loop_transfer_function.supported=False，绝不冒充开环）；实体 VCVS 断环返回数值 L(s) 并附解析表达式（与数值返回比一致性校验，>1e-6 即 fail-closed）；前端按 role 分别渲染「开环 L(s)」「闭环 T(s)」。
+- 运放电路补充：无 VCVS/VCCS 时可在**全局反馈电阻支路**上断开，向求和节点注入测试电流、测量支路返回电压，按 return ratio 求真实外环 L(s)；`extract_branch_loop` 不切断运放局部反馈，`branch_candidates` 把下游输出→上游反相输入的反馈电阻排到候选首位。`控制工程实验2_闭环分析示范.netlab` 已验证 L(s)=100/[s(s+10)]、相位裕度约 51.8°。
 - 作用域：分析工作台“环路”模式、断环建模、缩略图交互
 - 关联代码：
   - `netlab/core/compute/analysis.py`

@@ -196,10 +196,15 @@ export abstract class WorkbenchActions {
 
 
   protected async loadLoopCandidatesIfNeeded(): Promise<void> {
-    if (!['loop', 'loop_closed', 'loop_step', 'nyquist'].includes(this.activeAnalysisKind())) return;
+    if (!['loop', 'loop_closed', 'loop_step', 'nyquist', 'step_open'].includes(this.activeAnalysisKind())) return;
     try {
-      const response = await analysisLoopsRequest({}) as { candidates?: Array<Record<string, unknown>>; items?: Array<Record<string, unknown>> };
-      this.loopCandidates = response.candidates || response.items || [];
+      const response = await analysisLoopsRequest({}) as {
+        candidates?: Array<Record<string, unknown>>;
+        branch_candidates?: Array<Record<string, unknown>>;
+        items?: Array<Record<string, unknown>>;
+      };
+      const branches = response.branch_candidates || [];
+      this.loopCandidates = [...branches, ...(response.candidates || response.items || [])];
       this.refreshNavigation();
     } catch (error) {
       this.loopCandidates = [];
@@ -281,7 +286,7 @@ export abstract class WorkbenchActions {
       step_duration: this.params.step_duration,
     };
     if (kind === 'bode' || kind === 'poles') params.frequency_path = this.frequencyPath;
-    const openLoopKind = kind === 'loop';
+    const openLoopKind = kind === 'loop' || kind === 'step_open';
     const closedLoopKind = kind === 'loop_closed' || kind === 'loop_step';
     const loopKind = openLoopKind || closedLoopKind;
     if (loopKind || kind === 'nyquist') {

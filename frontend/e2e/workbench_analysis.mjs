@@ -120,22 +120,20 @@ try {
   assert(transferText.includes('闭环 T(s)'), 'Bode 未显示闭环 T(s): ' + transferText);
   assert(!transferText.includes('开环 G(s)'), 'Bode 不应再冒充开环 G(s): ' + transferText);
 
-  // 4c) 未选择实体断环元件时，闭环 Bode/阶跃走虚拟单位负反馈并显示提示。
-  await page.locator('.awb-nav-item[data-kind="loop_closed"]').click();
-  await page.waitForFunction(() => !document.querySelector('.awb-toolbar')?.classList.contains('busy'), null, { timeout: 20000 });
-  await page.locator('[data-awb="element"]').selectOption('__virtual__');
-  await page.locator('[data-awb="run"]').click();
-  await page.waitForFunction(() => (document.querySelector('.awb-status')?.textContent || '').includes('虚拟单位负反馈'), null, { timeout: 20000 });
-  assert((await page.locator('.awb-canvas-title').allInnerTexts()).some((text) => text.includes('闭环 Bode')), '闭环 Bode 子画布未创建');
-  const loopTransferText = await page.locator('[data-awb="transfer"]').innerText();
-  assert(loopTransferText.includes('闭环 T(s)') && !loopTransferText.includes('开环'), '虚拟闭环应只显示 T(s) 且不冒充开环: ' + loopTransferText);
-  await page.locator('.awb-nav-item[data-kind="loop_step"]').click();
-  await page.waitForFunction(() => !document.querySelector('.awb-toolbar')?.classList.contains('busy'), null, { timeout: 20000 });
-  await page.locator('[data-awb="element"]').selectOption('__virtual__');
-  await page.locator('[data-awb="run"]').click();
-  await page.waitForFunction(() => (document.querySelector('.awb-status')?.textContent || '').includes('虚拟单位负反馈'), null, { timeout: 20000 });
-  assert((await page.locator('.awb-canvas-title').allInnerTexts()).some((text) => text.includes('闭环阶跃')), '闭环阶跃子画布未创建');
+  // 4c) 菜单收纳为 Bode图/时域分析/奈氏图，各含开环/闭环；点子菜单每次新增子图。
+  const groupTitles = await page.locator('.awb-nav-group-title').allInnerTexts();
+  assert(groupTitles.join('|').includes('Bode 图') && groupTitles.join('|').includes('时域分析') && groupTitles.join('|').includes('奈氏图'), '缺少三类分析分组: ' + groupTitles.join(','));
+  assert((await page.locator('.awb-nav-item[data-kind="loop_closed"]').count()) === 0, '旧闭环 Bode 独立项应已收纳');
+  assert((await page.locator('.awb-nav-item[data-kind="loop_step"]').count()) === 0, '旧闭环阶跃独立项应已收纳');
+  const beforeTiles = await page.locator('.awb-canvas-tile').count();
   await page.locator('.awb-nav-item[data-kind="bode"]').click();
+  await page.waitForFunction(() => !document.querySelector('.awb-toolbar')?.classList.contains('busy'), null, { timeout: 20000 });
+  assert((await page.locator('.awb-canvas-tile').count()) > beforeTiles, '点击 Bode 闭环子菜单未新增子图');
+  await page.locator('.awb-nav-item[data-kind="time"]').click();
+  await page.waitForFunction(() => !document.querySelector('.awb-toolbar')?.classList.contains('busy'), null, { timeout: 20000 });
+  assert((await page.locator('.awb-canvas-title').allInnerTexts()).some((text) => text.includes('时域')), '时域子画布未创建');
+  await page.locator('.awb-nav-item[data-kind="bode"]').click();
+  await page.waitForFunction(() => !document.querySelector('.awb-toolbar')?.classList.contains('busy'), null, { timeout: 20000 });
 
   // 5) 关键点索引可展开详情并固定。
   const marker = page.locator('.analysis-marker-item').first();

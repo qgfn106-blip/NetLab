@@ -164,10 +164,11 @@ class WorkbenchActions {
     this.statusHost.textContent = lines.join(" \xB7 ");
   }
   async loadLoopCandidatesIfNeeded() {
-    if (!["loop", "loop_closed", "loop_step", "nyquist"].includes(this.activeAnalysisKind())) return;
+    if (!["loop", "loop_closed", "loop_step", "nyquist", "step_open"].includes(this.activeAnalysisKind())) return;
     try {
       const response = await analysisLoopsRequest({});
-      this.loopCandidates = response.candidates || response.items || [];
+      const branches = response.branch_candidates || [];
+      this.loopCandidates = [...branches, ...response.candidates || response.items || []];
       this.refreshNavigation();
     } catch (error) {
       this.loopCandidates = [];
@@ -246,7 +247,7 @@ class WorkbenchActions {
       step_duration: this.params.step_duration
     };
     if (kind === "bode" || kind === "poles") params.frequency_path = this.frequencyPath;
-    const openLoopKind = kind === "loop";
+    const openLoopKind = kind === "loop" || kind === "step_open";
     const closedLoopKind = kind === "loop_closed" || kind === "loop_step";
     const loopKind = openLoopKind || closedLoopKind;
     if (loopKind || kind === "nyquist") {

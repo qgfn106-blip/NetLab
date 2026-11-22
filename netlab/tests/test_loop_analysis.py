@@ -8,6 +8,7 @@ import pytest
 from netlab.core.compute.analysis import break_points
 from netlab.core.compute.circuit import DescriptorModel
 from netlab.core.compute.circuit.loop_analysis import (
+    branch_candidates,
     break_candidates,
     extract_controlled_source_loop,
 )
@@ -80,9 +81,13 @@ def test_break_points_resolves_operating_point_for_nonlinear_scene() -> None:
     # 运放必须在直流工作点处线性化；break_points 未显式收到工作点时自动补求。
     result = break_points(Simulation(_opamp_with_breakable_vcvs()))
     assert result["ok"] is True
-    assert [item["element"] for item in result["candidates"]] == ["E1"]
-    assert result["candidates"][0]["control_a"] == "vn"
-    assert result["candidates"][0]["output_a"] == "out2"
+    assert [item["element"] for item in result["candidates"]] == ["OP1", "E1"]
+    assert result["candidates"][0]["kind"] == "opamp"
+    assert result["candidates"][0]["control_a"] == "gnd"
+    assert result["candidates"][0]["control_b"] == "vn"
+    assert result["candidates"][0]["output_a"] == "out"
+    assert result["candidates"][1]["control_a"] == "vn"
+    assert result["candidates"][1]["output_a"] == "out2"
 
 
 def test_break_candidates_reports_control_and_output() -> None:
@@ -91,6 +96,12 @@ def test_break_candidates_reports_control_and_output() -> None:
     assert [item["element"] for item in candidates] == ["E1"]
     assert candidates[0]["control_a"] == next(node.id for node in model.nodes if node.name == "vin")
     assert candidates[0]["gain"] == pytest.approx(1.0e5)
+
+
+def test_branch_candidates_absent_without_opamps() -> None:
+    # 纯 VCVS 电路没有“多级运放外环”，不应把普通反馈电阻当作默认断点。
+    model = DescriptorModel.from_scene(_non_inverting_amplifier())
+    assert branch_candidates(model) == []
 
 
 def test_vcvs_loop_gain_and_closed_loop_parity() -> None:

@@ -1,7 +1,7 @@
 import { emptyLayout, normalizeLayout } from "./analysis_workbench_layout_tree.js";
 const WORKBENCH_SCHEMA = "netlab-analysis-workbench/2";
 const LEGACY_WORKBENCH_SCHEMA = "netlab-analysis-workbench/1";
-const WORKBENCH_KINDS = ["bode", "time", "nyquist", "loop", "loop_closed", "loop_step"];
+const WORKBENCH_KINDS = ["bode", "time", "nyquist", "loop", "loop_closed", "loop_step", "step_open", "nyquist_closed"];
 function defaultWorkbenchUi() {
   return {
     schema: WORKBENCH_SCHEMA,

@@ -30,7 +30,12 @@ from .circuit.fft_frequency import (
     estimate_transfer_fft,
     multisine,
 )
-from .circuit.loop_analysis import break_candidates, extract_controlled_source_loop
+from .circuit.loop_analysis import (
+    branch_candidates,
+    break_candidates,
+    extract_branch_loop,
+    extract_controlled_source_loop,
+)
 from .circuit.nyquist import nyquist_envelope, stability_margins
 from .circuit.analysis_contract import curve, warning
 from .circuit.descriptor_analysis import (
@@ -1664,6 +1669,7 @@ def break_points(sim: Any, *, operating_point: dict[str, float] | None = None) -
     return {
         "ok": True,
         "candidates": candidates,
+        "branch_candidates": branch_candidates(model),
         "scene": {
             "mode": getattr(scene, "mode", "circuit"),
             "elements": len(getattr(scene, "edges", {}) or {}),
@@ -1731,11 +1737,13 @@ def loop_candidates(sim: Any, *, operating_point: dict[str, float] | None = None
             node_id = item.get(key)
             node = model.index.node_by_id.get(node_id) if node_id is not None else None
             item[key] = str(getattr(node, "name", None) or node_id)
+    branches = branch_candidates(model)
     return {
         "ok": True,
         "mode": mode,
         "loops": [],
         "break_candidates": circuit_candidates,
+        "branch_candidates": branches,
         "reason": "电路模式暂不自动枚举拓扑环，请从候选断点或反馈支路点选后解析",
         "scene": {
             "mode": mode,
@@ -1899,6 +1907,14 @@ def _resolve_loop_probe(
     selected = by_token.get(break_id)
     if selected is not None and str(getattr(selected, "kind", "")) in ("vcvs", "vccs"):
         return str(getattr(selected, "name", "") or break_id), str(probe.get("loop_id") or "") or None
+    # v8 器件节点场景：用户点选的反馈支路可能是 device 节点（电阻），直接作为无源支路断点。
+    for node in (getattr(scene, "nodes", {}) or {}).values():
+        token = str(getattr(node, "id", "")) or str(getattr(node, "name", ""))
+        if break_id not in (str(getattr(node, "id", "")), str(getattr(node, "name", ""))):
+            continue
+        params = getattr(node, "params", {}) or {}
+        if str(getattr(node, "kind", "")) == "device" and str(params.get("element", "")) == "resistor":
+            return str(getattr(node, "name", "") or token), str(probe.get("loop_id") or "") or None
     group = loop_from_break(sim, break_id=break_id, operating_point=operating_point)
     if not group.get("ok"):
         raise AnalysisError(str(group.get("reason") or "所选反馈支路不在任何闭合反馈环中"))
@@ -2136,15 +2152,26 @@ def loop_analysis(
         )
     scene, model = _loop_model(sim, operating_point)
     frequencies = _frequency_axis(f_start, f_stop, points, scale)
+    selected_element = model.index.element_by_name.get(str(element))
     try:
-        extraction = extract_controlled_source_loop(
-            model,
-            element,
-            frequencies,
-            input_source=input_source,
-            output=output,
-            feedback_sign=feedback_sign,
-        )
+        if selected_element is not None and getattr(selected_element, "kind", "") == "resistor":
+            extraction = extract_branch_loop(
+                model,
+                element,
+                frequencies,
+                input_source=input_source,
+                output=output,
+                feedback_sign=feedback_sign,
+            )
+        else:
+            extraction = extract_controlled_source_loop(
+                model,
+                element,
+                frequencies,
+                input_source=input_source,
+                output=output,
+                feedback_sign=feedback_sign,
+            )
     except (ComputeError, ValidationError, ValueError) as exc:
         raise AnalysisError(f"断环分析失败：{exc}") from exc
 
@@ -2362,6 +2389,36 @@ def loop_analysis(
     }
 
 
+def _extract_frequency_loop(
+    model: DescriptorModel,
+    element: str,
+    frequencies: Any,
+    *,
+    input_source: str | None = None,
+    output: str | None = None,
+    feedback_sign: float = 1.0,
+):
+    """按元件类型选择断环提取：无源电阻走支路返回比，受控源/运放走矩阵断点。"""
+    candidate = model.index.element_by_name.get(str(element))
+    if candidate is not None and getattr(candidate, "kind", "") == "resistor":
+        return extract_branch_loop(
+            model,
+            element,
+            frequencies,
+            input_source=input_source,
+            output=output,
+            feedback_sign=feedback_sign,
+        )
+    return extract_controlled_source_loop(
+        model,
+        element,
+        frequencies,
+        input_source=input_source,
+        output=output,
+        feedback_sign=feedback_sign,
+    )
+
+
 def nyquist_analysis(
     sim: Any,
     *,
@@ -2375,13 +2432,17 @@ def nyquist_analysis(
     scale: str = "log",
     operating_point: dict[str, float] | None = None,
 ) -> dict[str, Any]:
-    """受控源断环：Nyquist 轮廓、包围数、P/N/Z 与稳定裕度。"""
+    """断环：Nyquist 轮廓、包围数、P/N/Z 与稳定裕度。
+
+    element 可为受控源（VCVS/VCCS/运放）或无源反馈电阻支路；后者按返回比
+    断开外环，适合多级运放电路。
+    """
     scene, model = _loop_model(sim, operating_point)
     if not element:
-        raise AnalysisError("Nyquist 分析必须选择受控源 element")
+        raise AnalysisError("Nyquist 分析必须选择断环元件")
     frequencies = _frequency_axis(f_start, f_stop, points, scale)
     try:
-        extraction = extract_controlled_source_loop(
+        extraction = _extract_frequency_loop(
             model,
             element,
             frequencies,
@@ -2454,6 +2515,182 @@ def nyquist_analysis(
         "fingerprint": fingerprint_value,
         "envelopes": {"nyquist": payload},
         "source": source_payload,
+    }
+
+
+def step_open_analysis(
+    sim: Any,
+    *,
+    element: str | None = "",
+    input_source: str | None = None,
+    output: str | None = None,
+    feedback_sign: float = 1.0,
+    f_start: float = 1.0,
+    f_stop: float = 1_000_000.0,
+    points: int = 241,
+    scale: str = "log",
+    step_dt: float = 1.0e-5,
+    step_duration: float = 5.0e-3,
+    operating_point: dict[str, float] | None = None,
+    loop_probe: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """开环阶跃：先按断环求真实 L(s)，再由 L(s) 做单位阶跃响应。
+
+    与 loop_analysis(display="loop") 共用同一断环口径；绝不把闭环 T(s)
+    直接冒充开环阶跃。
+    """
+    loop = loop_analysis(
+        sim,
+        element=element,
+        input_source=input_source,
+        output=output,
+        feedback_sign=feedback_sign,
+        f_start=f_start,
+        f_stop=f_stop,
+        points=points,
+        scale=scale,
+        display="loop",
+        step_dt=step_dt,
+        step_duration=step_duration,
+        operating_point=operating_point,
+        loop_probe=loop_probe,
+    )
+    open_tf = loop.get("open_loop_transfer_function") or {}
+    expression = open_tf.get("expression") if isinstance(open_tf, dict) else None
+    if not expression:
+        raise AnalysisError("开环阶跃需要可解析的开环传递函数 L(s)，当前断环结果不足")
+    try:
+        tf = transfer_math.parse_expression(str(expression))
+        signal = transfer_math.analyze(
+            tf,
+            dt=float(step_dt),
+            duration=float(step_duration),
+            points=int(points),
+        )
+    except Exception as exc:  # noqa: BLE001 - 统一转分析错误
+        raise AnalysisError(f"开环阶跃求解失败：{exc}") from exc
+    source_payload = {
+        **(loop.get("source") or {}),
+        "kind": "step_open",
+        "transfer_role": "open_loop",
+        "open_loop_expression": str(expression),
+    }
+    bode_payload_source = {**source_payload, "kind": "step_open_bode"}
+    bode = signal.get("bode") or {}
+    time_payload = signal.get("step") or {}
+    bode_env = bode_envelope(
+        frequencies=bode.get("frequency_hz", []),
+        magnitude_db=bode.get("magnitude_db", []),
+        phase_deg=bode.get("phase_deg", []),
+        source=bode_payload_source,
+        output=str(loop.get("output") or ""),
+    )
+    time_env = step_envelope(
+        times=time_payload.get("t", []),
+        values=time_payload.get("y", []),
+        source={**source_payload, "kind": "step_open"},
+        output=str(loop.get("output") or ""),
+    )
+    return {
+        **signal,
+        "kind": "step_open",
+        "display": "step",
+        "element": loop.get("element"),
+        "break_kind": loop.get("break_kind"),
+        "input_source": loop.get("input_source"),
+        "output": loop.get("output"),
+        "feedback_sign": float(feedback_sign),
+        "transfer_role": "open_loop",
+        "open_loop_transfer_function": open_tf,
+        "envelopes": {"bode": bode_env, "time": time_env},
+        "source": source_payload,
+    }
+
+
+def nyquist_closed_analysis(
+    sim: Any,
+    *,
+    input_source: str | None = None,
+    output: str | None = None,
+    feedback_sign: float = 1.0,
+    f_start: float = 1.0,
+    f_stop: float = 1_000_000.0,
+    points: int = 401,
+    scale: str = "log",
+    operating_point: dict[str, float] | None = None,
+) -> dict[str, Any]:
+    """闭环 Nyquist：直接由闭环 T(s) 画 Nyquist 轮廓。
+
+    该曲线只展示闭环传递函数的复平面轨迹；稳定性判定仍应看开环 L(s)
+    的 Nyquist 包围或 Bode 裕度，本函数不把闭环轮廓当作开环判据。
+    """
+    tf_result = tf_analysis(
+        sim,
+        mode="circuit",
+        input_source=input_source,
+        output=output,
+        operating_point=operating_point,
+        f_start=f_start,
+        f_stop=f_stop,
+        points=points,
+        scale=scale,
+    )
+    transfer = tf_result.get("transfer_function") or {}
+    expression = transfer.get("expression") if isinstance(transfer, dict) else None
+    if not expression:
+        raise AnalysisError("闭环 Nyquist 需要可解析的闭环传递函数 T(s)")
+    try:
+        tf = transfer_math.parse_expression(str(expression))
+    except Exception as exc:  # noqa: BLE001
+        raise AnalysisError(f"闭环传递函数解析失败：{exc}") from exc
+    frequencies = _frequency_axis(f_start, f_stop, points, scale)
+    magnitude, phase = tf.frequency_response(2.0 * math.pi * np.asarray(frequencies))
+    loop_gain = np.asarray(magnitude, dtype=np.float64) * np.exp(
+        1j * np.asarray(phase, dtype=np.float64)
+    )
+    source_payload = {
+        "domain": "circuit",
+        "mode": "circuit",
+        "model": "descriptor_linearized",
+        "kind": "nyquist_closed",
+        "transfer_role": "closed_loop",
+        "input_source": input_source,
+        "output": output,
+        "feedback_sign": float(feedback_sign),
+    }
+    payload = nyquist_envelope(
+        frequencies,
+        loop_gain,
+        source=source_payload,
+        feedback_sign=feedback_sign,
+        element="__closed_loop__",
+        output=str(output or tf_result.get("output") or ""),
+    )
+    metrics = dict(payload.get("metrics") or {})
+    metrics["role"] = "closed_loop_contour"
+    payload["metrics"] = metrics
+    warnings_list = list(payload.get("warnings") or [])
+    warnings_list.append(
+        warning(
+            "nyquist_closed_visualization",
+            "闭环 Nyquist 轮廓仅展示闭环 T(s) 轨迹，稳定性请以开环 Nyquist/裕度为准",
+            severity="info",
+        )
+    )
+    payload["warnings"] = warnings_list
+    return {
+        "ok": True,
+        "kind": "nyquist_closed",
+        "transfer_role": "closed_loop",
+        "input_source": input_source,
+        "output": output,
+        "feedback_sign": float(feedback_sign),
+        "frequencies_hz": [float(value) for value in frequencies],
+        "metrics": metrics,
+        "warnings": warnings_list,
+        "envelopes": {"nyquist": payload},
+        "source": source_payload,
+        "transfer_function": transfer,
     }
 
 

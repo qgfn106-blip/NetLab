@@ -165,12 +165,12 @@ export class AnalysisWorkbench extends WorkbenchActions {
     }
   }
 
-  setKind(kind: AnalysisKind, persistActive = true): void {
+  setKind(kind: AnalysisKind, persistActive = true, activateCanvas = true): void {
     if (persistActive) this.persistedKind = kind;
     this.activeKind = kind;
     this.options.onKindChange?.(kind);
     if (this.mounted) {
-      if (kind !== 'metrics') this.workspace?.activateKind(kind);
+      if (kind !== 'metrics' && activateCanvas) this.workspace?.activateKind(kind);
       this.renderNav();
       this.renderToolbar();
       this.renderStatus();
@@ -277,10 +277,31 @@ export class AnalysisWorkbench extends WorkbenchActions {
   private renderNav(): void {
     const active = this.activeState();
     const activeId = active?.state_id || '';
-    const kinds = (['bode', 'time', 'nyquist', 'loop', 'loop_closed', 'loop_step'] as AnalysisKind[]).map((kind) =>
-      '<button type="button" class="awb-nav-item' + (kind === this.activeKind ? ' active' : '') + '" data-kind="' + kind + '">'
-      + '<span class="awb-nav-label">' + KIND_LABELS[kind] + '</span><span class="awb-nav-sub">' + this.kindSub(kind) + '</span></button>'
-    ).join('');
+    const activeNavKind = this.activeKind === 'loop_closed' ? 'bode'
+      : this.activeKind === 'loop_step' ? 'time' : this.activeKind;
+    const groups: Array<{ label: string; options: Array<{ kind: AnalysisKind; label: string; title: string }> }> = [
+      { label: 'Bode 图', options: [
+        { kind: 'loop', label: '开环 L(s)', title: 'Bode · 开环 L(s)' },
+        { kind: 'bode', label: '闭环 T(s)', title: 'Bode' },
+      ] },
+      { label: '时域分析', options: [
+        { kind: 'step_open', label: '开环', title: '时域 · 开环 L(s)' },
+        { kind: 'time', label: '闭环', title: '时域' },
+      ] },
+      { label: '奈氏图', options: [
+        { kind: 'nyquist', label: '开环', title: 'Nyquist' },
+        { kind: 'nyquist_closed', label: '闭环', title: 'Nyquist · 闭环 T(s)' },
+      ] },
+    ];
+    const kinds = groups.map((group) => {
+      const groupActive = group.options.some((item) => item.kind === activeNavKind);
+      const actions = group.options.map((item) =>
+        '<button type="button" class="awb-nav-item awb-nav-action' + (item.kind === activeNavKind ? ' active' : '') + '" data-kind="' + item.kind + '" data-title="' + item.title + '">' + item.label + '</button>'
+      ).join('');
+      return '<div class="awb-nav-group' + (groupActive ? ' active' : '') + '">'
+        + '<div class="awb-nav-group-title">' + group.label + '</div>'
+        + '<div class="awb-nav-options">' + actions + '</div></div>';
+    }).join('');
     const states = (this.session?.states || []).map((item) => {
       const selected = item.state_id === activeId;
       const checked = this.compareSelection.has(item.state_id);
@@ -290,9 +311,8 @@ export class AnalysisWorkbench extends WorkbenchActions {
         + '<span>' + escapeHtml(item.label) + '</span><span class="awb-state-meta">' + shortFingerprint(item.fingerprint) + '</span></button></label>';
     }).join('') || '<div class="awb-empty">还没有状态。点上方「快照当前电路」。</div>';
     const activeElement = String(active?.loop_element || '');
-    const allowVirtual = this.activeKind === 'loop_closed' || this.activeKind === 'loop_step';
-    const loopOptions = loopElementOptions(this.loopCandidates, activeElement, allowVirtual);
-    const needLoop = allowVirtual || this.activeKind === 'loop' || this.activeKind === 'nyquist';
+    const loopOptions = loopElementOptions(this.loopCandidates, activeElement, false);
+    const needLoop = this.activeKind === 'loop' || this.activeKind === 'step_open' || this.activeKind === 'nyquist';
     const loopPanel = this.activeKind === 'loop'
       ? '<div class="awb-nav-title">环路缩略图</div>' + loopListHtml(this.loopGroups, this.selectedLoopId, this.loopCandidates)
       : '';
@@ -318,10 +338,7 @@ export class AnalysisWorkbench extends WorkbenchActions {
     ].join('');
     this.navHost.querySelectorAll('[data-kind]').forEach((button) => {
       button.addEventListener('click', () => {
-        this.setKind(button.getAttribute('data-kind') as AnalysisKind);
-        void this.loadLoopCandidatesIfNeeded();
-        void this.loadLoopGroupsIfNeeded();
-        if (!this.busy) void this.run();
+        void this.openAnalysis(button.getAttribute('data-kind') as AnalysisKind, button.getAttribute('data-title') || undefined);
       });
     });
     this.navHost.querySelectorAll('[data-state-id]').forEach((button) => {
@@ -339,13 +356,27 @@ export class AnalysisWorkbench extends WorkbenchActions {
     this.bindParamInputs();
   }
 
+  /** 点击子菜单总是新建画布，避免同类分析只能有一张图。 */
+  private async openAnalysis(kind: AnalysisKind, title?: string): Promise<void> {
+    this.setKind(kind, true, false);
+    this.workspace?.addKind(kind, title || KIND_LABELS[kind]);
+    this.renderNav();
+    this.renderToolbar();
+    this.renderStatus();
+    await this.loadLoopCandidatesIfNeeded();
+    await this.loadLoopGroupsIfNeeded();
+    if (!this.busy) await this.run(kind);
+  }
+
   private kindSub(kind: AnalysisKind): string {
     if (kind === 'bode') return '闭环频响 · 幅相/关键点';
     if (kind === 'time') return '闭环阶跃 · 峰值/调节';
-    if (kind === 'nyquist') return '轮廓 · P/N/Z';
+    if (kind === 'nyquist') return '开环轮廓 · P/N/Z';
     if (kind === 'loop') return '断环 · 开环 L(s)';
     if (kind === 'loop_closed') return '闭环对照 · 合成/直接';
     if (kind === 'loop_step') return '闭环阶跃 · 峰值/调节';
+    if (kind === 'step_open') return '断环 · 开环 L(s) 阶跃';
+    if (kind === 'nyquist_closed') return '直接闭环 · T(s) 轮廓';
     return '工作点 · 稳定性';
   }
 

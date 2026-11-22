@@ -40,6 +40,8 @@ ANALYSIS_KINDS = (
     "poles",
     "loop_closed",
     "loop_step",
+    "step_open",
+    "nyquist_closed",
 )
 
 

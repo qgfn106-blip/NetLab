@@ -47,7 +47,8 @@ class RunRequest(BaseModel):
     session_id: str = Field(min_length=1)
     state_id: str | None = None
     kind: Literal[
-        "bode", "time", "nyquist", "loop", "metrics", "poles", "loop_closed", "loop_step"
+        "bode", "time", "nyquist", "loop", "metrics", "poles", "loop_closed", "loop_step",
+        "step_open", "nyquist_closed"
     ] = "bode"
     params: dict[str, Any] = Field(default_factory=dict)
     force: bool = False
@@ -59,7 +60,8 @@ class CompareRequest(BaseModel):
     session_id: str = Field(min_length=1)
     state_ids: list[str] = Field(min_length=2, max_length=8)
     kind: Literal[
-        "bode", "time", "nyquist", "loop", "metrics", "poles", "loop_closed", "loop_step"
+        "bode", "time", "nyquist", "loop", "metrics", "poles", "loop_closed", "loop_step",
+        "step_open", "nyquist_closed"
     ] = "bode"
     include_stale: bool = True
 
@@ -73,7 +75,8 @@ class ExportRequest(BaseModel):
     result_ids: list[str] = Field(default_factory=list)
     state_ids: list[str] = Field(default_factory=list)
     kind: Literal[
-        "bode", "time", "nyquist", "loop", "metrics", "poles", "loop_closed", "loop_step"
+        "bode", "time", "nyquist", "loop", "metrics", "poles", "loop_closed", "loop_step",
+        "step_open", "nyquist_closed"
     ] | None = None
     format: Literal["png", "svg", "pdf", "spec", "csv", "json", "zip"] = "png"
     layout: dict[str, Any] | None = None
@@ -111,7 +114,10 @@ def _simulation_for_state(state: Any) -> Simulation:
 
 
 _OPERATING_POINT_KINDS = frozenset(
-    {"bode", "time", "poles", "loop", "loop_closed", "loop_step", "nyquist"}
+    {
+        "bode", "time", "poles", "loop", "loop_closed", "loop_step", "nyquist",
+        "step_open", "nyquist_closed",
+    }
 )
 
 
@@ -233,6 +239,42 @@ def _run_state(state: Any, kind: str, params: dict[str, Any]) -> dict[str, Any]:
                 operating_point=operating_point,
             ),
             "Nyquist 分析",
+        )
+        envelope = (result.get("envelopes") or {}).get("nyquist")
+    elif kind == "step_open":
+        result = timeout_call(
+            lambda: analysis.step_open_analysis(
+                sim,
+                element=str(element or ""),
+                loop_probe=merged.get("loop_probe"),
+                input_source=input_source,
+                output=output,
+                feedback_sign=feedback_sign,
+                f_start=f_start,
+                f_stop=f_stop,
+                points=points,
+                scale=scale,
+                step_dt=float(merged.get("step_dt", 1.0e-5)),
+                step_duration=float(merged.get("step_duration", 5.0e-3)),
+                operating_point=operating_point,
+            ),
+            "开环阶跃分析",
+        )
+        envelope = (result.get("envelopes") or {}).get("time")
+    elif kind == "nyquist_closed":
+        result = timeout_call(
+            lambda: analysis.nyquist_closed_analysis(
+                sim,
+                input_source=input_source,
+                output=output,
+                feedback_sign=feedback_sign,
+                f_start=f_start,
+                f_stop=f_stop,
+                points=points,
+                scale=scale,
+                operating_point=operating_point,
+            ),
+            "闭环 Nyquist 分析",
         )
         envelope = (result.get("envelopes") or {}).get("nyquist")
     else:

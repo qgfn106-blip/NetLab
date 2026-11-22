@@ -606,6 +606,16 @@ class AnalysisCanvasWorkspace {
     };
     return this.addCanvas(rec);
   }
+  addKind(kind, title) {
+    const rec = {
+      canvas_id: newCanvasId(),
+      kind,
+      figure_id: "f1",
+      slot_id: this.entries.length,
+      title: title || KIND_LABELS[kind]
+    };
+    return this.addCanvas(rec);
+  }
   hasKind(kind) {
     return this.entries.some((item) => item.rec.kind === kind);
   }

@@ -9,7 +9,7 @@
 | 项 | 当前事实 | 位置 |
 | --- | --- | --- |
 | 工程格式标识 | `PROJECT_FORMAT = "netlab-project"` | `netlab/core/model/project.py` |
-| 工程版本 | `PROJECT_VERSION = 7` | `netlab/core/model/project.py` |
+| 工程版本 | `PROJECT_VERSION = 8` | `netlab/core/model/project.py` |
 | 应用版本 | `APP_VERSION = "2.1.0"` | `netlab/core/model/project.py` |
 | 工程大小上限 | `MAX_PROJECT_BYTES = 8_000_000` | `netlab/core/model/project.py` |
 | 迁移函数 | `migrate_scene_to_devices`、`migrate_scene_rails`、`migrate_project` | `netlab/core/model/project.py` |
@@ -41,10 +41,10 @@
 | 版本 | 当前状态 | 设计目标 |
 | --- | --- | --- |
 | v6 及更早 | 由 `migrate_project` 处理 | **已确认（用户 2026-11-15 决策）：保留现行 loader 已验证的全部历史输入路径 v0–v7 + 独立 scene-json，不主动收缩** |
-| v7 | 当前版本 | 必须可读、可 round-trip、旧 API 不破坏 |
-| v8（未来） | 未定义 | 仅在引入新字段/新 Desc 分层时递增；携带显式迁移器与 golden fixtures |
+| v7 | 历史版本（已冻结） | 必须可读、可 round-trip、旧 API 不破坏 |
+| v8 | 当前版本（`PROJECT_VERSION = 8`） | 仅在未来引入新字段/新 Desc 分层时再递增；携带显式迁移器与 golden fixtures |
 
-> **命名空间澄清（D-C-2）**：`docs/canonical/contracts/compatibility.yaml` 的 `project:6` 属 **C2 合同 schema 命名空间**，与 `.netlab` 的 `PROJECT_VERSION=7` 是不同命名空间/用途，不得混为一谈。
+> **命名空间澄清（D-C-2）**：`docs/canonical/contracts/compatibility.yaml` 的 `project:6` 属 **C2 合同 schema 命名空间**，与 `.netlab` 的 `PROJECT_VERSION=8` 是不同命名空间/用途，不得混为一谈。
 
 **已裁定（用户 2026-11-15 §10 全文）**：P2-D 兼容窗口保留当前正式加载器已支持且经测试验证的全部历史工程输入路径（v0–v7 及独立 scene-json 导入路径），**不主动收缩**。任何历史迁移删除须先做使用影响分析 + 弃用公告 + 替代方案 + 用户明确批准；Agent 不得以维护成本为由自行收缩。注：ADR-008 决策 C 的「C1」与本文档 §10 的「C1」同名反义，一律以 §10 全文表述为准，禁止只写「按 C1」；ADR-008 A/B/C 未因此裁定。
 

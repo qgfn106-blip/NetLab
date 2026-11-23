@@ -7,7 +7,7 @@
 - PortSpec/PinSpec → PortDesc/PortType（本草稿只做形态标记，不做 Registry 解析）
 - 字段只加不删；未知字段进入 compat.extensions 原样保留，保证可回退
 
-约束（P1-S1 明确）：**不改 PROJECT_VERSION（仍 7）**、不注册进
+约束（P1-S1 明确）：**不改 PROJECT_VERSION（仍 8）**、不注册进
 `SCHEMA_MIGRATIONS`、不接 `load_project`/`save_project`、不改外部 JSON。
 本模块只供测试直接调用验证映射，作为阶段8的预置；现有工程完全不受影响。
 """

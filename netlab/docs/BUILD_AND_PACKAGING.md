@@ -53,7 +53,7 @@ npm run test:utils
 
 ## 4. PlotKit 依赖（外部包，C-4 已收口）
 
-netlab 运行期 import 的是**已安装的 `plotkit` 包**（`plotkit>=0.2,<0.3`），不携带源码副本（`netlab/_vendor/plotkit` 已删除；R2①）。开发时用可编辑安装：
+netlab 运行期 import 的是**已安装的 `plotkit` 包**（`plotkit>=0.3,<0.4`），不携带源码副本（`netlab/_vendor/plotkit` 已删除；R2①）。开发时用可编辑安装：
 
 ```bash
 cd NetlabHome
@@ -64,7 +64,7 @@ pip install -e ../PlotKit          # 开发：改 PlotKit 源码立即生效
 
 ```bash
 python -m pip wheel ../PlotKit --no-deps -w NetlabExtras/tmp/s4_wheels
-pip install --no-index --find-links NetlabExtras/tmp/s4_wheels plotkit==0.2.1
+pip install --no-index --find-links NetlabExtras/tmp/s4_wheels plotkit==0.3.0
 ```
 
 `NETLAB_PLOTKIT_SRC` 仅用于显式开发路径（`plotkit_bridge` 用 `importlib` 按文件加载，不写 `sys.path`）；生产环境不要设置。

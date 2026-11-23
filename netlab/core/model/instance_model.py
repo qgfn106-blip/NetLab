@@ -5,7 +5,7 @@
 - ``NodeDesc`` 只持描述字段（id/name/kind/params），**不含** state/inputs；port 声明保持
   最小/不透明（不实现 PortType/单位/连接检查，属 P2-B）。
 - ``NodeRuntime`` 持运行态 state/inputs，snapshot/restore 深拷贝；与 record 相互隔离。
-- 不改外部 JSON / PROJECT_VERSION=7 / .netlab 格式 / checksum；不触 FEM / MAX_NODES。
+- 不改外部 JSON / PROJECT_VERSION=8 / .netlab 格式 / checksum；不触 FEM / MAX_NODES。
 
 本模块与 P1-S1 ``dto.py`` 同构：并行接缝，为后续「描述与运行态分离」提供类型入口，
 当前不改动任何数值路径。

@@ -47,14 +47,14 @@ def test_incompatible_plotkit_returns_readable_version_error(monkeypatch):
         monkeypatch,
         "incompatible",
         "0.1.9",
-        "PlotKit 0.1.9 不在 >=0.2,<0.3 兼容范围内",
+        "PlotKit 0.1.9 不在 >=0.3,<0.4 兼容范围内",
     )
     response = client.get("/plotkit/api/spec")
     assert response.status_code == 503
     payload = response.json()
     assert payload["state"] == "incompatible"
     assert payload["version"] == "0.1.9"
-    assert "0.2" in payload["detail"]
+    assert "0.3" in payload["detail"]
 
 
 def test_fallback_handles_post_and_unknown_paths(monkeypatch):

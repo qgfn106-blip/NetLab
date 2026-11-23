@@ -144,7 +144,7 @@ def make_network(
 def normalize_states(
     states: Any, *, network_name: str = ""
 ) -> list[dict[str, Any]]:
-    """校验并规范化一条网络的 ``states`` 列表（工作台多状态，PROJECT_VERSION 7）。
+    """校验并规范化一条网络的 ``states`` 列表（工作台多状态，PROJECT_VERSION 8）。
 
     规则：id 合法且唯一（缺失/重复时重新生成）、name 非空且唯一（重复加序号）、
     params/sim 必须是对象、至多一个 ``base``。返回新列表，不修改入参。

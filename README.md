@@ -22,7 +22,7 @@ Netlab 是一个面向电子、动态系统与电力电子的交互式仿真工�
 | **复数分析层（R39）** | 复数图 `(I-W(jω))y=b` / 复数 MNA | 频响、Bode、精确 `e^{-jωT}` 延迟、RC/RLC 网络、MIMO 相位 |
 | **插件扩展（R40）** | 插件 API v1 + 独立引擎模式 | 自定义节点/连接/元件/分析算法/数据格式/面板/视觉/模板 |
 
-所有工作区共享：网格化画布、实时曲线、回放时间轴、工程文件（`*.netlab`，当前 `version: 7`）、插件与扩展机制。
+所有工作区共享：网格化画布、实时曲线、回放时间轴、工程文件（`*.netlab`，当前 `version: 8`）、插件与扩展机制。
 
 ## 主要能力
 
@@ -41,7 +41,7 @@ Netlab 是一个面向电子、动态系统与电力电子的交互式仿真工�
 
 ## 示例应用
 
-`MyProject/` 提供可直接打开的运行示例（信号流、电路与跨域组合）。例如并网逆变器控制链示例：平均模型 `grid_inverter_avg.netlab`（三相电网 + `abc_dq` + LCL `state_space`）、`pll_template.netlab`（SRF-PLL）、`grid_inverter_current.netlab`（dq 电流环 + 双 PI + 前馈解耦）、`grid_inverter_switch.netlab`（六开关三相桥趋势验证）。
+`MyProject/`（本地示例目录：已被 `.gitignore` 排除、不随仓库分发）用于放置可直接打开的运行示例（信号流、电路与跨域组合）；仓库内同名工程作为测试夹具存于 `netlab/tests/fixtures/projects/`，可复制到 `MyProject/` 后打开。例如并网逆变器控制链示例：平均模型 `grid_inverter_avg.netlab`（三相电网 + `abc_dq` + LCL `state_space`）、`pll_template.netlab`（SRF-PLL）、`grid_inverter_current.netlab`（dq 电流环 + 双 PI + 前馈解耦）、`grid_inverter_switch.netlab`（六开关三相桥趋势验证）。
 
 ![非线性滑模控制网络](docs/assets/nonlinear-control.png)
 
@@ -142,7 +142,7 @@ python -m netlab.desktop
 - [ARCHITECTURE.md](ARCHITECTURE.md) —— 分层、场景数据模型、求解器、插件层与前端数据流（含[结构图](docs/assets/netlab-architecture.svg)）
 - [netlab/docs/CODE_GUIDE.md](netlab/docs/CODE_GUIDE.md) —— 目录地图、模块职责、关键符号与调用链
 - [netlab/docs/MATH.md](netlab/docs/MATH.md) —— 数学原理导航：网络架构、信号流与电路元件、仿真分析三份专题
-- [netlab/docs/EXTENSIBILITY_ARCHITECTURE.md](netlab/docs/EXTENSIBILITY_ARCHITECTURE.md) —— 插件 API v1、工程 v7、UI profile、EngineProtocol
+- [netlab/docs/EXTENSIBILITY_ARCHITECTURE.md](netlab/docs/EXTENSIBILITY_ARCHITECTURE.md) —— 插件 API v1、工程格式 v8、UI profile、EngineProtocol
 - [netlab/docs/PLUGIN_GUIDE.md](netlab/docs/PLUGIN_GUIDE.md) —— 插件包开发与本地加载
 - [OPERATION.md](OPERATION.md) —— 界面速览、快捷键、建图/建电路、曲线与回放、工程文件
 - [INSTALL.md](INSTALL.md) —— 安装、离线部署、局域网访问、故障排查
@@ -173,7 +173,7 @@ Netlab 设计为**每人一份、本机运行**：服务默认只监听 `127.0.0
 | Uvicorn | >=0.27,<1.0 | ASGI 服务器 | <https://github.com/encode/uvicorn> |
 | Pydantic | 随 FastAPI（v2） | 数据模型与校验 | <https://github.com/pydantic/pydantic> |
 | Starlette | 随 FastAPI / Uvicorn | ASGI 基础框架 | <https://github.com/encode/starlette> |
-| PlotKit（可选） | >=0.2,<0.3 | 绘图子系统（本项目独立目录 `PlotKit/`） | 见 `PlotKit/docs` |
+| PlotKit（必需内部插件） | >=0.3,<0.4 | 绘图子系统（本项目独立目录 `PlotKit/`，D7 起为必需依赖） | 见 `PlotKit/docs` |
 
 ### 二、桌面端与前端构建（可选）
 

@@ -595,7 +595,7 @@ class VisualSpec:                # netlab/plugin_api/v1/__init__.py:118
 
 ---
 
-## 9. 工程格式 v7（PROJECT_VERSION = 7）
+## 9. 工程格式 v7（设计冻结基线；当前实现 `PROJECT_VERSION = 8`）
 
 ### 9.1 结构
 
@@ -622,7 +622,7 @@ class VisualSpec:                # netlab/plugin_api/v1/__init__.py:118
 ### 9.2 历史迁移（v5 → v6 → v7，幂等）
 
 1. 读入 v5。
-2. 增加 `"version": 6`（迁移至 v6 时；当前 `PROJECT_VERSION = 7`）和 `"plugins": []`。
+2. 增加 `"version": 6`（迁移至 v6 时；当前 `PROJECT_VERSION = 8`）和 `"plugins": []`。
 3. 增加空 `"ui": {}`。
 4. 保持所有 `networks`、`current`、`metadata` 原样。
 5. 重新计算 `checksum` 后保存。

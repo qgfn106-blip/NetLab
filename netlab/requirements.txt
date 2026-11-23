@@ -2,3 +2,4 @@ fastapi>=0.110,<1.0
 uvicorn>=0.27,<1.0
 numpy>=1.26,<3.0
 scipy>=1.10,<2.0
+# PlotKit>=0.3,<0.4 是必需的内部插件（D7），不走公共 PyPI：请用 `pip install -e ../PlotKit` 或 wheelhouse 安装（见 pyproject.toml 依赖与 docs/BUILD_AND_PACKAGING.md）。

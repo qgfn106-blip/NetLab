@@ -54,7 +54,7 @@ def register(ctx: PluginContext) -> None:
 `extensions/plugins/netlab.plotkit/` 是随仓库分发的面板插件：`plugin.json`
 声明 `capabilities=["panel"]`，`plugin.py` 注册 `PanelSpec(id="plotkit")`，
 面板布局指向宿主挂载的 `/plotkit/` iframe。PlotKit 的 Python 包是**外部依赖**
-（`plotkit>=0.2,<0.3`，由 `netlab/plotkit_bridge.py` 经公开 API 单向加载）；
+（`plotkit>=0.3,<0.4`，由 `netlab/plotkit_bridge.py` 经公开 API 单向加载）；
 插件包只负责发现/启停与面板声明，`plotkit_bridge.mount()` 只在插件未被停用时挂载子应用。
 C-4 收口后**没有**插件内副本或 `netlab/_vendor/plotkit` 回退路径。
 验证：`python -m pytest netlab/tests/test_plotkit_plugin.py -q`。

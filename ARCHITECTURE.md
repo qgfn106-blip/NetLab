@@ -140,9 +140,9 @@ NetlabHome/
 **分析接口**：`operating_point()`（DC 工作点，电容开路、电感 `1e5 S`、源取 t=0，求完恢复检查点）；`ac_sweep(freqs, ...)`（工作点线性化后按 jω 构复数 MNA 逐频求解，含非线性器件会明确报错）。
 
 
-### 4.3 示例应用（`MyProject/`）
+### 4.3 示例应用（`MyProject/`，本地目录，不入库）
 
-可运行示例位于 `MyProject/`，覆盖信号流、电路与跨域组合，供演示与验收（含并网逆变器示例工程）。示例不属于核心引擎能力；引擎能力见 4.1（信号流）、4.2（电路 MNA）、4.4（复数分析层）。
+可运行示例位于 `MyProject/`，覆盖信号流、电路与跨域组合，供演示与验收（含并网逆变器示例工程）。该目录被 `.gitignore` 排除、不随仓库分发，仓库内同名工程作为测试夹具存于 `netlab/tests/fixtures/projects/`。示例不属于核心引擎能力；引擎能力见 4.1（信号流）、4.2（电路 MNA）、4.4（复数分析层）。
 
 ### 4.4 复数分析层（`core/compute/complex_support.py` + `analysis.frequency_response`，R39）
 

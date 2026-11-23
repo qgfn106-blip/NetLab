@@ -146,7 +146,7 @@ python -m netlab.run
 
 ## 10. 并网逆变器示例（R31）
 
-`MyProject/` 下有三个可载入的示例工程：
+`MyProject/`（本地示例目录，仓库不含此目录）下有三个可载入的示例工程；可将 `netlab/tests/fixtures/projects/` 中的同名 `.netlab` 复制到 `MyProject/`：
 
 | 工程 | 内容 | 用途 |
 | --- | --- | --- |

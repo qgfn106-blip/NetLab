@@ -210,11 +210,12 @@ try {
   // 7e) 每个子图可设置标题、轴名称、网格与图例，并随工程保存。
   await page.locator('[data-awb="chart-settings"]').click();
   await page.waitForSelector('#modal:not(.hidden) .awb-settings-card', { timeout: 4000 });
-  const settingsTitle = page.locator('.awb-settings-card input[type="text"]').nth(0);
-  const settingsXLabel = page.locator('.awb-settings-card input[type="text"]').nth(1);
+  const settingsTitle = page.locator('.awb-settings-row', { hasText: '大标题' }).locator('input[type="text"]');
+  const settingsXLabel = page.locator('.awb-settings-row', { hasText: 'X 轴名称' }).locator('input[type="text"]');
+  await page.locator('.awb-settings-row', { hasText: '预设模板' }).locator('select').selectOption('matlab');
   await settingsTitle.fill('奈奎斯特图');
   await settingsXLabel.fill('实部');
-  await page.locator('.awb-settings-card .awb-settings-row select').nth(3).selectOption('dashed');
+  await page.locator('.awb-settings-row', { hasText: '网格线型' }).locator('select').selectOption('dashed');
   await page.locator('#modalCard').getByRole('button', { name: '应用', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('#modal')?.classList.contains('hidden'), null, { timeout: 3000 });
 
@@ -235,11 +236,14 @@ try {
 
   // 8b) 导出请求必须绑定当前画布实际结果 key（result_ids），不能只按状态+类型盲查。
   const exportReqPromise = page.waitForRequest((req) => req.url().includes('/api/analysis/workbench/export') && req.method() === 'POST');
-  const exportDownloadPromise = page.waitForEvent('download');
   await page.locator('[data-awb="export"]').click();
   const exportReq = await exportReqPromise;
   const exportBody = exportReq.postDataJSON();
   assert(Array.isArray(exportBody.result_ids) && exportBody.result_ids.length >= 1, '导出未绑定画布实际结果 result_ids: ' + JSON.stringify(exportBody));
+  assert(exportBody.appearance && exportBody.appearance.title === '奈奎斯特图', '导出未携带子图外观设置: ' + JSON.stringify(exportBody.appearance || null));
+  await page.waitForSelector('.awb-export-preview', { timeout: 6000 });
+  const exportDownloadPromise = page.waitForEvent('download');
+  await page.locator('.awb-export-preview-actions button.primary').click();
   const exportDownload = await exportDownloadPromise;
   await exportDownload.path();
   await page.waitForTimeout(300);
@@ -255,6 +259,8 @@ try {
     };
   });
   await page.locator('[data-awb="export"]').click();
+  await page.waitForSelector('.awb-export-preview', { timeout: 6000 });
+  await page.locator('.awb-export-preview-actions button.primary').click();
   await page.waitForFunction(() => !!window.__savedExport, null, { timeout: 8000 });
   const savedExport = await page.evaluate(() => window.__savedExport);
   assert(savedExport.name.endsWith('.png'), '桌面导出文件名不是 PNG: ' + savedExport.name);

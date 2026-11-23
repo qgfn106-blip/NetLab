@@ -111,6 +111,45 @@ def test_spec_export_is_plotkit_payload() -> None:
     assert all(isinstance(values, list) for values in payload["datasets"].values())
 
 
+def test_spec_export_applies_chart_appearance() -> None:
+    session = _session_with_results()
+    artifact = export_session(
+        session,
+        format="spec",
+        appearance={
+            "title": "自定义标题",
+            "figure_width": 9.0,
+            "figure_height": 4.5,
+            "dpi": 150,
+            "font_title": 18,
+            "line_width": 2.4,
+            "x_min": 1.0,
+            "x_max": 10.0,
+            "show_markers": False,
+            "show_annotations": False,
+            "facecolor": "#f7f7f7",
+            "text_color": "#101010",
+            "axis_color": "#444444",
+            "legend_position": "upper right",
+            "panel_layout": "row",
+        },
+    )
+    payload = json.loads(artifact.data.decode("utf-8"))
+    figure = payload["spec"]["figure"]
+    assert figure["title"] == "自定义标题"
+    assert list(figure["size"]) == [9.0, 4.5]
+    assert figure["dpi"] == 150
+    assert figure["fonts"]["title"] == 18
+    assert figure["facecolor"] == "#f7f7f7"
+    assert figure["axes_facecolor"] == "#f7f7f7"
+    assert figure["textcolor"] == "#101010"
+    assert figure["gridcolor"] == "#444444"
+    assert figure["legend_loc"] == "upper right"
+    assert figure["ncols"] == 2
+    styles = [layer.get("style") or {} for layer in payload["spec"]["layers"]]
+    assert all(abs(float(style.get("width", 0)) - 2.4) < 1e-6 for style in styles if style)
+
+
 @pytest.mark.parametrize(
     ("fmt", "magic"),
     (("png", b"\x89PNG\r\n"), ("pdf", b"%PDF-")),

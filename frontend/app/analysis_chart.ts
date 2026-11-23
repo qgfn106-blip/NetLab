@@ -401,7 +401,8 @@ export class AnalysisChart {
   private tokens(): Record<string, string> {
     const style = getComputedStyle(document.documentElement);
     const token = (name: string, fallback: string) => (style.getPropertyValue(name) || '').trim() || fallback;
-    return {
+    const a = this.appearance;
+    const out: Record<string, string> = {
       paper: token('--paper', '#111'),
       plot: token('--paper-2', '#181818'),
       text: token('--ink', '#eee'),
@@ -409,6 +410,16 @@ export class AnalysisChart {
       grid: token('--line', '#333'),
       accent: token('--accent', '#9b7247'),
     };
+    if (a && typeof a.facecolor === 'string' && a.facecolor.trim()) {
+      out.paper = a.facecolor.trim();
+      out.plot = a.facecolor.trim();
+    }
+    if (a && typeof a.text_color === 'string' && a.text_color.trim()) out.text = a.text_color.trim();
+    if (a && typeof a.axis_color === 'string' && a.axis_color.trim()) {
+      out.muted = a.axis_color.trim();
+      out.grid = a.axis_color.trim();
+    }
+    return out;
   }
 
   private render(): void {
@@ -497,12 +508,34 @@ export class AnalysisChart {
     const panels = this.panelCount(envelope);
     const a = this.appearance;
     const grid = this.gridView();
+    const numberOrNull = (raw: string): number | null => {
+      if (!raw.trim()) return null;
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+    const limitPair = (minRaw: string, maxRaw: string): [number, number] | null => {
+      const min = numberOrNull(minRaw);
+      const max = numberOrNull(maxRaw);
+      return min !== null && max !== null && min < max ? [min, max] : null;
+    };
+    const dashFor = (curveId: string, legacy: boolean): number[] => {
+      const style = a.curve_styles[curveId];
+      if (!style) return legacy ? [7, 4] : [];
+      if (style === 'dashed') return [7, 4];
+      if (style === 'dotted') return [2, 3];
+      if (style === 'dashdot') return [8, 3, 2, 3];
+      return [];
+    };
+    const xlim = limitPair(a.x_min, a.x_max) || this.view?.xlim;
     for (const curve of envelope.curves) {
       const slot = this.panelFor(envelope, curve.axes[1]);
       const yAxis = axes.get(curve.axes[1]);
       const xAxis = axes.get(curve.axes[0]);
       const detailColor = typeof curve.detail?.color === 'string' ? curve.detail.color : '';
-      const color = detailColor || (curve.id.includes('phase') ? '#7a6fb0' : (curve.id.includes('loop') ? '#c98a2e' : '#9b7247'));
+      const baseColor = detailColor || (curve.id.includes('phase') ? '#7a6fb0' : (curve.id.includes('loop') ? '#c98a2e' : '#9b7247'));
+      const color = a.curve_colors[curve.id] || baseColor;
+      const lineWidth = a.curve_widths[curve.id] || a.line_width;
+      const ylim = limitPair(a.y_min, a.y_max) || this.view?.ylims[slot];
       const autoYLabel = yAxis ? yAxis.label + (yAxis.unit ? ' (' + yAxis.unit + ')' : '') : '';
       const autoXLabel = xAxis ? xAxis.label + (xAxis.unit ? ' (' + xAxis.unit + ')' : '') : '';
       const yLabel = slot === 1 ? (a.ylabel2.trim() || autoYLabel) : (a.ylabel.trim() || autoYLabel);
@@ -514,15 +547,15 @@ export class AnalysisChart {
         legend: a.legend,
         data: { x: curve.id + ':x', y: curve.id + ':y' },
         view: {
-          xlim: this.view?.xlim,
-          ylim: this.view?.ylims[slot],
+          xlim,
+          ylim,
           xscale: this.resolvedScale(a.xscale, xAxis),
           yscale: this.resolvedScale(a.yscale, yAxis),
           ylabel: yLabel,
           xlabel: xLabel,
           ...grid,
         },
-        style: { color, width: 1.7, dash: curve.style === 'dashed' ? [7, 4] : [], opacity: 1 },
+        style: { color, width: lineWidth, dash: dashFor(curve.id, curve.style === 'dashed'), opacity: 1 },
       });
     }
     for (const extra of nyquistExtras(envelope)) {
@@ -537,6 +570,7 @@ export class AnalysisChart {
       });
     }
     for (const marker of envelope.markers) {
+      if (!a.show_markers) break;
       if (!this.visibleCategories.has(marker.category)) continue;
       const slot = this.panelFor(envelope, marker.axis_y);
       const markerXAxis = axes.get(marker.axis_x) || (envelope.curves.length ? axes.get(envelope.curves[0].axes[0]) : undefined);
@@ -544,7 +578,7 @@ export class AnalysisChart {
       layers.push({
         kind: 'scatter',
         subplot: slot,
-        label: marker.label,
+        label: a.show_annotations ? marker.label : '',
         legend: false,
         data: { x: [marker.x], y: [marker.y] },
         view: { xlim: this.view?.xlim, ylim: this.view?.ylims[slot], xscale: this.resolvedScale(a.xscale, markerXAxis), yscale: this.resolvedScale(a.yscale, axes.get(marker.axis_y)), ...grid },
@@ -554,7 +588,14 @@ export class AnalysisChart {
     const figure: Record<string, unknown> = {
       subplots: panels,
       ncols: panels > 1 && a.panel_layout === 'row' ? 2 : 1,
+      fonts: { title: a.font_title, axis: a.font_axis, tick: a.font_tick, legend: a.font_legend, annotation: a.font_axis },
     };
+    if (a.figure_width > 0 || a.figure_height > 0) {
+      figure.size = [a.figure_width > 0 ? a.figure_width : 12.2, a.figure_height > 0 ? a.figure_height : 5.6];
+    }
+    if (a.facecolor.trim()) figure.facecolor = a.facecolor.trim();
+    if (a.text_color.trim()) figure.text_color = a.text_color.trim();
+    if (a.axis_color.trim()) figure.axis_color = a.axis_color.trim();
     if (a.title.trim()) figure.title = a.title.trim();
     return { figure, layers };
   }

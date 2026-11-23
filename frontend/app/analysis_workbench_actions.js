@@ -92,6 +92,64 @@ class WorkbenchActions {
     if (result.startsWith("__error__")) throw new Error(result.slice("__error__".length));
     return result ? "saved" : "cancelled";
   }
+  previewExport(blob, filename, format) {
+    if (!["png", "svg", "pdf"].includes(format)) return Promise.resolve(true);
+    const url = URL.createObjectURL(blob);
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "awb-export-preview";
+      const card = document.createElement("div");
+      card.className = "awb-export-preview-card";
+      const heading = document.createElement("div");
+      heading.className = "awb-export-preview-head";
+      heading.textContent = "\u5BFC\u51FA\u9884\u89C8 \xB7 " + filename;
+      const body = document.createElement("div");
+      body.className = "awb-export-preview-body";
+      if (format === "pdf") {
+        const frame = document.createElement("iframe");
+        frame.src = url;
+        frame.title = filename;
+        body.append(frame);
+      } else {
+        const image = document.createElement("img");
+        image.src = url;
+        image.alt = filename;
+        body.append(image);
+      }
+      const actions = document.createElement("div");
+      actions.className = "awb-export-preview-actions";
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.className = "btn";
+      cancel.textContent = "\u53D6\u6D88";
+      const save = document.createElement("button");
+      save.type = "button";
+      save.className = "btn primary";
+      save.textContent = "\u4FDD\u5B58";
+      actions.append(cancel, save);
+      card.append(heading, body, actions);
+      overlay.append(card);
+      document.body.append(overlay);
+      const close = (confirmed) => {
+        document.removeEventListener("keydown", onKey, true);
+        overlay.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 500);
+        resolve(confirmed);
+      };
+      const onKey = (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          close(false);
+        }
+      };
+      cancel.addEventListener("click", () => close(false));
+      save.addEventListener("click", () => close(true));
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) close(false);
+      });
+      document.addEventListener("keydown", onKey, true);
+    });
+  }
   async exportResult() {
     if (!this.sessionId) {
       toast("\u5206\u6790\u4F1A\u8BDD\u5C1A\u672A\u5C31\u7EEA\uFF0C\u65E0\u6CD5\u5BFC\u51FA", "error", 4e3);
@@ -126,6 +184,7 @@ class WorkbenchActions {
         kind: kind === "metrics" ? void 0 : kind,
         format: this.exportFormat,
         ...resultIds ? { result_ids: resultIds } : {},
+        ...this.exportScope === "subcanvas" && canvas?.appearance ? { appearance: canvas.appearance } : {},
         source_path: void 0
       });
       const disposition = response.headers.get("Content-Disposition") || "";
@@ -133,6 +192,10 @@ class WorkbenchActions {
       const fallback = `netlab-analysis.${this.exportFormat === "spec" ? "plotkit.json" : this.exportFormat}`;
       const filename = matched ? matched[1] : fallback;
       const blob = await response.blob();
+      if (!await this.previewExport(blob, filename, this.exportFormat)) {
+        toast("\u5DF2\u53D6\u6D88\u5BFC\u51FA", "info", 3e3);
+        return;
+      }
       const saved = await this.saveBlobViaDesktop(blob, filename);
       if (saved === "saved") {
         toast("\u5DF2\u4FDD\u5B58 " + filename, "success", 3e3);

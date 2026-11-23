@@ -9,6 +9,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import math
 import tempfile
 import time
 import zipfile
@@ -118,10 +119,11 @@ def _layer(
     label: str,
     color: str,
     dash: str,
+    width: float = 1.6,
     view: Mapping[str, Any] | None = None,
 ) -> None:
-    dash_map = {"solid": "solid", "dashed": "dash", "dotted": "dot"}
-    style: dict[str, Any] = {"color": color, "width": 1.6, "dash": dash_map.get(dash, "solid")}
+    dash_map = {"solid": "solid", "dashed": "dash", "dotted": "dot", "dashdot": "dashdot"}
+    style: dict[str, Any] = {"color": color, "width": width, "dash": dash_map.get(dash, "solid")}
     figure.add_plot(
         "line",
         x=list(x),
@@ -134,10 +136,41 @@ def _layer(
     )
 
 
-def build_figure(entries: Sequence[ExportEntry], *, title: str | None = None) -> Any:
-    """把信封曲线拼成 PlotKit Figure（多状态叠加，保持 marker 标签）。"""
+def _appearance_number(appearance: Mapping[str, Any], key: str, default: float, low: float, high: float) -> float:
+    try:
+        value = float(appearance.get(key, default))
+    except (TypeError, ValueError):
+        value = default
+    if not math.isfinite(value):
+        value = default
+    return min(high, max(low, value))
+
+
+def _appearance_limit(appearance: Mapping[str, Any], low_key: str, high_key: str) -> list[float] | None:
+    try:
+        low = float(appearance.get(low_key, ""))
+        high = float(appearance.get(high_key, ""))
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(low) or not math.isfinite(high) or low >= high:
+        return None
+    return [low, high]
+
+
+def build_figure(
+    entries: Sequence[ExportEntry],
+    *,
+    title: str | None = None,
+    appearance: Mapping[str, Any] | None = None,
+) -> Any:
+    """把信封曲线拼成 PlotKit Figure（多状态叠加，保持 marker 标签）。
+
+    appearance 是前端 ChartAppearance 的普通字典，用于画布尺寸/DPI/字体/线宽/
+    曲线颜色与线型/坐标轴范围/标记与标注开关等 matplotlib 级设置。
+    """
     if not entries:
         raise ValidationError("没有可导出的分析结果")
+    a: Mapping[str, Any] = appearance if isinstance(appearance, Mapping) else {}
     plotkit = __import__("plotkit")
     y_axes = _subplot_axes(entries)
     axis_ids: dict[str, Mapping[str, Any]] = {}
@@ -150,12 +183,51 @@ def build_figure(entries: Sequence[ExportEntry], *, title: str | None = None) ->
     for index, state_id in enumerate(dict.fromkeys(entry.state_id for entry in entries)):
         dash_by_state[state_id] = "solid" if index == 0 else ("dashed" if index == 1 else "dotted")
 
+    default_height = 7.6 if len(y_axes) > 1 else 5.6
+    figure_width = _appearance_number(a, "figure_width", 12.2, 2.0, 40.0)
+    figure_height = _appearance_number(a, "figure_height", default_height, 2.0, 40.0)
+    dpi = int(_appearance_number(a, "dpi", 120, 60, 600))
+    fonts = {
+        "title": _appearance_number(a, "font_title", 14, 6, 40),
+        "axis": _appearance_number(a, "font_axis", 12, 6, 40),
+        "tick": _appearance_number(a, "font_tick", 11, 6, 40),
+        "legend": _appearance_number(a, "font_legend", 11, 6, 40),
+        "annotation": _appearance_number(a, "font_axis", 12, 6, 40),
+    }
+    title_text = str(a.get("title") or title or "NetLab 电路分析导出")
+    face_color = a.get("facecolor")
+    text_color = a.get("text_color")
+    axis_color = a.get("axis_color")
+    legend_position = str(a.get("legend_position") or "auto")
+    panel_layout = str(a.get("panel_layout") or "auto")
+    ncols = max(1, len(y_axes)) if panel_layout == "row" else 1
     figure = plotkit.figure(
         subplots=max(1, len(y_axes)),
-        title=title or "NetLab 电路分析导出",
-        size=(12.2, 7.6 if len(y_axes) > 1 else 5.6),
-        dpi=120,
+        ncols=ncols,
+        title=title_text,
+        size=(figure_width, figure_height),
+        dpi=dpi,
+        fonts=fonts,
     )
+    fig_spec = figure.spec.setdefault("figure", {})
+    if isinstance(face_color, str) and face_color.strip():
+        fig_spec["facecolor"] = face_color.strip()
+        fig_spec["axes_facecolor"] = face_color.strip()
+    if isinstance(text_color, str) and text_color.strip():
+        fig_spec["textcolor"] = text_color.strip()
+    if isinstance(axis_color, str) and axis_color.strip():
+        fig_spec["gridcolor"] = axis_color.strip()
+    if legend_position not in ("auto", "none", ""):
+        fig_spec["legend_loc"] = legend_position
+    line_width = _appearance_number(a, "line_width", 1.7, 0.2, 8.0)
+    color_overrides = a.get("curve_colors") if isinstance(a.get("curve_colors"), Mapping) else {}
+    width_overrides = a.get("curve_widths") if isinstance(a.get("curve_widths"), Mapping) else {}
+    style_overrides = a.get("curve_styles") if isinstance(a.get("curve_styles"), Mapping) else {}
+    xlim = _appearance_limit(a, "x_min", "x_max")
+    ylim = _appearance_limit(a, "y_min", "y_max")
+    show_markers = bool(a.get("show_markers", True))
+    show_annotations = bool(a.get("show_annotations", True))
+    grid_on = bool(a.get("grid", True))
     for entry in entries:
         for curve in entry.envelope.get("curves") or []:
             axes = curve.get("axes") or []
@@ -168,16 +240,29 @@ def build_figure(entries: Sequence[ExportEntry], *, title: str | None = None) ->
             if not x_values or len(x_values) != len(y_values):
                 continue
             curve_id = str(curve.get("id") or "curve")
-            color = curve_colors.setdefault(curve_id, _PALETTE[len(curve_colors) % len(_PALETTE)])
+            color = str(color_overrides.get(curve_id) or curve_colors.setdefault(curve_id, _PALETTE[len(curve_colors) % len(_PALETTE)]))
             x_meta = axis_ids.get(x_axis) or {}
             y_meta = axis_ids.get(y_axis) or {}
-            view = {
-                "xlabel": str(x_meta.get("label") or x_axis),
-                "ylabel": str(y_meta.get("label") or y_axis),
-                "xscale": AXIS_SCALE.get(str(x_meta.get("scale") or "linear"), "linear"),
-                "yscale": AXIS_SCALE.get(str(y_meta.get("scale") or "linear"), "linear"),
-                "grid": True,
+            xlabel = str(a.get("xlabel") or x_meta.get("label") or x_axis)
+            ylabel = str(a.get("ylabel") or y_meta.get("label") or y_axis) if subplot == 0 else str(y_meta.get("label") or y_axis)
+            x_choice = str(a.get("xscale") or "auto")
+            y_choice = str(a.get("yscale") or "auto")
+            view: dict[str, Any] = {
+                "xlabel": xlabel,
+                "ylabel": ylabel,
+                "xscale": AXIS_SCALE.get(x_choice, "linear") if x_choice in ("linear", "log") else AXIS_SCALE.get(str(x_meta.get("scale") or "linear"), "linear"),
+                "yscale": AXIS_SCALE.get(y_choice, "linear") if y_choice in ("linear", "log") else AXIS_SCALE.get(str(y_meta.get("scale") or "linear"), "linear"),
+                "grid": grid_on,
             }
+            if xlim:
+                view["xlim"] = xlim
+            if ylim:
+                view["ylim"] = ylim
+            try:
+                curve_width = float(width_overrides.get(curve_id) or line_width)
+            except (TypeError, ValueError):
+                curve_width = line_width
+            dash = str(style_overrides.get(curve_id) or dash_by_state.get(entry.state_id, "solid"))
             _layer(
                 figure,
                 x=x_values,
@@ -185,7 +270,8 @@ def build_figure(entries: Sequence[ExportEntry], *, title: str | None = None) ->
                 subplot=subplot,
                 label=_curve_label(entry, curve, multi),
                 color=color,
-                dash=dash_by_state.get(entry.state_id, "solid"),
+                dash=dash,
+                width=curve_width,
                 view=view,
             )
 
@@ -205,32 +291,34 @@ def build_figure(entries: Sequence[ExportEntry], *, title: str | None = None) ->
             category = str(marker.get("category") or "response")
             color = MARKER_COLOR.get(category, "#666666")
             symbol = MARKER_SYMBOL.get(shape, "circle")
-            figure.add_plot(
-                "scatter",
-                x=[x_value],
-                y=[y_value],
-                subplot=subplot_of[axis_y],
-                label=None,
-                legend=False,
-                style={
-                    "color": color,
-                    "marker": {"symbol": symbol, "size": 8},
-                    "mode": "markers",
-                    "opacity": 0.95,
-                },
-            )
-            label = str(marker.get("label") or shape)
-            notes.append(
-                {
-                    "kind": "mark",
-                    "text": label,
-                    "x": x_value,
-                    "y": y_value,
-                    "subplot": subplot_of[axis_y],
-                    "color": color,
-                    "size": 9.5,
-                }
-            )
+            if show_markers:
+                figure.add_plot(
+                    "scatter",
+                    x=[x_value],
+                    y=[y_value],
+                    subplot=subplot_of[axis_y],
+                    label=None,
+                    legend=False,
+                    style={
+                        "color": color,
+                        "marker": {"symbol": symbol, "size": 8},
+                        "mode": "markers",
+                        "opacity": 0.95,
+                    },
+                )
+            if show_annotations:
+                label = str(marker.get("label") or shape)
+                notes.append(
+                    {
+                        "kind": "mark",
+                        "text": label,
+                        "x": x_value,
+                        "y": y_value,
+                        "subplot": subplot_of[axis_y],
+                        "color": color,
+                        "size": 9.5,
+                    }
+                )
             del axis_x
 
     figure.spec.setdefault("figure", {})["notes"] = notes
@@ -387,6 +475,7 @@ def export_session(
     layout: Mapping[str, Any] | None = None,
     source_path: str | None = None,
     title: str | None = None,
+    appearance: Mapping[str, Any] | None = None,
 ) -> ExportArtifact:
     """解析会话缓存并生成导出文件。"""
     fmt = _require_format(format)
@@ -493,7 +582,7 @@ def export_session(
                 ),
             )
             try:
-                figure = build_figure(entries, title=title)
+                figure = build_figure(entries, title=title, appearance=appearance)
             except Exception as exc:  # PlotKit 不可用时不阻断数据包
                 archive.writestr("errors.txt", f"PlotKit spec 生成失败：{exc}")
             else:
@@ -503,7 +592,7 @@ def export_session(
                 )
         return ExportArtifact(f"{base}.zip", MEDIA_TYPES[fmt], buffer.getvalue())
 
-    figure = build_figure(entries, title=title)
+    figure = build_figure(entries, title=title, appearance=appearance)
     if fmt == "spec":
         payload = plot_spec_payload(figure)
         return ExportArtifact(

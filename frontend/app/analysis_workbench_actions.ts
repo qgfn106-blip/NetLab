@@ -114,6 +114,65 @@ export abstract class WorkbenchActions {
     return result ? 'saved' : 'cancelled';
   }
 
+  private previewExport(blob: Blob, filename: string, format: string): Promise<boolean> {
+    if (!['png', 'svg', 'pdf'].includes(format)) return Promise.resolve(true);
+    const url = URL.createObjectURL(blob);
+    return new Promise<boolean>((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'awb-export-preview';
+      const card = document.createElement('div');
+      card.className = 'awb-export-preview-card';
+      const heading = document.createElement('div');
+      heading.className = 'awb-export-preview-head';
+      heading.textContent = '导出预览 · ' + filename;
+      const body = document.createElement('div');
+      body.className = 'awb-export-preview-body';
+      if (format === 'pdf') {
+        const frame = document.createElement('iframe');
+        frame.src = url;
+        frame.title = filename;
+        body.append(frame);
+      } else {
+        const image = document.createElement('img');
+        image.src = url;
+        image.alt = filename;
+        body.append(image);
+      }
+      const actions = document.createElement('div');
+      actions.className = 'awb-export-preview-actions';
+      const cancel = document.createElement('button');
+      cancel.type = 'button';
+      cancel.className = 'btn';
+      cancel.textContent = '取消';
+      const save = document.createElement('button');
+      save.type = 'button';
+      save.className = 'btn primary';
+      save.textContent = '保存';
+      actions.append(cancel, save);
+      card.append(heading, body, actions);
+      overlay.append(card);
+      document.body.append(overlay);
+      const close = (confirmed: boolean): void => {
+        document.removeEventListener('keydown', onKey, true);
+        overlay.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 500);
+        resolve(confirmed);
+      };
+      const onKey = (event: KeyboardEvent): void => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          close(false);
+        }
+      };
+      cancel.addEventListener('click', () => close(false));
+      save.addEventListener('click', () => close(true));
+      overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) close(false);
+      });
+      document.addEventListener('keydown', onKey, true);
+    });
+  }
+
   protected async exportResult(): Promise<void> {
     if (!this.sessionId) {
       toast('分析会话尚未就绪，无法导出', 'error', 4000);
@@ -151,6 +210,7 @@ export abstract class WorkbenchActions {
         kind: kind === 'metrics' ? undefined : kind,
         format: this.exportFormat,
         ...(resultIds ? { result_ids: resultIds } : {}),
+        ...(this.exportScope === 'subcanvas' && canvas?.appearance ? { appearance: canvas.appearance } : {}),
         source_path: undefined,
       });
       const disposition = response.headers.get('Content-Disposition') || '';
@@ -158,6 +218,10 @@ export abstract class WorkbenchActions {
       const fallback = `netlab-analysis.${this.exportFormat === 'spec' ? 'plotkit.json' : this.exportFormat}`;
       const filename = matched ? matched[1] : fallback;
       const blob = await response.blob();
+      if (!(await this.previewExport(blob, filename, this.exportFormat))) {
+        toast('已取消导出', 'info', 3000);
+        return;
+      }
       const saved = await this.saveBlobViaDesktop(blob, filename);
       if (saved === 'saved') {
         toast('已保存 ' + filename, 'success', 3000);

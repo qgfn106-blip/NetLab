@@ -82,6 +82,7 @@ class ExportRequest(BaseModel):
     layout: dict[str, Any] | None = None
     source_path: str | None = None
     title: str | None = None
+    appearance: dict[str, Any] | None = None
 
 
 class InvalidateRequest(BaseModel):
@@ -405,6 +406,7 @@ def workbench_export(request: ExportRequest) -> Response:
         layout=request.layout,
         source_path=request.source_path,
         title=request.title,
+        appearance=request.appearance,
     )
     return Response(
         content=artifact.data,

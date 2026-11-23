@@ -2490,3 +2490,10 @@ html[data-density="loose"] .setwin-nav button { padding-top: calc(8px * var(--ui
 .analysis-evidence dt { color: var(--muted); }
 .analysis-evidence dd { margin: 0; font-family: var(--mono); overflow-wrap: anywhere; }
 .analysis-evidence dd.mono { font-size: calc(9.5px * var(--ui-font-scale, 1)); }
+.awb-export-preview { position: fixed; inset: 0; z-index: 1300; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .55); padding: 24px; }
+.awb-export-preview-card { display: flex; flex-direction: column; width: min(1080px, 94vw); max-height: 92vh; border: var(--ui-line, 1px) solid var(--line-strong, #333); border-radius: 10px; background: var(--paper, #151515); box-shadow: 0 18px 48px rgba(0, 0, 0, .45); overflow: hidden; }
+.awb-export-preview-head { flex: none; padding: 12px 16px; border-bottom: 1px solid var(--line, #333); font-size: calc(12px * var(--ui-font-scale, 1)); color: var(--text-primary, #eee); }
+.awb-export-preview-body { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; overflow: auto; background: var(--paper-2, #1b1b1b); }
+.awb-export-preview-body img { max-width: 100%; max-height: 72vh; object-fit: contain; background: #fff; }
+.awb-export-preview-body iframe { width: 100%; height: 72vh; border: 1px solid var(--line, #333); background: #fff; }
+.awb-export-preview-actions { flex: none; display: flex; justify-content: flex-end; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--line, #333); }

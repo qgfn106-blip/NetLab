@@ -397,7 +397,12 @@ export class AnalysisWorkbench extends WorkbenchActions {
       .map((node) => String(node.name || ''))
       .filter(Boolean);
     if (!names.length) return optionHtml('', '（无节点）', true);
-    return names.map((name) => optionHtml(name, name, name === String(selected || ''))).join('');
+    const outputPort = nodes.find((node) => {
+      const params = (node.params || {}) as Record<string, unknown>;
+      return String(params.port_direction || '') === 'output';
+    });
+    const chosen = String(selected || outputPort?.name || names[0] || '');
+    return names.map((name) => optionHtml(name, name, name === chosen)).join('');
   }
 
   private bindParamInputs(): void {

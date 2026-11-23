@@ -1379,6 +1379,39 @@ def _frequency_axis(
     return np.linspace(float(f_start), float(f_stop), count)
 
 
+def _analytic_loop_frequency_response(
+    extraction: Any, frequencies: Any
+) -> np.ndarray | None:
+    """用断环解析传函计算回路频响，避免数值断环在高频的条件数退化。
+
+    extraction.loop_gain 来自每个频点的描述系统数值求解；当回路增益幅值
+    很小（高频段）时，断环测试解与输入解会发生严重相消，出现虚假的
+    -160 dB 地板和相位跳回 0°。open_loop_transfer 是同一描述系统铅笔
+    的解析传函（表达式形式），低频已与数值解逐点一致，全程用它可保证
+    Bode/Nyquist 符合数学推导。解析不可用时回退到原始数值解。
+    """
+    transfer = getattr(extraction, "open_loop_transfer", None)
+    if not isinstance(transfer, dict):
+        return None
+    if not transfer.get("supported") or not transfer.get("expression"):
+        return None
+    try:
+        tf = transfer_math.parse_expression(str(transfer["expression"]))
+        magnitude, phase = tf.frequency_response(
+            2.0 * math.pi * np.asarray(frequencies, dtype=np.float64)
+        )
+        response = np.asarray(magnitude, dtype=np.float64) * np.exp(
+            1j * np.asarray(phase, dtype=np.float64)
+        )
+    except Exception:  # noqa: BLE001 - 解析不可用时保持原有数值路径
+        return None
+    if response.shape != np.asarray(frequencies).shape:
+        return None
+    if not np.all(np.isfinite(response.real)) or not np.all(np.isfinite(response.imag)):
+        return None
+    return response
+
+
 def _node_frequency_gain(node: Any, omega: float) -> complex:
     """单个 signal 节点在 jω 处的局部复增益。"""
     kind = node.kind
@@ -2175,8 +2208,11 @@ def loop_analysis(
     except (ComputeError, ValidationError, ValueError) as exc:
         raise AnalysisError(f"断环分析失败：{exc}") from exc
 
+    loop_response = _analytic_loop_frequency_response(extraction, frequencies)
+    if loop_response is None:
+        loop_response = extraction.loop_gain
     margins = stability_margins(
-        frequencies, extraction.loop_gain, feedback_sign=feedback_sign
+        frequencies, loop_response, feedback_sign=feedback_sign
     )
     source_payload = {
         "domain": "circuit",
@@ -2209,8 +2245,8 @@ def loop_analysis(
         scene, {**analysis_params, "op_present": bool(operating_point)}
     )
 
-    magnitude_db = 20.0 * np.log10(np.maximum(np.abs(extraction.loop_gain), 1e-300))
-    phase_deg = np.degrees(np.unwrap(np.angle(extraction.loop_gain)))
+    magnitude_db = 20.0 * np.log10(np.maximum(np.abs(loop_response), 1e-300))
+    phase_deg = np.degrees(np.unwrap(np.angle(loop_response)))
     envelope_warnings = list(extraction.warnings)
     if margins["stable_from_margins"] is False:
         envelope_warnings.append(
@@ -2237,8 +2273,17 @@ def loop_analysis(
         fingerprint_value=fingerprint_value,
     )
     if display == "closed_loop":
-        closed_mag = 20.0 * np.log10(np.maximum(np.abs(extraction.closed_loop), 1e-300))
-        closed_phase = np.degrees(np.unwrap(np.angle(extraction.closed_loop)))
+        closed_synth = extraction.closed_loop
+        with np.errstate(divide="ignore", invalid="ignore"):
+            candidate_synth = loop_response / (
+                1.0 + float(feedback_sign) * loop_response
+            )
+        if np.all(np.isfinite(candidate_synth.real)) and np.all(
+            np.isfinite(candidate_synth.imag)
+        ):
+            closed_synth = candidate_synth
+        closed_mag = 20.0 * np.log10(np.maximum(np.abs(closed_synth), 1e-300))
+        closed_phase = np.degrees(np.unwrap(np.angle(closed_synth)))
         bode_payload = bode_envelope(
             frequencies=frequencies,
             magnitude_db=closed_mag,
@@ -2360,7 +2405,7 @@ def loop_analysis(
         "output": extraction.output_name,
         "feedback_sign": float(feedback_sign),
         "frequencies_hz": [float(value) for value in frequencies],
-        "loop_gain": _complex_list(extraction.loop_gain),
+        "loop_gain": _complex_list(loop_response),
         "forward_gain": _complex_list(extraction.forward_gain),
         "closed_loop": _complex_list(extraction.closed_loop),
         "direct_response": (
@@ -2479,9 +2524,12 @@ def nyquist_analysis(
     fingerprint_value = scene_fingerprint(
         scene, {**analysis_params, "op_present": bool(operating_point)}
     )
+    loop_response = _analytic_loop_frequency_response(extraction, frequencies)
+    if loop_response is None:
+        loop_response = extraction.loop_gain
     payload = nyquist_envelope(
         frequencies,
-        extraction.loop_gain,
+        loop_response,
         source=source_payload,
         poles=extraction.poles,
         feedback_sign=feedback_sign,
@@ -2508,7 +2556,7 @@ def nyquist_analysis(
         "output": extraction.output_name,
         "feedback_sign": float(feedback_sign),
         "frequencies_hz": [float(value) for value in frequencies],
-        "loop_gain": _complex_list(extraction.loop_gain),
+        "loop_gain": _complex_list(loop_response),
         "poles": extraction.poles,
         "metrics": metrics,
         "warnings": warnings_list,

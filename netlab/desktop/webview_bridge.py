@@ -203,6 +203,7 @@ class WebviewBridge:
             target = Path(path)
             if not target.suffix:
                 target = target.with_suffix(suffix)
+            ensure_allowed_path(target, purpose="导出路径")
             target.write_text(str(text), encoding="utf-8", newline="\n")
             self._last_directory = str(target.parent)
             return str(target)

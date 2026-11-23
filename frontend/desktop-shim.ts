@@ -38,6 +38,7 @@ interface NetlabDesktopApi {
   saveProject: DesktopMethod;
   saveProjectTo: DesktopMethod;
   saveText: DesktopMethod;
+  saveBytes: DesktopMethod;
   openProject: DesktopMethod;
   openProjectPath: DesktopMethod;
   currentPath: DesktopMethod;
@@ -123,6 +124,7 @@ interface Window {
     saveProject: wrap('save_project'),
     saveProjectTo: wrap('save_project_to'),
     saveText: wrap('save_text'),
+    saveBytes: wrap('save_bytes'),
     openProject: wrap('open_project'),
     openProjectPath: wrap('open_project_path'),
     currentPath: wrap('current_path'),

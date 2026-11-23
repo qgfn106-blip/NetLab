@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 from pathlib import Path
@@ -150,6 +151,33 @@ class WebviewBridge:
             self._current_path = target
             self._last_directory = str(Path(target).parent)
             self._dirty = False
+            return target
+        except Exception as exc:
+            return f"__error__{exc}"
+
+    def save_bytes(self, default_name: str, data_base64: str) -> str:
+        """把二进制导出（PNG/PDF/ZIP 等）写到用户在原生对话框里选的路径。
+
+        网页只传 base64 数据，不接触文件路径；每次导出都显式弹保存对话框。
+        返回真实写入路径；用户取消返回 ""；失败返回 "__error__<原因>"。
+        """
+        try:
+            name = (default_name or "export.bin").strip() or "export.bin"
+            payload = base64.b64decode(str(data_base64 or ""), validate=True)
+            suffix = Path(name).suffix or ".bin"
+            file_types = (
+                f"{suffix.lstrip('.').upper()} 文件 (*{suffix})",
+                "所有文件 (*.*)",
+            )
+            path = self._dialog(save=True, default_name=name, file_types=file_types)
+            if not path:
+                return ""
+            target = str(path)
+            if suffix and not target.lower().endswith(suffix.lower()):
+                target += suffix
+            ensure_allowed_path(target, purpose="导出路径")
+            atomic_write(target, payload)
+            self._last_directory = str(Path(target).parent)
             return target
         except Exception as exc:
             return f"__error__{exc}"

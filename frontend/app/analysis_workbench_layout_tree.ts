@@ -7,6 +7,7 @@
  * 本模块不依赖 DOM，便于单元测试与工程序列化。
  */
 import type { AnalysisKind } from './analysis_workbench_meta.js';
+import type { ChartAppearance } from './analysis_chart_appearance.js';
 
 export interface WorkbenchCanvasRec {
   canvas_id: string;
@@ -15,6 +16,8 @@ export interface WorkbenchCanvasRec {
   slot_id: number;
   title: string;
   view_state?: Record<string, unknown>;
+  /** 子图外观：标题、轴、网格、图例；缺省表示使用默认值。 */
+  appearance?: ChartAppearance;
   /** 该画布最近一次成功运行的结果 key（导出时绑定实际结果，避免同状态同类型串结果）。 */
   result_key?: string;
   /** 多状态对比时该画布对应的各状态结果 key（导出绑定用）。 */
@@ -359,5 +362,11 @@ export function layoutPresetOf(root: LayoutNode): LayoutPreset {
 
 /** 新建/复制标签页时用的浅拷贝画布记录工厂。 */
 export function cloneCanvasRec(rec: WorkbenchCanvasRec, canvasId: string, title: string): WorkbenchCanvasRec {
-  return { ...rec, canvas_id: canvasId, title, view_state: rec.view_state ? JSON.parse(JSON.stringify(rec.view_state)) : undefined };
+  return {
+    ...rec,
+    canvas_id: canvasId,
+    title,
+    view_state: rec.view_state ? JSON.parse(JSON.stringify(rec.view_state)) : undefined,
+    appearance: rec.appearance ? JSON.parse(JSON.stringify(rec.appearance)) : undefined,
+  };
 }

@@ -119,7 +119,8 @@ class AnalysisWorkbench extends WorkbenchActions {
     this.workspace = new AnalysisCanvasWorkspace(chartHost, this.detailHost, this.initialUi.canvases, this.initialUi.layout, {
       onCursor: (frequency, source, canvasId, unit, axisKey) => this.onCursor(frequency, source, canvasId, unit, axisKey),
       onPin: () => this.renderToolbar(),
-      onChange: () => this.onWorkspaceChange()
+      onChange: () => this.onWorkspaceChange(),
+      onSettingsChange: () => this.persist()
     });
     this.mounting = false;
     this.applyLayout();

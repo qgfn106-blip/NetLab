@@ -1,7 +1,7 @@
 import { transferSummaryHtml } from "./analysis_workbench_results.js";
 import { LAYOUT_PRESETS } from "./analysis_workbench_layout_tree.js";
 import { analysisLoopCandidatesRequest, analysisLoopFromBreakRequest, analysisLoopsRequest, workbenchExportRequest } from "./analysis_client.js";
-import { toast } from "./desktop.js";
+import { callBridge, isDesktop, toast } from "./desktop.js";
 import {
   KIND_LABELS,
   describeRunStatus,
@@ -45,6 +45,7 @@ class WorkbenchActions {
       '  <button type="button" class="btn tiny awb-icon-btn" data-awb="sidebar-collapse" title="\u6298\u53E0/\u5C55\u5F00\u5DE6\u4FA7\u5BFC\u822A">\u25E7</button>',
       '  <button type="button" class="btn tiny awb-icon-btn" data-awb="detail-collapse" title="\u6298\u53E0/\u5C55\u5F00\u53F3\u4FA7\u8BE6\u60C5">\u25E8</button>',
       '  <button type="button" class="btn tiny awb-icon-btn" data-awb="focus" title="\u4E13\u6CE8\u6A21\u5F0F\uFF08Esc \u9000\u51FA\uFF09">\u26F6</button>',
+      hasCanvas ? '  <button type="button" class="btn tiny awb-icon-btn" data-awb="chart-settings" title="\u56FE\u8868\u8BBE\u7F6E\uFF08\u6807\u9898/\u5750\u6807\u8F74/\u7F51\u683C/\u56FE\u4F8B\uFF09">\u2699</button>' : "",
       '  <select class="awb-select tiny" data-awb="layout" title="\u753B\u5E03\u5E03\u5C40">' + LAYOUT_PRESETS.map(([preset, label]) => optionHtml(preset, label, (this.workspace?.layout || "auto") === preset)).join("") + "</select>",
       '  <select class="awb-select tiny" data-awb="export-format" title="\u5BFC\u51FA\u683C\u5F0F">' + ["png", "svg", "pdf", "spec", "csv", "json", "zip"].map((fmt) => optionHtml(fmt, fmt.toUpperCase(), fmt === this.exportFormat)).join("") + "</select>",
       '  <select class="awb-select tiny" data-awb="export-scope" title="\u5BFC\u51FA\u8303\u56F4">' + optionHtml("subcanvas", "\u5F53\u524D\u753B\u5E03", this.exportScope === "subcanvas") + optionHtml("canvas", "\u5168\u90E8\u72B6\u6001", this.exportScope === "canvas") + "</select>",
@@ -73,6 +74,23 @@ class WorkbenchActions {
     this.toolbarHost.querySelector('[data-awb="export"]')?.addEventListener("click", () => {
       void this.exportResult();
     });
+    this.toolbarHost.querySelector('[data-awb="chart-settings"]')?.addEventListener("click", () => {
+      const id = this.selectedCanvas()?.canvas_id;
+      if (id) this.workspace?.openChartSettings(id);
+    });
+  }
+  async saveBlobViaDesktop(blob, filename) {
+    if (!isDesktop()) return "unsupported";
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binary = "";
+    const chunk = 32768;
+    for (let offset = 0; offset < bytes.length; offset += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + chunk));
+    }
+    const result = await callBridge("saveBytes", [filename, btoa(binary)]);
+    if (typeof result !== "string") return "unsupported";
+    if (result.startsWith("__error__")) throw new Error(result.slice("__error__".length));
+    return result ? "saved" : "cancelled";
   }
   async exportResult() {
     if (!this.sessionId) {
@@ -115,6 +133,15 @@ class WorkbenchActions {
       const fallback = `netlab-analysis.${this.exportFormat === "spec" ? "plotkit.json" : this.exportFormat}`;
       const filename = matched ? matched[1] : fallback;
       const blob = await response.blob();
+      const saved = await this.saveBlobViaDesktop(blob, filename);
+      if (saved === "saved") {
+        toast("\u5DF2\u4FDD\u5B58 " + filename, "success", 3e3);
+        return;
+      }
+      if (saved === "cancelled") {
+        toast("\u5DF2\u53D6\u6D88\u5BFC\u51FA", "info", 3e3);
+        return;
+      }
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;

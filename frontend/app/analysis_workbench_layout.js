@@ -1,4 +1,5 @@
 import { emptyLayout, normalizeLayout } from "./analysis_workbench_layout_tree.js";
+import { chartAppearanceIsDefault, normalizeChartAppearance } from "./analysis_chart_appearance.js";
 const WORKBENCH_SCHEMA = "netlab-analysis-workbench/2";
 const LEGACY_WORKBENCH_SCHEMA = "netlab-analysis-workbench/1";
 const WORKBENCH_KINDS = ["bode", "time", "nyquist", "loop", "loop_closed", "loop_step", "step_open", "nyquist_closed"];
@@ -30,6 +31,7 @@ function normalizeCanvas(value, index) {
   const id = typeof value.canvas_id === "string" ? value.canvas_id.trim() : "";
   if (!kind || !id) return null;
   const view = isRecord(value.view_state) ? value.view_state : void 0;
+  const appearance = value.appearance ? normalizeChartAppearance(value.appearance) : void 0;
   return {
     canvas_id: id,
     kind,
@@ -37,6 +39,7 @@ function normalizeCanvas(value, index) {
     slot_id: integer(value.slot_id, index, 0, 63),
     title: typeof value.title === "string" && value.title ? value.title : "",
     ...view ? { view_state: view } : {},
+    ...appearance && !chartAppearanceIsDefault(appearance) ? { appearance } : {},
     ...typeof value.result_key === "string" && value.result_key ? { result_key: value.result_key } : {},
     ...Array.isArray(value.result_keys) ? { result_keys: value.result_keys.filter((item) => typeof item === "string" && item !== "") } : {}
   };

@@ -6,6 +6,8 @@
  */
 import { createAnalysisChart } from './analysis_chart.js';
 import type { AnalysisChart, AnalysisEnvelope } from './analysis_chart.js';
+import { chartAppearanceIsDefault, cloneChartAppearance, type ChartAppearance } from './analysis_chart_appearance.js';
+import { openChartSettingsDialog } from './analysis_workbench_chart_settings.js';
 import type { AnalysisKind } from './analysis_workbench_meta.js';
 import { KIND_LABELS } from './analysis_workbench_meta.js';
 import type { WorkbenchCanvasRec } from './analysis_workbench_layout.js';
@@ -33,6 +35,7 @@ export interface CanvasWorkspaceEvents {
   onCursor?(frequency: number | null, source: string, canvasId: string, unit?: string, axisKey?: string): void;
   onPin?(canvasId: string): void;
   onChange?(): void;
+  onSettingsChange?(): void;
 }
 
 interface CanvasEntry {
@@ -182,6 +185,7 @@ export class AnalysisCanvasWorkspace {
     tile.append(head, body);
     const chart = createAnalysisChart(body, {
       title: rec.title || KIND_LABELS[rec.kind as AnalysisKind] || rec.kind,
+      appearance: rec.appearance,
       detailHost: null,
       events: {
         onCursor: (frequency, source, unit, axisKey) => this.events.onCursor?.(frequency, source, rec.canvas_id, unit, axisKey),
@@ -471,6 +475,7 @@ export class AnalysisCanvasWorkspace {
     const entry = this.entry(canvasId);
     if (!entry) return;
     this.menu.open(anchor, [
+      { label: '图表设置…', action: () => this.openChartSettings(canvasId) },
       { label: '向右分割', action: () => this.splitCanvas(canvasId, 'row', 'after') },
       { label: '向下分割', action: () => this.splitCanvas(canvasId, 'column', 'after') },
       { label: '复制子图', action: () => this.duplicateCanvas(canvasId) },
@@ -736,13 +741,38 @@ export class AnalysisCanvasWorkspace {
     return this.entry(this.activeId)?.rec.kind || null;
   }
 
+  openChartSettings(canvasId?: string): void {
+    const entry = this.entry(canvasId || this.activeId);
+    if (!entry) return;
+    const original = entry.chart.getAppearance();
+    const envelope = entry.chart.getEnvelope();
+    const curves = (envelope?.curves || []).map((curve) => ({ id: curve.id, label: curve.label }));
+    const panelCount = envelope?.kind === 'bode' && envelope.curves.some((curve) => curve.axes[1] === 'phase_deg') ? 2 : 1;
+    openChartSettingsDialog({
+      initial: original,
+      curves,
+      panelCount,
+      onPreview: (next) => entry.chart.setAppearance(next),
+      onCancel: () => entry.chart.setAppearance(original),
+      onCommit: (next) => {
+        entry.rec.appearance = cloneChartAppearance(next);
+        entry.chart.setAppearance(next);
+        this.events.onSettingsChange?.();
+      },
+    });
+  }
+
   persist(): WorkbenchCanvasRec[] {
     return this.entries.map((entry) => {
       const view = entry.chart.getViewState() || entry.viewState;
-      return {
+      const appearance = entry.chart.getAppearance();
+      const rec: WorkbenchCanvasRec = {
         ...entry.rec,
         ...(view ? { view_state: view as Record<string, unknown> } : {}),
       };
+      if (chartAppearanceIsDefault(appearance)) delete rec.appearance;
+      else rec.appearance = appearance;
+      return rec;
     });
   }
 

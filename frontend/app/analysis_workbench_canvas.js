@@ -1,4 +1,6 @@
 import { createAnalysisChart } from "./analysis_chart.js";
+import { chartAppearanceIsDefault, cloneChartAppearance } from "./analysis_chart_appearance.js";
+import { openChartSettingsDialog } from "./analysis_workbench_chart_settings.js";
 import { KIND_LABELS } from "./analysis_workbench_meta.js";
 import {
   appendCanvas,
@@ -134,6 +136,7 @@ class AnalysisCanvasWorkspace {
     tile.append(head, body);
     const chart = createAnalysisChart(body, {
       title: rec.title || KIND_LABELS[rec.kind] || rec.kind,
+      appearance: rec.appearance,
       detailHost: null,
       events: {
         onCursor: (frequency, source, unit, axisKey) => this.events.onCursor?.(frequency, source, rec.canvas_id, unit, axisKey),
@@ -412,6 +415,7 @@ class AnalysisCanvasWorkspace {
     const entry = this.entry(canvasId);
     if (!entry) return;
     this.menu.open(anchor, [
+      { label: "\u56FE\u8868\u8BBE\u7F6E\u2026", action: () => this.openChartSettings(canvasId) },
       { label: "\u5411\u53F3\u5206\u5272", action: () => this.splitCanvas(canvasId, "row", "after") },
       { label: "\u5411\u4E0B\u5206\u5272", action: () => this.splitCanvas(canvasId, "column", "after") },
       { label: "\u590D\u5236\u5B50\u56FE", action: () => this.duplicateCanvas(canvasId) },
@@ -650,13 +654,37 @@ class AnalysisCanvasWorkspace {
   get activeKind() {
     return this.entry(this.activeId)?.rec.kind || null;
   }
+  openChartSettings(canvasId) {
+    const entry = this.entry(canvasId || this.activeId);
+    if (!entry) return;
+    const original = entry.chart.getAppearance();
+    const envelope = entry.chart.getEnvelope();
+    const curves = (envelope?.curves || []).map((curve) => ({ id: curve.id, label: curve.label }));
+    const panelCount = envelope?.kind === "bode" && envelope.curves.some((curve) => curve.axes[1] === "phase_deg") ? 2 : 1;
+    openChartSettingsDialog({
+      initial: original,
+      curves,
+      panelCount,
+      onPreview: (next) => entry.chart.setAppearance(next),
+      onCancel: () => entry.chart.setAppearance(original),
+      onCommit: (next) => {
+        entry.rec.appearance = cloneChartAppearance(next);
+        entry.chart.setAppearance(next);
+        this.events.onSettingsChange?.();
+      }
+    });
+  }
   persist() {
     return this.entries.map((entry) => {
       const view = entry.chart.getViewState() || entry.viewState;
-      return {
+      const appearance = entry.chart.getAppearance();
+      const rec = {
         ...entry.rec,
         ...view ? { view_state: view } : {}
       };
+      if (chartAppearanceIsDefault(appearance)) delete rec.appearance;
+      else rec.appearance = appearance;
+      return rec;
     });
   }
   setEnvelope(canvasId, envelope, resultKey, resultKeys) {

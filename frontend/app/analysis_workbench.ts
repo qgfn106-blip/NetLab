@@ -139,6 +139,7 @@ export class AnalysisWorkbench extends WorkbenchActions {
       onCursor: (frequency, source, canvasId, unit, axisKey) => this.onCursor(frequency, source, canvasId, unit, axisKey),
       onPin: () => this.renderToolbar(),
       onChange: () => this.onWorkspaceChange(),
+      onSettingsChange: () => this.persist(),
     });
     this.mounting = false;
     this.applyLayout();

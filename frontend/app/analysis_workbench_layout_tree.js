@@ -263,7 +263,13 @@ function layoutPresetOf(root) {
   return root.axis === "row" ? "row" : "column";
 }
 function cloneCanvasRec(rec, canvasId, title) {
-  return { ...rec, canvas_id: canvasId, title, view_state: rec.view_state ? JSON.parse(JSON.stringify(rec.view_state)) : void 0 };
+  return {
+    ...rec,
+    canvas_id: canvasId,
+    title,
+    view_state: rec.view_state ? JSON.parse(JSON.stringify(rec.view_state)) : void 0,
+    appearance: rec.appearance ? JSON.parse(JSON.stringify(rec.appearance)) : void 0
+  };
 }
 export {
   LAYOUT_PRESETS,

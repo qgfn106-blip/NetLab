@@ -207,6 +207,17 @@ try {
   assert(nyquistKeyAfter === nyquistKeyBefore, 'Bode 慢响应串写到了 Nyquist 画布: ' + nyquistKeyBefore + ' -> ' + nyquistKeyAfter);
   await page.unroute('**/api/analysis/workbench/run');
 
+  // 7e) 每个子图可设置标题、轴名称、网格与图例，并随工程保存。
+  await page.locator('[data-awb="chart-settings"]').click();
+  await page.waitForSelector('#modal:not(.hidden) .awb-settings-card', { timeout: 4000 });
+  const settingsTitle = page.locator('.awb-settings-card input[type="text"]').nth(0);
+  const settingsXLabel = page.locator('.awb-settings-card input[type="text"]').nth(1);
+  await settingsTitle.fill('奈奎斯特图');
+  await settingsXLabel.fill('实部');
+  await page.locator('.awb-settings-card .awb-settings-row select').nth(3).selectOption('dashed');
+  await page.locator('#modalCard').getByRole('button', { name: '应用', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('#modal')?.classList.contains('hidden'), null, { timeout: 3000 });
+
   // 8) 快照两个状态并进入多状态对比。
   await page.locator('[data-awb="snapshot"]').click();
   await sleep(800);
@@ -233,6 +244,23 @@ try {
   await exportDownload.path();
   await page.waitForTimeout(300);
 
+  // 8c) 桌面壳导出必须走原生二进制保存桥，不能只触发浏览器下载假成功。
+  await page.evaluate(() => {
+    window.__savedExport = null;
+    window.netlabDesktop = {
+      saveBytes: (name, data, callback) => {
+        window.__savedExport = { name, length: data.length };
+        callback('C:/tmp/' + name);
+      },
+    };
+  });
+  await page.locator('[data-awb="export"]').click();
+  await page.waitForFunction(() => !!window.__savedExport, null, { timeout: 8000 });
+  const savedExport = await page.evaluate(() => window.__savedExport);
+  assert(savedExport.name.endsWith('.png'), '桌面导出文件名不是 PNG: ' + savedExport.name);
+  assert(savedExport.length > 100, '桌面导出二进制内容为空');
+  await page.evaluate(() => { delete window.netlabDesktop; });
+
   // 9) 保存工程后再载入：布局、画布注册表与当前分析恢复（AC-15/AC-20）。
   const downloadPromise = page.waitForEvent('download');
   await page.locator('#menuItems .menu > button').filter({ hasText: '文件' }).click();
@@ -245,6 +273,7 @@ try {
   const savedRoot = savedWorkbench?.layout?.tabs?.[0]?.root;
   assert(savedRoot?.type === 'split' && savedRoot?.axis === 'row', '工程未保存工作台布局: ' + JSON.stringify(savedWorkbench?.layout || null));
   assert((savedWorkbench?.canvases || []).length >= 2, '工程未保存画布注册表');
+  assert((savedWorkbench?.canvases || []).some((item) => item?.appearance?.title === '奈奎斯特图'), '工程未保存子图外观设置');
   assert(savedWorkbench?.active_analysis === 'nyquist', '工程未保存当前分析: ' + String(savedWorkbench?.active_analysis));
   await page.locator('input[type="file"][accept*=".netlab"]').setInputFiles(savedPath);
   await page.waitForTimeout(1500);

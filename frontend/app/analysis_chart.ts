@@ -27,6 +27,11 @@ import {
 } from './analysis_chart_detail.js';
 import { loadPlot2D, type Plot2DApi, type PlotAxis, type PlotRenderResult } from './analysis_chart_plot.js';
 import { chartXAxisKey, chartXUnit, cursorAxisCompatible } from './analysis_chart_utils.js';
+import {
+  cloneChartAppearance,
+  normalizeChartAppearance,
+  type ChartAppearance,
+} from './analysis_chart_appearance.js';
 export { isAnalysisEnvelope } from './analysis_chart_utils.js';
 
 import type {
@@ -58,6 +63,8 @@ export interface AnalysisChartOptions {
   detailHost?: HTMLElement | null;
   events?: AnalysisChartEvents;
   height?: number;
+  /** 子图外观设置（标题、轴、网格、图例）；缺省用默认值。 */
+  appearance?: unknown;
 }
 
 
@@ -90,6 +97,7 @@ export class AnalysisChart {
   private width = 0;
   private height = 0;
   private view: ChartView | null = null;
+  private appearance: ChartAppearance;
   private visibleCategories = new Set<string>();
   private pinned: AnalysisMarker | null = null;
   private hovered: AnalysisMarker | null = null;
@@ -114,6 +122,7 @@ export class AnalysisChart {
   constructor(host: HTMLElement, options: AnalysisChartOptions = {}) {
     this.host = host;
     this.options = options;
+    this.appearance = normalizeChartAppearance(options.appearance);
     this.detailHost = options.detailHost || null;
     this.host.classList.add('analysis-chart-host');
     this.host.innerHTML = '';
@@ -164,6 +173,16 @@ export class AnalysisChart {
 
   getEnvelope(): AnalysisEnvelope | null {
     return this.envelope;
+  }
+
+  getAppearance(): ChartAppearance {
+    return cloneChartAppearance(this.appearance);
+  }
+
+  setAppearance(value: unknown): void {
+    this.appearance = normalizeChartAppearance(value);
+    this.scheduleRender();
+    this.notifyView();
   }
 
   /** 切换右侧详情栏归属（多子画布时只有当前子画布写入详情）。 */
@@ -455,29 +474,53 @@ export class AnalysisChart {
     return { get: (name: string) => data.has(name) ? { values: data.get(name)! } : null };
   }
 
+  private resolvedScale(setting: 'auto' | 'linear' | 'log', axis: AnalysisAxis | undefined): 'linear' | 'log' {
+    if (setting !== 'auto') return setting;
+    return axis?.scale === 'log10' ? 'log' : 'linear';
+  }
+
+  private gridView(): Record<string, unknown> {
+    const a = this.appearance;
+    return {
+      grid: a.grid,
+      grid_x: a.grid_x,
+      grid_y: a.grid_y,
+      grid_width: a.grid_width,
+      grid_style: a.grid_style,
+      grid_opacity: a.grid_opacity,
+      ...(a.grid_color ? { grid_color: a.grid_color } : {}),
+    };
+  }
+
   private buildSpec(envelope: AnalysisEnvelope, axes: Map<string, AnalysisAxis>): unknown {
     const layers: unknown[] = [];
     const panels = this.panelCount(envelope);
+    const a = this.appearance;
+    const grid = this.gridView();
     for (const curve of envelope.curves) {
       const slot = this.panelFor(envelope, curve.axes[1]);
       const yAxis = axes.get(curve.axes[1]);
       const xAxis = axes.get(curve.axes[0]);
       const detailColor = typeof curve.detail?.color === 'string' ? curve.detail.color : '';
       const color = detailColor || (curve.id.includes('phase') ? '#7a6fb0' : (curve.id.includes('loop') ? '#c98a2e' : '#9b7247'));
+      const autoYLabel = yAxis ? yAxis.label + (yAxis.unit ? ' (' + yAxis.unit + ')' : '') : '';
+      const autoXLabel = xAxis ? xAxis.label + (xAxis.unit ? ' (' + xAxis.unit + ')' : '') : '';
+      const yLabel = slot === 1 ? (a.ylabel2.trim() || autoYLabel) : (a.ylabel.trim() || autoYLabel);
+      const xLabel = slot === panels - 1 ? (a.xlabel.trim() || autoXLabel) : '';
       layers.push({
         kind: 'line',
         subplot: slot,
-        label: curve.label,
-        legend: false,
+        label: a.curve_labels[curve.id] || curve.label,
+        legend: a.legend,
         data: { x: curve.id + ':x', y: curve.id + ':y' },
         view: {
           xlim: this.view?.xlim,
           ylim: this.view?.ylims[slot],
-          xscale: xAxis?.scale === 'log10' ? 'log' : 'linear',
-          yscale: 'linear',
-          ylabel: yAxis ? yAxis.label + (yAxis.unit ? ' (' + yAxis.unit + ')' : '') : '',
-          xlabel: slot === panels - 1 ? (xAxis ? xAxis.label + (xAxis.unit ? ' (' + xAxis.unit + ')' : '') : '') : '',
-          grid: true,
+          xscale: this.resolvedScale(a.xscale, xAxis),
+          yscale: this.resolvedScale(a.yscale, yAxis),
+          ylabel: yLabel,
+          xlabel: xLabel,
+          ...grid,
         },
         style: { color, width: 1.7, dash: curve.style === 'dashed' ? [7, 4] : [], opacity: 1 },
       });
@@ -489,7 +532,7 @@ export class AnalysisChart {
         label: extra.label,
         legend: false,
         data: { x: extra.name + ':x', y: extra.name + ':y' },
-        view: { xlim: this.view?.xlim, ylim: this.view?.ylims[0], xscale: 'linear', yscale: 'linear', grid: true },
+        view: { xlim: this.view?.xlim, ylim: this.view?.ylims[0], xscale: 'linear', yscale: 'linear', ...grid },
         style: { color: extra.color, width: 1.1, dash: [4, 4], opacity: 0.8 },
       });
     }
@@ -504,14 +547,16 @@ export class AnalysisChart {
         label: marker.label,
         legend: false,
         data: { x: [marker.x], y: [marker.y] },
-        view: { xlim: this.view?.xlim, ylim: this.view?.ylims[slot], xscale: markerXAxis?.scale === 'log10' ? 'log' : 'linear', yscale: 'linear', grid: true },
+        view: { xlim: this.view?.xlim, ylim: this.view?.ylims[slot], xscale: this.resolvedScale(a.xscale, markerXAxis), yscale: this.resolvedScale(a.yscale, axes.get(marker.axis_y)), ...grid },
         style: { color, width: 1.4, opacity: 1, marker: { size: this.pinned?.id === marker.id ? 12 : 9, symbol: MARKER_SYMBOLS[marker.shape] || 'circle' } },
       });
     }
-    return {
-      figure: { subplots: panels, ncols: 1 },
-      layers,
+    const figure: Record<string, unknown> = {
+      subplots: panels,
+      ncols: panels > 1 && a.panel_layout === 'row' ? 2 : 1,
     };
+    if (a.title.trim()) figure.title = a.title.trim();
+    return { figure, layers };
   }
 
   private onWheel(event: WheelEvent): void {

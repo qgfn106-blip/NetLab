@@ -4,7 +4,7 @@ import type { WorkbenchCanvasRec } from './analysis_workbench_layout.js';
 import { LAYOUT_PRESETS, type LayoutPreset } from './analysis_workbench_layout_tree.js';
 import { AnalysisCanvasWorkspace } from './analysis_workbench_canvas.js';
 import { analysisLoopCandidatesRequest, analysisLoopFromBreakRequest, analysisLoopsRequest, workbenchExportRequest } from './analysis_client.js';
-import { toast } from './desktop.js';
+import { callBridge, isDesktop, toast } from './desktop.js';
 import type { RunResponse, WorkbenchSessionRec, WorkbenchStateRec } from './analysis_workbench_types.js';
 import {
   KIND_LABELS, describeRunStatus, escapeHtml, optionHtml, shortFingerprint, loopFeedbackOutput, type AnalysisKind,
@@ -63,6 +63,7 @@ export abstract class WorkbenchActions {
       '  <button type="button" class="btn tiny awb-icon-btn" data-awb="sidebar-collapse" title="折叠/展开左侧导航">◧</button>',
       '  <button type="button" class="btn tiny awb-icon-btn" data-awb="detail-collapse" title="折叠/展开右侧详情">◨</button>',
       '  <button type="button" class="btn tiny awb-icon-btn" data-awb="focus" title="专注模式（Esc 退出）">⛶</button>',
+      hasCanvas ? '  <button type="button" class="btn tiny awb-icon-btn" data-awb="chart-settings" title="图表设置（标题/坐标轴/网格/图例）">⚙</button>' : '',
       '  <select class="awb-select tiny" data-awb="layout" title="画布布局">' +
         LAYOUT_PRESETS.map(([preset, label]) => optionHtml(preset, label, (this.workspace?.layout || 'auto') === preset)).join('') +
         '</select>',
@@ -92,8 +93,26 @@ export abstract class WorkbenchActions {
       this.exportScope = (event.target as HTMLSelectElement).value === 'canvas' ? 'canvas' : 'subcanvas';
     });
     this.toolbarHost.querySelector('[data-awb="export"]')?.addEventListener('click', () => { void this.exportResult(); });
+    this.toolbarHost.querySelector('[data-awb="chart-settings"]')?.addEventListener('click', () => {
+      const id = this.selectedCanvas()?.canvas_id;
+      if (id) this.workspace?.openChartSettings(id);
+    });
   }
 
+
+  private async saveBlobViaDesktop(blob: Blob, filename: string): Promise<'saved' | 'cancelled' | 'unsupported'> {
+    if (!isDesktop()) return 'unsupported';
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binary = '';
+    const chunk = 0x8000;
+    for (let offset = 0; offset < bytes.length; offset += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + chunk));
+    }
+    const result = await callBridge('saveBytes', [filename, btoa(binary)]);
+    if (typeof result !== 'string') return 'unsupported';
+    if (result.startsWith('__error__')) throw new Error(result.slice('__error__'.length));
+    return result ? 'saved' : 'cancelled';
+  }
 
   protected async exportResult(): Promise<void> {
     if (!this.sessionId) {
@@ -139,6 +158,15 @@ export abstract class WorkbenchActions {
       const fallback = `netlab-analysis.${this.exportFormat === 'spec' ? 'plotkit.json' : this.exportFormat}`;
       const filename = matched ? matched[1] : fallback;
       const blob = await response.blob();
+      const saved = await this.saveBlobViaDesktop(blob, filename);
+      if (saved === 'saved') {
+        toast('已保存 ' + filename, 'success', 3000);
+        return;
+      }
+      if (saved === 'cancelled') {
+        toast('已取消导出', 'info', 3000);
+        return;
+      }
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;

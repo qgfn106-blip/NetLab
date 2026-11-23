@@ -15,6 +15,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: qgfn106-blip/PlotKit
+          ref: 6939e8889ce4b1c64c0ec679658d9cfa99e67f37  # 锁定 PlotKit 0.3.0（审计 P1-03）
           path: .plotkit-src
 
       - name: Setup Node

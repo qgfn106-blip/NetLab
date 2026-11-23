@@ -140,7 +140,38 @@ def test_vcvs_analytic_open_loop_matches_numeric_return_ratio() -> None:
     assert analytic["parity_max_rel"] < 1e-6
 
 
-def test_positive_feedback_sign_changes_closed_loop() -> None:
+def _positive_feedback_amplifier(gain: float = 1.5, r1: float = 1.0e3, r2: float = 1.0e3) -> Scene:
+    """把同相放大器的受控源控制端极性反接，构成真正的正反馈：L = -A*beta < 0。"""
+    scene = Scene("circuit")
+    gnd = scene.add_node(name="gnd", kind="ground")
+    vin = scene.add_node(name="vin", kind="node")
+    n = scene.add_node(name="n", kind="node")
+    out = scene.add_node(name="out", kind="node")
+    scene.add_edge(
+        name="V1",
+        source=vin.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 0.0, "amplitude": 1.0},
+    )
+    scene.add_edge(
+        name="E1",
+        source=out.id,
+        target=gnd.id,
+        kind="vcvs",
+        params={"gain": gain, "control_source": n.id, "control_target": vin.id},
+    )
+    scene.add_edge(name="R1", source=n.id, target=gnd.id, kind="resistor", params={"R": r1})
+    scene.add_edge(name="R2", source=out.id, target=n.id, kind="resistor", params={"R": r2})
+    return scene
+
+
+def test_feedback_sign_does_not_double_count_polarity() -> None:
+    """LM-02 回归：feedback_sign 仅声明极性，不得与 L 自带符号重复相乘。
+
+    同一（负反馈）电路在 feedback_sign=+1 与 -1 下的闭环必须一致，
+    且等于真实闭环 T = A / (1 + A*beta)（旧实现会把 -1 再乘一次，得到 A/(1-Aβ)）。
+    """
     scene = _non_inverting_amplifier(gain=1.5, r1=1.0e3, r2=1.0e3)
     model = DescriptorModel.from_scene(scene)
     frequencies = np.array([10.0, 100.0])
@@ -148,5 +179,27 @@ def test_positive_feedback_sign_changes_closed_loop() -> None:
     positive = extract_controlled_source_loop(model, "E1", frequencies, feedback_sign=-1.0)
 
     gain, beta = 1.5, 0.5
-    assert np.allclose(np.real(negative.closed_loop), gain / (1.0 + gain * beta))
-    assert np.allclose(np.real(positive.closed_loop), gain / (1.0 - gain * beta))
+    expected = gain / (1.0 + gain * beta)  # ≈0.857，物理负反馈
+    assert np.allclose(np.real(negative.closed_loop), expected)
+    # 旧实现此时会得到 gain/(1-gain*beta)=6.0（符号双计）；修复后两值必须相等。
+    assert np.allclose(np.real(positive.closed_loop), expected)
+    assert np.allclose(np.real(negative.closed_loop), np.real(positive.closed_loop))
+    assert np.allclose(np.real(negative.loop_gain), gain * beta)
+
+
+def test_true_positive_feedback_topology_closed_loop_analytic() -> None:
+    """LM-01/02 回归：真反馈拓扑反接后 L<0，闭环 = G/(1+L) = A/(1-Aβ)，|T|=6.0。"""
+    model = DescriptorModel.from_scene(_positive_feedback_amplifier())
+    frequencies = np.array([10.0, 100.0])
+    result = extract_controlled_source_loop(model, "E1", frequencies)
+
+    gain, beta = 1.5, 0.5
+    # 电路极性给出负的返回比（与 feedback_sign 无关）。
+    assert np.allclose(np.real(result.loop_gain), -gain * beta, rtol=1e-9)
+    assert np.allclose(np.imag(result.loop_gain), 0.0, atol=1e-9)
+    # 闭环 G/(1+L) = A/(1-Aβ)，幅值 1.5/0.25 = 6.0。
+    assert np.allclose(np.abs(result.closed_loop), abs(gain / (1.0 - gain * beta)), rtol=1e-9)
+    assert result.direct_response is not None
+    assert np.allclose(result.closed_loop, result.direct_response, rtol=1e-9)
+    assert result.parity_max_rel is not None
+    assert result.parity_max_rel < 1e-9

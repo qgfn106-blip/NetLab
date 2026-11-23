@@ -6,9 +6,11 @@
 
 约定
 ----
-* 负反馈的返回比为正；feedback_sign=+1 表示负反馈，-1 表示正反馈。
+* 返回比 L 由电路极性直接给出（负反馈为正、正反馈为负），与输入源无关；
+  feedback_sign 仅记录使用者声明的反馈类型（+1 负反馈 / -1 正反馈），
+  不再参与闭环合成，避免同一极性被 L 与 feedback_sign 各乘一次（符号双计）。
 * VCVS 的正向增益取 G = gain * (v_c - v_d)，其中输出端被钳位为零、
-  输入激励保持有效；闭环传递函数 T = G / (1 + feedback_sign * L)。
+  输入激励保持有效；闭环传递函数 T = G / (1 + L)（L 已含极性）。
 * VCCS 的正向增益取“把受控电流源置零（开路）后在输出节点测得的电压”。
 * 直接闭环响应用于校验：偏离超过阈值时只发警告，不伪称精确。
 
@@ -427,7 +429,7 @@ def extract_controlled_source_loop(
 
         loop_values[index] = loop_value
         forward[index] = forward_value
-        closed[index] = forward_value / (1.0 + sign * loop_value)
+        closed[index] = forward_value / (1.0 + loop_value)
 
         if direct is not None:
             original = system.solve(omega)
@@ -773,17 +775,20 @@ def extract_branch_loop(
     direct = np.empty(freqs.size, dtype=np.complex128) if (C is not None and D is not None) else None
     for index, frequency in enumerate(freqs):
         omega = 2.0 * np.pi * float(frequency)
-        vector = _solve(A + 1j * omega * E, inject.astype(np.complex128), omega)
+        matrix = A + 1j * omega * E
+        vector = _solve(matrix, inject.astype(np.complex128), omega)
         loop_value = complex(output_row @ vector)
         loop_values[index] = loop_value
         if direct is not None:
             original = system.solve(omega)
             direct[index] = complex(C[0] @ original + D[0, 0])
-            # 无源支路断环的闭环响应直接取原电路测量值，避免不同断点的合成误差。
+            # 闭环响应用原电路（支路完整）实测值：这是真实闭环响应，不再由 direct 反推 forward。
             closed[index] = direct[index]
-            forward[index] = direct[index] * (1.0 + sign * loop_value)
+            # 独立测量开环前向增益 G：断开支路后仅由输入激励驱动的输出响应（不依赖 direct）。
+            open_vector = _solve(matrix, system.B.astype(np.complex128), omega)
+            forward[index] = complex(C[0] @ open_vector + D[0, 0])
         else:
-            closed[index] = loop_value / (1.0 + sign * loop_value)
+            closed[index] = loop_value / (1.0 + loop_value)
             forward[index] = loop_value
 
     open_loop_transfer = _analytic_branch_open_loop(
@@ -807,6 +812,21 @@ def extract_branch_loop(
                 "severity": "warning",
             }
         )
+    parity: float | None = None
+    if direct is not None:
+        # 用独立前向增益 G 合成闭环 T=G/(1+L) 对拍实测闭环，避免"闭合=direct"的自证循环。
+        synthesized = forward / (1.0 + loop_values)
+        scale = np.maximum(np.abs(direct), 1e-12)
+        relative = np.abs(synthesized - direct) / scale
+        parity = float(np.max(relative)) if relative.size else None
+        if parity > _PARITY_TOL:
+            warnings.append(
+                {
+                    "code": "branch_loop_synthesis_mismatch",
+                    "message": f"支路断环合成闭环与实测闭环偏差过大：{parity:.3e}",
+                    "severity": "warning",
+                }
+            )
     return LoopExtraction(
         element=element.name,
         kind="branch",
@@ -819,7 +839,7 @@ def extract_branch_loop(
         forward_gain=forward,
         closed_loop=closed,
         direct_response=direct,
-        parity_max_rel=0.0 if direct is not None else None,
+        parity_max_rel=parity,
         poles=poles_payload,
         warnings=tuple(warnings),
         open_loop_transfer=open_loop_transfer,

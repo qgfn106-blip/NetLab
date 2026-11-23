@@ -2273,15 +2273,9 @@ def loop_analysis(
         fingerprint_value=fingerprint_value,
     )
     if display == "closed_loop":
+        # 闭环 T 直接采用提取器给出的 T = G/(1+L)（G=forward_gain、L=loop_gain，L 已含极性）。
+        # 旧实现用 loop_response/(1+sign*loop_response)=L/(1+L) 绘制，非单位反馈会差 1/β（LM-01/LM-04）。
         closed_synth = extraction.closed_loop
-        with np.errstate(divide="ignore", invalid="ignore"):
-            candidate_synth = loop_response / (
-                1.0 + float(feedback_sign) * loop_response
-            )
-        if np.all(np.isfinite(candidate_synth.real)) and np.all(
-            np.isfinite(candidate_synth.imag)
-        ):
-            closed_synth = candidate_synth
         closed_mag = 20.0 * np.log10(np.maximum(np.abs(closed_synth), 1e-300))
         closed_phase = np.degrees(np.unwrap(np.angle(closed_synth)))
         bode_payload = bode_envelope(

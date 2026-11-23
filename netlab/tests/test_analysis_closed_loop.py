@@ -221,3 +221,33 @@ def test_physical_closed_loop_survives_transfer_expression_failure(monkeypatch) 
         "supported": False,
         "reason": "transfer unavailable",
     }
+
+
+def test_closed_loop_curve_is_g_over_one_plus_l_for_non_unity_feedback() -> None:
+    """LM-01 回归：非单位反馈下闭环曲线必须是 G/(1+L)=A/(1+Aβ)，而非 L/(1+L)。
+
+    该电路 A=1e5、β=0.1：正确闭环 |T|≈9.999（≈19.999 dB），
+    旧的 L/(1+L) 会给出 ≈0.9999（≈0 dB），两者相差约 20 dB（审计实测值）。
+    """
+    body = analysis.loop_analysis(
+        Simulation(_vcvs_amplifier()),
+        element="E1",
+        input_source="V1",
+        output="out",
+        f_start=10.0,
+        f_stop=1000.0,
+        points=21,
+        display="closed_loop",
+    )
+    curves = body["envelopes"]["bode"]["curves"]
+    synth_mag = next(
+        c
+        for c in curves
+        if "T_synth" in str(c.get("label")) and "幅值" in str(c.get("label"))
+    )
+    gain, beta = 1.0e5, 1000.0 / (1000.0 + 9000.0)  # β=0.1
+    expected_db = 20.0 * np.log10(gain / (1.0 + gain * beta))  # ≈19.999 dB（G/(1+L)）
+    wrong_db = 20.0 * np.log10((gain * beta) / (1.0 + gain * beta))  # ≈0 dB（L/(1+L)）
+    values = np.asarray(synth_mag["y"], dtype=float)
+    assert np.allclose(values, expected_db, atol=1e-6)
+    assert np.min(np.abs(values - wrong_db)) > 10.0  # 明确排除旧 L/(1+L)（相差≈20dB）

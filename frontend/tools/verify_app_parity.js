@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
+import { normalizeSource, duplicatedInFile } from './parity_ast.js';
 import { diffUncovered, wholeFileHash } from './parity_uncovered.js';
 
 const base = process.argv[2] || 'HEAD';
@@ -14,7 +15,7 @@ const repoRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: fr
 const relFrontend = path.relative(repoRoot, frontendDir).replaceAll('\\', '/');
 
 function normalize(text) {
-  return String(text || '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '').replace(/\s+/g, ' ').trim();
+  return normalizeSource(text);
 }
 
 function hasRuntime(sf) {
@@ -37,7 +38,7 @@ function collect(fileName, text) {
     if (ts.isFunctionDeclaration(stmt) || ts.isClassDeclaration(stmt)) {
       if (stmt.name?.text) out.push({ name: stmt.name.text, kind: ts.isFunctionDeclaration(stmt) ? 'function' : 'class', hash: normalize(stmt.body?.getText(sf)) });
     } else if (ts.isInterfaceDeclaration(stmt) || ts.isTypeAliasDeclaration(stmt)) {
-      if (stmt.name?.text) out.push({ name: stmt.name.text, kind: 'type', hash: '' });
+      if (stmt.name?.text) out.push({ name: stmt.name.text, kind: ts.isInterfaceDeclaration(stmt) ? 'interface' : 'typealias', hash: '' });
     } else if (ts.isVariableStatement(stmt)) {
       for (const decl of stmt.declarationList.declarations) {
         if (ts.isIdentifier(decl.name)) out.push({ name: decl.name.text, kind: 'variable', hash: normalize(decl.initializer?.getText(sf)) });
@@ -80,6 +81,7 @@ for (const rel of baselineFiles) {
 }
 
 const currentNames = new Map();
+const currentNamesByFile = new Map();
 const currentBodies = new Map();
 const currentWhole = new Map();
 const typeOnlyModules = new Set();
@@ -97,12 +99,11 @@ for (const full of currentFiles) {
     currentNames.get(item.name).push(rel);
     if (item.hash) currentBodies.set(item.name, item.hash);
   }
+  currentNamesByFile.set(rel, names);
 }
 
 const missing = [...baseNames.keys()].filter((name) => !currentNames.has(name));
-const duplicates = [...currentNames.entries()]
-  .filter(([, files]) => new Set(files).size > 1)
-  .map(([name, files]) => `${name}: ${[...new Set(files)].join(', ')}`);
+const duplicates = duplicatedInFile(currentNamesByFile);
 
 const appTs = readdirSync(path.join(frontendDir, 'app')).filter((n) => n.endsWith('.ts') && !n.endsWith('.d.ts'));
 const missingJs = [];

@@ -1,7 +1,7 @@
 # NetLab 架构收敛方案（Architecture Convergence）
 
 > 基线提交：5c076eae55f739e2265327c0c73a7dac3440358a ｜ 版本：NetLab 3.20.2 / Project Schema 8
-> 说明：本文件针对 P1-01、P1-02、P2-01..P2-06 给出「现状证据 / 目标架构 / 验证标准 / 迁移步骤（小步）/ 风险与回滚」；本轮只出方案，不执行大改。所有行数与 file:line 来自 findings 与实测。
+> 说明：本文件针对 P1-01、P1-02、P2-01..P2-06 给出「现状证据 / 目标架构 / 验证标准 / 迁移步骤（小步）/ 风险与回滚」。P1-01/P1-02 已在 feat/2026-11-24-p1-convergence 分支落地（三模块 878→786、837→800、823→774，check:sections 通过，职责矩阵见 FRONTEND_RESPONSIBILITY_MATRIX.md）；P2 仍以方案为主。所有行数与 file:line 来自 findings 与实测。
 
 ## 0. 通用验证手段
 - 行为等价 AST 对比：复用 P0-02 的 frontend/tools/parity_ast.js（字符串感知注释剥离 + 按文件判重）与 verify_app_parity.js，确保拆分前后导出声明集合与签名一致；后端用 AST/导出比对函数签名不变。

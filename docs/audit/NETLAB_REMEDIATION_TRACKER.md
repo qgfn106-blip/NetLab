@@ -12,8 +12,8 @@
 | P0-02 | 8 | 已落地未提交 | frontend/tools/verify_app_parity.js、frontend/tools/parity_ast.js、frontend/tests/parity_ast.test.mjs | 未提交 | parity_ast 8 用例全 pass；verify_app_parity 实跑 OK(83 TS/848 声明/73 运行模块/3 仅类型) | 尚未形成 PR/合并 |
 | P0-03 | 12 | 已落地未提交 | netlab/core/compute/analysis.py、netlab/core/compute/circuit/loop_analysis.py、netlab/core/compute/circuit/nyquist.py | 未提交 | LM-01..LM-04 已修复（T=G/(1+L)，删除 sign 双计，支路断环 forward 独立测量/closed=direct/parity 诚实化），loop_math_fix.md；定向 24 passed/7 skipped，全量 1736 passed/14 skipped/0 failed | LM-05..07（nyquist 临界点/PM/运放测 L）保留待立项；尚未PR |
 | P0-04 | 5 | 已落地未提交 | reports/evidence/、tools/run_evidence.py（pytest.ini/decisions.yaml 只读复核，未改） | 未提交 | 带夹具全量 1736 passed/14 skipped/0 failed（junit 1750）；覆盖率 TOTAL 83%（≥81 门禁）；requirements --all 43/43 PASS；reports/evidence/python-tests.json+AUDIT_EVIDENCE_LOG.md | decisions.yaml 为历史记录不追溯改写；尚未PR |
-| P1-01 | 12 | 仅方案 | frontend/app/analysis_chart.ts(878)、analysis_workbench.ts(837)、analysis_workbench_canvas.ts(823) | 未提交 | 三模块超 check_app_sections.mjs:12 MAX_MODULE_LINES=800；拆分方案见 CONVERGENCE §1 | 未实施拆分（本轮只规划） |
-| P1-02 | 3 | 仅方案 | frontend/app.ts | 未提交 | 7511 行/单 IIFE/213 嵌套函数/88 endpoint；方案见 CONVERGENCE §2 | 未实施拆分（本轮只规划） |
+| P1-01 | 12 | 已落地未提交 | frontend/app/analysis_chart.ts(878→786)、analysis_workbench.ts(837→800)、analysis_workbench_canvas.ts(823→774)；新增 analysis_chart_spec.ts(133)、analysis_workbench_chrome.ts(78)、analysis_workbench_canvas_ids.ts(52) | feat/2026-11-24-p1-convergence | check_app_sections OK（S5 通过）；verify_app_parity OK(86 TS/859 decl/76 模块)；build/tsc/test:utils 88 全绿 | check:sections 三模块已全部 ≤800 |
+| P1-02 | 3 | 已落地未提交 | docs/audit/FRONTEND_RESPONSIBILITY_MATRIX.md、frontend/app.ts | feat/2026-11-24-p1-convergence | 职责矩阵（entry→facade→interaction→render→model→util）已产出，现状违规与 S1-S4 后续拆分路径已记录 | app.ts 主拆分仍为后续 S1-S4（不破坏行为） |
 | P1-03 | 含于 10 | 已落地未提交 | pyproject.toml、netlab/requirements.txt、四 workflow（python-tests/container/browser-e2e/frontend-ts-build） | 未提交 | plotkit>=0.3,<0.4；checkout ref 6939e8889ce4b1c64c0ec679658d9cfa99e67f37(0.3.0) | 尚未形成 PR/合并 |
 | P1-04 | 含于 10 | 已落地未提交 | netlab/core/model/{project.py,instance_model.py,v8_draft.py}、netlab/docs 5 篇、README/BUILD/CODE_GUIDE/PLUGIN_GUIDE | 未提交 | PlotKit 版本与 PROJECT_VERSION 同步为 8（EXTENSIBILITY §9 注明 v7 设计冻结基线） | 尚未形成 PR/合并 |
 | P1-05 | 含于 10 | 已落地未提交 | README.md、OPERATION.md、ARCHITECTURE.md | 未提交 | MyProject 说明改为「本地示例目录、.gitignore 排除、不入库；同名工程夹具在 netlab/tests/fixtures/projects/」 | 尚未形成 PR/合并 |
@@ -40,7 +40,7 @@
 |---|---|---|
 | 已落地未提交 | P0-01、P0-02、P0-03、P0-04、P1-03、P1-04、P1-05、文档同步、P2-06、P2-07 | 工作树改动已完成并通过本地验证，尚待形成 PR/评审/合并 |
 | 实施中 | （无） | — |
-| 仅方案 | P1-01、P1-02、P2-01..P2-05、P3-01..08 | 本轮只出方案/规划，不执行大改 |
+| 仅方案 | P2-01..P2-05、P3-01..08 | 本轮只出方案/规划，不执行大改 |
 | 已完成 | （无） | 无任何条目已提交入库 |
 
 ## 权重核对（总 100）

@@ -1,7 +1,7 @@
 # NetLab 架构收敛方案（Architecture Convergence）
 
 > 基线提交：5c076eae55f739e2265327c0c73a7dac3440358a ｜ 版本：NetLab 3.20.2 / Project Schema 8
-> 说明：本文件针对 P1-01、P1-02、P2-01..P2-06 给出「现状证据 / 目标架构 / 验证标准 / 迁移步骤（小步）/ 风险与回滚」。P1-01/P1-02 已在 feat/2026-11-24-p1-convergence 分支落地（三模块 878→786、837→800、823→774，check:sections 通过，职责矩阵见 FRONTEND_RESPONSIBILITY_MATRIX.md）；P2 仍以方案为主。所有行数与 file:line 来自 findings 与实测。
+> 说明：本文件针对 P1-01、P1-02、P2-01..P2-06 给出「现状证据 / 目标架构 / 验证标准 / 迁移步骤（小步）/ 风险与回滚」。P1-01/P1-02 已在 feat/2026-11-24-p1-convergence 分支落地（三模块 878→786、837→800、823→774，check:sections 通过，职责矩阵见 FRONTEND_RESPONSIBILITY_MATRIX.md）；P2-01/P2-02/P2-03 已在 feat/2026-11-24-p2-convergence 分支实施并提交待评审（e5373f7、2c7530e），P2-04/P2-05 安全修复与补测已落地（2db0867）。所有行数与 file:line 来自 findings 与实测。
 
 ## 0. 通用验证手段
 - 行为等价 AST 对比：复用 P0-02 的 frontend/tools/parity_ast.js（字符串感知注释剥离 + 按文件判重）与 verify_app_parity.js，确保拆分前后导出声明集合与签名一致；后端用 AST/导出比对函数签名不变。
@@ -67,7 +67,7 @@
 - 风险：IIFE 内隐式全局变量与闭包共享状态在拆分时遗漏，导致运行时 undefined。
 - 回滚：分文件独立 revert；用 endpoint 清单快照与冒烟测试守护。
 
-## 3. P2-01 elements.stamp 与 descriptor._assemble_matrices 双轨收敛为单一 StampBuilder 契约（权重 5）
+## 3. P2-01 elements.stamp 与 descriptor._assemble_matrices 双轨收敛为单一 StampBuilder 契约（权重 5）｜已实施（e5373f7，待评审）
 
 ### 3.1 现状证据
 - netlab/core/compute/circuit/elements.py:66 抽象基类 stamp；:107/:173/:277/:345/:376/:413/:446/:470/:511/:571/:721/:849 共 12 个具体 kind 各自实现 stamp(self, ctx: StampContext)。
@@ -76,6 +76,7 @@
 
 ### 3.2 目标架构
 - 定义单一 StampBuilder 契约：每个器件 kind 提供一次 stamp(assembly)，向统一 MNA 三元组写入贡献；elements 与 descriptor 都调用同一 builder，删除 descriptor 中按 kind 的特判分支。
+- 落地：新增 circuit/stamp_builder.py（StaticMatrixSink + ElementStampSink + 每 kind stamp_<kind> 贡献函数）；descriptor._assemble_matrices 199→23 行、删除 9 路 kind 特判；elements 各器件 stamp 委托共享函数。电感 element.stamp 用二端伴随、descriptor 静态用独立支路，布局不同按设计保留。
 - 新增器件只需实现一次 stamp。
 
 ### 3.3 验证标准
@@ -91,7 +92,7 @@
 - 风险：受控源/多端器件（VCVS/VCCS/opamp）装配边界、数值等价。
 - 回滚：保留旧路径 feature flag，按 kind 灰度切换；每 kind 对拍通过再删旧。
 
-## 4. P2-02 AC/Bode 后端统一 ac_sweep（权重 4）
+## 4. P2-02 AC/Bode 后端统一 ac_sweep（权重 4）｜已实施（e5373f7，待评审）
 
 ### 4.1 现状证据
 - netlab/core/compute/circuit/descriptor.py:1035-1048 纯线性路径 delegate solver.ac_sweep；
@@ -99,6 +100,7 @@
 
 ### 4.2 目标架构
 - 统一 ac_sweep(system, freqs) 后端；native（每频点重装）实现为 ac_sweep 的一个 strategy；线性走快速 strategy；descriptor 只负责选择 strategy，不再内联两条实现。
+- 落地：新增 circuit/ac_backend.py（FastLinearStrategy / NativePerFrequencyStrategy / select_strategy），descriptor.frequency_response 改为薄封装；线性四路 Bode 对拍 rtol 1e-8/atol 1e-12 通过。
 
 ### 4.3 验证标准
 - 同一电路在线性 / 非线性 / 强制 native 三模式下 Bode 幅相逐点对拍（给定容差）；
@@ -113,13 +115,14 @@
 - 风险：数值差异、性能回退。
 - 回滚：strategy 可切换，保留原直接调用路径开关。
 
-## 5. P2-03 analysis.py 结构拆分（权重 3）
+## 5. P2-03 analysis.py 结构拆分（权重 3）｜已实施（2c7530e，待评审）
 
 ### 5.1 现状证据
 - netlab/core/compute/analysis.py：2854 行、45 顶层函数、class AnalysisError(78)，与 circuit 栈职责重叠（编排 + 数值 + 错误 + 包络）。
 
 ### 5.2 目标架构
 - 拆为 analysis/errors（AnalysisError 等）、analysis/numerics（数值实现）、analysis/orchestrate（流程编排）、analysis/envelopes（包络展示），对外保留 facade 与既有公共 API。
+- 落地：新增 analysis_errors.py 与 analysis_numerics.py（8 个纯数值函数），analysis.py 2848→2771 行并保持再导出；API 快照 0 差异，test_analysis*.py 169 passed/7 skipped。编排/facade 有意保留，未硬拆。
 
 ### 5.3 验证标准
 - 公共函数/类签名不变（AST/导出比对）；每文件行数下降并满足职责边界；全量测试全绿、覆盖率维持 81。

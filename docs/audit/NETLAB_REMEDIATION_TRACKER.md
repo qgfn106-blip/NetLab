@@ -21,8 +21,8 @@
 | P2-01 | 5 | 仅方案 | circuit/elements.py、circuit/descriptor.py、circuit/stamps.py | 未提交 | elements.py 13 处 stamp + descriptor.py:551 _assemble_matrices 双轨；方案见 CONVERGENCE §3 | 未实施（本轮只出契约方案） |
 | P2-02 | 4 | 仅方案 | circuit/descriptor.py、circuit/solver.py | 未提交 | descriptor.py:1035-1048 线性走 ac_sweep、:1049-1086 native 每频点重装；方案 §4 | 未实施（本轮只出方案） |
 | P2-03 | 3 | 仅方案 | netlab/core/compute/analysis.py | 未提交 | 2854 行/45 顶层函数/class AnalysisError(78)；拆分方案 §5 | 未实施（本轮只出方案） |
-| P2-04 | 2 | 仅方案 | netlab/core/compute/accel.py | 未提交 | H2D/D2H+sync(:155-223)、min_size 192、solve_dense 非有限值 ComputeError；方案 §6 | 未实施（本轮只出方案） |
-| P2-05 | 2 | 仅方案 | netlab/core/compute/fem.py | 未提交 | FemConfig(:59-75)、_element_matrices(:163-177)、backward-Euler(:247-266)；方案 §7 | 未实施（本轮只出方案） |
+| P2-04 | 2 | 已落地未提交 | netlab/core/compute/accel.py、netlab/tests/test_accel_fallback.py | feat/2026-11-24-p1-convergence | GPU 非有限解不再直抛 ComputeError，改为 RuntimeError→_record_gpu_failure→CPU 回退，与模块 docstring 一致；新增 5 条边界单测（GPU 非有限回退/min_size/非有限输入/奇异/形状），8 passed | 尚未PR |
+| P2-05 | 2 | 部分落地未提交 | netlab/core/compute/fem.py、netlab/tests/test_fem.py | feat/2026-11-24-p1-convergence | 新增 Q4 单元矩阵（行和为零/质量对称正定/总质量=ρcA）与边界物理测试（Dirichlet 保持、无源均匀、Gauss 热源）3 条，均 passed；边界枚举化与时间积分可插拔未实施 | 架构重构仍为方案 §7 |
 | P2-06 | 1 | 已落地未提交 | netlab/core/model/path_guard.py、netlab/desktop/bridge.py、netlab/desktop/webview_bridge.py | 未提交 | path_guard.py:9 docstring「追加」改「覆盖」；webview_bridge.save_text 写入前接 ensure_allowed_path；desktop 12 tests passed | 已修复（save_text 已接 ensure_allowed_path）；尚未PR |
 | P2-07 | 5 | 已落地未提交 | tools/check_requirement_verifiability.py（requirements.yaml 只读复核） | 未提交 | 约 48→118 行语义门禁（非空非占位/语义关键词/expected≠failure_condition/按声明校验退出码/扫 failed/error/Traceback），--all 43 条 | 尚未形成 PR/合并 |
 | P3-01 | —（阶段合计 10） | 仅方案 | docs/audit/CORE_V2_IMPLEMENTATION_ROADMAP.md | 未提交 | 规划见 CORE_V2_ROADMAP §P3-01 | 本轮只规划，不强制重写 |

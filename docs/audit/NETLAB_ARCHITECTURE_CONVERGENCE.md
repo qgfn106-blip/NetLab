@@ -137,22 +137,22 @@
 ## 6. P2-04 GPU 边界与非有限 ComputeError（权重 2）
 
 ### 6.1 现状证据
-- netlab/core/compute/accel.py:155-175、:178-223：单步 H2D/D2H 与显式 sync；min_size 门槛 192；solve_dense 遇到非有限值不回落、直接抛 ComputeError。
+- netlab/core/compute/accel.py:178-223：单步 H2D/D2H 与显式 sync；min_size 门槛 192。原 solve_dense 在 GPU 解出非有限值时 `raise ComputeError` 并被 `except ComputeError: raise` 直接重抛，未回退 CPU，与模块 docstring「任何 GPU 初始化、显存或数值异常都会退回 CPU」相矛盾。
 
-### 6.2 目标架构
-- 形式化加速契约：输入规模 < min_size 走 CPU；GPU 路径明确 H2D/D2H 与 sync 点；非有限输入/输出统一抛 ComputeError（与 CPU 路径语义一致，不静默回落）。
+### 6.2 目标架构（已落地）
+- 加速契约：输入规模 < min_size 走 CPU；GPU 路径明确 H2D/D2H 与 sync 点；GPU 初始化/显存/数值异常一律记录并回退 CPU（`status().gpu_error` 可审计）；若 CPU 仍解出非有限值或矩阵奇异，则抛 ComputeError。
 
-### 6.3 验证标准
-- 边界单测：min_size 上下、非有限输入、NaN/Inf 结果均得预期异常；CPU/GPU 结果对拍（无 GPU 时跳过 GPU 断言）。
+### 6.3 验证标准（已满足）
+- 边界单测：min_size 上下、非有限输入、GPU 非有限结果回退、CPU 奇异、形状错误；`netlab/tests/test_accel_fallback.py` 5 条用例 8 passed（含 FEM 3 条）。
 
-### 6.4 迁移步骤（小步）
-1. 以文档 + 断言固化 accel 契约；
-2. 统一非有限值 ComputeError 处理；
+### 6.4 迁移步骤（已执行）
+1. 修正 GPU 非有限值为 RuntimeError，落入 `except Exception → _record_gpu_failure → CPU`；
+2. 保留非有限输入/奇异矩阵的 ComputeError；
 3. 补齐边界单测。
 
 ### 6.5 风险与回滚
-- 风险：无 GPU 环境测试跳过导致覆盖盲区；错误语义变化影响调用方。
-- 回滚：契约断言可单独关闭；异常类型保持向后兼容。
+- 风险：无 GPU 环境以 fake 对象覆盖，真实驱动差异未覆盖；回退后 CPU 可能更慢。
+- 回滚：单文件 revert；异常语义仅影响 GPU 路径，CPU 调用方不变。
 
 ## 7. P2-05 FEM 边界与单测缺口（权重 2）
 
@@ -165,6 +165,7 @@
 ### 7.3 验证标准
 - 每个边界组合至少一条单测；对已知解析解/能量守恒对拍；
 - 拆分/重构不改变默认配置输出（快照）。
+- 已补 `netlab/tests/test_fem.py`：Q4 刚度行和为零、质量矩阵对称正定且总质量=ρc·A；左右 Dirichlet 保持 20℃；无源均匀场保持 20℃（上下 Neumann 无通量）；Gauss 源加热内部而边界不变。3 条 passed。
 
 ### 7.4 迁移步骤（小步）
 1. 边界条件枚举化（保持默认行为）；

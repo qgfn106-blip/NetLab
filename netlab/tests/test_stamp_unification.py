@@ -24,6 +24,7 @@ import pytest
 
 from netlab.core.compute.circuit import DescriptorModel
 from netlab.core.compute.circuit import descriptor as descriptor_module
+from netlab.core.compute.circuit import stamp_builder as stamp_builder_module
 from netlab.core.compute.circuit.elements import Resistor
 from netlab.core.compute.circuit.stamps import (
     StampContext,
@@ -210,6 +211,11 @@ def test_descriptor_floating_capacitor_E_has_off_diagonal_laplacian():
 
 def test_descriptor_has_no_inline_laplacian_body():
     source = Path(descriptor_module.__file__).read_text(encoding="utf-8")
-    assert source.count("stamp_laplacian(") >= 3
+    # P2-01：静态 A/E 装配已迁至 stamp_builder，descriptor 里只剩工作点线性化
+    # （_apply_operating_point）这一处合法使用，不再有逐 kind 的内联 Laplacian 块。
+    assert source.count("stamp_laplacian(") >= 1
     assert "E[ai, bi] -= capacitance" not in source
     assert "A[ai, bi] -= g" not in source
+    # 同一底层原语仍在用：静态装配的 Laplacian 落在 stamp_builder。
+    builder = Path(stamp_builder_module.__file__).read_text(encoding="utf-8")
+    assert builder.count("stamp_laplacian(") >= 2

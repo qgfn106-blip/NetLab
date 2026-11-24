@@ -11,6 +11,11 @@ function panelFor(envelope: AnalysisEnvelope, axisId: string): number {
   return 0;
 }
 
+function panelCount(envelope: AnalysisEnvelope): number {
+  if (envelope.kind !== 'bode') return 1;
+  return envelope.curves.some((curve) => curve.axes[1] === 'phase_deg') ? 2 : 1;
+}
+
 function resolvedScale(setting: 'auto' | 'linear' | 'log', axis: AnalysisAxis | undefined): 'linear' | 'log' {
   if (setting !== 'auto') return setting;
   return axis?.scale === 'log10' ? 'log' : 'linear';
@@ -37,9 +42,9 @@ export function buildChartSpec(
   pinned: AnalysisMarker | null,
 ): unknown {
     const layers: unknown[] = [];
-    const panels = this.panelCount(envelope);
+    const panels = panelCount(envelope);
     const a = appearance;
-    const grid = gridView();
+    const grid = gridView(a);
     const numberOrNull = (raw: string): number | null => {
       if (!raw.trim()) return null;
       const parsed = Number(raw);

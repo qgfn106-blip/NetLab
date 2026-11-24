@@ -636,7 +636,7 @@ class AnalysisWorkbench extends WorkbenchActions {
   }
   onCursor(frequency, source, canvasId = "", unit = "", axisKey = "") {
     void source;
-    this.lastCursor = applyWorkbenchCursor(this.workspace, frequency, canvasId, unit, axisKey);
+    this.lastCursor = applyWorkbenchCursor(this.workspace ?? void 0, frequency, canvasId, unit, axisKey);
     this.renderStatus();
   }
   beginResize(event, handle) {

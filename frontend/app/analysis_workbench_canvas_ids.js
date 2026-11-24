@@ -43,3 +43,9 @@ function containsTabsNode(node, canvasId) {
   if (node.type === "tabs") return node.children.some((child) => child.canvasId === canvasId);
   return containsTabsNode(node.first, canvasId) || containsTabsNode(node.second, canvasId);
 }
+export {
+  cloneNodeWithNewIds,
+  containsTabsNode,
+  newCanvasId,
+  newTabId
+};

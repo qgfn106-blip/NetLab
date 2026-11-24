@@ -1,7 +1,7 @@
 /* 画布/标签页 id 生成与布局树深拷贝（model 层纯函数）。 */
 import type { LayoutNode } from './analysis_workbench_layout_tree.js';
 
-function newCanvasId(): string {
+export function newCanvasId(): string {
   try {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   } catch (error) {
@@ -10,11 +10,11 @@ function newCanvasId(): string {
   return 'canvas-' + Date.now().toString(36) + '-' + Math.random().toString(16).slice(2, 10);
 }
 
-function newTabId(): string {
+export function newTabId(): string {
   return 'tab-' + Date.now().toString(36) + '-' + Math.random().toString(16).slice(2, 6);
 }
 
-function cloneNodeWithNewIds(node: LayoutNode, map: Map<string, string>): LayoutNode {
+export function cloneNodeWithNewIds(node: LayoutNode, map: Map<string, string>): LayoutNode {
   if (node.type === 'canvas') {
     const id = newCanvasId();
     map.set(node.canvasId, id);
@@ -44,7 +44,7 @@ function cloneNodeWithNewIds(node: LayoutNode, map: Map<string, string>): Layout
   };
 }
 
-function containsTabsNode(node: LayoutNode, canvasId: string): boolean {
+export function containsTabsNode(node: LayoutNode, canvasId: string): boolean {
   if (node.type === 'canvas') return false;
   if (node.type === 'auto') return false;
   if (node.type === 'tabs') return node.children.some((child) => child.canvasId === canvasId);

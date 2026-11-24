@@ -36,13 +36,14 @@ sys.path.insert(0, str(TOOLS_DIR))
 import evidence  # noqa: E402
 
 ELEMENTS = "netlab/core/compute/circuit/elements.py"
+STAMP_BUILDER = "netlab/core/compute/circuit/stamp_builder.py"
 
 # (name, relative_path, old, new, expected, counts_toward_score)
 MUTANTS = [
     ("resistor-gain-5pct", ELEMENTS, 'self.conductance = 1.0 / float(self.params["R"])', 'self.conductance = 1.05 / float(self.params["R"])', "killed", True),
     ("capacitor-trap-coeff", ELEMENTS, "self.conductance = 2.0 * cache / dt", "self.conductance = 1.8 * cache / dt", None, True),
     ("inductor-trap-coeff", ELEMENTS, "self.conductance = dt / (2.0 * self.inductance)", "self.conductance = dt / (1.8 * self.inductance)", None, True),
-    ("source-gain-2pct", ELEMENTS, 'ctx.rhs[row] = self.value * getattr(self, "source_scale", 1.0)', 'ctx.rhs[row] = 1.02 * self.value * getattr(self, "source_scale", 1.0)', None, True),
+    ("source-gain-2pct", STAMP_BUILDER, 'sink.set_rhs(row, element.value * getattr(element, "source_scale", 1.0))', 'sink.set_rhs(row, 1.02 * element.value * getattr(element, "source_scale", 1.0))', None, True),
     ("capacitor-value-5pct", ELEMENTS, "cache = self.capacitance", "cache = 1.05 * self.capacitance", None, True),
     ("inductor-history-sign", ELEMENTS, "self.source_current = previous_i + self.conductance * previous_v", "self.source_current = previous_i - self.conductance * previous_v", None, True),
     # F11：梯形积分源值必须取步末值；回退成半步平均会让正弦收敛阶掉到 ~1.0。

@@ -701,7 +701,7 @@ export class AnalysisWorkbench extends WorkbenchActions {
 
   private onCursor(frequency: number | null, source: string, canvasId = '', unit = '', axisKey = ''): void {
     void source;
-    this.lastCursor = applyWorkbenchCursor(this.workspace, frequency, canvasId, unit, axisKey);
+    this.lastCursor = applyWorkbenchCursor(this.workspace ?? undefined, frequency, canvasId, unit, axisKey);
     this.renderStatus();
   }
 

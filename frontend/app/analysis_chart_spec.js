@@ -4,6 +4,10 @@ function panelFor(envelope, axisId) {
   if (axisId === "phase_deg") return 1;
   return 0;
 }
+function panelCount(envelope) {
+  if (envelope.kind !== "bode") return 1;
+  return envelope.curves.some((curve) => curve.axes[1] === "phase_deg") ? 2 : 1;
+}
 function resolvedScale(setting, axis) {
   if (setting !== "auto") return setting;
   return axis?.scale === "log10" ? "log" : "linear";
@@ -21,9 +25,9 @@ function gridView(a) {
 }
 function buildChartSpec(envelope, axes, appearance, view, visibleCategories, pinned) {
   const layers = [];
-  const panels = this.panelCount(envelope);
+  const panels = panelCount(envelope);
   const a = appearance;
-  const grid = gridView();
+  const grid = gridView(a);
   const numberOrNull = (raw) => {
     if (!raw.trim()) return null;
     const parsed = Number(raw);

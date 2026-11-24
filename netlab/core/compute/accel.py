@@ -203,7 +203,9 @@ def solve_dense(
             synchronize()
             solution = np.asarray(out, dtype=float)
             if not np.all(np.isfinite(solution)):
-                raise ComputeError(f"{what}在 GPU 上解出非有限数值")
+                # 数值异常属于 GPU 后端问题，应回退 CPU 而不是直接失败
+                # （与模块 docstring「任何 GPU 数值异常都会退回 CPU」保持一致）。
+                raise RuntimeError(f"{what}在 GPU 上解出非有限数值")
             _finish(started, "gpu")
             return solution
         except ComputeError:

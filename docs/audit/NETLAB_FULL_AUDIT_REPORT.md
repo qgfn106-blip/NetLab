@@ -9,7 +9,7 @@
 
 ## 0. 摘要
 
-NetLab 3.20.2 主体功能完整、测试与 CI 框架健全，但存在三处 P0 级红线必须先行闭环：（1）CI 链职责重复；（2）前端模块等价 AST 检查误判导致门禁假阳性；（3）断环闭环传递函数在非单位反馈下算错、正反馈判据错误。本轮工作树已落地 P0-01、P0-02、P0-03、P0-04 及 P1-03/04/05、P2-06、P2-07 的整改（均未提交）；P0 四项已在本地工作树闭环（全量 1736 passed/14 skipped/0 failed，覆盖率 83%≥81 门限；断环闭环修正为 T=G/(1+L) 并经解析对拍）；P1-01/P1-02 与 P2-01..P2-05 仅出收敛方案，不执行大改。结论：P0 已全部闭环、具备提交评审条件；P1/P2 大规模重构仍建议在 P0 合并后按收敛方案分阶段推进。
+NetLab 3.20.2 主体功能完整、测试与 CI 框架健全，但存在三处 P0 级红线必须先行闭环：（1）CI 链职责重复；（2）前端模块等价 AST 检查误判导致门禁假阳性；（3）断环闭环传递函数在非单位反馈下算错、正反馈判据错误。本轮工作树已落地 P0-01、P0-02、P0-03、P0-04 及 P1-03/04/05、P2-06、P2-07 的整改（均未提交）；P0 四项已在本地工作树闭环（全量 1736 passed/14 skipped/0 failed，覆盖率 83%≥81 门限；断环闭环修正为 T=G/(1+L) 并经解析对拍）；P1-01/P1-02 已在 feat/2026-11-24-p1-convergence 分支完成拆分（878→786、837→800、823→774，check:sections 通过）并产出职责矩阵；P2-01..P2-03 仍以收敛方案为主，P2-04 已修复 GPU 非有限值回退 CPU，P2-05 已补 Q4/边界单测。结论：P0 已全部闭环并已合入远端 main；P1-01/P1-02 已完成；P2-04/P2-05 已做安全修复与补测，P2-01..P2-03 大规模重构仍建议按收敛方案分阶段推进。
 
 ## 1. 项目现状
 
@@ -66,14 +66,14 @@ NetLab 3.20.2 主体功能完整、测试与 CI 框架健全，但存在三处 P
 
 ### 2.2 P1 前端模块收敛（合计 15）
 
-#### P1-01 三超限模块 ≤800（权重 12）｜仅方案
+#### P1-01 三超限模块 ≤800（权重 12）｜已落地未提交
 - file:line：frontend/tools/check_app_sections.mjs:12 MAX_MODULE_LINES=800；frontend/app/analysis_chart.ts=878、analysis_workbench.ts=837、analysis_workbench_canvas.ts=823（实测基线）。
 - 现象：三模块超 800 行硬上限，S5 结构门判失败。
 - 影响：单文件过大，数据模型/渲染/交互/外观职责混杂，可维护性与可测试性差。
 - 根因：AnalysisChart 等长期在单文件内叠加逻辑，未按层拆分。
 - 状态：本轮仅出收敛方案（见 NETLAB_ARCHITECTURE_CONVERGENCE.md §1）。
 
-#### P1-02 梳理前端职责（权重 3）｜仅方案
+#### P1-02 梳理前端职责（权重 3）｜已落地未提交
 - file:line：frontend/app.ts（7511 行、单 IIFE、213 嵌套函数、88 endpoint）。
 - 现象：单 IIFE 入口承担全部路由/渲染/状态，嵌套函数 213 个、endpoint 88 个。
 - 影响：入口不可分层审查、循环依赖与隐式全局状态风险高、测试困难。
@@ -130,19 +130,18 @@ NetLab 3.20.2 主体功能完整、测试与 CI 框架健全，但存在三处 P
 - 根因：分析编排与数值实现未分层。
 - 状态：仅方案（见 CONVERGENCE §5）。
 
-#### P2-04 GPU 边界 / 非有限 ComputeError（权重 2）｜仅方案
-- file:line：netlab/core/compute/accel.py:155-175、:178-223（单步 H2D/D2H + 显式 sync）；min_size 门槛 192；solve_dense 非有限值不回落直接 ComputeError。
-- 现象：GPU 边界（传输/同步/最小规模）与失败语义未形式化。
-- 影响：性能拐点不清、错误语义与 CPU 路径不一致。
-- 根因：加速路径缺乏显式契约。
-- 状态：仅方案（见 CONVERGENCE §6）。
+#### P2-04 GPU 边界 / 非有限 ComputeError（权重 2）｜已落地未提交
+- file:line：netlab/core/compute/accel.py:178-223（单步 H2D/D2H + 显式 sync）；min_size 门槛 192；原 solve_dense 非有限值直接 ComputeError，未按 docstring 回退 CPU。
+- 修复：GPU 非有限解改抛 RuntimeError，经 `except Exception → _record_gpu_failure → CPU` 回退；CPU 奇异/非有限输入仍抛 ComputeError。
+- 测试：netlab/tests/test_accel_fallback.py 5 条（GPU 非有限回退、min_size、非有限输入、奇异、形状）pass。
+- 状态：已落地未提交（见 CONVERGENCE §6）。
 
-#### P2-05 FEM 边界与单测缺口（权重 2）｜仅方案
+#### P2-05 FEM 边界与单测缺口（权重 2）｜部分落地未提交
 - file:line：netlab/core/compute/fem.py:59-75 FemConfig、:163-177 _element_matrices、:247-266 backward-Euler；左右 Dirichlet、上下绝热。
 - 现象：边界条件与时间积分实现存在，但单测覆盖不足。
 - 影响：边界回归风险。
 - 根因：FEM 用例稀疏。
-- 状态：仅方案（见 CONVERGENCE §7）。
+- 状态：已补 netlab/tests/test_fem.py 3 条（Q4 刚度行和为零、质量对称正定/总质量=ρcA、Dirichlet 保持、无源均匀保持、Gauss 源加热）；边界枚举化与时间积分可插拔仍为方案（见 CONVERGENCE §7）。
 
 #### P2-06 路径安全契约（权重 1）｜已落地未提交（文档）+ 残余风险
 - file:line：netlab/core/model/path_guard.py:9 docstring（基线写「追加受信根目录」，与 allowed_roots() 的覆盖语义不符）；netlab/desktop/bridge.py 经 atomic_write / load_project_raw 内部 ensure_allowed_path（project.py:1075,1126）已保护；netlab/desktop/webview_bridge.py:206 save_text 直写无校验。
@@ -230,12 +229,12 @@ NetLab 3.20.2 主体功能完整、测试与 CI 框架健全，但存在三处 P
 ## 6. 未完成项
 1. P0-03 断环闭环：LM-01..LM-04 已修复并回归（loop_math_fix.md）；LM-05..07（nyquist 临界点/PM 基准/运放扰动测 L）保留待单独立项。
 2. P0-04：证据已回填（1736 passed/14 skipped/0 failed；覆盖率 83%；requirements 43/43）；decisions.yaml 历史决策记录不追溯改写，门禁以 CI 为准。
-3. P1-01 / P1-02 前端收敛：仅方案，未实施拆分。
-4. P2-01..P2-05 内核收敛：仅方案，未实施。
+3. P1-01 已完成三模块拆分（878→786、837→800、823→774，check:sections 通过）；P1-02 已产出职责矩阵与后续 S1-S4 拆分路径，app.ts 主拆分仍待后续。
+4. P2-01..P2-03 内核收敛：仅方案，未实施；P2-04 GPU 回退已修、P2-05 FEM 单测已补。
 5. P2-06 残余已修复（webview_bridge.save_text 已接 ensure_allowed_path）；待 PR。
 6. P3-01..P3-08：仅规划。
 7. 所有整改均在本地工作树「未提交」，尚未形成 PR/合并；基线提交仍为 5c076ea。
 
 ## 7. 结论：能否进入下一阶段
 - P0 门禁：P0-01..P0-04 已在本地工作树闭环：P0-01/P0-02 门禁修复并自测通过；P0-03 数学修正并经解析对拍（全量 1736 passed/14 skipped/0 failed，覆盖 83%）；P0-04 真实完整测试证据已回填。结论：P0 已全部闭环、具备提交评审条件（均未提交），可在 P0 PR 合并后进入 P1/P2 收敛实施。
-- 建议路径：尽快提交 P0-01..P0-04 与 P1-03/04/05、P2-06/07 整改 PR；P0 合并后按 NETLAB_ARCHITECTURE_CONVERGENCE.md 分阶段启动 P1-01/P1-02 与 P2 内核收敛；LM-05..07 与 P3 Core V2 单独立项。
+- 建议路径：P0-01..P0-04、P1-03/04/05、P2-06/07 已合入远端 main（7624bc1）；P1-01/P1-02 已在 feat/2026-11-24-p1-convergence 完成拆分与职责矩阵，待评审合并；随后按 NETLAB_ARCHITECTURE_CONVERGENCE.md 分阶段推进 P2 内核收敛；LM-05..07 与 P3 Core V2 单独立项。

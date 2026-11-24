@@ -1,7 +1,8 @@
 import { isAnalysisEnvelope } from "./analysis_chart.js";
 import { compareTableHtml, mergeCompareEnvelopes, metricsHtml } from "./analysis_workbench_results.js";
-import { readWorkbenchUi, writeWorkbenchUi, WORKBENCH_SCHEMA } from "./analysis_workbench_layout.js";
+import { readWorkbenchUi } from "./analysis_workbench_layout.js";
 import { emptyLayout } from "./analysis_workbench_layout_tree.js";
+import { applyWorkbenchChrome, applyWorkbenchCursor, applyWorkbenchSizes, beginWorkbenchResize, buildWorkbenchUiRecord } from "./analysis_workbench_chrome.js";
 import { AnalysisCanvasWorkspace } from "./analysis_workbench_canvas.js";
 import {
   workbenchCreateSessionRequest,
@@ -628,59 +629,25 @@ class AnalysisWorkbench extends WorkbenchActions {
     return mergeCompareEnvelopes(results);
   }
   renderCompareTable(results) {
-    if (!this.detailHost) return;
-    this.detailHost.innerHTML = compareTableHtml(results);
+    if (this.detailHost) this.detailHost.innerHTML = compareTableHtml(results);
   }
   renderMetrics(raw) {
-    if (!this.detailHost) return;
-    this.detailHost.innerHTML = metricsHtml(raw);
+    if (this.detailHost) this.detailHost.innerHTML = metricsHtml(raw);
   }
   onCursor(frequency, source, canvasId = "", unit = "", axisKey = "") {
     void source;
-    this.workspace?.setCursor(frequency, canvasId, unit, axisKey);
-    if (frequency === null) {
-      this.lastCursor = null;
-      this.renderStatus();
-      return;
-    }
-    this.lastCursor = { frequency, unit, canvasId };
+    this.lastCursor = applyWorkbenchCursor(this.workspace ?? void 0, frequency, canvasId, unit, axisKey);
     this.renderStatus();
   }
   beginResize(event, handle) {
-    event.preventDefault();
-    const target = handle.getAttribute("data-awb-resize");
-    const startX = event.clientX;
-    const style = getComputedStyle(this.host);
-    const startNav = parseFloat(style.getPropertyValue("--awb-nav-width")) || this.sizes.sidebar;
-    const startDetail = parseFloat(style.getPropertyValue("--awb-detail-width")) || this.sizes.detail;
-    const move = (moveEvent) => {
-      const dx = moveEvent.clientX - startX;
-      if (target === "nav") {
-        this.sizes.sidebar = Math.max(180, Math.min(420, startNav + dx));
-        this.host.style.setProperty("--awb-nav-width", this.sizes.sidebar + "px");
-      } else {
-        this.sizes.detail = Math.max(220, Math.min(520, startDetail - dx));
-        this.host.style.setProperty("--awb-detail-width", this.sizes.detail + "px");
-      }
-    };
-    const up = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      this.persist();
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
+    beginWorkbenchResize(event, handle, this.host, this.sizes, () => this.persist());
   }
   applySizes() {
-    this.host.style.setProperty("--awb-nav-width", this.sizes.sidebar + "px");
-    this.host.style.setProperty("--awb-detail-width", this.sizes.detail + "px");
+    applyWorkbenchSizes(this.host, this.sizes);
   }
   /** 侧栏折叠/专注模式只改变外壳，不触碰画布布局树。 */
   applyChrome() {
-    this.host.dataset.navCollapsed = this.collapsed.sidebar ? "true" : "false";
-    this.host.dataset.detailCollapsed = this.collapsed.detail ? "true" : "false";
-    this.host.dataset.focus = this.focusMode ? "true" : "false";
-    this.host.classList.toggle("awb-focus", this.focusMode);
+    applyWorkbenchChrome(this.host, this.collapsed, this.focusMode);
   }
   /** 工作台宽度 < 1100px 时自动折叠导航与详情；恢复宽屏时还原用户偏好。 */
   observeResponsiveChrome() {
@@ -727,16 +694,14 @@ class AnalysisWorkbench extends WorkbenchActions {
   persist() {
     try {
       const uiState = state.ui;
-      const canvases = this.workspace?.persist() || [];
-      uiState.analysis_workbench = writeWorkbenchUi({
-        schema: WORKBENCH_SCHEMA,
-        active_analysis: this.persistedKind,
-        canvases,
-        layout: this.workspace?.layoutTree || emptyLayout(),
-        sizes: this.sizes,
-        collapsed: this.preferredCollapsed,
-        selected_state_ids: Array.from(this.compareSelection)
-      });
+      uiState.analysis_workbench = buildWorkbenchUiRecord(
+        this.persistedKind,
+        this.workspace?.persist() || [],
+        this.workspace?.layoutTree || emptyLayout(),
+        this.sizes,
+        this.preferredCollapsed,
+        Array.from(this.compareSelection)
+      );
     } catch (error) {
     }
   }

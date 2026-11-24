@@ -1,7 +1,7 @@
 # NetLab 架构收敛方案（Architecture Convergence）
 
 > 基线提交：5c076eae55f739e2265327c0c73a7dac3440358a ｜ 版本：NetLab 3.20.2 / Project Schema 8
-> 说明：本文件针对 P1-01、P1-02、P2-01..P2-06 给出「现状证据 / 目标架构 / 验证标准 / 迁移步骤（小步）/ 风险与回滚」。P1-01/P1-02 已在 feat/2026-11-24-p1-convergence 分支落地（三模块 878→786、837→800、823→774，check:sections 通过，职责矩阵见 FRONTEND_RESPONSIBILITY_MATRIX.md）；P2-01/P2-02/P2-03 已在 feat/2026-11-24-p2-convergence 分支实施并提交待评审（e5373f7、2c7530e），P2-04/P2-05 安全修复与补测已落地（2db0867）。所有行数与 file:line 来自 findings 与实测。
+> 说明：本文件针对 P1-01、P1-02、P2-01..P2-06 给出「现状证据 / 目标架构 / 验证标准 / 迁移步骤（小步）/ 风险与回滚」。P1-01/P1-02 已随 PR #71（merge 376b2bb）合入 main（三模块 878→786、837→800、823→774，check:sections 通过，职责矩阵见 FRONTEND_RESPONSIBILITY_MATRIX.md）；P2-01/P2-02/P2-03 已随 PR #72（merge e8720f2）合入 main（e5373f7、2c7530e）；P2-04/P2-05 安全修复与补测随 PR #71 合入（2db0867）。所有行数与 file:line 来自 findings 与实测。
 
 ## 0. 通用验证手段
 - 行为等价 AST 对比：复用 P0-02 的 frontend/tools/parity_ast.js（字符串感知注释剥离 + 按文件判重）与 verify_app_parity.js，确保拆分前后导出声明集合与签名一致；后端用 AST/导出比对函数签名不变。
@@ -67,7 +67,7 @@
 - 风险：IIFE 内隐式全局变量与闭包共享状态在拆分时遗漏，导致运行时 undefined。
 - 回滚：分文件独立 revert；用 endpoint 清单快照与冒烟测试守护。
 
-## 3. P2-01 elements.stamp 与 descriptor._assemble_matrices 双轨收敛为单一 StampBuilder 契约（权重 5）｜已实施（e5373f7，待评审）
+## 3. P2-01 elements.stamp 与 descriptor._assemble_matrices 双轨收敛为单一 StampBuilder 契约（权重 5）｜已实施（e5373f7，已合并）
 
 ### 3.1 现状证据
 - netlab/core/compute/circuit/elements.py:66 抽象基类 stamp；:107/:173/:277/:345/:376/:413/:446/:470/:511/:571/:721/:849 共 12 个具体 kind 各自实现 stamp(self, ctx: StampContext)。
@@ -92,7 +92,7 @@
 - 风险：受控源/多端器件（VCVS/VCCS/opamp）装配边界、数值等价。
 - 回滚：保留旧路径 feature flag，按 kind 灰度切换；每 kind 对拍通过再删旧。
 
-## 4. P2-02 AC/Bode 后端统一 ac_sweep（权重 4）｜已实施（e5373f7，待评审）
+## 4. P2-02 AC/Bode 后端统一 ac_sweep（权重 4）｜已实施（e5373f7，已合并）
 
 ### 4.1 现状证据
 - netlab/core/compute/circuit/descriptor.py:1035-1048 纯线性路径 delegate solver.ac_sweep；
@@ -115,7 +115,7 @@
 - 风险：数值差异、性能回退。
 - 回滚：strategy 可切换，保留原直接调用路径开关。
 
-## 5. P2-03 analysis.py 结构拆分（权重 3）｜已实施（2c7530e，待评审）
+## 5. P2-03 analysis.py 结构拆分（权重 3）｜已实施（2c7530e，已合并）
 
 ### 5.1 现状证据
 - netlab/core/compute/analysis.py：2854 行、45 顶层函数、class AnalysisError(78)，与 circuit 栈职责重叠（编排 + 数值 + 错误 + 包络）。

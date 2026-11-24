@@ -1,6 +1,6 @@
 # NetLab 整改进度追踪表（Remediation Tracker）
 
-> 基线提交：5c076eae55f739e2265327c0c73a7dac3440358a ｜ 当前远端 main：e8720f2（P1 PR #71 merge 376b2bb；P2 PR #72 merge e8720f2）
+> 基线提交：5c076eae55f739e2265327c0c73a7dac3440358a ｜ 代码整改合并基线：e8720f2（P1 PR #71 merge 376b2bb；P2 PR #72 merge e8720f2；本文档经 PR #73 同步合入）
 > 版本：NetLab 3.20.2 / Project Schema 8 ｜ 审计日期：2026-11-24
 > 状态取值（严格）：已合并 / 部分落地已合并 / 规划完成（未实施）/ 未开始。「提交」列：具体 commit 与合并结果（PR/merge commit）。
 

@@ -3,7 +3,7 @@
 > 审计对象：NetLab（桌面端 + FastAPI 计算平台）
 > 基线提交：5c076eae55f739e2265327c0c73a7dac3440358a
 > 版本口径：NetLab 3.20.2 / Project Schema 8
-> 审计工作树：audit-20261124（相对 ProjectPoint 根目录；最终状态：P0/P1/P2 已全部提交并经 PR #71（merge 376b2bb）与 PR #72（merge e8720f2）合入远端 main=e8720f2；详见 NETLAB_REMEDIATION_TRACKER.md）
+> 审计工作树：audit-20261124（相对 ProjectPoint 根目录；最终状态：P0/P1/P2 已全部提交并经 PR #71（merge 376b2bb）与 PR #72（merge e8720f2）合入代码基线 main=e8720f2；本文档经 PR #73 同步合入；详见 NETLAB_REMEDIATION_TRACKER.md）
 > 审计日期：2026-11-24
 > 说明：所有数字与 file:line 均来自 docs/audit/findings/ 与本轮实测；文中「未提交」为整改过程中的历史状态记录，最终合并结果以本文 §5 与 NETLAB_REMEDIATION_TRACKER.md 为准。
 

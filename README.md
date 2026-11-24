@@ -114,26 +114,26 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
-| 2026-11-21 | test(schema): 补齐工作台 v2 校验分支覆盖至 97% |
-| 2026-11-21 | test(golden): 更新工作台 v2 schema 迁移 golden 快照 |
-| 2026-11-21 | chore(reports): 补充工作台布局改动的 D-5 影子报告 |
-| 2026-11-21 | fix(arch): 移动 WorkbenchCanvasRec 类型打断 layout 与 layout_tree 循环依赖 |
-| 2026-11-21 | fix(ci): 消除 parity 重复声明并拆出菜单模块满足 S5 行数上限 |
-| 2026-11-21 | feat(workbench): 工作台布局 v2（Tab/SplitTree）、布局撤销重做与导线整网拖动修复 |
-| 2026-11-20 | fix(ui): 浮窗允许部分移出视口并裁剪子图绘图 |
-| 2026-11-20 | fix(analysis): 闭环传函证据栏显示实际输出节点 |
-| 2026-11-20 | fix(analysis): 断环闭环输出自动落到反馈节点 |
-| 2026-11-20 | fix(circuit): 修正桥增益与直流偏置处理并补充输出节点说明 |
-| 2026-11-20 | chore(reports): 补充跨域桥小信号修复影子报告 |
-| 2026-11-20 | fix(circuit): 跨域桥元件按传感器电压受控并补真实传递测试 |
-| 2026-11-20 | chore(reports): 补充断环工作点改动的影子报告 |
-| 2026-11-20 | fix(circuit): 支持跨域桥元件线性化并自动补全断环工作点 |
-| 2026-11-20 | test(frontend): 竞态断言改为结果归属判定并暴露画布结果键 |
-| 2026-11-20 | refactor(frontend): 拆分工作台与图表模块以满足 S5 行数上限 |
-| 2026-11-20 | chore(frontend): 补充 pnpm-lock.yaml 锁定前端依赖版本 |
-| 2026-11-20 | fix(frontend): 工作台复核修正（请求竞态E2E/游标守卫单源/导出作用域） |
-| 2026-11-20 | fix(frontend): 多画布工作台契约修复（结果归属/命令上下文/游标单位/导出绑定） |
-| 2026-11-20 | fix(descriptor): QZ 奇异判定刻度不变（等化后判定，修复量级悬殊误判奇异） |
+| 2026-11-25 | docs(audit): 整改台账更新为已合并状态（PR #71/#72） (#73) |
+| 2026-11-25 | docs(audit): 标注台账经 PR #73 同步合入 |
+| 2026-11-25 | docs(audit): 整改台账更新为已合并状态（PR #71/#72，main e8720f2） |
+| 2026-11-24 | feat(compute): P2 计算内核收敛 (#72) |
+| 2026-11-24 | refactor(frontend): P1 前端三模块拆分与职责矩阵 (#71) |
+| 2026-11-24 | test(solver): 生成 D-5 影子对拍报告（P2） |
+| 2026-11-24 | test(solver): 生成 D-5 影子对拍报告（P1） |
+| 2026-11-24 | fix(frontend): 修复 P1 抽取函数编译错误 |
+| 2026-11-24 | docs(audit): 刷新 P2 实施状态与最新全量证据 |
+| 2026-11-24 | fix(frontend): 修复 P1 抽取函数编译错误并同步变异模板 |
+| 2026-11-24 | refactor(netlab): 收敛 P2 计算内核 AC 后端与 StampBuilder |
+| 2026-11-24 | refactor(analysis): 拆分 analysis.py 异常层与纯数值层 (P2-03) |
+| 2026-11-24 | docs(audit): 刷新整改台账提交与合并状态 |
+| 2026-11-24 | fix(compute): GPU 非有限解回退 CPU 并补 FEM 边界单测 |
+| 2026-11-24 | refactor(frontend): 拆分三超限分析模块并梳理前端职责 |
+| 2026-11-24 | docs(audit): 增加全面审计、整改追踪、架构收敛与 Core V2 路线图 |
+| 2026-11-24 | feat(tools): 需求可验证性门禁增加语义校验 |
+| 2026-11-24 | docs(deps): 统一 PlotKit 0.3.0 与 Project Schema 8 口径 |
+| 2026-11-24 | fix(desktop): 路径白名单注释与导出路径校验 |
+| 2026-11-24 | fix(analysis): 断环闭环传递函数修正为 T=G/(1+L) |
 
 <!-- END LAST 20 UPDATES -->
 

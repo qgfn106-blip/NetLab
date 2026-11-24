@@ -1,0 +1,139 @@
+{
+ "constants": {
+  "ANALYSIS_TIMEOUT": 5.0,
+  "MAX_EXPORT_ROWS": 200000
+ },
+ "extra_public": {
+  "break_points": {
+   "kind": "func",
+   "sig": "(sim: 'Any', *, operating_point: 'dict[str, float] | None' = None) -> 'dict[str, Any]'"
+  },
+  "loop_analysis": {
+   "kind": "func",
+   "sig": "(sim: 'Any', *, element: 'str | None' = '', input_source: 'str | None' = None, output: 'str | None' = None, feedback_sign: 'float' = 1.0, f_start: 'float' = 1.0, f_stop: 'float' = 1000000.0, points: 'int' = 241, scale: 'str' = 'log', display: 'str' = 'loop', step_dt: 'float' = 1e-05, step_duration: 'float' = 0.005, operating_point: 'dict[str, float] | None' = None, loop_probe: 'dict[str, Any] | None' = None) -> 'dict[str, Any]'"
+  },
+  "loop_candidates": {
+   "kind": "func",
+   "sig": "(sim: 'Any', *, operating_point: 'dict[str, float] | None' = None) -> 'dict[str, Any]'"
+  },
+  "loop_from_break": {
+   "kind": "func",
+   "sig": "(sim: 'Any', *, break_id: 'str', operating_point: 'dict[str, float] | None' = None) -> 'dict[str, Any]'"
+  },
+  "numeric_precision_mode": {
+   "kind": "func",
+   "sig": "() -> 'str'"
+  },
+  "nyquist_analysis": {
+   "kind": "func",
+   "sig": "(sim: 'Any', *, element: 'str', input_source: 'str | None' = None, output: 'str | None' = None, feedback_sign: 'float' = 1.0, f_start: 'float' = 1.0, f_stop: 'float' = 1000000.0, points: 'int' = 401, scale: 'str' = 'log', operating_point: 'dict[str, float] | None' = None) -> 'dict[str, Any]'"
+  },
+  "nyquist_closed_analysis": {
+   "kind": "func",
+   "sig": "(sim: 'Any', *, input_source: 'str | None' = None, output: 'str | None' = None, feedback_sign: 'float' = 1.0, f_start: 'float' = 1.0, f_stop: 'float' = 1000000.0, points: 'int' = 401, scale: 'str' = 'log', operating_point: 'dict[str, float] | None' = None) -> 'dict[str, Any]'"
+  },
+  "set_numeric_precision_mode": {
+   "kind": "func",
+   "sig": "(mode: 'str') -> 'None'"
+  },
+  "step_open_analysis": {
+   "kind": "func",
+   "sig": "(sim: 'Any', *, element: 'str | None' = '', input_source: 'str | None' = None, output: 'str | None' = None, feedback_sign: 'float' = 1.0, f_start: 'float' = 1.0, f_stop: 'float' = 1000000.0, points: 'int' = 241, scale: 'str' = 'log', step_dt: 'float' = 1e-05, step_duration: 'float' = 0.005, operating_point: 'dict[str, float] | None' = None, loop_probe: 'dict[str, Any] | None' = None) -> 'dict[str, Any]'"
+  }
+ },
+ "numerics_private": {
+  "_complex_list": {
+   "kind": "func",
+   "sig": "(values: 'Any') -> 'list[list[float]]'"
+  },
+  "_complex_pairs": {
+   "kind": "func",
+   "sig": "(matrix: 'Any') -> 'list[list[list[float]]]'"
+  },
+  "_crossing": {
+   "kind": "func",
+   "sig": "(times: 'np.ndarray', values: 'np.ndarray', level: 'float') -> 'float | None'"
+  },
+  "_frequency_axis": {
+   "kind": "func",
+   "sig": "(f_start: 'float', f_stop: 'float', points: 'int', scale: 'str') -> 'np.ndarray'"
+  },
+  "_number": {
+   "kind": "func",
+   "sig": "(value: 'Any') -> 'str'"
+  },
+  "_period_windows": {
+   "kind": "func",
+   "sig": "(size: 'int') -> 'list[tuple[int, int]]'"
+  },
+  "_shift_score": {
+   "kind": "func",
+   "sig": "(grid: 'np.ndarray', values: 'np.ndarray', period: 'float') -> 'tuple[float, float] | None'"
+  },
+  "_uniform": {
+   "kind": "func",
+   "sig": "(times: 'np.ndarray', values: 'np.ndarray') -> 'tuple[np.ndarray, np.ndarray]'"
+  }
+ },
+ "public": {
+  "AnalysisError": {
+   "bases": [
+    "Exception"
+   ],
+   "kind": "class"
+  },
+  "analyze_metrics": {
+   "kind": "func",
+   "sig": "(sim: 'Any', keys: 'list[str] | None' = None, t0: 'float | None' = None, t1: 'float | None' = None, *, settle_band: 'float' = 0.02) -> 'dict[str, Any]'"
+  },
+  "export_csv": {
+   "kind": "func",
+   "sig": "(sim: 'Any', *, directory: 'str | Path', network_name: 'str', keys: 'list[str] | None' = None, t0: 'float | None' = None, t1: 'float | None' = None, decimate: 'int' = 1, name: 'str' = 'analysis') -> 'dict[str, Any]'"
+  },
+  "frequency_response": {
+   "kind": "func",
+   "sig": "(sim: 'Any', input: 'str', output: 'str', *, f_start: 'float' = 1.0, f_stop: 'float' = 1000000.0, points: 'int' = 241, scale: 'str' = 'log', input_field: 'str' = 'voltage', output_field: 'str' = 'voltage') -> 'dict[str, Any]'"
+  },
+  "math_forms": {
+   "kind": "func",
+   "sig": "(sim: 'Any') -> 'dict[str, Any]'"
+  },
+  "phase_metrics": {
+   "kind": "func",
+   "sig": "(xs: 'list[float]', ys: 'list[float]', times: 'list[float] | None' = None) -> 'dict[str, Any]'"
+  },
+  "recommend_period": {
+   "kind": "func",
+   "sig": "(sim: 'Any', key: 'str', t0: 'float | None' = None, t1: 'float | None' = None) -> 'dict[str, Any]'"
+  },
+  "run_with_timeout": {
+   "kind": "func",
+   "sig": "(function: 'Callable[[], Any]', seconds: 'float' = 5.0, label: 'str' = '\u5206\u6790') -> 'Any'"
+  },
+  "spectrum": {
+   "kind": "func",
+   "sig": "(sim: 'Any', key: 'str', t0: 'float | None' = None, t1: 'float | None' = None, *, window: 'str' = 'hann') -> 'dict[str, Any]'"
+  },
+  "tf_analysis": {
+   "kind": "func",
+   "sig": "(sim: 'Any' = None, *, mode: 'str' = 'signal', node: 'str | None' = None, input_node: 'str | None' = None, output_node: 'str | None' = None, input_source: 'str | None' = None, output: 'str | None' = None, operating_point: 'dict[str, float] | None' = None, step_dt: 'float' = 1e-05, step_duration: 'float' = 0.005, f_start: 'float' = 1.0, f_stop: 'float' = 1000000.0, scale: 'str' = 'log', field: 'str | None' = None, expr: 'str | None' = None, numerator: 'list[float] | None' = None, denominator: 'list[float] | None' = None, zeros: 'list[float] | None' = None, poles: 'list[float] | None' = None, gain: 'float' = 1.0, method: 'str' = 'zoh', dt: 'float | None' = None, duration: 'float | None' = None, points: 'int' = 240, delay_pade_order: 'int' = 3, frequency_path: 'str' = 'descriptor_linearized') -> 'dict[str, Any]'"
+  },
+  "transfer_function": {
+   "kind": "func",
+   "sig": "(sim: 'Any', input_node: 'str', output_node: 'str', *, input_field: 'str' = 'voltage', output_field: 'str' = 'voltage', domain: 'str' = 's', delay_pade_order: 'int' = 3) -> 'dict[str, Any]'"
+  }
+ },
+ "public_all": [
+  "AnalysisError",
+  "analyze_metrics",
+  "spectrum",
+  "recommend_period",
+  "math_forms",
+  "transfer_function",
+  "tf_analysis",
+  "frequency_response",
+  "phase_metrics",
+  "export_csv",
+  "run_with_timeout"
+ ]
+}

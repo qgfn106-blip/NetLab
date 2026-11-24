@@ -3,13 +3,13 @@
 > 审计对象：NetLab（桌面端 + FastAPI 计算平台）
 > 基线提交：5c076eae55f739e2265327c0c73a7dac3440358a
 > 版本口径：NetLab 3.20.2 / Project Schema 8
-> 审计工作树：audit-20261124（相对 ProjectPoint 根目录；整改均在本地工作树，未提交）
+> 审计工作树：audit-20261124（相对 ProjectPoint 根目录；整改已提交：P0/P1 依赖与文档/P2-06/07 合入 main 7624bc1，P1-01/02/P2-01..04 在特性分支待评审）
 > 审计日期：2026-11-24
 > 说明：所有数字与 file:line 均来自 docs/audit/findings/ 与本轮代码实测；标注「未提交」者为现状如实记录，不代表已完成提交。
 
 ## 0. 摘要
 
-NetLab 3.20.2 主体功能完整、测试与 CI 框架健全，但存在三处 P0 级红线必须先行闭环：（1）CI 链职责重复；（2）前端模块等价 AST 检查误判导致门禁假阳性；（3）断环闭环传递函数在非单位反馈下算错、正反馈判据错误。本轮工作树已落地 P0-01、P0-02、P0-03、P0-04 及 P1-03/04/05、P2-06、P2-07 的整改（均未提交）；P0 四项已在本地工作树闭环（全量 1736 passed/14 skipped/0 failed，覆盖率 83%≥81 门限；断环闭环修正为 T=G/(1+L) 并经解析对拍）；P1-01/P1-02 已在 feat/2026-11-24-p1-convergence 分支完成拆分（878→786、837→800、823→774，check:sections 通过）并产出职责矩阵；P2-01..P2-03 仍以收敛方案为主，P2-04 已修复 GPU 非有限值回退 CPU，P2-05 已补 Q4/边界单测。结论：P0 已全部闭环并已合入远端 main；P1-01/P1-02 已完成；P2-04/P2-05 已做安全修复与补测，P2-01..P2-03 大规模重构仍建议按收敛方案分阶段推进。
+NetLab 3.20.2 主体功能完整、测试与 CI 框架健全，但存在三处 P0 级红线必须先行闭环：（1）CI 链职责重复；（2）前端模块等价 AST 检查误判导致门禁假阳性；（3）断环闭环传递函数在非单位反馈下算错、正反馈判据错误。本轮已落地 P0-01、P0-02、P0-03、P0-04 及 P1-03/04/05、P2-06、P2-07 的整改（已提交，P0/P1 依赖与文档/P2-06/07 合入 main 7624bc1）；P0 四项已在本地工作树闭环（最新全量 1789 passed/14 skipped/0 failed，覆盖率 82.70%≥81 门限；断环闭环修正为 T=G/(1+L) 并经解析对拍）；P1-01/P1-02 已在 feat/2026-11-24-p1-convergence 分支完成拆分（878→786、837→800、823→774，check:sections 通过）并产出职责矩阵；P2-01/P2-02/P2-03 已按收敛方案实施并分别提交待评审（StampBuilder 单一装配、ac_sweep 统一后端、analysis 数值/异常分层），P2-04 已修复 GPU 非有限值回退 CPU，P2-05 已补 Q4/边界单测。结论：P0 已全部闭环并已合入远端 main；P1-01/P1-02 已完成；P2-04/P2-05 已做安全修复与补测；P2-01..P2-03 已按收敛方案实施并提交待评审，建议评审后分阶段合并。
 
 ## 1. 项目现状
 
@@ -32,7 +32,7 @@ NetLab 3.20.2 主体功能完整、测试与 CI 框架健全，但存在三处 P
 
 ## 2. 问题清单（按 P0–P3 分级）
 
-状态词约定：已落地未提交 / 实施中 / 仅方案 / 未开始。总权重 100，分阶段见标题。
+状态词约定：已合并 / 已提交待评审 / 部分落地 / 规划完成（未实施）/ 未开始。总权重 100，分阶段见标题。
 
 ### 2.1 P0（最高优先级，合计 35）
 
@@ -55,14 +55,14 @@ NetLab 3.20.2 主体功能完整、测试与 CI 框架健全，但存在三处 P
 - 现象：见 §3 数学验证专章（LM-01..LM-09）。
 - 影响：闭环传递函数在非单位反馈下偏差可达 20dB；正反馈判据错误；部分电路校验恒真（无判别力）。
 - 根因：界面曲线用 L 合成而非 G；sign 与回路增益自带极性重复计入分母；校验量与绘制量不一致；Nyquist 临界点未随反馈极性。
-- 状态：LM-01..LM-04 已修复（analysis.py:2275-2278 闭环显示直接取 extraction.closed_loop=G/(1+L)；loop_analysis.py:432 closed=forward/(1+L)，删除 sign 双计；loop_analysis.py:776-842 支路断环 forward 独立测量、closed=direct、parity_max_rel 诚实化并新增 branch_loop_synthesis_mismatch 告警）。LM-05..07（nyquist 临界点/PM 基准/运放扰动测 L）评估后保留，理由见 loop_math_fix.md §7，建议单独立项。详见 docs/audit/findings/loop_math_fix.md；定向 24 passed/7 skipped，全量 1736 passed/14 skipped/0 failed；未提交。
+- 状态：LM-01..LM-04 已修复（analysis.py:2275-2278 闭环显示直接取 extraction.closed_loop=G/(1+L)；loop_analysis.py:432 closed=forward/(1+L)，删除 sign 双计；loop_analysis.py:776-842 支路断环 forward 独立测量、closed=direct、parity_max_rel 诚实化并新增 branch_loop_synthesis_mismatch 告警）。LM-05..07（nyquist 临界点/PM 基准/运放扰动测 L）评估后保留，理由见 loop_math_fix.md §7，建议单独立项。详见 docs/audit/findings/loop_math_fix.md；定向 24 passed/7 skipped，全量全绿（见 §5）；已合入 main 7624bc1。
 
 #### P0-04 恢复真实完整测试证据（权重 5）｜已落地未提交
 - file:line：pytest.ini:2（testpaths）；docs/canonical/decisions.yaml:1071-1072（--cov-fail-under=78 与 CI 实际 81 不符）、:1076（678 passed 过时，实际 1736 passed/1750 采集）。
 - 现象：文档覆盖率门槛（78）与 CI 实际（81）不一致；文档通过数（678）远低于实际采集（1748）。
 - 影响：证据与门禁脱节，审计/回归结论不可追溯。
 - 根因：文档未随 CI/测试增长同步。
-- 状态：已落地未提交。带夹具全量 pytest = 1736 passed/14 skipped/0 failed（junit：tests 1750/14 skipped/0 failed）；覆盖率 TOTAL 83%（≥ --cov-fail-under=81 门禁，CI 同款 --cov=netlab/core）；requirements --all 43/43 PASS；证据见 reports/evidence/python-tests.json 与 AUDIT_EVIDENCE_LOG.md。decisions.yaml 相关数字为 2026-11-08 历史决策记录（当时基线），按项目惯例不追溯改写；当前门禁以 CI workflow 为准（--cov-fail-under=81）。
+- 状态：已合并 7624bc1。带夹具全量 pytest = 1736 passed/14 skipped/0 failed（junit：tests 1750/14 skipped/0 failed）；覆盖率 TOTAL 83%（≥ --cov-fail-under=81 门禁，CI 同款 --cov=netlab/core）；requirements --all 43/43 PASS；证据见 reports/evidence/python-tests.json 与 AUDIT_EVIDENCE_LOG.md。decisions.yaml 相关数字为 2026-11-08 历史决策记录（当时基线），按项目惯例不追溯改写；当前门禁以 CI workflow 为准（--cov-fail-under=81）。
 
 ### 2.2 P1 前端模块收敛（合计 15）
 
@@ -109,32 +109,38 @@ NetLab 3.20.2 主体功能完整、测试与 CI 框架健全，但存在三处 P
 
 ### 2.5 P2 计算内核（合计 17）
 
-#### P2-01 MNA Stamp 双轨 → 单一 StampBuilder 契约（权重 5）｜仅方案
+#### P2-01 MNA Stamp 双轨 → 单一 StampBuilder 契约（权重 5）｜已提交待评审
 - file:line：circuit/elements.py:66 抽象基类 stamp；:107/:173/:277/:345/:376/:413/:446/:470/:511/:571/:721/:849 共 12 具体 kind 各自装配；circuit/descriptor.py:551 _assemble_matrices 按 kind 独立装配；仅 2 端 Laplacian 原语共享 circuit/stamps.py:78。
 - 现象：同一器件在 elements.stamp 与 descriptor._assemble_matrices 两处各写一套 MNA 装配。
 - 影响：两轨易漂移，新增器件需改两处，覆盖易不全。
 - 根因：历史并行演进，未收敛为单一 StampBuilder 契约。
-- 状态：仅方案（见 CONVERGENCE §3）。
+- 修复：新增 circuit/stamp_builder.py（294 行，StaticMatrixSink + ElementStampSink + 每 kind stamp_<kind> 贡献函数），descriptor._assemble_matrices 由 199 行降至 23 行并删除 9 路 kind 特判，elements.py 各器件 stamp 委托共享函数。
+- 验证：R/L/C/sensor/vsource/VCVS/VCCS/isource 新装配与旧实现逐项相等（rtol=atol=0）；新增 test_stamp_parity.py 8 条，定向 241 passed。电感 element.stamp 走二端伴随、descriptor 走独立支路，布局不同按设计保留并记录。
+- 状态：已提交待评审 e5373f7（见 CONVERGENCE §3）。
 
-#### P2-02 AC/Bode 后端统一（权重 4）｜仅方案
+#### P2-02 AC/Bode 后端统一（权重 4）｜已提交待评审
 - file:line：circuit/descriptor.py:1035-1048 纯线性 → solver.ac_sweep；:1049-1086 仅非线性/强制 native 路径每频点重装。
 - 现象：两条频域求解路径并存。
 - 影响：一致性风险与性能冗余。
 - 根因：native 路径未接入统一 ac_sweep 抽象。
-- 状态：仅方案（见 CONVERGENCE §4）。
+- 修复：新增 circuit/ac_backend.py（149 行，FastLinearStrategy/NativePerFrequencyStrategy + 统一 ac_sweep/select_strategy），descriptor.frequency_response 改为薄封装，非线性自动选 native。
+- 验证：线性 RLC 四路 Bode 逐点对拍 rtol 1e-8/atol 1e-12 通过；新增 test_ac_backend.py 6 条。
+- 状态：已提交待评审 e5373f7（见 CONVERGENCE §4）。
 
-#### P2-03 analysis.py 结构拆分（权重 3）｜仅方案
+#### P2-03 analysis.py 结构拆分（权重 3）｜已提交待评审
 - file:line：netlab/core/compute/analysis.py（2854 行、45 顶层函数、class AnalysisError(78)），与 circuit 栈职责重叠。
 - 现象：巨型分析模块，多层职责叠加。
 - 影响：难测试、难演进、边界模糊。
 - 根因：分析编排与数值实现未分层。
-- 状态：仅方案（见 CONVERGENCE §5）。
+- 修复：新增 analysis_errors.py（AnalysisError/ANALYSIS_TIMEOUT/MAX_EXPORT_ROWS）与 analysis_numerics.py（8 个纯数值函数），analysis.py 2848→2771 行并保持再导出；新增 API 快照测试。
+- 验证：pytest netlab/tests/test_analysis*.py 169 passed/7 skipped；API 快照 0 处不一致。编排/facade 有意保留，未硬拆。
+- 状态：已提交待评审 2c7530e（见 CONVERGENCE §5）。
 
 #### P2-04 GPU 边界 / 非有限 ComputeError（权重 2）｜已落地未提交
 - file:line：netlab/core/compute/accel.py:178-223（单步 H2D/D2H + 显式 sync）；min_size 门槛 192；原 solve_dense 非有限值直接 ComputeError，未按 docstring 回退 CPU。
 - 修复：GPU 非有限解改抛 RuntimeError，经 `except Exception → _record_gpu_failure → CPU` 回退；CPU 奇异/非有限输入仍抛 ComputeError。
 - 测试：netlab/tests/test_accel_fallback.py 5 条（GPU 非有限回退、min_size、非有限输入、奇异、形状）pass。
-- 状态：已落地未提交（见 CONVERGENCE §6）。
+- 状态：已提交待评审 2db0867（见 CONVERGENCE §6）。
 
 #### P2-05 FEM 边界与单测缺口（权重 2）｜部分落地未提交
 - file:line：netlab/core/compute/fem.py:59-75 FemConfig、:163-177 _element_matrices、:247-266 backward-Euler；左右 Dirichlet、上下绝热。
@@ -143,7 +149,7 @@ NetLab 3.20.2 主体功能完整、测试与 CI 框架健全，但存在三处 P
 - 根因：FEM 用例稀疏。
 - 状态：已补 netlab/tests/test_fem.py 3 条（Q4 刚度行和为零、质量对称正定/总质量=ρcA、Dirichlet 保持、无源均匀保持、Gauss 源加热）；边界枚举化与时间积分可插拔仍为方案（见 CONVERGENCE §7）。
 
-#### P2-06 路径安全契约（权重 1）｜已落地未提交（文档）+ 残余风险
+#### P2-06 路径安全契约（权重 1）｜已合并（文档）+ 残余风险已消除
 - file:line：netlab/core/model/path_guard.py:9 docstring（基线写「追加受信根目录」，与 allowed_roots() 的覆盖语义不符）；netlab/desktop/bridge.py 经 atomic_write / load_project_raw 内部 ensure_allowed_path（project.py:1075,1126）已保护；netlab/desktop/webview_bridge.py:206 save_text 直写无校验。
 - 现象/影响：文档说「追加」实现是「覆盖」，契约误导；「任意路径逃逸」经 bridge 已被 ensure_allowed_path 阻断，该风险不成立；仅 webview_bridge.save_text 残余直写。
 - 根因：文档与实现不一致；save_text 未接 ensure_allowed_path。
@@ -207,16 +213,16 @@ NetLab 3.20.2 主体功能完整、测试与 CI 框架健全，但存在三处 P
 | 命令 | 结果 | 状态 |
 |---|---|---|
 | node --test frontend/tests/parity_ast.test.mjs | tests 8 / pass 8 / fail 0 | 已跑（2026-11-24，node v24） |
-| node frontend/tools/verify_app_parity.js | exit0：OK: app.ts parity passed (base=HEAD, 83 TS files, 848 top-level declarations, 73 runtime app modules, 3 type-only) | 已跑 |
+| node frontend/tools/verify_app_parity.js | exit0：OK: app.ts parity passed（86 TS files / 859 top-level declarations / 76 runtime app modules / 3 type-only） | 已跑（P1 拆分后） |
 | python -m pytest（无夹具全量） | 7 failed / 1609 passed / 18 skipped（7 失败全部因缺 MyProject 夹具，非回归） | 已跑（基线记录） |
 | python -m pytest（补同名夹具，相关 4 文件） | 7 passed | 已跑 |
-| python -m pytest（带夹具全量） | 1736 passed / 14 skipped / 0 failed（junit tests 1750） | 已跑（reports/evidence/python-tests.json） |
+| python -m pytest（带夹具全量，最新 P2 集成分支） | 1789 passed / 14 skipped / 0 failed（junit tests 1803） | 已跑（reports/evidence/python-tests.json，status=passed，exit 0） |
 | tools/check_requirement_verifiability.py --all（43 条） | 43/43 PASS | 已跑 |
-| pytest --cov=netlab/core --cov-fail-under=81 | TOTAL 83%，exit 0（达门限） | 已跑（evidence JSON status=passed） |
+| pytest --cov=netlab/core --cov-fail-under=81 | TOTAL 82.70%（报告取整 83%）≥81，exit 0 | 已跑（19136 语句/2622 未覆盖） |
 
 7 个失败原因说明：缺 netlab/tests/fixtures/projects 下的 MyProject 同名夹具（基线仓库不含 MyProject，因 .gitignore 排除），补同名测试夹具后相关用例通过；属环境/夹具缺失，非功能回归。
 
-## 5. 整改证据（工作树实测，均未提交）
+## 5. 整改证据（工作树实测；提交状态见 tracker）
 - P0-01：.github/workflows/python-tests.yml 已无 Setup Node / Section budget 两步（git diff 有改动）；section gate 保留在 frontend-ts-build.yml。
 - P0-02：新增 frontend/tools/parity_ast.js（98 行）与 frontend/tests/parity_ast.test.mjs（8 用例全过）；verify_app_parity.js 改用 normalizeSource / duplicatedInFile，按文件判重；实跑 OK（83/848/73/3）。
 - P1-03：pyproject.toml:18 plotkit>=0.3,<0.4；requirements.txt +1 注释指向 pyproject；四 workflow checkout ref 6939e8889ce4b1c64c0ec679658d9cfa99e67f37（0.3.0）。
@@ -224,17 +230,17 @@ NetLab 3.20.2 主体功能完整、测试与 CI 框架健全，但存在三处 P
 - P1-05：README.md:44、OPERATION.md:149、ARCHITECTURE.md 的 MyProject 说明改为本地示例目录、.gitignore 排除、夹具在 netlab/tests/fixtures/projects/。
 - P2-06：path_guard.py:9 docstring「追加」→「覆盖」；webview_bridge.save_text 写入前新增 ensure_allowed_path(target, purpose="导出路径")（原 :206 直写残余已修），py_compile OK、desktop 12 tests passed。
 - P2-07：tools/check_requirement_verifiability.py 由 48 行扩为 118 行语义门禁，--all 覆盖 43 条。
-- git status：25 个已跟踪文件修改（25 files changed, 243 insertions(+), 79 deletions(-)）＋新增 docs/audit/ 四份文档、frontend/tools/parity_ast.js、frontend/tests/parity_ast.test.mjs，全部为工作树未提交。
+- git 状态：P0/P1 依赖/文档/P2-06/07 已提交并合入 main 7624bc1；P1-01/P1-02 与 P2-01..04 在特性分支待评审（bf49b27、2db0867、2c7530e、e5373f7、8cf00e9）。
 
 ## 6. 未完成项
 1. P0-03 断环闭环：LM-01..LM-04 已修复并回归（loop_math_fix.md）；LM-05..07（nyquist 临界点/PM 基准/运放扰动测 L）保留待单独立项。
 2. P0-04：证据已回填（1736 passed/14 skipped/0 failed；覆盖率 83%；requirements 43/43）；decisions.yaml 历史决策记录不追溯改写，门禁以 CI 为准。
 3. P1-01 已完成三模块拆分（878→786、837→800、823→774，check:sections 通过）；P1-02 已产出职责矩阵与后续 S1-S4 拆分路径，app.ts 主拆分仍待后续。
-4. P2-01..P2-03 内核收敛：仅方案，未实施；P2-04 GPU 回退已修、P2-05 FEM 单测已补。
+4. P2-01/P2-02/P2-03 内核收敛：已实施并提交待评审（e5373f7、2c7530e），全量回归通过；P2-04 GPU 回退已修、P2-05 FEM 单测已补（边界枚举/时间积分可插拔待后续）。
 5. P2-06 残余已修复（webview_bridge.save_text 已接 ensure_allowed_path）；待 PR。
-6. P3-01..P3-08：仅规划。
-7. 所有整改均在本地工作树「未提交」，尚未形成 PR/合并；基线提交仍为 5c076ea。
+6. P3-01..P3-08：规划已完成（CORE_V2_IMPLEMENTATION_ROADMAP.md 交付），按任务书本轮不实施。
+7. P0/P1 依赖/文档/P2-06/07 已合入远端 main 7624bc1（快进，绕过保护告警）；P1-01/02、P2-01..04 已提交特性分支但尚未 push/PR。
 
 ## 7. 结论：能否进入下一阶段
-- P0 门禁：P0-01..P0-04 已在本地工作树闭环：P0-01/P0-02 门禁修复并自测通过；P0-03 数学修正并经解析对拍（全量 1736 passed/14 skipped/0 failed，覆盖 83%）；P0-04 真实完整测试证据已回填。结论：P0 已全部闭环、具备提交评审条件（均未提交），可在 P0 PR 合并后进入 P1/P2 收敛实施。
-- 建议路径：P0-01..P0-04、P1-03/04/05、P2-06/07 已合入远端 main（7624bc1）；P1-01/P1-02 已在 feat/2026-11-24-p1-convergence 完成拆分与职责矩阵，待评审合并；随后按 NETLAB_ARCHITECTURE_CONVERGENCE.md 分阶段推进 P2 内核收敛；LM-05..07 与 P3 Core V2 单独立项。
+- P0 门禁：P0-01..P0-04 已在本地工作树闭环：P0-01/P0-02 门禁修复并自测通过；P0-03 数学修正并经解析对拍（全量 1736 passed/14 skipped/0 failed，覆盖 83%）；P0-04 真实完整测试证据已回填。结论：P0 已全部闭环并已合入 main 7624bc1；P1-01/02 与 P2-01..04 已在特性分支提交待评审，可进入评审合并。
+- 建议路径：P0-01..P0-04、P1-03/04/05、P2-06/07 已合入远端 main（7624bc1）；P1-01/P1-02 与 P2-01..03 已分别在 feat/2026-11-24-p1-convergence、feat/2026-11-24-p2-convergence 实现并待评审；合并后处理 LM-05..07、P2-05 架构深化与 P3 Core V2。

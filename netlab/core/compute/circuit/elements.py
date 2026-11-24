@@ -105,7 +105,9 @@ class Resistor(CircuitElement):
         self.conductance = 1.0 / float(self.params["R"])
 
     def stamp(self, ctx: StampContext) -> None:
-        _stamp_conductance(ctx, self.a, self.b, self.conductance)
+        from .stamp_builder import ElementStampSink, stamp_resistor
+
+        stamp_resistor(self, ElementStampSink(ctx))
 
     def commit(self, ctx: StampContext) -> None:
         voltage = ctx.voltage(self.a) - ctx.voltage(self.b)
@@ -171,15 +173,9 @@ class Capacitor(CircuitElement):
             self.source_current = -self.conductance * previous_v - previous_i
 
     def stamp(self, ctx: StampContext) -> None:
-        if ctx.mode == "dc":
-            # 直流工作点：电容开路，不参与 KCL。
-            return
-        if ctx.mode == "ac":
-            # 小信号交流：导纳 jωC（电压源/电流源由求解器设成单位激励）。
-            _stamp_conductance(ctx, self.a, self.b, 1j * ctx.omega * self.capacitance)
-            return
-        _stamp_conductance(ctx, self.a, self.b, self.conductance)
-        _stamp_current(ctx, self.a, self.b, self.source_current)
+        from .stamp_builder import ElementStampSink, stamp_capacitor
+
+        stamp_capacitor(self, ElementStampSink(ctx))
 
     def commit(self, ctx: StampContext) -> None:
         voltage = ctx.voltage(self.a) - ctx.voltage(self.b)
@@ -343,16 +339,9 @@ class VoltageSource(CircuitElement):
         self.value = _source_value(self.params, dt, time, self.integration)
 
     def stamp(self, ctx: StampContext) -> None:
-        row = self.branch_index
-        ai = ctx.index.get(self.a)
-        bi = ctx.index.get(self.b)
-        if ai is not None:
-            ctx.A[ai, row] += 1.0
-            ctx.A[row, ai] += 1.0
-        if bi is not None:
-            ctx.A[bi, row] -= 1.0
-            ctx.A[row, bi] -= 1.0
-        ctx.rhs[row] = self.value * getattr(self, "source_scale", 1.0)
+        from .stamp_builder import ElementStampSink, stamp_vsource
+
+        stamp_vsource(self, ElementStampSink(ctx))
 
     def current(self, ctx: StampContext) -> float:
         return float(ctx.solution[self.branch_index])
@@ -374,13 +363,9 @@ class SensorElement(CircuitElement):
     label = "电压传感器"
 
     def stamp(self, ctx: StampContext) -> None:
-        ai = ctx.index.get(self.a)
-        bi = ctx.index.get(self.b)
-        leak = 1.0e-12
-        if ai is not None:
-            ctx.A[ai, ai] += leak
-        if bi is not None:
-            ctx.A[bi, bi] += leak
+        from .stamp_builder import ElementStampSink, stamp_sensor
+
+        stamp_sensor(self, ElementStampSink(ctx))
 
     def commit(self, ctx: StampContext) -> None:
         voltage = ctx.voltage(self.a) - ctx.voltage(self.b)
@@ -411,9 +396,9 @@ class CurrentSource(CircuitElement):
         self.value = _source_value(self.params, dt, time, self.integration)
 
     def stamp(self, ctx: StampContext) -> None:
-        _stamp_current(
-            ctx, self.a, self.b, self.value * getattr(self, "source_scale", 1.0)
-        )
+        from .stamp_builder import ElementStampSink, stamp_isource
+
+        stamp_isource(self, ElementStampSink(ctx))
 
     def current(self, ctx: StampContext) -> float:
         del ctx
@@ -444,7 +429,9 @@ class Switch(CircuitElement):
         self.conductance = 1.0 / (ron if closed else roff)
 
     def stamp(self, ctx: StampContext) -> None:
-        _stamp_conductance(ctx, self.a, self.b, self.conductance)
+        from .stamp_builder import ElementStampSink, stamp_switch
+
+        stamp_switch(self, ElementStampSink(ctx))
 
     def commit(self, ctx: StampContext) -> None:
         voltage = ctx.voltage(self.a) - ctx.voltage(self.b)
@@ -468,22 +455,9 @@ class VCVS(CircuitElement):
         self.control_b = self.pin("IN-", "control_target")
 
     def stamp(self, ctx: StampContext) -> None:
-        row = self.branch_index
-        ai = ctx.index.get(self.a)
-        bi = ctx.index.get(self.b)
-        ci = ctx.index.get(self.control_a)
-        di = ctx.index.get(self.control_b)
-        if ai is not None:
-            ctx.A[ai, row] += 1.0
-            ctx.A[row, ai] += 1.0
-        if bi is not None:
-            ctx.A[bi, row] -= 1.0
-            ctx.A[row, bi] -= 1.0
-        if ci is not None:
-            ctx.A[row, ci] -= self.gain
-        if di is not None:
-            ctx.A[row, di] += self.gain
-        ctx.rhs[row] = 0.0
+        from .stamp_builder import ElementStampSink, stamp_vcvs
+
+        stamp_vcvs(self, ElementStampSink(ctx))
 
     def current(self, ctx: StampContext) -> float:
         return float(ctx.solution[self.branch_index])
@@ -509,21 +483,9 @@ class VCCS(CircuitElement):
         self.control_b = self.pin("IN-", "control_target")
 
     def stamp(self, ctx: StampContext) -> None:
-        gm = self.transconductance
-        ai = ctx.index.get(self.a)
-        bi = ctx.index.get(self.b)
-        ci = ctx.index.get(self.control_a)
-        di = ctx.index.get(self.control_b)
-        if ci is not None:
-            if ai is not None:
-                ctx.A[ai, ci] += gm
-            if bi is not None:
-                ctx.A[bi, ci] -= gm
-        if di is not None:
-            if ai is not None:
-                ctx.A[ai, di] -= gm
-            if bi is not None:
-                ctx.A[bi, di] += gm
+        from .stamp_builder import ElementStampSink, stamp_vccs
+
+        stamp_vccs(self, ElementStampSink(ctx))
 
     def current(self, ctx: StampContext) -> float:
         voltage = ctx.voltage(self.control_a) - ctx.voltage(self.control_b)

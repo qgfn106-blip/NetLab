@@ -550,116 +550,26 @@ class DescriptorModel:
 
     def _assemble_matrices(self) -> tuple[np.ndarray, np.ndarray]:
         """装配不随频率变化的 A、E 矩阵。"""
+        from .stamp_builder import StaticMatrixSink, stamp_element_static
+
         size = self.index.size
         A = np.zeros((size, size), dtype=float)
         E = np.zeros((size, size), dtype=float)
-        index = self.index
-
-        def stamp_conductance(a: str, b: str, conductance: float) -> None:
-            # P1-R1: Laplacian stamping converges on stamps.stamp_laplacian.
-            # float() and the node-only index semantics are unchanged.
-            stamp_laplacian(A, index.node_index, a, b, float(conductance))
+        sink = StaticMatrixSink(A, E, self.index)
 
         for element in self.elements:
             kind = element.kind
-            if kind == "resistor":
-                stamp_conductance(element.a, element.b, element.conductance)
-            elif kind == "switch":
-                stamp_conductance(element.a, element.b, element.conductance)
-            elif kind == "capacitor":
-                capacitance = float(element.capacitance)
-                # P1-R1: E-matrix Laplacian uses the same shared primitive.
-                stamp_laplacian(E, index.node_index, element.a, element.b, capacitance)
-            elif kind == "inductor":
-                row = index.branch_index[element.name]
-                ai = index.node_index.get(element.a)
-                bi = index.node_index.get(element.b)
-                # KCL：电感电流从 a 流向 b。
-                if ai is not None:
-                    A[ai, row] += 1.0
-                if bi is not None:
-                    A[bi, row] -= 1.0
-                # 电感方程：v_a - v_b - L di/dt = 0。
-                if ai is not None:
-                    A[row, ai] += 1.0
-                if bi is not None:
-                    A[row, bi] -= 1.0
-                E[row, row] -= float(element.inductance)
-            elif kind == "sensor":
-                # 高阻电压测量：两脚各自对地 1e-12 漏电，等价于开路。
-                for node in (element.a, element.b):
-                    position = index.node_index.get(node)
-                    if position is not None:
-                        A[position, position] += 1.0e-12
-            elif kind == "vsource" or kind in BRIDGE_VSOURCE_KINDS:
-                row = index.branch_index[element.name]
-                ai = index.node_index.get(element.a)
-                bi = index.node_index.get(element.b)
-                if ai is not None:
-                    A[ai, row] += 1.0
-                    A[row, ai] += 1.0
-                if bi is not None:
-                    A[bi, row] -= 1.0
-                    A[row, bi] -= 1.0
-                if kind in BRIDGE_VSOURCE_KINDS:
-                    control = self._bridge_control_nodes(element)
-                    if control is not None:
-                        gain = self._bridge_gain(element)
-                        ci = index.node_index.get(control[0])
-                        di = index.node_index.get(control[1])
-                        if ci is not None:
-                            A[row, ci] -= gain
-                        if di is not None:
-                            A[row, di] += gain
-            elif kind == "vcvs":
-                row = index.branch_index[element.name]
-                ai = index.node_index.get(element.a)
-                bi = index.node_index.get(element.b)
-                if ai is not None:
-                    A[ai, row] += 1.0
-                    A[row, ai] += 1.0
-                if bi is not None:
-                    A[bi, row] -= 1.0
-                    A[row, bi] -= 1.0
-                ci = index.node_index.get(element.control_a)
-                di = index.node_index.get(element.control_b)
-                if ci is not None:
-                    A[row, ci] -= float(element.gain)
-                if di is not None:
-                    A[row, di] += float(element.gain)
-            elif kind == "vccs":
-                gm = float(element.transconductance)
-                ai = index.node_index.get(element.a)
-                bi = index.node_index.get(element.b)
-                ci = index.node_index.get(element.control_a)
-                di = index.node_index.get(element.control_b)
-                if ai is not None and ci is not None:
-                    A[ai, ci] += gm
-                if ai is not None and di is not None:
-                    A[ai, di] -= gm
-                if bi is not None and ci is not None:
-                    A[bi, ci] -= gm
-                if bi is not None and di is not None:
-                    A[bi, di] += gm
-            elif kind == "isource" or kind in BRIDGE_ISOURCE_KINDS:
-                # 独立电流源只进入 B 向量；跨域桥电流源按受控 VCCS 处理。
-                if kind in BRIDGE_ISOURCE_KINDS:
-                    control = self._bridge_control_nodes(element)
-                    if control is not None:
-                        gm = self._bridge_gain(element)
-                        ai = index.node_index.get(element.a)
-                        bi = index.node_index.get(element.b)
-                        ci = index.node_index.get(control[0])
-                        di = index.node_index.get(control[1])
-                        if ai is not None and ci is not None:
-                            A[ai, ci] += gm
-                        if ai is not None and di is not None:
-                            A[ai, di] -= gm
-                        if bi is not None and ci is not None:
-                            A[bi, ci] -= gm
-                        if bi is not None and di is not None:
-                            A[bi, di] += gm
-                continue
+            bridge_control = None
+            bridge_gain = 1.0
+            if kind in BRIDGE_VSOURCE_KINDS or kind in BRIDGE_ISOURCE_KINDS:
+                bridge_control = self._bridge_control_nodes(element)
+                bridge_gain = self._bridge_gain(element)
+            stamp_element_static(
+                element,
+                sink,
+                bridge_control=bridge_control,
+                bridge_gain=bridge_gain,
+            )
         return A, E
 
     # ---- 工作点线性化 -----------------------------------------------------
@@ -1027,63 +937,14 @@ class DescriptorModel:
         ``omega``）、``input`` 与 ``probes``；每个探针含
         ``real/imag/magnitude/phase_deg/db`` 六个长度相同的列表。
         """
-        from .solver import CircuitSolver  # 局部导入避免循环
+        from .ac_backend import ac_sweep  # 局部导入避免循环
 
-        values = self._validate_frequencies(frequencies)
-        # 纯线性元件（全部 kind ∈ AC_KINDS）且未强制回退到原生后端时：委托 canonical 共享核 _ac_bode，并补 omega_*。
-        # 含 LINEARIZABLE_NONLINEAR_KINDS 且已给 operating_point 时：canonical 不覆盖，必须保留原生 self.build/solve 线性化路径。
-        if (
-            getattr(self, "ac_backend", "legacy") != "descriptor"
-            and all(element.kind in CircuitSolver.AC_KINDS for element in self.elements)
-        ):
-            core = dict(
-                CircuitSolver(self.nodes, self.elements)._ac_bode(
-                    values,
-                    input_source=input_source,
-                    probes=list(probes) if probes else None,
-                )
-            )
-            core["omega_rad_s"] = [2.0 * math.pi * frequency for frequency in values]
-            core["omega"] = list(core["omega_rad_s"])
-            return self._attach_diagnostics(core, input_source)
-        system = self.build(input_source)
-        resolved = self._resolve_probes(probes)
-        omegas = [2.0 * math.pi * frequency for frequency in values]
-
-        output: dict[str, Any] = {
-            "frequencies": values,
-            "omega_rad_s": omegas,
-            "omega": list(omegas),
-            "input": system.input_source,
-            "probes": {},
-        }
-        chains = {
-            token: {
-                "real": [],
-                "imag": [],
-                "magnitude": [],
-                "phase_deg": [],
-                "db": [],
-            }
-            for token, _ in resolved
-        }
-        for token in chains:
-            output["probes"][token] = chains[token]
-
-        for omega in omegas:
-            solution = system.solve(omega)
-            for token, probe in resolved:
-                value = self._probe_value(probe, solution, omega, system.input_source)
-                magnitude = abs(value)
-                chain = chains[token]
-                chain["real"].append(float(value.real))
-                chain["imag"].append(float(value.imag))
-                chain["magnitude"].append(float(magnitude))
-                chain["phase_deg"].append(
-                    math.degrees(math.atan2(value.imag, value.real))
-                )
-                chain["db"].append(20.0 * math.log10(max(magnitude, 1.0e-30)))
-        return self._attach_diagnostics(output, input_source, system)
+        return ac_sweep(
+            self,
+            frequencies,
+            input_source=input_source,
+            probes=probes,
+        )
 
     def __repr__(self) -> str:  # pragma: no cover - 调试辅助
         return (

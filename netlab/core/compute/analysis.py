@@ -49,6 +49,17 @@ from .circuit.descriptor_analysis import (
 )
 from ..common.limits import MAX_NODES, ComputeError, ValidationError
 from .statespace import StateSpaceModel
+from .analysis_errors import ANALYSIS_TIMEOUT, AnalysisError, MAX_EXPORT_ROWS
+from .analysis_numerics import (
+    _complex_list,
+    _complex_pairs,
+    _crossing,
+    _frequency_axis,
+    _number,
+    _period_windows,
+    _shift_score,
+    _uniform,
+)
 
 
 def numeric_precision_mode() -> str:
@@ -70,13 +81,6 @@ def set_numeric_precision_mode(mode: str) -> None:
         raise ValueError(f"numeric_precision 必须是 exact 或 standard，收到 {mode!r}")
     numeric_precision_mode._mode = mode  # type: ignore[attr-defined]
 
-
-ANALYSIS_TIMEOUT = 5.0
-MAX_EXPORT_ROWS = 200_000
-
-
-class AnalysisError(Exception):
-    """分析失败/超时；服务层转 422。"""
 
 
 def _frames(
@@ -123,28 +127,6 @@ def _keys(sim: Any, keys: list[str] | None) -> list[str]:
         ]
 
 
-def _uniform(times: np.ndarray, values: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """把不等间隔的录制重采样到均匀网格（dt=中位间隔）。"""
-    if len(times) < 3:
-        raise AnalysisError("录制点数不足（<3），先运行一段再分析")
-    diffs = np.diff(times)
-    diffs = diffs[diffs > 0]
-    if not len(diffs):
-        raise AnalysisError("录制时间没有推进")
-    dt = float(np.median(diffs))
-    grid = np.arange(times[0], times[-1] + dt * 0.5, dt)
-    return grid, np.interp(grid, times, values)
-
-
-def _crossing(times: np.ndarray, values: np.ndarray, level: float) -> float | None:
-    for index in range(1, len(values)):
-        a, b = values[index - 1], values[index]
-        if (a - level) == 0:
-            return float(times[index - 1])
-        if (a - level) * (b - level) < 0:
-            ratio = (level - a) / (b - a)
-            return float(times[index - 1] + ratio * (times[index] - times[index - 1]))
-    return None
 
 
 def analyze_metrics(
@@ -306,26 +288,6 @@ def spectrum(
     }
 
 
-def _shift_score(
-    grid: np.ndarray, values: np.ndarray, period: float
-) -> tuple[float, float] | None:
-    """按 period 平移一个周期，返回 (score, mae)；样本不足返回 None。"""
-    shifted = np.interp(grid + period, grid, values, left=np.nan, right=np.nan)
-    mask = np.isfinite(shifted)
-    if mask.sum() < max(8, len(grid) // 3):
-        return None
-    std = float(np.std(values[mask])) or 1.0
-    mae = float(np.mean(np.abs(values[mask] - shifted[mask]))) / std
-    return max(0.0, 1.0 - mae), mae
-
-
-def _period_windows(size: int) -> list[tuple[int, int]]:
-    """返回全窗 + 前后两个重叠子窗，用于备选周期稳定性统计。"""
-    windows = [(0, size)]
-    if size >= 24:
-        windows.append((0, max(12, int(round(size * 0.65)))))
-        windows.append((min(size - 12, int(round(size * 0.35))), size))
-    return windows
 
 
 def recommend_period(
@@ -423,10 +385,6 @@ def math_forms(sim: Any) -> dict[str, Any]:
         "source": "节点函数注册表的公式字符串 + 当前参数；仅呈现，不参与求解",
     }
 
-
-def _number(value: Any) -> str:
-    number = float(value)
-    return str(int(number)) if number.is_integer() else repr(number)
 
 
 def _state_space_payload(tf: Any) -> dict[str, Any] | None:
@@ -715,19 +673,6 @@ def transfer_function(
     }
 
 
-def _complex_pairs(matrix: Any) -> list[list[list[float]]]:
-    """把矩阵编码为 ``[[re, im], ...]``，保证 JSON 可序列化。"""
-    array = np.asarray(matrix, dtype=np.complex128)
-    return [
-        [[float(value.real), float(value.imag)] for value in row]
-        for row in array
-    ]
-
-
-def _complex_list(values: Any) -> list[list[float]]:
-    """把一维复数数组编码为 ``[[re, im], ...]``。"""
-    array = np.asarray(values, dtype=np.complex128).reshape(-1)
-    return [[float(value.real), float(value.imag)] for value in array]
 
 
 def _circuit_metrics(
@@ -1355,28 +1300,6 @@ def tf_analysis(
     result["source"] = "transfer（s 域解析）"
     return result
 
-
-def _frequency_axis(
-    f_start: float,
-    f_stop: float,
-    points: int,
-    scale: str,
-) -> np.ndarray:
-    """生成频响频率轴；单点/零频/负频都明确报错。"""
-    if isinstance(points, bool) or not isinstance(points, (int, np.integer)):
-        raise AnalysisError("频响点数必须是整数")
-    if not 2 <= int(points) <= 2001:
-        raise AnalysisError("频响点数必须在 2–2001 之间")
-    if not all(math.isfinite(float(value)) for value in (f_start, f_stop)):
-        raise AnalysisError("频响起止频率必须是有限数值")
-    if float(f_start) <= 0.0 or float(f_stop) <= float(f_start):
-        raise AnalysisError("频响要求 0 < f_start < f_stop")
-    if scale not in {"log", "lin"}:
-        raise AnalysisError("频响 scale 只能是 log 或 lin")
-    count = int(points)
-    if scale == "log":
-        return np.geomspace(float(f_start), float(f_stop), count)
-    return np.linspace(float(f_start), float(f_stop), count)
 
 
 def _analytic_loop_frequency_response(

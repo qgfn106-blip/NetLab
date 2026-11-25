@@ -13,7 +13,7 @@
 | P0-03 | 12 | 已合并 | netlab/core/compute/analysis.py、netlab/core/compute/circuit/loop_analysis.py、netlab/core/compute/circuit/nyquist.py | 7624bc1 → main e8720f2 | LM-01..LM-04 已修复（T=G/(1+L)，删除 sign 双计，支路断环 forward 独立测量/closed=direct/parity 诚实化），loop_math_fix.md；最新全量 1789 passed/14 skipped/0 failed、覆盖率 82.70% | LM-05..07（nyquist 临界点/PM/运放测 L）保留待立项 |
 | P0-04 | 5 | 已合并 | reports/evidence/、tools/run_evidence.py（pytest.ini/decisions.yaml 只读复核，未改） | 7624bc1 → main e8720f2 | 全量 1789 passed/14 skipped/0 failed（junit 1803）；覆盖率 82.70%（≥81 门禁）；requirements --all 43/43 PASS；reports/evidence/python-tests.json+AUDIT_EVIDENCE_LOG.md | decisions.yaml 为历史记录不追溯改写 |
 | P1-01 | 12 | 已合并 | frontend/app/analysis_chart.ts(878→786)、analysis_workbench.ts(837→800)、analysis_workbench_canvas.ts(823→774)；新增 analysis_chart_spec.ts(133)、analysis_workbench_chrome.ts(78)、analysis_workbench_canvas_ids.ts(52) | bf49b27 + 8cf00e9 → PR #71 merge 376b2bb | check_app_sections OK（S5 通过）；verify_app_parity OK(86 TS/859 decl/76 模块)；build/tsc/test:utils 88 全绿 | 无；app.ts 主拆分 S1-S4 属后续 |
-| P1-02 | 3 | 已合并 | docs/audit/FRONTEND_RESPONSIBILITY_MATRIX.md、frontend/app.ts | bf49b27 → PR #71 merge 376b2bb | 职责矩阵（entry→facade→interaction→render→model→util）已产出，现状违规与 S1-S4 后续拆分路径已记录 | app.ts 主拆分仍为后续 S1-S4（不破坏行为） |
+| P1-02 | 3 | 已合并（职责矩阵）+ 本地首片抽取（未推送） | docs/audit/FRONTEND_RESPONSIBILITY_MATRIX.md、frontend/app.ts、frontend/app/analysis_workbench_panel.ts、frontend/app/analysis_workbench_chart.ts | bf49b27 → PR #71 merge 376b2bb；b5288f4 | 职责矩阵（entry→facade→interaction→render→model→util）已产出；app.ts 7511→6585，抽取出工作台面板 774 行 + 图表渲染 262 行两个模块，typecheck/build/test:utils/parity/sections 全绿 | app.ts 剩余 S1-S4 切片仍未完成 |
 | P1-03 | 含于 10 | 已合并 | pyproject.toml、netlab/requirements.txt、四 workflow（python-tests/container/browser-e2e/frontend-ts-build） | 7624bc1 | plotkit>=0.3,<0.4；checkout ref 6939e8889ce4b1c64c0ec679658d9cfa99e67f37(0.3.0) | 已合并 |
 | P1-04 | 含于 10 | 已合并 | netlab/core/model/{project.py,instance_model.py,v8_draft.py}、netlab/docs 5 篇、README/BUILD/CODE_GUIDE/PLUGIN_GUIDE | 7624bc1 | PlotKit 版本与 PROJECT_VERSION 同步为 8（EXTENSIBILITY §9 注明 v7 设计冻结基线） | 已合并 |
 | P1-05 | 含于 10 | 已合并 | README.md、OPERATION.md、ARCHITECTURE.md | 7624bc1 | MyProject 说明改为「本地示例目录、.gitignore 排除、不入库；同名工程夹具在 netlab/tests/fixtures/projects/」 | 已合并 |
@@ -30,9 +30,9 @@
 | P3-03 | —（阶段合计 10） | 实质能力已合入 main | circuit/stamp_builder.py、descriptor.py | e5373f7 → PR #72 e8720f2 | 单一 StampBuilder 已落地并由 CF-03..CF-06 约束；契约测试验证 descriptor 委托与 kind 分派 | 契约评审待关 |
 | P3-04 | —（阶段合计 10） | 实质能力已合入 main | circuit/ac_backend.py、descriptor.py | e5373f7 → PR #72 e8720f2 | 统一 ac_sweep + 策略选择已落地，CF-07..CF-09 约束；fast/native 对拍通过 | 契约评审待关 |
 | P3-05 | —（阶段合计 10） | 规划完成（未实施） | 同上 | 随审计文档提交 | 工作台四层方案已交付，未实施 | 未实施 |
-| P3-06 | —（阶段合计 10） | 部分完成（端点契约守护已落地，未推送） | frontend/tools/app_endpoint_snapshot.json（新增）、frontend/tests/app_endpoints.test.mjs（新增）、frontend/app.ts | 5d39310（feat/2026-11-25-p3-core-v2，未推送） | 端点快照 50 个规范化路径模式 + 2 条 node:test 守护（通过）；app.ts 仍 7511 行/213 嵌套函数，router/store/views/commands/handlers 骨架迁移未开始 | 主体拆分未开始 |
+| P3-06 | —（阶段合计 10） | 部分完成（端点契约守护 + app.ts 首片拆分，未推送） | frontend/tools/app_endpoint_snapshot.json（新增）、frontend/tools/check_app_endpoints.mjs、frontend/tests/app_endpoints.test.mjs（新增）、frontend/app.ts、frontend/app/analysis_workbench_panel.ts、frontend/app/analysis_workbench_chart.ts | 5d39310、b5288f4（feat/2026-11-25-p3-core-v2，未推送） | 端点快照 50 个规范化路径模式 + 2 条 node:test；扫描范围扩展至抽取模块；app.ts 7511→6585、工作台面板/图表渲染已模块化 | 主体拆分未完成 |
 | P3-07 | —（阶段合计 10） | 部分完成（GPU 已合并，FEM 本地待评审） | accel.py、fem.py、tests/test_accel_fallback.py、test_fem.py | 2db0867 → PR #71 376b2bb；FEM 追加见 P2-05 | GPU 非有限回退 5 passed（已合并）；FEM 枚举/时间积分 8 passed（本地待评审） | 边界错误契约文档化见 CF-10..CF-13 |
-| P3-08 | —（阶段合计 10） | 清单已交付待评审（G8 未通过） | docs/audit/P3_ACCEPTANCE_CHECKLIST.md（新增） | 192c783（feat/2026-11-25-p3-core-v2，未推送） | G0..G8 门禁与逐项验收表、阻断条件；结论 G8 未通过、不得宣称 Core V2 完成 | P3-02/P3-05/P3-06 未完成 |
+| P3-08 | —（阶段合计 10） | 清单已交付待评审（G8 未通过） | docs/audit/P3_ACCEPTANCE_CHECKLIST.md（新增） | 192c783（feat/2026-11-25-p3-core-v2，未推送） | G0..G8 门禁与逐项验收表、阻断条件；结论 G8 未通过、不得宣称 Core V2 完成 | P3-02/P3-05 未完成，P3-06 部分完成 |
 
 ## 状态汇总
 
@@ -41,7 +41,7 @@
 | 已合并 main | P0-01..P0-04、P1-01..P1-05、文档同步、P2-01..P2-04、P2-06、P2-07 | 全部进入远端 main=e8720f2（P0/P1-03..05/文档/P2-06/07 与 P1-01/02/P2-04/05 经 PR #71→376b2bb；P2-01/02/03 经 PR #72→e8720f2；CI 必需检查全绿） |
 | 本地完成待评审（未推送） | P3-01、P3-08、P2-05（追加） | 分支 feat/2026-11-25-p3-core-v2；P3-01 契约+12 测试、P3-08 验收清单、P2-05 FEM 边界枚举/时间积分（8 passed） |
 | 实质能力已合入 main | P3-03、P3-04 | 分别由 P2-01/P2-02 落地，契约评审待关 |
-| 部分完成 | P3-06 | 端点契约快照与守护测试已落地；app.ts 主体拆分未开始 |
+| 部分完成 | P3-06 | 端点契约快照与守护测试已落地；app.ts 已从 7511 降到 6585（工作台面板/图表渲染模块化）；router/store/views/commands/handlers 主体拆分未开始 |
 | 规划完成（未实施） | P3-02、P3-05 | 方案已交付，尚未实施 |
 | 仅方案 | （无） | P2-01..03 已实施并合入 main=e8720f2 |
 | 已完成 | P0-01..04、P1-01..05、文档同步、P2-01..07 | 全部合入远端 main=e8720f2 |

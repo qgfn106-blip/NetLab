@@ -23,7 +23,7 @@
 
 | 模块 | 行数 | 层 | 职责 | 现状/边界问题 |
 |---|---:|---|---|---|
-| frontend/app.ts | 7511 | entry/router | 88 endpoint、会话状态、全局事件、视图刷新、命令分发 | **单体入口**，213 嵌套函数；P1-02 拆分对象 |
+| frontend/app.ts | 5682 | entry/router | 88 endpoint、会话状态、全局事件、视图刷新、命令分发 | **单体入口**，213 嵌套函数；已抽工作台面板/图表渲染/场景面板/场景动作，仍待 S1-S4 |
 | frontend/app/state.ts | 266 | model(全局) | `state`/`ui` 可变单例 | 被大量模块共享；禁止在 model 纯函数内改它 |
 | frontend/app/types.ts | 502 | model | 全前端类型定义 | 类型聚合，无运行时代码 |
 | frontend/app/constants.ts | 153 | model | UI 常量、颜色、限制值 | 纯常量 |
@@ -74,7 +74,7 @@
 
 ## 3. 现状违规与风险
 
-1. **入口单体**：`frontend/app.ts` 7511 行、单 IIFE、88 endpoint、213 嵌套函数，承担路由/状态/视图/命令/网络五类职责，是 P1-02 的核心拆分对象。
+1. **入口单体**：`frontend/app.ts` 原 7511 行、单 IIFE、88 endpoint、213 嵌套函数，承担路由/状态/视图/命令/网络五类职责；本地分支两片抽取后 5682 行，仍是 P1-02 的核心拆分对象。
 2. **全局可变单例**：`state.ts` 的 `state`/`ui` 被入口与多个视图共享；拆分时最容易出现隐式闭包依赖，必须先冻结读写接口再搬迁。
 3. **模块接近门禁上限**：`analysis_workbench.ts` 恰好 800 行，任何新增字段都会再次超限；后续应继续按 render/interaction 抽离，而不是压缩格式。
 4. **ends 命名空间**：`analysis_workbench_canvas_ids.ts` 只放纯 id/深拷贝函数，避免 canvas 模块继续膨胀（已落地）。
@@ -111,4 +111,4 @@ npm run build && node tools/verify_app_parity.js
 node tools/check_app_sections.mjs
 ```
 
-最近一次结果：`tsc` RC=0；`test:utils` 88 passed / 0 failed；parity `OK: app.ts parity passed (base=HEAD, 86 TS files, 859 top-level declarations, 76 runtime app modules, 3 type-only)`；`check_app_sections` `OK: S5 size limits passed`。
+最近一次结果（本轮场景面板抽取后）：`tsc` RC=0；`test:utils` 90 passed / 0 failed；parity `OK: app.ts parity passed (base=HEAD, 90 TS files, 941 top-level declarations, 80 runtime app modules, 3 type-only)`；`check_app_sections` `OK: S5 size limits passed`。

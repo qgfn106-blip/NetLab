@@ -11,6 +11,8 @@ const SNAPSHOT = path.resolve(here, 'app_endpoint_snapshot.json');
 const EXTRA_SOURCES = [
   path.resolve(here, '../app/analysis_workbench_panel.ts'),
   path.resolve(here, '../app/analysis_workbench_chart.ts'),
+  path.resolve(here, '../app/scene_panel.ts'),
+  path.resolve(here, '../app/scene_actions.ts'),
 ];
 
 export function readAppSources() {

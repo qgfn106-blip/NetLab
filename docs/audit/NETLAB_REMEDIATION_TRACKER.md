@@ -32,14 +32,14 @@
 | P3-05 | —（阶段合计 10） | 已通过（G5，2026-11-26） | frontend/tools/check_analysis_layers.mjs（新增）、frontend/tests/analysis_layers.test.mjs（新增）、frontend/app/analysis_chart_model.ts、analysis_chart_interaction.ts、analysis_chart.ts、analysis_chart_detail.ts；复用既有 analysis_workbench*.ts 分层 | a3ccfa8（feat/2026-11-25-p3-core-v2，未推送） | 分析图新增 model/interaction 纯层，analysis_chart 786→718；守卫覆盖 24 个分析图/工作台模块：行数≤800、import 只能同层或更低层、反向依赖报错；`node tools/check_analysis_layers.mjs` OK，`test:utils` 96 passed | G5 已签 |
 | P3-06 | —（阶段合计 10） | 已完成（G6，2026-11-26，未推送） | frontend/tools/app_endpoint_snapshot.json（新增）、frontend/tools/check_app_endpoints.mjs、frontend/tests/app_endpoints.test.mjs（新增）、frontend/app.ts、frontend/app/editor_*.ts（14 个）、frontend/app/editor_services.ts、editor_registry.ts、endpoints.ts、store.ts、commands.ts、shell_view.ts、router.ts、handlers.ts、views.ts | 5d39310、b5288f4、cc8922b、6800cfc、ea8413d、1625eeb、729bf6e、66d8272；57211fc；e1fcd10；dd0e924（feat/2026-11-25-p3-core-v2，未推送） | 端点快照 91 唯一路径/101 方法+路径条目；app.ts 7511→5，原单 IIFE 全部函数迁入 14 个 editor_* 模块（全部 ≤800 行）；A2 TS 环 0；全量 pytest exit0、e2e L1 passed | 已签 G6 |
 | P3-07 | —（阶段合计 10） | 已通过（G7，2026-11-26，FEM 冻结口径） | accel.py、fem.py、tests/test_accel_fallback.py、test_fem.py | 2db0867 → PR #71 376b2bb；FEM 追加见 P2-05 | GPU 非有限回退 5 passed（已合并）；FEM 枚举/时间积分 8 passed（本地）；FEM 冻结，更细矩阵与时间积分扩展列为后续增强 | 已签 G7；边界契约见 CF-10..CF-13 |
-| P3-08 | —（阶段合计 10） | 已分门（G0–G7 通过；G8 待 CI） | docs/audit/P3_ACCEPTANCE_CHECKLIST.md（新增） | 192c783、a3ccfa8、dd0e924（feat/2026-11-25-p3-core-v2，未推送） | G0..G8 门禁与逐项验收表、阻断条件；结论 G0–G7 已分门通过，G8 待新 commit 六项 CI 后补签 | G0–G7 均已签（P3-06 已完成、P3-07 按 FEM 冻结口径）；G8 待 CI |
+| P3-08 | —（阶段合计 10） | 已完成（G0–G8 通过） | docs/audit/P3_ACCEPTANCE_CHECKLIST.md（新增） | 192c783、a3ccfa8、dd0e924、bf9075d（feat/2026-11-25-p3-core-v2，已推送未合并） | G0..G8 门禁与逐项验收表、阻断条件；结论 G0–G8 全部通过，G8 已于 bf9075d 六项 CI 全绿后补签 | G0–G8 均已签（P3-06 已完成、P3-07 按 FEM 冻结口径、G8 六项 CI 全绿） |
 
 ## 状态汇总
 
 | 状态 | 条目 | 说明 |
 |---|---|---|
 | 已合并 main | P0-01..P0-04、P1-01..P1-05、文档同步、P2-01..P2-04、P2-06、P2-07 | 全部进入远端 main=e8720f2（P0/P1-03..05/文档/P2-06/07 与 P1-01/02/P2-04/05 经 PR #71→376b2bb；P2-01/02/03 经 PR #72→e8720f2；CI 必需检查全绿） |
-| 本地完成已分门签署（未推送） | P3-01、P3-02、P3-05、P3-06、P3-07、P3-08、P2-05（追加） | 分支 feat/2026-11-25-p3-core-v2；P3-01 契约+12 测试、P3-02 analysis 2771→85 facade+五子模块、P3-05 24 模块四层守卫、P3-06 14 个 editor_* 全量迁移/app.ts 5 行、P3-07 FEM 冻结口径、P3-08 验收清单；G0–G7 已签，G8 待 CI；全量 1811 passed/14 skipped、覆盖率 87% |
+| 已完成并分门签署（分支已推送未合并） | P3-01、P3-02、P3-05、P3-06、P3-07、P3-08、P2-05（追加） | 分支 feat/2026-11-25-p3-core-v2；P3-01 契约+12 测试、P3-02 analysis 2771→85 facade+五子模块、P3-05 24 模块四层守卫、P3-06 14 个 editor_* 全量迁移/app.ts 5 行、P3-07 FEM 冻结口径、P3-08 验收清单；G0–G8 已签；全量 1811 passed/14 skipped、覆盖率 87% |
 | 实质能力已合入 main | P3-03、P3-04 | 分别由 P2-01/P2-02 落地，契约评审待关 |
 | 已完成 | P3-06 | 端点契约快照与守护测试已落地；app.ts 已从 7511 降到 5（14 个 editor_* 模块全量迁移，dd0e924；全部 ≤800 行；A2 TS 环 0）；端点快照 91 路径/101 条目；G6 已签 |
 | 规划完成（未实施） | （无） | P3-02/P3-05 已本地实现并签署 |
@@ -55,11 +55,11 @@
 - P2 需求验证门禁：P2-07=5 ✓
 - P3 Core V2 规划：P3-01..08=10 ✓
 - 合计 35+15+10+8+17+5+10=100 ✓
-- 已交付权重：按原任务书口径 100/100（P2-05 追加能力已在本地分支完成，P3 计规划交付 10 分）；P3 Core V2 本地实施已全量完成：P3-01/P3-02/P3-03/P3-04/P3-05/P3-06/P3-07 均已完成并签署 G0–G7，P3-08 清单已交付，仅 G8 待新 commit 六项 CI 后补签，补签前不得宣称 Core V2 总验收完成。
+- 已交付权重：按原任务书口径 100/100（P2-05 追加能力已在本地分支完成，P3 计规划交付 10 分）；P3 Core V2 本地实施已全量完成：P3-01/P3-02/P3-03/P3-04/P3-05/P3-06/P3-07 均已完成并签署 G0–G7，P3-08 清单已交付；G8 已于 bf9075d 六项 CI 全绿后补签，Core V2 总验收完成（2026-11-26）。
 
 ## 说明
 - P0/P1/P2 已全部进入远端 main=e8720f2：P0/P1-03..05/文档/P2-06/07 与 P1-01/02/P2-04/05 经 PR #71（merge 376b2bb）；P2-01/02/03 经 PR #72（merge e8720f2）。本地子代理分支 705fa2a（p2-analysis）、66d8efa（p2-circuit）已分别 cherry-pick 为 2c7530e/e5373f7 进入 main，内容已收，无需再合。
 - 最新全量回归（P2 集成分支）：1789 passed / 14 skipped / 0 failed（junit tests 1803），覆盖率 82.70%（≥81），证据 reports/evidence/python-tests.json（status=passed，exit 0）。
 - P2-06 文档契约已改「覆盖」；save_text 残余直写已接 ensure_allowed_path；「任意路径逃逸风险」经 desktop/bridge.py ensure_allowed_path 已受保护、不成立。
-- P3 追加实施与 P2-05 增强均在本地分支 feat/2026-11-25-p3-core-v2（基 main=5c076eae），**未推送、未 PR**；P3-02 analysis 分层 a3ccfa8、P3-05 四层门禁 a3ccfa8；全量 pytest 1811 passed/14 skipped/0 failed、覆盖率 87%（≥81）；前端 typecheck/build/test:utils 96 passed/parity 117 TS、1143 声明、107 运行模块/分层守卫 OK（24 模块、0 cycles）/端点快照 91 路径/101 条目/check_architecture A2 TS 环 0/L1 smoke passed；P3-06 全量拆分 dd0e924，app.ts 5 行。
+- P3 追加实施与 P2-05 增强均在分支 feat/2026-11-25-p3-core-v2（基 main=5c076eae），**已推送、未合并 main、未 PR**；P3-02 analysis 分层 a3ccfa8、P3-05 四层门禁 a3ccfa8；全量 pytest 1811 passed/14 skipped/0 failed、覆盖率 87%（≥81）；前端 typecheck/build/test:utils 96 passed/parity 117 TS、1143 声明、107 运行模块/分层守卫 OK（24 模块、0 cycles）/端点快照 91 路径/101 条目/check_architecture A2 TS 环 0/L1 smoke passed；P3-06 全量拆分 dd0e924，app.ts 5 行。
 - P0-03 修复结论与回归数据见 docs/audit/findings/loop_math_fix.md；最新全量以 1789 passed/14 skipped/0 failed、覆盖率 82.70% 为准（§62），P0-04 带夹具全量与 requirements --all(43) 已回填 reports/evidence/。

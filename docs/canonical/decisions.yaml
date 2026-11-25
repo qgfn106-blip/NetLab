@@ -1097,3 +1097,9 @@ decisions:
   namespace: D-NL
   canonical_id: D-NL-153
   legacy_id: D157
+- id: D158
+  title: P3 Core V2 G8 总验收补签（2026-11-26）
+  decision: 补签 G8：P3-06 全量拆分与 E2E 调试钩子修复提交 bf9075d 已推送，远程 CI build/docker/desktop-l2/e2e/e2e-l1/test 六项全部 success；本地全量 pytest 1811 passed/14 skipped/0 failed（覆盖率 87%），前端 typecheck/build/test:utils 96 passed/parity 117 TS 1143 declarations/端点快照 91 路径 101 条目/分层守卫 24 模块 0 环/E2E 全部通过。G0–G7 已签，G8 满足全部条件，Core V2 总验收完成（2026-11-26）。签署人：项目负责人（用户授权 AI 代理代签）。
+  namespace: D-NL
+  canonical_id: D-NL-154
+  legacy_id: D158

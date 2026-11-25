@@ -1091,3 +1091,9 @@ decisions:
   namespace: D-NL
   canonical_id: D-NL-152
   legacy_id: D156
+- id: D157
+  title: P3 Core V2 G6/G7 补签（2026-11-26）
+  decision: 补签 G6：P3-06 已完成 14 个 frontend/app/editor_* 模块全量迁移（dd0e924），app.ts 仅 5 行装配，全部模块 ≤800 行，check_architecture A2 TS 环 0，端点快照 91 唯一路径/101 方法+路径条目，全量 pytest exit0、e2e L1 passed。G7 按 FEM 冻结口径补签：FEM 继续冻结，test_accel_fallback.py 5 passed、test_fem.py 8 passed，更细 GPU 错误矩阵与 FEM 时间积分扩展列为后续增强、不阻断 G7。G0–G7 已分门通过；G8 待新 commit 六项 CI 全绿后补签，补签前不得宣称 Core V2 总验收完成。签署人：项目负责人（用户授权 AI 代理代签）。
+  namespace: D-NL
+  canonical_id: D-NL-153
+  legacy_id: D157

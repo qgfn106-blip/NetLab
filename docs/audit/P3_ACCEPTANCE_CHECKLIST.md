@@ -1,6 +1,6 @@
 # NetLab Core V2 总验收清单（P3-08）
 
-> 状态：**验收清单已分门签署（G1–G5 通过；G0 待 CI；G6/G7/G8 不签）**。基线 main `5c076eae`；本清单对应分支 `feat/2026-11-25-p3-core-v2` 的本地工作。
+> 状态：**验收清单已分门签署（G0–G5 通过；G6/G7/G8 不签）**。基线 main `5c076eae`；本清单对应分支 `feat/2026-11-25-p3-core-v2`。G0 已于 CI 六项全绿后补签。
 > 原则：没有证据的项一律记“未完成”，不得用加权平均掩盖阻断项；CI 未跑通不得宣称 Core V2 通过。
 
 ## 1. 验收门定义
@@ -21,7 +21,7 @@
 
 | ID | 交付物 | 验收标准 | 当前状态 | 证据/缺口 |
 |---|---|---|---|---|
-| P3-01 | `docs/audit/CORE_V2_CONTRACT_FREEZE.md` + `netlab/tests/test_core_v2_contract.py` | CF-01..CF-14 可断言；G0 评审通过 | **本地完成，G0 待 CI** | 20 passed（与 test_fem 合跑）；已提交 192c783 |
+| P3-01 | `docs/audit/CORE_V2_CONTRACT_FREEZE.md` + `netlab/tests/test_core_v2_contract.py` | CF-01..CF-14 可断言；G0 评审通过 | **已完成，G0 已签（CI 6/6）** | 20 passed（与 test_fem 合跑）；已提交 192c783；G0 签署记录 D155/D156 |
 | P3-02 | analysis 分层 | analysis.py 仅编排/再导出；错误与数值纯函数独立 | **已通过（G4，2026-11-26）** | analysis.py 2771→85 行 facade；新增 analysis_metrics/transfer/envelopes/loop/scan 五个模块（451/588/688/673/569 行）；`test_analysis_layering.py` 断言公共符号与 facade 同一对象、无循环导入；全量 pytest 1811 passed/14 skipped/0 failed，覆盖率 87%；提交 a3ccfa8 |
 | P3-03 | 单一 StampBuilder | `_assemble_matrices` 无 kind 矩阵特判；9 路 kind 全走共享函数；逐项对拍 | **已实现（P2-01 已合入）** | `stamp_builder.py` + `test_stamp_parity.py` 8 passed；电感例外见 CF-06 |
 | P3-04 | ac_sweep strategy | 统一入口；策略优先级与 Bode 对拍 | **已实现（P2-02 已合入）** | `ac_backend.py` + `test_ac_backend.py` 6 passed；CF-07..09 已断言 |
@@ -55,20 +55,21 @@
 - `netlab/tests/test_accel_fallback.py`：GPU 非有限回退 CPU。
 - `netlab/tests/test_analysis_api_surface.py` + `fixtures/analysis_api_snapshot.json`：analysis 对外 API 快照。
 - 最新全量证据（P3 分支）：`python -m pytest -q` 1811 passed/14 skipped/0 failed；`python -m coverage report --format=total` 87%（≥81）；历史基线 `reports/evidence/python-tests.json` 1789 passed/14 skipped/0 failed、覆盖率 82.70%。
+- 远程 CI（commit 9563cad）：build/docker/desktop-l2/e2e/e2e-l1/test 六项全部 success。
 
 ## 6. 结论与签署
 
-- 当前可以确认：**契约文本已形成；P3-01/P3-02/P3-03/P3-04/P3-05 的本地证据成立，并按分门签署记录通过 G1–G5；P3-07 本地证据成立但保留更细错误矩阵/时间积分扩展意见**；
-- 当前不能确认：P3-06 的完整 handlers/views 迁移尚未完成，app.ts 入口尚未收敛为仅装配；必需的 GitHub CI 尚未执行；G0 待 CI，G6 不签，G7 暂不签，G8 不通过；
+- 当前可以确认：**契约文本已形成并完成 G0 签字（D156，CI 六项全绿）；P3-01/P3-02/P3-03/P3-04/P3-05 的本地证据成立，G0–G5 已签；P3-07 本地证据成立但保留更细错误矩阵/时间积分扩展意见**；
+- 当前不能确认：P3-06 的完整 handlers/views 迁移尚未完成，app.ts 入口尚未收敛为仅装配；G6 不签，G7 暂不签，G8 不通过；
 - 因此本清单结论为：**未达到 Core V2 总验收（G8 未通过）**，不得对外宣称完成；
-- 分门签署：G1/G2/G3/G4/G5 通过；G0 条件 4 待 CI；G6/G7/G8 未签。
+- 分门签署：G0/G1/G2/G3/G4/G5 通过；G6/G7/G8 未签。
 - 签署人：项目负责人（用户授权 AI 代理代签）　日期：2026-11-26
 
 ## 7. 分门签署记录（2026-11-26）
 
 | 门 | 结论 | 依据/缺口 |
 |---|---|---|
-| G0 | 待签（条件 4 待 CI） | 条件 1 评审记录见 D155；条件 2 `test_core_v2_contract.py` + `test_analysis_api_surface.py` + `test_analysis_layering.py` 48 passed；条件 3 API 快照 0 差异；条件 5 无未决破坏；仅条件 4 六项 CI 待 push 后执行 |
+| G0 | 已签（2026-11-26 补签） | 条件 1 评审记录见 D155/D156；条件 2 `test_core_v2_contract.py` + `test_analysis_api_surface.py` + `test_analysis_layering.py` 48 passed；条件 3 API 快照 0 差异；条件 4 commit 9563cad 六项 CI 全绿（build/docker/desktop-l2/e2e/e2e-l1/test）；条件 5 无未决破坏 |
 | G1 | 已签 | `check_version.py` OK（3.20.2），`gen_contracts.py --check` OK；文档无 v7 当前版本残留 |
 | G2 | 已签 | `stamp_builder.py` 共享入口；`test_stamp_parity.py` 8 passed；电感例外见 CF-06 |
 | G3 | 已签 | `test_ac_backend.py` 6 passed；fast/native/强制 native 三路 Bode 对拍通过 |
@@ -78,4 +79,4 @@
 | G7 | 暂不签 | `test_accel_fallback.py` 5 passed、`test_fem.py` 8 passed 已落地；更细 GPU 初始化错误矩阵与 FEM 时间积分扩展仍可加强，按“部分完成”处理 |
 | G8 | 不签 | 依赖 G0/G6/G7 全部通过 + 六项 CI 全绿；当前不满足 |
 
-签署说明：本记录仅对已通过的分门签署；G0/G6/G7/G8 未签，不得对外宣称 Core V2 总验收通过。
+签署说明：本记录仅对已通过的分门签署；G0 已补签，G6/G7/G8 未签，不得对外宣称 Core V2 总验收通过。

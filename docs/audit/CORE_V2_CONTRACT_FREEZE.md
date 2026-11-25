@@ -1,6 +1,6 @@
 # NetLab Core V2 契约冻结（P3-01）
 
-> 状态：**契约草案已落地，待评审（G0 未关闭）**。本文件冻结 Core V2 对外可观察行为与关键内部不变量。
+> 状态：**G0 已通过（2026-11-26 补签，CI 六项全绿）**。本文件冻结 Core V2 对外可观察行为与关键内部不变量。
 > 基线：main `5c076eae`；工作分支 `feat/2026-11-25-p3-core-v2`。任何修改本文件所列契约的提交，必须附 ADR/决策记录与对应断言测试。
 
 ## 1. 范围与目标
@@ -60,7 +60,7 @@ P3-01 的交付物是一份可执行契约，而不是再一次重构：
 4. CI 必需检查（build/docker/desktop-l2/e2e/e2e-l1/test）全绿；
 5. 无未决的对外 API 破坏；若有，必须列出迁移路径与版本号。
 
-当前状态：1 待评审；2 已通过（本地）；3 已通过；4 未执行（本分支未 push）；5 无未决破坏。
+当前状态：1 已评审并签字（D155/D156）；2 已通过（全量 1811 passed/14 skipped/0 failed，覆盖率 87%）；3 已通过（API 快照 0 差异）；4 已通过（commit 9563cad 六项必需 CI 全部 success：build/docker/desktop-l2/e2e/e2e-l1/test）；5 无未决对外 API 破坏。
 
 ## 5. 变更控制
 
@@ -81,8 +81,9 @@ P3-01 的交付物是一份可执行契约，而不是再一次重构：
 | P3-07 GPU/FEM 边界 | 已由 CF-10..CF-13 约束。 |
 | P3-08 总验收 | 以本文件 + 各阶段证据为验收基线。 |
 
-## 7. 落地证据（本地，未提交/未 push）
+## 7. 落地证据（commit 9563cad 已推送，CI 六项全绿）
 
 - `netlab/tests/test_core_v2_contract.py`：新增契约断言（版本、StampSink、静态分派、电感例外、AC 结果/策略/对拍、ComputeError、路径安全、FEM 枚举）。
 - 定向实跑：`PYTHONPATH=. python -m pytest netlab/tests/test_core_v2_contract.py netlab/tests/test_fem.py -q`。
 - 既有支撑：`test_stamp_parity.py`（8 类元件逐项相等）、`test_ac_backend.py`（三路 Bode 对拍）、`test_accel_fallback.py`（GPU 回退）、`test_workspace.py`（路径白名单）。
+- 远程 CI（commit 9563cad）：build/docker/desktop-l2/e2e/e2e-l1/test 六项全部 success（run 45663814821/45663814598/45663814625/45663814662）。

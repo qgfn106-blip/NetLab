@@ -1085,3 +1085,9 @@ decisions:
   namespace: D-NL
   canonical_id: D-NL-151
   legacy_id: D155
+- id: D156
+  title: P3 Core V2 G0 补签（2026-11-26，CI 六项全绿后）
+  decision: 依据 commit 9563cad 推送后 GitHub Actions 六项必需检查全部 success（build / docker / desktop-l2 / e2e / e2e-l1 / test；run 45663814821/45663814598/45663814625/45663814662），补签 G0 契约冻结：CORE_V2_CONTRACT_FREEZE.md 条件 1–5 全部满足（D155 评审记录、test_core_v2_contract+test_analysis_api_surface+test_analysis_layering 48 passed、API 快照 0 差异、六项 CI 全绿、无未决 API 破坏）。G1–G5 维持已签；G6（P3-06 完整 handlers/views 迁移与入口仅装配未完成）、G7（GPU 错误矩阵/FEM 时间积分扩展仍可加强）、G8（依赖 G0/G6/G7）不签。G8 仍未通过，不得宣称 Core V2 总验收完成。
+  namespace: D-NL
+  canonical_id: D-NL-152
+  legacy_id: D156

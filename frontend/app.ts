@@ -1,5 +1,6 @@
 import { fmt, intText, clamp, hashString, baseName } from './app.utils.js';
 import { ENDPOINTS } from './app/endpoints.js';
+import { initSessionStore, applySnapshot, lookupSelection } from './app/store.js';
 import {
   CANVAS_LIGHT, CANVAS_DARK,
   CHART_PALETTE_HC_LIGHT, CHART_PALETTE_HC_DARK,
@@ -142,78 +143,7 @@ function setStatusHint(hint: string): void {
    * 2. 快照同步与全局 UI
    * ==================================================================== */
 
-  function applySnapshot(snapshot: SnapshotRec) {
-    if (!snapshot || typeof snapshot !== 'object' || !snapshot.scene) return;
-    const sim = snapshot.sim || state.sim;
-    const previousCursor = state.cursor;
-    const resetFrames = !state.sim || (sim && sim.steps === 0 && sim.time === 0);
 
-    state.scene = snapshot.scene;
-    state.sim = sim;
-    // 电路变了（revision 变化），旧的扫频结果不再成立：清掉缓存并提示重算
-    const nextRevision = snapshot.scene.revision ?? null;
-    // 场景被重置或替换后，旧预计算数据不再对应，恢复“首次运行提示”
-    if (resetFrames || (state.precomputedRevision != null && nextRevision !== state.precomputedRevision)) {
-      state.precomputedSeconds = null;
-      state.precomputedRevision = null;
-    }
-    if (snapshot.limits) state.limits = snapshot.limits;
-    state.mode = state.scene!.mode || state.mode;
-
-    if (resetFrames || (sim && Number(sim.cursor) < previousCursor)) {
-      state.frames = [];
-      state.values.clear();
-      state.nodeValues.clear();
-      state.edgeValues.clear();
-      state.cursor = Number(sim?.cursor) || 0;
-      scheduleChartDraw();
-    }
-
-    if (state.selection.type && !lookupSelection()) {
-      clearSelection();
-    }
-    // 场景被换掉/节点被删后，多选集合里的旧 id 要清掉，否则「封装选中」
-    // 会拿着一批已经不存在的节点去请求，后端只能报「节点不存在」。
-    const liveNodes = new Set((state.scene?.nodes || []).map((node) => node.id));
-    const liveEdges = new Set((state.scene?.edges || []).map((edge) => edge.id));
-    let staleSelection = false;
-    for (const id of [...(state.multi?.nodes || [])]) {
-      if (!liveNodes.has(id)) {
-        state.multi.nodes.delete(id);
-        staleSelection = true;
-      }
-    }
-    for (const id of [...(state.multi?.edges || [])]) {
-      if (!liveEdges.has(id)) {
-        state.multi.edges.delete(id);
-        staleSelection = true;
-      }
-    }
-    if (staleSelection) requestDraw();
-    updateModeUI();
-    syncUI();
-    updateInfoBar();
-    const degraded = (sim && sim.degraded) as DegradedRec | null;
-    if (degraded && degraded.read_only) {
-      const missing = (degraded.missing || []).map((item: DegradedItemRec) => `${item.id}@v${item.version}`).join('、');
-      showBanner(`降级只读：${degraded.message}${missing ? `（缺失：${missing}）` : ''}`);
-      state.degradedBanner = true;
-    } else if (state.degradedBanner) {
-      state.degradedBanner = false;
-      hideBanner();
-    }
-    updateScenePanelValues();
-    updateSignalKeyCache();
-    requestDraw();
-    updateInspectorLive();
-    renderVectorNodeList();
-    schedulePhaseDraw();
-  }
-  function lookupSelection() {
-    if (state.selection.type === 'node') return nodeById(state.selection.id);
-    if (state.selection.type === 'edge') return edgeById(state.selection.id);
-    return null;
-  }
   function syncUI() {
     const sim = state.sim;
     if (!sim) return;
@@ -5361,6 +5291,11 @@ function setStatusHint(hint: string): void {
     if ($('.panel-group.active')?.dataset.group === 'fn') renderSpecPane();
   }
 
+  initSessionStore({
+    scheduleChartDraw, clearSelection, requestDraw, updateModeUI, syncUI, updateInfoBar,
+    showBanner, hideBanner, updateScenePanelValues, updateSignalKeyCache,
+    updateInspectorLive, renderVectorNodeList, schedulePhaseDraw, nodeById, edgeById,
+  });
   initAnalysisWorkbenchPanel({ colorForKey, decodeProbeKey, openPrecomputeDialog, applySnapshot });
   initScenePanel({ task, syncUI, updateRunButton, applySnapshot, renderInspector, renderSignalList, fetchNetworks, fitView, snapSceneToGrid, updateModeUI });
   initSceneActions({ task, syncUI, updateRunButton, applySnapshot, renderInspector, renderSignalList, fetchNetworks, fitView, snapSceneToGrid, updateModeUI });

@@ -67,6 +67,7 @@ import { closeModal, openConfirmModal as confirmModal, openModeModal as chooseMo
 import { wbCommitNodeParam, wbCommitEdgeParam, wbCommitSimParam, wbCommitIntegration, type ParamCommitDeps } from './app/param_commit.js';
 import { initAnalysisWorkbenchPanel, renderWorkbenchAnalysis, renderWorkbenchState, refreshWbAnalysis, syncProjectContext, renderCompareGrid, setWbSignalDock, getWbCompareStateIds, getWbCacheStatus, getWbComparePayload } from './app/analysis_workbench_panel.js';
 import { initCommands, clearSelection, multiSelection, toggleMultiSelection, selectAll, copySelection, pasteClipboard, pushUndoSnapshot, undo, redo } from './app/commands.js';
+import { initShellView, updateInfoBar, renderNetworkList } from './app/shell_view.js';
 function setStatusHint(hint: string): void {
   const node = document.getElementById('statusHint');
   if (node) node.textContent = hint;
@@ -2988,38 +2989,6 @@ function setStatusHint(hint: string): void {
     if (node) node.textContent = value as string;
   }
 
-  function updateInfoBar() {
-    if (!ui.infoBar) return;
-    const modeLabel = { signal: '信号流', circuit: '电路', vector: '矢量' }[state.mode] || state.mode || '—';
-    const network = state.currentNetwork?.name || '网络 1';
-    const total = state.networks?.length || 1;
-    const sim = (state.sim || {}) as SimRec;
-    setInfo('project', `${state.project.name || '未命名工程'}${state.project.dirty ? ' *' : ''}`);
-    setInfo('network', total > 1 ? `${network} (${total})` : network);
-    setInfo('mode', modeLabel);
-    const nodes = state.scene?.nodes?.length || 0;
-    const edges = state.scene?.edges?.length || 0;
-    setInfo('counts', `节点 ${nodes} · 连线 ${edges}`);
-    const dt = Number(sim.config?.dt ?? sim.dt ?? state.scene?.sim?.dt ?? 0);
-    const dtMs = dt * 1000;
-    const dtText = dt >= 1
-      ? `${dt.toFixed(dt % 1 ? 2 : 0)} s`
-      : `${dtMs >= 10 ? dtMs.toFixed(0) : dtMs >= 1 ? dtMs.toFixed(1) : dtMs.toFixed(2)} ms`;
-    setInfo('dt', `dt ${dtText}`);
-    setInfo('time', `t ${Number(sim.time || 0).toFixed(3)} s`);
-    setInfo('steps', `step ${Number(sim.steps || 0)}`);
-    const alerts = Number(sim.alerts ?? sim.warnings ?? 0) || 0;
-    const alertNode = ui.infoBar.querySelector('[data-info="alerts"]');
-    if (alertNode) {
-      alertNode.textContent = `告警 ${alerts}`;
-      alertNode.classList.toggle('has-alert', alerts > 0);
-    }
-    const run = ui.infoBar.querySelector('[data-info="run"]');
-    if (run) {
-      run.textContent = sim.running ? '运行中' : '停止';
-      run.classList.toggle('stopped', !sim.running);
-    }
-  }
 
   async function fetchNetworks(silent = true) {
     try {
@@ -3035,30 +3004,6 @@ function setStatusHint(hint: string): void {
     }
   }
 
-  function renderNetworkList() {
-    if (!ui.networkList) return;
-    ui.networkList.replaceChildren();
-    for (const network of state.networks || []) {
-      const item = el('button', 'network-item');
-      item.type = 'button';
-      item.setAttribute('role', 'option');
-      item.dataset.networkId = network.id;
-      item.classList.toggle('current', Boolean(network.current));
-      item.setAttribute('aria-selected', network.current ? 'true' : 'false');
-      item.title = `${network.name} · ${network.mode} · ${network.nodes} 节点 / ${network.edges} 连接`;
-      const dot = div('dot');
-      const label = el('span', null, network.name);
-      const meta = el('span', 'meta', network.nodes as number);
-      item.append(dot, label, meta);
-      item.addEventListener('click', () => void switchNetwork(network.id));
-      item.addEventListener('dblclick', () => void renameNetwork(network.id));
-      item.addEventListener('contextmenu', (event: MouseEvent) => {
-        event.preventDefault();
-        openNetworkMenu(network, event.clientX, event.clientY);
-      });
-      ui.networkList.appendChild(item);
-    }
-  }
 
   /* 网络列表右键菜单（R02 / D49-D50，P7-07）：把封装入口放到网络这一层 */
   function openNetworkMenu(network: NetworkItem, x: number, y: number) {
@@ -5092,6 +5037,7 @@ function setStatusHint(hint: string): void {
     updateInspectorLive, renderVectorNodeList, schedulePhaseDraw, nodeById, edgeById,
   });
   initCommands({ task, selectEntity, renderInspector, deleteSelection, refreshState });
+  initShellView({ setInfo, switchNetwork, renameNetwork, openNetworkMenu });
   initAnalysisWorkbenchPanel({ colorForKey, decodeProbeKey, openPrecomputeDialog, applySnapshot });
   initScenePanel({ task, syncUI, updateRunButton, applySnapshot, renderInspector, renderSignalList, fetchNetworks, fitView, snapSceneToGrid, updateModeUI });
   initSceneActions({ task, syncUI, updateRunButton, applySnapshot, renderInspector, renderSignalList, fetchNetworks, fitView, snapSceneToGrid, updateModeUI });

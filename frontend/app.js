@@ -51,6 +51,7 @@ import { elementPins, elementRot } from "./app/circuit_symbols.js";
 import { closeModal, openConfirmModal as confirmModal, openModeModal as chooseModeModal } from "./app/dialogs_build.js";
 import { initAnalysisWorkbenchPanel, renderWorkbenchAnalysis, renderWorkbenchState, refreshWbAnalysis, syncProjectContext, renderCompareGrid, setWbSignalDock, getWbCompareStateIds, getWbCacheStatus, getWbComparePayload } from "./app/analysis_workbench_panel.js";
 import { initCommands, clearSelection, multiSelection, toggleMultiSelection, selectAll, copySelection, pasteClipboard, pushUndoSnapshot, undo, redo } from "./app/commands.js";
+import { initShellView, updateInfoBar, renderNetworkList } from "./app/shell_view.js";
 function setStatusHint(hint) {
   const node = document.getElementById("statusHint");
   if (node) node.textContent = hint;
@@ -2698,36 +2699,6 @@ function setStatusHint(hint) {
     const node = ui.infoBar.querySelector(`[data-info="${key}"]`);
     if (node) node.textContent = value;
   }
-  function updateInfoBar() {
-    if (!ui.infoBar) return;
-    const modeLabel2 = { signal: "\u4FE1\u53F7\u6D41", circuit: "\u7535\u8DEF", vector: "\u77E2\u91CF" }[state.mode] || state.mode || "\u2014";
-    const network = state.currentNetwork?.name || "\u7F51\u7EDC 1";
-    const total = state.networks?.length || 1;
-    const sim = state.sim || {};
-    setInfo("project", `${state.project.name || "\u672A\u547D\u540D\u5DE5\u7A0B"}${state.project.dirty ? " *" : ""}`);
-    setInfo("network", total > 1 ? `${network} (${total})` : network);
-    setInfo("mode", modeLabel2);
-    const nodes = state.scene?.nodes?.length || 0;
-    const edges = state.scene?.edges?.length || 0;
-    setInfo("counts", `\u8282\u70B9 ${nodes} \xB7 \u8FDE\u7EBF ${edges}`);
-    const dt = Number(sim.config?.dt ?? sim.dt ?? state.scene?.sim?.dt ?? 0);
-    const dtMs = dt * 1e3;
-    const dtText = dt >= 1 ? `${dt.toFixed(dt % 1 ? 2 : 0)} s` : `${dtMs >= 10 ? dtMs.toFixed(0) : dtMs >= 1 ? dtMs.toFixed(1) : dtMs.toFixed(2)} ms`;
-    setInfo("dt", `dt ${dtText}`);
-    setInfo("time", `t ${Number(sim.time || 0).toFixed(3)} s`);
-    setInfo("steps", `step ${Number(sim.steps || 0)}`);
-    const alerts = Number(sim.alerts ?? sim.warnings ?? 0) || 0;
-    const alertNode = ui.infoBar.querySelector('[data-info="alerts"]');
-    if (alertNode) {
-      alertNode.textContent = `\u544A\u8B66 ${alerts}`;
-      alertNode.classList.toggle("has-alert", alerts > 0);
-    }
-    const run = ui.infoBar.querySelector('[data-info="run"]');
-    if (run) {
-      run.textContent = sim.running ? "\u8FD0\u884C\u4E2D" : "\u505C\u6B62";
-      run.classList.toggle("stopped", !sim.running);
-    }
-  }
   async function fetchNetworks(silent = true) {
     try {
       const response = await jsonRequest(ENDPOINTS.networks, "GET");
@@ -2739,30 +2710,6 @@ function setStatusHint(hint) {
     } catch (error) {
       if (!silent) toast(`\u7F51\u7EDC\u5217\u8868\u8BFB\u53D6\u5931\u8D25\uFF1A${error.message}`, "error", 4e3);
       return state.networks;
-    }
-  }
-  function renderNetworkList() {
-    if (!ui.networkList) return;
-    ui.networkList.replaceChildren();
-    for (const network of state.networks || []) {
-      const item = el("button", "network-item");
-      item.type = "button";
-      item.setAttribute("role", "option");
-      item.dataset.networkId = network.id;
-      item.classList.toggle("current", Boolean(network.current));
-      item.setAttribute("aria-selected", network.current ? "true" : "false");
-      item.title = `${network.name} \xB7 ${network.mode} \xB7 ${network.nodes} \u8282\u70B9 / ${network.edges} \u8FDE\u63A5`;
-      const dot = div("dot");
-      const label = el("span", null, network.name);
-      const meta = el("span", "meta", network.nodes);
-      item.append(dot, label, meta);
-      item.addEventListener("click", () => void switchNetwork(network.id));
-      item.addEventListener("dblclick", () => void renameNetwork(network.id));
-      item.addEventListener("contextmenu", (event) => {
-        event.preventDefault();
-        openNetworkMenu(network, event.clientX, event.clientY);
-      });
-      ui.networkList.appendChild(item);
     }
   }
   function openNetworkMenu(network, x, y) {
@@ -4666,6 +4613,7 @@ function setStatusHint(hint) {
     edgeById
   });
   initCommands({ task, selectEntity, renderInspector, deleteSelection, refreshState });
+  initShellView({ setInfo, switchNetwork, renameNetwork, openNetworkMenu });
   initAnalysisWorkbenchPanel({ colorForKey, decodeProbeKey, openPrecomputeDialog, applySnapshot });
   initScenePanel({ task, syncUI, updateRunButton, applySnapshot, renderInspector, renderSignalList, fetchNetworks, fitView, snapSceneToGrid, updateModeUI });
   initSceneActions({ task, syncUI, updateRunButton, applySnapshot, renderInspector, renderSignalList, fetchNetworks, fitView, snapSceneToGrid, updateModeUI });

@@ -1079,3 +1079,9 @@ decisions:
   namespace: D-NL
   canonical_id: D-NL-150
   legacy_id: D154
+- id: D155
+  title: P3 Core V2 分门评审与签字（2026-11-26）
+  decision: 对 P3-08 验收清单逐门复核：G1 版本一致、G2 单一 StampBuilder、G3 AC 后端、G4 analysis 分层、G5 工作台四层均依据本地证据通过并签字；G0 契约冻结的条件 1/2/3/5 成立，仅条件 4（六项 CI）待远程执行；G6 不签字（P3-06 完整 handlers/views 迁移与入口仅装配未完成）；G7 按部分完成暂不签（更细 GPU 错误矩阵与 FEM 时间积分扩展可加强）；G8 不通过（依赖 G0/G6/G7 全部通过 + CI 全绿）。签署人：项目负责人（用户授权 AI 代理代签）。
+  namespace: D-NL
+  canonical_id: D-NL-151
+  legacy_id: D155

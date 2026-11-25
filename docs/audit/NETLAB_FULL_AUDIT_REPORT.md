@@ -9,13 +9,13 @@
 
 ## 0. 摘要
 
-NetLab 3.20.2 主体功能完整、测试与 CI 框架健全。本轮整改已全部落地并合入远端 main=e8720f2：P0-01..P0-04 修复 CI 链、前端等价 AST 检查、断环闭环 T=G/(1+L) 与真实测试证据；P1-01/P1-02 完成三模块拆分（878→786、837→800、823→774）与职责矩阵；P1-03/04/05 统一 PlotKit 0.3.0 与 Project Schema 8；P2-01..P2-06 完成 StampBuilder、AC/Bode 后端、analysis 分层、GPU 回退、FEM 补测与路径安全修复；P2-07 需求门禁语义化。追加 P3 实施（本地分支 feat/2026-11-25-p3-core-v2，未推送）：P3-01 Core V2 契约冻结文档+12 项契约测试、P3-08 验收清单已落地（定向 20 passed），P2-05 FEM 已补齐边界枚举与时间积分可插拔（8 passed）；P3-02 analysis 分层与 P3-05 工作台四层门禁已在同一本地分支完成（a3ccfa8），P3-06 部分完成（端点快照已升级 version2：91 唯一路径/101 方法+路径条目；app.ts 7511→4463；router.ts/handlers.ts/views.ts 首片落地）；P3-08 的 G8 仍未通过。最新全量（P3 分支）1811 passed/14 skipped/0 failed，覆盖率 87%≥81。合并路径：P0/P1-03..05/文档/P2-06/07 与 P1-01/02/P2-04/05 经 PR #71→376b2bb；P2-01/02/03 经 PR #72→e8720f2；CI 必需检查全绿。
+NetLab 3.20.2 主体功能完整、测试与 CI 框架健全。本轮整改已全部落地并合入远端 main=e8720f2：P0-01..P0-04 修复 CI 链、前端等价 AST 检查、断环闭环 T=G/(1+L) 与真实测试证据；P1-01/P1-02 完成三模块拆分（878→786、837→800、823→774）与职责矩阵；P1-03/04/05 统一 PlotKit 0.3.0 与 Project Schema 8；P2-01..P2-06 完成 StampBuilder、AC/Bode 后端、analysis 分层、GPU 回退、FEM 补测与路径安全修复；P2-07 需求门禁语义化。追加 P3 实施（本地分支 feat/2026-11-25-p3-core-v2，未推送）：P3-01 Core V2 契约冻结文档+12 项契约测试、P3-08 验收清单已落地（定向 20 passed），P2-05 FEM 已补齐边界枚举与时间积分可插拔（8 passed）；P3-02 analysis 分层与 P3-05 工作台四层门禁已在同一本地分支完成（a3ccfa8），P3-06 已完成（端点快照已升级 version2：91 唯一路径/101 方法+路径条目；app.ts 7511→5，14 个 editor_* 模块全量迁移，dd0e924）；P3-08 的 G8 待新 commit 六项 CI。最新全量（P3 分支）1811 passed/14 skipped/0 failed，覆盖率 87%≥81。合并路径：P0/P1-03..05/文档/P2-06/07 与 P1-01/02/P2-04/05 经 PR #71→376b2bb；P2-01/02/03 经 PR #72→e8720f2；CI 必需检查全绿。
 
 ## 1. 项目现状
 
 ### 1.1 结构与规模
 - 后端 Python 包 netlab/：core/model（project.py 1208 行、path_guard.py、instance_model.py、v8_draft.py 等）、core/compute（analysis.py 85 行 facade + analysis_metrics/transfer/envelopes/loop/scan 五模块 451/588/688/673/569 行、accel.py 229、fem.py 793）、core/compute/circuit（elements.py 876、stamps.py 120、solver.py 1426、descriptor.py 1092、descriptor_analysis.py 980、loop_analysis.py 826、nyquist.py 等）、server.py 552 行（FastAPI 主应用 + 16 子包，仅执行注册表受控计算，请求体经 Pydantic + 场景层校验）。
-- 前端 TypeScript（ESM 逐文件编译）：app.ts 7511 行（审计基线；当前本地分支 4463 行）、单 IIFE、213 嵌套函数、88 endpoint；分析工作台三大模块 analysis_chart.ts 878、analysis_workbench.ts 837、analysis_workbench_canvas.ts 823 行（实测）。
+- 前端 TypeScript（ESM 逐文件编译）：app.ts 7511 行（审计基线；当前本地分支 5 行装配入口）、单 IIFE、213 嵌套函数、88 endpoint；分析工作台三大模块 analysis_chart.ts 878、analysis_workbench.ts 837、analysis_workbench_canvas.ts 823 行（实测）。
 - 测试：pytest.ini testpaths=netlab/tests, mathspec/tests；netlab/tests 217 个 .py、def test_ 1346 个；pytest --collect-only 采集约 1748–1750 items（全量实测 junit tests 1750）。
 
 ### 1.2 版本与 Schema
@@ -73,12 +73,12 @@ NetLab 3.20.2 主体功能完整、测试与 CI 框架健全。本轮整改已�
 - 根因：AnalysisChart 等长期在单文件内叠加逻辑，未按层拆分。
 - 状态：本轮仅出收敛方案（见 NETLAB_ARCHITECTURE_CONVERGENCE.md §1）。
 
-#### P1-02 梳理前端职责（权重 3）｜已合并（PR #71 → 376b2bb）+ 本地多片抽取 + S1/S2/S3/S4（b5288f4 工作台面板、1f27eca 场景面板、cc8922b 回放、6800cfc 信号列表、ea8413d 端点注册表、1625eeb store、729bf6e 命令层、66d8272 外壳视图，累计 7511→4463，新增 router.ts/handlers.ts/views.ts 首片，未推送）
-- file:line：frontend/app.ts（审计基线 7511 行；当前本地分支 4463 行、单 IIFE、213 嵌套函数、88 endpoint）。
+#### P1-02 梳理前端职责（权重 3）｜已合并（PR #71 → 376b2bb）+ 本地多片抽取 + S1/S2/S3/S4（b5288f4 工作台面板、1f27eca 场景面板、cc8922b 回放、6800cfc 信号列表、ea8413d 端点注册表、1625eeb store、729bf6e 命令层、66d8272 外壳视图，累计 7511→5，新增 14 个 editor_* 模块，未推送）
+- file:line：frontend/app.ts（审计基线 7511 行；当前本地分支 5 行装配入口、原单 IIFE/213 嵌套函数/88 endpoint 已迁入 14 个 editor_* 模块）。
 - 现象：单 IIFE 入口承担全部路由/渲染/状态，嵌套函数 213 个、endpoint 88 个。
 - 影响：入口不可分层审查、循环依赖与隐式全局状态风险高、测试困难。
 - 根因：缺乏入口分层的架构约束。
-- 状态：职责矩阵已产出；app.ts 7511→4463：工作台面板/图表渲染（b5288f4）、场景面板/场景动作（1f27eca）、回放控制 analysis_replay（cc8922b）、信号列表/图例 signal_list（6800cfc）四片已抽出；S1 端点注册表 endpoints.ts（ea8413d）、S2 会话状态 store.ts（1625eeb）、S3 命令层 commands.ts（729bf6e，selection/clipboard/undo/redo）、S4 外壳视图 shell_view.ts（66d8272，updateInfoBar/renderNetworkList）已完成；typecheck/build/test:utils 96 passed/parity/sections/端点快照/L1 smoke 全绿（parity 101 TS/999 declarations/91 runtime，端点快照 91 路径/101 条目）。P3-06 已落地 router.ts/handlers.ts/views.ts 首片，完整 handlers/views 迁移与入口仅装配未完成。
+- 状态：职责矩阵已产出；P3-06 已完成全量拆分（dd0e924）：app.ts 7511→5，原单 IIFE 全部函数迁入 14 个 `frontend/app/editor_*` 模块（全部 ≤800 行），并保留 endpoints.ts/store.ts/commands.ts/shell_view.ts/router.ts/handlers.ts/views.ts；typecheck/build/test:utils 96 passed/parity/sections/端点快照/L1 smoke 全绿（parity 117 TS/1143 declarations/107 runtime，端点快照 91 路径/101 条目）；`check_architecture.py` A2 TS 环 0；G6 已签。
 
 ### 2.3 P1 依赖与环境（合计 10）
 
@@ -162,10 +162,10 @@ NetLab 3.20.2 主体功能完整、测试与 CI 框架健全。本轮整改已�
 - 根因：门禁只做存在性检查。
 - 状态：重写为语义门禁（字段非空非占位、expected/failure_condition 含语义关键词、expected≠failure_condition、按声明校验退出码、扫 stdout failed/error 与 stderr Traceback），新增 --all（43 条）；docs/canonical/requirements.yaml 计 43 条；已合并（main=e8720f2）。
 
-### 2.7 P3 Core V2（P3-01..08，合计 10）｜P3-01/P3-02/P3-05/P3-08 本地完成待评审，P3-06 部分完成，P3-03/P3-04 实质能力已并 main
+### 2.7 P3 Core V2（P3-01..08，合计 10）｜P3-01/P3-02/P3-05/P3-06/P3-07/P3-08 本地完成待推送，P3-03/P3-04 实质能力已并 main
 - P3-01 已写 docs/audit/CORE_V2_CONTRACT_FREEZE.md（CF-01..CF-14 + G0 五项）与 netlab/tests/test_core_v2_contract.py（12 条：版本常量、StampSink 成员、descriptor 委托 stamp_builder、支持 kind、电感双路径例外、ac_sweep 返回契约/策略选择/fast-native 对拍、ComputeError、GPU 非有限回退、路径白名单、FEM 配置）；实跑 test_core_v2_contract.py + test_fem.py = 20 passed。
-- P3-08 已写 docs/audit/P3_ACCEPTANCE_CHECKLIST.md（G0..G8 门禁、逐项验收表、阻断条件），结论 G8 未通过、不得宣称完成。
-- P3-03/P3-04 的实质能力已由 P2-01（stamp_builder）/P2-02（ac_sweep）合入 main；P3-06 部分完成：端点契约守护 + app.ts 多片拆分 + S1/S2/S3/S4 + router.ts/handlers.ts/views.ts 首片（57211fc；7511→4463：b5288f4 工作台面板/图表渲染，1f27eca scene_panel/scene_actions，analysis_replay，signal_list，commands，shell_view）；P3-02（analysis 编排分层，a3ccfa8）与 P3-05（工作台/分析图四层门禁，a3ccfa8）已本地完成待评审；完整 handlers/views 迁移与入口仅装配未完成，见 CORE_V2_IMPLEMENTATION_ROADMAP.md。
+- P3-08 已写 docs/audit/P3_ACCEPTANCE_CHECKLIST.md（G0..G8 门禁、逐项验收表、阻断条件），结论 G0–G7 已分门通过，G8 待新 commit 六项 CI 后补签。
+- P3-03/P3-04 的实质能力已由 P2-01（stamp_builder）/P2-02（ac_sweep）合入 main；P3-06 已完成：端点契约守护 + app.ts 全量拆分 + S1/S2/S3/S4 + 14 个 editor_* 模块（dd0e924；7511→5，全部 ≤800 行，A2 TS 环 0）；P3-02（analysis 编排分层，a3ccfa8）与 P3-05（工作台/分析图四层门禁，a3ccfa8）已本地完成；P3-07 按 FEM 冻结口径完成；G6/G7 已签，G8 待新 commit 六项 CI，见 CORE_V2_IMPLEMENTATION_ROADMAP.md。
 
 ## 3. 数学验证专章：断环闭环传递函数
 
@@ -237,12 +237,12 @@ NetLab 3.20.2 主体功能完整、测试与 CI 框架健全。本轮整改已�
 ## 6. 未完成项
 1. P0-03 断环闭环：LM-01..LM-04 已修复并回归（loop_math_fix.md）；全量 1789 passed/14 skipped/0 failed、覆盖率 82.70%；LM-05..07（nyquist 临界点/PM 基准/运放扰动测 L）保留待单独立项。
 2. P0-04：证据已回填（1789 passed/14 skipped/0 failed；覆盖率 82.70%；requirements 43/43）；decisions.yaml 历史决策记录不追溯改写，门禁以 CI 为准。
-3. P1-01 已完成三模块拆分（878→786、837→800、823→774，check:sections 通过）并随 PR #71 合入；P1-02 已产出职责矩阵，并在本地分支将 app.ts 7511→4463（b5288f4 工作台面板/图表渲染；1f27eca scene_panel/scene_actions；analysis_replay；signal_list；commands；shell_view），S1、S2、S3、S4 与 router.ts/handlers.ts/views.ts 首片已完成。
+3. P1-01 已完成三模块拆分（878→786、837→800、823→774，check:sections 通过）并随 PR #71 合入；P1-02 已产出职责矩阵，并在本地分支将 app.ts 7511→5（dd0e924：14 个 editor_* 模块全量迁移，全部 ≤800 行），S1、S2、S3、S4、router.ts/handlers.ts/views.ts 与完整 views/editor 分层已完成。
 4. P2-01/P2-02/P2-03 内核收敛已随 PR #72 合入 main=e8720f2；P2-04 GPU 回退、P2-05 FEM 基础单测已随 PR #71 合入；P2-05 边界枚举与时间积分可插拔已在本地分支 feat/2026-11-25-p3-core-v2（未推送）实现并通过 8 条测试。
 5. P2-06 残余已修复（webview_bridge.save_text 已接 ensure_allowed_path）并随 PR #71 合入。
-6. P3-01 契约冻结（CORE_V2_CONTRACT_FREEZE.md + 12 条契约测试，20 passed）与 P3-08 验收清单（P3_ACCEPTANCE_CHECKLIST.md）已在本地分支 feat/2026-11-25-p3-core-v2 完成待评审、未推送；P3-06 端点契约守护与 app.ts 多片拆分 + S1/S2/S3/S4 + router/handlers/views 首片已落地（b5288f4 + 1f27eca + analysis_replay + signal_list + endpoints + store + commands + shell_view，7511→4463）；P3-02（analysis 2771→85 行 facade + 四子模块，a3ccfa8）与 P3-05（24 模块四层守卫、analysis_chart 786→718，a3ccfa8）已完成待评审；**G8 未通过，不得宣称 Core V2 完成**。
-7. P0/P1/P2 已全部合入远端 main=e8720f2（PR #71 与 PR #72，必需检查全绿）；P3 追加实施仅本地分支（未推送、未 PR），其中 P3-01/P3-08 完成待评审、P3-02/P3-05 完成待评审（a3ccfa8）、P3-06 部分完成（契约守护+多片拆分+S1-S4+router/handlers/views 首片，端点快照 91 路径/101 条目）。
+6. P3-01 契约冻结（CORE_V2_CONTRACT_FREEZE.md + 12 条契约测试，20 passed）与 P3-08 验收清单（P3_ACCEPTANCE_CHECKLIST.md）已在本地分支 feat/2026-11-25-p3-core-v2 完成并分别签署 G0/G0–G7、未推送；P3-06 已完成全部迁移（dd0e924：app.ts 7511→5，14 个 editor_* 模块全量迁移、全部 ≤800 行、A2 TS 环 0）；P3-02（analysis 2771→85 行 facade + 五子模块，a3ccfa8）与 P3-05（24 模块四层守卫、analysis_chart 786→718，a3ccfa8）已完成；**G0–G7 已分门通过，G8 待新 commit 六项 CI，补签前不得宣称 Core V2 总验收完成**。
+7. P0/P1/P2 已全部合入远端 main=e8720f2（PR #71 与 PR #72，必需检查全绿）；P3 追加实施仅本地分支（未推送、未 PR），其中 P3-01/P3-08 已完成并签署、P3-02/P3-05 已完成并签署（a3ccfa8）、P3-06 已完成（14 个 editor_* 模块全量迁移、app.ts 仅装配，dd0e924，端点快照 91 路径/101 条目）；G0–G7 已分门签署，G8 待新 commit CI。
 
 ## 7. 结论：能否进入下一阶段
 - P0 门禁：P0-01..P0-04 已全部闭环并合入 main=e8720f2：P0-01/P0-02 门禁修复并自测通过；P0-03 数学修正并经解析对拍（全量 1789 passed/14 skipped/0 failed，覆盖率 82.70%）；P0-04 真实完整测试证据已回填。P1/P2 已完成并合入，可进入下一阶段（P3 Core V2 规划已交付）。
-- 建议路径：P0/P1/P2 已全部进入远端 main=e8720f2；后续处理 LM-05..07 与 P3-06 剩余实施（完整 handlers/views 迁移与入口仅装配）；P3-01/P3-02/P3-05/P3-08/P2-05 追加能力需评审后推送并走 PR。
+- 建议路径：P0/P1/P2 已全部进入远端 main=e8720f2；后续处理 LM-05..07，并推送 P3 分支跑六项 CI 以补签 G8（P3-06 已全量完成、app.ts 仅装配）；P3-01/P3-02/P3-05/P3-07/P3-08/P2-05 追加能力需评审后推送并走 PR。

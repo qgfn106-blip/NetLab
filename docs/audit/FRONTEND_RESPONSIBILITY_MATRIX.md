@@ -23,7 +23,7 @@
 
 | 模块 | 行数 | 层 | 职责 | 现状/边界问题 |
 |---|---:|---|---|---|
-| frontend/app.ts | 4463 | entry/router | 88 endpoint（后端契约口径；前端快照 91 唯一路径 / 101 方法+路径条目）、会话状态、全局事件、视图刷新、命令分发 | **单体入口**，213 嵌套函数；已抽工作台面板/图表渲染/场景面板/场景动作/回放控制/信号列表，S1 端点注册表、S2 会话状态 store、S3 命令层、S4 外壳视图完成；P3-06 已落地 router.ts/handlers.ts/views.ts 首片（57211fc；端点快照升级 version2）；完整 handlers/views 迁移与入口仅装配未完成 |
+| frontend/app.ts | 5 | entry | 仅 `import { bootEditor }` + `bootEditor()` + `export {}` | P3-06 已完成：原 4462 行单 IIFE 全量迁入 14 个 `frontend/app/editor_*` 模块（dd0e924），全部 ≤800 行；入口仅装配；A2 TS 环 0；端点快照 91 唯一路径 / 101 方法+路径条目 |
 | frontend/app/state.ts | 266 | model(全局) | `state`/`ui` 可变单例 | 被大量模块共享；禁止在 model 纯函数内改它 |
 | frontend/app/types.ts | 502 | model | 全前端类型定义 | 类型聚合，无运行时代码 |
 | frontend/app/constants.ts | 153 | model | UI 常量、颜色、限制值 | 纯常量 |
@@ -77,7 +77,7 @@
 
 ## 3. 现状违规与风险
 
-1. **入口单体**：`frontend/app.ts` 原 7511 行、单 IIFE、88 endpoint、213 嵌套函数，承担路由/状态/视图/命令/网络五类职责；本地分支多片抽取 + S1/S2/S3/S4 后 4463 行，仍是 P1-02 的核心拆分对象。
+1. **入口单体（已解决）**：`frontend/app.ts` 原 7511 行、单 IIFE、88 endpoint、213 嵌套函数；P3-06 已按职责拆入 14 个 `frontend/app/editor_*` 模块（dd0e924），app.ts 现仅 5 行装配入口。
 2. **全局可变单例**：`state.ts` 的 `state`/`ui` 被入口与多个视图共享；拆分时最容易出现隐式闭包依赖，必须先冻结读写接口再搬迁。
 3. **模块接近门禁上限**：`analysis_workbench.ts` 恰好 800 行，任何新增字段都会再次超限；后续应继续按 render/interaction 抽离，而不是压缩格式。
 4. **ends 命名空间**：`analysis_workbench_canvas_ids.ts` 只放纯 id/深拷贝函数，避免 canvas 模块继续膨胀（已落地）。
@@ -100,7 +100,7 @@
 | S1 | 从 app.ts 抽出端点声明式注册表（纯映射，不改行为）✅ 已完成 ea8413d | endpoint 快照 91 个唯一路径 / 101 个方法+路径条目完全一致（前端路径口径；88 为后端 endpoint 总数口径） |
 | S2 | 抽出 `app/store.ts`（会话/状态读写接口），入口改为注入 ✅ 已完成 1625eeb | 快照测试 + 真实浏览器 L1 启动冒烟通过 |
 | S3 | 抽出 `app/commands.ts`（事件命令 selection/clipboard/undo/redo），入口只保留绑定 ✅ 已完成 729bf6e | 交互快照一致 |
-| S4 | 抽出 `app/shell_view.ts`（外壳视图 updateInfoBar/renderNetworkList，视图层首片）✅ 已完成 66d8272；完整 app/views.ts 可后续继续收口 | 行数门禁 + 端到端冒烟 |
+| S4 | 抽出 `app/shell_view.ts`（外壳视图 updateInfoBar/renderNetworkList，视图层首片）✅ 已完成 66d8272；P3-06 后续完成 app/views.ts 与全部 editor_* 模块迁移（dd0e924） | 行数门禁 + 端到端冒烟 |
 
 回滚：每阶段独立文件 + 单处装配改动，可单独 revert；任何阶段不得改变 endpoint 路径、状态字段名或持久化 schema。
 
@@ -114,4 +114,4 @@ npm run build && node tools/verify_app_parity.js
 node tools/check_app_sections.mjs
 ```
 
-最近一次结果（P3-06 router/handlers/views 抽取后）：`tsc` RC=0；`test:utils` 96 passed / 0 failed；parity `OK: app.ts parity passed (base=HEAD, 101 TS files, 999 top-level declarations, 91 runtime app modules, 3 type-only)`；`check:sections` `OK: S5 size limits passed`；端点快照 91 唯一路径 / 101 方法+路径条目。
+最近一次结果（P3-06 全量拆分后，dd0e924）：`tsc` RC=0；`test:utils` 96 passed / 0 failed；parity `OK: app.ts parity passed (base=HEAD, 117 TS files, 1143 top-level declarations, 107 runtime app modules, 3 type-only)`；`check:sections` `OK: S5 size limits passed`（app.ts 5/8000）；`check_architecture.py` A2 TS 环 0；端点快照 91 唯一路径 / 101 方法+路径条目。

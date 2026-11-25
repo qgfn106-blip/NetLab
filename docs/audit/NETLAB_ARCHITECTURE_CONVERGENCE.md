@@ -46,7 +46,7 @@
 ## 2. P1-02 前端入口 app.ts 职责边界梳理与拆分（权重 3）
 
 ### 2.1 现状证据
-- frontend/app.ts：原 7511 行、单 IIFE、213 嵌套函数、88 endpoint（本地分支多片抽取 + S1/S2/S3/S4 后 4463 行；已抽出工作台面板/图表渲染、场景面板/场景动作、回放控制、信号列表与图例、端点注册表、store.ts 会话状态、commands.ts 命令层、shell_view.ts 外壳视图、router.ts 路由、handlers.ts 网络处理器、views.ts 视图首片）。
+- frontend/app.ts：原 7511 行、单 IIFE、213 嵌套函数、88 endpoint；P3-06 已完成全部迁移（dd0e924），现仅 5 行装配入口，业务函数分居 14 个 `frontend/app/editor_*` 模块（全部 ≤800 行），并保留 endpoints.ts/store.ts/commands.ts/shell_view.ts/router.ts/handlers.ts/views.ts 等分层模块；A2 TS 环 0。
 - 入口同时承担：路由/endpoint 注册、会话与状态、视图渲染、事件命令、网络请求处理；缺乏分层边界。
 
 ### 2.2 目标架构

@@ -46,19 +46,22 @@
 |---|---:|---|---|
 | analysis_workbench.ts | 800 | facade | 工作台壳、会话/状态选择、对外 API；已降至门禁上限 |
 | analysis_workbench_actions.ts | 426 | interaction | 运行/对比/导出等命令动作 |
-| analysis_workbench_canvas.ts | 774 | facade/interaction | 子画布登记、布局树操作、标签页/分割 |
+| analysis_workbench_canvas.ts | 774 | interaction | 子画布登记、布局树操作、标签页/分割 |
 | analysis_workbench_canvas_ids.ts | 52 | model(纯函数) | 画布/标签页 id 与布局树深拷贝（P1-01 新抽出） |
 | analysis_workbench_chrome.ts | 78 | interaction | 侧栏拖拽、尺寸、折叠/专注态、UI 记录组装、光标映射（P1-01 新抽出） |
 | analysis_workbench_layout_tree.ts | 372 | model | v2 布局树纯函数（root/split/tabs/merge/normalize） |
 | analysis_workbench_layout.ts | — | model | UI 记录读写与 schema 归一化 |
 | analysis_workbench_results.ts | — | render | 对比表/指标/传函摘要 HTML |
-| analysis_workbench_chart_settings.ts | 377 | interaction+render | 图表外观设置对话框 |
+| analysis_workbench_chart_settings.ts | 377 | render | 图表外观设置对话框 |
 | analysis_workbench_loops.ts | 146 | render | 环路列表 HTML 与断点建议 |
 | analysis_workbench_meta.ts | — | model | kind 标签/提示/状态色/工具函数 |
-| analysis_chart.ts | 786 | facade | 图实例生命周期、对外 API、委托渲染/交互 |
+| analysis_chart.ts | 718 | facade | 图实例生命周期、对外 API、委托渲染/交互 |
 | analysis_chart_spec.ts | 133 | render(纯函数) | PlotKit spec 组装：panel/scale/grid（P1-01 新抽出） |
 | analysis_chart_detail.ts / analysis_chart_appearance.ts | 264 / 238 | model+render | 详情 HTML、外观类型与归一化 |
 | analysis_chart_plot.ts / analysis_chart_utils.ts | — | render/util | PlotKit 绘图适配与坐标工具 |
+| analysis_workbench_menu.ts / analysis_workbench_types.ts | 58 / 35 | model | 菜单项与共享类型（无运行时依赖） |
+
+> **P3-05 四层守卫**：`frontend/tools/check_analysis_layers.mjs` 对 17 个 `analysis_chart*` / `analysis_workbench*` 模块校验 ≤800 行、import 只能同层或更低层（model→render→interaction→facade）、禁止反向依赖；`frontend/tests/analysis_layers.test.mjs` 5 条 node:test 守护。`analysis_workbench.ts` 恰好 800 行，后续不得再增行。
 
 ### 2.4 服务与窗口
 

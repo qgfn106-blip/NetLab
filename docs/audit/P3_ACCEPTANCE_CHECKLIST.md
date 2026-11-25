@@ -22,11 +22,11 @@
 | ID | 交付物 | 验收标准 | 当前状态 | 证据/缺口 |
 |---|---|---|---|---|
 | P3-01 | `docs/audit/CORE_V2_CONTRACT_FREEZE.md` + `netlab/tests/test_core_v2_contract.py` | CF-01..CF-14 可断言；G0 评审通过 | **本地完成，待评审** | 20 passed（与 test_fem 合跑）；已提交 192c783 |
-| P3-02 | analysis 分层 | analysis.py 仅编排/再导出；错误与数值纯函数独立 | **未完成** | 需把 `analysis_errors.py`/`analysis_numerics.py` 之外剩余的解析/统计辅助继续下沉，并补分层依赖测试 |
+| P3-02 | analysis 分层 | analysis.py 仅编排/再导出；错误与数值纯函数独立 | **本地完成，待评审** | analysis.py 2771→85 行 facade；新增 analysis_metrics/transfer/envelopes/loop 四个模块（451/588/688/1176 行）；`test_analysis_layering.py` 断言公共符号与 facade 同一对象、无循环导入；全量 pytest 1811 passed/14 skipped/0 failed，覆盖率 87%；提交 a3ccfa8 |
 | P3-03 | 单一 StampBuilder | `_assemble_matrices` 无 kind 矩阵特判；9 路 kind 全走共享函数；逐项对拍 | **已实现（P2-01 已合入）** | `stamp_builder.py` + `test_stamp_parity.py` 8 passed；电感例外见 CF-06 |
 | P3-04 | ac_sweep strategy | 统一入口；策略优先级与 Bode 对拍 | **已实现（P2-02 已合入）** | `ac_backend.py` + `test_ac_backend.py` 6 passed；CF-07..09 已断言 |
-| P3-05 | 工作台四层 | 依赖方向单向；行数门禁 | **未完成** | 需在 P1-02 基础上继续拆 interaction/facade，当前仅完成三模块行数达标与职责矩阵 |
-| P3-06 | app.ts 拆分 | endpoint 快照不变；冒烟通过；行数门禁 | **部分完成（契约守护 + 多片拆分 + S1/S2/S3/S4）** | 已新增 `frontend/tools/app_endpoint_snapshot.json`（50 个规范化路径模式）与 `frontend/tests/app_endpoints.test.mjs`（2 条，`node --test` 通过），扫描范围扩展至抽取模块；app.ts 由 7511 降至 5067，工作台面板/图表渲染（b5288f4）、场景面板/场景动作（1f27eca）、回放控制 analysis_replay（cc8922b）、信号列表 signal_list（6800cfc）、端点注册表 endpoints.ts（S1，ea8413d）、会话状态 store.ts（S2，1625eeb）、命令层 commands.ts（S3，729bf6e）、外壳视图 shell_view.ts（S4，66d8272）已拆出；typecheck/build/test:utils 90 passed/parity/sections/端点快照/L1 smoke 全绿；router/handlers 与完整 views 骨架迁移未开始 |
+| P3-05 | 工作台四层 | 依赖方向单向；行数门禁 | **本地完成，待评审** | 新增 analysis_chart_model/interaction 纯层（analysis_chart 786→718）；`check_analysis_layers.mjs` 守卫 17 个分析图/工作台模块：≤800 行、仅允许同层或更低层 import、反向依赖报错；`test:utils` 95 passed；提交 a3ccfa8 |
+| P3-06 | app.ts 拆分 | endpoint 快照不变；冒烟通过；行数门禁 | **部分完成（契约守护 + 多片拆分 + S1/S2/S3/S4）** | 已新增 `frontend/tools/app_endpoint_snapshot.json`（50 个规范化路径模式）与 `frontend/tests/app_endpoints.test.mjs`（2 条，`node --test` 通过），扫描范围扩展至抽取模块；app.ts 由 7511 降至 5067，工作台面板/图表渲染（b5288f4）、场景面板/场景动作（1f27eca）、回放控制 analysis_replay（cc8922b）、信号列表 signal_list（6800cfc）、端点注册表 endpoints.ts（S1，ea8413d）、会话状态 store.ts（S2，1625eeb）、命令层 commands.ts（S3，729bf6e）、外壳视图 shell_view.ts（S4，66d8272）已拆出；typecheck/build/test:utils 95 passed/parity/sections/端点快照/L1 smoke 全绿；P3-05 分层守卫亦覆盖工作台既有模块；router/handlers 与完整 views 骨架迁移未开始 |
 | P3-07 | GPU/FEM 边界 | GPU 非有限回退 CPU；FEM 枚举非法拒绝 | **部分完成** | GPU 回退（`test_accel_fallback.py` 5 passed）、FEM 边界/CN（`test_fem.py` 8 passed）已落地；更细的 GPU 初始化错误矩阵与 FEM 时间积分扩展仍可加强 |
 | P3-08 | 本清单 | G0..G7 + CI + 全量测试 | **清单已交付（G8 未通过）** | 本文件即 P3-08 交付，当前仅作为验收基线 |
 

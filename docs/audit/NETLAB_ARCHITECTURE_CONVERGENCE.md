@@ -46,15 +46,15 @@
 ## 2. P1-02 前端入口 app.ts 职责边界梳理与拆分（权重 3）
 
 ### 2.1 现状证据
-- frontend/app.ts：原 7511 行、单 IIFE、213 嵌套函数、88 endpoint（本地分支多片抽取 + S1/S2/S3/S4 后 5067 行；已抽出工作台面板/图表渲染、场景面板/场景动作、回放控制、信号列表与图例、端点注册表、store.ts 会话状态、commands.ts 命令层、shell_view.ts 外壳视图）。
+- frontend/app.ts：原 7511 行、单 IIFE、213 嵌套函数、88 endpoint（本地分支多片抽取 + S1/S2/S3/S4 后 4463 行；已抽出工作台面板/图表渲染、场景面板/场景动作、回放控制、信号列表与图例、端点注册表、store.ts 会话状态、commands.ts 命令层、shell_view.ts 外壳视图、router.ts 路由、handlers.ts 网络处理器、views.ts 视图首片）。
 - 入口同时承担：路由/endpoint 注册、会话与状态、视图渲染、事件命令、网络请求处理；缺乏分层边界。
 
 ### 2.2 目标架构
-- 拆为：router（endpoint 注册表，88 条显式分组）、store（会话/状态）、views（渲染）、commands（事件/命令）、handlers（网络/业务）；app.ts 仅做装配与启动。
-- 88 个 endpoint 收敛为声明式注册表，便于审计 endpoint 数量与路径。
+- 拆为：router（endpoint 注册表，后端 88 条契约、前端快照 91 唯一路径/101 条目）、store（会话/状态）、views（渲染）、commands（事件/命令）、handlers（网络/业务）；app.ts 仅做装配与启动。
+- 88 个后端 endpoint 契约收敛为声明式注册表（前端实测 91 唯一路径），便于审计 endpoint 数量与路径。
 
 ### 2.3 验证标准
-- endpoint 清单快照：拆分前后 88 条 endpoint 的路径与数量完全一致。
+- endpoint 清单快照：拆分前后后端 88 条 endpoint 契约、前端快照 91 唯一路径 / 101 方法+路径条目的路径与数量完全一致。
 - 每文件 ≤ 800 行；导入无循环；AST 导出比对；冒烟测试（启动 + 关键路由）。
 
 ### 2.4 迁移步骤（小步）

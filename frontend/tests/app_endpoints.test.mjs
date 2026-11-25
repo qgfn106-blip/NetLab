@@ -1,13 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { extractEndpoints, loadSnapshot, diffEndpoints, readAppSources } from '../tools/check_app_endpoints.mjs';
+import { extractEndpoints, extractEndpointEntries, loadSnapshot, diffEndpoints, diffEndpointEntries, readAppSources } from '../tools/check_app_endpoints.mjs';
 
 const source = readAppSources();
 
-test('app.ts endpoint set matches committed snapshot', () => {
+test('frontend endpoint set matches committed snapshot', () => {
   const actual = extractEndpoints(source);
   const snapshot = loadSnapshot();
   const d = diffEndpoints(actual, snapshot.paths);
+  assert.deepEqual(d, { missing: [], added: [] });
+});
+
+test('frontend method+path entries match committed snapshot', () => {
+  const actual = extractEndpointEntries(source);
+  const snapshot = loadSnapshot();
+  const d = diffEndpointEntries(actual, snapshot.entries || []);
   assert.deepEqual(d, { missing: [], added: [] });
 });
 

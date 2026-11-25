@@ -16,21 +16,21 @@
 - 依赖：无（起点）。风险：契约过度设计；回滚：文档级，可增量修订。
 
 ## 2. P3-02 统一计算内核编排层（analysis.py 拆分落地）
-- 目标：落地 NETLAB_ARCHITECTURE_CONVERGENCE.md §5 的 analysis 分层（errors/numerics/orchestrate/envelopes + facade）。
+- 目标：落地 NETLAB_ARCHITECTURE_CONVERGENCE.md §5 的 analysis 分层（metrics/transfer/envelopes/loop（+scan）+ facade；errors/numerics 已由 P2-03 拆出）。
 - 交付：拆分后的模块 + 公共 API 不变的证明（AST/导出比对）。
-- 验收门 G2：每文件行数达标、职责边界评审通过；全量测试全绿、覆盖率维持 CI 门 81。
+- 验收门 G4：每文件行数达标、职责边界评审通过；全量测试全绿、覆盖率维持 CI 门 81。
 - 依赖：P3-01（错误与入口契约）。风险：循环导入、异常路径语义变化；回滚：分文件 PR。
 
 ## 3. P3-03 单一 StampBuilder 与 MNA 契约
 - 目标：落地 §3，elements.stamp 与 descriptor._assemble_matrices 收敛为单一 StampBuilder。
 - 交付：StampBuilder 接口 + 12 kind 迁移 + 新旧对拍测试（矩阵逐项相等）。
-- 验收门 G3：每 kind 对拍通过；新增器件只需一处实现；覆盖率维持 81。
+- 验收门 G2：每 kind 对拍通过；新增器件只需一处实现；覆盖率维持 81。
 - 依赖：P3-01、P3-02（编排层定位）。风险：受控源/多端装配等价；回滚：feature flag 按 kind 灰度。
 
 ## 4. P3-04 统一频域后端 ac_sweep
 - 目标：落地 §4，线性/非线性/强制 native 三模式统一为 ac_sweep strategy。
 - 交付：strategy 接口 + native 策略 + 三模式 Bode 对拍基线。
-- 验收门 G4：三模式幅相逐点对拍通过；性能不退化。
+- 验收门 G3：三模式幅相逐点对拍通过；性能不退化。
 - 依赖：P3-01、P3-03（依赖 MNA 装配）。风险：数值/性能回退；回滚：strategy 可切换。
 
 ## 5. P3-05 前端分析工作台四层架构
@@ -41,8 +41,8 @@
 
 ## 6. P3-06 app.ts 入口分层
 - 目标：落地 §2，app.ts 拆为 router/store/views/commands/handlers，入口仅装配。
-- 交付：分层模块 + endpoint 清单快照（88 条不变）+ 冒烟测试。
-- 验收门 G6：endpoint 数量与路径不变；行数门禁通过；冒烟通过。
+- 交付：分层模块 + endpoint 清单快照（后端 88 条不变；前端 version2 为 91 唯一路径/101 方法+路径条目）+ 冒烟测试。实施状态（本地未推送）：router/store/views/commands/handlers 首片已落地，app.ts 7511→4463；完整 handlers/views 迁移尚未完成，入口尚未收敛为仅装配。
+- 验收门 G6：后端 88 条 endpoint 契约与前端快照 91 唯一路径/101 条目的数量与路径不变；行数门禁通过；冒烟通过。
 - 依赖：P3-05（前端分层范式）。风险：隐式全局/闭包状态遗漏；回滚：分文件 PR。
 
 ## 7. P3-07 异构后端（GPU/FEM）边界与错误契约
@@ -62,8 +62,8 @@
 | 里程碑 | 内容 | 包含 P3 项 | 依赖 | 验收门 |
 |---|---|---|---|---|
 | M0 契约冻结 | 目标/范围/不变量 | P3-01 | 无 | G0 |
-| M1 内核骨架 | 编排层 + MNA 契约 | P3-02、P3-03 | M0 | G2、G3 |
-| M2 频域统一 | ac_sweep 三模式 | P3-04 | M1 | G4 |
+| M1 内核骨架 | 编排层 + MNA 契约 | P3-02、P3-03 | M0 | G4、G2 |
+| M2 频域统一 | ac_sweep 三模式 | P3-04 | M1 | G3 |
 | M3 前端收敛 | 工作台四层 + 入口分层 | P3-05、P3-06 | M0 | G5、G6 |
 | M4 异构边界 | GPU/FEM 契约 | P3-07 | M1、M2 | G7 |
 | M5 总验收 | 汇总统验与回滚 | P3-08 | M1..M4 | G8 |

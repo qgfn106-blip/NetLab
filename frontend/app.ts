@@ -40,7 +40,7 @@ import { createParamGroupTable, fallbackParams } from './app/param_groups.js';
 import { groupNodeSpecs } from './app/menu_model.js';
 import { drawEdges, labelCollisionFree } from './app/canvas_edges.js';
 import { SHEET_SIZES, drawDrawingFrame, pipeModeLabel, drawLinkPreview, drawGraph, drawSelectionBox, drawDragHud, requestDraw, __graphMs, __dbgGraph, animationLoop } from './app/canvas_render.js';
-import { openIroColorPopover, setGroupSub, blockBadges, numberInput, modulePortList, captureSceneSnapshot, fieldFor, wbFmtAxis, wbToggleInArray, setPanelGroup, previewElementAppearance, plotkitFrames, closeMenus, wbBadge } from './app/ui_helpers.js';
+import { openIroColorPopover, blockBadges, numberInput, modulePortList, captureSceneSnapshot, fieldFor, wbFmtAxis, wbToggleInArray, previewElementAppearance, plotkitFrames, closeMenus, wbBadge } from './app/ui_helpers.js';
 import { drawPhase, phaseFrameCount, phaseStateKeys, renderVectorNodeList, resizePhase, schedulePhaseDraw, setPhaseIndex, stopPhasePlay, togglePhasePlay } from './app/phase.js';
 import { setInstrumentActions, loadInstrumentPrefs, saveInstrumentPrefs, fillInstrumentSelects, renderInstrumentMeter, instrumentSelectGroups, instrumentFrames, instrumentSurface, drawScope, drawLissajous, drawInstruments, resizeInstrument, bindInstrumentEvents, initInstruments } from './app/instruments.js';
 import { circuitCrossingMap, circuitPinPath, drawCrossingHops, drawGrid, drawMultiPinWires, edgeAnchorTowards, edgeValueText, elementIdentifier, gridPattern, nodeColor, nodeKindLabel, nodeValueText, pinScreenPoint, segmentIntersection, wirePathPoints, KIND_COLORS, KIND_SHORT } from './app/canvas_base.js';
@@ -68,6 +68,9 @@ import { wbCommitNodeParam, wbCommitEdgeParam, wbCommitSimParam, wbCommitIntegra
 import { initAnalysisWorkbenchPanel, renderWorkbenchAnalysis, renderWorkbenchState, refreshWbAnalysis, syncProjectContext, renderCompareGrid, setWbSignalDock, getWbCompareStateIds, getWbCacheStatus, getWbComparePayload } from './app/analysis_workbench_panel.js';
 import { initCommands, clearSelection, multiSelection, toggleMultiSelection, selectAll, copySelection, pasteClipboard, pushUndoSnapshot, undo, redo } from './app/commands.js';
 import { initShellView, updateInfoBar, renderNetworkList } from './app/shell_view.js';
+import { createViews } from './app/views.js';
+import { createNetworkHandlers } from './app/handlers.js';
+import { initRouter } from './app/router.js';
 function setStatusHint(hint: string): void {
   const node = document.getElementById('statusHint');
   if (node) node.textContent = hint;
@@ -1396,93 +1399,6 @@ function setStatusHint(hint: string): void {
       if (tab === 'chart') drawChart({ colorForKey, decodeProbeKey, nearestFrame, state: { chart: state.chart, chartSize: state.chartSize, frames: state.frames, replay: state.replay } });
       else if (tab === 'inst') drawInstruments();
     }, 70);
-  }
-
-  const PANEL_GROUPS: Record<string, { group: string; role?: string; sub?: string }> = {
-    inspect: { group: 'inspect' },
-    'node-fn': { group: 'fn', role: 'node' },
-    'edge-fn': { group: 'fn', role: 'edge' },
-    spec: { group: 'fn' },
-    blocks: { group: 'modules', sub: 'blocks' },
-    ext: { group: 'modules', sub: 'ext' },
-    chart: { group: 'analysis', sub: 'chart' },
-    inst: { group: 'analysis', sub: 'inst' },
-    vector: { group: 'analysis', sub: 'vector' },
-    analysis: { group: 'analysis', sub: 'analysis' },
-    plotkit: { group: 'analysis', sub: 'plotkit' },
-    'wb-analysis': { group: 'workbench', sub: 'wb-analysis' },
-    'wb-state': { group: 'workbench', sub: 'wb-state' },
-  };
-
-  function defaultTabForGroup(group: string) {
-    if (group === 'fn') return state.fnRole === 'edge' ? 'edge-fn' : 'node-fn';
-    if (group === 'modules') {
-      const sub = $('.panel-group[data-group="modules"] .group-subnav [data-sub].active');
-      return sub ? sub.dataset.sub : 'blocks';
-    }
-    if (group === 'analysis') {
-      const sub = $('.panel-group[data-group="analysis"] .group-subnav [data-sub].active');
-      return sub ? sub.dataset.sub : 'chart';
-    }
-    if (group === 'workbench') {
-      const sub = $('.panel-group[data-group="workbench"] .group-subnav [data-sub].active');
-      return sub ? sub.dataset.sub : 'wb-analysis';
-    }
-    return 'inspect';
-  }
-
-
-
-  function switchTab(name: string) {
-    if (name === 'scene') {
-      openSettings('project');
-      return;
-    }
-    const conf = PANEL_GROUPS[name] || PANEL_GROUPS.inspect;
-    if (conf.role) {
-      state.fnRole = conf.role;
-      state.specKind = '';
-      setGroupSub('fn', conf.role);
-    }
-    setPanelGroup(conf.group);
-    if (conf.sub) setGroupSub(conf.group, conf.sub);
-    if (conf.group === 'fn') {
-      const note = $('#fnNote');
-      if (note) note.textContent = state.fnRole === 'edge' ? '连接函数' : '节点函数';
-      renderSpecPane();
-      requestDraw();
-    }
-    if (conf.sub === 'chart') {
-      resizeChart();
-      scheduleChartDraw();
-    }
-    if (conf.sub === 'vector') {
-      resizePhase();
-      renderVectorNodeList();
-      drawPhase();
-    }
-    if (conf.sub === 'plotkit') {
-      // 侧栏只放入口；真正的绘图在非模态浮窗里（iframe 懒加载）
-      $('#btnOpenPlotkit')?.focus({ preventScroll: true });
-    }
-    // 让 PlotKit 知道自己是"看得见"还是"被切走了"：看不见就停掉实时出图，
-    // 否则面板藏在别的页签后面还在按 1Hz 出 100–200ms 的图，白烧 CPU。
-    notifyPlotkit(conf.sub === 'plotkit');
-    if (conf.sub === 'analysis') {
-      renderAnalysisPanel();
-    }
-    if (conf.sub === 'wb-analysis') {
-      renderWorkbenchAnalysis();
-    }
-    if (conf.sub === 'wb-state') {
-      void renderWorkbenchState();
-    }
-    if (conf.sub === 'blocks') {
-      renderBlocksPanel();
-    }
-    if (conf.sub === 'ext') {
-      renderExtensionPanel();
-    }
   }
 
   /* ======================================================================
@@ -2913,6 +2829,7 @@ function setStatusHint(hint: string): void {
       {
         label: '设置',
         items: [
+ 
           { label: '工程设置…', hint: '工作模式 / 模板 / 文件 / 画布网格', action: () => openSettings('project') },
           { label: '视图与外观…', hint: '主题 / 强调色 / 动效 / 性能', action: () => openSettings('view') },
           { label: '交互与文档…', hint: '启动引导 / 自动保存 / 快捷键', action: () => openSettings('interact') },
@@ -2990,60 +2907,9 @@ function setStatusHint(hint: string): void {
   }
 
 
-  async function fetchNetworks(silent = true) {
-    try {
-      const response = await jsonRequest(ENDPOINTS.networks, 'GET');
-      state.networks = response.networks || [];
-      state.currentNetwork = state.networks.find((item) => item.current) || state.networks[0] || null;
-      renderNetworkList();
-      updateInfoBar();
-      return state.networks;
-    } catch (error) {
-      if (!silent) toast(`网络列表读取失败：${(error as Error).message}`, 'error', 4000);
-      return state.networks;
-    }
-  }
 
 
   /* 网络列表右键菜单（R02 / D49-D50，P7-07）：把封装入口放到网络这一层 */
-  function openNetworkMenu(network: NetworkItem, x: number, y: number) {
-    const isCurrent = Boolean(network.current);
-    const picked = isCurrent ? multiSelection().nodes.size : 0;
-    const tempModule = String(network.name || '').startsWith('模块 ');
-    const moduleName = tempModule ? String(network.name).slice(3).trim() : '';
-    const knownBlock = moduleName ? (state.blocks || []).find((block: BlockItem) => block.name === moduleName) : null;
-    if (tempModule && !(state.blocks || []).length) void refreshBlocks();
-    const items = [
-      {
-        label: '封装选中节点为模块…',
-        hint: isCurrent
-          ? (picked ? `已选 ${picked} 个节点` : '先在画布上 Ctrl+单击多选')
-          : '先切换到该网络',
-        disabled: !isCurrent || !picked,
-        action: () => void encapsulateSelection(),
-      },
-      {
-        label: '打开模块库',
-        hint: '封装 / 实例化 / 打开内部',
-        action: () => switchTab('blocks'),
-      },
-      { sep: true },
-      {
-        label: '在模块内部浮窗中打开',
-        hint: knownBlock ? `预览「${moduleName}」内部` : tempModule ? '模块库里找不到同名模块' : '先切到模块内部临时网络',
-        disabled: !knownBlock,
-        action: () => {
-          if (knownBlock) openModuleInternal(knownBlock.id);
-        },
-      },
-      {
-        label: '关闭模块内部临时网络',
-        disabled: !tempModule,
-        action: () => void closeInternalNetwork(),
-      },
-    ];
-    showFloatingMenu(x, y, items, network.name);
-  }
 
   /* 轻量浮层菜单：给右键 / 局部入口复用 */
   let floatingMenu: HTMLElement | null = null;
@@ -3093,180 +2959,14 @@ function setStatusHint(hint: string): void {
     window.addEventListener('resize', () => closeFloatingMenu());
   }
 
-  async function switchNetwork(networkId: string) {
-    if (!networkId || networkId === state.currentNetwork?.id) return;
-    const response = await task(() =>
-      jsonRequest(ENDPOINTS.networkActivate(networkId), 'POST', {}),
-    );
-    if (!response || !response.scene) return;
-    state.selection = { type: null, id: null };
-    state.inspectorId = null;
-    state.inspectorDirty = false;
-    state.frames = [];
-    state.values.clear();
-    state.nodeValues.clear();
-    state.edgeValues.clear();
-    applySnapshot({ scene: response.scene, sim: response.sim, limits: (state.limits as LimitsRec | undefined) });
-    state.cursor = Number(response.sim?.cursor || 0);
-    await fetchNetworks();
-    renderScenePanel();
-    renderInspector();
-    fitView();
-    toast(`已切换到网络：${state.currentNetwork?.name || networkId}`, 'ok', 2200);
-  }
 
-  async function addNetwork() {
-    const choice = await newNetworkModal(state.mode);
-    if (!choice) return;
-    const payload: Record<string, unknown> = { mode: choice.mode };
-    if (choice.name) payload.name = choice.name;
-    const response = await task(() => jsonRequest(ENDPOINTS.networks, 'POST', payload));
-    if (!response) return;
-    await fetchNetworks();
-    const created = String(response.created || '');
-    if (created) {
-      await switchNetwork(created);
-    }
-    toast(`已新建网络（${modeLabel(choice.mode)}模式）`, 'ok', 2600);
-  }
 
-  async function renameNetwork(networkId = state.currentNetwork?.id) {
-    if (!networkId) return;
-    const item = (state.networks || []).find((network) => network.id === networkId);
-    const proposed = window.prompt('网络名称（最长 60 字）', item?.name || '');
-    if (proposed === null) return;
-    const response = await task(() =>
-      jsonRequest(ENDPOINTS.network(networkId), 'PATCH', { name: proposed }),
-    );
-    if (!response) return;
-    await fetchNetworks();
-    toast(`网络已改名：${response.name}`, 'ok', 2200);
-  }
 
-  async function deleteNetwork() {
-    const network = state.currentNetwork;
-    if (!network) return;
-    if ((state.networks || []).length <= 1) {
-      toast('工程至少需要保留一个网络', 'error', 3200);
-      return;
-    }
-    const confirmed = await confirmModal(
-      `删除网络「${network.name}」？`,
-      '该网络的节点与连接会一并删除；工程正本仍可用「保存工程」覆盖。',
-      '删除',
-      true,
-    );
-    if (!confirmed) return;
-    const response = await task(() =>
-      jsonRequest(ENDPOINTS.network(network.id), 'DELETE'),
-    );
-    if (!response) return;
-    await fetchNetworks();
-    const snapshot = await api(ENDPOINTS.state);
-    applySnapshot(snapshot);
-    toast('网络已删除', 'ok', 2200);
-  }
 
   // 挂耳位置跟随侧栏真实宽度：媒体查询会改列宽，只靠 CSS 里的默认值会偏出侧栏
-  function syncChromeEdges() {
-    if (!ui.main) return;
-    if (ui.networks && !ui.main.classList.contains('net-hidden')) {
-      const netWidth = Math.round(ui.networks.getBoundingClientRect().width);
-      if (netWidth > 0) ui.main.style.setProperty('--net-edge', `${netWidth}px`);
-    }
-    if (ui.panel && !ui.main.classList.contains('panel-hidden')) {
-      const panelWidth = Math.round(ui.panel.getBoundingClientRect().width);
-      if (panelWidth > 0) ui.main.style.setProperty('--panel-edge', `${panelWidth}px`);
-    }
-  }
 
-  function applyNetCollapsed(collapsed: boolean) {
-    ui.main.classList.toggle('net-hidden', collapsed);
-    if (ui.netHanger) {
-      ui.netHanger.textContent = collapsed ? '›' : '‹';
-      ui.netHanger.title = collapsed ? '展开网络栏' : '收起网络栏';
-      ui.netHanger.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    }
-    try {
-      localStorage.setItem(SHELL_KEYS.netCollapsed, collapsed ? '1' : '0');
-    } catch (error) {
-      // 隐私模式忽略
-    }
-    setTimeout(() => {
-      syncChromeEdges();
-      resizeGraph();
-      resizeChart();
-      schedulePhaseDraw();
-    }, 60);
-  }
 
-  function toggleNetworks() {
-    applyNetCollapsed(!ui.main.classList.contains('net-hidden'));
-  }
 
-  function initNetworkSidebar() {
-    if (!ui.networkList) return;
-    let width = 0;
-    let collapsed = false;
-    try {
-      width = Number(localStorage.getItem(SHELL_KEYS.netWidth)) || 0;
-      collapsed = localStorage.getItem(SHELL_KEYS.netCollapsed) === '1';
-    } catch (error) {
-      width = 0;
-    }
-    if (width >= 140 && width <= 360) {
-      ui.main.style.setProperty('--net-w', `${Math.round(width)}px`);
-    }
-    applyNetCollapsed(collapsed);
-
-    ui.netHanger?.addEventListener('click', toggleNetworks);
-    ui.netAdd?.addEventListener('click', () => void addNetwork());
-    ui.netRename?.addEventListener('click', () => void renameNetwork());
-    ui.netDelete?.addEventListener('click', () => void deleteNetwork());
-
-    const handle = ui.netResize;
-    if (!handle) return;
-    let dragging = false;
-    let startX = 0;
-    let startWidth = 0;
-    const currentWidth = () => {
-      const rect = ui.networks?.getBoundingClientRect();
-      if (rect && rect.width > 0) return rect.width;
-      const value = parseFloat(getComputedStyle(ui.main).getPropertyValue('--net-w'));
-      return Number.isFinite(value) ? value : 172;
-    };
-    handle.addEventListener('pointerdown', (event: PointerEvent) => {
-      dragging = true;
-      startX = event.clientX;
-      startWidth = currentWidth();
-      handle.setPointerCapture(event.pointerId);
-      document.body.classList.add('net-dragging');
-      event.preventDefault();
-    });
-    handle.addEventListener('pointermove', (event: PointerEvent) => {
-      if (!dragging) return;
-      const next = clamp(Math.round(startWidth + event.clientX - startX), 140, 360);
-      ui.main.style.setProperty('--net-w', `${next}px`);
-      ui.main.style.setProperty('--net-edge', `${next}px`);
-    });
-    const finish = (event: PointerEvent) => {
-      if (!dragging) return;
-      dragging = false;
-      document.body.classList.remove('net-dragging');
-      try {
-        localStorage.setItem(SHELL_KEYS.netWidth, String(Math.round(currentWidth())));
-      } catch (error) {
-        // 忽略
-      }
-      syncChromeEdges();
-      resizeGraph();
-      resizeChart();
-      schedulePhaseDraw();
-      if (handle.hasPointerCapture?.(event.pointerId)) handle.releasePointerCapture(event.pointerId);
-    };
-    handle.addEventListener('pointerup', finish);
-    handle.addEventListener('pointercancel', finish);
-  }
 
   async function snapSceneToGrid() {
     const grid = Number(state.ui.grid) || 20;
@@ -3500,39 +3200,6 @@ function setStatusHint(hint: string): void {
   }
 
 
-  function renderModuleSide(block: BlockItem) {
-    const side = ui.modulePorts;
-    if (side) {
-      side.replaceChildren();
-      const ports = modulePortList(block);
-      side.appendChild(el('h4', null, `端口（${ports.length}）`));
-      if (!ports.length) side.appendChild(div('help', '这个模块没有端口。'));
-      for (const port of ports) {
-        const row = div('port-row');
-        row.appendChild(el('span', 'port-dir', MODULE_DIR_GLYPH[port.direction as keyof typeof MODULE_DIR_GLYPH] || '·'));
-        const name = el('span', 'port-name', port.name);
-        name.title = `${port.name} · ${port.direction}${port.net ? ` · ${port.net}` : ''}`;
-        row.appendChild(name);
-        row.appendChild(el('span', 'badge gray', port.dtype === 'electrical' ? '电气' : '信号'));
-        side.appendChild(row);
-      }
-    }
-    const meta = ui.moduleMeta;
-    if (meta) {
-      meta.replaceChildren();
-      const rows = [
-        ['节点', String((block?.nodes || []).length)],
-        ['连线', String((block?.edges || []).length)],
-        ['端口', String((block?.ports || []).length)],
-        ['版本', `v${Number(block?.version || 1)}`],
-        ['模型', block?.model === 'structural' ? '结构' : '行为'],
-      ];
-      for (const [key, value] of rows) {
-        meta.appendChild(el('span', null, key));
-        meta.appendChild(el('b', null, value));
-      }
-    }
-  }
 
 
   function layoutModuleWindow() {
@@ -3693,187 +3360,6 @@ function setStatusHint(hint: string): void {
 
 
 
-  function renderAnalysisPanel() {
-    const pane = ui.analysisPane;
-    if (!pane) return;
-    const host = div('blocks-host');
-    const head = div('insp-head');
-    const title = div('insp-title');
-    title.append(el('h2', null, '分析（旁路）'), el('p', null, '只读录制数据；结论带来源，不写求解器'));
-    head.appendChild(title);
-    host.appendChild(head);
-    const keys = state.probeKeys || [];
-    const signal = el('select', 'input');
-    for (const key of keys) {
-      const option = el('option', null, decodeProbeKey(key).label);
-      option.value = key;
-      signal.appendChild(option);
-    }
-    const key = analysisSignalKey();
-    if (key) signal.value = key;
-    signal.addEventListener('change', () => {
-      const chosen = String(signal.value || '');
-      if (!chosen) return;
-      state.chart.selected.clear();
-      state.chart.selected.add(chosen);
-      renderSignalList();
-      scheduleChartDraw();
-    });
-    const keyRow = div('field-row');
-    keyRow.append(el('label', null, '信号'), signal);
-    host.appendChild(keyRow);
-    const row = div('blocks-toolbar');
-    row.append(
-      button('指标', 'btn tiny primary', () => void runAnalysisMetrics()),
-      button('频谱', 'btn tiny', () => void runAnalysisSpectrum()),
-      button('周期', 'btn tiny', () => void runAnalysisPeriod()),
-      button('数学形式', 'btn tiny', () => void runAnalysisMath()),
-      button('导出 CSV', 'btn tiny', () => void exportAnalysisCsv()),
-    );
-    host.appendChild(row);
-    const canvas = el('canvas', 'analysis-chart');
-    canvas.id = 'analysisChart';
-    host.appendChild(canvas);
-
-    const transferRow = div('field-row');
-    const inputNode = el('input', 'input');
-    inputNode.id = 'analysisInputNode';
-    inputNode.placeholder = '输入节点名';
-    inputNode.value = state.scene?.nodes?.[0]?.name || '';
-    const outputNode = el('input', 'input');
-    outputNode.id = 'analysisOutputNode';
-    outputNode.placeholder = '输出节点名';
-    outputNode.value = state.scene?.nodes?.[state.scene.nodes.length - 1]?.name || '';
-    transferRow.append(
-      el('label', null, '传递函数'), inputNode, outputNode,
-      button('推导', 'btn tiny', () => void runAnalysisTransfer()),
-      button('导出 A/B/C/D', 'btn tiny', () => exportTFStateSpace()),
-    );
-    host.appendChild(transferRow);
-
-    const tfSection = div('insp-section');
-    tfSection.appendChild(el('h3', null, '传递函数分析（s 域）'));
-    const tfNodes = (state.scene?.nodes || []).filter((node) => node.kind === 'transfer_function');
-    const tfNode = el('select', 'input');
-    tfNode.id = 'analysisTFNode';
-    const tfDirect = el('option', null, '（用表达式）');
-    tfDirect.value = '';
-    tfNode.appendChild(tfDirect);
-    for (const node of tfNodes) {
-      const option = el('option', null, node.name);
-      option.value = node.name;
-      tfNode.appendChild(option);
-    }
-    const tfExpr = el('input', 'input');
-    tfExpr.id = 'analysisTFExpr';
-    tfExpr.placeholder = '如 (2*s+1)/(s^2+3*s+2)';
-    tfExpr.value = '1/(s+1)';
-    tfNode.addEventListener('change', () => {
-      tfExpr.disabled = Boolean(tfNode.value);
-    });
-    const tfRow = div('field-row');
-    tfRow.append(el('label', null, '节点 / 表达式'), tfNode, tfExpr);
-    tfSection.appendChild(tfRow);
-
-    const tfView = el('select', 'input');
-    tfView.id = 'analysisTFView';
-    for (const [value, label] of [
-      ['bode', 'Bode 图'],
-      ['step', '阶跃响应'],
-      ['poles', '零极点图'],
-    ]) {
-      const option = el('option', null, label);
-      option.value = value;
-      tfView.appendChild(option);
-    }
-    tfView.addEventListener('change', () => drawAnalysisTF());
-    const tfTools = div('field-row');
-    tfTools.append(
-      button('分析', 'btn tiny primary', () => void runAnalysisTF()),
-      button('发送到 PlotKit', 'btn tiny', () => void sendTFToPlotKit()),
-      el('label', null, '视图'),
-      tfView,
-    );
-    tfSection.appendChild(tfTools);
-
-    const tfCanvas = el('canvas', 'analysis-chart');
-    tfCanvas.id = 'analysisTFChart';
-    tfCanvas.style.height = '210px';
-    tfSection.appendChild(tfCanvas);
-
-    const tfOut = el('pre', 'analysis-out');
-    tfOut.id = 'analysisTFOut';
-    tfOut.textContent = state.analysisTF
-      ? analysisTFSummary((state.analysisTF as TfDataRec))
-      : '选传递函数节点或直接写 s 表达式，点「分析」得到 Bode / 阶跃 / 零极点。';
-    tfSection.appendChild(tfOut);
-    host.appendChild(tfSection);
-
-    const out = el('pre', 'analysis-out');
-    out.id = 'analysisOut';
-    out.textContent = state.analysisLast || '选信号后运行指标/频谱/周期/数学形式；传递函数填节点名。';
-    host.appendChild(out);
-
-    const perf = div('insp-section');
-    perf.appendChild(el('h3', null, '性能与超时（R13）'));
-    const timeoutInput = el('input', 'input');
-    timeoutInput.type = 'number';
-    timeoutInput.id = 'analysisStepTimeout';
-    timeoutInput.min = '0';
-    timeoutInput.step = '0.5';
-    timeoutInput.value = String(state.sim?.config?.step_timeout_ms ?? 0);
-    const apply = button('应用单步上限', 'btn tiny', async () => {
-      const response = await task(() => jsonRequest(ENDPOINTS.config, 'PATCH', { step_timeout_ms: Number(timeoutInput.value) || 0 }));
-      if (response) toast('单步超时已更新（0=关闭）', 'ok', 2400);
-    });
-    const perfRow = div('field-row');
-    perfRow.append(el('label', null, '单步上限 ms'), timeoutInput, apply);
-    perf.appendChild(perfRow);
-    const profileToggle = el('input');
-    profileToggle.type = 'checkbox';
-    profileToggle.id = 'analysisProfileEnabled';
-    const profileButtons = div('field-row');
-    profileButtons.append(
-      el('label', null, '计时开关'), profileToggle,
-      button('应用', 'btn tiny', async () => {
-        const response = await task(() => jsonRequest(ENDPOINTS.profile, 'PATCH', {
-          enabled: Boolean(profileToggle.checked),
-        }));
-        if (response) {
-          profileToggle.checked = Boolean(response.enabled);
-          toast(response.enabled ? '性能计时已开启' : '性能计时已关闭', 'ok', 2200);
-        }
-      }),
-      button('清空', 'btn tiny', async () => {
-        const response = await task(() => jsonRequest(ENDPOINTS.profile, 'PATCH', { reset: true }));
-        if (response) toast('性能采样已清空', 'ok', 2000);
-      }),
-    );
-    perf.appendChild(profileButtons);
-    const profileOut = el('pre', 'analysis-out');
-    profileOut.id = 'analysisProfile';
-    profileOut.textContent = '点击刷新读取 /api/profile（默认关闭，开销可忽略）';
-    perf.appendChild(
-      button('刷新性能', 'btn tiny', async () => {
-        const response = await task(() => jsonRequest(ENDPOINTS.profileTop(20), 'GET'), { dirty: false });
-        if (!response) return;
-        profileToggle.checked = Boolean(response.enabled);
-        const rows = (response.entries || []).map(
-          (item: PerfRowRec) => `${item.name}\t${item.count} 次\t总 ${item.total_ms} ms\t均 ${item.mean_ms} ms\t峰 ${item.max_ms} ms`,
-        );
-        profileOut.textContent = [
-          `计时：${response.enabled ? '开' : '关'}  样本 ${response.samples}/${response.capacity}`,
-          ...(rows.length ? rows : ['（暂无采样，开启计时后运行仿真）']),
-        ].join('\n');
-      }),
-    );
-    perf.appendChild(profileOut);
-    host.appendChild(perf);
-
-    pane.replaceChildren(host);
-    if (state.analysisSpectrum) drawAnalysisSpectrum();
-    if (state.analysisTF) drawAnalysisTF();
-  }
 
   // 旧版 UI profile（netlab-ui/1）的默认令牌，与 netlab/core/model/ui_profile.py DEFAULT_TOKENS 对齐。
   // 这套默认值是「暗色蓝图」皮肤，仅应落在旧版画布/面板令牌(--nl-*) 上；绝不能覆盖 theme.tokens.ts 的
@@ -4201,100 +3687,6 @@ function setStatusHint(hint: string): void {
     }
   }
 
-  function renderBlocksPanel() {
-    const pane = ui.blocksPane;
-    if (!pane) return;
-    const host = div('blocks-host');
-    const head = div('insp-head');
-    const title = div('insp-title');
-    title.append(
-      el('h2', null, '模块库'),
-      el('p', null, state.blocksLibrary ? `库目录：${state.blocksLibrary}` : '库目录：默认 library/'),
-    );
-    head.appendChild(title);
-    host.appendChild(head);
-
-    const toolbar = div('blocks-toolbar');
-    const structuralRow = el('label', 'switch-row');
-    structuralRow.appendChild(el('span', null, '封装为结构模型（可看内部）'));
-    const structuralInput = el('input');
-    structuralInput.type = 'checkbox';
-    structuralInput.checked = Boolean(state.blocksStructural);
-    structuralInput.addEventListener('change', () => {
-      state.blocksStructural = Boolean(structuralInput.checked);
-    });
-    structuralRow.appendChild(structuralInput);
-    toolbar.append(
-      button('刷新', 'btn tiny', () => void refreshBlocks()),
-      button('导入 .block', 'btn tiny', () => void importBlockFile()),
-      button('封装选中', 'btn tiny primary', () => void encapsulateSelection()),
-      button('另存为副本', 'btn tiny', () => void saveCurrentAsBlockCopy()),
-      button('插件管理', 'btn tiny', () => void openPluginManager()),
-      button('视图设计', 'btn tiny', () => void openViewDesigner()),
-    );
-    const closeBtn = button('关闭内部网络', 'btn tiny', () => void closeInternalNetwork());
-    closeBtn.disabled = !String(state.currentNetwork?.name || '').startsWith('模块 ');
-    closeBtn.title = closeBtn.disabled ? '当前不是模块内部临时网络' : '删除当前临时网络并返回上一层';
-    toolbar.appendChild(closeBtn);
-    if (state.sim?.degraded?.read_only) {
-      toolbar.appendChild(button('补回后重试', 'btn tiny', () => void retryDegradedProject()));
-    }
-    host.appendChild(structuralRow);
-    host.appendChild(toolbar);
-
-    if (!state.blocks.length) {
-      host.appendChild(
-        div('help', '库中没有模块：选中画布节点后点「封装选中」，或用「导入 .block」载入已有模块。'),
-      );
-      pane.replaceChildren(host);
-      return;
-    }
-
-    const list = div('block-list');
-    for (const spec of state.blocks) {
-      const item = div('block-item');
-      const info = div('block-info');
-      const name = el('strong', null, spec.name || spec.id);
-      const badges = div('block-badges');
-      for (const badge of blockBadges(((spec)))) badges.appendChild(el('span', 'badge gray', badge));
-      info.append(name, badges);
-      const ports = el('small', 'block-ports', describeBlockPorts(((spec))));
-      info.appendChild(ports);
-      item.draggable = true;
-      item.addEventListener('dragstart', (event: MouseEvent) => {
-        if (!(event as Event as DragEvent).dataTransfer) return;
-        ((event as Event as DragEvent).dataTransfer as DataTransfer).setData('text/netlab-block', spec.id);
-        ((event as Event as DragEvent).dataTransfer as DataTransfer).effectAllowed = 'copy';
-      });
-      const actions = div('block-actions');
-      actions.appendChild(button('实例化', 'btn tiny primary', () => void instantiateBlockFromLibrary(spec.id)));
-      const openBtn = button('打开内部', 'btn tiny', () => openModuleInternal(spec.id));
-      openBtn.title = (spec.model || 'behavioral') !== 'structural'
-        ? '打开内部浮窗（行为模型只看得到端口）'
-        : '在内部浮窗中预览模块结构';
-      actions.appendChild(openBtn);
-      if (spec.builtin) {
-        const compareBtn = button('行为/结构对比', 'btn tiny', () => void compareBuiltinBlock(((spec))));
-        compareBtn.title = '运行行为快速模型与 structural 内部场景，对比同一输入的输出';
-        actions.appendChild(compareBtn);
-      }
-      const renameBtn = button('改名', 'btn tiny', () => void renameLibraryBlock(((spec))));
-      renameBtn.title = spec.builtin ? '内置模块只读，请先另存为副本' : '改模块名字（文件名同步改，引用不变）';
-      renameBtn.disabled = Boolean(spec.builtin);
-      actions.appendChild(renameBtn);
-      const deleteBtn = button('删除', 'btn tiny danger', () => void deleteLibraryBlock(((spec))));
-      deleteBtn.disabled = Boolean(spec.builtin);
-      deleteBtn.title = spec.builtin ? '内置模块只读，不能删除' : '从库里删掉这个模块文件';
-      actions.appendChild(deleteBtn);
-      item.append(info, actions);
-      list.appendChild(item);
-    }
-    host.appendChild(list);
-    host.appendChild(
-      div('help', '模块文件位于 library/blocks/<模块名>.block：一个模块一个文件，文件名就是模块名；库中只保留最新版。'),
-    );
-    pane.replaceChildren(host);
-  }
 
   function findBlockNameClash(name: string, ignoreId: string | null) {
     const wanted = String(name || '').trim().toLowerCase();
@@ -4536,29 +3928,7 @@ function setStatusHint(hint: string): void {
     }
     setWorkspaceButtons();
 
-    $$('.panel-tab').forEach((tab) => {
-      tab.addEventListener('click', () => {
-        const group = tab.dataset.group;
-        switchTab(group === 'inspect' ? 'inspect' : (defaultTabForGroup((group as string)) as string));
-      });
-    });
-    $$('#panel .group-subnav').forEach((nav) => {
-      nav.addEventListener('click', (event: MouseEvent) => {
-        const target = (event.target! as Element).closest('button');
-        if (!target) return;
-        if (target.dataset.fnrole) {
-          state.fnRole = target.dataset.fnrole;
-          state.specKind = '';
-          switchTab(target.dataset.fnrole === 'edge' ? 'edge-fn' : 'node-fn');
-        } else if (target.dataset.sub) {
-          switchTab(target.dataset.sub);
-        }
-      });
-    });
-    setPanelGroup('inspect');
-    setGroupSub('modules', 'blocks');
-    setGroupSub('analysis', 'chart');
-    setGroupSub('workbench', 'wb-analysis');
+    bindPanelNavigation();
 
     if (ui.vectorNode) {
       ui.vectorNode.addEventListener('change', () => {
@@ -5030,6 +4400,32 @@ function setStatusHint(hint: string): void {
     });
     if ($('.panel-group.active')?.dataset.group === 'fn') renderSpecPane();
   }
+
+  const viewHooks: { renderAnalysisPanel: () => void; renderBlocksPanel: () => void } = {
+    renderAnalysisPanel: () => {},
+    renderBlocksPanel: () => {},
+  };
+  const { switchTab, bindPanelNavigation } = initRouter({
+    resizeChart, scheduleChartDraw, notifyPlotkit,
+    renderAnalysisPanel: () => viewHooks.renderAnalysisPanel(),
+    renderBlocksPanel: () => viewHooks.renderBlocksPanel(),
+  });
+  const { fetchNetworks, switchNetwork, addNetwork, renameNetwork, deleteNetwork, openNetworkMenu } = createNetworkHandlers({
+    task, renderInspector, fitView, newNetworkModal, refreshBlocks, encapsulateSelection,
+    switchTab, openModuleInternal, closeInternalNetwork, showFloatingMenu,
+  });
+  const {
+    renderAnalysisPanel, renderBlocksPanel, renderModuleSide,
+    syncChromeEdges, applyNetCollapsed, toggleNetworks, initNetworkSidebar,
+  } = createViews({
+    task, scheduleChartDraw, resizeGraph, resizeChart, shellKeys: SHELL_KEYS,
+    addNetwork, renameNetwork, deleteNetwork, refreshBlocks, importBlockFile, encapsulateSelection,
+    saveCurrentAsBlockCopy, openPluginManager, openViewDesigner, closeInternalNetwork,
+    retryDegradedProject, describeBlockPorts, instantiateBlockFromLibrary, openModuleInternal,
+    compareBuiltinBlock, renameLibraryBlock, deleteLibraryBlock,
+  });
+  viewHooks.renderAnalysisPanel = renderAnalysisPanel;
+  viewHooks.renderBlocksPanel = renderBlocksPanel;
 
   initSessionStore({
     scheduleChartDraw, clearSelection, requestDraw, updateModeUI, syncUI, updateInfoBar,

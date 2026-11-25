@@ -227,6 +227,18 @@ setInstrumentActions({ scheduleChartDraw });
 setProjectActions({ confirmModal, applySnapshot, syncProjectContext, applyProjectUi, renderScenePanel, renderInspector, renderSignalList, fetchNetworks, fitView, chooseModeModal, task, showHelp });
 setWindowActions({ renderCompareGrid, setWbSignalDock, syncProjectContext, getWbComparePayload });
 loadUiProfile();
+// 只读调试钩子：给 CDP/自动化验证计算屏幕坐标用，不改变业务行为。
+(window as Window & { __netlabDebug?: unknown }).__netlabDebug = {
+  state,
+  nodeRect,
+  edgePathPoints,
+  elementPins,
+  devicePins,
+  devicePinScreen,
+  waypointHitAt,
+  worldToScreen,
+  screenToWorld,
+};
 boot();
 setTimeout(checkCacheQuietly, 6000);
 }

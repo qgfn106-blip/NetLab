@@ -20,18 +20,20 @@ import { phaseStateKeys, renderVectorNodeList, resizePhase, schedulePhaseDraw } 
 import { setInstrumentActions, resizeInstrument, initInstruments } from "./instruments.js";
 import { circuitPinPath, wirePathPoints } from "./canvas_base.js";
 import { setEmptyInspectorActions } from "./inspector_shell.js";
+import { devicePins } from "./device_pins.js";
 import { updateInspectorLive, setInspectorActions } from "./inspector.js";
 import { setSpecPanelActions } from "./spec_panel.js";
 import { setProjectActions, projectDownloadText as downloadText, maybeOfferRecovery, initProject } from "./project.js";
 import { loadUiPrefs, setAppearanceActions } from "./appearance.js";
 import { initAppearanceControls, refreshTelemetryQuality, setAppearanceControlActions } from "./appearance_controls.js";
-import { setGeometryActions, nodeDiameter } from "./geometry.js";
+import { setGeometryActions, worldToScreen, screenToWorld, nodeDiameter, nodeRect, devicePinScreen, waypointHitAt, edgePathPoints } from "./geometry.js";
 import { setAnalysisActions } from "./analysis.js";
 import { initPlotkitDataBar, setPlotkitDataActions } from "./plotkit_data.js";
 import { initAnalWin, initDocWin, setWindowActions } from "./windows.js";
 import { ensureDocs, setDocsActions } from "./docs.js";
 import { initSettingsWin, showGuide, initGuide, setGuideActions } from "./settings_guide.js";
 import { setPlotkitFrameActions } from "./plotkit_frame.js";
+import { elementPins } from "./circuit_symbols.js";
 import { openConfirmModal as confirmModal, openModeModal as chooseModeModal } from "./dialogs_build.js";
 import { initAnalysisWorkbenchPanel, syncProjectContext, renderCompareGrid, setWbSignalDock, getWbComparePayload } from "./analysis_workbench_panel.js";
 import { initCommands, clearSelection } from "./commands.js";
@@ -230,6 +232,17 @@ function bootEditor() {
   setProjectActions({ confirmModal, applySnapshot, syncProjectContext, applyProjectUi, renderScenePanel, renderInspector, renderSignalList, fetchNetworks, fitView, chooseModeModal, task, showHelp });
   setWindowActions({ renderCompareGrid, setWbSignalDock, syncProjectContext, getWbComparePayload });
   loadUiProfile();
+  window.__netlabDebug = {
+    state,
+    nodeRect,
+    edgePathPoints,
+    elementPins,
+    devicePins,
+    devicePinScreen,
+    waypointHitAt,
+    worldToScreen,
+    screenToWorld
+  };
   boot();
   setTimeout(checkCacheQuietly, 6e3);
 }

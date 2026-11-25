@@ -1,4 +1,5 @@
 import { fmt, intText, clamp, hashString } from "./app.utils.js";
+import { ENDPOINTS } from "./app/endpoints.js";
 import { NODE_W, NODE_H } from "./app/constants.js";
 import { $, $$, stage, canvas, chartCanvas } from "./app/dom.js";
 import { pointerPosition, frameCap } from "./app/canvas_geometry.js";
@@ -835,7 +836,7 @@ function setStatusHint(hint) {
         const edgeItem = edgeById(edgeId);
         if (!edgeItem) continue;
         await task(
-          () => jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, "PATCH", { waypoints: edgeItem.waypoints || [] }),
+          () => jsonRequest(ENDPOINTS.edge(edgeId), "PATCH", { waypoints: edgeItem.waypoints || [] }),
           { history: false }
         );
       }
@@ -909,7 +910,7 @@ function setStatusHint(hint) {
   }
   async function convertNodeToGround(nodeId) {
     try {
-      await jsonRequest(`/api/nodes/${encodeURIComponent(nodeId)}`, "PATCH", {
+      await jsonRequest(ENDPOINTS.node(nodeId), "PATCH", {
         kind: "ground",
         params: {},
         data: {},
@@ -1233,7 +1234,7 @@ function setStatusHint(hint) {
     state.dirtyPositions.clear();
     if (!items.length) return;
     try {
-      await jsonRequest("/api/positions", "POST", { positions: items });
+      await jsonRequest(ENDPOINTS.positions, "POST", { positions: items });
     } catch (error) {
       toast(`\u4FDD\u5B58\u5750\u6807\u5931\u8D25\uFF1A${error.message}`, "error", 6e3);
       await refreshState(true);
@@ -1241,7 +1242,7 @@ function setStatusHint(hint) {
   }
   async function patchNodeGeometry(nodeId, payload) {
     const response = await task(
-      () => jsonRequest(`/api/nodes/${encodeURIComponent(nodeId)}`, "PATCH", payload)
+      () => jsonRequest(ENDPOINTS.node(nodeId), "PATCH", payload)
     );
     if (!response) return;
     await refreshState(true);
@@ -1252,7 +1253,7 @@ function setStatusHint(hint) {
     if (!node) return;
     const params = portName ? { port_name: String(portName).slice(0, 24), port_direction: direction || "inout" } : {};
     const response = await task(
-      () => jsonRequest(`/api/nodes/${encodeURIComponent(nodeId)}`, "PATCH", {
+      () => jsonRequest(ENDPOINTS.node(nodeId), "PATCH", {
         name: node.name,
         kind: node.kind,
         params
@@ -1265,7 +1266,7 @@ function setStatusHint(hint) {
   }
   async function patchEdgeGeometry(edgeId, payload) {
     const response = await task(
-      () => jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, "PATCH", payload)
+      () => jsonRequest(ENDPOINTS.edge(edgeId), "PATCH", payload)
     );
     if (!response) return;
     await refreshState(true);
@@ -1369,7 +1370,7 @@ function setStatusHint(hint) {
     const want = Boolean(visible);
     if (want !== state.plotkitActive) {
       state.plotkitActive = want;
-      api("/api/plotkit/active", {
+      api(ENDPOINTS.plotkitActive, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: want })
@@ -1779,7 +1780,7 @@ function setStatusHint(hint) {
         },
         size: node.size || {}
       };
-      const response = await task(() => jsonRequest("/api/nodes", "POST", payload), { history: false });
+      const response = await task(() => jsonRequest(ENDPOINTS.nodes, "POST", payload), { history: false });
       if (!response?.node) continue;
       idMap.set(node.id, response.node.id);
       pastedNodeIds.push(response.node.id);
@@ -1790,7 +1791,7 @@ function setStatusHint(hint) {
       const target = idMap.get(edge.target);
       if (!source || !target) continue;
       const response = await task(
-        () => jsonRequest("/api/edges", "POST", {
+        () => jsonRequest(ENDPOINTS.edges, "POST", {
           source,
           target,
           kind: edge.kind,
@@ -1826,8 +1827,8 @@ function setStatusHint(hint) {
   async function restoreSceneSnapshot(payload) {
     const current = await captureSceneSnapshot();
     const merged = { ...payload, blocks: current?.blocks || [] };
-    await jsonRequest("/api/control", "POST", { action: "pause" });
-    const response = await jsonRequest("/api/scene", "POST", merged);
+    await jsonRequest(ENDPOINTS.control, "POST", { action: "pause" });
+    const response = await jsonRequest(ENDPOINTS.scene, "POST", merged);
     if (!response?.scene) return;
     clearSelection();
     applySnapshot(response);
@@ -1904,7 +1905,7 @@ function setStatusHint(hint) {
       return { id: node.id, position: { x: Math.round(x * 1e3) / 1e3, y: Math.round(y * 1e3) / 1e3 } };
     });
     try {
-      await jsonRequest("/api/positions", "POST", { positions });
+      await jsonRequest(ENDPOINTS.positions, "POST", { positions });
       await refreshState(true);
       toast(`\u5DF2\u5BF9\u9F50 ${targets.length} \u4E2A\u8282\u70B9\uFF08${mode}\uFF09`, "ok", 2200);
     } catch (error) {
@@ -1930,7 +1931,7 @@ function setStatusHint(hint) {
       return { id: node.id, position: { x: Math.round(x * 1e3) / 1e3, y: Math.round(y * 1e3) / 1e3 } };
     });
     try {
-      await jsonRequest("/api/positions", "POST", { positions });
+      await jsonRequest(ENDPOINTS.positions, "POST", { positions });
       await refreshState(true);
       toast(`\u5DF2\u7B49\u8DDD\u5206\u5E03 ${targets.length} \u4E2A\u8282\u70B9\uFF08${axis === "y" ? "\u7EB5\u5411" : "\u6A2A\u5411"}\uFF09`, "ok", 2200);
     } catch (error) {
@@ -1974,7 +1975,7 @@ function setStatusHint(hint) {
     const y = (source.position.y + target.position.y) / 2;
     const waypoints = [...edge.waypoints || [], { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 }];
     try {
-      await jsonRequest(`/api/edges/${encodeURIComponent(edge.id)}`, "PATCH", {
+      await jsonRequest(ENDPOINTS.edge(edge.id), "PATCH", {
         route: "manual",
         waypoints
       });
@@ -1989,7 +1990,7 @@ function setStatusHint(hint) {
   }
   async function clearWireWaypoints(edgeId) {
     try {
-      await jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, "PATCH", {
+      await jsonRequest(ENDPOINTS.edge(edgeId), "PATCH", {
         route: "auto",
         waypoints: []
       });
@@ -2020,7 +2021,7 @@ function setStatusHint(hint) {
     for (const node of targets) {
       if (node.kind === "ground") continue;
       try {
-        await jsonRequest(`/api/nodes/${encodeURIComponent(node.id)}`, "PATCH", {
+        await jsonRequest(ENDPOINTS.node(node.id), "PATCH", {
           size: { w: Math.round(width) }
         });
         done += 1;
@@ -2053,7 +2054,7 @@ function setStatusHint(hint) {
         y: clamp(Math.round(snapped.y), -1e4, 1e4)
       }
     };
-    const response = await task(() => jsonRequest("/api/nodes", "POST", payload));
+    const response = await task(() => jsonRequest(ENDPOINTS.nodes, "POST", payload));
     if (!response) return;
     applySnapshot(response);
     await selectEntity("node", response.node.id, true);
@@ -2084,7 +2085,7 @@ function setStatusHint(hint) {
         y: clamp(Math.round(snapped.y), -1e4, 1e4)
       }
     };
-    const response = await task(() => jsonRequest("/api/nodes", "POST", payload));
+    const response = await task(() => jsonRequest(ENDPOINTS.nodes, "POST", payload));
     if (!response) return;
     applySnapshot(response);
     await selectEntity("node", response.node.id, true);
@@ -2124,7 +2125,7 @@ function setStatusHint(hint) {
     };
     if (isPinNode(source)) body.source_pin = pinFor(source, sourcePin);
     if (isPinNode(target)) body.target_pin = pinFor(target, targetPin);
-    const response = await task(() => jsonRequest("/api/edges", "POST", body));
+    const response = await task(() => jsonRequest(ENDPOINTS.edges, "POST", body));
     if (!response) return;
     applySnapshot(response);
     if (response.edge) {
@@ -2233,7 +2234,7 @@ function setStatusHint(hint) {
       auto_delay: false
     };
     if (state.mode === "circuit" && state.ui?.circuitOrthogonal !== false) body.route = "orthogonal";
-    const response = await task(() => jsonRequest("/api/edges", "POST", body));
+    const response = await task(() => jsonRequest(ENDPOINTS.edges, "POST", body));
     if (!response) return;
     applySnapshot(response);
     if (response.edge) {
@@ -2246,7 +2247,7 @@ function setStatusHint(hint) {
   async function toggleEdgeDelay(edgeId) {
     const edge = edgeById(edgeId);
     if (!edge) return;
-    const response = await task(() => jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, "PATCH", { delay: !edge.delay }));
+    const response = await task(() => jsonRequest(ENDPOINTS.edge(edgeId), "PATCH", { delay: !edge.delay }));
     if (!response) return;
     const index = state.scene.edges.findIndex((item) => item.id === edgeId);
     if (index >= 0) state.scene.edges[index] = response.edge;
@@ -2267,7 +2268,7 @@ function setStatusHint(hint) {
       true
     );
     if (!confirmed) return;
-    const response = await task(() => jsonRequest(`/api/nodes/${encodeURIComponent(nodeId)}`, "DELETE"));
+    const response = await task(() => jsonRequest(ENDPOINTS.node(nodeId), "DELETE"));
     if (!response) return;
     if (state.selection.type === "node" && state.selection.id === nodeId) {
       state.selection = { type: null, id: null };
@@ -2287,7 +2288,7 @@ function setStatusHint(hint) {
       true
     );
     if (!confirmed) return;
-    const response = await task(() => jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, "DELETE"));
+    const response = await task(() => jsonRequest(ENDPOINTS.edge(edgeId), "DELETE"));
     if (!response) return;
     if (state.selection.type === "edge" && state.selection.id === edgeId) {
       state.selection = { type: null, id: null };
@@ -2305,7 +2306,7 @@ function setStatusHint(hint) {
     for (const edgeId of edges) {
       if (!edgeById(edgeId)) continue;
       const response = await task(
-        () => jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, "DELETE"),
+        () => jsonRequest(ENDPOINTS.edge(edgeId), "DELETE"),
         { history: false }
       );
       if (response) {
@@ -2316,7 +2317,7 @@ function setStatusHint(hint) {
     for (const nodeId of nodes) {
       if (!nodeById(nodeId)) continue;
       const response = await task(
-        () => jsonRequest(`/api/nodes/${encodeURIComponent(nodeId)}`, "DELETE"),
+        () => jsonRequest(ENDPOINTS.node(nodeId), "DELETE"),
         { history: false }
       );
       if (response) {
@@ -2380,7 +2381,7 @@ function setStatusHint(hint) {
         id: node.id,
         position: { x: Number(node.position.x.toFixed(3)), y: Number(node.position.y.toFixed(3)) }
       }));
-      await jsonRequest("/api/positions", "POST", { positions: items });
+      await jsonRequest(ENDPOINTS.positions, "POST", { positions: items });
       fitView();
       toast("\u5DF2\u6309\u4FE1\u53F7\u6D41\u5411\u91CD\u65B0\u5E03\u5C40", "ok", 1800);
     } catch (error) {
@@ -2414,7 +2415,7 @@ function setStatusHint(hint) {
     try {
       const previousCursor = state.cursor;
       const previousSteps = Number(sim.steps || 0);
-      const data = await api(`/api/live?cursor=${state.cursor}&limit=600`);
+      const data = await api(ENDPOINTS.live(state.cursor, 600));
       const resetDetected = Boolean(
         data.sim && (Number(data.cursor || 0) < previousCursor || Number(data.sim.steps || 0) < previousSteps)
       );
@@ -2467,7 +2468,7 @@ function setStatusHint(hint) {
     if (state.drag) return;
     state.stateBusy = true;
     try {
-      const snapshot = await api("/api/state");
+      const snapshot = await api(ENDPOINTS.state);
       state.lastStateFetch = performance.now();
       applySnapshot(snapshot);
     } catch (error) {
@@ -2509,7 +2510,7 @@ function setStatusHint(hint) {
   async function networkControl(action, steps) {
     const body = { action };
     if (steps !== void 0) body.steps = steps;
-    const response = await task(() => jsonRequest("/api/control", "POST", body), { dirty: false });
+    const response = await task(() => jsonRequest(ENDPOINTS.control, "POST", body), { dirty: false });
     if (!response) return;
     state.sim = response.sim;
     if (action === "reset") {
@@ -2541,7 +2542,7 @@ function setStatusHint(hint) {
   }
   async function runSolveWindowPrecompute(seconds, dt = null, interp = null) {
     const response = await runPrecomputeWithProgress(
-      () => api("/api/solve-window", {
+      () => api(ENDPOINTS.solveWindow, {
         method: "POST",
         body: JSON.stringify({ duration: seconds, ...dt ? { dt } : {}, ...interp || {} }),
         timeoutMs: 18e4
@@ -2586,7 +2587,7 @@ function setStatusHint(hint) {
   }
   async function runPlotkitPrecompute(seconds, dt = null) {
     const pre = await runPrecomputeWithProgress(
-      () => api("/api/plotkit/precompute", {
+      () => api(ENDPOINTS.plotkitPrecompute, {
         method: "POST",
         body: JSON.stringify(dt ? { seconds, dt } : { seconds }),
         timeoutMs: 18e4
@@ -2616,7 +2617,7 @@ function setStatusHint(hint) {
       const label = `\u9884\u8BA1\u7B97 ${row?.name || id}\u2026`;
       try {
         const result = await runPrecomputeWithProgress(
-          () => api("/api/network/state/precompute", {
+          () => api(ENDPOINTS.networkStatePrecompute, {
             method: "POST",
             body: JSON.stringify(dt ? { state_id: id, seconds, dt } : { state_id: id, seconds }),
             timeoutMs: 6e5
@@ -2751,7 +2752,7 @@ function setStatusHint(hint) {
       return;
     }
     try {
-      await api("/api/shutdown", {
+      await api(ENDPOINTS.shutdown, {
         method: "POST",
         body: JSON.stringify({ confirm: true }),
         timeoutMs: 2500
@@ -2981,7 +2982,7 @@ function setStatusHint(hint) {
   }
   async function fetchNetworks(silent = true) {
     try {
-      const response = await jsonRequest("/api/networks", "GET");
+      const response = await jsonRequest(ENDPOINTS.networks, "GET");
       state.networks = response.networks || [];
       state.currentNetwork = state.networks.find((item) => item.current) || state.networks[0] || null;
       renderNetworkList();
@@ -3098,7 +3099,7 @@ function setStatusHint(hint) {
   async function switchNetwork(networkId) {
     if (!networkId || networkId === state.currentNetwork?.id) return;
     const response = await task(
-      () => jsonRequest(`/api/networks/${encodeURIComponent(networkId)}/activate`, "POST", {})
+      () => jsonRequest(ENDPOINTS.networkActivate(networkId), "POST", {})
     );
     if (!response || !response.scene) return;
     state.selection = { type: null, id: null };
@@ -3121,7 +3122,7 @@ function setStatusHint(hint) {
     if (!choice) return;
     const payload = { mode: choice.mode };
     if (choice.name) payload.name = choice.name;
-    const response = await task(() => jsonRequest("/api/networks", "POST", payload));
+    const response = await task(() => jsonRequest(ENDPOINTS.networks, "POST", payload));
     if (!response) return;
     await fetchNetworks();
     const created = String(response.created || "");
@@ -3136,7 +3137,7 @@ function setStatusHint(hint) {
     const proposed = window.prompt("\u7F51\u7EDC\u540D\u79F0\uFF08\u6700\u957F 60 \u5B57\uFF09", item?.name || "");
     if (proposed === null) return;
     const response = await task(
-      () => jsonRequest(`/api/networks/${encodeURIComponent(networkId)}`, "PATCH", { name: proposed })
+      () => jsonRequest(ENDPOINTS.network(networkId), "PATCH", { name: proposed })
     );
     if (!response) return;
     await fetchNetworks();
@@ -3157,11 +3158,11 @@ function setStatusHint(hint) {
     );
     if (!confirmed) return;
     const response = await task(
-      () => jsonRequest(`/api/networks/${encodeURIComponent(network.id)}`, "DELETE")
+      () => jsonRequest(ENDPOINTS.network(network.id), "DELETE")
     );
     if (!response) return;
     await fetchNetworks();
-    const snapshot = await api("/api/state");
+    const snapshot = await api(ENDPOINTS.state);
     applySnapshot(snapshot);
     toast("\u7F51\u7EDC\u5DF2\u5220\u9664", "ok", 2200);
   }
@@ -3275,11 +3276,11 @@ function setStatusHint(hint) {
     await pushUndoSnapshot();
     for (const node of nodes) {
       const position = { x: snapValue(Number(node.position.x) || 0), y: snapValue(Number(node.position.y) || 0) };
-      await task(() => jsonRequest(`/api/nodes/${encodeURIComponent(node.id)}`, "PATCH", { position }), { history: false });
+      await task(() => jsonRequest(ENDPOINTS.node(node.id), "PATCH", { position }), { history: false });
     }
     for (const edge of edges) {
       const waypoints = (edge.waypoints || []).map((point) => ({ x: snapValue(point.x), y: snapValue(point.y) }));
-      await task(() => jsonRequest(`/api/edges/${encodeURIComponent(edge.id)}`, "PATCH", { waypoints }), { history: false });
+      await task(() => jsonRequest(ENDPOINTS.edge(edge.id), "PATCH", { waypoints }), { history: false });
     }
     await refreshState(true);
     toast(`\u5DF2\u6574\u7406 ${nodes.length} \u4E2A\u8282\u70B9\u3001${edges.length} \u6761\u8FDE\u7EBF\u5230 ${grid} \u7F51\u683C`, "ok", 2600);
@@ -3325,7 +3326,7 @@ function setStatusHint(hint) {
     requestDraw();
   }
   async function refreshBlocks() {
-    const response = await task(() => jsonRequest("/api/blocks", "GET"), { dirty: false });
+    const response = await task(() => jsonRequest(ENDPOINTS.blocks, "GET"), { dirty: false });
     if (!response) return;
     state.blocks = response.blocks || [];
     state.blocksLibrary = response.library || "";
@@ -3334,7 +3335,7 @@ function setStatusHint(hint) {
   async function instantiateBlockFromLibrary(blockId) {
     const place = centerPlacement();
     const response = await task(
-      () => jsonRequest("/api/blocks/instantiate", "POST", {
+      () => jsonRequest(ENDPOINTS.blockInstantiate, "POST", {
         block_id: blockId,
         position: { x: Math.round(place.x), y: Math.round(place.y) }
       })
@@ -3365,7 +3366,7 @@ function setStatusHint(hint) {
     if (proposed === null) return;
     let response = null;
     try {
-      response = await jsonRequest("/api/blocks/encapsulate", "POST", {
+      response = await jsonRequest(ENDPOINTS.blockEncapsulate, "POST", {
         node_ids: nodes,
         name: proposed,
         model: state.blocksStructural ? "structural" : "behavioral"
@@ -3384,7 +3385,7 @@ function setStatusHint(hint) {
     toast(`\u5DF2\u5C01\u88C5\u4E3A\u6A21\u5757\u300C${response.block.name}\u300D\u5E76\u5199\u5165\u5E93`, "ok", 3e3);
   }
   async function retryDegradedProject() {
-    const response = await task(() => jsonRequest("/api/project/retry", "POST", {}));
+    const response = await task(() => jsonRequest(ENDPOINTS.projectRetry, "POST", {}));
     if (!response) return;
     applySnapshot({ scene: response.scene, sim: response.sim, limits: state.limits });
     if (response.degraded) {
@@ -3418,7 +3419,7 @@ function setStatusHint(hint) {
       const rect = graph.getBoundingClientRect();
       const world = screenToWorld(event.clientX - rect.left, event.clientY - rect.top);
       const response = await task(
-        () => jsonRequest("/api/blocks/instantiate", "POST", {
+        () => jsonRequest(ENDPOINTS.blockInstantiate, "POST", {
           block_id: blockId,
           position: { x: Math.round(world.x), y: Math.round(world.y) }
         })
@@ -3433,7 +3434,7 @@ function setStatusHint(hint) {
   }
   async function openBlockInternal(blockId) {
     const response = await task(
-      () => jsonRequest(`/api/blocks/${encodeURIComponent(blockId)}/open-internal`, "POST", {})
+      () => jsonRequest(ENDPOINTS.blockOpenInternal(blockId), "POST", {})
     );
     if (!response) return false;
     applySnapshot({ scene: response.scene, sim: response.sim, limits: state.limits });
@@ -3510,7 +3511,7 @@ function setStatusHint(hint) {
       let target = block;
       if (!target) {
         const response = await task(
-          () => jsonRequest(`/api/blocks/${encodeURIComponent(blockId)}`, "GET"),
+          () => jsonRequest(ENDPOINTS.block(blockId), "GET"),
           { dirty: false }
         );
         if (!response?.block) return;
@@ -3587,7 +3588,7 @@ function setStatusHint(hint) {
     const proposed = window.prompt("\u526F\u672C\u6A21\u5757\u540D\u79F0\uFF08\u65B0 id\uFF0Cv1\uFF09", `${state.currentNetwork?.name || "\u6A21\u5757"}-copy`);
     if (proposed === null) return;
     const response = await task(
-      () => jsonRequest("/api/blocks/save-copy", "POST", { name: proposed })
+      () => jsonRequest(ENDPOINTS.blockSaveCopy, "POST", { name: proposed })
     );
     if (!response) return;
     await refreshBlocks();
@@ -3605,7 +3606,7 @@ function setStatusHint(hint) {
         const text = await file.text();
         const payload = JSON.parse(text);
         const report = await task(
-          () => jsonRequest("/api/blocks/validate", "POST", { payload }),
+          () => jsonRequest(ENDPOINTS.blockValidate, "POST", { payload }),
           { dirty: false }
         );
         if (!report) return;
@@ -3627,7 +3628,7 @@ function setStatusHint(hint) {
           if (!proceed) return;
         }
         const response = await task(
-          () => jsonRequest("/api/blocks/import", "POST", { payload })
+          () => jsonRequest(ENDPOINTS.blockImport, "POST", { payload })
         );
         if (!response) return;
         await refreshBlocks();
@@ -3761,7 +3762,7 @@ function setStatusHint(hint) {
     timeoutInput.step = "0.5";
     timeoutInput.value = String(state.sim?.config?.step_timeout_ms ?? 0);
     const apply = button("\u5E94\u7528\u5355\u6B65\u4E0A\u9650", "btn tiny", async () => {
-      const response = await task(() => jsonRequest("/api/config", "PATCH", { step_timeout_ms: Number(timeoutInput.value) || 0 }));
+      const response = await task(() => jsonRequest(ENDPOINTS.config, "PATCH", { step_timeout_ms: Number(timeoutInput.value) || 0 }));
       if (response) toast("\u5355\u6B65\u8D85\u65F6\u5DF2\u66F4\u65B0\uFF080=\u5173\u95ED\uFF09", "ok", 2400);
     });
     const perfRow = div("field-row");
@@ -3775,7 +3776,7 @@ function setStatusHint(hint) {
       el("label", null, "\u8BA1\u65F6\u5F00\u5173"),
       profileToggle,
       button("\u5E94\u7528", "btn tiny", async () => {
-        const response = await task(() => jsonRequest("/api/profile", "PATCH", {
+        const response = await task(() => jsonRequest(ENDPOINTS.profile, "PATCH", {
           enabled: Boolean(profileToggle.checked)
         }));
         if (response) {
@@ -3784,7 +3785,7 @@ function setStatusHint(hint) {
         }
       }),
       button("\u6E05\u7A7A", "btn tiny", async () => {
-        const response = await task(() => jsonRequest("/api/profile", "PATCH", { reset: true }));
+        const response = await task(() => jsonRequest(ENDPOINTS.profile, "PATCH", { reset: true }));
         if (response) toast("\u6027\u80FD\u91C7\u6837\u5DF2\u6E05\u7A7A", "ok", 2e3);
       })
     );
@@ -3794,7 +3795,7 @@ function setStatusHint(hint) {
     profileOut.textContent = "\u70B9\u51FB\u5237\u65B0\u8BFB\u53D6 /api/profile\uFF08\u9ED8\u8BA4\u5173\u95ED\uFF0C\u5F00\u9500\u53EF\u5FFD\u7565\uFF09";
     perf.appendChild(
       button("\u5237\u65B0\u6027\u80FD", "btn tiny", async () => {
-        const response = await task(() => jsonRequest("/api/profile?top=20", "GET"), { dirty: false });
+        const response = await task(() => jsonRequest(ENDPOINTS.profileTop(20), "GET"), { dirty: false });
         if (!response) return;
         profileToggle.checked = Boolean(response.enabled);
         const rows = (response.entries || []).map(
@@ -3857,7 +3858,7 @@ function setStatusHint(hint) {
   }
   async function loadUiProfile() {
     try {
-      const response = await jsonRequest("/api/ui", "GET");
+      const response = await jsonRequest(ENDPOINTS.ui, "GET");
       if (response?.current) applyUiTokens(response.current.tokens, response.current.mode);
     } catch {
     }
@@ -3868,7 +3869,7 @@ function setStatusHint(hint) {
       nodes: items.filter((item) => item.kind === "node").map((item) => ({ id: item.id, appearance: item.appearance ?? {} })),
       edges: items.filter((item) => item.kind === "edge").map((item) => ({ id: item.id, appearance: item.appearance ?? {} }))
     };
-    const response = await task(() => jsonRequest("/api/scene/appearance", "PATCH", payload));
+    const response = await task(() => jsonRequest(ENDPOINTS.sceneAppearance, "PATCH", payload));
     if (!response) return;
     renderInspector();
   }
@@ -3877,7 +3878,7 @@ function setStatusHint(hint) {
   }
   async function openViewDesigner() {
     try {
-      const response = await jsonRequest("/api/ui", "GET");
+      const response = await jsonRequest(ENDPOINTS.ui, "GET");
       if (!response) return;
       let current = response.current || response.defaults;
       state.ui.cardDetail = current.node?.show_detail !== false;
@@ -4022,7 +4023,7 @@ function setStatusHint(hint) {
       );
       const actions = div("modal-actions");
       actions.appendChild(button("\u5E94\u7528\u5E76\u4FDD\u5B58", "btn primary", async () => {
-        const saved = await jsonRequest("/api/ui", "POST", current);
+        const saved = await jsonRequest(ENDPOINTS.ui, "POST", current);
         if (saved?.current) applyUiTokens(saved.current.tokens, saved.current.mode);
         toast("\u89C6\u56FE\u8BBE\u8BA1\u5DF2\u4FDD\u5B58", "success");
         ui.modal.classList.add("hidden");
@@ -4040,7 +4041,7 @@ function setStatusHint(hint) {
   }
   async function openPluginManager() {
     const render = async () => {
-      const response = await jsonRequest("/api/plugins", "GET");
+      const response = await jsonRequest(ENDPOINTS.plugins, "GET");
       if (!response) return;
       const plugins = response.plugins || [];
       const list = div("plugin-list");
@@ -4057,11 +4058,11 @@ function setStatusHint(hint) {
         if (plugin.error) row.appendChild(div("plugin-error", plugin.error));
         const actions = div("modal-actions");
         actions.appendChild(button(plugin.status === "loaded" ? "\u7981\u7528" : "\u542F\u7528", "btn tiny", async () => {
-          await jsonRequest(`/api/plugins/${encodeURIComponent(plugin.id)}/enable`, "POST", { enabled: plugin.status !== "loaded" });
+          await jsonRequest(ENDPOINTS.pluginEnable(plugin.id), "POST", { enabled: plugin.status !== "loaded" });
           await render();
         }));
         actions.appendChild(button("\u91CD\u65B0\u52A0\u8F7D", "btn tiny", async () => {
-          await jsonRequest(`/api/plugins/${encodeURIComponent(plugin.id)}/reload`, "POST", {});
+          await jsonRequest(ENDPOINTS.pluginReload(plugin.id), "POST", {});
           await render();
         }));
         row.appendChild(actions);
@@ -4075,7 +4076,7 @@ function setStatusHint(hint) {
       );
       const footer = div("modal-actions");
       footer.appendChild(button("\u626B\u63CF\u63D2\u4EF6\u76EE\u5F55", "btn", async () => {
-        await jsonRequest("/api/plugins/scan", "POST", {});
+        await jsonRequest(ENDPOINTS.pluginScan, "POST", {});
         await render();
       }));
       footer.appendChild(button("\u5173\u95ED", "btn", () => {
@@ -4094,7 +4095,7 @@ function setStatusHint(hint) {
   async function compareBuiltinBlock(spec) {
     try {
       const result = await jsonRequest(
-        `/api/blocks/${encodeURIComponent(spec.id)}/compare`,
+        ENDPOINTS.blockCompare(spec.id),
         "POST",
         { duration: 0.02, dt: 1e-3 }
       );
@@ -4249,7 +4250,7 @@ function setStatusHint(hint) {
     }
     const run = async (force) => {
       const body = await jsonRequest(
-        `/api/blocks/${encodeURIComponent(spec.id)}/rename`,
+        ENDPOINTS.blockRename(spec.id),
         "POST",
         { name, force }
       );
@@ -4281,7 +4282,7 @@ function setStatusHint(hint) {
     }
     const run = async (force) => {
       const body = await jsonRequest(
-        `/api/blocks/${encodeURIComponent(spec.id)}/delete`,
+        ENDPOINTS.blockDelete(spec.id),
         "POST",
         { version: spec.version, force }
       );
@@ -4749,7 +4750,7 @@ function setStatusHint(hint) {
     }, 1e3);
     requestAnimationFrame(animationLoop);
     try {
-      const [catalog, snapshot] = await Promise.all([api("/api/catalog"), api("/api/state")]);
+      const [catalog, snapshot] = await Promise.all([api(ENDPOINTS.catalog), api(ENDPOINTS.state)]);
       state.catalog = catalog.catalog;
       state.templates = catalog.templates || [];
       state.mode = snapshot.scene?.mode || "signal";

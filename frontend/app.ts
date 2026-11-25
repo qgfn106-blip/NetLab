@@ -1,4 +1,5 @@
 import { fmt, intText, clamp, hashString, baseName } from './app.utils.js';
+import { ENDPOINTS } from './app/endpoints.js';
 import {
   CANVAS_LIGHT, CANVAS_DARK,
   CHART_PALETTE_HC_LIGHT, CHART_PALETTE_HC_DARK,
@@ -983,7 +984,7 @@ function setStatusHint(hint: string): void {
         const edgeItem = edgeById(edgeId);
         if (!edgeItem) continue;
         await task(
-          () => jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, 'PATCH', { waypoints: edgeItem.waypoints || [] }),
+          () => jsonRequest(ENDPOINTS.edge(edgeId), 'PATCH', { waypoints: edgeItem.waypoints || [] }),
           { history: false },
         );
       }
@@ -1067,7 +1068,7 @@ function setStatusHint(hint: string): void {
 
   async function convertNodeToGround(nodeId: string) {
     try {
-      await jsonRequest(`/api/nodes/${encodeURIComponent(nodeId)}`, 'PATCH', {
+      await jsonRequest(ENDPOINTS.node(nodeId), 'PATCH', {
         kind: 'ground',
         params: {},
         data: {},
@@ -1410,7 +1411,7 @@ function setStatusHint(hint: string): void {
     state.dirtyPositions.clear();
     if (!items.length) return;
     try {
-      await jsonRequest('/api/positions', 'POST', { positions: items });
+      await jsonRequest(ENDPOINTS.positions, 'POST', { positions: items });
     } catch (error) {
       toast(`保存坐标失败：${(error as Error).message}`, 'error', 6000);
       await refreshState(true);
@@ -1419,7 +1420,7 @@ function setStatusHint(hint: string): void {
 
   async function patchNodeGeometry(nodeId: string, payload: Record<string, unknown>) {
     const response = await task(() =>
-      jsonRequest(`/api/nodes/${encodeURIComponent(nodeId)}`, 'PATCH', payload),
+      jsonRequest(ENDPOINTS.node(nodeId), 'PATCH', payload),
     );
     if (!response) return;
     await refreshState(true);
@@ -1434,7 +1435,7 @@ function setStatusHint(hint: string): void {
       ? { port_name: String(portName).slice(0, 24), port_direction: direction || 'inout' }
       : {};
     const response = await task(() =>
-      jsonRequest(`/api/nodes/${encodeURIComponent(nodeId)}`, 'PATCH', {
+      jsonRequest(ENDPOINTS.node(nodeId), 'PATCH', {
         name: node.name,
         kind: node.kind,
         params,
@@ -1448,7 +1449,7 @@ function setStatusHint(hint: string): void {
 
   async function patchEdgeGeometry(edgeId: string, payload: Record<string, unknown>) {
     const response = await task(() =>
-      jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, 'PATCH', payload),
+      jsonRequest(ENDPOINTS.edge(edgeId), 'PATCH', payload),
     );
     if (!response) return;
     await refreshState(true);
@@ -1567,7 +1568,7 @@ function setStatusHint(hint: string): void {
     const want = Boolean(visible);
     if (want !== state.plotkitActive) {
       state.plotkitActive = want;
-      api('/api/plotkit/active', {
+      api(ENDPOINTS.plotkitActive, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ active: want }),
@@ -2004,7 +2005,7 @@ function setStatusHint(hint: string): void {
         },
         size: node.size || {},
       };
-      const response = await task(() => jsonRequest('/api/nodes', 'POST', payload), { history: false });
+      const response = await task(() => jsonRequest(ENDPOINTS.nodes, 'POST', payload), { history: false });
       if (!response?.node) continue;
       idMap.set(node.id, response.node.id);
       pastedNodeIds.push(response.node.id);
@@ -2015,7 +2016,7 @@ function setStatusHint(hint: string): void {
       const target = idMap.get(edge.target);
       if (!source || !target) continue;
       const response = await task(
-        () => jsonRequest('/api/edges', 'POST', {
+        () => jsonRequest(ENDPOINTS.edges, 'POST', {
           source,
           target,
           kind: edge.kind,
@@ -2055,8 +2056,8 @@ function setStatusHint(hint: string): void {
     const current = await captureSceneSnapshot();
     // 库文件（blocks）用当前值：撤销不得复活已删除的库模块（D25）。
     const merged = { ...payload, blocks: current?.blocks || [] };
-    await jsonRequest('/api/control', 'POST', { action: 'pause' });
-    const response = await jsonRequest('/api/scene', 'POST', merged);
+    await jsonRequest(ENDPOINTS.control, 'POST', { action: 'pause' });
+    const response = await jsonRequest(ENDPOINTS.scene, 'POST', merged);
     if (!response?.scene) return;
     clearSelection();
     applySnapshot(response);
@@ -2143,7 +2144,7 @@ function setStatusHint(hint: string): void {
       return { id: node!.id, position: { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 } };
     });
     try {
-      await jsonRequest('/api/positions', 'POST', { positions });
+      await jsonRequest(ENDPOINTS.positions, 'POST', { positions });
       await refreshState(true);
       toast(`已对齐 ${targets.length} 个节点（${mode}）`, 'ok', 2200);
     } catch (error) {
@@ -2172,7 +2173,7 @@ function setStatusHint(hint: string): void {
       return { id: node!.id, position: { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 } };
     });
     try {
-      await jsonRequest('/api/positions', 'POST', { positions });
+      await jsonRequest(ENDPOINTS.positions, 'POST', { positions });
       await refreshState(true);
       toast(`已等距分布 ${targets.length} 个节点（${axis === 'y' ? '纵向' : '横向'}）`, 'ok', 2200);
     } catch (error) {
@@ -2220,7 +2221,7 @@ function setStatusHint(hint: string): void {
     const y = (source.position!.y + target.position!.y) / 2;
     const waypoints = [...(edge.waypoints || []), { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 }];
     try {
-      await jsonRequest(`/api/edges/${encodeURIComponent(edge.id)}`, 'PATCH', {
+      await jsonRequest(ENDPOINTS.edge(edge.id), 'PATCH', {
         route: 'manual',
         waypoints,
       });
@@ -2236,7 +2237,7 @@ function setStatusHint(hint: string): void {
 
   async function clearWireWaypoints(edgeId: string) {
     try {
-      await jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, 'PATCH', {
+      await jsonRequest(ENDPOINTS.edge(edgeId), 'PATCH', {
         route: 'auto',
         waypoints: [],
       });
@@ -2268,7 +2269,7 @@ function setStatusHint(hint: string): void {
     for (const node of targets) {
       if (node!.kind === 'ground') continue;
       try {
-        await jsonRequest(`/api/nodes/${encodeURIComponent(node!.id)}`, 'PATCH', {
+        await jsonRequest(ENDPOINTS.node(node!.id), 'PATCH', {
           size: { w: Math.round(width) },
         });
         done += 1;
@@ -2304,7 +2305,7 @@ function setStatusHint(hint: string): void {
         y: clamp(Math.round(snapped.y), -10000, 10000),
       },
     };
-    const response = await task(() => jsonRequest('/api/nodes', 'POST', payload));
+    const response = await task(() => jsonRequest(ENDPOINTS.nodes, 'POST', payload));
     if (!response) return;
     applySnapshot(response);
     await selectEntity('node', response.node.id, true);
@@ -2336,7 +2337,7 @@ function setStatusHint(hint: string): void {
         y: clamp(Math.round(snapped.y), -10000, 10000),
       },
     };
-    const response = await task(() => jsonRequest('/api/nodes', 'POST', payload));
+    const response = await task(() => jsonRequest(ENDPOINTS.nodes, 'POST', payload));
     if (!response) return;
     applySnapshot(response);
     await selectEntity('node', response.node.id, true);
@@ -2381,7 +2382,7 @@ function setStatusHint(hint: string): void {
     };
     if (isPinNode(source)) body.source_pin = pinFor(source, ((sourcePin)));
     if (isPinNode(target)) body.target_pin = pinFor(target, ((targetPin)));
-    const response = await task(() => jsonRequest('/api/edges', 'POST', body));
+    const response = await task(() => jsonRequest(ENDPOINTS.edges, 'POST', body));
     if (!response) return;
     applySnapshot(response);
     if (response.edge) {
@@ -2492,7 +2493,7 @@ function setStatusHint(hint: string): void {
       auto_delay: false,
     };
     if (state.mode === 'circuit' && state.ui?.circuitOrthogonal !== false) body.route = 'orthogonal';
-    const response = await task(() => jsonRequest('/api/edges', 'POST', body));
+    const response = await task(() => jsonRequest(ENDPOINTS.edges, 'POST', body));
     if (!response) return;
     applySnapshot(response);
     if (response.edge) {
@@ -2506,7 +2507,7 @@ function setStatusHint(hint: string): void {
   async function toggleEdgeDelay(edgeId: string) {
     const edge = edgeById(edgeId);
     if (!edge) return;
-    const response = await task(() => jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, 'PATCH', { delay: !edge.delay }));
+    const response = await task(() => jsonRequest(ENDPOINTS.edge(edgeId), 'PATCH', { delay: !edge.delay }));
     if (!response) return;
     const index = state.scene!.edges.findIndex((item) => item.id === edgeId);
     if (index >= 0) state.scene!.edges[index] = response.edge;
@@ -2530,7 +2531,7 @@ function setStatusHint(hint: string): void {
       true,
     );
     if (!confirmed) return;
-    const response = await task(() => jsonRequest(`/api/nodes/${encodeURIComponent(nodeId)}`, 'DELETE'));
+    const response = await task(() => jsonRequest(ENDPOINTS.node(nodeId), 'DELETE'));
     if (!response) return;
     if (state.selection.type === 'node' && state.selection.id === nodeId) {
       state.selection = { type: null, id: null };
@@ -2551,7 +2552,7 @@ function setStatusHint(hint: string): void {
       true,
     );
     if (!confirmed) return;
-    const response = await task(() => jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, 'DELETE'));
+    const response = await task(() => jsonRequest(ENDPOINTS.edge(edgeId), 'DELETE'));
     if (!response) return;
     if (state.selection.type === 'edge' && state.selection.id === edgeId) {
       state.selection = { type: null, id: null };
@@ -2570,7 +2571,7 @@ function setStatusHint(hint: string): void {
     for (const edgeId of edges) {
       if (!edgeById(edgeId)) continue;
       const response = await task(
-        () => jsonRequest(`/api/edges/${encodeURIComponent(edgeId)}`, 'DELETE'),
+        () => jsonRequest(ENDPOINTS.edge(edgeId), 'DELETE'),
         { history: false },
       );
       if (response) {
@@ -2581,7 +2582,7 @@ function setStatusHint(hint: string): void {
     for (const nodeId of nodes) {
       if (!nodeById(nodeId)) continue;
       const response = await task(
-        () => jsonRequest(`/api/nodes/${encodeURIComponent(nodeId)}`, 'DELETE'),
+        () => jsonRequest(ENDPOINTS.node(nodeId), 'DELETE'),
         { history: false },
       );
       if (response) {
@@ -2651,7 +2652,7 @@ function setStatusHint(hint: string): void {
         id: node.id,
         position: { x: Number(node.position!.x.toFixed(3)), y: Number(node.position!.y.toFixed(3)) },
       }));
-      await jsonRequest('/api/positions', 'POST', { positions: items });
+      await jsonRequest(ENDPOINTS.positions, 'POST', { positions: items });
       fitView();
       toast('已按信号流向重新布局', 'ok', 1800);
     } catch (error) {
@@ -2700,7 +2701,7 @@ function setStatusHint(hint: string): void {
     try {
       const previousCursor = state.cursor;
       const previousSteps = Number(sim.steps || 0);
-      const data = await api(`/api/live?cursor=${state.cursor}&limit=600`);
+      const data = await api(ENDPOINTS.live(state.cursor, 600));
       const resetDetected = Boolean(
         data.sim
         && (Number(data.cursor || 0) < previousCursor || Number(data.sim.steps || 0) < previousSteps),
@@ -2759,7 +2760,7 @@ function setStatusHint(hint: string): void {
     if (state.drag) return;
     state.stateBusy = true;
     try {
-      const snapshot = await api('/api/state');
+      const snapshot = await api(ENDPOINTS.state);
       state.lastStateFetch = performance.now();
       applySnapshot(snapshot);
     } catch (error) {
@@ -2809,7 +2810,7 @@ function setStatusHint(hint: string): void {
   async function networkControl(action: string, steps?: number) {
     const body: { action: string; steps?: number } = { action };
     if (steps !== undefined) body.steps = steps;
-    const response = await task(() => jsonRequest('/api/control', 'POST', body), { dirty: false });
+    const response = await task(() => jsonRequest(ENDPOINTS.control, 'POST', body), { dirty: false });
     if (!response) return;
     state.sim = response.sim;
     if (action === 'reset') {
@@ -2850,7 +2851,7 @@ function setStatusHint(hint: string): void {
 
   async function runSolveWindowPrecompute(seconds: number, dt: number | null = null, interp: { interpolation_method: string; interpolation_rounds: number; interpolation_window: number | null } | null = null) {
     const response: any = await runPrecomputeWithProgress(
-      () => api('/api/solve-window', {
+      () => api(ENDPOINTS.solveWindow, {
         method: 'POST',
         body: JSON.stringify({ duration: seconds, ...(dt ? { dt } : {}), ...(interp || {}) }),
         timeoutMs: 180000,
@@ -2888,7 +2889,7 @@ function setStatusHint(hint: string): void {
 
   async function runPlotkitPrecompute(seconds: number, dt: number | null = null) {
     const pre = await runPrecomputeWithProgress(
-      () => api('/api/plotkit/precompute', {
+      () => api(ENDPOINTS.plotkitPrecompute, {
         method: 'POST',
         body: JSON.stringify(dt ? { seconds, dt } : { seconds }),
         timeoutMs: 180000,
@@ -2919,7 +2920,7 @@ function setStatusHint(hint: string): void {
       const label = `预计算 ${row?.name || id}…`;
       try {
         const result = (await runPrecomputeWithProgress(
-          () => api('/api/network/state/precompute', {
+          () => api(ENDPOINTS.networkStatePrecompute, {
             method: 'POST',
             body: JSON.stringify(dt ? { state_id: id, seconds, dt } : { state_id: id, seconds }),
             timeoutMs: 600000,
@@ -3053,7 +3054,7 @@ function setStatusHint(hint: string): void {
     }
     // 浏览器模式：统一走 api() 助手，自动附带桌面会话 token（X-Netlab-Token）。
     try {
-      await api('/api/shutdown', {
+      await api(ENDPOINTS.shutdown, {
         method: 'POST',
         body: JSON.stringify({ confirm: true }),
         timeoutMs: 2500,
@@ -3297,7 +3298,7 @@ function setStatusHint(hint: string): void {
 
   async function fetchNetworks(silent = true) {
     try {
-      const response = await jsonRequest('/api/networks', 'GET');
+      const response = await jsonRequest(ENDPOINTS.networks, 'GET');
       state.networks = response.networks || [];
       state.currentNetwork = state.networks.find((item) => item.current) || state.networks[0] || null;
       renderNetworkList();
@@ -3425,7 +3426,7 @@ function setStatusHint(hint: string): void {
   async function switchNetwork(networkId: string) {
     if (!networkId || networkId === state.currentNetwork?.id) return;
     const response = await task(() =>
-      jsonRequest(`/api/networks/${encodeURIComponent(networkId)}/activate`, 'POST', {}),
+      jsonRequest(ENDPOINTS.networkActivate(networkId), 'POST', {}),
     );
     if (!response || !response.scene) return;
     state.selection = { type: null, id: null };
@@ -3449,7 +3450,7 @@ function setStatusHint(hint: string): void {
     if (!choice) return;
     const payload: Record<string, unknown> = { mode: choice.mode };
     if (choice.name) payload.name = choice.name;
-    const response = await task(() => jsonRequest('/api/networks', 'POST', payload));
+    const response = await task(() => jsonRequest(ENDPOINTS.networks, 'POST', payload));
     if (!response) return;
     await fetchNetworks();
     const created = String(response.created || '');
@@ -3465,7 +3466,7 @@ function setStatusHint(hint: string): void {
     const proposed = window.prompt('网络名称（最长 60 字）', item?.name || '');
     if (proposed === null) return;
     const response = await task(() =>
-      jsonRequest(`/api/networks/${encodeURIComponent(networkId)}`, 'PATCH', { name: proposed }),
+      jsonRequest(ENDPOINTS.network(networkId), 'PATCH', { name: proposed }),
     );
     if (!response) return;
     await fetchNetworks();
@@ -3487,11 +3488,11 @@ function setStatusHint(hint: string): void {
     );
     if (!confirmed) return;
     const response = await task(() =>
-      jsonRequest(`/api/networks/${encodeURIComponent(network.id)}`, 'DELETE'),
+      jsonRequest(ENDPOINTS.network(network.id), 'DELETE'),
     );
     if (!response) return;
     await fetchNetworks();
-    const snapshot = await api('/api/state');
+    const snapshot = await api(ENDPOINTS.state);
     applySnapshot(snapshot);
     toast('网络已删除', 'ok', 2200);
   }
@@ -3615,11 +3616,11 @@ function setStatusHint(hint: string): void {
     await pushUndoSnapshot();
     for (const node of nodes) {
       const position = { x: snapValue(Number(node.position!.x) || 0), y: snapValue(Number(node.position!.y) || 0) };
-      await task(() => jsonRequest(`/api/nodes/${encodeURIComponent(node.id)}`, 'PATCH', { position }), { history: false });
+      await task(() => jsonRequest(ENDPOINTS.node(node.id), 'PATCH', { position }), { history: false });
     }
     for (const edge of edges) {
       const waypoints = (edge.waypoints || []).map((point: { x: number; y: number }) => ({ x: snapValue(point.x), y: snapValue(point.y) }));
-      await task(() => jsonRequest(`/api/edges/${encodeURIComponent(edge.id)}`, 'PATCH', { waypoints }), { history: false });
+      await task(() => jsonRequest(ENDPOINTS.edge(edge.id), 'PATCH', { waypoints }), { history: false });
     }
     await refreshState(true);
     toast(`已整理 ${nodes.length} 个节点、${edges.length} 条连线到 ${grid} 网格`, 'ok', 2600);
@@ -3673,7 +3674,7 @@ function setStatusHint(hint: string): void {
 
 
   async function refreshBlocks() {
-    const response = await task(() => jsonRequest('/api/blocks', 'GET'), { dirty: false });
+    const response = await task(() => jsonRequest(ENDPOINTS.blocks, 'GET'), { dirty: false });
     if (!response) return;
     state.blocks = response.blocks || [];
     state.blocksLibrary = response.library || '';
@@ -3683,7 +3684,7 @@ function setStatusHint(hint: string): void {
   async function instantiateBlockFromLibrary(blockId: string) {
     const place = centerPlacement();
     const response = await task(() =>
-      jsonRequest('/api/blocks/instantiate', 'POST', {
+      jsonRequest(ENDPOINTS.blockInstantiate, 'POST', {
         block_id: blockId,
         position: { x: Math.round(place.x), y: Math.round(place.y) },
       }),
@@ -3716,7 +3717,7 @@ function setStatusHint(hint: string): void {
     if (proposed === null) return;
     let response = null;
     try {
-      response = await jsonRequest('/api/blocks/encapsulate', 'POST', {
+      response = await jsonRequest(ENDPOINTS.blockEncapsulate, 'POST', {
         node_ids: nodes,
         name: proposed,
         model: state.blocksStructural ? 'structural' : 'behavioral',
@@ -3736,7 +3737,7 @@ function setStatusHint(hint: string): void {
   }
 
   async function retryDegradedProject() {
-    const response = await task(() => jsonRequest('/api/project/retry', 'POST', {}));
+    const response = await task(() => jsonRequest(ENDPOINTS.projectRetry, 'POST', {}));
     if (!response) return;
     applySnapshot({ scene: response.scene, sim: response.sim, limits: (state.limits as LimitsRec | undefined) });
     if (response.degraded) {
@@ -3772,7 +3773,7 @@ function setStatusHint(hint: string): void {
       const rect = graph.getBoundingClientRect();
       const world = screenToWorld(event.clientX - rect.left, event.clientY - rect.top);
       const response = await task(() =>
-        jsonRequest('/api/blocks/instantiate', 'POST', {
+        jsonRequest(ENDPOINTS.blockInstantiate, 'POST', {
           block_id: blockId,
           position: { x: Math.round(world.x), y: Math.round(world.y) },
         }),
@@ -3788,7 +3789,7 @@ function setStatusHint(hint: string): void {
 
   async function openBlockInternal(blockId: string) {
     const response = await task(() =>
-      jsonRequest(`/api/blocks/${encodeURIComponent(blockId)}/open-internal`, 'POST', {}),
+      jsonRequest(ENDPOINTS.blockOpenInternal(blockId), 'POST', {}),
     );
     if (!response) return false;
     applySnapshot({ scene: response.scene, sim: response.sim, limits: (state.limits as LimitsRec | undefined) });
@@ -3875,7 +3876,7 @@ function setStatusHint(hint: string): void {
       let target = block;
       if (!target) {
         const response = await task(
-          () => jsonRequest(`/api/blocks/${encodeURIComponent(blockId)}`, 'GET'),
+          () => jsonRequest(ENDPOINTS.block(blockId), 'GET'),
           { dirty: false },
         );
         if (!response?.block) return;
@@ -3960,7 +3961,7 @@ function setStatusHint(hint: string): void {
     const proposed = window.prompt('副本模块名称（新 id，v1）', `${state.currentNetwork?.name || '模块'}-copy`);
     if (proposed === null) return;
     const response = await task(() =>
-      jsonRequest('/api/blocks/save-copy', 'POST', { name: proposed }),
+      jsonRequest(ENDPOINTS.blockSaveCopy, 'POST', { name: proposed }),
     );
     if (!response) return;
     await refreshBlocks();
@@ -3980,7 +3981,7 @@ function setStatusHint(hint: string): void {
         const payload = JSON.parse(text);
         // R04：先校验再导入；阻断级直接拒绝，警告级需确认。
         const report = await task(
-          () => jsonRequest('/api/blocks/validate', 'POST', { payload }),
+          () => jsonRequest(ENDPOINTS.blockValidate, 'POST', { payload }),
           { dirty: false },
         );
         if (!report) return;
@@ -4004,7 +4005,7 @@ function setStatusHint(hint: string): void {
           if (!proceed) return;
         }
         const response = await task(() =>
-          jsonRequest('/api/blocks/import', 'POST', { payload }),
+          jsonRequest(ENDPOINTS.blockImport, 'POST', { payload }),
         );
         if (!response) return;
         await refreshBlocks();
@@ -4152,7 +4153,7 @@ function setStatusHint(hint: string): void {
     timeoutInput.step = '0.5';
     timeoutInput.value = String(state.sim?.config?.step_timeout_ms ?? 0);
     const apply = button('应用单步上限', 'btn tiny', async () => {
-      const response = await task(() => jsonRequest('/api/config', 'PATCH', { step_timeout_ms: Number(timeoutInput.value) || 0 }));
+      const response = await task(() => jsonRequest(ENDPOINTS.config, 'PATCH', { step_timeout_ms: Number(timeoutInput.value) || 0 }));
       if (response) toast('单步超时已更新（0=关闭）', 'ok', 2400);
     });
     const perfRow = div('field-row');
@@ -4165,7 +4166,7 @@ function setStatusHint(hint: string): void {
     profileButtons.append(
       el('label', null, '计时开关'), profileToggle,
       button('应用', 'btn tiny', async () => {
-        const response = await task(() => jsonRequest('/api/profile', 'PATCH', {
+        const response = await task(() => jsonRequest(ENDPOINTS.profile, 'PATCH', {
           enabled: Boolean(profileToggle.checked),
         }));
         if (response) {
@@ -4174,7 +4175,7 @@ function setStatusHint(hint: string): void {
         }
       }),
       button('清空', 'btn tiny', async () => {
-        const response = await task(() => jsonRequest('/api/profile', 'PATCH', { reset: true }));
+        const response = await task(() => jsonRequest(ENDPOINTS.profile, 'PATCH', { reset: true }));
         if (response) toast('性能采样已清空', 'ok', 2000);
       }),
     );
@@ -4184,7 +4185,7 @@ function setStatusHint(hint: string): void {
     profileOut.textContent = '点击刷新读取 /api/profile（默认关闭，开销可忽略）';
     perf.appendChild(
       button('刷新性能', 'btn tiny', async () => {
-        const response = await task(() => jsonRequest('/api/profile?top=20', 'GET'), { dirty: false });
+        const response = await task(() => jsonRequest(ENDPOINTS.profileTop(20), 'GET'), { dirty: false });
         if (!response) return;
         profileToggle.checked = Boolean(response.enabled);
         const rows = (response.entries || []).map(
@@ -4246,7 +4247,7 @@ function setStatusHint(hint: string): void {
 
   async function loadUiProfile() {
     try {
-      const response = await jsonRequest('/api/ui', 'GET');
+      const response = await jsonRequest(ENDPOINTS.ui, 'GET');
       if (response?.current) applyUiTokens(response.current.tokens, response.current.mode);
     } catch {
       // 旧工程/离线模式没有 UI 配置时保持默认主题
@@ -4268,7 +4269,7 @@ function setStatusHint(hint: string): void {
       nodes: items.filter((item) => item.kind === 'node').map((item) => ({ id: item.id, appearance: item.appearance ?? {} })),
       edges: items.filter((item) => item.kind === 'edge').map((item) => ({ id: item.id, appearance: item.appearance ?? {} })),
     };
-    const response = await task(() => jsonRequest('/api/scene/appearance', 'PATCH', payload));
+    const response = await task(() => jsonRequest(ENDPOINTS.sceneAppearance, 'PATCH', payload));
     if (!response) return;
     renderInspector();
   }
@@ -4279,7 +4280,7 @@ function setStatusHint(hint: string): void {
 
   async function openViewDesigner() {
     try {
-      const response = await jsonRequest('/api/ui', 'GET');
+      const response = await jsonRequest(ENDPOINTS.ui, 'GET');
       if (!response) return;
       let current = response.current || response.defaults;
       state.ui.cardDetail = current.node?.show_detail !== false;
@@ -4412,7 +4413,7 @@ function setStatusHint(hint: string): void {
       );
       const actions = div('modal-actions');
       actions.appendChild(button('应用并保存', 'btn primary', async () => {
-        const saved = await jsonRequest('/api/ui', 'POST', current);
+        const saved = await jsonRequest(ENDPOINTS.ui, 'POST', current);
         if (saved?.current) applyUiTokens(saved.current.tokens, saved.current.mode);
         toast('视图设计已保存', 'success');
         ui.modal.classList.add('hidden');
@@ -4431,7 +4432,7 @@ function setStatusHint(hint: string): void {
 
   async function openPluginManager() {
     const render = async () => {
-      const response = await jsonRequest('/api/plugins', 'GET');
+      const response = await jsonRequest(ENDPOINTS.plugins, 'GET');
       if (!response) return;
       const plugins = response.plugins || [];
       const list = div('plugin-list');
@@ -4448,11 +4449,11 @@ function setStatusHint(hint: string): void {
         if (plugin.error) row.appendChild(div('plugin-error', plugin.error));
         const actions = div('modal-actions');
         actions.appendChild(button(plugin.status === 'loaded' ? '禁用' : '启用', 'btn tiny', async () => {
-          await jsonRequest(`/api/plugins/${encodeURIComponent(plugin.id)}/enable`, 'POST', { enabled: plugin.status !== 'loaded' });
+          await jsonRequest(ENDPOINTS.pluginEnable(plugin.id), 'POST', { enabled: plugin.status !== 'loaded' });
           await render();
         }));
         actions.appendChild(button('重新加载', 'btn tiny', async () => {
-          await jsonRequest(`/api/plugins/${encodeURIComponent(plugin.id)}/reload`, 'POST', {});
+          await jsonRequest(ENDPOINTS.pluginReload(plugin.id), 'POST', {});
           await render();
         }));
         row.appendChild(actions);
@@ -4466,7 +4467,7 @@ function setStatusHint(hint: string): void {
       );
       const footer = div('modal-actions');
       footer.appendChild(button('扫描插件目录', 'btn', async () => {
-        await jsonRequest('/api/plugins/scan', 'POST', {});
+        await jsonRequest(ENDPOINTS.pluginScan, 'POST', {});
         await render();
       }));
       footer.appendChild(button('关闭', 'btn', () => {
@@ -4486,7 +4487,7 @@ function setStatusHint(hint: string): void {
   async function compareBuiltinBlock(spec: BlockItem) {
     try {
       const result = await jsonRequest(
-        `/api/blocks/${encodeURIComponent((spec.id as string | number | boolean))}/compare`,
+        ENDPOINTS.blockCompare(spec.id),
         'POST',
         { duration: 0.02, dt: 0.001 },
       );
@@ -4652,7 +4653,7 @@ function setStatusHint(hint: string): void {
     }
     const run = async (force: boolean) => {
       const body = await jsonRequest(
-        `/api/blocks/${encodeURIComponent((spec.id as string | number | boolean))}/rename`,
+        ENDPOINTS.blockRename(spec.id),
         'POST',
         { name, force },
       );
@@ -4684,7 +4685,7 @@ function setStatusHint(hint: string): void {
     }
     const run = async (force: boolean) => {
       const body = await jsonRequest(
-        `/api/blocks/${encodeURIComponent((spec.id as string | number | boolean))}/delete`,
+        ENDPOINTS.blockDelete(spec.id),
         'POST',
         { version: spec.version, force },
       );
@@ -5176,7 +5177,7 @@ function setStatusHint(hint: string): void {
     requestAnimationFrame(animationLoop);
 
     try {
-      const [catalog, snapshot] = await Promise.all([api('/api/catalog'), api('/api/state')]);
+      const [catalog, snapshot] = await Promise.all([api(ENDPOINTS.catalog), api(ENDPOINTS.state)]);
       state.catalog = catalog.catalog;
       state.templates = catalog.templates || [];
       state.mode = snapshot.scene?.mode || 'signal';

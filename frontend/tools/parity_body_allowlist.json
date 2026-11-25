@@ -76,7 +76,6 @@
     "runCircuitBypass"
   ],
   "uncovered_files": [
-    "app.ts",
     "desktop-shim.ts"
   ]
 }

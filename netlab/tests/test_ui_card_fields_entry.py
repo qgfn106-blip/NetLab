@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from netlab.tests.frontend_sources import read_frontend_ts
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -46,7 +48,7 @@ def test_backend_ui_profile_validates_card_fields() -> None:
 
 
 def test_card_fields_wired_through_frontend() -> None:
-    app_ts = _read("frontend/app.ts")
+    app_ts = read_frontend_ts()
     canvas = _read("frontend/app/canvas_nodes.ts")
     project = _read("frontend/app/project.ts")
     types = _read("frontend/app/types.ts")

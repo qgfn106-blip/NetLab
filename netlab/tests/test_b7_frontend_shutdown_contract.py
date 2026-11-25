@@ -2,6 +2,8 @@
 from __future__ import annotations
 import os
 
+from netlab.tests.frontend_sources import read_frontend_ts
+
 
 def _read(rel: str) -> str:
     root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -10,7 +12,7 @@ def _read(rel: str) -> str:
 
 
 def test_app_ts_shutdown_uses_api_helper_and_desktop_close():
-    src = _read("frontend/app.ts")
+    src = read_frontend_ts()
     # 不再有裸 fetch('/api/shutdown')
     assert "fetch('/api/shutdown'" not in src
     assert 'fetch("/api/shutdown"' not in src

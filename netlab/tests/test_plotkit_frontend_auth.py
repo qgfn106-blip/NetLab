@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from netlab import server
 from netlab.core.model.templates import build_template
 from netlab.server import SERVICE, app
+from netlab.tests.frontend_sources import read_frontend_ts
 
 ROOT = Path(__file__).resolve().parents[1]
 APP_JS = ROOT.parent / "frontend" / "app.ts"
@@ -15,7 +16,7 @@ APP_ENDPOINTS = ROOT.parent / "frontend" / "app" / "endpoints.ts"
 
 
 def test_run_warning_precompute_uses_token_aware_helper():
-    source = APP_JS.read_text(encoding="utf-8")
+    source = read_frontend_ts()
     start = source.index("async function runPlotkitPrecompute(")
     handler = source[start : start + 1800]
     assert "api(ENDPOINTS.plotkitPrecompute" in handler

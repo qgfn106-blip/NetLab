@@ -1,6 +1,8 @@
 """D11 前端入口护栏：电路分析统一工作台，旧 Canvas 分析图已退役。"""
 from pathlib import Path
 
+from netlab.tests.frontend_sources import read_frontend_ts
+
 FRONTEND = Path(__file__).resolve().parents[2] / "frontend"
 
 
@@ -34,16 +36,7 @@ def test_index_no_legacy_canvas_controls() -> None:
 
 
 def test_app_calls_workbench_endpoints() -> None:
-    js = "\n".join(
-        _read(name)
-        for name in (
-            "app.ts",
-            "app/ac_analysis.ts",
-            "app/analysis_client.ts",
-            "app/analysis_workbench.ts",
-            "app/analysis_chart.ts",
-        )
-    )
+    js = read_frontend_ts()
     for endpoint in (
         "/api/operating-point",
         "/api/analysis/tf",

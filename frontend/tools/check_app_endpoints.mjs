@@ -8,6 +8,14 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const APP = path.resolve(here, '../app.ts');
 const SNAPSHOT = path.resolve(here, 'app_endpoint_snapshot.json');
+const EXTRA_SOURCES = [
+  path.resolve(here, '../app/analysis_workbench_panel.ts'),
+  path.resolve(here, '../app/analysis_workbench_chart.ts'),
+];
+
+export function readAppSources() {
+  return [APP, ...EXTRA_SOURCES].map((p) => fs.readFileSync(p, 'utf8')).join('\n');
+}
 
 export function extractEndpoints(source) {
   // 先把模板表达式统一替换成占位符，避免其中空白/引号截断正则。
@@ -37,7 +45,7 @@ export function diffEndpoints(actual, expected) {
 
 const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invokedDirectly) {
-  const actual = extractEndpoints(fs.readFileSync(APP, 'utf8'));
+  const actual = extractEndpoints(readAppSources());
   if (process.argv.includes('--write')) {
     fs.writeFileSync(SNAPSHOT, JSON.stringify({ version: 1, source: 'frontend/app.ts', note: 'P3-06/P1-02 前端 endpoint 契约快照；app.ts 拆分时必须保持不变', paths: actual }, null, 2) + '\n');
     console.log('WROTE: ' + actual.length + ' endpoints');

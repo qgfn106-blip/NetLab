@@ -1,9 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import { extractEndpoints, loadSnapshot, diffEndpoints } from '../tools/check_app_endpoints.mjs';
+import { extractEndpoints, loadSnapshot, diffEndpoints, readAppSources } from '../tools/check_app_endpoints.mjs';
 
-const source = fs.readFileSync(new URL('../app.ts', import.meta.url), 'utf8');
+const source = readAppSources();
 
 test('app.ts endpoint set matches committed snapshot', () => {
   const actual = extractEndpoints(source);

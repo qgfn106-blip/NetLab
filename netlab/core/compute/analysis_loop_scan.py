@@ -566,4 +566,3 @@ def _virtual_loop_analysis(
         "transfer_role": "closed_loop",
     }
 
-

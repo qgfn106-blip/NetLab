@@ -102,7 +102,8 @@ def test_save_text_is_exposed_to_the_desktop_shim():
 
 def test_desktop_export_prefers_the_bridge_over_blob_download():
     """app.ts 的导出必须先尝试原生保存，浏览器才退回 blob。"""
-    app = (Path(__file__).resolve().parents[2] / "frontend" / "app.ts").read_text(encoding="utf-8")
+    base = Path(__file__).resolve().parents[2] / "frontend"
+    app = base.joinpath("app.ts").read_text(encoding="utf-8") + base.joinpath("app", "scene_actions.ts").read_text(encoding="utf-8")
     assert "callBridge('saveText', [defaultName, text])" in app
     assert app.count("if (await saveTextViaDesktop(") == 2
     assert "原理图 SVG 已导出" not in app

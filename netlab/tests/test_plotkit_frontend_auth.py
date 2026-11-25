@@ -11,13 +11,15 @@ from netlab.server import SERVICE, app
 ROOT = Path(__file__).resolve().parents[1]
 APP_JS = ROOT.parent / "frontend" / "app.ts"
 APP_PLOTKIT_DATA = ROOT.parent / "frontend" / "app" / "plotkit_data.ts"
+APP_ENDPOINTS = ROOT.parent / "frontend" / "app" / "endpoints.ts"
 
 
 def test_run_warning_precompute_uses_token_aware_helper():
     source = APP_JS.read_text(encoding="utf-8")
     start = source.index("async function runPlotkitPrecompute(")
     handler = source[start : start + 1800]
-    assert "api('/api/plotkit/precompute'" in handler
+    assert "api(ENDPOINTS.plotkitPrecompute" in handler
+    assert "plotkitPrecompute: '/api/plotkit/precompute'" in APP_ENDPOINTS.read_text(encoding="utf-8")
     assert "catch (error)" in source
     assert ".message" in source
 

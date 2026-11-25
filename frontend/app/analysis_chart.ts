@@ -14,7 +14,6 @@ import {
   asNumber,
   axisAt,
   categoryLabel,
-  clampRange,
   drawNyquistDirections,
   escapeDetailHtml,
   fmtDetail,
@@ -25,6 +24,8 @@ import {
   renderAnalysisDetail,
   zoomRange,
 } from './analysis_chart_detail.js';
+import { axisMap, clampRange, logSafeRange, overridesFromView, paddedRange, panelCount, panelFor } from './analysis_chart_model.js';
+import { boxSelectionRange, nearestCurve, nearestMarker } from './analysis_chart_interaction.js';
 import { loadPlot2D, type Plot2DApi, type PlotAxis, type PlotRenderResult } from './analysis_chart_plot.js';
 import { chartXAxisKey, chartXUnit, cursorAxisCompatible } from './analysis_chart_utils.js';
 import {
@@ -68,19 +69,6 @@ export interface AnalysisChartOptions {
   appearance?: unknown;
 }
 
-
-function paddedRange(lo: number, hi: number, fraction = 0.05): [number, number] {
-  const [a, b] = clampRange(lo, hi);
-  const span = b - a;
-  return [a - span * fraction, b + span * fraction];
-}
-
-function logSafeRange(lo: number, hi: number): [number, number] {
-  if (!(lo > 0) || !(hi > 0)) return [1, 10];
-  const la = Math.log10(lo) - 0.02;
-  const lb = Math.log10(hi) + 0.02;
-  return [Math.pow(10, la), Math.pow(10, lb)];
-}
 
 export class AnalysisChart {
   private readonly host: HTMLElement;
@@ -323,8 +311,8 @@ export class AnalysisChart {
   }
 
   private baseView(envelope: AnalysisEnvelope): ChartView {
-    const axes = this.axisMap(envelope);
-    const panels = this.panelCount(envelope);
+    const axes = axisMap(envelope);
+    const panels = panelCount(envelope);
     const ylimits: Record<number, [number, number]> = {};
     let xMin = Infinity;
     let xMax = -Infinity;
@@ -333,7 +321,7 @@ export class AnalysisChart {
       const xAxis = axes.get(curve.axes[0]);
       const yAxis = axes.get(curve.axes[1]);
       if (!xAxis || !yAxis) continue;
-      const slot = this.panelFor(envelope, curve.axes[1]);
+      const slot = panelFor(envelope, curve.axes[1]);
       for (const value of curve.x) {
         if (Number.isFinite(value)) {
           xMin = Math.min(xMin, value);
@@ -349,7 +337,7 @@ export class AnalysisChart {
     }
     for (const marker of envelope.markers) {
       if (!Number.isFinite(marker.x) || !Number.isFinite(marker.y)) continue;
-      const slot = this.panelFor(envelope, marker.axis_y);
+      const slot = panelFor(envelope, marker.axis_y);
       ylimits[slot][0] = Math.min(ylimits[slot][0], marker.y);
       ylimits[slot][1] = Math.max(ylimits[slot][1], marker.y);
     }
@@ -374,21 +362,6 @@ export class AnalysisChart {
       ylimits[0] = [-yspan / 2, yspan / 2];
     }
     return { xlim, ylims: ylimits };
-  }
-
-  private axisMap(envelope: AnalysisEnvelope): Map<string, AnalysisAxis> {
-    return new Map(envelope.axes.map((axis) => [axis.id, axis]));
-  }
-
-  private panelCount(envelope: AnalysisEnvelope): number {
-    if (envelope.kind !== 'bode') return 1;
-    return envelope.curves.some((curve) => curve.axes[1] === 'phase_deg') ? 2 : 1;
-  }
-
-  private panelFor(envelope: AnalysisEnvelope, axisId: string): number {
-    if (envelope.kind !== 'bode') return 0;
-    if (axisId === 'phase_deg') return 1;
-    return 0;
   }
 
   private scheduleRender(): void {
@@ -442,7 +415,7 @@ export class AnalysisChart {
     this.overlay.style.width = width + 'px';
     this.overlay.style.height = height + 'px';
     if (!this.view) this.view = this.baseView(envelope);
-    const axes = this.axisMap(envelope);
+    const axes = axisMap(envelope);
     const spec = this.buildSpec(envelope, axes);
     const store = this.buildStore();
     try {
@@ -451,7 +424,7 @@ export class AnalysisChart {
         width,
         height,
         tokens: this.tokens(),
-        overrides: this.overrides(),
+        overrides: overridesFromView(this.view),
       });
     } catch (error) {
       this.readout.textContent = '绘图失败：' + (error as Error).message;
@@ -459,15 +432,6 @@ export class AnalysisChart {
     }
     this.drawOverlay();
     this.updateReadout();
-  }
-
-  private overrides(): Record<number, { xlim?: number[]; ylim?: number[] }> {
-    if (!this.view) return {};
-    const out: Record<number, { xlim?: number[]; ylim?: number[] }> = {};
-    for (const [slotText, ylim] of Object.entries(this.view.ylims)) {
-      out[Number(slotText)] = { xlim: this.view.xlim, ylim };
-    }
-    return out;
   }
 
   private buildStore(): { get(name: string): { values: Float32Array } | null } {
@@ -517,7 +481,7 @@ export class AnalysisChart {
     if (!axis) return;
     event.preventDefault();
     const factor = event.deltaY > 0 ? 1.22 : 0.82;
-    const axisX = this.envelope.curves.length ? this.axisMap(this.envelope).get(this.envelope.curves[0].axes[0]) : null;
+    const axisX = this.envelope.curves.length ? axisMap(this.envelope).get(this.envelope.curves[0].axes[0]) : null;
     const anchorX = axis.sx.from(px);
     this.view.xlim = zoomRange(this.view.xlim, anchorX, factor, axisX?.scale === 'log10');
     const anchorY = axis.sy.from(py);
@@ -583,15 +547,10 @@ export class AnalysisChart {
     if (this.canvasWrap.hasPointerCapture(event.pointerId)) this.canvasWrap.releasePointerCapture(event.pointerId);
     if (drag.mode === 'box' && this.view && this.renderResult) {
       const axis = this.renderResult.axes.find((item) => item.slot === drag.slot);
-      if (axis) {
-        const x0 = axis.sx.from(Math.min(drag.startPx, drag.currentPx));
-        const x1 = axis.sx.from(Math.max(drag.startPx, drag.currentPx));
-        const y0 = axis.sy.from(Math.max(drag.startPy, drag.currentPy));
-        const y1 = axis.sy.from(Math.min(drag.startPy, drag.currentPy));
-        if (Math.abs(drag.currentPx - drag.startPx) > 4 && Math.abs(drag.currentPy - drag.startPy) > 4) {
-          this.view.xlim = clampRange(Math.min(x0, x1), Math.max(x0, x1));
-          this.view.ylims[drag.slot] = clampRange(Math.min(y0, y1), Math.max(y0, y1));
-        }
+      const range = axis ? boxSelectionRange(axis, drag.startPx, drag.startPy, drag.currentPx, drag.currentPy) : null;
+      if (range) {
+        this.view.xlim = range.xlim;
+        this.view.ylims[drag.slot] = range.ylim;
       }
     }
     this.scheduleRender();
@@ -603,20 +562,7 @@ export class AnalysisChart {
     if (!envelope || !this.renderResult) return;
     const axis = axisAt(this.renderResult, px, py);
     if (!axis) return;
-    let bestMarker: AnalysisMarker | null = null;
-    let bestDist = 12;
-    for (const marker of envelope.markers) {
-      if (!this.visibleCategories.has(marker.category)) continue;
-      if (this.panelFor(envelope, marker.axis_y) !== axis.slot) continue;
-      const mx = axis.sx.to(marker.x);
-      const my = axis.sy.to(marker.y);
-      if (mx === null || my === null) continue;
-      const dist = Math.hypot(mx - px, my - py);
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestMarker = marker;
-      }
-    }
+    const bestMarker = nearestMarker(envelope, axis, this.visibleCategories, px, py);
     this.hovered = bestMarker;
     if (bestMarker) {
       this.tooltip.innerHTML = '<b>' + escapeDetailHtml(bestMarker.label) + '</b><span>' + escapeDetailHtml(markerSummary(bestMarker)) + '</span>';
@@ -628,7 +574,7 @@ export class AnalysisChart {
       this.options.events?.onCursor?.(bestMarker.x, 'chart', chartXUnit(this.envelope), chartXAxisKey(this.envelope));
       return;
     }
-    const curve = this.nearestCurve(envelope, axis, px);
+    const curve = nearestCurve(envelope, axis, px);
     if (!curve) {
       this.tooltip.hidden = true;
       this.hoverPoint = null;
@@ -648,20 +594,6 @@ export class AnalysisChart {
     this.drawOverlay();
     this.updateReadout(null, curve.curve, index);
     this.options.events?.onCursor?.(x, 'chart', chartXUnit(this.envelope), chartXAxisKey(this.envelope));
-  }
-
-  private nearestCurve(envelope: AnalysisEnvelope, axis: PlotAxis, px: number): { curve: AnalysisCurve; index: number } | null {
-    let best: { curve: AnalysisCurve; index: number; distance: number } | null = null;
-    for (const curve of envelope.curves) {
-      if (this.panelFor(envelope, curve.axes[1]) !== axis.slot) continue;
-      for (let i = 0; i < curve.x.length; i++) {
-        const mx = axis.sx.to(curve.x[i]);
-        if (mx === null) continue;
-        const distance = Math.abs(mx - px);
-        if (!best || distance < best.distance) best = { curve, index: i, distance };
-      }
-    }
-    return best ? { curve: best.curve, index: best.index } : null;
   }
 
   private updateReadout(marker: AnalysisMarker | null = null, curve?: AnalysisCurve, index?: number): void {
@@ -734,7 +666,7 @@ export class AnalysisChart {
     }
     const active = this.hovered || this.pinned;
     if (active) {
-      const slot = this.panelFor(this.envelope!, active.axis_y);
+      const slot = panelFor(this.envelope!, active.axis_y);
       const axis = axes.find((item) => item.slot === slot);
       const px = axis?.sx.to(active.x);
       const py = axis?.sy.to(active.y);

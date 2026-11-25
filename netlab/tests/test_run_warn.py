@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT.parent / "frontend" / "app.ts"
 CONSTANTS = ROOT.parent / "frontend" / "app" / "constants.ts"
+ENDPOINTS = ROOT.parent / "frontend" / "app" / "endpoints.ts"
 INDEX = ROOT.parent / "frontend" / "index.html"
 
 
@@ -13,11 +14,12 @@ def test_run_warn_dialog_hooks():
     assert "openRunWarn" in src
     assert "precomputeDialog" in src
     assert "openPrecomputeDialog" in src
-    assert "/api/plotkit/precompute" in src
+    assert "ENDPOINTS.plotkitPrecompute" in src
+    assert "plotkitPrecompute: '/api/plotkit/precompute'" in ENDPOINTS.read_text(encoding="utf-8")
     assert "skipWarn" in src
     start = src.index("async function runPlotkitPrecompute(")
     handler = src[start : start + 1800]
-    assert "api('/api/plotkit/precompute'" in handler
+    assert "api(ENDPOINTS.plotkitPrecompute" in handler
     assert "catch (error)" in src
     assert ".message" in src
 

@@ -54,12 +54,7 @@ function fmtFrequency(hz) {
   if (abs >= 1e3) return fmtDetail(hz / 1e3, 3, "kHz");
   return fmtDetail(hz, 3, "Hz");
 }
-function clampRange(lo, hi) {
-  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return [0, 1];
-  if (hi - lo > 1e-12) return [lo, hi];
-  const pad = Math.max(Math.abs(lo) * 0.1, 1e-9);
-  return [lo - pad, hi + pad];
-}
+import { clampRange } from "./analysis_chart_model.js";
 function categoryLabel(category) {
   return { stability: "\u7A33\u5B9A/\u6781\u70B9", response: "\u54CD\u5E94", margin: "\u88D5\u5EA6", loop: "\u56DE\u8DEF" }[category] || category;
 }

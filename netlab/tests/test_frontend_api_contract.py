@@ -7,6 +7,7 @@ from pathlib import Path
 APP_JS = Path(__file__).resolve().parents[2] / "frontend" / "app.ts"
 APP_NET = Path(__file__).resolve().parents[2] / "frontend" / "app" / "net.ts"
 APP_CACHE = Path(__file__).resolve().parents[2] / "frontend" / "app" / "cache.ts"
+APP_ENDPOINTS = Path(__file__).resolve().parents[2] / "frontend" / "app" / "endpoints.ts"
 
 
 def test_frontend_api_fetches_only_through_token_aware_helper():
@@ -14,7 +15,8 @@ def test_frontend_api_fetches_only_through_token_aware_helper():
     fetch_calls = [line.strip() for line in source.splitlines() if "fetch(" in line]
     # 唯一允许的裸 fetch 在 token-aware helper 内部；/api/shutdown 必须经 api()。
     assert fetch_calls == ["const response = await fetch(path, config);"]
-    assert "api('/api/shutdown'" in source
+    assert "api(ENDPOINTS.shutdown" in source
+    assert APP_ENDPOINTS.read_text(encoding="utf-8").find("shutdown: '/api/shutdown'") >= 0
     assert "if (DESKTOP_TOKEN) headers['X-Netlab-Token'] = DESKTOP_TOKEN;" in source
 
 

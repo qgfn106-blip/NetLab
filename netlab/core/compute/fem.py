@@ -49,8 +49,8 @@ except Exception:  # pragma: no cover - 环境相关
 
 MAX_FEM_FRAMES = 900
 _FEM_GP = 1.0 / math.sqrt(3.0)
-_TIME_INTEGRATORS = {"backward_euler", "crank_nicolson"}
-_BOUNDARY_KINDS = {"insulated", "dirichlet"}
+_TIME_INTEGRATORS = ("backward_euler", "crank_nicolson")
+_BOUNDARY_KINDS = ("insulated", "dirichlet")
 
 
 def _normalise_choice(value: str, allowed: set[str], label: str) -> str:

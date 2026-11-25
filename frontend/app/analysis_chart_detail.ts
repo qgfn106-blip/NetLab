@@ -68,12 +68,7 @@ export function fmtFrequency(hz: number | null): string {
   return fmtDetail(hz, 3, 'Hz');
 }
 
-export function clampRange(lo: number, hi: number): [number, number] {
-  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return [0, 1];
-  if (hi - lo > 1e-12) return [lo, hi];
-  const pad = Math.max(Math.abs(lo) * 0.1, 1e-9);
-  return [lo - pad, hi + pad];
-}
+export { clampRange } from './analysis_chart_model.js';
 
 export function categoryLabel(category: string): string {
   return ({ stability: '稳定/极点', response: '响应', margin: '裕度', loop: '回路' } as Record<string, string>)[category] || category;

@@ -15,8 +15,9 @@ def test_app_ts_shutdown_uses_api_helper_and_desktop_close():
     assert "fetch('/api/shutdown'" not in src
     assert 'fetch("/api/shutdown"' not in src
     # 浏览器模式经 api() 附带 token；桌面走 pywebview 原生关闭
-    assert "api('/api/shutdown'" in src
+    assert "api(ENDPOINTS.shutdown" in src
     assert "pywebview" in src and "window_close" in src
+    assert "shutdown: '/api/shutdown'" in _read("frontend/app/endpoints.ts")
 
 
 def test_net_helper_sends_desktop_token_header():

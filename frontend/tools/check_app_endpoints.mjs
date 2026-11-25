@@ -13,6 +13,7 @@ const EXTRA_SOURCES = [
   path.resolve(here, '../app/analysis_workbench_chart.ts'),
   path.resolve(here, '../app/scene_panel.ts'),
   path.resolve(here, '../app/scene_actions.ts'),
+  path.resolve(here, '../app/analysis_replay.ts'),
 ];
 
 export function readAppSources() {

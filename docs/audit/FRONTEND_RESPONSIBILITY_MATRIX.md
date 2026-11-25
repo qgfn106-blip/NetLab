@@ -23,7 +23,7 @@
 
 | 模块 | 行数 | 层 | 职责 | 现状/边界问题 |
 |---|---:|---|---|---|
-| frontend/app.ts | 4463 | entry/router | 88 endpoint（后端契约口径；前端快照 91 唯一路径 / 101 方法+路径条目）、会话状态、全局事件、视图刷新、命令分发 | **单体入口**，213 嵌套函数；已抽工作台面板/图表渲染/场景面板/场景动作/回放控制/信号列表，S1 端点注册表、S2 会话状态 store、S3 命令层、S4 外壳视图完成；P3-06 已落地 router.ts/handlers.ts/views.ts 首片（端点快照升级 version2）；完整 handlers/views 迁移与入口仅装配未完成 |
+| frontend/app.ts | 4463 | entry/router | 88 endpoint（后端契约口径；前端快照 91 唯一路径 / 101 方法+路径条目）、会话状态、全局事件、视图刷新、命令分发 | **单体入口**，213 嵌套函数；已抽工作台面板/图表渲染/场景面板/场景动作/回放控制/信号列表，S1 端点注册表、S2 会话状态 store、S3 命令层、S4 外壳视图完成；P3-06 已落地 router.ts/handlers.ts/views.ts 首片（57211fc；端点快照升级 version2）；完整 handlers/views 迁移与入口仅装配未完成 |
 | frontend/app/state.ts | 266 | model(全局) | `state`/`ui` 可变单例 | 被大量模块共享；禁止在 model 纯函数内改它 |
 | frontend/app/types.ts | 502 | model | 全前端类型定义 | 类型聚合，无运行时代码 |
 | frontend/app/constants.ts | 153 | model | UI 常量、颜色、限制值 | 纯常量 |

@@ -165,7 +165,7 @@ NetLab 3.20.2 主体功能完整、测试与 CI 框架健全。本轮整改已�
 ### 2.7 P3 Core V2（P3-01..08，合计 10）｜P3-01/P3-02/P3-05/P3-08 本地完成待评审，P3-06 部分完成，P3-03/P3-04 实质能力已并 main
 - P3-01 已写 docs/audit/CORE_V2_CONTRACT_FREEZE.md（CF-01..CF-14 + G0 五项）与 netlab/tests/test_core_v2_contract.py（12 条：版本常量、StampSink 成员、descriptor 委托 stamp_builder、支持 kind、电感双路径例外、ac_sweep 返回契约/策略选择/fast-native 对拍、ComputeError、GPU 非有限回退、路径白名单、FEM 配置）；实跑 test_core_v2_contract.py + test_fem.py = 20 passed。
 - P3-08 已写 docs/audit/P3_ACCEPTANCE_CHECKLIST.md（G0..G8 门禁、逐项验收表、阻断条件），结论 G8 未通过、不得宣称完成。
-- P3-03/P3-04 的实质能力已由 P2-01（stamp_builder）/P2-02（ac_sweep）合入 main；P3-06 部分完成：端点契约守护 + app.ts 多片拆分 + S1/S2/S3/S4 + router.ts/handlers.ts/views.ts 首片（7511→4463：b5288f4 工作台面板/图表渲染，1f27eca scene_panel/scene_actions，analysis_replay，signal_list，commands，shell_view）；P3-02（analysis 编排分层，a3ccfa8）与 P3-05（工作台/分析图四层门禁，a3ccfa8）已本地完成待评审；完整 handlers/views 迁移与入口仅装配未完成，见 CORE_V2_IMPLEMENTATION_ROADMAP.md。
+- P3-03/P3-04 的实质能力已由 P2-01（stamp_builder）/P2-02（ac_sweep）合入 main；P3-06 部分完成：端点契约守护 + app.ts 多片拆分 + S1/S2/S3/S4 + router.ts/handlers.ts/views.ts 首片（57211fc；7511→4463：b5288f4 工作台面板/图表渲染，1f27eca scene_panel/scene_actions，analysis_replay，signal_list，commands，shell_view）；P3-02（analysis 编排分层，a3ccfa8）与 P3-05（工作台/分析图四层门禁，a3ccfa8）已本地完成待评审；完整 handlers/views 迁移与入口仅装配未完成，见 CORE_V2_IMPLEMENTATION_ROADMAP.md。
 
 ## 3. 数学验证专章：断环闭环传递函数
 

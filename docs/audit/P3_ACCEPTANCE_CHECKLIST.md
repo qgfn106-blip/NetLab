@@ -26,7 +26,7 @@
 | P3-03 | 单一 StampBuilder | `_assemble_matrices` 无 kind 矩阵特判；9 路 kind 全走共享函数；逐项对拍 | **已实现（P2-01 已合入）** | `stamp_builder.py` + `test_stamp_parity.py` 8 passed；电感例外见 CF-06 |
 | P3-04 | ac_sweep strategy | 统一入口；策略优先级与 Bode 对拍 | **已实现（P2-02 已合入）** | `ac_backend.py` + `test_ac_backend.py` 6 passed；CF-07..09 已断言 |
 | P3-05 | 工作台四层 | 依赖方向单向；行数门禁 | **本地完成，待评审** | 新增 analysis_chart_model/interaction 纯层（analysis_chart 786→718）；`check_analysis_layers.mjs` 守卫 24 个分析图/工作台模块：≤800 行、仅允许同层或更低层 import、反向依赖报错；`test:utils` 96 passed；提交 a3ccfa8 |
-| P3-06 | app.ts 拆分 | endpoint 快照不变；冒烟通过；行数门禁 | **部分完成（契约守护 + 多片拆分 + S1/S2/S3/S4 + router/handlers/views 首片）** | 已新增 `frontend/tools/app_endpoint_snapshot.json`（91 个唯一路径 / 101 个方法+路径条目）与 `frontend/tests/app_endpoints.test.mjs`（3 条，`node --test` 通过），扫描范围扩展至抽取模块；app.ts 由 7511 降至 4463，工作台面板/图表渲染（b5288f4）、场景面板/场景动作（1f27eca）、回放控制 analysis_replay（cc8922b）、信号列表 signal_list（6800cfc）、端点注册表 endpoints.ts（S1，ea8413d）、会话状态 store.ts（S2，1625eeb）、命令层 commands.ts（S3，729bf6e）、外壳视图 shell_view.ts（S4，66d8272）、路由 router.ts、网络处理器 handlers.ts、视图 views.ts 首片已拆出；typecheck/build/test:utils 96 passed/parity/sections/端点快照/L1 smoke 全绿；P3-05 分层守卫亦覆盖工作台既有模块；完整 handlers/views 迁移与入口仅装配未完成 |
+| P3-06 | app.ts 拆分 | endpoint 快照不变；冒烟通过；行数门禁 | **部分完成（契约守护 + 多片拆分 + S1/S2/S3/S4 + router/handlers/views 首片）** | 已新增 `frontend/tools/app_endpoint_snapshot.json`（91 个唯一路径 / 101 个方法+路径条目）与 `frontend/tests/app_endpoints.test.mjs`（3 条，`node --test` 通过），扫描范围扩展至抽取模块；app.ts 由 7511 降至 4463，工作台面板/图表渲染（b5288f4）、场景面板/场景动作（1f27eca）、回放控制 analysis_replay（cc8922b）、信号列表 signal_list（6800cfc）、端点注册表 endpoints.ts（S1，ea8413d）、会话状态 store.ts（S2，1625eeb）、命令层 commands.ts（S3，729bf6e）、外壳视图 shell_view.ts（S4，66d8272）、路由 router.ts、网络处理器 handlers.ts、视图 views.ts 首片已拆出（57211fc，空白修正 e1fcd10）；typecheck/build/test:utils 96 passed/parity/sections/端点快照/L1 smoke 全绿；P3-05 分层守卫亦覆盖工作台既有模块；完整 handlers/views 迁移与入口仅装配未完成 |
 | P3-07 | GPU/FEM 边界 | GPU 非有限回退 CPU；FEM 枚举非法拒绝 | **部分完成** | GPU 回退（`test_accel_fallback.py` 5 passed）、FEM 边界/CN（`test_fem.py` 8 passed）已落地；更细的 GPU 初始化错误矩阵与 FEM 时间积分扩展仍可加强 |
 | P3-08 | 本清单 | G0..G7 + CI + 全量测试 | **清单已交付（G8 未通过）** | 本文件即 P3-08 交付，当前仅作为验收基线 |
 
@@ -59,6 +59,6 @@
 ## 6. 结论与签署
 
 - 当前可以确认：**契约文本已形成、P3-01/P3-02/P3-03/P3-04/P3-05/P3-07 的本地证据成立**；
-- 当前不能确认：P3-06 的完整 handlers/views 迁移尚未完成，app.ts 入口尚未收敛为仅装配，必需的 GitHub CI 尚未执行，G0/G2/G5 评审尚未签字；
+- 当前不能确认：P3-06 的完整 handlers/views 迁移尚未完成，app.ts 入口尚未收敛为仅装配，必需的 GitHub CI 尚未执行，G0/G2/G5/G6 评审尚未签字；
 - 因此本清单结论为：**未达到 Core V2 总验收（G8 未通过）**，不得对外宣称完成；
 - 签署人：__________（项目负责人）　日期：__________

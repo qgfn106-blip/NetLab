@@ -30,7 +30,7 @@
 | P3-03 | —（阶段合计 10） | 实质能力已合入 main | circuit/stamp_builder.py、descriptor.py | e5373f7 → PR #72 e8720f2 | 单一 StampBuilder 已落地并由 CF-03..CF-06 约束；契约测试验证 descriptor 委托与 kind 分派 | 契约评审待关 |
 | P3-04 | —（阶段合计 10） | 实质能力已合入 main | circuit/ac_backend.py、descriptor.py | e5373f7 → PR #72 e8720f2 | 统一 ac_sweep + 策略选择已落地，CF-07..CF-09 约束；fast/native 对拍通过 | 契约评审待关 |
 | P3-05 | —（阶段合计 10） | 规划完成（未实施） | 同上 | 随审计文档提交 | 工作台四层方案已交付，未实施 | 未实施 |
-| P3-06 | —（阶段合计 10） | 规划完成（未实施） | frontend/app.ts（7511 行、88 endpoint、213 嵌套函数） | — | 拆分方案已交付，未实施 | 未实施 |
+| P3-06 | —（阶段合计 10） | 部分完成（端点契约守护已落地，未推送） | frontend/tools/app_endpoint_snapshot.json（新增）、frontend/tests/app_endpoints.test.mjs（新增）、frontend/app.ts | feat/2026-11-25-p3-core-v2（未推送） | 端点快照 50 个规范化路径模式 + 2 条 node:test 守护（通过）；app.ts 仍 7511 行/213 嵌套函数，router/store/views/commands/handlers 骨架迁移未开始 | 主体拆分未开始 |
 | P3-07 | —（阶段合计 10） | 部分完成（GPU 已合并，FEM 本地待评审） | accel.py、fem.py、tests/test_accel_fallback.py、test_fem.py | 2db0867 → PR #71 376b2bb；FEM 追加见 P2-05 | GPU 非有限回退 5 passed（已合并）；FEM 枚举/时间积分 8 passed（本地待评审） | 边界错误契约文档化见 CF-10..CF-13 |
 | P3-08 | —（阶段合计 10） | 清单已交付待评审（G8 未通过） | docs/audit/P3_ACCEPTANCE_CHECKLIST.md（新增） | feat/2026-11-25-p3-core-v2（未推送） | G0..G8 门禁与逐项验收表、阻断条件；结论 G8 未通过、不得宣称 Core V2 完成 | P3-02/P3-05/P3-06 未完成 |
 
@@ -41,7 +41,8 @@
 | 已合并 main | P0-01..P0-04、P1-01..P1-05、文档同步、P2-01..P2-04、P2-06、P2-07 | 全部进入远端 main=e8720f2（P0/P1-03..05/文档/P2-06/07 与 P1-01/02/P2-04/05 经 PR #71→376b2bb；P2-01/02/03 经 PR #72→e8720f2；CI 必需检查全绿） |
 | 本地完成待评审（未推送） | P3-01、P3-08、P2-05（追加） | 分支 feat/2026-11-25-p3-core-v2；P3-01 契约+12 测试、P3-08 验收清单、P2-05 FEM 边界枚举/时间积分（8 passed） |
 | 实质能力已合入 main | P3-03、P3-04 | 分别由 P2-01/P2-02 落地，契约评审待关 |
-| 规划完成（未实施） | P3-02、P3-05、P3-06 | 方案已交付，尚未实施 |
+| 部分完成 | P3-06 | 端点契约快照与守护测试已落地；app.ts 主体拆分未开始 |
+| 规划完成（未实施） | P3-02、P3-05 | 方案已交付，尚未实施 |
 | 仅方案 | （无） | P2-01..03 已实施并合入 main=e8720f2 |
 | 已完成 | P0-01..04、P1-01..05、文档同步、P2-01..07 | 全部合入远端 main=e8720f2 |
 

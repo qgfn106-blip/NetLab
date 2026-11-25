@@ -54,11 +54,11 @@
 - `netlab/tests/test_ac_backend.py`：fast/native/强制 native 三路 Bode 对拍。
 - `netlab/tests/test_accel_fallback.py`：GPU 非有限回退 CPU。
 - `netlab/tests/test_analysis_api_surface.py` + `fixtures/analysis_api_snapshot.json`：analysis 对外 API 快照。
-- 既有全量证据：`reports/evidence/python-tests.json`（历史基线 1789 passed/14 skipped/0 failed，覆盖率 82.70%）。
+- 最新全量证据（P3 分支）：`python -m pytest -q` 1811 passed/14 skipped/0 failed；`python -m coverage report --format=total` 87%（≥81）；历史基线 `reports/evidence/python-tests.json` 1789 passed/14 skipped/0 failed、覆盖率 82.70%。
 
 ## 6. 结论与签署
 
-- 当前可以确认：**契约文本已形成、P3-01/P3-03/P3-04/P3-07 的本地证据成立**；
-- 当前不能确认：P3-02/P3-05/P3-06 尚未完成，必需的 GitHub CI 尚未执行，G0 评审尚未签字；
+- 当前可以确认：**契约文本已形成、P3-01/P3-02/P3-03/P3-04/P3-05/P3-07 的本地证据成立**；
+- 当前不能确认：P3-06 的 router/handlers 与完整 views 骨架尚未完成，必需的 GitHub CI 尚未执行，G0/G2/G5 评审尚未签字；
 - 因此本清单结论为：**未达到 Core V2 总验收（G8 未通过）**，不得对外宣称完成；
 - 签署人：__________（项目负责人）　日期：__________

@@ -15,7 +15,7 @@
 | G5 | 工作台四层 | model/render/interaction/facade 依赖方向单向；模块行数 ≤800 |
 | G6 | app.ts 拆分 | router/store/views/commands/handlers 分层；endpoint 后端契约 88 条不变；前端快照 91 唯一路径/101 方法+路径条目；app.ts ≤8000、单文件 ≤800 |
 | G7 | GPU/FEM 边界 | GPU 异常回退 CPU；FEM 边界枚举与时间积分可插拔且非法值报 `ValidationError` |
-| G8 | 总验收 | G0..G7 全部通过 + 5 项必需 CI 全绿 + 全量测试 0 失败 |
+| G8 | 总验收 | G0..G7 全部通过 + 6 项必需 CI 全绿 + 全量测试 0 失败 |
 
 ## 2. 逐项验收表
 

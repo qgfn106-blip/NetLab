@@ -26,7 +26,7 @@
 | P3-03 | 单一 StampBuilder | `_assemble_matrices` 无 kind 矩阵特判；9 路 kind 全走共享函数；逐项对拍 | **已实现（P2-01 已合入）** | `stamp_builder.py` + `test_stamp_parity.py` 8 passed；电感例外见 CF-06 |
 | P3-04 | ac_sweep strategy | 统一入口；策略优先级与 Bode 对拍 | **已实现（P2-02 已合入）** | `ac_backend.py` + `test_ac_backend.py` 6 passed；CF-07..09 已断言 |
 | P3-05 | 工作台四层 | 依赖方向单向；行数门禁 | **未完成** | 需在 P1-02 基础上继续拆 interaction/facade，当前仅完成三模块行数达标与职责矩阵 |
-| P3-06 | app.ts 拆分 | endpoint 快照不变；冒烟通过；行数门禁 | **部分完成（契约守护 + 三片拆分）** | 已新增 `frontend/tools/app_endpoint_snapshot.json`（50 个规范化路径模式）与 `frontend/tests/app_endpoints.test.mjs`（2 条，`node --test` 通过），扫描范围扩展至抽取模块；app.ts 由 7511 降至 5505，工作台面板（774 行）、图表渲染（262 行）、场景面板（199 行）、场景动作（772 行）、回放控制（188 行）已拆出，typecheck/build/parity/sections 全绿；router/store/views/commands/handlers 骨架迁移未开始 |
+| P3-06 | app.ts 拆分 | endpoint 快照不变；冒烟通过；行数门禁 | **部分完成（契约守护 + 四片拆分）** | 已新增 `frontend/tools/app_endpoint_snapshot.json`（50 个规范化路径模式）与 `frontend/tests/app_endpoints.test.mjs`（2 条，`node --test` 通过），扫描范围扩展至抽取模块；app.ts 由 7511 降至 5389，工作台面板（774 行）、图表渲染（262 行）、场景面板（199 行）、场景动作（772 行）、回放控制（188 行）、信号列表与图例（约 128 行）已拆出，typecheck/build/parity/sections 全绿；router/store/views/commands/handlers 骨架迁移未开始 |
 | P3-07 | GPU/FEM 边界 | GPU 非有限回退 CPU；FEM 枚举非法拒绝 | **部分完成** | GPU 回退（`test_accel_fallback.py` 5 passed）、FEM 边界/CN（`test_fem.py` 8 passed）已落地；更细的 GPU 初始化错误矩阵与 FEM 时间积分扩展仍可加强 |
 | P3-08 | 本清单 | G0..G7 + CI + 全量测试 | **未完成** | 本文件即 P3-08 交付，当前仅作为验收基线 |
 

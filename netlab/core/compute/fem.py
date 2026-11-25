@@ -5,8 +5,9 @@
     ρc ∂T/∂t = ∇·(k∇T) + q(x,y,t)
 
 - 区域：单位正方形，Q4 结构化网格；
-- 时间：后向欧拉（无条件稳定）；
-- 边界：左右两端 Dirichlet，上下绝缘；
+- 时间：后向欧拉（默认，无条件稳定）或 Crank–Nicolson；
+- 边界：左右两端固定 Dirichlet；上下可选绝缘或 Dirichlet
+  （由 boundary_top / boundary_bottom 选择）；
 - 热源：高斯分布、位置随时间摆动，用于观察热扩散与动态响应；
 - 线性系统：SciPy 稀疏 LU，一次分解后每步只做回代。
 
@@ -48,6 +49,18 @@ except Exception:  # pragma: no cover - 环境相关
 
 MAX_FEM_FRAMES = 900
 _FEM_GP = 1.0 / math.sqrt(3.0)
+_TIME_INTEGRATORS = {"backward_euler", "crank_nicolson"}
+_BOUNDARY_KINDS = {"insulated", "dirichlet"}
+
+
+def _normalise_choice(value: str, allowed: set[str], label: str) -> str:
+    choice = str(value).strip().lower()
+    if choice not in allowed:
+        options = ", ".join(sorted(allowed))
+        raise ValidationError(f"有限元 {label} 不支持：{value}（可选：{options}）")
+    return choice
+
+
 _GAUSS_POINTS = (
     (-_FEM_GP, -_FEM_GP),
     (_FEM_GP, -_FEM_GP),
@@ -72,7 +85,12 @@ class FemConfig:
     source_x: float = 0.35
     boundary_left: float = 20.0
     boundary_right: float = 20.0
+    boundary_top: str = "insulated"
+    boundary_bottom: str = "insulated"
+    boundary_top_value: float = 20.0
+    boundary_bottom_value: float = 20.0
     initial_temperature: float = 20.0
+    time_integrator: str = "backward_euler"
 
 
 def _shape(xi: float, eta: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -113,6 +131,8 @@ class FemMesh:
     elements: np.ndarray
     left: np.ndarray
     right: np.ndarray
+    top: np.ndarray
+    bottom: np.ndarray
     revision: int = 1
 
     @property
@@ -133,6 +153,8 @@ class FemMesh:
             "elements": self.elements.astype(int).tolist(),
             "left": self.left.astype(int).tolist(),
             "right": self.right.astype(int).tolist(),
+            "top": self.top.astype(int).tolist(),
+            "bottom": self.bottom.astype(int).tolist(),
         }
 
 
@@ -155,8 +177,19 @@ def build_mesh(nx: int, ny: int, revision: int = 1) -> FemMesh:
             index += 1
     left = np.arange(0, ny + 1) * width
     right = left + nx
+    top = np.arange(ny * width, (ny + 1) * width)
+    bottom = np.arange(0, width)
     return FemMesh(
-        nx, ny, x, y, elements, left.astype(np.int32), right.astype(np.int32), revision
+        nx=nx,
+        ny=ny,
+        x=x,
+        y=y,
+        elements=elements,
+        left=left.astype(np.int32),
+        right=right.astype(np.int32),
+        top=top.astype(np.int32),
+        bottom=bottom.astype(np.int32),
+        revision=revision,
     )
 
 
@@ -200,24 +233,46 @@ class FemModel:
         )
         self.node_count = self.mesh.node_count
         self.mass_matrix, self.stiffness_matrix = self._assemble()
-        self.dirichlet = np.zeros(self.node_count, dtype=bool)
-        self.dirichlet[self.mesh.left] = True
-        self.dirichlet[self.mesh.right] = True
-        self.boundary_values = np.zeros(self.node_count)
-        self.boundary_values[self.mesh.left] = config.boundary_left
-        self.boundary_values[self.mesh.right] = config.boundary_right
+        self._time_integrator = _normalise_choice(
+            config.time_integrator, _TIME_INTEGRATORS, "时间积分格式"
+        )
+        self._boundary_top = _normalise_choice(
+            config.boundary_top, _BOUNDARY_KINDS, "上边界条件"
+        )
+        self._boundary_bottom = _normalise_choice(
+            config.boundary_bottom, _BOUNDARY_KINDS, "下边界条件"
+        )
+        self._apply_boundary_conditions()
         self.temperature = np.full(
             self.node_count, float(config.initial_temperature), dtype=float
         )
-        self.temperature[self.mesh.left] = config.boundary_left
-        self.temperature[self.mesh.right] = config.boundary_right
+        self.temperature[self.dirichlet] = self.boundary_values[self.dirichlet]
         self.time = 0.0
         self.last_solve_ms = 0.0
         self._lu = None
         self._factor_dt: float | None = None
+        self._factor_integrator: str | None = None
         self._bc_correction: np.ndarray | None = None
+        self._time_operator = self.mass_matrix
         self._source_operator, self._source_coords = self._build_source_operator()
         self._build_factorization()
+
+    def _apply_boundary_conditions(self) -> None:
+        """按配置生成 Dirichlet 掩码与固定值；角点以左右边界值为准。"""
+        cfg = self.config
+        self.dirichlet = np.zeros(self.node_count, dtype=bool)
+        self.boundary_values = np.zeros(self.node_count)
+        if self._boundary_bottom == "dirichlet":
+            self.dirichlet[self.mesh.bottom] = True
+            self.boundary_values[self.mesh.bottom] = cfg.boundary_bottom_value
+        if self._boundary_top == "dirichlet":
+            self.dirichlet[self.mesh.top] = True
+            self.boundary_values[self.mesh.top] = cfg.boundary_top_value
+        # 左右侧边界始终为 Dirichlet；角点优先采用左右边界值。
+        self.dirichlet[self.mesh.left] = True
+        self.dirichlet[self.mesh.right] = True
+        self.boundary_values[self.mesh.left] = cfg.boundary_left
+        self.boundary_values[self.mesh.right] = cfg.boundary_right
 
     # ---- 装配 -------------------------------------------------------------
     def _assemble(self):
@@ -246,7 +301,13 @@ class FemModel:
 
     def _build_factorization(self) -> None:
         dt = max(1.0e-9, float(self.config.dt))
-        operator = self.mass_matrix / dt + self.stiffness_matrix
+        mass_dt = self.mass_matrix / dt
+        if self._time_integrator == "backward_euler":
+            operator = mass_dt + self.stiffness_matrix
+            time_operator = mass_dt
+        else:
+            operator = mass_dt + 0.5 * self.stiffness_matrix
+            time_operator = mass_dt - 0.5 * self.stiffness_matrix
         bc = self.dirichlet
         coo = operator.tocoo()
         keep = (~bc[coo.row]) & (~bc[coo.col])
@@ -264,6 +325,8 @@ class FemModel:
         correction[bc] = 0.0
         self._bc_correction = np.asarray(correction).ravel()
         self._operator = operator
+        self._time_operator = time_operator
+        self._factor_integrator = self._time_integrator
 
     # ---- 热源 -------------------------------------------------------------
     def _build_source_operator(self):
@@ -327,12 +390,25 @@ class FemModel:
         dt_value = float(dt if dt is not None else self.config.dt)
         if not math.isfinite(dt_value) or dt_value <= 0:
             raise ValidationError("有限元 dt 必须为正数")
-        if abs(dt_value - float(self._factor_dt or -1.0)) > 1.0e-12:
+        integrator = _normalise_choice(
+            self.config.time_integrator, _TIME_INTEGRATORS, "时间积分格式"
+        )
+        if (
+            abs(dt_value - float(self._factor_dt or -1.0)) > 1.0e-12
+            or integrator != self._factor_integrator
+        ):
             self.config.dt = dt_value
+            self._time_integrator = integrator
             self._build_factorization()
         started = time.perf_counter()
-        force = self._source_vector(self.time + dt_value)
-        rhs = (self.mass_matrix @ self.temperature) / dt_value + force
+        force_prev = self._source_vector(self.time)
+        force_next = self._source_vector(self.time + dt_value)
+        if self._time_integrator == "backward_euler":
+            rhs = self._time_operator @ self.temperature + force_next
+        else:
+            rhs = self._time_operator @ self.temperature + 0.5 * (
+                force_prev + force_next
+            )
         if self._bc_correction is not None:
             rhs = rhs - self._bc_correction
         rhs[self.dirichlet] = self.boundary_values[self.dirichlet]
@@ -354,8 +430,7 @@ class FemModel:
         self.temperature = np.full(
             self.node_count, float(cfg.initial_temperature), dtype=float
         )
-        self.temperature[self.mesh.left] = cfg.boundary_left
-        self.temperature[self.mesh.right] = cfg.boundary_right
+        self.temperature[self.dirichlet] = self.boundary_values[self.dirichlet]
         self.time = 0.0
 
     def stats(self) -> dict[str, Any]:
@@ -370,6 +445,9 @@ class FemModel:
             "max": float(np.max(data)),
             "mean": float(np.mean(data)),
             "time": float(self.time),
+            "time_integrator": self._time_integrator,
+            "boundary_top": self._boundary_top,
+            "boundary_bottom": self._boundary_bottom,
             "nonlinear": False,
             "kind": "fem",
         }
@@ -614,6 +692,26 @@ class FemSimulation:
             if "boundary_right" in payload:
                 config.boundary_right = as_float(
                     payload["boundary_right"], "右边界温度", lo=-500.0, hi=1000.0
+                )
+            if "boundary_top" in payload:
+                config.boundary_top = _normalise_choice(
+                    payload["boundary_top"], _BOUNDARY_KINDS, "上边界条件"
+                )
+            if "boundary_bottom" in payload:
+                config.boundary_bottom = _normalise_choice(
+                    payload["boundary_bottom"], _BOUNDARY_KINDS, "下边界条件"
+                )
+            if "boundary_top_value" in payload:
+                config.boundary_top_value = as_float(
+                    payload["boundary_top_value"], "上边界温度", lo=-500.0, hi=1000.0
+                )
+            if "boundary_bottom_value" in payload:
+                config.boundary_bottom_value = as_float(
+                    payload["boundary_bottom_value"], "下边界温度", lo=-500.0, hi=1000.0
+                )
+            if "time_integrator" in payload:
+                config.time_integrator = _normalise_choice(
+                    payload["time_integrator"], _TIME_INTEGRATORS, "时间积分格式"
                 )
             if "initial_temperature" in payload:
                 config.initial_temperature = as_float(

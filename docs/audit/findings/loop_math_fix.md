@@ -2,7 +2,7 @@
 
 关联审计：`docs/audit/findings/loop_math.md`（LM-01..LM-07）
 基线：`5c076ea`（分支 `audit/2026-11-24-full`）
-本报告记录 LM-01..LM-04 的修复与验证；LM-05..LM-07 经评估后本次保留，理由见第 7 节。
+本报告记录 LM-01..LM-04 的修复与验证；LM-05..LM-07 当时评估保留，后续已于 2026-11-26 实施，见第 9 节与 `docs/audit/findings/LM-05-07_PLAN.md`。
 
 ## 1. 定义与约定（推导前提）
 
@@ -89,7 +89,9 @@
   → **1736 passed, 14 skipped, 0 failed**（321.43s）。
     说明：修改前未单独留档该全量命令的基线结果；修改后全量绿。14 项 skip 均为既有跳过（MyProject 夹具缺失 / gui opt-in 关闭等），非本次引入。
 
-## 7. LM-05 / LM-06 / LM-07 保留说明
+## 7. LM-05 / LM-06 / LM-07 保留说明（历史）
+
+> 后续更新：2026-11-26 已按 `docs/audit/findings/LM-05-07_PLAN.md` 实施 LM-05/06 与 LM-07 方案 A，见第 9 节。
 
 本次**未修改** `netlab/core/compute/circuit/nyquist.py` 与 `loop_analysis.py` 的运放扰动段，理由：
 
@@ -102,4 +104,12 @@
 
 - `test_analysis_branch_loop.py` 7 项因 MyProject 夹具文件 `MyProject/控制工程实验2_闭环分析示范.netlab` 缺失而跳过；被动支路断环的"诚实 parity"路径在真实电路上未被该夹具覆盖，仅由单测/探针验证。
 - 支路断环诚实 parity 在该非单位反馈电路约 0.1，会触发 `branch_loop_synthesis_mismatch` 告警——这是**预期行为**（旧实现伪零掩盖了定义差异），不视为失败。
-- LM-05/06/07 保留（见第 7 节）。
+- LM-05/06/07 当时保留（见第 7 节），后已于 2026-11-26 实施（见第 9 节）。
+
+## 9. 后续实施（2026-11-26，LM-05/06 + LM-07 方案 A）
+
+- LM-05：`nyquist.py` 的 `nyquist_metrics` 以 `winding_number(contour, point=complex(-feedback_sign, 0.0))` 计算包围数，返回并透传 `feedback_sign`、`critical_point_real=-feedback_sign`；`nyquist-crit` marker 的 x 改为 `-feedback_sign`，正向反馈标注「临界点 +1」。
+- LM-06：`stability_margins` 采用 `critical_phase = -180°（负反馈）/ 0°（正反馈）`，相位裕度 `PM = wrap180((phase_at - critical_phase) * feedback_sign)`；相位穿越搜索基准改为 `critical_phase + 360k`；正反馈首点相位距基准 ≤5° 时补 DC/端点穿越（`gain_margin_db=-db[0]`）。正反馈无法定义 PM 时输出 `phase_margin_deg=None` 并附 `nyquist_positive_feedback_margin_undefined` 告警。
+- LM-07（方案 A）：`LoopExtraction` 增加 `loop_gain_kind: str = "exact"`；运放支路执行 ×1000 扰动时置 `asymptotic_opamp`，并产生 `loop_gain_idealized` 告警（`opamp_gain_scale=1000.0`）；`analysis_loop` 在 source 与顶层 payload 透传 `loop_gain_kind`；前端在指标栏显示「回路增益 理想化运放近似（×1000）」。
+- 测试：`test_nyquist.py` 增加 `winding_number(point=+1)`、正反馈 K=2（临界点 +1、PM≈60°、GM<0、不稳定、marker +1）与 K=0.5（PM=None、GM>0、稳定、warning）；`test_loop_analysis.py` 增加运放分支 `asymptotic_opamp` + `loop_gain_idealized`(1000)、无运放 `exact`、analysis 顶层/source 透传。定向 27 passed/7 skipped。
+- 未做：LM-07 方案 B（exact L/G）待后续评估；方案 C（受控源断环）单独立项。FEM 冻结。

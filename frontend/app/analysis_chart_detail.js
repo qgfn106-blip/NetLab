@@ -174,6 +174,9 @@ function renderAnalysisDetail(host, envelope, pinned, onPin) {
   add("DC \u589E\u76CA", metrics["metrics"]?.["dc_gain"]);
   add("\u76F8\u4F4D\u88D5\u5EA6", metrics["metrics"]?.["phase_margin_deg"], 2, "\xB0");
   add("\u589E\u76CA\u88D5\u5EA6", metrics["metrics"]?.["gain_margin_db"], 2, "dB");
+  if (envelope.source?.["loop_gain_kind"] === "asymptotic_opamp") {
+    items.push(["\u56DE\u8DEF\u589E\u76CA", "\u7406\u60F3\u5316\u8FD0\u653E\u8FD1\u4F3C\uFF08\xD71000\uFF09"]);
+  }
   if (!items.length) items.push(["\u72B6\u6001", envelope.kind]);
   host.innerHTML = '<div class="analysis-detail-section"><h4>\u6307\u6807</h4><div class="analysis-metrics-grid">' + items.map(([label, value]) => "<div><span>" + escapeDetailHtml(label) + "</span><b>" + escapeDetailHtml(value) + "</b></div>").join("") + "</div></div>" + markerIndexHtml(envelope) + warningsHtml(envelope) + evidenceHtml(envelope);
   host.querySelectorAll("[data-marker-id]").forEach((button) => {

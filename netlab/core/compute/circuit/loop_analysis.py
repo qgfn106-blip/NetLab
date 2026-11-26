@@ -59,6 +59,7 @@ class LoopExtraction:
     poles: dict[str, Any] = field(default_factory=dict)
     warnings: tuple[dict[str, Any], ...] = ()
     open_loop_transfer: dict[str, Any] | None = None
+    loop_gain_kind: str = "exact"
 
 
 def _frequency_array(frequencies: Any) -> np.ndarray:
@@ -740,6 +741,7 @@ def extract_branch_loop(
     # 运放按理想运算放大器求外环开环：把工作点小信号增益整体提高，
     # 消除有限增益造成的微小非理想极/零点，再在解析式中裁掉数值噪声项。
     opamp_index = getattr(model.index, "opamp_index", {}) or {}
+    opamp_idealized = False
     for name, row in opamp_index.items():
         opamp = model.index.element_by_name.get(name)
         if opamp is None:
@@ -751,6 +753,7 @@ def extract_branch_loop(
                 continue
             if abs(A[row, column]) > 0.0:
                 A[row, column] *= 1000.0
+                opamp_idealized = True
 
     # 移除该无源支路的导纳戳记，相当于把反馈支路断开。
     A[ai, ai] -= g
@@ -796,6 +799,15 @@ def extract_branch_loop(
     )
     poles_payload: dict[str, Any] = {}
     warnings: list[dict[str, Any]] = []
+    if opamp_idealized:
+        warnings.append(
+            {
+                "code": "loop_gain_idealized",
+                "message": "反馈支路断环在运放增益×1000 的扰动系统上测量，回路增益为理想化近似",
+                "severity": "warning",
+                "opamp_gain_scale": 1000.0,
+            }
+        )
     try:
         pole_result = analyze_poles(A, E)
         finite = np.asarray(pole_result.poles, dtype=np.complex128)
@@ -843,4 +855,5 @@ def extract_branch_loop(
         poles=poles_payload,
         warnings=tuple(warnings),
         open_loop_transfer=open_loop_transfer,
+        loop_gain_kind="asymptotic_opamp" if opamp_idealized else "exact",
     )

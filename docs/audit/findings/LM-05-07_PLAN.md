@@ -130,9 +130,32 @@
 4. 全量 pytest / 前端 typecheck/build/test / 架构检查 / 端点快照全部通过。
 5. 文档更新 `loop_math_fix.md` 或新增本方案实施记录；LM-05/06/07 状态从“保留待立项”改为完成或明确分阶段完成。
 
-## 6. 待用户确认
+## 6. 待用户确认（已于 2026-11-26 确认并实施，见 §7）
 1. LM-05/06 是否按上述公式直接修复并补测试？
 2. LM-07 是否先做方案 A（标记 + 告警），还是同时做方案 B（exact L/G）？
 3. 本轮是否在 docs 分支一并提交并推送/开 PR？
 
 > 备注：以上为设计分析，未修改任何源码；FEM 继续冻结。
+
+## 7. 实施记录（2026-11-26）
+
+用户已授权「先做 A 消除静默近似，再评估 B；C 单独立项。授权开 PR」。本轮完成：
+
+### 7.1 LM-05 / LM-06（已修复）
+- `nyquist.py`：`nyquist_metrics` 调用 `winding_number(contour, point=complex(-feedback_sign, 0.0))`；返回 `feedback_sign`、`critical_point_real=-feedback_sign`、`critical_phase_deg`。`nyquist-crit` marker 的 x 改为 `-feedback_sign`，负反馈标注「临界点 -1」、正反馈「临界点 +1」。
+- `stability_margins`：`critical_phase=-180°（负反馈）/0°（正反馈）`；`PM=wrap180((phase_at-critical_phase)*feedback_sign)`；相位穿越搜索 `target=critical_phase+360k`。正反馈首点相位距基准 ≤5° 时补 DC/端点穿越（`gain_margin_db=-db[0]`、`endpoint=True`）；正反馈无法定义 PM 时输出 `phase_margin_deg=None` 与 `nyquist_positive_feedback_margin_undefined` 告警。
+- `nyquist_envelope` 的 metrics 透传 `feedback_sign`、`critical_phase_deg`、`critical_point_real`。
+
+### 7.2 LM-07 方案 A（已实施）
+- `loop_analysis.py`：`LoopExtraction` 增加 `loop_gain_kind: str = "exact"`；运放 ×1000 扰动时置 `asymptotic_opamp`，并产生 `loop_gain_idealized` 告警（`opamp_gain_scale=1000.0`）；无运放/受控源路径保持 `exact`。
+- `analysis_loop.py`：loop/nyquist 的 source 与顶层 payload 透传 `loop_gain_kind`。
+- 前端 `analysis_chart_detail.ts/.js`：source 为 `asymptotic_opamp` 时指标栏显示「回路增益 理想化运放近似（×1000）」。未改 exact L/G（方案 B 后续评估）、未改受控源断环（方案 C 单独立项）。
+
+### 7.3 测试与验证
+- 新增 6 个用例：`test_nyquist.py` 的 `winding_number(point=+1)`、正反馈 K=2（临界点 +1、PM≈60°、GM<0、不稳定、marker +1）与 K=0.5（PM=None、GM>0、稳定、undefined warning）；`test_loop_analysis.py` 的运放 `asymptotic_opamp`+`loop_gain_idealized`(1000)、无运放 `exact`、analysis 顶层/source 透传。
+- 定向 pytest：27 passed / 7 skipped（7 项为本地 MyProject 示范工程缺失的既有跳过）。
+- 全量 pytest：1817 passed / 14 skipped / 0 failed（178.35s）。
+- 前端：`npm run typecheck` EXIT0、`npm run build` EXIT0、`npm run test:utils` EXIT0。
+
+### 7.4 结论
+LM-05/LM-06 完成；LM-07 方案 A 完成。LM-07 方案 B/C 未实施，FEM 继续冻结。

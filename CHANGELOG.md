@@ -6,6 +6,10 @@ Keep a Changelog, and versions follow the package metadata in
 
 ## Unreleased
 
+### Added
+
+- 三层模型架构：新增 `Model` / `CompiledModel` / `Runtime` 分层与 `EngineAssembly`；编译产物不可变，Runtime 使用独立场景与组件运行态注册表，快照携带校验和并支持恢复组件状态。
+
 ### Security
 
 - VS Code 集成不再以 `--without-connection-token` 启动：每次拉起生成随机连接
@@ -19,6 +23,7 @@ Keep a Changelog, and versions follow the package metadata in
 
 ### Fixed
 
+- 断环/闭环分析：`feedback_sign` 按 +1 负反馈、-1 正反馈的物理符号约定校验与传播；信号流/电路候选不再硬编码极性，闭环合成统一为 T=G/(1+L)，前端反馈类型标签同步修正。
 - 梯形积分源值改为步末采样（原先与伴随模型的历史项重复计权，正弦激励收敛阶
   只有 ~1.0，现为 ~2.0）；电感首步用后向欧拉启动（阶跃激励下电感电流不再从 0
   起跳），新增 RLC 正弦/阶跃收敛阶回归用例。

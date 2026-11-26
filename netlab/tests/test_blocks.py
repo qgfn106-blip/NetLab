@@ -13,6 +13,7 @@ import pytest
 
 from netlab.core.model.blocks import (
     BlockDef,
+    BlockRuntime,
     BlockStore,
     encapsulate_nodes,
     instantiate_block,
@@ -331,3 +332,32 @@ def test_unwired_block_instance_uses_port_defaults():
     instantiate_block(fresh, block.id, position={"x": 0.0, "y": 0.0})
     fresh.step(0.01)  # 不应抛 ComputeError
     assert fresh.stats().get("blocks") == 1
+
+
+def test_block_runtime_clone_preserves_nested_block_state():
+    """BlockRuntime.clone 必须逐层复制嵌套块实例，而不是只复制外层场景。"""
+    inner = build_integrator_block()
+    outer_scene = Scene("signal")
+    outer_scene.blocks.add(copy.deepcopy(inner))
+    first = instantiate_block(outer_scene, inner.id, position={"x": 0.0, "y": 0.0})
+    node_ids = [first["block_node"], *first["input_nodes"].values(), *first["output_nodes"].values()]
+    outer = encapsulate_nodes(outer_scene, node_ids, name="outer")
+    store = BlockStore()
+    store.add(copy.deepcopy(inner))
+    store.add(outer)
+
+    def node_state(runtime: BlockRuntime) -> list[tuple[str, dict, dict]]:
+        payload = runtime.scene.to_payload(include_state=True)
+        return [(item["name"], item["data"], item["state"]) for item in payload["nodes"]]
+
+    runtime = BlockRuntime.compile(outer, store, internal_sim=True)
+    child = next(iter(runtime.scene.block_instances.values()))
+    port = next(item for item in child.block.ports if item.direction == "input")
+    field = (port.fields or ["voltage"])[0]
+    child.step(0.1, {port.name: {field: 1.0}})
+    clone = runtime.clone()
+    clone_child = next(iter(clone.scene.block_instances.values()))
+    assert clone_child is not child
+    assert node_state(clone_child) == node_state(child)
+    child.step(0.1, {port.name: {field: 1.0}})
+    assert node_state(clone_child) != node_state(child)

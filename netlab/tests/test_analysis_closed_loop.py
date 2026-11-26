@@ -6,6 +6,8 @@ import numpy as np
 import pytest
 
 from netlab.core.compute import analysis, analysis_loop
+from netlab.core.common.limits import ValidationError
+from netlab.core.compute.analysis_errors import AnalysisError
 from netlab.core.compute.circuit import descriptor_analysis
 from netlab.core.compute.simulation import Simulation
 from netlab.core.model.scene import Scene
@@ -87,6 +89,18 @@ def test_explicit_closed_loop_step_returns_time_envelope() -> None:
     assert any(abs(value - values[-1]) > 1.0e-9 for value in values)
 
 
+def test_virtual_feedback_rejects_invalid_sign() -> None:
+    with pytest.raises(AnalysisError):
+        analysis.loop_analysis(
+            Simulation(_vcvs_amplifier()),
+            element="",
+            input_source="V1",
+            output="out",
+            feedback_sign=0.0,
+            display="closed_loop",
+        )
+
+
 def test_virtual_feedback_warns_and_stays_marked() -> None:
     body = analysis.loop_analysis(
         Simulation(_vcvs_amplifier()),
@@ -102,6 +116,8 @@ def test_virtual_feedback_warns_and_stays_marked() -> None:
     codes = {str(item.get("code")) for item in body["warnings"]}
     assert "no_physical_loop" in codes
     assert body["source"]["break_kind"] == "virtual"
+    assert body["feedback_sign"] == 1.0
+    assert body["source"]["feedback_sign"] == 1.0
     # 无断环时只能给出真实闭环 T(s)，绝不把闭环误标为开环。
     assert body["transfer_role"] == "closed_loop"
     assert body["transfer_function"]["supported"] is True
@@ -146,6 +162,33 @@ def test_explicit_open_loop_is_marked_open() -> None:
     assert body["transfer_function"]["expression"] == body["open_loop_transfer_function"]["expression"]
     curve = body["envelopes"]["bode"]["curves"][0]
     assert curve["detail"]["output"] == "L(E1)"
+
+
+def test_closed_loop_transfer_function_rejects_invalid_feedback_sign() -> None:
+    supported = {
+        "supported": True,
+        "numerator_coeffs": [[1.0, 0.0]],
+        "denominator_coeffs": [[2.0, 0.0], [1.0, 0.0]],
+    }
+    with pytest.raises(ValidationError):
+        descriptor_analysis.closed_loop_transfer_function(supported, feedback_sign=0.0)
+    with pytest.raises(ValidationError):
+        descriptor_analysis.closed_loop_transfer_function(supported, feedback_sign="bad")
+
+
+def test_closed_loop_transfer_function_uses_physical_feedback_sign() -> None:
+    negative = descriptor_analysis.closed_loop_transfer_function(
+        {"supported": True, "numerator_coeffs": [1.0], "denominator_coeffs": [1.0, 1.0]},
+        feedback_sign=1.0,
+    )
+    positive = descriptor_analysis.closed_loop_transfer_function(
+        {"supported": True, "numerator_coeffs": [1.0], "denominator_coeffs": [1.0, 1.0]},
+        feedback_sign=-1.0,
+    )
+    assert negative is not None and positive is not None
+    # 负反馈 T=G/(1+G)=1/(s+2)，正反馈 T=G/(1-G)=1/s。
+    assert "s + 2" in negative["expression"]
+    assert positive["expression"].endswith("/ (s)")
 
 
 def test_closed_loop_transfer_function_rejects_unsupported_inputs() -> None:

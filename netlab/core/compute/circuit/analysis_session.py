@@ -77,6 +77,19 @@ def _json_object(value: Any, label: str) -> dict[str, Any]:
         raise ValidationError(f"{label}必须可 JSON 序列化") from exc
 
 
+def _feedback_sign(value: Any) -> float | None:
+    """解析状态中的反馈极性；None 表示尚未确认。"""
+    if value is None:
+        return None
+    try:
+        sign = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError("feedback_sign 只能是 +1 或 -1") from exc
+    if sign not in (-1.0, 1.0):
+        raise ValidationError("feedback_sign 只能是 +1 或 -1")
+    return sign
+
+
 @dataclass
 class AnalysisState:
     """命名分析场景：电路快照 + 端口/断环选择 + 分析参数。"""
@@ -89,7 +102,8 @@ class AnalysisState:
     input_source: str | None = None
     output: str | None = None
     loop_element: str | None = None
-    feedback_sign: float = 1.0
+    feedback_sign: float | None = 1.0
+    feedback_sign_confirmed: bool = False
     ranges: dict[str, Any] = field(default_factory=dict)
     params: dict[str, Any] = field(default_factory=dict)
     composition: dict[str, Any] = field(default_factory=dict)
@@ -105,7 +119,7 @@ class AnalysisState:
             "input_source": self.input_source,
             "output": self.output,
             "loop_element": self.loop_element,
-            "feedback_sign": float(self.feedback_sign),
+            "feedback_sign": None if self.feedback_sign is None else float(self.feedback_sign),
             "ranges": self.ranges,
         }
 
@@ -119,7 +133,8 @@ class AnalysisState:
             "input_source": self.input_source,
             "output": self.output,
             "loop_element": self.loop_element,
-            "feedback_sign": float(self.feedback_sign),
+            "feedback_sign": None if self.feedback_sign is None else float(self.feedback_sign),
+            "feedback_sign_confirmed": bool(self.feedback_sign_confirmed),
             "ranges": copy.deepcopy(self.ranges),
             "params": copy.deepcopy(self.params),
             "composition": copy.deepcopy(self.composition),
@@ -156,7 +171,13 @@ class AnalysisState:
             input_source=payload.get("input_source"),
             output=payload.get("output"),
             loop_element=payload.get("loop_element"),
-            feedback_sign=float(payload.get("feedback_sign", 1.0) or 1.0),
+            feedback_sign=_feedback_sign(
+                payload.get(
+                    "feedback_sign",
+                    None if payload.get("feedback_sign_confirmed") is False else 1.0,
+                )
+            ),
+            feedback_sign_confirmed=payload.get("feedback_sign_confirmed") is True,
             ranges=_json_object(payload.get("ranges"), "ranges"),
             params=_json_object(payload.get("params"), "params"),
             composition=_json_object(payload.get("composition"), "composition"),
@@ -173,6 +194,7 @@ class AnalysisState:
             "output",
             "loop_element",
             "feedback_sign",
+            "feedback_sign_confirmed",
             "ranges",
             "params",
             "composition",
@@ -188,9 +210,9 @@ class AnalysisState:
             if key == "label":
                 value = _require_text(value, "状态名")
             if key == "feedback_sign":
-                value = float(value)
-                if value not in (1.0, -1.0):
-                    raise ValidationError("feedback_sign 只能是 +1 或 -1")
+                value = _feedback_sign(value)
+            if key == "feedback_sign_confirmed":
+                value = bool(value)
             setattr(self, key, value)
         self.fingerprint = _hash(self.source_payload())
         self.revision += 1

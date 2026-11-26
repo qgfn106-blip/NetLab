@@ -16,7 +16,7 @@ class WorkbenchActions {
     this.workspace = null;
     this.session = null;
     this.sessionId = "";
-    this.params = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: 1 };
+    this.params = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: null, feedback_sign_confirmed: false };
     this.frequencyPath = "descriptor_linearized";
     this.loopCandidates = [];
     this.loopGroups = [];
@@ -278,7 +278,9 @@ class WorkbenchActions {
   selectLoopGroup(group) {
     this.selectedLoopGroup = group;
     this.selectedLoopId = String(group.loop_id || "");
-    this.params.feedback_sign = Number(group.feedback_sign) === -1 ? -1 : 1;
+    const sign = Number(group.feedback_sign);
+    this.params.feedback_sign = sign === 1 || sign === -1 ? sign : null;
+    this.params.feedback_sign_confirmed = this.params.feedback_sign !== null && group.feedback_sign_confirmed === true;
     const element = controlledBreakForGroup(group, this.loopCandidates);
     this.refreshNavigation();
     const select = this.navHost.querySelector('[data-awb="element"]');
@@ -348,18 +350,21 @@ class WorkbenchActions {
         if (loopElement) element = loopElement;
       }
       if (element === "__virtual__" && !closedLoopKind) element = "";
-      if (!element && this.loopCandidates.length) element = String(this.loopCandidates[0].element || "");
+      if (!element && this.loopCandidates.length && !openLoopKind) element = String(this.loopCandidates[0].element || "");
       if (!element && !loopKind) {
         await this.loadLoopCandidatesIfNeeded();
         element = String(this.loopCandidates[0]?.element || "");
       }
       if (!element && openLoopKind) {
         await this.loadLoopCandidatesIfNeeded();
-        element = String(this.loopCandidates[0]?.element || "");
-      }
-      if (!element && openLoopKind) {
-        toast("\u73AF\u8DEF\u5206\u6790\u5FC5\u987B\u9009\u62E9\u5B9E\u4F53\u65AD\u73AF\u70B9\uFF1B\u672A\u65AD\u73AF\u65E0\u6CD5\u6C42\u5F00\u73AF L(s)", "error", 5e3);
-        return null;
+        if (this.selectedLoopGroup) {
+          const loopElement = controlledBreakForGroup(this.selectedLoopGroup, this.loopCandidates);
+          if (loopElement) element = loopElement;
+        }
+        if (!element) {
+          toast("\u73AF\u8DEF\u5206\u6790\u5FC5\u987B\u9009\u62E9\u5B9E\u4F53\u65AD\u73AF\u70B9\uFF1B\u672A\u65AD\u73AF\u65E0\u6CD5\u6C42\u5F00\u73AF L(s)", "error", 5e3);
+          return null;
+        }
       }
       if (!element && closedLoopKind && this.selectedLoopGroup) {
         toast("\u6240\u9009\u73AF\u8DEF\u4E0D\u542B VCVS/VCCS \u53D7\u63A7\u6E90\uFF0C\u65E0\u6CD5\u5B9A\u4E49\u552F\u4E00\u5F00\u73AF L(s)\uFF0C\u4EC5\u663E\u793A\u95ED\u73AF T(s)", "info", 5e3);
@@ -370,7 +375,6 @@ class WorkbenchActions {
         return null;
       }
       params.element = element;
-      params.feedback_sign = this.params.feedback_sign;
       const feedbackOutput = loopFeedbackOutput(this.loopCandidates, element, output);
       if (feedbackOutput && feedbackOutput !== output) {
         params.output = feedbackOutput;
@@ -378,6 +382,14 @@ class WorkbenchActions {
         if (outputSelect) outputSelect.value = feedbackOutput;
         toast(`\u95ED\u73AF\u5206\u6790\u8F93\u51FA\u5DF2\u81EA\u52A8\u6539\u4E3A\u53CD\u9988\u8282\u70B9 ${feedbackOutput}\uFF08\u907F\u514D\u53D6\u5230\u76D1\u6D4B\u7EA7\u5BFC\u81F4\u73AF\u8DEF\u4E00\u81F4\u6027\u544A\u8B66\uFF09`, "warn", 6e3);
       }
+    }
+    if (loopKind || kind === "nyquist" || kind === "nyquist_closed") {
+      if (this.params.feedback_sign === null || this.params.feedback_sign_confirmed !== true) {
+        toast("\u8BF7\u5148\u786E\u8BA4\u53CD\u9988\u6781\u6027\uFF1A+1\uFF08\u8D1F\u53CD\u9988\uFF09\u6216 -1\uFF08\u6B63\u53CD\u9988\uFF09", "error", 5e3);
+        return null;
+      }
+      params.feedback_sign = this.params.feedback_sign;
+      params.feedback_sign_confirmed = true;
     }
     return params;
   }

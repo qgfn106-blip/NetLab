@@ -13,11 +13,19 @@ def test_assemble_engine_exposes_all_three_stages() -> None:
     assembly = scene.assembly
 
     assert assembly.mode == "signal"
-    assert assembly.model is not None
+    from netlab.core.model.compiled_model import CompiledModel
+    from netlab.core.model.model import Model
+    from netlab.core.model.runtime import Runtime
+
+    assert isinstance(assembly.model, Model)
+    assert isinstance(assembly.compiled, CompiledModel)
+    assert isinstance(assembly.runtime, Runtime)
     assert assembly.compiled.mode == "signal"
-    assert assembly.compiled.engine is assembly.model
-    assert assembly.runtime is assembly.model
-    assert scene.ensure_engine() is assembly.runtime
+    assert assembly.model is not assembly.compiled
+    assert assembly.compiled is not assembly.runtime
+    assert assembly.model is not assembly.runtime
+    assert assembly.compiled.model_fingerprint == assembly.model.fingerprint
+    assert scene.ensure_engine() is assembly.runtime.engine
 
 
 def test_touch_reassembles_engine_and_updates_assembly() -> None:
@@ -30,8 +38,10 @@ def test_touch_reassembles_engine_and_updates_assembly() -> None:
 
     assert second is not first
     assert second.model is not first.model
+    assert second.compiled is not first.compiled
     assert second.runtime is not first.runtime
-    assert scene.ensure_engine() is second.runtime
+    assert second.model is not second.runtime
+    assert scene.ensure_engine() is second.runtime.engine
 
 
 def test_container_ensure_assembled_prebuilds_every_network() -> None:

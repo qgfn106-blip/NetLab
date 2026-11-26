@@ -117,7 +117,8 @@ def test_circuit_from_break_returns_loop_for_feedback_branch() -> None:
     assert set(loop["member_edge_names"]) == {"E1", "R1", "R2"}
     assert set(loop["member_node_names"]) == {"out", "gnd", "n"}
     assert loop["suggested_break_id"] == loop["candidate_breaks"][0]["break_id"]
-    assert loop["feedback_sign"] == 1
+    assert loop["feedback_sign"] is None
+    assert loop["feedback_sign_confirmed"] is False
 
 
 def test_circuit_from_break_rejects_open_branch() -> None:

@@ -13,7 +13,8 @@ function normalizeLoopGroup(raw) {
     member_edge_names: textList(group.member_edge_names),
     candidate_breaks: Array.isArray(group.candidate_breaks) ? group.candidate_breaks : [],
     suggested_break_id: String(group.suggested_break_id || ""),
-    feedback_sign: Number(group.feedback_sign) === -1 ? -1 : 1
+    feedback_sign: Number(group.feedback_sign) === 1 || Number(group.feedback_sign) === -1 ? Number(group.feedback_sign) : null,
+    feedback_sign_confirmed: group.feedback_sign_confirmed === true
   };
 }
 function shortName(name, max = 9) {

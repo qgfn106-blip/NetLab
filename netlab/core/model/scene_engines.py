@@ -8,7 +8,9 @@
 from __future__ import annotations
 
 import copy
+import logging
 import math
+import os
 import re
 import time
 import uuid
@@ -25,9 +27,7 @@ from ..compute.computes import (
     solver_traits,
 )
 from .graph import Network, Node
-from .instance_model import NodeDesc, NodeRuntime
-import logging
-import os
+from .instance_model import NodeDesc, NodeRuntime, deep_thaw
 from ..common.limits import (
     MAX_EDGES,
     MAX_FIELDS,
@@ -51,6 +51,8 @@ from ..compute.methods import (
 from ..compute.params import validate_params
 from .ports import pins_for_device
 from ..compute.profiling import timed
+
+
 def _scene_fingerprint(scene: Any) -> str:
     """场景结构指纹：mode + 节点(id,kind) + 边(id,source,target,kind) 的稳定哈希。
 
@@ -97,6 +99,37 @@ class _Engine:
     def stats(self) -> dict[str, Any]:  # pragma: no cover - 抽象
         raise NotImplementedError
 
+    def _sync_mirror_scene(self) -> None:
+        """把内部执行场景的运行态镜像回兼容的外层 Scene。"""
+        source = getattr(self, "_mirror_scene", None)
+        inner = getattr(self, "scene", None)
+        if source is None or inner is None or source is inner:
+            return
+        source_nodes = getattr(source, "nodes", {}) or {}
+        for node_id, record in (getattr(inner, "nodes", {}) or {}).items():
+            target = source_nodes.get(node_id)
+            if target is None:
+                continue
+            for attr in ("data", "state", "inputs"):
+                value = getattr(record, attr, None)
+                destination = getattr(target, attr, None)
+                if isinstance(value, dict) and isinstance(destination, dict) and value is not destination:
+                    destination.clear()
+                    destination.update(value)
+        source_edges = getattr(source, "edges", {}) or {}
+        for edge_id, record in (getattr(inner, "edges", {}) or {}).items():
+            target = source_edges.get(edge_id)
+            if target is None:
+                continue
+            value = getattr(record, "state", None)
+            destination = getattr(target, "state", None)
+            if isinstance(value, dict) and isinstance(destination, dict) and value is not destination:
+                destination.clear()
+                destination.update(value)
+        source_clock = getattr(source, "clock", None)
+        inner_clock = getattr(inner, "clock", None)
+        if source_clock is not None and inner_clock is not None:
+            source_clock.time = float(inner_clock.time)
 
     # ---- Engine SPI v2 生命周期骨架（切片2，Proposed）--------------------
     # 目标口径见 netlab/docs/ENGINE_SPI_V2.md §3 与 ENGINE_LIFECYCLE.md；
@@ -246,8 +279,9 @@ class SignalEngine(_Engine):
                             "A-int-1 试点：NodeRuntime.inputs 与 record.inputs 不一致"
                         )
                     # 真用 NodeDesc：按描述重建委托（不复制数学）。
+                    # FrozenMapping 是只读契约容器，交给 compute 前需还原普通 dict。
                     _spec2, _params2, _handler2 = prepare_compute(
-                        _desc.kind, _desc.params
+                        _desc.kind, deep_thaw(_desc.params)
                     )
                     return _handler2(ctx)
 
@@ -388,7 +422,8 @@ class SignalEngine(_Engine):
             runtime = self.scene.block_instances.get(record.id)
             if (
                 runtime is None
-                or runtime.block is not block
+                or runtime.block.id != block.id
+                or runtime.block.to_payload() != block.to_payload()
                 or runtime.depth != self.scene.block_depth
                 or runtime.internal_sim != internal_sim
             ):
@@ -478,6 +513,7 @@ class SignalEngine(_Engine):
         blocks = checkpoint.get("blocks") or {}
         for block_id, runtime in self.block_runtimes.items():
             runtime.restore_checkpoint(blocks.get(block_id))
+        self._sync_mirror_scene()
 
     def rollback_last_step(self) -> None:
         """N-36：回滚最近一步（网络快照 + 功能块快照），不重新全量深拷贝。"""
@@ -486,6 +522,7 @@ class SignalEngine(_Engine):
             if runtime is not None:
                 runtime.restore_checkpoint(snapshot)
         self.network.restore_last_step_state()
+        self._sync_mirror_scene()
 
     def step(self, dt: float, deadline: float | None = None) -> None:
         # 整步事务：网络层已回滚节点/连接，功能块内部场景另行快照，
@@ -499,9 +536,11 @@ class SignalEngine(_Engine):
         except BaseException:
             self.rollback_last_step()
             raise
+        self._sync_mirror_scene()
 
     def zero_time(self) -> None:
         self.network.time = 0.0
+        self._sync_mirror_scene()
 
     def reset(self) -> None:
         for runtime in self.block_runtimes.values():
@@ -509,6 +548,7 @@ class SignalEngine(_Engine):
         for buffer in self.block_buffers.values():
             buffer.clear()
         self.network.reset_state()
+        self._sync_mirror_scene()
 
     def probes(self, *, by_id: bool = False) -> dict[str, float]:
         values: dict[str, float] = {}
@@ -812,6 +852,7 @@ class CircuitEngine(_Engine):
                 record.state = self.element_map[record.id].state
             elif record.id in checkpoint["edges"]:
                 record.state = copy.deepcopy(checkpoint["edges"][record.id])
+        self._sync_mirror_scene()
 
     def _apply_bridge_actuators(self) -> None:
         """R31/P11-05：把上一拍信号字段写入受控电压源。"""
@@ -864,6 +905,7 @@ class CircuitEngine(_Engine):
         except BaseException:
             self.rollback_last_step()
             raise
+        self._sync_mirror_scene()
 
     def rollback_last_step(self) -> None:
         """N-36：回滚求解器与节点 data 到最近一步开始前。"""
@@ -873,6 +915,7 @@ class CircuitEngine(_Engine):
             if row is not None:
                 record.data.clear()
                 record.data.update(row)
+        self._sync_mirror_scene()
 
     def operating_point(self) -> dict[str, Any]:
         """DC 工作点：不推进瞬态状态，节点电压按场景显示名返回。
@@ -913,6 +956,7 @@ class CircuitEngine(_Engine):
 
     def zero_time(self) -> None:
         self.solver.zero_time()
+        self._sync_mirror_scene()
 
     def reset(self) -> None:
         self.solver.reset()
@@ -922,6 +966,7 @@ class CircuitEngine(_Engine):
         for record in self.scene.edges.values():
             if record.id not in self.element_map:
                 record.state.clear()
+        self._sync_mirror_scene()
 
     def probes(self, *, by_id: bool = False) -> dict[str, float]:
         values: dict[str, float] = {}

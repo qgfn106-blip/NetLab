@@ -1,0 +1,39 @@
+name: readme-changelog
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: readme-changelog
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Refresh README recent updates
+        run: python tools/update_readme_changelog.py --write
+
+      - name: Create or update pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: automation/readme-changelog
+          base: main
+          title: "docs(readme): 刷新最近更新"
+          commit-message: "docs(readme): 刷新最近更新"
+          body: |
+            自动同步 README「最近更新」到 git log 最近 20 条。
+          add-paths: README.md
+          delete-branch: true

@@ -2,11 +2,12 @@
 """维护 README 顶部的「最近更新」：始终保留最近 20 次 GitHub 推送记录。
 
 用法：
-  python tools/update_readme_changelog.py --write   # 从 git log 重写最近 10 条
-  python tools/update_readme_changelog.py --check   # 校验表格结构（不再逐字对比 git log）
+  python tools/update_readme_changelog.py --write          # 从 git log 重写最近 20 条
+  python tools/update_readme_changelog.py --check          # 校验表格结构
+  python tools/update_readme_changelog.py --check --strict # 同时校验内容与 git log 一致
 
---check 只校验结构：BEGIN/END 标记、标题、表头、10 条日期+内容、日期格式与降序。
-这样避免「提交前无法看到本次提交」的自指红，也避免用 docs(readme) 提交刷绿。
+--check 默认只校验结构：BEGIN/END 标记、标题、表头、20 条日期+内容、日期格式与降序。
+--check --strict 额外比对 git log；用于 PR 门禁，提交前请先运行 --write 并提交 README。
 """
 from __future__ import annotations
 
@@ -37,6 +38,8 @@ def commits(limit: int = 80) -> list[tuple[str, str, str]]:
             continue
         # 有些历史提交把多行说明塞进了 subject，表格里必须压成单行。
         subject = subject.replace("\r", " ").replace("\n", " ").replace("\\n", " ").strip()
+        # 历史提交可能把正文误写进 subject（字面 \n + 列表项），只保留标题部分。
+        subject = subject.split("  - ", 1)[0].strip()
         rows.append((sha, date, subject))
         if len(rows) == 20:
             break
@@ -54,7 +57,7 @@ def validate_block(text: str) -> list[str]:
     """只校验表格结构，不比对 git log。"""
     errors: list[str] = []
     if text.count(BEGIN) != 1 or text.count(END) != 1:
-        return ["必须有且仅有一组 LAST 10 UPDATES 标记"]
+        return ["必须有且仅有一组 LAST 20 UPDATES 标记"]
     head, rest = text.split(BEGIN, 1)
     body, tail = rest.split(END, 1)
     lines = [line.strip() for line in body.strip().splitlines() if line.strip()]
@@ -95,16 +98,33 @@ def validate_block(text: str) -> list[str]:
     return errors
 
 
+def validate_content(text: str) -> list[str]:
+    """严格校验表格内容与当前 git log 最近 20 条一致。"""
+    errors = validate_block(text)
+    if errors:
+        return errors
+    expected = block(commits())
+    start = text.index(BEGIN)
+    end = text.index(END) + len(END)
+    if text[start:end] != expected:
+        return ["README 最近更新内容与 git log 最近 20 条不一致；请运行 --write 并提交 README"]
+    return []
+
+
 def main() -> int:
     mode = "--check" if "--check" in sys.argv else "--write"
+    strict = "--strict" in sys.argv
     text = README.read_text(encoding="utf-8")
     if mode == "--check":
-        errors = validate_block(text)
+        errors = validate_content(text) if strict else validate_block(text)
         if errors:
             for error in errors:
-                print(f"README changelog 结构错误：{error}")
+                print(f"README changelog 校验失败：{error}")
             return 1
-        print("OK: README 最近更新结构有效（20 条）")
+        if strict:
+            print("OK: README 最近更新内容与 git log 一致（20 条）")
+        else:
+            print("OK: README 最近更新结构有效（20 条）")
         return 0
     new_block = block(commits())
     if BEGIN in text and END in text:

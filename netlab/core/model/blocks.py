@@ -530,6 +530,36 @@ class BlockRuntime:
             outputs[port_name] = payload
         return outputs
 
+    def clone(self) -> "BlockRuntime":
+        """返回状态独立的副本；多个 Runtime 共享 BlockStore 但不共享块状态。"""
+        clone = type(self).compile(
+            self.block,
+            self.store,
+            depth=self.depth,
+            internal_sim=self.internal_sim,
+        )
+        clone._input_nodes = copy.deepcopy(self._input_nodes)
+        clone._output_nodes = copy.deepcopy(self._output_nodes)
+        clone._behavior = copy.deepcopy(self._behavior)
+        clone._behavior_state = copy.deepcopy(self._behavior_state)
+        clone._behavior_time = float(self._behavior_time)
+        if self._scene is not None and clone._scene is not None:
+            clone._scene.load_payload(
+                self._scene.to_payload(include_state=True, include_all_blocks=True)
+            )
+            nested = getattr(self._scene, "block_instances", None) or {}
+            if nested:
+                clone._scene.block_instances = {
+                    key: (
+                        value.clone()
+                        if callable(getattr(value, "clone", None))
+                        else copy.deepcopy(value)
+                    )
+                    for key, value in nested.items()
+                }
+            clone._scene.clock.time = float(self._scene.clock.time)
+        return clone
+
     def reset(self) -> None:
         if self._scene is None:
             self._behavior_state.clear()

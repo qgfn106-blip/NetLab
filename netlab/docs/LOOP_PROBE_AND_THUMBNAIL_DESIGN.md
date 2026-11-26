@@ -86,7 +86,7 @@ LoopGroup {
   member_edge_ids: string[]
   break_kind: "signal_edge" | "circuit_branch"
   break_id: string
-  feedback_sign: 1 | -1
+  feedback_sign: 1 | -1  # 1=负反馈（分母 1+L），-1=正反馈（分母 1-L）
 }
 
 LoopProbeSpec {

@@ -144,6 +144,9 @@ try {
 
   // 6) Nyquist 可切换并渲染轮廓（受控源断环）。
   await page.locator('.awb-nav-item[data-kind="nyquist"]').click();
+  await page.locator('[data-awb="feedback"]').waitFor({ state: 'visible', timeout: 5000 });
+  await page.locator('[data-awb="feedback"]').selectOption('1');
+  await page.locator('[data-awb="run"]').click();
   await page.waitForFunction(() => (document.querySelector('.awb-status')?.textContent || '').includes('稳定') || (document.querySelector('.awb-status')?.textContent || '').includes('对比'), null, { timeout: 15000 });
   assert((await page.locator('.awb-status').innerText()).length > 0, 'Nyquist 状态栏为空');
 

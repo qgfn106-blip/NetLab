@@ -102,9 +102,20 @@ def test_workbench_session_state_run_compare_invalidate(client) -> None:
 
 
 def _run_kind(client, session_id: str, state_id: str, kind: str, params: dict | None = None) -> dict:
+    payload = dict(params or {})
+    if kind in (
+        "loop",
+        "loop_closed",
+        "loop_step",
+        "nyquist",
+        "nyquist_closed",
+        "step_open",
+    ):
+        payload.setdefault("feedback_sign", 1.0)
+        payload.setdefault("feedback_sign_confirmed", True)
     response = client.post(
         "/api/analysis/workbench/run",
-        json={"session_id": session_id, "state_id": state_id, "kind": kind, "params": params or {}},
+        json={"session_id": session_id, "state_id": state_id, "kind": kind, "params": payload},
     )
     assert response.status_code == 200, response.text
     body = response.json()
@@ -128,6 +139,43 @@ def test_workbench_nyquist_closed_is_labeled_closed_loop(client) -> None:
     assert body["envelope"]["kind"] == "nyquist"
     assert body["raw"]["transfer_role"] == "closed_loop"
     assert body["envelope"]["curves"]
+
+
+def test_workbench_rejects_unconfirmed_feedback_sign(client) -> None:
+    session_id = _new_session(client, "反馈极性")
+    state_id = _add_state(client, session_id)
+    for params in (
+        {"feedback_sign": None},
+        {"feedback_sign": 1.0, "feedback_sign_confirmed": False},
+        {"feedback_sign": 0.0},
+    ):
+        response = client.post(
+            "/api/analysis/workbench/run",
+            json={"session_id": session_id, "state_id": state_id, "kind": "loop", "params": params},
+        )
+        assert response.status_code == 422, response.text
+        assert "反馈" in response.text
+
+
+def test_workbench_rejects_unconfirmed_feedback_sign_for_all_signal_kinds(client) -> None:
+    session_id = _new_session(client, "反馈极性全分析")
+    state_id = _add_state(client, session_id)
+    for kind in ("nyquist", "nyquist_closed", "step_open"):
+        for params in (
+            {"feedback_sign": None, "feedback_sign_confirmed": False},
+            {"feedback_sign": 1.0, "feedback_sign_confirmed": False},
+        ):
+            response = client.post(
+                "/api/analysis/workbench/run",
+                json={
+                    "session_id": session_id,
+                    "state_id": state_id,
+                    "kind": kind,
+                    "params": params,
+                },
+            )
+            assert response.status_code == 422, response.text
+            assert "反馈" in response.text
 
 
 def test_workbench_loop_without_break_is_rejected(client) -> None:
@@ -274,3 +322,42 @@ def test_workbench_auto_supplies_dc_operating_point_for_nonlinear(client):
     body = _run(client, session_id, state_id, "bode")
     assert body["ok"] is True
     assert body["raw"]["operating_point_supplied"] is True
+
+
+def test_workbench_state_preserves_unconfirmed_feedback_sign(client) -> None:
+    session_id = _new_session(client, "极性状态")
+    payload = _rc_payload("未确认")
+    payload["feedback_sign"] = None
+    payload["feedback_sign_confirmed"] = False
+    response = client.post(
+        "/api/analysis/workbench/state",
+        json={"session_id": session_id, "action": "add", "state": payload, "select": True},
+    )
+    assert response.status_code == 200, response.text
+    state = response.json()["state"]
+    assert state["feedback_sign"] is None
+    assert state["feedback_sign_confirmed"] is False
+
+    updated = client.post(
+        "/api/analysis/workbench/state",
+        json={
+            "session_id": session_id,
+            "action": "update",
+            "state_id": state["state_id"],
+            "changes": {"feedback_sign": None},
+        },
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["state"]["feedback_sign"] is None
+
+    invalid = client.post(
+        "/api/analysis/workbench/state",
+        json={
+            "session_id": session_id,
+            "action": "update",
+            "state_id": state["state_id"],
+            "changes": {"feedback_sign": 0},
+        },
+    )
+    assert invalid.status_code == 422
+    assert "feedback_sign" in invalid.text

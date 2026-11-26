@@ -1109,3 +1109,9 @@ decisions:
   namespace: D-NL
   canonical_id: D-NL-155
   legacy_id: D159
+- id: D160
+  title: P0-1 Nyquist 带符号回路增益基准修正（2026-11-26）
+  decision: 统一物理带符号约定 L(s)，特征方程 1+L=0：包围数临界点恒为 complex(-1,0)（critical_point_real=-1），stability_margins 以 critical_phase=180° 为基准，PM=wrap180((phase_at-180°)*feedback_sign)，相位穿越搜索 180°+360k；feedback_sign 仅允许 +1（负反馈）或 -1（正反馈），正反馈以 L 反号后的带符号回路增益表达。D159 中 complex(-feedback_sign,0) 与 -180°/0° 基准作废。
+  namespace: D-NL
+  canonical_id: D-NL-156
+  legacy_id: D160

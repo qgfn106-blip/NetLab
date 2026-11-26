@@ -40,7 +40,11 @@ from ..common.profiling import timed
 
 class _SceneIOMixin:
     def to_payload(
-        self, *, include_state: bool = False, authored_data: bool = False
+        self,
+        *,
+        include_state: bool = False,
+        authored_data: bool = False,
+        include_all_blocks: bool = False,
     ) -> dict[str, Any]:
         """导出场景载荷。
 
@@ -81,7 +85,11 @@ class _SceneIOMixin:
             "solve_algebraic": bool(self.solve_algebraic),
             "nodes": nodes,
             "edges": edges,
-            "blocks": self.blocks.export_user(),
+            "blocks": (
+                [block.to_payload() for block in self.blocks.defs.values()]
+                if include_all_blocks
+                else self.blocks.export_user()
+            ),
         }
 
     def load_payload(self, payload: Any) -> None:

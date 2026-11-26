@@ -86,10 +86,28 @@ def test_plugin_scene_roundtrip(plugin_engine):
     assert restored.nodes == {}
 
 
+def test_plugin_scene_step_uses_legacy_step_signature(plugin_engine):
+    scene = Scene(PLUGIN_MODE)
+    scene.ensure_engine()
+    stats = scene.step(0.1)
+    assert isinstance(stats, dict) and stats["step_ms"] >= 0.0
+    assert scene.clock.time == pytest.approx(0.1)
+
+
 def test_plugin_engine_created_lazily(plugin_engine):
     scene = Scene(PLUGIN_MODE)
     engine = scene.ensure_engine()
     assert isinstance(engine, _DummyEngine)
+
+
+def test_plugin_assembly_exposes_distinct_stages(plugin_engine):
+    scene = Scene(PLUGIN_MODE)
+    assembly = scene.assembly
+    assert assembly.model is not assembly.compiled
+    assert assembly.compiled is not assembly.runtime
+    assert assembly.model is not assembly.runtime
+    assert scene.ensure_engine() is assembly.runtime.engine
+    assert isinstance(assembly.runtime.engine, _DummyEngine)
 
 
 def test_unknown_mode_still_rejected():

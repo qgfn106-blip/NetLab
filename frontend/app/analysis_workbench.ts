@@ -34,7 +34,6 @@ import {
 import { WorkbenchActions } from './analysis_workbench_actions.js';
 import { loopListHtml } from './analysis_workbench_loops.js';
 
-
 export class AnalysisWorkbench extends WorkbenchActions {
   private readonly options: { onKindChange?: (kind: AnalysisKind) => void };
   private initialUi: WorkbenchUiRec;
@@ -314,7 +313,7 @@ export class AnalysisWorkbench extends WorkbenchActions {
     }).join('') || '<div class="awb-empty">还没有状态。点上方「快照当前电路」。</div>';
     const activeElement = String(active?.loop_element || '');
     const loopOptions = loopElementOptions(this.loopCandidates, activeElement, false);
-    const needLoop = this.activeKind === 'loop' || this.activeKind === 'step_open' || this.activeKind === 'nyquist';
+    const needElement = this.activeKind === 'loop' || this.activeKind === 'step_open' || this.activeKind === 'nyquist'; const needFeedback = needElement || this.activeKind === 'nyquist_closed' || this.activeKind === 'loop_closed' || this.activeKind === 'loop_step';
     const loopPanel = this.activeKind === 'loop'
       ? '<div class="awb-nav-title">环路缩略图</div>' + loopListHtml(this.loopGroups, this.selectedLoopId, this.loopCandidates)
       : '';
@@ -334,8 +333,8 @@ export class AnalysisWorkbench extends WorkbenchActions {
       (this.activeKind === 'bode' || this.activeKind === 'poles') ? '  <label>频响通路 <select data-awb="frequency-path">' + optionHtml('descriptor_linearized', '描述器线性化', this.frequencyPath === 'descriptor_linearized') + optionHtml('fft_trajectory', 'FFT 近似（不判稳）', this.frequencyPath === 'fft_trajectory') + '</select></label>' : '',
       '  <label>阶跃 dt <input type="number" data-awb="step-dt" min="0.000000001" step="any" value="' + this.params.step_dt + '"></label>',
       '  <label>时长 <input type="number" data-awb="step-duration" min="0.000001" step="any" value="' + this.params.step_duration + '"></label>',
-      needLoop ? '  <label>断环元件 <select data-awb="element">' + loopOptions + '</select></label>' : '',
-      needLoop ? '  <label>反馈符号 <select data-awb="feedback"><option value="1"' + (this.params.feedback_sign === 1 ? ' selected' : '') + '>正反馈（1）</option><option value="-1"' + (this.params.feedback_sign === -1 ? ' selected' : '') + '>负反馈（-1）</option></select></label>' : '',
+      needElement ? '  <label>断环元件 <select data-awb="element">' + loopOptions + '</select></label>' : '',
+      needFeedback ? '  <label>反馈符号 <select data-awb="feedback"><option value=""' + (this.params.feedback_sign === null || !this.params.feedback_sign_confirmed ? ' selected' : '') + '>请选择反馈类型</option><option value="1"' + (this.params.feedback_sign === 1 && this.params.feedback_sign_confirmed ? ' selected' : '') + '>负反馈（1）</option><option value="-1"' + (this.params.feedback_sign === -1 && this.params.feedback_sign_confirmed ? ' selected' : '') + '>正反馈（-1）</option></select></label>' : '',
       '</div>',
     ].join('');
     this.navHost.querySelectorAll('[data-kind]').forEach((button) => {
@@ -407,7 +406,8 @@ export class AnalysisWorkbench extends WorkbenchActions {
   }
 
   private bindParamInputs(): void {
-    const bindNumber = (selector: string, key: keyof typeof this.params) => {
+    type NumericParamKey = 'f_start' | 'f_stop' | 'points' | 'step_dt' | 'step_duration';
+    const bindNumber = (selector: string, key: NumericParamKey) => {
       const input = this.navHost.querySelector(selector) as HTMLInputElement | null;
       input?.addEventListener('change', () => {
         const value = Number(input.value);
@@ -420,15 +420,13 @@ export class AnalysisWorkbench extends WorkbenchActions {
     bindNumber('[data-awb="step-dt"]', 'step_dt');
     bindNumber('[data-awb="step-duration"]', 'step_duration');
     const feedback = this.navHost.querySelector('[data-awb="feedback"]') as HTMLSelectElement | null;
-    feedback?.addEventListener('change', () => { this.params.feedback_sign = Number(feedback.value) === -1 ? -1 : 1; });
+    feedback?.addEventListener('change', () => {
+      const value = feedback.value === '' ? null : Number(feedback.value);
+      this.params.feedback_sign = value === 1 || value === -1 ? value : null; this.params.feedback_sign_confirmed = this.params.feedback_sign !== null;
+    });
     const frequencyPath = this.navHost.querySelector('[data-awb="frequency-path"]') as HTMLSelectElement | null;
     frequencyPath?.addEventListener('change', () => { this.frequencyPath = frequencyPath.value === 'fft_trajectory' ? 'fft_trajectory' : 'descriptor_linearized'; });
   }
-
-
-
-
-
 
   protected activeState(): WorkbenchStateRec | undefined {
     const session = this.session;
@@ -481,7 +479,10 @@ export class AnalysisWorkbench extends WorkbenchActions {
       const value = Number(ranges[key]);
       if (Number.isFinite(value)) this.params[key] = value;
     }
-    if (typeof active?.feedback_sign === 'number') this.params.feedback_sign = active.feedback_sign;
+    if (active && 'feedback_sign' in active) {
+      this.params.feedback_sign = active.feedback_sign === 1 || active.feedback_sign === -1 ? active.feedback_sign : null;
+      this.params.feedback_sign_confirmed = this.params.feedback_sign !== null && active.feedback_sign_confirmed === true;
+    } else { this.params.feedback_sign = null; this.params.feedback_sign_confirmed = false; }
   }
 
   private async snapshotCurrent(label: string): Promise<void> {
@@ -496,7 +497,7 @@ export class AnalysisWorkbench extends WorkbenchActions {
       const response = await workbenchStateRequest({
         session_id: this.sessionId,
         action: 'add',
-        state: { ...statePayload, ...options, ranges: this.rangesPayload() },
+        state: { ...statePayload, ...options, feedback_sign: this.params.feedback_sign, feedback_sign_confirmed: this.params.feedback_sign_confirmed, ranges: this.rangesPayload() },
         select: true,
       }) as StateResponse;
       if (response.session) this.session = response.session;
@@ -536,7 +537,7 @@ export class AnalysisWorkbench extends WorkbenchActions {
         session_id: this.sessionId,
         action: 'update',
         state_id: active.state_id,
-        changes: { circuit: payload.state.circuit, ...this.portDefaults(), ranges: this.rangesPayload() },
+        changes: { circuit: payload.state.circuit, ...this.portDefaults(), feedback_sign: this.params.feedback_sign, feedback_sign_confirmed: this.params.feedback_sign_confirmed, ranges: this.rangesPayload() },
         select: true,
       }) as StateResponse;
       if (response.session) this.session = response.session;
@@ -637,7 +638,6 @@ export class AnalysisWorkbench extends WorkbenchActions {
       this.toolbarHost.classList.remove('busy');
     }
   }
-
 
   protected async runCompare(): Promise<void> {
     const ids = Array.from(this.compareSelection);

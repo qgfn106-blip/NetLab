@@ -89,7 +89,11 @@ def stability_margins(
     log_f = np.log10(freqs)
 
     sign = float(feedback_sign)
-    critical_phase = -180.0 if sign >= 0.0 else 0.0
+    if sign not in (1.0, -1.0):
+        raise ValidationError("feedback_sign 仅支持 +1（负反馈）或 -1（正反馈）")
+    # 统一物理带符号约定：loop_gain=L(s)，特征方程 1+L=0，临界点恒为 -1。
+    # -1 的相角为 ±180°，这里统一取 +180° 表示，搜索 target=180°+360k 覆盖 -180°。
+    critical_phase = 180.0
 
     def _wrap_degrees(value: float) -> float:
         return float((value + 180.0) % 360.0 - 180.0)
@@ -125,10 +129,10 @@ def stability_margins(
                 }
             )
 
-    # 正反馈的 0° 临界相位可能只在 DC/首个采样点出现（例如 L(0)>1 的一阶系统）；
+    # 临界相位 ±180° 可能只在 DC/首个采样点出现（例如 L(0)>1 的一阶系统）；
     # 若首点相位已贴近临界相位，则把端点作为相位穿越纳入，避免漏掉负增益裕度。
     endpoint_target = critical_phase
-    if float(feedback_sign) < 0.0 and abs(_wrap_degrees(float(phase[0]) - endpoint_target)) <= 5.0:
+    if abs(_wrap_degrees(float(phase[0]) - endpoint_target)) <= 5.0:
         endpoint_log = float(log_f[0])
         duplicate = any(
             abs(float(np.log10(float(item["frequency_hz"]))) - endpoint_log) <= 1e-9
@@ -147,8 +151,20 @@ def stability_margins(
                 },
             )
 
-    phase_margin = gain_crossings[0]["phase_margin_deg"] if gain_crossings else None
-    gain_margin = phase_crossings[0]["gain_margin_db"] if phase_crossings else None
+    # 多交叉系统必须按频率排序，并按“最坏情况”选标量裕度，避免只取首个
+    # 穿越而漏掉其它可能更危险的 0 dB / 临界相位穿越。
+    gain_crossings.sort(key=lambda item: float(item["frequency_hz"]))
+    phase_crossings.sort(key=lambda item: float(item["frequency_hz"]))
+    phase_margin = (
+        min(float(item["phase_margin_deg"]) for item in gain_crossings)
+        if gain_crossings
+        else None
+    )
+    gain_margin = (
+        min(float(item["gain_margin_db"]) for item in phase_crossings)
+        if phase_crossings
+        else None
+    )
     stable = None
     if phase_margin is not None:
         stable = bool(phase_margin > 0.0 and (gain_margin is None or gain_margin > 0.0))
@@ -162,7 +178,7 @@ def stability_margins(
         "phase_unwrapped_deg": [float(value) for value in phase],
         "feedback_sign": sign,
         "critical_phase_deg": float(critical_phase),
-        "critical_point_real": float(-sign),
+        "critical_point_real": -1.0,
     }
 
 
@@ -208,9 +224,8 @@ def nyquist_metrics(
     values = np.asarray(loop_gain, dtype=np.complex128).reshape(-1)
     margins = stability_margins(freqs, values, feedback_sign=feedback_sign)
     contour_freqs, contour = nyquist_contour(freqs, values)
-    encirclements = winding_number(
-        contour, point=complex(-float(feedback_sign), 0.0)
-    )
+    # 临界点恒为 -1：feedback_sign 仅记录声明的反馈极性，不改变 Nyquist 判据的几何。
+    encirclements = winding_number(contour, point=complex(-1.0, 0.0))
 
     pole_info = dict(poles or {})
     right_half_plane = pole_info.get("right_half_plane")
@@ -229,7 +244,12 @@ def nyquist_metrics(
     if determinate:
         stable = bool(z_value == 0)
     if margins["stable_from_margins"] is not None and stable is not None:
-        stable = bool(stable and margins["stable_from_margins"])
+        if right_half_plane > 0:
+            # Bode 裕度判据以开环稳定（无 RHP 极点）为前提；存在 RHP 极点时
+            # 只能由 Nyquist 包围数裁决，禁止负增益裕度误否决 z=0 的稳定结论。
+            pass
+        else:
+            stable = bool(stable and margins["stable_from_margins"])
 
     warnings: list[dict[str, Any]] = []
     if imaginary_axis:
@@ -248,7 +268,7 @@ def nyquist_metrics(
         warnings.append(
             warning(
                 "nyquist_positive_feedback_margin_undefined",
-                "正反馈未找到 0° 相位穿越或 DC 端点，相位裕度不可判定，以 Nyquist 包围数为最终判据",
+                "正反馈未找到 180° 相位穿越或 DC 端点，相位裕度不可判定，以 Nyquist 包围数为最终判据",
                 severity="warning",
             )
         )
@@ -339,16 +359,16 @@ def nyquist_envelope(
         marker(
             "nyquist-crit",
             shape="nyquist_crit",
-            x=-float(feedback_sign),
+            x=-1.0,
             y=0.0,
-            label="临界点 -1" if float(feedback_sign) >= 0.0 else "临界点 +1",
+            label="临界点 -1",
             category="stability",
             axis_x="re",
             axis_y="im",
             detail={
                 "description": "Nyquist 稳定判据的临界点",
                 "feedback_sign": float(feedback_sign),
-                "critical_point_real": -float(feedback_sign),
+                "critical_point_real": -1.0,
             },
         )
     ]

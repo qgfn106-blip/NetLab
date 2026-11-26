@@ -280,7 +280,8 @@ class AnalysisWorkbench extends WorkbenchActions {
     }).join("") || '<div class="awb-empty">\u8FD8\u6CA1\u6709\u72B6\u6001\u3002\u70B9\u4E0A\u65B9\u300C\u5FEB\u7167\u5F53\u524D\u7535\u8DEF\u300D\u3002</div>';
     const activeElement = String(active?.loop_element || "");
     const loopOptions = loopElementOptions(this.loopCandidates, activeElement, false);
-    const needLoop = this.activeKind === "loop" || this.activeKind === "step_open" || this.activeKind === "nyquist";
+    const needElement = this.activeKind === "loop" || this.activeKind === "step_open" || this.activeKind === "nyquist";
+    const needFeedback = needElement || this.activeKind === "nyquist_closed" || this.activeKind === "loop_closed" || this.activeKind === "loop_step";
     const loopPanel = this.activeKind === "loop" ? '<div class="awb-nav-title">\u73AF\u8DEF\u7F29\u7565\u56FE</div>' + loopListHtml(this.loopGroups, this.selectedLoopId, this.loopCandidates) : "";
     this.navHost.innerHTML = [
       '<div class="awb-nav-title">\u5206\u6790</div>',
@@ -298,8 +299,8 @@ class AnalysisWorkbench extends WorkbenchActions {
       this.activeKind === "bode" || this.activeKind === "poles" ? '  <label>\u9891\u54CD\u901A\u8DEF <select data-awb="frequency-path">' + optionHtml("descriptor_linearized", "\u63CF\u8FF0\u5668\u7EBF\u6027\u5316", this.frequencyPath === "descriptor_linearized") + optionHtml("fft_trajectory", "FFT \u8FD1\u4F3C\uFF08\u4E0D\u5224\u7A33\uFF09", this.frequencyPath === "fft_trajectory") + "</select></label>" : "",
       '  <label>\u9636\u8DC3 dt <input type="number" data-awb="step-dt" min="0.000000001" step="any" value="' + this.params.step_dt + '"></label>',
       '  <label>\u65F6\u957F <input type="number" data-awb="step-duration" min="0.000001" step="any" value="' + this.params.step_duration + '"></label>',
-      needLoop ? '  <label>\u65AD\u73AF\u5143\u4EF6 <select data-awb="element">' + loopOptions + "</select></label>" : "",
-      needLoop ? '  <label>\u53CD\u9988\u7B26\u53F7 <select data-awb="feedback"><option value="1"' + (this.params.feedback_sign === 1 ? " selected" : "") + '>\u6B63\u53CD\u9988\uFF081\uFF09</option><option value="-1"' + (this.params.feedback_sign === -1 ? " selected" : "") + ">\u8D1F\u53CD\u9988\uFF08-1\uFF09</option></select></label>" : "",
+      needElement ? '  <label>\u65AD\u73AF\u5143\u4EF6 <select data-awb="element">' + loopOptions + "</select></label>" : "",
+      needFeedback ? '  <label>\u53CD\u9988\u7B26\u53F7 <select data-awb="feedback"><option value=""' + (this.params.feedback_sign === null || !this.params.feedback_sign_confirmed ? " selected" : "") + '>\u8BF7\u9009\u62E9\u53CD\u9988\u7C7B\u578B</option><option value="1"' + (this.params.feedback_sign === 1 && this.params.feedback_sign_confirmed ? " selected" : "") + '>\u8D1F\u53CD\u9988\uFF081\uFF09</option><option value="-1"' + (this.params.feedback_sign === -1 && this.params.feedback_sign_confirmed ? " selected" : "") + ">\u6B63\u53CD\u9988\uFF08-1\uFF09</option></select></label>" : "",
       "</div>"
     ].join("");
     this.navHost.querySelectorAll("[data-kind]").forEach((button) => {
@@ -380,7 +381,9 @@ class AnalysisWorkbench extends WorkbenchActions {
     bindNumber('[data-awb="step-duration"]', "step_duration");
     const feedback = this.navHost.querySelector('[data-awb="feedback"]');
     feedback?.addEventListener("change", () => {
-      this.params.feedback_sign = Number(feedback.value) === -1 ? -1 : 1;
+      const value = feedback.value === "" ? null : Number(feedback.value);
+      this.params.feedback_sign = value === 1 || value === -1 ? value : null;
+      this.params.feedback_sign_confirmed = this.params.feedback_sign !== null;
     });
     const frequencyPath = this.navHost.querySelector('[data-awb="frequency-path"]');
     frequencyPath?.addEventListener("change", () => {
@@ -435,7 +438,13 @@ class AnalysisWorkbench extends WorkbenchActions {
       const value = Number(ranges[key]);
       if (Number.isFinite(value)) this.params[key] = value;
     }
-    if (typeof active?.feedback_sign === "number") this.params.feedback_sign = active.feedback_sign;
+    if (active && "feedback_sign" in active) {
+      this.params.feedback_sign = active.feedback_sign === 1 || active.feedback_sign === -1 ? active.feedback_sign : null;
+      this.params.feedback_sign_confirmed = this.params.feedback_sign !== null && active.feedback_sign_confirmed === true;
+    } else {
+      this.params.feedback_sign = null;
+      this.params.feedback_sign_confirmed = false;
+    }
   }
   async snapshotCurrent(label) {
     if (this.busy) return;
@@ -449,7 +458,7 @@ class AnalysisWorkbench extends WorkbenchActions {
       const response = await workbenchStateRequest({
         session_id: this.sessionId,
         action: "add",
-        state: { ...statePayload, ...options, ranges: this.rangesPayload() },
+        state: { ...statePayload, ...options, feedback_sign: this.params.feedback_sign, feedback_sign_confirmed: this.params.feedback_sign_confirmed, ranges: this.rangesPayload() },
         select: true
       });
       if (response.session) this.session = response.session;
@@ -481,7 +490,7 @@ class AnalysisWorkbench extends WorkbenchActions {
         session_id: this.sessionId,
         action: "update",
         state_id: active.state_id,
-        changes: { circuit: payload.state.circuit, ...this.portDefaults(), ranges: this.rangesPayload() },
+        changes: { circuit: payload.state.circuit, ...this.portDefaults(), feedback_sign: this.params.feedback_sign, feedback_sign_confirmed: this.params.feedback_sign_confirmed, ranges: this.rangesPayload() },
         select: true
       });
       if (response.session) this.session = response.session;

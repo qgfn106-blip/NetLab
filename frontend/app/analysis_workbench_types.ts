@@ -6,7 +6,8 @@ export interface WorkbenchStateRec {
   input_source?: string | null;
   output?: string | null;
   loop_element?: string | null;
-  feedback_sign?: number;
+  feedback_sign?: number | null;
+  feedback_sign_confirmed?: boolean;
   ranges?: Record<string, number>;
   params?: Record<string, unknown>;
   circuit?: CircuitPayload;

@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import inspect
 from dataclasses import dataclass
 from typing import Any
 
@@ -79,11 +80,12 @@ def create_engine(mode: str, scene: Any) -> Any:
 
 @dataclass(frozen=True, slots=True)
 class EngineAssembly:
-    """一次显式装配的三个稳定阶段：模型 → 编译产物 → 运行时。
+    """一次显式装配的三个稳定阶段：Model → CompiledModel → Runtime。
 
-    model 保留引擎实例本身（插件 SPI 的入口），compiled/runtime
-    由引擎生命周期方法产生。当前内建引擎的 compile/create_runtime 仍是
-    薄壳（同一实例），但装配边界已固定，后续替换实现不需要改调用方。
+    内建模式的 model/compiled/runtime 是三个不同类型、不同身份的实例：
+    model 是不可变描述，compiled 是独立编译产物，runtime 是执行实例。
+    插件若未实现新生命周期方法，则用轻量适配器保证三层身份仍然不同；
+    Scene.ensure_engine() 通过 runtime.engine 仍返回插件真实引擎。
     """
 
     mode: str
@@ -92,19 +94,88 @@ class EngineAssembly:
     runtime: Any
 
 
-def assemble_engine(mode: str, scene: Any) -> EngineAssembly:
-    """创建引擎并显式走 compile → create_runtime（WP-7c）。
+def _accepts_keyword(func: Any, name: str) -> bool:
+    """判断可调用对象是否接受指定关键字参数（含 **kwargs）。"""
+    if not callable(func):
+        return False
+    try:
+        parameters = inspect.signature(func).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    return any(
+        parameter.kind is inspect.Parameter.VAR_KEYWORD or parameter.name == name
+        for parameter in parameters
+    )
 
-    插件若未实现生命周期方法，则回退为“模型即编译产物/运行时”，保持
-    旧插件可用；不允许 create_runtime 返回 None 后静默空转。
+
+class _PluginCompiledModel:
+    """插件旧 SPI 的编译产物适配器：只负责暴露稳定身份与转发属性。"""
+
+    def __init__(self, target: Any) -> None:
+        self._target = target
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._target, name)
+
+
+class _PluginRuntime:
+    """插件旧 SPI 的运行时适配器：执行仍转发给插件对象。"""
+
+    def __init__(self, target: Any, engine: Any) -> None:
+        self._target = target
+        self._engine = engine
+        self._step_accepts_deadline = _accepts_keyword(
+            getattr(target, "step", None), "deadline"
+        )
+
+    @property
+    def engine(self) -> Any:
+        return self._engine
+
+    def step(self, dt: float, deadline: float | None = None) -> Any:
+        """兼容旧插件 ``step(dt)``：仅在插件声明 deadline 时才转发。"""
+        step = getattr(self._target, "step", None)
+        if step is None:
+            step = getattr(self._engine, "step")
+        if deadline is not None and self._step_accepts_deadline:
+            return step(dt, deadline=deadline)
+        return step(dt)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._target, name)
+
+
+def assemble_engine(
+    mode: str, scene: Any, *, block_instances: Any = None
+) -> EngineAssembly:
+    """内建模式走 Model → compile → CompiledModel → create_runtime 的真实链路。
+
+    插件若未实现生命周期方法，则用适配器保持旧插件可用；不允许
+    create_runtime 返回 None 后静默空转。
     """
+    if is_builtin_mode(mode):
+        from .compiled_model import _scene_initial_state
+        from .model import Model
+
+        model = Model.from_scene(scene)
+        compiled = model.compile()
+        # 只把普通字典快照交给 Runtime；Runtime 自己重建独立 Scene/Engine。
+        runtime = compiled.create_runtime(
+            initial_state=_scene_initial_state(scene),
+            block_instances=block_instances,
+            solver_options=getattr(scene, "solver_options", None),
+        )
+        return EngineAssembly(mode=mode, model=model, compiled=compiled, runtime=runtime)
     model = create_engine(mode, scene)
     compile_fn = getattr(model, "compile", None)
-    compiled = compile_fn() if callable(compile_fn) else model
+    compiled_target = compile_fn() if callable(compile_fn) else model
     runtime_fn = getattr(model, "create_runtime", None)
-    runtime = runtime_fn(compiled) if callable(runtime_fn) else model
-    if runtime is None:
+    runtime_target = runtime_fn(compiled_target) if callable(runtime_fn) else model
+    if runtime_target is None:
         raise RuntimeError(f"引擎运行时为空：{mode}")
+    compiled = _PluginCompiledModel(compiled_target)
+    runtime_engine = getattr(runtime_target, "engine", model)
+    runtime = _PluginRuntime(runtime_target, runtime_engine)
     return EngineAssembly(mode=mode, model=model, compiled=compiled, runtime=runtime)
 
 

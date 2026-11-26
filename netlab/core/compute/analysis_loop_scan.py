@@ -88,8 +88,6 @@ def _analytic_loop_frequency_response(
     return response
 
 
-
-
 def _resolve_operating_point(
     sim: Any, operating_point: dict[str, float] | None
 ) -> dict[str, float] | None:
@@ -196,7 +194,8 @@ def loop_candidates(sim: Any, *, operating_point: dict[str, float] | None = None
                     "member_edge_names": [c.name for c in internal],
                     "candidate_breaks": breaks,
                     "suggested_break_id": breaks[0]["break_id"] if breaks else None,
-                    "feedback_sign": 1,
+                    "feedback_sign": None,
+                    "feedback_sign_confirmed": False,
                 }
             )
         return {"ok": True, "mode": mode, "loops": loops, "scene": scene_summary}
@@ -230,7 +229,8 @@ def loop_from_break(
 
     导线（kind=="wire"）先并查集合并为电气 net，器件作为 net 间无向边；删除所选
     支路后从其一端 BFS 回到另一端，找到即组成一个候选 LoopGroup。该结果仅用于
-    缩略图/一次选中整环，feedback_sign 默认 +1，须用户确认。
+    缩略图/一次选中整环；拓扑本身不推断极性，feedback_sign 返回 None 并标记
+    feedback_sign_confirmed=False，须用户确认（+1 负反馈 / -1 正反馈）。
     """
     scene = getattr(sim, "scene", sim)
     mode = str(getattr(scene, "mode", "circuit"))
@@ -337,7 +337,8 @@ def loop_from_break(
             }
         ],
         "suggested_break_id": str(getattr(break_edge, "id", break_id)),
-        "feedback_sign": 1,
+        "feedback_sign": None,
+        "feedback_sign_confirmed": False,
     }
     return {
         "ok": True,
@@ -345,7 +346,7 @@ def loop_from_break(
         "loop": loop,
         "loops": [loop],
         "warnings": [
-            "电路模式按无向拓扑搜索包含该支路的最短闭合路径；feedback_sign 默认 +1，需用户确认。"
+            "电路模式按无向拓扑搜索包含该支路的最短闭合路径；feedback_sign 未推断，需用户确认极性（+1 负反馈 / -1 正反馈）。"
         ],
         "scene": scene_summary,
     }
@@ -415,8 +416,15 @@ def _virtual_loop_analysis(
     operating_point: dict[str, float] | None,
 ) -> dict[str, Any]:
     """无实体断环时仅展示直接求得的闭环 T(s)（明确标注，不参与判稳，不冒充开环）。"""
+    try:
+        sign = float(feedback_sign)
+    except (TypeError, ValueError) as exc:
+        raise AnalysisError("feedback_sign 必须为 +1（负反馈）或 -1（正反馈）") from exc
+    if sign not in (-1.0, 1.0):
+        raise AnalysisError("feedback_sign 必须为 +1（负反馈）或 -1（正反馈）")
+    feedback_label = "负反馈" if sign > 0 else "正反馈"
     if not input_source or not output:
-        raise AnalysisError("虚拟单位负反馈需要 input_source 与 output")
+        raise AnalysisError("虚拟单位反馈需要 input_source 与 output")
     tf = tf_analysis(
         sim,
         mode="circuit",
@@ -440,7 +448,7 @@ def _virtual_loop_analysis(
     magnitude_db = magnitude_db[:count]
     phase_deg = phase_deg[:count]
     if count == 0:
-        raise AnalysisError("虚拟单位负反馈无法取得频响数据")
+        raise AnalysisError(f"虚拟单位{feedback_label}无法取得频响数据")
     # 电路未断环时，直接测量得到的响应就是真实闭环 T(jω)；
     # 开环 L(s) 必须来自实体断环，绝不在此反推、冒充开环。
     closed = 10.0 ** (magnitude_db / 20.0) * np.exp(1j * np.radians(phase_deg))
@@ -455,7 +463,7 @@ def _virtual_loop_analysis(
         "break_kind": "virtual",
         "input_source": input_source,
         "output": output,
-        "feedback_sign": 1.0,
+        "feedback_sign": sign,
         "operating_point_supplied": bool(operating_point),
     }
     warning_items = [
@@ -477,7 +485,7 @@ def _virtual_loop_analysis(
         sim.scene,
         {"kind": "virtual_loop", "input_source": input_source, "output": output,
          "f_start": float(f_start), "f_stop": float(f_stop), "points": int(points),
-         "op_present": bool(operating_point)},
+         "feedback_sign": sign, "op_present": bool(operating_point)},
     )
     # 直接闭环 T(s) 来自 tf_analysis 的解析式；开环不可得，标记为 unsupported。
     closed_loop_transfer = tf.get("transfer_function")
@@ -488,7 +496,7 @@ def _virtual_loop_analysis(
     if display == "step":
         step_payload = dict((tf.get("envelopes") or {}).get("time") or {})
         if not step_payload:
-            raise AnalysisError("虚拟单位负反馈缺少阶跃结果")
+            raise AnalysisError(f"虚拟单位{feedback_label}缺少阶跃结果")
         step_payload["source"] = {**source_payload, "kind": "loop_step"}
         step_payload["warnings"] = [*(step_payload.get("warnings") or []), *warning_items]
         step_payload["metrics"] = {**metrics, "approximate_closed_loop": True}
@@ -500,7 +508,7 @@ def _virtual_loop_analysis(
             "break_kind": "virtual",
             "input_source": input_source,
             "output": output,
-            "feedback_sign": 1.0,
+            "feedback_sign": sign,
             "loop_origin": "virtual_unit_feedback",
             "parity_max_rel": None,
             "poles": tf.get("poles"),
@@ -522,7 +530,7 @@ def _virtual_loop_analysis(
             magnitude_db=closed_mag,
             phase_deg=closed_phase,
             source={**source_payload, "kind": "loop_closed"},
-            output=f"T({output}) 虚拟单位负反馈",
+            output=f"T({output}) 虚拟单位{feedback_label}",
             poles=(tf.get("poles") or {}).get("finite", []),
             metrics=dict(metrics),
             warnings=warning_items,
@@ -533,7 +541,7 @@ def _virtual_loop_analysis(
     else:
         bode_payload = dict((tf.get("envelopes") or {}).get("bode") or {})
         if not bode_payload:
-            raise AnalysisError("虚拟单位负反馈缺少 Bode 结果")
+            raise AnalysisError(f"虚拟单位{feedback_label}缺少 Bode 结果")
         bode_payload["source"] = source_payload
         bode_payload["warnings"] = [*(bode_payload.get("warnings") or []), *warning_items]
         bode_payload["metrics"] = {**metrics, "approximate_closed_loop": False}
@@ -545,7 +553,7 @@ def _virtual_loop_analysis(
         "break_kind": "virtual",
         "input_source": input_source,
         "output": output,
-        "feedback_sign": 1.0,
+        "feedback_sign": sign,
         "loop_origin": "virtual_unit_feedback",
         "frequencies_hz": [float(value) for value in frequencies],
         "loop_gain": [],

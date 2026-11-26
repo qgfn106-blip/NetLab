@@ -334,7 +334,7 @@ export class AnalysisWorkbench extends WorkbenchActions {
       '  <label>阶跃 dt <input type="number" data-awb="step-dt" min="0.000000001" step="any" value="' + this.params.step_dt + '"></label>',
       '  <label>时长 <input type="number" data-awb="step-duration" min="0.000001" step="any" value="' + this.params.step_duration + '"></label>',
       needLoop ? '  <label>断环元件 <select data-awb="element">' + loopOptions + '</select></label>' : '',
-      needLoop ? '  <label>反馈符号 <select data-awb="feedback"><option value=""' + (this.params.feedback_sign === null ? ' selected' : '') + '>请选择反馈类型</option><option value="1"' + (this.params.feedback_sign === 1 ? ' selected' : '') + '>负反馈（1）</option><option value="-1"' + (this.params.feedback_sign === -1 ? ' selected' : '') + '>正反馈（-1）</option></select></label>' : '',
+      needLoop ? '  <label>反馈符号 <select data-awb="feedback"><option value=""' + (this.params.feedback_sign === null || !this.params.feedback_sign_confirmed ? ' selected' : '') + '>请选择反馈类型</option><option value="1"' + (this.params.feedback_sign === 1 && this.params.feedback_sign_confirmed ? ' selected' : '') + '>负反馈（1）</option><option value="-1"' + (this.params.feedback_sign === -1 && this.params.feedback_sign_confirmed ? ' selected' : '') + '>正反馈（-1）</option></select></label>' : '',
       '</div>',
     ].join('');
     this.navHost.querySelectorAll('[data-kind]').forEach((button) => {
@@ -480,8 +480,9 @@ export class AnalysisWorkbench extends WorkbenchActions {
       if (Number.isFinite(value)) this.params[key] = value;
     }
     if (active && 'feedback_sign' in active) {
-      this.params.feedback_sign = active.feedback_sign === 1 || active.feedback_sign === -1 ? active.feedback_sign : null; this.params.feedback_sign_confirmed = this.params.feedback_sign !== null;
-    }
+      this.params.feedback_sign = active.feedback_sign === 1 || active.feedback_sign === -1 ? active.feedback_sign : null;
+      this.params.feedback_sign_confirmed = this.params.feedback_sign !== null && active.feedback_sign_confirmed === true;
+    } else { this.params.feedback_sign = null; this.params.feedback_sign_confirmed = false; }
   }
 
   private async snapshotCurrent(label: string): Promise<void> {
@@ -496,7 +497,7 @@ export class AnalysisWorkbench extends WorkbenchActions {
       const response = await workbenchStateRequest({
         session_id: this.sessionId,
         action: 'add',
-        state: { ...statePayload, ...options, ranges: this.rangesPayload() },
+        state: { ...statePayload, ...options, feedback_sign: this.params.feedback_sign, feedback_sign_confirmed: this.params.feedback_sign_confirmed, ranges: this.rangesPayload() },
         select: true,
       }) as StateResponse;
       if (response.session) this.session = response.session;
@@ -536,7 +537,7 @@ export class AnalysisWorkbench extends WorkbenchActions {
         session_id: this.sessionId,
         action: 'update',
         state_id: active.state_id,
-        changes: { circuit: payload.state.circuit, ...this.portDefaults(), ranges: this.rangesPayload() },
+        changes: { circuit: payload.state.circuit, ...this.portDefaults(), feedback_sign: this.params.feedback_sign, feedback_sign_confirmed: this.params.feedback_sign_confirmed, ranges: this.rangesPayload() },
         select: true,
       }) as StateResponse;
       if (response.session) this.session = response.session;

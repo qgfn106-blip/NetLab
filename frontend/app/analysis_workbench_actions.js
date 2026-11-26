@@ -16,7 +16,7 @@ class WorkbenchActions {
     this.workspace = null;
     this.session = null;
     this.sessionId = "";
-    this.params = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: 1, feedback_sign_confirmed: true };
+    this.params = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: 1, feedback_sign_confirmed: false };
     this.frequencyPath = "descriptor_linearized";
     this.loopCandidates = [];
     this.loopGroups = [];
@@ -350,18 +350,21 @@ class WorkbenchActions {
         if (loopElement) element = loopElement;
       }
       if (element === "__virtual__" && !closedLoopKind) element = "";
-      if (!element && this.loopCandidates.length) element = String(this.loopCandidates[0].element || "");
+      if (!element && this.loopCandidates.length && !openLoopKind) element = String(this.loopCandidates[0].element || "");
       if (!element && !loopKind) {
         await this.loadLoopCandidatesIfNeeded();
         element = String(this.loopCandidates[0]?.element || "");
       }
       if (!element && openLoopKind) {
         await this.loadLoopCandidatesIfNeeded();
-        element = String(this.loopCandidates[0]?.element || "");
-      }
-      if (!element && openLoopKind) {
-        toast("\u73AF\u8DEF\u5206\u6790\u5FC5\u987B\u9009\u62E9\u5B9E\u4F53\u65AD\u73AF\u70B9\uFF1B\u672A\u65AD\u73AF\u65E0\u6CD5\u6C42\u5F00\u73AF L(s)", "error", 5e3);
-        return null;
+        if (this.selectedLoopGroup) {
+          const loopElement = controlledBreakForGroup(this.selectedLoopGroup, this.loopCandidates);
+          if (loopElement) element = loopElement;
+        }
+        if (!element) {
+          toast("\u73AF\u8DEF\u5206\u6790\u5FC5\u987B\u9009\u62E9\u5B9E\u4F53\u65AD\u73AF\u70B9\uFF1B\u672A\u65AD\u73AF\u65E0\u6CD5\u6C42\u5F00\u73AF L(s)", "error", 5e3);
+          return null;
+        }
       }
       if (!element && closedLoopKind && this.selectedLoopGroup) {
         toast("\u6240\u9009\u73AF\u8DEF\u4E0D\u542B VCVS/VCCS \u53D7\u63A7\u6E90\uFF0C\u65E0\u6CD5\u5B9A\u4E49\u552F\u4E00\u5F00\u73AF L(s)\uFF0C\u4EC5\u663E\u793A\u95ED\u73AF T(s)", "info", 5e3);
@@ -372,7 +375,7 @@ class WorkbenchActions {
         return null;
       }
       params.element = element;
-      if (this.params.feedback_sign === null) {
+      if (this.params.feedback_sign === null || loopKind && this.params.feedback_sign_confirmed !== true) {
         toast("\u8BF7\u5148\u786E\u8BA4\u53CD\u9988\u6781\u6027\uFF1A+1\uFF08\u8D1F\u53CD\u9988\uFF09\u6216 -1\uFF08\u6B63\u53CD\u9988\uFF09", "error", 5e3);
         return null;
       }

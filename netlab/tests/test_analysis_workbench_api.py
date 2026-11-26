@@ -102,9 +102,13 @@ def test_workbench_session_state_run_compare_invalidate(client) -> None:
 
 
 def _run_kind(client, session_id: str, state_id: str, kind: str, params: dict | None = None) -> dict:
+    payload = dict(params or {})
+    if kind in ("loop", "loop_closed", "loop_step"):
+        payload.setdefault("feedback_sign", 1.0)
+        payload.setdefault("feedback_sign_confirmed", True)
     response = client.post(
         "/api/analysis/workbench/run",
-        json={"session_id": session_id, "state_id": state_id, "kind": kind, "params": params or {}},
+        json={"session_id": session_id, "state_id": state_id, "kind": kind, "params": payload},
     )
     assert response.status_code == 200, response.text
     body = response.json()
@@ -290,3 +294,42 @@ def test_workbench_auto_supplies_dc_operating_point_for_nonlinear(client):
     body = _run(client, session_id, state_id, "bode")
     assert body["ok"] is True
     assert body["raw"]["operating_point_supplied"] is True
+
+
+def test_workbench_state_preserves_unconfirmed_feedback_sign(client) -> None:
+    session_id = _new_session(client, "极性状态")
+    payload = _rc_payload("未确认")
+    payload["feedback_sign"] = None
+    payload["feedback_sign_confirmed"] = False
+    response = client.post(
+        "/api/analysis/workbench/state",
+        json={"session_id": session_id, "action": "add", "state": payload, "select": True},
+    )
+    assert response.status_code == 200, response.text
+    state = response.json()["state"]
+    assert state["feedback_sign"] is None
+    assert state["feedback_sign_confirmed"] is False
+
+    updated = client.post(
+        "/api/analysis/workbench/state",
+        json={
+            "session_id": session_id,
+            "action": "update",
+            "state_id": state["state_id"],
+            "changes": {"feedback_sign": None},
+        },
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["state"]["feedback_sign"] is None
+
+    invalid = client.post(
+        "/api/analysis/workbench/state",
+        json={
+            "session_id": session_id,
+            "action": "update",
+            "state_id": state["state_id"],
+            "changes": {"feedback_sign": 0},
+        },
+    )
+    assert invalid.status_code == 422
+    assert "feedback_sign" in invalid.text

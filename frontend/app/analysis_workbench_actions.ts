@@ -23,7 +23,7 @@ export abstract class WorkbenchActions {
   protected params: {
     f_start: number; f_stop: number; points: number; step_dt: number; step_duration: number;
     feedback_sign: number | null; feedback_sign_confirmed: boolean;
-  } = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: 1, feedback_sign_confirmed: true };
+  } = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: 1, feedback_sign_confirmed: false };
   protected frequencyPath = 'descriptor_linearized';
   protected loopCandidates: Array<Record<string, unknown>> = [];
   protected loopGroups: Array<Record<string, unknown>> = [];
@@ -394,18 +394,21 @@ export abstract class WorkbenchActions {
         if (loopElement) element = loopElement;
       }
       if (element === '__virtual__' && !closedLoopKind) element = '';
-      if (!element && this.loopCandidates.length) element = String(this.loopCandidates[0].element || '');
+      if (!element && this.loopCandidates.length && !openLoopKind) element = String(this.loopCandidates[0].element || '');
       if (!element && !loopKind) {
         await this.loadLoopCandidatesIfNeeded();
         element = String(this.loopCandidates[0]?.element || '');
       }
       if (!element && openLoopKind) {
         await this.loadLoopCandidatesIfNeeded();
-        element = String(this.loopCandidates[0]?.element || '');
-      }
-      if (!element && openLoopKind) {
-        toast('环路分析必须选择实体断环点；未断环无法求开环 L(s)', 'error', 5000);
-        return null;
+        if (this.selectedLoopGroup) {
+          const loopElement = controlledBreakForGroup(this.selectedLoopGroup, this.loopCandidates);
+          if (loopElement) element = loopElement;
+        }
+        if (!element) {
+          toast('环路分析必须选择实体断环点；未断环无法求开环 L(s)', 'error', 5000);
+          return null;
+        }
       }
       if (!element && closedLoopKind && this.selectedLoopGroup) {
         toast('所选环路不含 VCVS/VCCS 受控源，无法定义唯一开环 L(s)，仅显示闭环 T(s)', 'info', 5000);
@@ -416,7 +419,7 @@ export abstract class WorkbenchActions {
         return null;
       }
       params.element = element;
-      if (this.params.feedback_sign === null) {
+      if (this.params.feedback_sign === null || (loopKind && this.params.feedback_sign_confirmed !== true)) {
         toast('请先确认反馈极性：+1（负反馈）或 -1（正反馈）', 'error', 5000);
         return null;
       }

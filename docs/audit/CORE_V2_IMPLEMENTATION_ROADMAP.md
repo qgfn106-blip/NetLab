@@ -16,21 +16,21 @@
 - 依赖：无（起点）。风险：契约过度设计；回滚：文档级，可增量修订。
 
 ## 2. P3-02 统一计算内核编排层（analysis.py 拆分落地）
-- 目标：落地 NETLAB_ARCHITECTURE_CONVERGENCE.md §5 的 analysis 分层（errors/numerics/orchestrate/envelopes + facade）。
+- 目标：落地 NETLAB_ARCHITECTURE_CONVERGENCE.md §5 的 analysis 分层（metrics/transfer/envelopes/loop（+scan）+ facade；errors/numerics 已由 P2-03 拆出）。
 - 交付：拆分后的模块 + 公共 API 不变的证明（AST/导出比对）。
-- 验收门 G2：每文件行数达标、职责边界评审通过；全量测试全绿、覆盖率维持 CI 门 81。
+- 验收门 G4：每文件行数达标、职责边界评审通过；全量测试全绿、覆盖率维持 CI 门 81。
 - 依赖：P3-01（错误与入口契约）。风险：循环导入、异常路径语义变化；回滚：分文件 PR。
 
 ## 3. P3-03 单一 StampBuilder 与 MNA 契约
 - 目标：落地 §3，elements.stamp 与 descriptor._assemble_matrices 收敛为单一 StampBuilder。
 - 交付：StampBuilder 接口 + 12 kind 迁移 + 新旧对拍测试（矩阵逐项相等）。
-- 验收门 G3：每 kind 对拍通过；新增器件只需一处实现；覆盖率维持 81。
+- 验收门 G2：每 kind 对拍通过；新增器件只需一处实现；覆盖率维持 81。
 - 依赖：P3-01、P3-02（编排层定位）。风险：受控源/多端装配等价；回滚：feature flag 按 kind 灰度。
 
 ## 4. P3-04 统一频域后端 ac_sweep
 - 目标：落地 §4，线性/非线性/强制 native 三模式统一为 ac_sweep strategy。
 - 交付：strategy 接口 + native 策略 + 三模式 Bode 对拍基线。
-- 验收门 G4：三模式幅相逐点对拍通过；性能不退化。
+- 验收门 G3：三模式幅相逐点对拍通过；性能不退化。
 - 依赖：P3-01、P3-03（依赖 MNA 装配）。风险：数值/性能回退；回滚：strategy 可切换。
 
 ## 5. P3-05 前端分析工作台四层架构
@@ -41,20 +41,20 @@
 
 ## 6. P3-06 app.ts 入口分层
 - 目标：落地 §2，app.ts 拆为 router/store/views/commands/handlers，入口仅装配。
-- 交付：分层模块 + endpoint 清单快照（88 条不变）+ 冒烟测试。
-- 验收门 G6：endpoint 数量与路径不变；行数门禁通过；冒烟通过。
+- 交付：分层模块 + endpoint 清单快照（后端 88 条不变；前端 version2 为 91 唯一路径/101 方法+路径条目）+ 冒烟测试。实施状态（分支已推送未合并）：已完成 14 个 `frontend/app/editor_*` 模块全量迁移（dd0e924、bf9075d 修复调试钩子），app.ts 7511→5（仅 import+bootEditor），所有模块 ≤800 行，A2 TS 环 0；G6 已签。
+- 验收门 G6：后端 88 条 endpoint 契约与前端快照 91 唯一路径/101 条目的数量与路径不变；行数门禁通过；冒烟通过。
 - 依赖：P3-05（前端分层范式）。风险：隐式全局/闭包状态遗漏；回滚：分文件 PR。
 
 ## 7. P3-07 异构后端（GPU/FEM）边界与错误契约
 - 目标：落地 §6、§7，GPU 边界（min_size 192、H2D/D2H/sync、非有限 ComputeError）与 FEM 边界（Dirichlet/Neumann、可插拔时间积分）形式化并补单测。
 - 交付：契约文档 + 边界单测矩阵 + 与 CPU 路径对拍。
-- 验收门 G7：边界单测覆盖全组合；非有限语义与 CPU 一致；默认 FEM 配置输出快照不变。
+- 验收门 G7：边界单测覆盖全组合；非有限语义与 CPU 一致；默认 FEM 配置输出快照不变。实施状态：按 FEM 冻结口径完成（FEM 冻结；`test_accel_fallback.py` 5 passed、`test_fem.py` 8 passed）；G7 已签，更细 GPU 错误矩阵与 FEM 时间积分扩展列为后续增强。
 - 依赖：P3-03、P3-04（内核装配/求解契约）。风险：无 GPU 环境覆盖盲区；回滚：契约断言可关、后端可切换。
 
 ## 8. P3-08 Core V2 验收门与迁移/回滚策略
 - 目标：定义 Core V2 总验收门（G1..G7 汇总）与迁移路径、回滚策略、兼容承诺（Schema 8 向前兼容）。
 - 交付：总验收清单 + 迁移/回滚预案 + 发布说明。
-- 验收门 G8：G1..G7 全绿；兼容性检查通过；回滚演练通过。
+- 验收门 G8：G1..G7 全绿；兼容性检查通过；回滚演练通过。G0–G8 全部通过，G8 已于 bf9075d 六项 CI 全绿后补签（2026-11-26）。
 - 依赖：P3-02..P3-07 全部完成。风险：集成期跨模块回归；回滚：里程碑级快照与 feature flag。
 
 ## 9. 里程碑与依赖顺序
@@ -62,8 +62,8 @@
 | 里程碑 | 内容 | 包含 P3 项 | 依赖 | 验收门 |
 |---|---|---|---|---|
 | M0 契约冻结 | 目标/范围/不变量 | P3-01 | 无 | G0 |
-| M1 内核骨架 | 编排层 + MNA 契约 | P3-02、P3-03 | M0 | G2、G3 |
-| M2 频域统一 | ac_sweep 三模式 | P3-04 | M1 | G4 |
+| M1 内核骨架 | 编排层 + MNA 契约 | P3-02、P3-03 | M0 | G4、G2 |
+| M2 频域统一 | ac_sweep 三模式 | P3-04 | M1 | G3 |
 | M3 前端收敛 | 工作台四层 + 入口分层 | P3-05、P3-06 | M0 | G5、G6 |
 | M4 异构边界 | GPU/FEM 契约 | P3-07 | M1、M2 | G7 |
 | M5 总验收 | 汇总统验与回滚 | P3-08 | M1..M4 | G8 |

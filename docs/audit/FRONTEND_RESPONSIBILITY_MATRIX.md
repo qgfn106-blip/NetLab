@@ -23,7 +23,7 @@
 
 | 模块 | 行数 | 层 | 职责 | 现状/边界问题 |
 |---|---:|---|---|---|
-| frontend/app.ts | 7511 | entry/router | 88 endpoint、会话状态、全局事件、视图刷新、命令分发 | **单体入口**，213 嵌套函数；P1-02 拆分对象 |
+| frontend/app.ts | 5 | entry | 仅 `import { bootEditor }` + `bootEditor()` + `export {}` | P3-06 已完成：原 4462 行单 IIFE 全量迁入 14 个 `frontend/app/editor_*` 模块（dd0e924），全部 ≤800 行；入口仅装配；A2 TS 环 0；端点快照 91 唯一路径 / 101 方法+路径条目 |
 | frontend/app/state.ts | 266 | model(全局) | `state`/`ui` 可变单例 | 被大量模块共享；禁止在 model 纯函数内改它 |
 | frontend/app/types.ts | 502 | model | 全前端类型定义 | 类型聚合，无运行时代码 |
 | frontend/app/constants.ts | 153 | model | UI 常量、颜色、限制值 | 纯常量 |
@@ -46,19 +46,22 @@
 |---|---:|---|---|
 | analysis_workbench.ts | 800 | facade | 工作台壳、会话/状态选择、对外 API；已降至门禁上限 |
 | analysis_workbench_actions.ts | 426 | interaction | 运行/对比/导出等命令动作 |
-| analysis_workbench_canvas.ts | 774 | facade/interaction | 子画布登记、布局树操作、标签页/分割 |
+| analysis_workbench_canvas.ts | 774 | interaction | 子画布登记、布局树操作、标签页/分割 |
 | analysis_workbench_canvas_ids.ts | 52 | model(纯函数) | 画布/标签页 id 与布局树深拷贝（P1-01 新抽出） |
 | analysis_workbench_chrome.ts | 78 | interaction | 侧栏拖拽、尺寸、折叠/专注态、UI 记录组装、光标映射（P1-01 新抽出） |
 | analysis_workbench_layout_tree.ts | 372 | model | v2 布局树纯函数（root/split/tabs/merge/normalize） |
 | analysis_workbench_layout.ts | — | model | UI 记录读写与 schema 归一化 |
 | analysis_workbench_results.ts | — | render | 对比表/指标/传函摘要 HTML |
-| analysis_workbench_chart_settings.ts | 377 | interaction+render | 图表外观设置对话框 |
+| analysis_workbench_chart_settings.ts | 377 | render | 图表外观设置对话框 |
 | analysis_workbench_loops.ts | 146 | render | 环路列表 HTML 与断点建议 |
 | analysis_workbench_meta.ts | — | model | kind 标签/提示/状态色/工具函数 |
-| analysis_chart.ts | 786 | facade | 图实例生命周期、对外 API、委托渲染/交互 |
+| analysis_chart.ts | 718 | facade | 图实例生命周期、对外 API、委托渲染/交互 |
 | analysis_chart_spec.ts | 133 | render(纯函数) | PlotKit spec 组装：panel/scale/grid（P1-01 新抽出） |
 | analysis_chart_detail.ts / analysis_chart_appearance.ts | 264 / 238 | model+render | 详情 HTML、外观类型与归一化 |
 | analysis_chart_plot.ts / analysis_chart_utils.ts | — | render/util | PlotKit 绘图适配与坐标工具 |
+| analysis_workbench_menu.ts / analysis_workbench_types.ts | 58 / 35 | model | 菜单项与共享类型（无运行时依赖） |
+
+> **P3-05 四层守卫**：`frontend/tools/check_analysis_layers.mjs` 对 24 个 `analysis_chart*` / `analysis_workbench*` 模块校验 ≤800 行、import 只能同层或更低层（model→render→interaction→facade）、禁止反向依赖；`frontend/tests/analysis_layers.test.mjs` 5 条 node:test 守护。`analysis_workbench.ts` 恰好 800 行，后续不得再增行。
 
 ### 2.4 服务与窗口
 
@@ -70,11 +73,11 @@
 | appearance.ts / appearance_controls.ts / appearance_panel.ts | 236 / 255 / 167 | model+render | 外观状态、控件、面板 |
 | cache.ts | 128 | service | 分析结果缓存 |
 
-> 完整 76 个 app 模块的行数以 `wc -l frontend/app/*.ts | sort -nr` 为准；本表只列职责代表模块。
+> 完整 94 个 app 模块的行数以 `wc -l frontend/app/*.ts | sort -nr` 为准；本表只列职责代表模块。
 
 ## 3. 现状违规与风险
 
-1. **入口单体**：`frontend/app.ts` 7511 行、单 IIFE、88 endpoint、213 嵌套函数，承担路由/状态/视图/命令/网络五类职责，是 P1-02 的核心拆分对象。
+1. **入口单体（已解决）**：`frontend/app.ts` 原 7511 行、单 IIFE、88 endpoint、213 嵌套函数；P3-06 已按职责拆入 14 个 `frontend/app/editor_*` 模块（dd0e924），app.ts 现仅 5 行装配入口。
 2. **全局可变单例**：`state.ts` 的 `state`/`ui` 被入口与多个视图共享；拆分时最容易出现隐式闭包依赖，必须先冻结读写接口再搬迁。
 3. **模块接近门禁上限**：`analysis_workbench.ts` 恰好 800 行，任何新增字段都会再次超限；后续应继续按 render/interaction 抽离，而不是压缩格式。
 4. **ends 命名空间**：`analysis_workbench_canvas_ids.ts` 只放纯 id/深拷贝函数，避免 canvas 模块继续膨胀（已落地）。
@@ -94,10 +97,10 @@
 
 | 阶段 | 动作 | 验收 |
 |---|---|---|
-| S1 | 从 app.ts 抽出 88 endpoint 的声明式注册表（纯映射，不改行为） | endpoint 清单快照路径/数量 88 条完全一致 |
-| S2 | 抽出 `app/store.ts`（会话/状态读写接口），入口改为注入 | 快照测试 + 启动冒烟 |
-| S3 | 抽出 `app/commands.ts`（事件命令），入口只保留绑定 | 交互快照一致 |
-| S4 | 抽出 `app/views.ts`（渲染刷新），入口仅装配启动 | 行数门禁 + 端到端冒烟 |
+| S1 | 从 app.ts 抽出端点声明式注册表（纯映射，不改行为）✅ 已完成 ea8413d | endpoint 快照 91 个唯一路径 / 101 个方法+路径条目完全一致（前端路径口径；88 为后端 endpoint 总数口径） |
+| S2 | 抽出 `app/store.ts`（会话/状态读写接口），入口改为注入 ✅ 已完成 1625eeb | 快照测试 + 真实浏览器 L1 启动冒烟通过 |
+| S3 | 抽出 `app/commands.ts`（事件命令 selection/clipboard/undo/redo），入口只保留绑定 ✅ 已完成 729bf6e | 交互快照一致 |
+| S4 | 抽出 `app/shell_view.ts`（外壳视图 updateInfoBar/renderNetworkList，视图层首片）✅ 已完成 66d8272；P3-06 后续完成 app/views.ts 与全部 editor_* 模块迁移（dd0e924） | 行数门禁 + 端到端冒烟 |
 
 回滚：每阶段独立文件 + 单处装配改动，可单独 revert；任何阶段不得改变 endpoint 路径、状态字段名或持久化 schema。
 
@@ -111,4 +114,4 @@ npm run build && node tools/verify_app_parity.js
 node tools/check_app_sections.mjs
 ```
 
-最近一次结果：`tsc` RC=0；`test:utils` 88 passed / 0 failed；parity `OK: app.ts parity passed (base=HEAD, 86 TS files, 859 top-level declarations, 76 runtime app modules, 3 type-only)`；`check_app_sections` `OK: S5 size limits passed`。
+最近一次结果（P3-06 全量拆分后，dd0e924）：`tsc` RC=0；`test:utils` 96 passed / 0 failed；parity `OK: app.ts parity passed (base=HEAD, 117 TS files, 1143 top-level declarations, 107 runtime app modules, 3 type-only)`；`check:sections` `OK: S5 size limits passed`（app.ts 5/8000）；`check_architecture.py` A2 TS 环 0；端点快照 91 唯一路径 / 101 方法+路径条目。

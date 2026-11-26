@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from netlab.core.compute import analysis
+from netlab.core.compute import analysis, analysis_loop
 from netlab.core.compute.circuit import descriptor_analysis
 from netlab.core.compute.simulation import Simulation
 from netlab.core.model.scene import Scene
@@ -205,7 +205,7 @@ def test_physical_closed_loop_survives_transfer_expression_failure(monkeypatch) 
     def _unavailable_transfer(*args, **kwargs):
         raise RuntimeError("transfer unavailable")
 
-    monkeypatch.setattr(analysis, "descriptor_transfer_function", _unavailable_transfer)
+    monkeypatch.setattr(analysis_loop, "descriptor_transfer_function", _unavailable_transfer)
     body = analysis.loop_analysis(
         Simulation(_vcvs_amplifier()),
         element="E1",

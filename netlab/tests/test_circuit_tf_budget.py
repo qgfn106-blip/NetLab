@@ -7,6 +7,7 @@ import time
 import pytest
 
 from netlab.core.compute import analysis as A
+from netlab.core.compute import analysis_envelopes as AE
 from netlab.core.model.scene import Scene
 
 
@@ -51,13 +52,13 @@ def test_points_capped_to_400():
 
 
 def test_timeout_raises_analysis_error(monkeypatch):
-    orig = A.DescriptorModel.from_scene.__func__
+    orig = AE.DescriptorModel.from_scene.__func__
 
     def slow(cls, scene, **kw):
         time.sleep(0.05)
         return orig(cls, scene, **kw)
 
-    monkeypatch.setattr(A.DescriptorModel, "from_scene", classmethod(slow))
+    monkeypatch.setattr(AE.DescriptorModel, "from_scene", classmethod(slow))
     with pytest.raises(A.AnalysisError) as ei:
         _call(budget_s=0.005)
     assert "超时" in str(ei.value)

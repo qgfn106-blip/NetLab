@@ -1079,3 +1079,27 @@ decisions:
   namespace: D-NL
   canonical_id: D-NL-150
   legacy_id: D154
+- id: D155
+  title: P3 Core V2 分门评审与签字（2026-11-26）
+  decision: 对 P3-08 验收清单逐门复核：G1 版本一致、G2 单一 StampBuilder、G3 AC 后端、G4 analysis 分层、G5 工作台四层均依据本地证据通过并签字；G0 契约冻结的条件 1/2/3/5 成立，仅条件 4（六项 CI）待远程执行；G6 不签字（P3-06 完整 handlers/views 迁移与入口仅装配未完成）；G7 按部分完成暂不签（更细 GPU 错误矩阵与 FEM 时间积分扩展可加强）；G8 不通过（依赖 G0/G6/G7 全部通过 + CI 全绿）。签署人：项目负责人（用户授权 AI 代理代签）。
+  namespace: D-NL
+  canonical_id: D-NL-151
+  legacy_id: D155
+- id: D156
+  title: P3 Core V2 G0 补签（2026-11-26，CI 六项全绿后）
+  decision: 依据 commit 9563cad 推送后 GitHub Actions 六项必需检查全部 success（build / docker / desktop-l2 / e2e / e2e-l1 / test；run 45663814821/45663814598/45663814625/45663814662），补签 G0 契约冻结：CORE_V2_CONTRACT_FREEZE.md 条件 1–5 全部满足（D155 评审记录、test_core_v2_contract+test_analysis_api_surface+test_analysis_layering 48 passed、API 快照 0 差异、六项 CI 全绿、无未决 API 破坏）。G1–G5 维持已签；G6（P3-06 完整 handlers/views 迁移与入口仅装配未完成）、G7（GPU 错误矩阵/FEM 时间积分扩展仍可加强）、G8（依赖 G0/G6/G7）不签。G8 仍未通过，不得宣称 Core V2 总验收完成。
+  namespace: D-NL
+  canonical_id: D-NL-152
+  legacy_id: D156
+- id: D157
+  title: P3 Core V2 G6/G7 补签（2026-11-26）
+  decision: 补签 G6：P3-06 已完成 14 个 frontend/app/editor_* 模块全量迁移（dd0e924），app.ts 仅 5 行装配，全部模块 ≤800 行，check_architecture A2 TS 环 0，端点快照 91 唯一路径/101 方法+路径条目，全量 pytest exit0、e2e L1 passed。G7 按 FEM 冻结口径补签：FEM 继续冻结，test_accel_fallback.py 5 passed、test_fem.py 8 passed，更细 GPU 错误矩阵与 FEM 时间积分扩展列为后续增强、不阻断 G7。G0–G7 已分门通过；G8 待新 commit 六项 CI 全绿后补签，补签前不得宣称 Core V2 总验收完成。签署人：项目负责人（用户授权 AI 代理代签）。
+  namespace: D-NL
+  canonical_id: D-NL-153
+  legacy_id: D157
+- id: D158
+  title: P3 Core V2 G8 总验收补签（2026-11-26）
+  decision: 补签 G8：P3-06 全量拆分与 E2E 调试钩子修复提交 bf9075d 已推送，远程 CI build/docker/desktop-l2/e2e/e2e-l1/test 六项全部 success；本地全量 pytest 1811 passed/14 skipped/0 failed（覆盖率 87%），前端 typecheck/build/test:utils 96 passed/parity 117 TS 1143 declarations/端点快照 91 路径 101 条目/分层守卫 24 模块 0 环/E2E 全部通过。G0–G7 已签，G8 满足全部条件，Core V2 总验收完成（2026-11-26）。签署人：项目负责人（用户授权 AI 代理代签）。
+  namespace: D-NL
+  canonical_id: D-NL-154
+  legacy_id: D158

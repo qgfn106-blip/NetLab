@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from netlab.tests.frontend_sources import read_frontend_ts
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -11,7 +13,7 @@ def _read(relative: str) -> str:
 
 
 def test_appearance_panel_has_extended_controls_and_batch_targets() -> None:
-    source = _read("frontend/app.ts") + _read("frontend/app/appearance_panel.ts")
+    source = read_frontend_ts()
     for marker in (
         "appearanceTargets",
         "元素外观（已选",
@@ -48,7 +50,7 @@ def test_scene_types_accepts_extended_appearance() -> None:
 def test_appearance_batch_endpoint_and_presentation_revision() -> None:
     server = _read("netlab/server_scene/__init__.py")
     edit = _read("netlab/core/model/scene_edit.py")
-    app_ts = _read("frontend/app.ts")
+    app_ts = read_frontend_ts()
     assert "/api/scene/appearance" in server
     assert "AppearanceBatch" in server
     assert "update_appearance_batch" in edit

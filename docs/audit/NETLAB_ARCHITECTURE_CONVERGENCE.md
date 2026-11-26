@@ -46,15 +46,15 @@
 ## 2. P1-02 前端入口 app.ts 职责边界梳理与拆分（权重 3）
 
 ### 2.1 现状证据
-- frontend/app.ts：7511 行、单 IIFE、213 嵌套函数、88 endpoint。
+- frontend/app.ts：原 7511 行、单 IIFE、213 嵌套函数、88 endpoint；P3-06 已完成全部迁移（dd0e924），现仅 5 行装配入口，业务函数分居 14 个 `frontend/app/editor_*` 模块（全部 ≤800 行），并保留 endpoints.ts/store.ts/commands.ts/shell_view.ts/router.ts/handlers.ts/views.ts 等分层模块；A2 TS 环 0。
 - 入口同时承担：路由/endpoint 注册、会话与状态、视图渲染、事件命令、网络请求处理；缺乏分层边界。
 
 ### 2.2 目标架构
-- 拆为：router（endpoint 注册表，88 条显式分组）、store（会话/状态）、views（渲染）、commands（事件/命令）、handlers（网络/业务）；app.ts 仅做装配与启动。
-- 88 个 endpoint 收敛为声明式注册表，便于审计 endpoint 数量与路径。
+- 拆为：router（endpoint 注册表，后端 88 条契约、前端快照 91 唯一路径/101 条目）、store（会话/状态）、views（渲染）、commands（事件/命令）、handlers（网络/业务）；app.ts 仅做装配与启动。
+- 88 个后端 endpoint 契约收敛为声明式注册表（前端实测 91 唯一路径），便于审计 endpoint 数量与路径。
 
 ### 2.3 验证标准
-- endpoint 清单快照：拆分前后 88 条 endpoint 的路径与数量完全一致。
+- endpoint 清单快照：拆分前后后端 88 条 endpoint 契约、前端快照 91 唯一路径 / 101 方法+路径条目的路径与数量完全一致。
 - 每文件 ≤ 800 行；导入无循环；AST 导出比对；冒烟测试（启动 + 关键路由）。
 
 ### 2.4 迁移步骤（小步）

@@ -1,0 +1,504 @@
+{
+  "version": 2,
+  "source": "frontend/app.ts + frontend/app/**/*.ts",
+  "note": "P3-06/P1-02 前端 endpoint 契约快照（method+path）；按整个 frontend/app 自动扫描重建，拆分时必须保持不变",
+  "paths": [
+    "/api/ac-sweep",
+    "/api/analysis/export",
+    "/api/analysis/loop",
+    "/api/analysis/loops",
+    "/api/analysis/loops/candidates",
+    "/api/analysis/loops/from-break",
+    "/api/analysis/math",
+    "/api/analysis/metrics",
+    "/api/analysis/nyquist",
+    "/api/analysis/period",
+    "/api/analysis/spectrum",
+    "/api/analysis/tf",
+    "/api/analysis/workbench",
+    "/api/analysis/workbench/compare",
+    "/api/analysis/workbench/export",
+    "/api/analysis/workbench/invalidate",
+    "/api/analysis/workbench/run",
+    "/api/analysis/workbench/session",
+    "/api/analysis/workbench/sessions",
+    "/api/analysis/workbench/state",
+    "/api/analysis/workbench/state-payload",
+    "/api/blocks",
+    "/api/blocks/:param",
+    "/api/blocks/:param/compare",
+    "/api/blocks/:param/delete",
+    "/api/blocks/:param/open-internal",
+    "/api/blocks/:param/rename",
+    "/api/blocks/encapsulate",
+    "/api/blocks/import",
+    "/api/blocks/instantiate",
+    "/api/blocks/save-copy",
+    "/api/blocks/validate",
+    "/api/cache/clean",
+    "/api/cache/status",
+    "/api/catalog",
+    "/api/config",
+    "/api/control",
+    "/api/diagnostics/telemetry",
+    "/api/docs",
+    "/api/edges",
+    "/api/edges/:param",
+    "/api/export/schematic",
+    "/api/extensions",
+    "/api/extensions/activate",
+    "/api/extensions/deactivate",
+    "/api/extensions/validate",
+    "/api/help/doc",
+    "/api/help/search",
+    "/api/live",
+    "/api/mode",
+    "/api/network/state",
+    "/api/network/state/cache",
+    "/api/network/state/compare",
+    "/api/network/state/precompute",
+    "/api/network/states",
+    "/api/networks",
+    "/api/networks/:param",
+    "/api/networks/:param/activate",
+    "/api/nodes",
+    "/api/nodes/:param",
+    "/api/numeric-precision",
+    "/api/operating-point",
+    "/api/plotkit/active",
+    "/api/plotkit/analysis",
+    "/api/plotkit/channels",
+    "/api/plotkit/precompute",
+    "/api/plugins",
+    "/api/plugins/:param/enable",
+    "/api/plugins/:param/reload",
+    "/api/plugins/scan",
+    "/api/positions",
+    "/api/precompute/progress",
+    "/api/profile",
+    "/api/project/context",
+    "/api/project/export",
+    "/api/project/import",
+    "/api/project/retry",
+    "/api/scene",
+    "/api/scene/algebraic",
+    "/api/scene/appearance",
+    "/api/scene/clear",
+    "/api/scene/export",
+    "/api/scene/migrate-devices",
+    "/api/settings",
+    "/api/shutdown",
+    "/api/solve-window",
+    "/api/state",
+    "/api/templates/:param",
+    "/api/ui",
+    "/api/vscode/status",
+    "/api/workspace/snapshot"
+  ],
+  "entries": [
+    {
+      "method": "GET",
+      "path": "/api/ac-sweep"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analysis/export"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analysis/loop"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analysis/loops"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analysis/loops/candidates"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analysis/loops/from-break"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analysis/math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analysis/metrics"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analysis/nyquist"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analysis/period"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analysis/spectrum"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analysis/tf"
+    },
+    {
+      "method": "*",
+      "path": "/api/analysis/workbench"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analysis/workbench/compare"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analysis/workbench/export"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analysis/workbench/invalidate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analysis/workbench/run"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analysis/workbench/session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analysis/workbench/sessions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analysis/workbench/sessions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analysis/workbench/state"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analysis/workbench/state-payload"
+    },
+    {
+      "method": "GET",
+      "path": "/api/blocks"
+    },
+    {
+      "method": "GET",
+      "path": "/api/blocks/:param"
+    },
+    {
+      "method": "POST",
+      "path": "/api/blocks/:param/compare"
+    },
+    {
+      "method": "POST",
+      "path": "/api/blocks/:param/delete"
+    },
+    {
+      "method": "POST",
+      "path": "/api/blocks/:param/open-internal"
+    },
+    {
+      "method": "POST",
+      "path": "/api/blocks/:param/rename"
+    },
+    {
+      "method": "POST",
+      "path": "/api/blocks/encapsulate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/blocks/import"
+    },
+    {
+      "method": "POST",
+      "path": "/api/blocks/instantiate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/blocks/save-copy"
+    },
+    {
+      "method": "POST",
+      "path": "/api/blocks/validate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cache/clean"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cache/status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/catalog"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/config"
+    },
+    {
+      "method": "POST",
+      "path": "/api/control"
+    },
+    {
+      "method": "GET",
+      "path": "/api/diagnostics/telemetry"
+    },
+    {
+      "method": "GET",
+      "path": "/api/docs"
+    },
+    {
+      "method": "POST",
+      "path": "/api/edges"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/edges/:param"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/edges/:param"
+    },
+    {
+      "method": "GET",
+      "path": "/api/export/schematic"
+    },
+    {
+      "method": "GET",
+      "path": "/api/extensions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/extensions/activate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/extensions/deactivate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/extensions/validate"
+    },
+    {
+      "method": "*",
+      "path": "/api/help/doc"
+    },
+    {
+      "method": "GET",
+      "path": "/api/help/search"
+    },
+    {
+      "method": "GET",
+      "path": "/api/live"
+    },
+    {
+      "method": "POST",
+      "path": "/api/mode"
+    },
+    {
+      "method": "POST",
+      "path": "/api/network/state"
+    },
+    {
+      "method": "GET",
+      "path": "/api/network/state/cache"
+    },
+    {
+      "method": "POST",
+      "path": "/api/network/state/compare"
+    },
+    {
+      "method": "POST",
+      "path": "/api/network/state/precompute"
+    },
+    {
+      "method": "GET",
+      "path": "/api/network/states"
+    },
+    {
+      "method": "GET",
+      "path": "/api/networks"
+    },
+    {
+      "method": "POST",
+      "path": "/api/networks"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/networks/:param"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/networks/:param"
+    },
+    {
+      "method": "POST",
+      "path": "/api/networks/:param/activate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/nodes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/nodes/:param"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/nodes/:param"
+    },
+    {
+      "method": "POST",
+      "path": "/api/numeric-precision"
+    },
+    {
+      "method": "GET",
+      "path": "/api/operating-point"
+    },
+    {
+      "method": "POST",
+      "path": "/api/plotkit/active"
+    },
+    {
+      "method": "POST",
+      "path": "/api/plotkit/analysis"
+    },
+    {
+      "method": "GET",
+      "path": "/api/plotkit/channels"
+    },
+    {
+      "method": "POST",
+      "path": "/api/plotkit/channels"
+    },
+    {
+      "method": "POST",
+      "path": "/api/plotkit/precompute"
+    },
+    {
+      "method": "GET",
+      "path": "/api/plugins"
+    },
+    {
+      "method": "POST",
+      "path": "/api/plugins/:param/enable"
+    },
+    {
+      "method": "POST",
+      "path": "/api/plugins/:param/reload"
+    },
+    {
+      "method": "POST",
+      "path": "/api/plugins/scan"
+    },
+    {
+      "method": "POST",
+      "path": "/api/positions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/precompute/progress"
+    },
+    {
+      "method": "GET",
+      "path": "/api/profile"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/profile"
+    },
+    {
+      "method": "POST",
+      "path": "/api/project/context"
+    },
+    {
+      "method": "POST",
+      "path": "/api/project/export"
+    },
+    {
+      "method": "POST",
+      "path": "/api/project/import"
+    },
+    {
+      "method": "POST",
+      "path": "/api/project/retry"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/scene"
+    },
+    {
+      "method": "POST",
+      "path": "/api/scene"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/scene/algebraic"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/scene/appearance"
+    },
+    {
+      "method": "POST",
+      "path": "/api/scene/clear"
+    },
+    {
+      "method": "GET",
+      "path": "/api/scene/export"
+    },
+    {
+      "method": "POST",
+      "path": "/api/scene/migrate-devices"
+    },
+    {
+      "method": "GET",
+      "path": "/api/settings"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/settings"
+    },
+    {
+      "method": "POST",
+      "path": "/api/shutdown"
+    },
+    {
+      "method": "POST",
+      "path": "/api/solve-window"
+    },
+    {
+      "method": "GET",
+      "path": "/api/state"
+    },
+    {
+      "method": "POST",
+      "path": "/api/templates/:param"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ui"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ui"
+    },
+    {
+      "method": "GET",
+      "path": "/api/vscode/status"
+    },
+    {
+      "method": "POST",
+      "path": "/api/workspace/snapshot"
+    }
+  ]
+}

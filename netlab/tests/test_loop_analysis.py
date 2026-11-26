@@ -5,11 +5,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from netlab.core.compute import analysis
 from netlab.core.compute.analysis import break_points
 from netlab.core.compute.circuit import DescriptorModel
 from netlab.core.compute.circuit.loop_analysis import (
     branch_candidates,
     break_candidates,
+    extract_branch_loop,
     extract_controlled_source_loop,
 )
 from netlab.core.compute.simulation import Simulation
@@ -203,3 +205,54 @@ def test_true_positive_feedback_topology_closed_loop_analytic() -> None:
     assert np.allclose(result.closed_loop, result.direct_response, rtol=1e-9)
     assert result.parity_max_rel is not None
     assert result.parity_max_rel < 1e-9
+
+
+def test_branch_loop_marks_opamp_asymptotic_approximation() -> None:
+    scene = _opamp_with_breakable_vcvs()
+    sim = Simulation(scene)
+    operating_point = sim.operating_point().get("node_voltages") or {}
+    model = DescriptorModel.from_scene(scene, operating_point=operating_point)
+    result = extract_branch_loop(
+        model,
+        "R2",
+        np.logspace(0.0, 3.0, 16),
+        input_source="V1",
+        output="out",
+    )
+    assert result.loop_gain_kind == "asymptotic_opamp"
+    warning = next(
+        item for item in result.warnings if item["code"] == "loop_gain_idealized"
+    )
+    assert warning["opamp_gain_scale"] == 1000.0
+
+
+def test_branch_loop_without_opamp_is_exact() -> None:
+    model = DescriptorModel.from_scene(_non_inverting_amplifier())
+    result = extract_branch_loop(
+        model,
+        "R2",
+        np.logspace(0.0, 3.0, 16),
+        input_source="V1",
+        output="out",
+    )
+    assert result.loop_gain_kind == "exact"
+    assert all(item["code"] != "loop_gain_idealized" for item in result.warnings)
+
+
+def test_loop_analysis_payload_marks_idealized_opamp() -> None:
+    scene = _opamp_with_breakable_vcvs()
+    result = analysis.loop_analysis(
+        Simulation(scene),
+        element="R2",
+        input_source="V1",
+        output="out",
+        display="loop",
+        f_start=1.0,
+        f_stop=1000.0,
+        points=16,
+    )
+    assert result["loop_gain_kind"] == "asymptotic_opamp"
+    assert result["source"]["loop_gain_kind"] == "asymptotic_opamp"
+    assert any(
+        item["code"] == "loop_gain_idealized" for item in result["warnings"]
+    )

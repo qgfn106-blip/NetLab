@@ -88,6 +88,12 @@ def stability_margins(
     phase = np.degrees(np.unwrap(np.angle(values)))
     log_f = np.log10(freqs)
 
+    sign = float(feedback_sign)
+    critical_phase = -180.0 if sign >= 0.0 else 0.0
+
+    def _wrap_degrees(value: float) -> float:
+        return float((value + 180.0) % 360.0 - 180.0)
+
     gain_crossings: list[dict[str, Any]] = []
     for position in _crossings(log_f, db, 0.0):
         frequency = float(10.0**position)
@@ -96,17 +102,17 @@ def stability_margins(
             {
                 "frequency_hz": frequency,
                 "phase_deg": phase_at,
-                "phase_margin_deg": float(180.0 + phase_at * float(feedback_sign)),
+                "phase_margin_deg": _wrap_degrees((phase_at - critical_phase) * sign),
             }
         )
 
     phase_crossings: list[dict[str, Any]] = []
     unwrapped_min = float(np.min(phase))
     unwrapped_max = float(np.max(phase))
-    start = int(np.ceil((unwrapped_min + 180.0) / 360.0))
-    stop = int(np.floor((unwrapped_max + 180.0) / 360.0))
+    start = int(np.ceil((unwrapped_min - critical_phase) / 360.0))
+    stop = int(np.floor((unwrapped_max - critical_phase) / 360.0))
     for order in range(start, stop + 1):
-        target = -180.0 + 360.0 * order
+        target = critical_phase + 360.0 * order
         for position in _crossings(log_f, phase, target):
             frequency = float(10.0**position)
             db_at = float(np.interp(position, log_f, db))
@@ -117,6 +123,28 @@ def stability_margins(
                     "gain_margin_db": float(-db_at),
                     "phase_deg": target,
                 }
+            )
+
+    # 正反馈的 0° 临界相位可能只在 DC/首个采样点出现（例如 L(0)>1 的一阶系统）；
+    # 若首点相位已贴近临界相位，则把端点作为相位穿越纳入，避免漏掉负增益裕度。
+    endpoint_target = critical_phase
+    if float(feedback_sign) < 0.0 and abs(_wrap_degrees(float(phase[0]) - endpoint_target)) <= 5.0:
+        endpoint_log = float(log_f[0])
+        duplicate = any(
+            abs(float(np.log10(float(item["frequency_hz"]))) - endpoint_log) <= 1e-9
+            for item in phase_crossings
+        )
+        if not duplicate:
+            db_at = float(db[0])
+            phase_crossings.insert(
+                0,
+                {
+                    "frequency_hz": float(freqs[0]),
+                    "magnitude_db": db_at,
+                    "gain_margin_db": float(-db_at),
+                    "phase_deg": float(endpoint_target),
+                    "endpoint": True,
+                },
             )
 
     phase_margin = gain_crossings[0]["phase_margin_deg"] if gain_crossings else None
@@ -132,6 +160,9 @@ def stability_margins(
         "gain_margin_db": gain_margin,
         "stable_from_margins": stable,
         "phase_unwrapped_deg": [float(value) for value in phase],
+        "feedback_sign": sign,
+        "critical_phase_deg": float(critical_phase),
+        "critical_point_real": float(-sign),
     }
 
 
@@ -177,7 +208,9 @@ def nyquist_metrics(
     values = np.asarray(loop_gain, dtype=np.complex128).reshape(-1)
     margins = stability_margins(freqs, values, feedback_sign=feedback_sign)
     contour_freqs, contour = nyquist_contour(freqs, values)
-    encirclements = winding_number(contour)
+    encirclements = winding_number(
+        contour, point=complex(-float(feedback_sign), 0.0)
+    )
 
     pole_info = dict(poles or {})
     right_half_plane = pole_info.get("right_half_plane")
@@ -211,6 +244,14 @@ def nyquist_metrics(
         warnings.append(
             warning("nyquist_unstable", "闭环系统存在右半平面极点或裕度为负", severity="warning")
         )
+    if float(feedback_sign) < 0.0 and margins["phase_margin_deg"] is None:
+        warnings.append(
+            warning(
+                "nyquist_positive_feedback_margin_undefined",
+                "正反馈未找到 0° 相位穿越或 DC 端点，相位裕度不可判定，以 Nyquist 包围数为最终判据",
+                severity="warning",
+            )
+        )
     if margins["phase_margin_deg"] is not None and margins["phase_margin_deg"] < 0.0:
         warnings.append(
             warning(
@@ -227,6 +268,9 @@ def nyquist_metrics(
         "closed_loop_right_half_plane": z_value,
         "determinate": determinate,
         "stable": stable,
+        "feedback_sign": float(feedback_sign),
+        "critical_phase_deg": margins["critical_phase_deg"],
+        "critical_point_real": margins["critical_point_real"],
         "phase_margin_deg": margins["phase_margin_deg"],
         "gain_margin_db": margins["gain_margin_db"],
         "gain_crossings": margins["gain_crossings"],
@@ -295,13 +339,17 @@ def nyquist_envelope(
         marker(
             "nyquist-crit",
             shape="nyquist_crit",
-            x=-1.0,
+            x=-float(feedback_sign),
             y=0.0,
-            label="临界点 -1",
+            label="临界点 -1" if float(feedback_sign) >= 0.0 else "临界点 +1",
             category="stability",
             axis_x="re",
             axis_y="im",
-            detail={"description": "Nyquist 稳定判据的临界点"},
+            detail={
+                "description": "Nyquist 稳定判据的临界点",
+                "feedback_sign": float(feedback_sign),
+                "critical_point_real": -float(feedback_sign),
+            },
         )
     ]
 
@@ -336,7 +384,10 @@ def nyquist_envelope(
                 shape="cross_phase",
                 x=float(point.real),
                 y=float(point.imag),
-                label=f"-180° 穿越 {crossing['frequency_hz']:.6g} Hz",
+                label=(
+                    f"{metrics['critical_phase_deg']:.0f}° 穿越 "
+                    f"{crossing['frequency_hz']:.6g} Hz"
+                ),
                 category="margin",
                 axis_x="re",
                 axis_y="im",
@@ -366,6 +417,9 @@ def nyquist_envelope(
         curves=[curve_positive, curve_negative],
         markers=markers,
         metrics={
+            "feedback_sign": metrics["feedback_sign"],
+            "critical_phase_deg": metrics["critical_phase_deg"],
+            "critical_point_real": metrics["critical_point_real"],
             "phase_margin_deg": metrics["phase_margin_deg"],
             "gain_margin_db": metrics["gain_margin_db"],
             "poles_right_half_plane": metrics["poles_right_half_plane"],

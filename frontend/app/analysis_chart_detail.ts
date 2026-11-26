@@ -213,6 +213,9 @@ export function renderAnalysisDetail(
   add('DC 增益', (metrics['metrics'] as Record<string, unknown> | undefined)?.['dc_gain']);
   add('相位裕度', (metrics['metrics'] as Record<string, unknown> | undefined)?.['phase_margin_deg'], 2, '°');
   add('增益裕度', (metrics['metrics'] as Record<string, unknown> | undefined)?.['gain_margin_db'], 2, 'dB');
+  if (envelope.source?.['loop_gain_kind'] === 'asymptotic_opamp') {
+    items.push(['回路增益', '理想化运放近似（×1000）']);
+  }
   if (!items.length) items.push(['状态', envelope.kind]);
   host.innerHTML = '<div class="analysis-detail-section"><h4>指标</h4><div class="analysis-metrics-grid">'
     + items.map(([label, value]) => '<div><span>' + escapeDetailHtml(label) + '</span><b>' + escapeDetailHtml(value) + '</b></div>').join('')

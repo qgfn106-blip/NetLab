@@ -1,7 +1,7 @@
 # NetLab Core V2 契约冻结（P3-01）
 
 > 状态：**G0 已通过（2026-11-26 补签，CI 六项全绿）**。本文件冻结 Core V2 对外可观察行为与关键内部不变量。
-> 基线：main `5c076eae`；工作分支 `feat/2026-11-25-p3-core-v2`。任何修改本文件所列契约的提交，必须附 ADR/决策记录与对应断言测试。
+> 基线：main `5c076eae`；工作分支 `feat/2026-11-25-p3-core-v2`（已于 2026-11-26 随 PR #75 合并，merge commit 3817422）。任何修改本文件所列契约的提交，必须附 ADR/决策记录与对应断言测试。
 
 ## 1. 范围与目标
 
@@ -81,7 +81,7 @@ P3-01 的交付物是一份可执行契约，而不是再一次重构：
 | P3-07 GPU/FEM 边界 | 已由 CF-10..CF-13 约束。 |
 | P3-08 总验收 | 以本文件 + 各阶段证据为验收基线。 |
 
-## 7. 落地证据（commit 9563cad 已推送，CI 六项全绿）
+## 7. 落地证据（commit 9563cad 已随 PR #75 合并 3817422，CI 六项全绿）
 
 - `netlab/tests/test_core_v2_contract.py`：新增契约断言（版本、StampSink、静态分派、电感例外、AC 结果/策略/对拍、ComputeError、路径安全、FEM 枚举）。
 - 定向实跑：`PYTHONPATH=. python -m pytest netlab/tests/test_core_v2_contract.py netlab/tests/test_fem.py -q`。

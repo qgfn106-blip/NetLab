@@ -10,6 +10,7 @@ import pytest
 from netlab.core.compute.circuit.nyquist import (
     nyquist_contour,
     nyquist_envelope,
+    nyquist_metrics,
     stability_margins,
     winding_number,
 )
@@ -59,6 +60,53 @@ def test_unstable_closed_loop_with_right_half_plane_pole():
     assert payload["metrics"]["closed_loop_right_half_plane"] == 1
     assert payload["metrics"]["stable"] is False
     assert any(item["code"] == "nyquist_unstable" for item in payload["warnings"])
+
+
+def test_winding_number_counts_around_plus_one():
+    angles = np.linspace(0.0, 2.0 * math.pi, 400)
+    contour = 1.0 + 0.5 * np.exp(1j * angles)
+    assert winding_number(contour, point=1.0 + 0.0j) == 1
+
+
+def test_positive_feedback_uses_plus_one_critical_point():
+    frequencies, loop = _first_order(2.0, -1.0)
+    payload = nyquist_envelope(
+        frequencies,
+        loop,
+        source={"kind": "test"},
+        feedback_sign=-1.0,
+        poles={"right_half_plane": 0, "on_imaginary_axis": False},
+    )
+    metrics = payload["metrics"]
+    assert metrics["critical_point_real"] == 1.0
+    assert metrics["critical_phase_deg"] == 0.0
+    assert metrics["phase_margin_deg"] is not None
+    assert abs(metrics["phase_margin_deg"] - 60.0) < 0.1
+    assert metrics["gain_margin_db"] is not None
+    assert metrics["gain_margin_db"] < 0.0
+    assert metrics["stable"] is False
+    critical = next(item for item in payload["markers"] if item["id"] == "nyquist-crit")
+    assert critical["x"] == 1.0
+    assert critical["label"] == "临界点 +1"
+
+
+def test_positive_feedback_stable_marks_undefined_phase_margin():
+    frequencies, loop = _first_order(0.5, -1.0)
+    margins = stability_margins(frequencies, loop, feedback_sign=-1.0)
+    assert margins["phase_margin_deg"] is None
+    assert margins["gain_margin_db"] is not None
+    assert margins["gain_margin_db"] > 0.0
+    metrics = nyquist_metrics(
+        frequencies,
+        loop,
+        feedback_sign=-1.0,
+        poles={"right_half_plane": 0, "on_imaginary_axis": False},
+    )
+    assert metrics["stable"] is True
+    assert any(
+        item["code"] == "nyquist_positive_feedback_margin_undefined"
+        for item in metrics["warnings"]
+    )
 
 
 def test_right_half_plane_pole_encircles_critical_point():

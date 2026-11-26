@@ -25,7 +25,7 @@ from ..compute.computes import (
     solver_traits,
 )
 from .graph import Network, Node
-from .instance_model import NodeDesc, NodeRuntime
+from .instance_model import NodeDesc, NodeRuntime, deep_thaw
 import logging
 import os
 from ..common.limits import (
@@ -246,8 +246,9 @@ class SignalEngine(_Engine):
                             "A-int-1 试点：NodeRuntime.inputs 与 record.inputs 不一致"
                         )
                     # 真用 NodeDesc：按描述重建委托（不复制数学）。
+                    # FrozenMapping 是只读契约容器，交给 compute 前需还原普通 dict。
                     _spec2, _params2, _handler2 = prepare_compute(
-                        _desc.kind, _desc.params
+                        _desc.kind, deep_thaw(_desc.params)
                     )
                     return _handler2(ctx)
 

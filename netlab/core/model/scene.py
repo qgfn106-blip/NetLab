@@ -96,16 +96,16 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
 
             assembly = assemble_engine(self.mode, self)
             self._assembly = assembly
-            # 兼容旧调用：_engine 仍指向运行时；装配产物另由 assembly 暴露。
-            self._engine = assembly.runtime
+            # 兼容旧调用：_engine 指向 Runtime 内部的真实引擎，而不是 Runtime 包装器。
+            self._engine = getattr(assembly.runtime, "engine", assembly.runtime)
             self._dirty = False
         return self._engine
 
     @property
     def assembly(self):
-        """最近一次装配产物（模型/编译/运行时）；按需触发装配。"""
+        """最近一次装配产物（Model/CompiledModel/Runtime）；按需触发装配。"""
         if self._assembly is None or self._dirty:
-            self._engine = None
+            # 保留旧引擎作为 Model.from_scene 的 authored_data 来源，不提前清空。
             self.ensure_engine()
         return self._assembly
 
@@ -198,21 +198,20 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
 
     @timed("scene.step")
     def step(self, dt: float, deadline: float | None = None) -> dict[str, Any]:
-        engine = self.ensure_engine()
+        runtime = self.assembly.runtime
         started = time.perf_counter()
-        engine.step(dt, deadline=deadline)
+        runtime.step(dt, deadline=deadline)
         self.last_step_ms = (time.perf_counter() - started) * 1000.0
-        stats = engine.stats()
+        stats = runtime.stats()
         stats["step_ms"] = self.last_step_ms
         return stats
 
     def zero_time(self) -> None:
         """时间归零：引擎时间轴归零，节点数据/历史状态保留（R11/D14）。"""
-        self.ensure_engine().zero_time()
+        self.assembly.runtime.zero_time()
 
     def reset(self) -> None:
-        engine = self.ensure_engine()
-        engine.reset()
+        self.assembly.runtime.reset()
         self.last_step_ms = 0.0
 
 

@@ -79,11 +79,11 @@ def create_engine(mode: str, scene: Any) -> Any:
 
 @dataclass(frozen=True, slots=True)
 class EngineAssembly:
-    """一次显式装配的三个稳定阶段：模型 → 编译产物 → 运行时。
+    """一次显式装配的三个稳定阶段：Model → CompiledModel → Runtime。
 
-    model 保留引擎实例本身（插件 SPI 的入口），compiled/runtime
-    由引擎生命周期方法产生。当前内建引擎的 compile/create_runtime 仍是
-    薄壳（同一实例），但装配边界已固定，后续替换实现不需要改调用方。
+    内建模式的 model/compiled/runtime 是三个不同类型、不同身份的实例：
+    model 是不可变描述，compiled 是独立编译产物，runtime 是执行实例。
+    插件若未实现新生命周期方法，则保留旧 SPI 回退（模型即编译产物/运行时）。
     """
 
     mode: str
@@ -93,11 +93,18 @@ class EngineAssembly:
 
 
 def assemble_engine(mode: str, scene: Any) -> EngineAssembly:
-    """创建引擎并显式走 compile → create_runtime（WP-7c）。
+    """内建模式走 Model → compile → CompiledModel → create_runtime 的真实链路。
 
     插件若未实现生命周期方法，则回退为“模型即编译产物/运行时”，保持
     旧插件可用；不允许 create_runtime 返回 None 后静默空转。
     """
+    if is_builtin_mode(mode):
+        from .model import Model
+
+        model = Model.from_scene(scene)
+        compiled = model.compile()
+        runtime = compiled.create_runtime(scene=scene)
+        return EngineAssembly(mode=mode, model=model, compiled=compiled, runtime=runtime)
     model = create_engine(mode, scene)
     compile_fn = getattr(model, "compile", None)
     compiled = compile_fn() if callable(compile_fn) else model

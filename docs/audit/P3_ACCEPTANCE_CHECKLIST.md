@@ -1,6 +1,6 @@
 # NetLab Core V2 总验收清单（P3-08）
 
-> 状态：**验收清单已分门签署（G0–G8 全部通过；G8 于 2026-11-26 六项 CI 全绿后补签）**。基线 main `5c076eae`；本清单对应分支 `feat/2026-11-25-p3-core-v2`。G0 已于 CI 六项全绿后补签；G6 于 P3-06 全量拆分后补签；G7 按 FEM 冻结口径签署；G8 于最终提交 bf9075d 六项 CI 全绿后补签。
+> 状态：**验收清单已分门签署（G0–G8 全部通过；G8 于 2026-11-26 六项 CI 全绿后补签）**。基线 main `5c076eae`；本清单对应分支 `feat/2026-11-25-p3-core-v2`（已于 2026-11-26 随 PR #75 合并，merge commit 3817422）。G0 已于 CI 六项全绿后补签；G6 于 P3-06 全量拆分后补签；G7 按 FEM 冻结口径签署；G8 于最终提交 bf9075d 六项 CI 全绿后补签。
 > 原则：没有证据的项一律记“未完成”，不得用加权平均掩盖阻断项；CI 未跑通不得宣称 Core V2 通过。
 
 ## 1. 验收门定义
@@ -54,13 +54,13 @@
 - `netlab/tests/test_ac_backend.py`：fast/native/强制 native 三路 Bode 对拍。
 - `netlab/tests/test_accel_fallback.py`：GPU 非有限回退 CPU。
 - `netlab/tests/test_analysis_api_surface.py` + `fixtures/analysis_api_snapshot.json`：analysis 对外 API 快照。
-- 最新全量证据（P3 分支）：`python -m pytest -q` 1811 passed/14 skipped/0 failed；`python -m coverage report --format=total` 87%（≥81）；历史基线 `reports/evidence/python-tests.json` 1789 passed/14 skipped/0 failed、覆盖率 82.70%。
+- 最新全量证据（P3，PR #75 合并）：`python -m pytest -q` 1811 passed/14 skipped/0 failed；`python -m coverage report --format=total` 87%（≥81）；历史基线 `reports/evidence/python-tests.json` 1789 passed/14 skipped/0 failed、覆盖率 82.70%。
 - 远程 CI（commit 9563cad）：build/docker/desktop-l2/e2e/e2e-l1/test 六项全部 success。
 - 远程 CI（commit bf9075d）：build/docker/desktop-l2/e2e/e2e-l1/test 六项全部 success（G8 补签依据）。
 
 ## 6. 结论与签署
 
-- 当前可以确认：**契约文本已形成并完成 G0 签字（D156，CI 六项全绿）；P3-01/P3-02/P3-03/P3-04/P3-05 的本地证据成立，G0–G5 已签；P3-06 已完成 14 个 `editor_*` 模块全量迁移、app.ts 收敛为仅装配，G6 已签；P3-07 按 FEM 冻结口径通过（FEM 冻结、GPU 回退与 FEM 边界测试通过），G7 已签；G8 所需最终提交 bf9075d 六项 CI 全绿，G8 已签**；
+- 当前可以确认：**契约文本已形成并完成 G0 签字（D156，CI 六项全绿）；P3-01/P3-02/P3-03/P3-04/P3-05 的证据成立，G0–G5 已签；P3-06 已完成 14 个 `editor_*` 模块全量迁移、app.ts 收敛为仅装配，G6 已签；P3-07 按 FEM 冻结口径通过（FEM 冻结、GPU 回退与 FEM 边界测试通过），G7 已签；G8 所需最终提交 bf9075d 六项 CI 全绿，G8 已签**；
 - 当前仍不能确认：无；G8 所需 CI 与全量测试证据均已齐备；
 - 因此本清单结论为：**G0–G8 全部门通过，Core V2 总验收完成（2026-11-26）**；
 - 分门签署：G0/G1/G2/G3/G4/G5/G6/G7/G8 全部通过。

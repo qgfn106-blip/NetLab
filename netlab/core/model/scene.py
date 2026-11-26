@@ -289,6 +289,9 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
         self._sync_scene_to_runtime(runtime)
         started = time.perf_counter()
         runtime.step(dt, deadline=deadline)
+        if getattr(runtime, "scene", None) is None:
+            # 旧插件运行时没有内部 Scene：由外层 Scene 维护时间轴。
+            self.clock.time = float(self.clock.time) + float(dt)
         self._sync_runtime_to_scene(runtime)
         self.last_step_ms = (time.perf_counter() - started) * 1000.0
         stats = runtime.stats()
@@ -300,12 +303,16 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
         runtime = self.assembly.runtime
         self._sync_scene_to_runtime(runtime)
         runtime.zero_time()
+        if getattr(runtime, "scene", None) is None:
+            self.clock.time = 0.0
         self._sync_runtime_to_scene(runtime)
 
     def reset(self) -> None:
         runtime = self.assembly.runtime
         self._sync_scene_to_runtime(runtime)
         runtime.reset()
+        if getattr(runtime, "scene", None) is None:
+            self.clock.time = 0.0
         self._sync_runtime_to_scene(runtime)
         self.last_step_ms = 0.0
 

@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import inspect
 from dataclasses import dataclass
 from typing import Any
 
@@ -93,6 +94,20 @@ class EngineAssembly:
     runtime: Any
 
 
+def _accepts_keyword(func: Any, name: str) -> bool:
+    """判断可调用对象是否接受指定关键字参数（含 **kwargs）。"""
+    if not callable(func):
+        return False
+    try:
+        parameters = inspect.signature(func).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    return any(
+        parameter.kind is inspect.Parameter.VAR_KEYWORD or parameter.name == name
+        for parameter in parameters
+    )
+
+
 class _PluginCompiledModel:
     """插件旧 SPI 的编译产物适配器：只负责暴露稳定身份与转发属性。"""
 
@@ -109,10 +124,22 @@ class _PluginRuntime:
     def __init__(self, target: Any, engine: Any) -> None:
         self._target = target
         self._engine = engine
+        self._step_accepts_deadline = _accepts_keyword(
+            getattr(target, "step", None), "deadline"
+        )
 
     @property
     def engine(self) -> Any:
         return self._engine
+
+    def step(self, dt: float, deadline: float | None = None) -> Any:
+        """兼容旧插件 ``step(dt)``：仅在插件声明 deadline 时才转发。"""
+        step = getattr(self._target, "step", None)
+        if step is None:
+            step = getattr(self._engine, "step")
+        if deadline is not None and self._step_accepts_deadline:
+            return step(dt, deadline=deadline)
+        return step(dt)
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._target, name)

@@ -21,6 +21,15 @@ from .instance_model import (
 SNAPSHOT_VERSION = "runtime-snapshot/1.0"
 
 
+def _clone_block_instances(block_instances: Mapping[str, Any]) -> dict[str, Any]:
+    """复制块实例：优先调用 BlockRuntime.clone，普通值退回 deepcopy。"""
+    cloned: dict[str, Any] = {}
+    for key, value in dict(block_instances).items():
+        clone = getattr(value, "clone", None)
+        cloned[key] = clone() if callable(clone) else copy.deepcopy(value)
+    return cloned
+
+
 @dataclass(frozen=True)
 class RuntimeSnapshot:
     """显式运行态快照：带模型/编译指纹、版本与校验和。"""
@@ -58,11 +67,13 @@ class RuntimeSnapshot:
         checksum = payload.get("checksum")
         if not isinstance(checksum, str) or not checksum:
             raise ValidationError("RuntimeSnapshot 缺少校验和 checksum，拒绝加载")
-        state = payload.get("state") or {}
+        if "version" not in payload or not str(payload.get("version") or ""):
+            raise ValidationError("RuntimeSnapshot 缺少版本 version，拒绝加载")
+        state = payload.get("state", {})
         if not isinstance(state, Mapping):
             raise ValidationError("RuntimeSnapshot.state 必须是 Mapping")
         return cls(
-            version=str(payload.get("version", SNAPSHOT_VERSION)),
+            version=str(payload["version"]),
             mode=str(payload.get("mode", "")),
             model_fingerprint=str(payload.get("model_fingerprint", "")),
             compiled_fingerprint=str(payload.get("compiled_fingerprint", "")),
@@ -125,7 +136,8 @@ class Runtime:
         scene.solver_options = solver_options
         self._scene = scene
         if block_instances is not None:
-            self._scene.block_instances = block_instances
+            # 调用方映射可能同时交给多个 Runtime；逐块克隆确保内部状态隔离。
+            self._scene.block_instances = _clone_block_instances(block_instances)
 
         self._component_states: dict[str, NodeRuntime] = {
             node.id: NodeRuntime() for node in compiled.nodes
@@ -366,6 +378,8 @@ class Runtime:
             clock = payload.get("clock")
         self._engine.restore_checkpoint(engine_state)
         checkpoint = self._engine.capture_checkpoint()
+        # 先以引擎恢复后的节点状态为基线，再用快照中的组件覆盖，避免旧组件残留。
+        self._sync_component_states(checkpoint)
         if isinstance(components, Mapping):
             for node_id, values in components.items():
                 if not isinstance(values, Mapping):
@@ -374,8 +388,6 @@ class Runtime:
                     state=values.get("state") or {},
                     inputs=values.get("inputs") or {},
                 )
-        else:
-            self._sync_component_states(checkpoint)
         if isinstance(clock, (int, float)) and not isinstance(clock, bool):
             self._scene.clock.time = float(clock)
         self._generation = int(snapshot.generation)
@@ -398,6 +410,8 @@ class Runtime:
     def __getattr__(self, name: str) -> Any:
         if name.startswith("_"):
             raise AttributeError(name)
+        if object.__getattribute__(self, "_disposed"):
+            raise RuntimeError("Runtime 已释放，不能再访问引擎属性")
         engine = object.__getattribute__(self, "_engine")
         return getattr(engine, name)
 

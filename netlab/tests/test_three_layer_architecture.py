@@ -172,6 +172,11 @@ def test_runtime_snapshot_checksum_and_version_are_verified() -> None:
     with pytest.raises(ValidationError):
         RuntimeSnapshot.from_payload(missing_checksum)
 
+    missing_version = snapshot.to_payload()
+    missing_version.pop("version")
+    with pytest.raises(ValidationError):
+        RuntimeSnapshot.from_payload(missing_version)
+
 
 def test_model_and_compiled_cache_keys_are_stable() -> None:
     model = _signal_model()
@@ -330,6 +335,27 @@ def test_runtime_component_state_exports_and_rejects_bad_payloads() -> None:
             "edges": {"missing": {"state": {}}, "bad": 1},
         }
     )
+
+
+def test_runtime_copies_block_instances_for_state_isolation(monkeypatch) -> None:
+    from netlab.core.model import engine_registry
+
+    monkeypatch.setattr(engine_registry, "create_engine", lambda mode, scene: object())
+
+    class _MutableBlock:
+        def __init__(self) -> None:
+            self.state = {"count": 0}
+
+    shared = {"b": _MutableBlock()}
+    compiled = _signal_model().compile()
+    first = compiled.create_runtime(block_instances=shared)
+    second = compiled.create_runtime(block_instances=shared)
+    assert first._scene.block_instances["b"] is not shared["b"]
+    assert second._scene.block_instances["b"] is not shared["b"]
+    assert first._scene.block_instances["b"] is not second._scene.block_instances["b"]
+    first._scene.block_instances["b"].state["count"] = 7
+    assert second._scene.block_instances["b"].state["count"] == 0
+    assert shared["b"].state["count"] == 0
 
 
 def test_runtime_snapshot_rejects_non_mapping_state() -> None:

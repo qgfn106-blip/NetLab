@@ -86,6 +86,14 @@ def test_plugin_scene_roundtrip(plugin_engine):
     assert restored.nodes == {}
 
 
+def test_plugin_scene_step_uses_legacy_step_signature(plugin_engine):
+    scene = Scene(PLUGIN_MODE)
+    scene.ensure_engine()
+    stats = scene.step(0.1)
+    assert isinstance(stats, dict) and stats["step_ms"] >= 0.0
+    assert scene.clock.time == pytest.approx(0.1)
+
+
 def test_plugin_engine_created_lazily(plugin_engine):
     scene = Scene(PLUGIN_MODE)
     engine = scene.ensure_engine()

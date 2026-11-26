@@ -92,6 +92,16 @@ def test_plugin_engine_created_lazily(plugin_engine):
     assert isinstance(engine, _DummyEngine)
 
 
+def test_plugin_assembly_exposes_distinct_stages(plugin_engine):
+    scene = Scene(PLUGIN_MODE)
+    assembly = scene.assembly
+    assert assembly.model is not assembly.compiled
+    assert assembly.compiled is not assembly.runtime
+    assert assembly.model is not assembly.runtime
+    assert scene.ensure_engine() is assembly.runtime.engine
+    assert isinstance(assembly.runtime.engine, _DummyEngine)
+
+
 def test_unknown_mode_still_rejected():
     scene = Scene("signal")
     with pytest.raises(ValidationError):

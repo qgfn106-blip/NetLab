@@ -263,6 +263,8 @@ class EdgeDesc:
             object.__setattr__(self, name, _freeze_mapping(getattr(self, name)))
         if not isinstance(self.waypoints, FrozenSequence):
             object.__setattr__(self, "waypoints", FrozenSequence(self.waypoints or ()))
+        for name in ("source_pin", "target_pin", "source_port", "target_port"):
+            object.__setattr__(self, name, deep_freeze(getattr(self, name)))
 
     @classmethod
     def from_record(cls, record: Any) -> "EdgeDesc":
@@ -325,10 +327,10 @@ class EdgeDesc:
             "waypoints": deep_thaw(self.waypoints),
             "anchors": deep_thaw(self.anchors),
             "layout": deep_thaw(self.layout),
-            "source_pin": copy.deepcopy(self.source_pin),
-            "target_pin": copy.deepcopy(self.target_pin),
-            "source_port": copy.deepcopy(self.source_port),
-            "target_port": copy.deepcopy(self.target_port),
+            "source_pin": deep_thaw(self.source_pin),
+            "target_pin": deep_thaw(self.target_pin),
+            "source_port": deep_thaw(self.source_port),
+            "target_port": deep_thaw(self.target_port),
             "appearance": deep_thaw(self.appearance),
         }
 

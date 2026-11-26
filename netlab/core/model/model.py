@@ -9,12 +9,12 @@ import copy
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
+from ..common.limits import ValidationError
 from .instance_model import (
     EdgeDesc,
     FrozenMapping,
     FrozenSequence,
     NodeDesc,
-    canonical_json,
     deep_freeze,
     deep_thaw,
     stable_fingerprint,
@@ -54,7 +54,11 @@ class Model:
     @classmethod
     def from_scene(cls, scene: Any) -> "Model":
         """从 Scene 捕获静态模型；排除 NodeRecord.state / inputs 等运行态字段。"""
-        payload = scene.to_payload(include_state=False, authored_data=True)
+        payload = scene.to_payload(
+            include_state=False,
+            authored_data=True,
+            include_all_blocks=True,
+        )
         return cls.from_payload(payload, source_revision=int(getattr(scene, "revision", 0) or 0))
 
     @classmethod
@@ -63,17 +67,26 @@ class Model:
             raise TypeError("Model.from_payload 需要 Mapping")
         raw_nodes = payload.get("nodes") or []
         raw_edges = payload.get("edges") or []
+        raw_blocks = payload.get("blocks") or []
         if not isinstance(raw_nodes, (list, tuple)) or not isinstance(raw_edges, (list, tuple)):
             raise TypeError("Model payload 的 nodes/edges 必须是数组")
-        nodes = tuple(NodeDesc.from_payload(item) for item in raw_nodes if isinstance(item, Mapping))
-        edges = tuple(EdgeDesc.from_payload(item) for item in raw_edges if isinstance(item, Mapping))
+        if not isinstance(raw_blocks, (list, tuple)):
+            raise ValidationError("Model payload 的 blocks 必须是数组")
+        for index, item in enumerate(raw_nodes):
+            if not isinstance(item, Mapping):
+                raise ValidationError(f"Model payload 的 nodes[{index}] 不是对象")
+        for index, item in enumerate(raw_edges):
+            if not isinstance(item, Mapping):
+                raise ValidationError(f"Model payload 的 edges[{index}] 不是对象")
+        nodes = tuple(NodeDesc.from_payload(item) for item in raw_nodes)
+        edges = tuple(EdgeDesc.from_payload(item) for item in raw_edges)
         return cls(
             mode=str(payload.get("mode", "signal")),
             integration=str(payload.get("integration", "trapezoidal")),
             solve_algebraic=bool(payload.get("solve_algebraic", False)),
             nodes=nodes,
             edges=edges,
-            blocks=deep_freeze(payload.get("blocks") or []),
+            blocks=deep_freeze(raw_blocks),
             source_revision=source_revision,
         )
 

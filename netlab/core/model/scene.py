@@ -47,7 +47,6 @@ from .scene_types import (
 )
 
 
-
 # ---- 引擎 ------------------------------------------------------------------
 if TYPE_CHECKING:  # 只在类型检查时加载实现，运行期由 engine_registry 组合
     from .scene_engines import _Engine
@@ -94,12 +93,94 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
         if self._engine is None or self._dirty:
             from .engine_registry import assemble_engine
 
-            assembly = assemble_engine(self.mode, self)
+            old_runtime = None
+            if self._assembly is not None:
+                old_runtime = getattr(self._assembly, "runtime", None)
+            assembly = assemble_engine(
+                self.mode, self, block_instances=self.block_instances
+            )
             self._assembly = assembly
             # 兼容旧调用：_engine 指向 Runtime 内部的真实引擎，而不是 Runtime 包装器。
             self._engine = getattr(assembly.runtime, "engine", assembly.runtime)
+            try:
+                self._engine._mirror_scene = self
+            except (AttributeError, TypeError):
+                pass
+            runtime_scene = getattr(assembly.runtime, "scene", None)
+            if runtime_scene is not None:
+                self.block_instances = runtime_scene.block_instances
             self._dirty = False
+            # 引擎构造可能初始化元件状态（如电容 v/i）；先把内部运行态回填到
+            # Scene 记录，后续 Scene.step 才不会用空状态覆盖引擎。
+            self._sync_runtime_to_scene(assembly.runtime)
+            dispose = getattr(old_runtime, "dispose", None)
+            if callable(dispose):
+                dispose()
         return self._engine
+
+    @staticmethod
+    def _copy_record_state(source: Any, target: Any) -> None:
+        for attr in ("data", "state", "inputs"):
+            value = getattr(source, attr, None)
+            destination = getattr(target, attr, None)
+            if isinstance(value, dict) and isinstance(destination, dict) and value is not destination:
+                destination.clear()
+                destination.update(value)
+
+    def _sync_scene_to_runtime(self, runtime: Any) -> None:
+        runtime_scene = getattr(runtime, "scene", None)
+        if runtime_scene is None or runtime_scene is self:
+            return
+        for node_id, record in self.nodes.items():
+            target = runtime_scene.nodes.get(node_id)
+            if target is not None:
+                self._copy_record_state(record, target)
+        for edge_id, record in self.edges.items():
+            target = runtime_scene.edges.get(edge_id)
+            if target is not None:
+                self._copy_record_state(record, target)
+        runtime_scene.clock.time = float(self.clock.time)
+
+    def _sync_runtime_to_scene(self, runtime: Any) -> None:
+        runtime_scene = getattr(runtime, "scene", None)
+        if runtime_scene is not None and runtime_scene is not self:
+            for node_id, record in runtime_scene.nodes.items():
+                target = self.nodes.get(node_id)
+                if target is not None:
+                    self._copy_record_state(record, target)
+            for edge_id, record in runtime_scene.edges.items():
+                target = self.edges.get(edge_id)
+                if target is not None:
+                    self._copy_record_state(record, target)
+            self.clock.time = float(runtime_scene.clock.time)
+            return
+        exporter = getattr(runtime, "export_component_state", None)
+        if not callable(exporter):
+            return
+        payload = exporter()
+        nodes = payload.get("nodes", {}) if isinstance(payload, dict) else {}
+        for node_id, values in nodes.items():
+            record = self.nodes.get(node_id)
+            if record is None or not isinstance(values, dict):
+                continue
+            for attr in ("data", "state", "inputs"):
+                value = values.get(attr)
+                destination = getattr(record, attr, None)
+                if isinstance(value, dict) and isinstance(destination, dict):
+                    destination.clear()
+                    destination.update(copy.deepcopy(value))
+        edges = payload.get("edges", {}) if isinstance(payload, dict) else {}
+        for edge_id, values in edges.items():
+            record = self.edges.get(edge_id)
+            if record is None or not isinstance(values, dict):
+                continue
+            state = values.get("state")
+            if isinstance(state, dict):
+                record.state.clear()
+                record.state.update(copy.deepcopy(state))
+        time_value = payload.get("time") if isinstance(payload, dict) else None
+        if isinstance(time_value, (int, float)) and not isinstance(time_value, bool):
+            self.clock.time = float(time_value)
 
     @property
     def assembly(self):
@@ -131,6 +212,9 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
         rollback = getattr(engine, "rollback_last_step", None)
         if callable(rollback):
             rollback()
+            runtime = getattr(self._assembly, "runtime", None)
+            if runtime is not None:
+                self._sync_runtime_to_scene(runtime)
 
     def restore_checkpoint(self, checkpoint: dict[str, Any] | None) -> None:
         if not checkpoint:
@@ -139,6 +223,9 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
         state = checkpoint.get("state")
         if engine is checkpoint.get("engine") and state is not None:
             engine.restore_checkpoint(state)
+            runtime = getattr(self._assembly, "runtime", None)
+            if runtime is not None:
+                self._sync_runtime_to_scene(runtime)
 
     def _iter_source_params(self) -> list[dict[str, Any]]:
         """收集边源与器件节点源的参数（P0-09：器件节点也参与断点）。"""
@@ -199,8 +286,10 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
     @timed("scene.step")
     def step(self, dt: float, deadline: float | None = None) -> dict[str, Any]:
         runtime = self.assembly.runtime
+        self._sync_scene_to_runtime(runtime)
         started = time.perf_counter()
         runtime.step(dt, deadline=deadline)
+        self._sync_runtime_to_scene(runtime)
         self.last_step_ms = (time.perf_counter() - started) * 1000.0
         stats = runtime.stats()
         stats["step_ms"] = self.last_step_ms
@@ -208,12 +297,17 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
 
     def zero_time(self) -> None:
         """时间归零：引擎时间轴归零，节点数据/历史状态保留（R11/D14）。"""
-        self.assembly.runtime.zero_time()
+        runtime = self.assembly.runtime
+        self._sync_scene_to_runtime(runtime)
+        runtime.zero_time()
+        self._sync_runtime_to_scene(runtime)
 
     def reset(self) -> None:
-        self.assembly.runtime.reset()
+        runtime = self.assembly.runtime
+        self._sync_scene_to_runtime(runtime)
+        runtime.reset()
+        self._sync_runtime_to_scene(runtime)
         self.last_step_ms = 0.0
-
 
     # ---- 名称与参数 -------------------------------------------------------
     def _unique_node_name(self, name: str, *, ignore: str | None = None) -> None:

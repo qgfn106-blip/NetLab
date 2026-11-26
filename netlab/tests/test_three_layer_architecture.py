@@ -14,6 +14,7 @@ import pytest
 
 from netlab.core.common.limits import ValidationError
 from netlab.core.model.compiled_model import COMPILER_VERSION, CompiledModel, compile_model
+from netlab.core.model.instance_model import EdgeDesc, FrozenMapping, FrozenSequence
 from netlab.core.model.model import Model
 from netlab.core.model.runtime import Runtime, RuntimeSnapshot
 from netlab.core.model.scene import Scene
@@ -85,7 +86,11 @@ def test_compiled_model_is_deterministic_static_artifact() -> None:
     assert first.model_fingerprint == model.fingerprint
     assert first.compiler_version == COMPILER_VERSION
     assert isinstance(first.node_index, Mapping)
-    assert isinstance(first.scene_payload, Mapping)
+    assert isinstance(first.execution_payload(), Mapping)
+    assert not hasattr(first, "scene_payload")
+    assert isinstance(first.blocks, FrozenSequence)
+    assert isinstance(first.node_index, FrozenMapping)
+    assert isinstance(first.equation_structure, FrozenMapping)
     assert first.node_index["a00000000003"] == 2
     assert len(first.components) == len(model.nodes) + len(model.edges)
     assert first.order == ("a00000000001", "a00000000002", "a00000000003", "a00000000004")
@@ -162,6 +167,11 @@ def test_runtime_snapshot_checksum_and_version_are_verified() -> None:
             mode=compiled.mode,
         )
 
+    missing_checksum = snapshot.to_payload()
+    missing_checksum.pop("checksum")
+    with pytest.raises(ValidationError):
+        RuntimeSnapshot.from_payload(missing_checksum)
+
 
 def test_model_and_compiled_cache_keys_are_stable() -> None:
     model = _signal_model()
@@ -214,3 +224,117 @@ def test_circuit_compile_and_runtime_execute() -> None:
     assert runtime.stats()
     assert runtime.generation == 1
     assert runtime.compiled is compiled
+
+
+def test_model_payload_rejects_non_mapping_entries_and_edge_pins_are_frozen() -> None:
+    payload = build_template("signal_chain")
+    payload["nodes"] = [{"id": "x"}]
+    payload["nodes"].append("not-a-node")
+    with pytest.raises(ValidationError):
+        Model.from_payload(payload)
+
+    bad_blocks = build_template("signal_chain")
+    bad_blocks["blocks"] = {"not": "a list"}
+    with pytest.raises(ValidationError):
+        Model.from_payload(bad_blocks)
+
+    edge = EdgeDesc.from_payload(
+        {
+            "id": "e1",
+            "name": "e1",
+            "source": "a",
+            "target": "b",
+            "kind": "wire",
+            "source_pin": {"nested": {"port": 1}},
+        }
+    )
+    assert isinstance(edge.source_pin, FrozenMapping)
+    with pytest.raises(TypeError):
+        edge.source_pin["nested"]["port"] = 2
+
+
+def test_runtime_instances_from_same_initial_state_are_state_isolated() -> None:
+    compiled = compile_model(_signal_model())
+    node_id = compiled.nodes[0].id
+    initial = {"nodes": {node_id: {"data": {"voltage": 9.0}, "state": {"probe": 1.0}}}, "time": 0.0}
+    first = compiled.create_runtime(initial_state=initial)
+    second = compiled.create_runtime(initial_state=initial)
+
+    assert first.scene is not second.scene
+    assert first.scene.nodes[node_id].data["voltage"] == pytest.approx(9.0)
+    assert second.scene.nodes[node_id].data["voltage"] == pytest.approx(9.0)
+    first.scene.nodes[node_id].data["voltage"] = 7.0
+    first.scene.nodes[node_id].state["probe"] = 2.0
+    assert second.scene.nodes[node_id].data["voltage"] == pytest.approx(9.0)
+    assert second.scene.nodes[node_id].state["probe"] == pytest.approx(1.0)
+    first.step(0.001)
+    assert second.generation == 0
+
+
+def test_runtime_snapshot_restores_component_state_and_clock() -> None:
+    compiled = compile_model(_signal_model())
+    runtime = compiled.create_runtime()
+    node_id = compiled.nodes[0].id
+    runtime.import_component_state(
+        {"nodes": {node_id: {"data": {"voltage": 5.0}, "state": {"probe": 3.0}, "inputs": {}}}, "time": 2.0}
+    )
+    runtime.step(0.5)
+    snapshot = runtime.snapshot()
+    assert snapshot.state["clock"] == pytest.approx(2.5)
+    assert runtime.component_state(node_id)["state"]["probe"] == pytest.approx(3.0)
+
+    runtime.import_component_state({"nodes": {node_id: {"state": {"probe": 99.0}}}, "time": 9.0})
+    runtime.restore(snapshot)
+    assert runtime.scene.clock.time == pytest.approx(2.5)
+    assert runtime.component_state(node_id)["state"]["probe"] == pytest.approx(3.0)
+
+
+def test_runtime_does_not_share_records_with_source_scene() -> None:
+    scene = Scene("signal")
+    scene.load_payload(build_template("signal_chain"))
+    runtime = scene.assembly.runtime
+    node_id = "a00000000003"
+    before = runtime.scene.nodes[node_id].data.get("voltage")
+    scene.nodes[node_id].data["voltage"] = 123.0
+    assert runtime.scene.nodes[node_id].data.get("voltage") == before
+    scene.step(0.001)
+    assert scene.nodes[node_id].data.get("voltage") != 123.0
+
+
+def test_runtime_component_state_exports_and_rejects_bad_payloads() -> None:
+    compiled = compile_model(_circuit_model())
+    runtime = compiled.create_runtime()
+    node_ids = {node.id for node in compiled.nodes}
+
+    runtime.step(0.001)
+    assert set(runtime.component_states) == node_ids
+
+    exported = runtime.export_component_state()
+    assert set(exported["nodes"]) == node_ids
+    assert exported["time"] == pytest.approx(0.001)
+
+    with pytest.raises(KeyError, match="未知节点"):
+        runtime.component_state("missing")
+    with pytest.raises(TypeError):
+        runtime.import_component_state([1])  # type: ignore[arg-type]
+
+    runtime.import_component_state({})
+    first_node = sorted(node_ids)[0]
+    runtime.import_component_state(
+        {
+            "nodes": {
+                first_node: {"data": {}, "state": {}, "inputs": {}},
+                "missing": {"data": {}},
+                "bad": 1,
+            },
+            "edges": {"missing": {"state": {}}, "bad": 1},
+        }
+    )
+
+
+def test_runtime_snapshot_rejects_non_mapping_state() -> None:
+    runtime = compile_model(_signal_model()).create_runtime()
+    payload = runtime.snapshot().to_payload()
+    payload["state"] = [1]
+    with pytest.raises(ValidationError, match="state 必须是 Mapping"):
+        RuntimeSnapshot.from_payload(payload)

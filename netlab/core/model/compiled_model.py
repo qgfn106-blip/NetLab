@@ -3,13 +3,17 @@
 CompiledModel 不是 Model 的副本，也不是 Engine 的别名：它由 Model 编译而来，
 持有编译拓扑、索引、组件执行描述、自由度布局、方程结构、装配计划、编译器版本、
 Model 指纹与诊断，不引用可变 Model 内部数据，不含 Runtime 状态，也不依赖 UI。
+Runtime 执行所需的输入由 :meth:`execution_payload` 从编译字段合成，不再依赖
+Model 的原始 payload 或任何活 Scene。
 """
 from __future__ import annotations
 
 import copy
-from dataclasses import dataclass, field
+from collections import deque
+from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Any, Mapping
 
+from ..common.limits import ComputeError, ValidationError
 from .instance_model import (
     EdgeDesc,
     FrozenMapping,
@@ -52,27 +56,30 @@ class VariableDescriptor:
 
 def _spec_lookup(mode: str, kind: str, entity: str) -> tuple[str, str, tuple[str, ...], tuple[str, ...]]:
     """返回 (executor, label, inputs, outputs)；未知类型回退 plugin。"""
-    try:
-        if mode == "circuit":
-            if entity == "node":
-                # 电路节点不是计算元件：它是 MNA 自由度载体（ground 除外）。
-                return ("node", "电气节点" if kind != "ground" else "地", tuple(), tuple())
-            from ..compute.circuit.catalog import ELEMENT_SPECS
-
-            spec = ELEMENT_SPECS.get(kind)
-            if spec is not None:
-                return ("element", str(getattr(spec, "label", kind)), tuple(), tuple())
+    if mode == "circuit":
         if entity == "node":
-            from ..compute.computes import get_compute_spec
+            # 电路节点不是计算元件：它是 MNA 自由度载体（ground 除外）。
+            return ("node", "电气节点" if kind != "ground" else "地", tuple(), tuple())
+        from ..compute.circuit.catalog import ELEMENT_SPECS
 
+        spec = ELEMENT_SPECS.get(kind)
+        if spec is not None:
+            return ("element", str(getattr(spec, "label", kind)), tuple(), tuple())
+    if entity == "node":
+        from ..compute.computes import get_compute_spec
+
+        try:
             spec = get_compute_spec(kind)
-            return ("compute", str(getattr(spec, "label", kind)), tuple(), tuple())
-        from ..compute.methods import get_method_spec
+        except ComputeError:
+            return ("plugin", kind, tuple(), tuple())
+        return ("compute", str(getattr(spec, "label", kind)), tuple(), tuple())
+    from ..compute.methods import get_method_spec
 
+    try:
         spec = get_method_spec(kind)
-        return ("method", str(getattr(spec, "label", kind)), tuple(), tuple())
-    except Exception:
+    except ComputeError:
         return ("plugin", kind, tuple(), tuple())
+    return ("method", str(getattr(spec, "label", kind)), tuple(), tuple())
 
 
 def _topological_order(node_ids: tuple[str, ...], edges: tuple[EdgeDesc, ...]) -> tuple[tuple[str, ...], bool]:
@@ -83,18 +90,33 @@ def _topological_order(node_ids: tuple[str, ...], edges: tuple[EdgeDesc, ...]) -
         if edge.source in known and edge.target in known:
             outgoing[edge.source].append(edge.target)
             indegree[edge.target] += 1
-    ready = [node_id for node_id in node_ids if indegree[node_id] == 0]
+    ready = deque(node_id for node_id in node_ids if indegree[node_id] == 0)
     ordered: list[str] = []
     while ready:
-        current = ready.pop(0)
+        current = ready.popleft()
         ordered.append(current)
         for target in outgoing.get(current, ()):
             indegree[target] -= 1
             if indegree[target] == 0:
                 ready.append(target)
-    if len(ordered) == len(node_ids):
-        return tuple(ordered), False
-    return tuple(node_ids), True
+    has_cycle = len(ordered) != len(node_ids)
+    return (tuple(ordered) if not has_cycle else tuple(node_ids), has_cycle)
+
+
+def _scene_initial_state(scene: Any) -> dict[str, Any]:
+    """把活 Scene 的当前运行态复制成普通字典，供 Runtime 重建独立场景。"""
+    nodes: dict[str, Any] = {}
+    for node_id, record in getattr(scene, "nodes", {}).items():
+        nodes[str(node_id)] = {
+            "data": copy.deepcopy(getattr(record, "data", {}) or {}),
+            "state": copy.deepcopy(getattr(record, "state", {}) or {}),
+            "inputs": copy.deepcopy(getattr(record, "inputs", {}) or {}),
+        }
+    edges: dict[str, Any] = {}
+    for edge_id, record in getattr(scene, "edges", {}).items():
+        edges[str(edge_id)] = {"state": copy.deepcopy(getattr(record, "state", {}) or {})}
+    clock = getattr(scene, "clock", None)
+    return {"nodes": nodes, "edges": edges, "time": float(getattr(clock, "time", 0.0) or 0.0)}
 
 
 def compile_model(model: Model) -> "CompiledModel":
@@ -109,19 +131,47 @@ def compile_model(model: Model) -> "CompiledModel":
     node_index: dict[str, int] = {}
     for index, node in enumerate(nodes):
         if node.id in node_index:
-            diagnostics.append({"severity": "error", "code": "duplicate_node_id", "message": f"节点 id 重复：{node.id}", "entity": node.id})
+            diagnostics.append(
+                {
+                    "severity": "error",
+                    "code": "duplicate_node_id",
+                    "message": f"节点 id 重复：{node.id}",
+                    "entity": node.id,
+                }
+            )
         node_index[node.id] = index
     edge_index: dict[str, int] = {}
     for index, edge in enumerate(edges):
         if edge.id in edge_index:
-            diagnostics.append({"severity": "error", "code": "duplicate_edge_id", "message": f"连接 id 重复：{edge.id}", "entity": edge.id})
+            diagnostics.append(
+                {
+                    "severity": "error",
+                    "code": "duplicate_edge_id",
+                    "message": f"连接 id 重复：{edge.id}",
+                    "entity": edge.id,
+                }
+            )
         edge_index[edge.id] = index
         if edge.source not in node_index or edge.target not in node_index:
-            diagnostics.append({"severity": "error", "code": "missing_endpoint", "message": f"连接 {edge.id} 的端点不存在", "entity": edge.id})
+            diagnostics.append(
+                {
+                    "severity": "error",
+                    "code": "missing_endpoint",
+                    "message": f"连接 {edge.id} 的端点不存在",
+                    "entity": edge.id,
+                }
+            )
 
     order, has_cycle = _topological_order(tuple(node_index), edges)
     if has_cycle:
-        diagnostics.append({"severity": "warning", "code": "cycle_detected", "message": "拓扑含环，执行顺序退回声明顺序", "entity": ""})
+        diagnostics.append(
+            {
+                "severity": "warning",
+                "code": "cycle_detected",
+                "message": "拓扑含环，执行顺序退回声明顺序",
+                "entity": "",
+            }
+        )
 
     adjacency: dict[str, list[str]] = {node_id: [] for node_id in node_index}
     for edge in edges:
@@ -160,21 +210,38 @@ def compile_model(model: Model) -> "CompiledModel":
 
     variables: list[VariableDescriptor] = []
     if model.mode == "circuit":
-        from ..compute.circuit.catalog import ELEMENT_SPECS
-
         for node in sorted(nodes, key=lambda item: item.id):
             if node.kind == "ground":
                 continue
-            variables.append(VariableDescriptor(name=f"V({node.id})", kind="voltage", owner_id=node.id, owner_kind=node.kind))
-        for edge in edges:
-            spec = ELEMENT_SPECS.get(edge.kind)
-            needs_branch = bool(getattr(getattr(spec, "cls", None), "needs_branch", False))
-            if needs_branch:
-                variables.append(VariableDescriptor(name=f"I({edge.id})", kind="current", owner_id=edge.id, owner_kind=edge.kind))
+            variables.append(
+                VariableDescriptor(
+                    name=f"V({node.id})", kind="voltage", owner_id=node.id, owner_kind=node.kind
+                )
+            )
+        from ..compute.circuit.descriptor import BRIDGE_VSOURCE_KINDS
+
+        # 与 DescriptorIndex 的未知量顺序保持一致：电感、电压源、VCVS、运放
+        # 各自按元件列表顺序追加支路电流。
+        branch_kind_groups = (
+            frozenset({"inductor"}),
+            frozenset({"vsource"}) | BRIDGE_VSOURCE_KINDS,
+            frozenset({"vcvs"}),
+            frozenset({"opamp", "comparator"}),
+        )
+        for branch_kinds in branch_kind_groups:
+            for edge in edges:
+                if edge.kind in branch_kinds:
+                    variables.append(
+                        VariableDescriptor(
+                            name=f"I({edge.id})", kind="current", owner_id=edge.id, owner_kind=edge.kind
+                        )
+                    )
     else:
         for node_id in order:
             node = nodes[node_index[node_id]]
-            variables.append(VariableDescriptor(name=node.name or node.id, kind="signal", owner_id=node.id, owner_kind=node.kind))
+            variables.append(
+                VariableDescriptor(name=node.name or node.id, kind="signal", owner_id=node.id, owner_kind=node.kind)
+            )
 
     equation_structure = {
         "method": "modified_nodal_analysis" if model.mode == "circuit" else "signal_flow",
@@ -190,7 +257,6 @@ def compile_model(model: Model) -> "CompiledModel":
         "initialize_runtime_state",
     )
     diagnostics_frozen = FrozenSequence(deep_freeze(item) for item in diagnostics)
-    scene_payload = deep_freeze(payload)
     return CompiledModel(
         mode=model.mode,
         integration=model.integration,
@@ -209,7 +275,6 @@ def compile_model(model: Model) -> "CompiledModel":
         compiler_version=COMPILER_VERSION,
         model_fingerprint=model.fingerprint,
         diagnostics=diagnostics_frozen,
-        scene_payload=scene_payload,
     )
 
 
@@ -232,13 +297,16 @@ class CompiledModel:
     compiler_version: str
     model_fingerprint: str
     diagnostics: FrozenSequence
-    scene_payload: FrozenMapping
     fingerprint: str = ""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "nodes", tuple(self.nodes))
         object.__setattr__(self, "edges", tuple(self.edges))
-        for name in ("node_index", "edge_index", "adjacency", "scene_payload"):
+        object.__setattr__(self, "order", tuple(self.order))
+        object.__setattr__(self, "components", tuple(self.components))
+        object.__setattr__(self, "dof_layout", tuple(self.dof_layout))
+        object.__setattr__(self, "assembly_plan", tuple(self.assembly_plan))
+        for name in ("node_index", "edge_index", "adjacency", "equation_structure"):
             if not isinstance(getattr(self, name), FrozenMapping):
                 object.__setattr__(self, name, FrozenMapping(getattr(self, name)))
         if not isinstance(self.blocks, FrozenSequence):
@@ -262,20 +330,48 @@ class CompiledModel:
             "edge_index": deep_thaw(self.edge_index),
             "adjacency": deep_thaw(self.adjacency),
             "order": list(self.order),
-            "components": [component.__dict__ for component in self.components],
-            "dof_layout": [variable.__dict__ for variable in self.dof_layout],
+            "components": [asdict(component) for component in self.components],
+            "dof_layout": [asdict(variable) for variable in self.dof_layout],
             "equation_structure": deep_thaw(self.equation_structure),
             "assembly_plan": list(self.assembly_plan),
             "diagnostics": deep_thaw(self.diagnostics),
         }
 
-    def create_runtime(self, scene: Any = None, *, block_instances: Any = None):
+    def execution_payload(self) -> dict[str, Any]:
+        """从编译字段合成 Runtime 所需的独立场景载荷（不含任何活对象）。"""
+        return {
+            "mode": self.mode,
+            "integration": self.integration,
+            "solve_algebraic": self.solve_algebraic,
+            "nodes": [node.to_model_fields() for node in self.nodes],
+            "edges": [edge.to_model_fields() for edge in self.edges],
+            "blocks": deep_thaw(self.blocks),
+        }
+
+    def create_runtime(
+        self,
+        scene: Any = None,
+        *,
+        initial_state: Mapping[str, Any] | None = None,
+        block_instances: Any = None,
+        solver_options: Any = None,
+    ) -> Any:
         from .runtime import Runtime
 
-        return Runtime(self, scene=scene, block_instances=block_instances)
+        if self.has_errors:
+            raise ValidationError("CompiledModel 存在编译错误，拒绝创建 Runtime")
+        if initial_state is None and scene is not None:
+            # 兼容旧调用：从活 Scene 复制一份普通状态，绝不把 Scene 引用交给 Runtime。
+            initial_state = _scene_initial_state(scene)
+        return Runtime(
+            self,
+            initial_state=initial_state,
+            block_instances=block_instances,
+            solver_options=solver_options,
+        )
 
     def to_payload(self) -> dict[str, Any]:
-        return deep_thaw(self.scene_payload)
+        return self.execution_payload()
 
     @property
     def cache_key(self) -> str:

@@ -280,7 +280,8 @@ class AnalysisWorkbench extends WorkbenchActions {
     }).join("") || '<div class="awb-empty">\u8FD8\u6CA1\u6709\u72B6\u6001\u3002\u70B9\u4E0A\u65B9\u300C\u5FEB\u7167\u5F53\u524D\u7535\u8DEF\u300D\u3002</div>';
     const activeElement = String(active?.loop_element || "");
     const loopOptions = loopElementOptions(this.loopCandidates, activeElement, false);
-    const needLoop = this.activeKind === "loop" || this.activeKind === "step_open" || this.activeKind === "nyquist";
+    const needElement = this.activeKind === "loop" || this.activeKind === "step_open" || this.activeKind === "nyquist";
+    const needFeedback = needElement || this.activeKind === "nyquist_closed" || this.activeKind === "loop_closed" || this.activeKind === "loop_step";
     const loopPanel = this.activeKind === "loop" ? '<div class="awb-nav-title">\u73AF\u8DEF\u7F29\u7565\u56FE</div>' + loopListHtml(this.loopGroups, this.selectedLoopId, this.loopCandidates) : "";
     this.navHost.innerHTML = [
       '<div class="awb-nav-title">\u5206\u6790</div>',
@@ -298,8 +299,8 @@ class AnalysisWorkbench extends WorkbenchActions {
       this.activeKind === "bode" || this.activeKind === "poles" ? '  <label>\u9891\u54CD\u901A\u8DEF <select data-awb="frequency-path">' + optionHtml("descriptor_linearized", "\u63CF\u8FF0\u5668\u7EBF\u6027\u5316", this.frequencyPath === "descriptor_linearized") + optionHtml("fft_trajectory", "FFT \u8FD1\u4F3C\uFF08\u4E0D\u5224\u7A33\uFF09", this.frequencyPath === "fft_trajectory") + "</select></label>" : "",
       '  <label>\u9636\u8DC3 dt <input type="number" data-awb="step-dt" min="0.000000001" step="any" value="' + this.params.step_dt + '"></label>',
       '  <label>\u65F6\u957F <input type="number" data-awb="step-duration" min="0.000001" step="any" value="' + this.params.step_duration + '"></label>',
-      needLoop ? '  <label>\u65AD\u73AF\u5143\u4EF6 <select data-awb="element">' + loopOptions + "</select></label>" : "",
-      needLoop ? '  <label>\u53CD\u9988\u7B26\u53F7 <select data-awb="feedback"><option value=""' + (this.params.feedback_sign === null || !this.params.feedback_sign_confirmed ? " selected" : "") + '>\u8BF7\u9009\u62E9\u53CD\u9988\u7C7B\u578B</option><option value="1"' + (this.params.feedback_sign === 1 && this.params.feedback_sign_confirmed ? " selected" : "") + '>\u8D1F\u53CD\u9988\uFF081\uFF09</option><option value="-1"' + (this.params.feedback_sign === -1 && this.params.feedback_sign_confirmed ? " selected" : "") + ">\u6B63\u53CD\u9988\uFF08-1\uFF09</option></select></label>" : "",
+      needElement ? '  <label>\u65AD\u73AF\u5143\u4EF6 <select data-awb="element">' + loopOptions + "</select></label>" : "",
+      needFeedback ? '  <label>\u53CD\u9988\u7B26\u53F7 <select data-awb="feedback"><option value=""' + (this.params.feedback_sign === null || !this.params.feedback_sign_confirmed ? " selected" : "") + '>\u8BF7\u9009\u62E9\u53CD\u9988\u7C7B\u578B</option><option value="1"' + (this.params.feedback_sign === 1 && this.params.feedback_sign_confirmed ? " selected" : "") + '>\u8D1F\u53CD\u9988\uFF081\uFF09</option><option value="-1"' + (this.params.feedback_sign === -1 && this.params.feedback_sign_confirmed ? " selected" : "") + ">\u6B63\u53CD\u9988\uFF08-1\uFF09</option></select></label>" : "",
       "</div>"
     ].join("");
     this.navHost.querySelectorAll("[data-kind]").forEach((button) => {

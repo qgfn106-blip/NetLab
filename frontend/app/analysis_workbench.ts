@@ -313,7 +313,7 @@ export class AnalysisWorkbench extends WorkbenchActions {
     }).join('') || '<div class="awb-empty">还没有状态。点上方「快照当前电路」。</div>';
     const activeElement = String(active?.loop_element || '');
     const loopOptions = loopElementOptions(this.loopCandidates, activeElement, false);
-    const needLoop = this.activeKind === 'loop' || this.activeKind === 'step_open' || this.activeKind === 'nyquist';
+    const needElement = this.activeKind === 'loop' || this.activeKind === 'step_open' || this.activeKind === 'nyquist'; const needFeedback = needElement || this.activeKind === 'nyquist_closed' || this.activeKind === 'loop_closed' || this.activeKind === 'loop_step';
     const loopPanel = this.activeKind === 'loop'
       ? '<div class="awb-nav-title">环路缩略图</div>' + loopListHtml(this.loopGroups, this.selectedLoopId, this.loopCandidates)
       : '';
@@ -333,8 +333,8 @@ export class AnalysisWorkbench extends WorkbenchActions {
       (this.activeKind === 'bode' || this.activeKind === 'poles') ? '  <label>频响通路 <select data-awb="frequency-path">' + optionHtml('descriptor_linearized', '描述器线性化', this.frequencyPath === 'descriptor_linearized') + optionHtml('fft_trajectory', 'FFT 近似（不判稳）', this.frequencyPath === 'fft_trajectory') + '</select></label>' : '',
       '  <label>阶跃 dt <input type="number" data-awb="step-dt" min="0.000000001" step="any" value="' + this.params.step_dt + '"></label>',
       '  <label>时长 <input type="number" data-awb="step-duration" min="0.000001" step="any" value="' + this.params.step_duration + '"></label>',
-      needLoop ? '  <label>断环元件 <select data-awb="element">' + loopOptions + '</select></label>' : '',
-      needLoop ? '  <label>反馈符号 <select data-awb="feedback"><option value=""' + (this.params.feedback_sign === null || !this.params.feedback_sign_confirmed ? ' selected' : '') + '>请选择反馈类型</option><option value="1"' + (this.params.feedback_sign === 1 && this.params.feedback_sign_confirmed ? ' selected' : '') + '>负反馈（1）</option><option value="-1"' + (this.params.feedback_sign === -1 && this.params.feedback_sign_confirmed ? ' selected' : '') + '>正反馈（-1）</option></select></label>' : '',
+      needElement ? '  <label>断环元件 <select data-awb="element">' + loopOptions + '</select></label>' : '',
+      needFeedback ? '  <label>反馈符号 <select data-awb="feedback"><option value=""' + (this.params.feedback_sign === null || !this.params.feedback_sign_confirmed ? ' selected' : '') + '>请选择反馈类型</option><option value="1"' + (this.params.feedback_sign === 1 && this.params.feedback_sign_confirmed ? ' selected' : '') + '>负反馈（1）</option><option value="-1"' + (this.params.feedback_sign === -1 && this.params.feedback_sign_confirmed ? ' selected' : '') + '>正反馈（-1）</option></select></label>' : '',
       '</div>',
     ].join('');
     this.navHost.querySelectorAll('[data-kind]').forEach((button) => {

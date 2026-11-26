@@ -23,7 +23,7 @@ export abstract class WorkbenchActions {
   protected params: {
     f_start: number; f_stop: number; points: number; step_dt: number; step_duration: number;
     feedback_sign: number | null; feedback_sign_confirmed: boolean;
-  } = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: 1, feedback_sign_confirmed: false };
+  } = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: null, feedback_sign_confirmed: false };
   protected frequencyPath = 'descriptor_linearized';
   protected loopCandidates: Array<Record<string, unknown>> = [];
   protected loopGroups: Array<Record<string, unknown>> = [];
@@ -323,7 +323,7 @@ export abstract class WorkbenchActions {
     this.selectedLoopId = String(group.loop_id || '');
     const sign = Number(group.feedback_sign);
     this.params.feedback_sign = sign === 1 || sign === -1 ? sign : null;
-    this.params.feedback_sign_confirmed = this.params.feedback_sign !== null;
+    this.params.feedback_sign_confirmed = this.params.feedback_sign !== null && group.feedback_sign_confirmed === true;
     const element = controlledBreakForGroup(group, this.loopCandidates);
     this.refreshNavigation();
     const select = this.navHost.querySelector('[data-awb="element"]') as HTMLSelectElement | null;
@@ -419,12 +419,6 @@ export abstract class WorkbenchActions {
         return null;
       }
       params.element = element;
-      if (this.params.feedback_sign === null || (loopKind && this.params.feedback_sign_confirmed !== true)) {
-        toast('请先确认反馈极性：+1（负反馈）或 -1（正反馈）', 'error', 5000);
-        return null;
-      }
-      params.feedback_sign = this.params.feedback_sign;
-      params.feedback_sign_confirmed = this.params.feedback_sign_confirmed;
       const feedbackOutput = loopFeedbackOutput(this.loopCandidates, element, output);
       if (feedbackOutput && feedbackOutput !== output) {
         params.output = feedbackOutput;
@@ -432,6 +426,14 @@ export abstract class WorkbenchActions {
         if (outputSelect) outputSelect.value = feedbackOutput;
         toast(`闭环分析输出已自动改为反馈节点 ${feedbackOutput}（避免取到监测级导致环路一致性告警）`, 'warn', 6000);
       }
+    }
+    if (loopKind || kind === 'nyquist' || kind === 'nyquist_closed') {
+      if (this.params.feedback_sign === null || this.params.feedback_sign_confirmed !== true) {
+        toast('请先确认反馈极性：+1（负反馈）或 -1（正反馈）', 'error', 5000);
+        return null;
+      }
+      params.feedback_sign = this.params.feedback_sign;
+      params.feedback_sign_confirmed = true;
     }
     return params;
   }

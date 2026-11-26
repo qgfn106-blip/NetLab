@@ -103,7 +103,14 @@ def test_workbench_session_state_run_compare_invalidate(client) -> None:
 
 def _run_kind(client, session_id: str, state_id: str, kind: str, params: dict | None = None) -> dict:
     payload = dict(params or {})
-    if kind in ("loop", "loop_closed", "loop_step"):
+    if kind in (
+        "loop",
+        "loop_closed",
+        "loop_step",
+        "nyquist",
+        "nyquist_closed",
+        "step_open",
+    ):
         payload.setdefault("feedback_sign", 1.0)
         payload.setdefault("feedback_sign_confirmed", True)
     response = client.post(
@@ -148,6 +155,27 @@ def test_workbench_rejects_unconfirmed_feedback_sign(client) -> None:
         )
         assert response.status_code == 422, response.text
         assert "反馈" in response.text
+
+
+def test_workbench_rejects_unconfirmed_feedback_sign_for_all_signal_kinds(client) -> None:
+    session_id = _new_session(client, "反馈极性全分析")
+    state_id = _add_state(client, session_id)
+    for kind in ("nyquist", "nyquist_closed", "step_open"):
+        for params in (
+            {"feedback_sign": None, "feedback_sign_confirmed": False},
+            {"feedback_sign": 1.0, "feedback_sign_confirmed": False},
+        ):
+            response = client.post(
+                "/api/analysis/workbench/run",
+                json={
+                    "session_id": session_id,
+                    "state_id": state_id,
+                    "kind": kind,
+                    "params": params,
+                },
+            )
+            assert response.status_code == 422, response.text
+            assert "反馈" in response.text
 
 
 def test_workbench_loop_without_break_is_rejected(client) -> None:

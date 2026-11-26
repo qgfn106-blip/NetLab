@@ -16,7 +16,7 @@ class WorkbenchActions {
     this.workspace = null;
     this.session = null;
     this.sessionId = "";
-    this.params = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: 1, feedback_sign_confirmed: false };
+    this.params = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: null, feedback_sign_confirmed: false };
     this.frequencyPath = "descriptor_linearized";
     this.loopCandidates = [];
     this.loopGroups = [];
@@ -280,7 +280,7 @@ class WorkbenchActions {
     this.selectedLoopId = String(group.loop_id || "");
     const sign = Number(group.feedback_sign);
     this.params.feedback_sign = sign === 1 || sign === -1 ? sign : null;
-    this.params.feedback_sign_confirmed = this.params.feedback_sign !== null;
+    this.params.feedback_sign_confirmed = this.params.feedback_sign !== null && group.feedback_sign_confirmed === true;
     const element = controlledBreakForGroup(group, this.loopCandidates);
     this.refreshNavigation();
     const select = this.navHost.querySelector('[data-awb="element"]');
@@ -375,12 +375,6 @@ class WorkbenchActions {
         return null;
       }
       params.element = element;
-      if (this.params.feedback_sign === null || loopKind && this.params.feedback_sign_confirmed !== true) {
-        toast("\u8BF7\u5148\u786E\u8BA4\u53CD\u9988\u6781\u6027\uFF1A+1\uFF08\u8D1F\u53CD\u9988\uFF09\u6216 -1\uFF08\u6B63\u53CD\u9988\uFF09", "error", 5e3);
-        return null;
-      }
-      params.feedback_sign = this.params.feedback_sign;
-      params.feedback_sign_confirmed = this.params.feedback_sign_confirmed;
       const feedbackOutput = loopFeedbackOutput(this.loopCandidates, element, output);
       if (feedbackOutput && feedbackOutput !== output) {
         params.output = feedbackOutput;
@@ -388,6 +382,14 @@ class WorkbenchActions {
         if (outputSelect) outputSelect.value = feedbackOutput;
         toast(`\u95ED\u73AF\u5206\u6790\u8F93\u51FA\u5DF2\u81EA\u52A8\u6539\u4E3A\u53CD\u9988\u8282\u70B9 ${feedbackOutput}\uFF08\u907F\u514D\u53D6\u5230\u76D1\u6D4B\u7EA7\u5BFC\u81F4\u73AF\u8DEF\u4E00\u81F4\u6027\u544A\u8B66\uFF09`, "warn", 6e3);
       }
+    }
+    if (loopKind || kind === "nyquist" || kind === "nyquist_closed") {
+      if (this.params.feedback_sign === null || this.params.feedback_sign_confirmed !== true) {
+        toast("\u8BF7\u5148\u786E\u8BA4\u53CD\u9988\u6781\u6027\uFF1A+1\uFF08\u8D1F\u53CD\u9988\uFF09\u6216 -1\uFF08\u6B63\u53CD\u9988\uFF09", "error", 5e3);
+        return null;
+      }
+      params.feedback_sign = this.params.feedback_sign;
+      params.feedback_sign_confirmed = true;
     }
     return params;
   }

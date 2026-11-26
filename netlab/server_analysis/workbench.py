@@ -194,13 +194,16 @@ def _run_state(state: Any, kind: str, params: dict[str, Any]) -> dict[str, Any]:
         }
 
     element = merged.get("element") or state.loop_element
-    loop_kind = kind in ("loop", "loop_closed", "loop_step")
+    sign_kinds = (
+        "loop",
+        "loop_closed",
+        "loop_step",
+        "nyquist",
+        "nyquist_closed",
+        "step_open",
+    )
     raw_sign = merged.get("feedback_sign", state.feedback_sign)
-    if loop_kind:
-        if ("feedback_sign" in merged and raw_sign is None) or merged.get(
-            "feedback_sign_confirmed"
-        ) is False:
-            raise ValidationError("反馈极性尚未确认，请选择 +1（负反馈）或 -1（正反馈）")
+    if kind in sign_kinds:
         if raw_sign is None:
             raise ValidationError("反馈极性尚未确认，请选择 +1（负反馈）或 -1（正反馈）")
         try:
@@ -209,20 +212,14 @@ def _run_state(state: Any, kind: str, params: dict[str, Any]) -> dict[str, Any]:
             raise ValidationError("feedback_sign 必须是 +1（负反馈）或 -1（正反馈）") from exc
         if feedback_sign not in (-1.0, 1.0):
             raise ValidationError("feedback_sign 必须是 +1（负反馈）或 -1（正反馈）")
+        if "feedback_sign_confirmed" in merged and merged["feedback_sign_confirmed"] is False:
+            raise ValidationError("反馈极性尚未确认，请选择 +1（负反馈）或 -1（正反馈）")
         if kind == "loop" and not element:
             raise ValidationError("环路分析必须选择实体断环点，未断环无法求开环 L(s)")
         if merged.get("feedback_sign_confirmed", state.feedback_sign_confirmed) is not True:
             raise ValidationError("反馈极性尚未确认，请选择 +1（负反馈）或 -1（正反馈）")
     else:
-        if raw_sign is None:
-            feedback_sign = 1.0
-        else:
-            try:
-                feedback_sign = float(raw_sign)
-            except (TypeError, ValueError) as exc:
-                raise ValidationError("feedback_sign 必须是 +1（负反馈）或 -1（正反馈）") from exc
-            if feedback_sign not in (-1.0, 1.0):
-                raise ValidationError("feedback_sign 必须是 +1（负反馈）或 -1（正反馈）")
+        feedback_sign = 1.0
     if kind in ("loop", "loop_closed", "loop_step"):
         display = {
             "loop": "loop",

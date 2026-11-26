@@ -547,6 +547,16 @@ class BlockRuntime:
             clone._scene.load_payload(
                 self._scene.to_payload(include_state=True, include_all_blocks=True)
             )
+            nested = getattr(self._scene, "block_instances", None) or {}
+            if nested:
+                clone._scene.block_instances = {
+                    key: (
+                        value.clone()
+                        if callable(getattr(value, "clone", None))
+                        else copy.deepcopy(value)
+                    )
+                    for key, value in nested.items()
+                }
             clone._scene.clock.time = float(self._scene.clock.time)
         return clone
 

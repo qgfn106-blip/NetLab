@@ -194,7 +194,19 @@ def _run_state(state: Any, kind: str, params: dict[str, Any]) -> dict[str, Any]:
         }
 
     element = merged.get("element") or state.loop_element
-    feedback_sign = float(merged.get("feedback_sign", state.feedback_sign or 1.0))
+    if merged.get("feedback_sign_confirmed") is False:
+        raise ValidationError("反馈极性尚未确认，请选择 +1（负反馈）或 -1（正反馈）")
+    raw_sign = merged.get(
+        "feedback_sign", state.feedback_sign if state.feedback_sign is not None else 1.0
+    )
+    if raw_sign is None:
+        raise ValidationError("反馈极性尚未确认，请选择 +1（负反馈）或 -1（正反馈）")
+    try:
+        feedback_sign = float(raw_sign)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError("feedback_sign 必须是 +1（负反馈）或 -1（正反馈）") from exc
+    if feedback_sign not in (-1.0, 1.0):
+        raise ValidationError("feedback_sign 必须是 +1（负反馈）或 -1（正反馈）")
     if kind in ("loop", "loop_closed", "loop_step"):
         display = {
             "loop": "loop",
@@ -390,8 +402,6 @@ def workbench_invalidate(request: InvalidateRequest) -> dict[str, Any]:
     session = _session(request.session_id)
     count = session.invalidate(request.reason)
     return {"ok": True, "invalidated": count, "session": session.snapshot()}
-
-
 
 
 @router.post("/api/analysis/workbench/export")

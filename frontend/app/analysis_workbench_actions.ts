@@ -20,7 +20,10 @@ export abstract class WorkbenchActions {
   protected statusHost!: HTMLElement;
   protected session: WorkbenchSessionRec | null = null;
   protected sessionId = '';
-  protected params = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: 1 };
+  protected params: {
+    f_start: number; f_stop: number; points: number; step_dt: number; step_duration: number;
+    feedback_sign: number | null; feedback_sign_confirmed: boolean;
+  } = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: 1, feedback_sign_confirmed: true };
   protected frequencyPath = 'descriptor_linearized';
   protected loopCandidates: Array<Record<string, unknown>> = [];
   protected loopGroups: Array<Record<string, unknown>> = [];
@@ -318,7 +321,9 @@ export abstract class WorkbenchActions {
   protected selectLoopGroup(group: Record<string, unknown>): void {
     this.selectedLoopGroup = group;
     this.selectedLoopId = String(group.loop_id || '');
-    this.params.feedback_sign = Number(group.feedback_sign) === -1 ? -1 : 1;
+    const sign = Number(group.feedback_sign);
+    this.params.feedback_sign = sign === 1 || sign === -1 ? sign : null;
+    this.params.feedback_sign_confirmed = this.params.feedback_sign !== null;
     const element = controlledBreakForGroup(group, this.loopCandidates);
     this.refreshNavigation();
     const select = this.navHost.querySelector('[data-awb="element"]') as HTMLSelectElement | null;
@@ -411,7 +416,12 @@ export abstract class WorkbenchActions {
         return null;
       }
       params.element = element;
+      if (this.params.feedback_sign === null) {
+        toast('请先确认反馈极性：+1（负反馈）或 -1（正反馈）', 'error', 5000);
+        return null;
+      }
       params.feedback_sign = this.params.feedback_sign;
+      params.feedback_sign_confirmed = this.params.feedback_sign_confirmed;
       const feedbackOutput = loopFeedbackOutput(this.loopCandidates, element, output);
       if (feedbackOutput && feedbackOutput !== output) {
         params.output = feedbackOutput;

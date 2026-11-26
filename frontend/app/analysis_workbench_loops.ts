@@ -14,7 +14,7 @@ export interface LoopGroupRecord {
   member_edge_names?: string[];
   candidate_breaks?: Array<Record<string, unknown>>;
   suggested_break_id?: string;
-  feedback_sign?: number;
+  feedback_sign?: number | null;
 }
 
 function textList(value: unknown): string[] {
@@ -34,7 +34,9 @@ export function normalizeLoopGroup(raw: Record<string, unknown> | null | undefin
       ? (group.candidate_breaks as Array<Record<string, unknown>>)
       : [],
     suggested_break_id: String(group.suggested_break_id || ''),
-    feedback_sign: Number(group.feedback_sign) === -1 ? -1 : 1,
+    feedback_sign: Number(group.feedback_sign) === 1 || Number(group.feedback_sign) === -1
+      ? Number(group.feedback_sign)
+      : null,
   };
 }
 

@@ -16,7 +16,7 @@ class WorkbenchActions {
     this.workspace = null;
     this.session = null;
     this.sessionId = "";
-    this.params = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: 1 };
+    this.params = { f_start: 1, f_stop: 1e5, points: 121, step_dt: 1e-5, step_duration: 5e-3, feedback_sign: 1, feedback_sign_confirmed: true };
     this.frequencyPath = "descriptor_linearized";
     this.loopCandidates = [];
     this.loopGroups = [];
@@ -278,7 +278,9 @@ class WorkbenchActions {
   selectLoopGroup(group) {
     this.selectedLoopGroup = group;
     this.selectedLoopId = String(group.loop_id || "");
-    this.params.feedback_sign = Number(group.feedback_sign) === -1 ? -1 : 1;
+    const sign = Number(group.feedback_sign);
+    this.params.feedback_sign = sign === 1 || sign === -1 ? sign : null;
+    this.params.feedback_sign_confirmed = this.params.feedback_sign !== null;
     const element = controlledBreakForGroup(group, this.loopCandidates);
     this.refreshNavigation();
     const select = this.navHost.querySelector('[data-awb="element"]');
@@ -370,7 +372,12 @@ class WorkbenchActions {
         return null;
       }
       params.element = element;
+      if (this.params.feedback_sign === null) {
+        toast("\u8BF7\u5148\u786E\u8BA4\u53CD\u9988\u6781\u6027\uFF1A+1\uFF08\u8D1F\u53CD\u9988\uFF09\u6216 -1\uFF08\u6B63\u53CD\u9988\uFF09", "error", 5e3);
+        return null;
+      }
       params.feedback_sign = this.params.feedback_sign;
+      params.feedback_sign_confirmed = this.params.feedback_sign_confirmed;
       const feedbackOutput = loopFeedbackOutput(this.loopCandidates, element, output);
       if (feedbackOutput && feedbackOutput !== output) {
         params.output = feedbackOutput;

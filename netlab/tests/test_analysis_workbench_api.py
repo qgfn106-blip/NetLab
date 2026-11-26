@@ -130,6 +130,22 @@ def test_workbench_nyquist_closed_is_labeled_closed_loop(client) -> None:
     assert body["envelope"]["curves"]
 
 
+def test_workbench_rejects_unconfirmed_feedback_sign(client) -> None:
+    session_id = _new_session(client, "反馈极性")
+    state_id = _add_state(client, session_id)
+    for params in (
+        {"feedback_sign": None},
+        {"feedback_sign": 1.0, "feedback_sign_confirmed": False},
+        {"feedback_sign": 0.0},
+    ):
+        response = client.post(
+            "/api/analysis/workbench/run",
+            json={"session_id": session_id, "state_id": state_id, "kind": "loop", "params": params},
+        )
+        assert response.status_code == 422, response.text
+        assert "反馈" in response.text
+
+
 def test_workbench_loop_without_break_is_rejected(client) -> None:
     session_id = _new_session(client, "环路无断点")
     state_id = _add_state(client, session_id)

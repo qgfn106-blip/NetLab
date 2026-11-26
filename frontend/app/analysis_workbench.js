@@ -299,7 +299,7 @@ class AnalysisWorkbench extends WorkbenchActions {
       '  <label>\u9636\u8DC3 dt <input type="number" data-awb="step-dt" min="0.000000001" step="any" value="' + this.params.step_dt + '"></label>',
       '  <label>\u65F6\u957F <input type="number" data-awb="step-duration" min="0.000001" step="any" value="' + this.params.step_duration + '"></label>',
       needLoop ? '  <label>\u65AD\u73AF\u5143\u4EF6 <select data-awb="element">' + loopOptions + "</select></label>" : "",
-      needLoop ? '  <label>\u53CD\u9988\u7B26\u53F7 <select data-awb="feedback"><option value="1"' + (this.params.feedback_sign === 1 ? " selected" : "") + '>\u8D1F\u53CD\u9988\uFF081\uFF09</option><option value="-1"' + (this.params.feedback_sign === -1 ? " selected" : "") + ">\u6B63\u53CD\u9988\uFF08-1\uFF09</option></select></label>" : "",
+      needLoop ? '  <label>\u53CD\u9988\u7B26\u53F7 <select data-awb="feedback"><option value=""' + (this.params.feedback_sign === null ? " selected" : "") + '>\u8BF7\u9009\u62E9\u53CD\u9988\u7C7B\u578B</option><option value="1"' + (this.params.feedback_sign === 1 ? " selected" : "") + '>\u8D1F\u53CD\u9988\uFF081\uFF09</option><option value="-1"' + (this.params.feedback_sign === -1 ? " selected" : "") + ">\u6B63\u53CD\u9988\uFF08-1\uFF09</option></select></label>" : "",
       "</div>"
     ].join("");
     this.navHost.querySelectorAll("[data-kind]").forEach((button) => {
@@ -380,7 +380,9 @@ class AnalysisWorkbench extends WorkbenchActions {
     bindNumber('[data-awb="step-duration"]', "step_duration");
     const feedback = this.navHost.querySelector('[data-awb="feedback"]');
     feedback?.addEventListener("change", () => {
-      this.params.feedback_sign = Number(feedback.value) === -1 ? -1 : 1;
+      const value = feedback.value === "" ? null : Number(feedback.value);
+      this.params.feedback_sign = value === 1 || value === -1 ? value : null;
+      this.params.feedback_sign_confirmed = this.params.feedback_sign !== null;
     });
     const frequencyPath = this.navHost.querySelector('[data-awb="frequency-path"]');
     frequencyPath?.addEventListener("change", () => {
@@ -435,7 +437,10 @@ class AnalysisWorkbench extends WorkbenchActions {
       const value = Number(ranges[key]);
       if (Number.isFinite(value)) this.params[key] = value;
     }
-    if (typeof active?.feedback_sign === "number") this.params.feedback_sign = active.feedback_sign;
+    if (active && "feedback_sign" in active) {
+      this.params.feedback_sign = active.feedback_sign === 1 || active.feedback_sign === -1 ? active.feedback_sign : null;
+      this.params.feedback_sign_confirmed = this.params.feedback_sign !== null;
+    }
   }
   async snapshotCurrent(label) {
     if (this.busy) return;

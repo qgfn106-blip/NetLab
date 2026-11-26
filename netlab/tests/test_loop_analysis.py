@@ -14,6 +14,7 @@ from netlab.core.compute.circuit.loop_analysis import (
     extract_branch_loop,
     extract_controlled_source_loop,
 )
+from netlab.core.compute.circuit.nyquist import nyquist_metrics, stability_margins
 from netlab.core.compute.simulation import Simulation
 from netlab.core.model.scene import Scene
 
@@ -205,6 +206,87 @@ def test_true_positive_feedback_topology_closed_loop_analytic() -> None:
     assert np.allclose(result.closed_loop, result.direct_response, rtol=1e-9)
     assert result.parity_max_rel is not None
     assert result.parity_max_rel < 1e-9
+
+
+def _dynamic_feedback_amplifier(gain: float) -> Scene:
+    """反馈臂并联电容的同相放大器：L(s)=A*R1/(R1+R2+s*R1*R2*C)，返回比按物理极性带符号。"""
+    scene = Scene("circuit")
+    gnd = scene.add_node(name="gnd", kind="ground")
+    vin = scene.add_node(name="vin", kind="node")
+    n = scene.add_node(name="n", kind="node")
+    out = scene.add_node(name="out", kind="node")
+    scene.add_edge(
+        name="V1",
+        source=vin.id,
+        target=gnd.id,
+        kind="vsource",
+        params={"wave": "dc", "offset": 0.0, "amplitude": 1.0},
+    )
+    scene.add_edge(
+        name="E1",
+        source=out.id,
+        target=gnd.id,
+        kind="vcvs",
+        params={"gain": gain, "control_source": vin.id, "control_target": n.id},
+    )
+    scene.add_edge(name="R1", source=n.id, target=gnd.id, kind="resistor", params={"R": 1.0e3})
+    scene.add_edge(name="C1", source=n.id, target=gnd.id, kind="capacitor", params={"C": 1.0e-7})
+    scene.add_edge(name="R2", source=out.id, target=n.id, kind="resistor", params={"R": 9.0e3})
+    return scene
+
+
+def test_negative_feedback_topology_end_to_end_sign_contract() -> None:
+    """负反馈全链路：提取 L>0 → 闭环 G/(1+L) → Nyquist 临界点 -1 → 裕度稳定。"""
+    model = DescriptorModel.from_scene(_dynamic_feedback_amplifier(100.0))
+    frequencies = np.logspace(0.0, 6.0, 600)
+    extraction = extract_controlled_source_loop(model, "E1", frequencies)
+    assert np.all(np.real(extraction.loop_gain) > 0.0)
+    assert abs(complex(extraction.loop_gain[0]).real - 10.0) < 1e-3
+    assert extraction.direct_response is not None
+    assert np.allclose(extraction.closed_loop, extraction.direct_response, rtol=1e-6)
+
+    margins = stability_margins(frequencies, extraction.loop_gain, feedback_sign=1.0)
+    assert margins["critical_point_real"] == -1.0
+    assert margins["critical_phase_deg"] == 180.0
+    assert margins["phase_margin_deg"] is not None and margins["phase_margin_deg"] > 0.0
+    assert margins["stable_from_margins"] is True
+
+    metrics = nyquist_metrics(
+        frequencies,
+        extraction.loop_gain,
+        feedback_sign=1.0,
+        poles={"right_half_plane": 0, "on_imaginary_axis": False},
+    )
+    assert metrics["critical_point_real"] == -1.0
+    assert metrics["stable"] is True
+    assert metrics["closed_loop_right_half_plane"] == 0
+
+
+def test_positive_feedback_topology_end_to_end_sign_contract() -> None:
+    """正反馈全链路：提取 L<0 → 闭环 G/(1+L) → Nyquist 临界点 -1 → GM<0 不稳定。"""
+    model = DescriptorModel.from_scene(_dynamic_feedback_amplifier(-100.0))
+    frequencies = np.logspace(0.0, 6.0, 600)
+    extraction = extract_controlled_source_loop(model, "E1", frequencies)
+    assert np.all(np.real(extraction.loop_gain) < 0.0)
+    assert abs(complex(extraction.loop_gain[0]).real + 10.0) < 1e-3
+    assert extraction.direct_response is not None
+    assert np.allclose(extraction.closed_loop, extraction.direct_response, rtol=1e-6)
+
+    margins = stability_margins(frequencies, extraction.loop_gain, feedback_sign=-1.0)
+    assert margins["critical_point_real"] == -1.0
+    assert margins["critical_phase_deg"] == 180.0
+    assert margins["gain_margin_db"] is not None and margins["gain_margin_db"] < 0.0
+    assert margins["stable_from_margins"] is False
+
+    metrics = nyquist_metrics(
+        frequencies,
+        extraction.loop_gain,
+        feedback_sign=-1.0,
+        poles={"right_half_plane": 0, "on_imaginary_axis": False},
+    )
+    assert metrics["critical_point_real"] == -1.0
+    assert metrics["stable"] is False
+    assert metrics["closed_loop_right_half_plane"] == 1
 
 
 def test_branch_loop_marks_opamp_asymptotic_approximation() -> None:

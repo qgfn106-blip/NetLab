@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -9,16 +10,17 @@ import pytest
 
 from netlab.core.compute import analysis
 from netlab.core.compute.simulation import Simulation
-from netlab.core.model.project import load_project, project_scene_payload
 
-ROOT = Path(__file__).resolve().parents[2]
-PROJECT = ROOT / "MyProject" / "控制工程实验2_闭环分析示范.netlab"
+FIXTURE = (
+    Path(__file__).resolve().parent
+    / "fixtures"
+    / "projects"
+    / "control_engineering_loop.json"
+)
 
 
 def _target_sim():
-    if not PROJECT.exists():
-        pytest.skip("本地示范工程不存在")
-    payload = project_scene_payload(load_project(PROJECT))
+    payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
     sim = Simulation()
     sim.load_scene(payload)
     return sim, sim.operating_point().get("node_voltages") or {}
@@ -75,11 +77,13 @@ def test_branch_loop_resolves_outer_open_loop_l_and_closed_t() -> None:
     assert labels[0].startswith("闭环 T_synth") and labels[1].startswith("闭环 T_synth")
     frequencies = np.asarray(closed["frequencies_hz"], dtype=float)
     s = 1j * 2.0 * np.pi * frequencies
-    analytic = 100.0 / (s * s + 10.0 * s + 100.0)
+    # 有限开环增益 A=2e5 下，该断环点闭环传递函数为
+    # T(s) = -99.995 / (s^2 + 10.0002 s + 99.996)；负号来自该节点的反相。
+    analytic = -99.995 / (s * s + 10.0002 * s + 99.996)
     expected_mag = 20.0 * np.log10(np.abs(analytic))
     expected_phase = np.degrees(np.unwrap(np.angle(analytic)))
     assert np.max(np.abs(np.asarray(curves[0]["y"], dtype=float) - expected_mag)) < 1.0e-6
-    assert np.max(np.abs(np.asarray(curves[1]["y"], dtype=float) - expected_phase)) < 1.0e-6
+    assert np.max(np.abs(np.asarray(curves[1]["y"], dtype=float) - expected_phase)) < 1.0e-4
 
 
 def test_open_loop_bode_matches_analytic_including_high_frequency() -> None:

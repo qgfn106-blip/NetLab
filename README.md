@@ -114,26 +114,26 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
-| 2026-11-25 | docs(audit): 整改台账更新为已合并状态（PR #71/#72） (#73) |
-| 2026-11-25 | docs(audit): 标注台账经 PR #73 同步合入 |
-| 2026-11-25 | docs(audit): 整改台账更新为已合并状态（PR #71/#72，main e8720f2） |
-| 2026-11-24 | feat(compute): P2 计算内核收敛 (#72) |
-| 2026-11-24 | refactor(frontend): P1 前端三模块拆分与职责矩阵 (#71) |
-| 2026-11-24 | test(solver): 生成 D-5 影子对拍报告（P2） |
-| 2026-11-24 | test(solver): 生成 D-5 影子对拍报告（P1） |
-| 2026-11-24 | fix(frontend): 修复 P1 抽取函数编译错误 |
-| 2026-11-24 | docs(audit): 刷新 P2 实施状态与最新全量证据 |
-| 2026-11-24 | fix(frontend): 修复 P1 抽取函数编译错误并同步变异模板 |
-| 2026-11-24 | refactor(netlab): 收敛 P2 计算内核 AC 后端与 StampBuilder |
-| 2026-11-24 | refactor(analysis): 拆分 analysis.py 异常层与纯数值层 (P2-03) |
-| 2026-11-24 | docs(audit): 刷新整改台账提交与合并状态 |
-| 2026-11-24 | fix(compute): GPU 非有限解回退 CPU 并补 FEM 边界单测 |
-| 2026-11-24 | refactor(frontend): 拆分三超限分析模块并梳理前端职责 |
-| 2026-11-24 | docs(audit): 增加全面审计、整改追踪、架构收敛与 Core V2 路线图 |
-| 2026-11-24 | feat(tools): 需求可验证性门禁增加语义校验 |
-| 2026-11-24 | docs(deps): 统一 PlotKit 0.3.0 与 Project Schema 8 口径 |
-| 2026-11-24 | fix(desktop): 路径白名单注释与导出路径校验 |
-| 2026-11-24 | fix(analysis): 断环闭环传递函数修正为 T=G/(1+L) |
+| 2026-11-26 | feat(tools): automate README recent updates |
+| 2026-11-26 | chore(evidence): regenerate D-5 shadow report for feedback polarity fixes |
+| 2026-11-26 | fix(workbench): require feedback polarity confirmation for Nyquist and step analyses |
+| 2026-11-26 | fix(model): preserve nested block state when cloning runtime block instances |
+| 2026-11-26 | fix(loop-analysis): require explicit feedback polarity confirmation |
+| 2026-11-26 | chore(evidence): add D-5 shadow report for loop analysis |
+| 2026-11-26 | docs(changelog): record runtime hardening and polarity confirmation |
+| 2026-11-26 | fix(model): isolate block state and support plugin scene stepping |
+| 2026-11-26 | fix(loop-analysis): require explicit feedback polarity confirmation |
+| 2026-11-26 | docs(changelog): record three-layer model architecture and loop-sign fixes |
+| 2026-11-26 | feat(model): isolate runtime scene and component state |
+| 2026-11-26 | fix(loop-analysis): propagate physical feedback sign through loop synthesis |
+| 2026-11-26 | feat(model): separate Model, CompiledModel and Runtime layers |
+| 2026-11-26 | fix(loop-analysis): unify signed loop gain and Nyquist critical point |
+| 2026-11-26 | docs: sync audit status to PR #76 merge 1596c370 |
+| 2026-11-26 | test(analysis): add D-5 shadow report for LM-05/06/07 compute changes |
+| 2026-11-26 | fix(analysis): 修复 Nyquist 正反馈临界点与裕度基准并显式化运放断环近似 |
+| 2026-11-26 | docs: sync audit status to PR #75 merge 3817422 and add LM-05/06/07 plan |
+| 2026-11-26 | test(solver): 生成 D-5 影子对拍报告（PR #75） |
+| 2026-11-26 | docs: sign off G8 after all six CI checks passed |
 
 <!-- END LAST 20 UPDATES -->
 

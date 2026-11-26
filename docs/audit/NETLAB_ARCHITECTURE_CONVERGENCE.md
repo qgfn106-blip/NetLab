@@ -1,7 +1,7 @@
 # NetLab 架构收敛方案（Architecture Convergence）
 
 > 基线提交：5c076eae55f739e2265327c0c73a7dac3440358a ｜ 版本：NetLab 3.20.2 / Project Schema 8
-> 说明：本文件针对 P1-01、P1-02、P2-01..P2-06 给出「现状证据 / 目标架构 / 验证标准 / 迁移步骤（小步）/ 风险与回滚」。P1-01/P1-02 已随 PR #71（merge 376b2bb）合入 main（三模块 878→786、837→800、823→774，check:sections 通过，职责矩阵见 FRONTEND_RESPONSIBILITY_MATRIX.md）；P2-01/P2-02/P2-03 已随 PR #72（merge e8720f2）合入 main（e5373f7、2c7530e）；P2-04/P2-05 安全修复与补测随 PR #71 合入（2db0867）。所有行数与 file:line 来自 findings 与实测。
+> 说明：本文件针对 P1-01、P1-02、P2-01..P2-06 给出「现状证据 / 目标架构 / 验证标准 / 迁移步骤（小步）/ 风险与回滚」。P1-01/P1-02 已随 PR #71（merge 376b2bb）合入 main（三模块 878→786、837→800、823→774，check:sections 通过，职责矩阵见 FRONTEND_RESPONSIBILITY_MATRIX.md）；P2-01/P2-02/P2-03 已随 PR #72（merge e8720f2）合入 main（e5373f7、2c7530e）；P2-04/P2-05 安全修复与补测随 PR #71 合入（2db0867）。P3 Core V2 随 PR #75（merge 3817422）合入；LM-05/06/07 随 PR #76（merge 1596c370，2026-11-26）合入，当前 main=1596c370。所有行数与 file:line 来自 findings 与实测。
 
 ## 0. 通用验证手段
 - 行为等价 AST 对比：复用 P0-02 的 frontend/tools/parity_ast.js（字符串感知注释剥离 + 按文件判重）与 verify_app_parity.js，确保拆分前后导出声明集合与签名一致；后端用 AST/导出比对函数签名不变。

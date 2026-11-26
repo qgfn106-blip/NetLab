@@ -113,3 +113,4 @@
 - LM-07（方案 A）：`LoopExtraction` 增加 `loop_gain_kind: str = "exact"`；运放支路执行 ×1000 扰动时置 `asymptotic_opamp`，并产生 `loop_gain_idealized` 告警（`opamp_gain_scale=1000.0`）；`analysis_loop` 在 source 与顶层 payload 透传 `loop_gain_kind`；前端在指标栏显示「回路增益 理想化运放近似（×1000）」。
 - 测试：`test_nyquist.py` 增加 `winding_number(point=+1)`、正反馈 K=2（临界点 +1、PM≈60°、GM<0、不稳定、marker +1）与 K=0.5（PM=None、GM>0、稳定、warning）；`test_loop_analysis.py` 增加运放分支 `asymptotic_opamp` + `loop_gain_idealized`(1000)、无运放 `exact`、analysis 顶层/source 透传。定向 27 passed/7 skipped。
 - 未做：LM-07 方案 B（exact L/G）待后续评估；方案 C（受控源断环）单独立项。FEM 冻结。
+- 合并：PR #76 → main 1596c370（2026-11-26，提交 caa6887 + d44c79e，六项 CI 全绿）。

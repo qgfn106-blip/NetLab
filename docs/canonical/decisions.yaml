@@ -1105,7 +1105,7 @@ decisions:
   legacy_id: D158
 - id: D159
   title: Nyquist 正反馈临界点/裕度基准修复与 LM-07 方案 A（2026-11-26）
-  decision: 实施 LM-05/LM-06：nyquist_metrics 的包围数临界点改为 complex(-feedback_sign,0)，marker 与 critical_point_real 同步；stability_margins 以 critical_phase=-180°（负反馈）/0°（正反馈）为基准，PM=wrap180((phase_at-critical_phase)*feedback_sign)，相位穿越搜索 critical_phase+360k，正反馈低相位端点补 DC 穿越并在无法定义 PM 时输出 nyquist_positive_feedback_margin_undefined。LM-07 采用方案 A：LoopExtraction.loop_gain_kind=exact|asymptotic_opamp，运放 ×1000 扰动时置 asymptotic_opamp 并产生 loop_gain_idealized（opamp_gain_scale=1000），source/顶层 payload 与前端指标展示透传；方案 B exact L/G 待评估，C 受控源断环单独立项，FEM 冻结。验证：新增 Nyquist 正反馈 K=2/K=0.5、winding +1、loop exact/asymptotic 共 6 用例；定向 27 passed/7 skipped；全量 1817 passed/14 skipped/0 failed；前端 typecheck/build/test:utils 通过。
+  decision: 实施 LM-05/LM-06：nyquist_metrics 的包围数临界点改为 complex(-feedback_sign,0)，marker 与 critical_point_real 同步；stability_margins 以 critical_phase=-180°（负反馈）/0°（正反馈）为基准，PM=wrap180((phase_at-critical_phase)*feedback_sign)，相位穿越搜索 critical_phase+360k，正反馈低相位端点补 DC 穿越并在无法定义 PM 时输出 nyquist_positive_feedback_margin_undefined。LM-07 采用方案 A：LoopExtraction.loop_gain_kind=exact|asymptotic_opamp，运放 ×1000 扰动时置 asymptotic_opamp 并产生 loop_gain_idealized（opamp_gain_scale=1000），source/顶层 payload 与前端指标展示透传；方案 B exact L/G 待评估，C 受控源断环单独立项，FEM 冻结。验证：新增 Nyquist 正反馈 K=2/K=0.5、winding +1、loop exact/asymptotic 共 6 用例；定向 27 passed/7 skipped；全量 1817 passed/14 skipped/0 failed；前端 typecheck/build/test:utils 通过。已于 2026-11-26 随 PR #76 合并 main=1596c370（caa6887 + d44c79e，六项 CI 全绿）。
   namespace: D-NL
   canonical_id: D-NL-155
   legacy_id: D159

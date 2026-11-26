@@ -1,8 +1,8 @@
 # LM-05 / LM-06 / LM-07 只读分析与实施方案
 
-> 状态：方案分析稿（未修改任何代码）
+> 状态：已实施并随 PR #76 合并（main=`1596c370`，2026-11-26）
 > 审计来源：`docs/audit/findings/loop_math.md`（P0-03 保留项）
-> 代码基线：PR #75 合并后 origin/main `3817422a0e3c3e1d689d92cecd63dde0b2aa04be`（2026-11-26）
+> 代码基线：方案阶段为 PR #75 合并后 origin/main `3817422a0e3c3e1d689d92cecd63dde0b2aa04be`；实施后当前 main=`1596c370`（PR #76 merge，2026-11-26）
 > 范围约束：FEM 继续冻结；本方案不触碰 FEM。
 
 ## 0. 结论摘要
@@ -159,3 +159,6 @@
 
 ### 7.4 结论
 LM-05/LM-06 完成；LM-07 方案 A 完成。LM-07 方案 B/C 未实施，FEM 继续冻结。
+
+### 7.5 合并记录
+- PR #76 已合并 main=1596c370（2026-11-26）；提交 caa6887（LM-05/06/07 修复）+ d44c79e（D-5 shadow 报告）；远程 CI build/docker/desktop-l2/e2e/e2e-l1/test 六项全绿。

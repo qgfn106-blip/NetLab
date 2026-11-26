@@ -1,6 +1,6 @@
 # NetLab Core V2 实施路线图（P3 规划）
 
-> 基线提交：5c076eae55f739e2265327c0c73a7dac3440358a ｜ 版本：NetLab 3.20.2 / Project Schema 8
+> 基线提交：5c076eae55f739e2265327c0c73a7dac3440358a ｜ 版本：NetLab 3.20.2 / Project Schema 8 ｜ 当前 main：1596c370（PR #76 merge，2026-11-26）
 > 权重：P3 Core V2 规划合计 10（P3-01..P3-08）。本轮只规划，不强制重写；实施在 P0/P1/P2 收敛通过后按里程碑推进。
 
 ## 0. 规划原则
@@ -41,7 +41,7 @@
 
 ## 6. P3-06 app.ts 入口分层
 - 目标：落地 §2，app.ts 拆为 router/store/views/commands/handlers，入口仅装配。
-- 交付：分层模块 + endpoint 清单快照（后端 88 条不变；前端 version2 为 91 唯一路径/101 方法+路径条目）+ 冒烟测试。实施状态（PR #75 已合并，main=3817422，2026-11-26）：已完成 14 个 `frontend/app/editor_*` 模块全量迁移（dd0e924、bf9075d 修复调试钩子），app.ts 7511→5（仅 import+bootEditor），所有模块 ≤800 行，A2 TS 环 0；G6 已签。
+- 交付：分层模块 + endpoint 清单快照（后端 88 条不变；前端 version2 为 91 唯一路径/101 方法+路径条目）+ 冒烟测试。实施状态（PR #75 已合并，main=3817422，2026-11-26）：已完成 14 个 `frontend/app/editor_*` 模块全量迁移（dd0e924、bf9075d 修复调试钩子），app.ts 7511→5（仅 import+bootEditor），所有模块 ≤800 行，A2 TS 环 0；G6 已签；当前 main 已推进至 1596c370（PR #76 merge，2026-11-26，LM-05/06/07 修复）。
 - 验收门 G6：后端 88 条 endpoint 契约与前端快照 91 唯一路径/101 条目的数量与路径不变；行数门禁通过；冒烟通过。
 - 依赖：P3-05（前端分层范式）。风险：隐式全局/闭包状态遗漏；回滚：分文件 PR。
 

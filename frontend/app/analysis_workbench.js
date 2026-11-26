@@ -299,7 +299,7 @@ class AnalysisWorkbench extends WorkbenchActions {
       '  <label>\u9636\u8DC3 dt <input type="number" data-awb="step-dt" min="0.000000001" step="any" value="' + this.params.step_dt + '"></label>',
       '  <label>\u65F6\u957F <input type="number" data-awb="step-duration" min="0.000001" step="any" value="' + this.params.step_duration + '"></label>',
       needLoop ? '  <label>\u65AD\u73AF\u5143\u4EF6 <select data-awb="element">' + loopOptions + "</select></label>" : "",
-      needLoop ? '  <label>\u53CD\u9988\u7B26\u53F7 <select data-awb="feedback"><option value="1"' + (this.params.feedback_sign === 1 ? " selected" : "") + '>\u6B63\u53CD\u9988\uFF081\uFF09</option><option value="-1"' + (this.params.feedback_sign === -1 ? " selected" : "") + ">\u8D1F\u53CD\u9988\uFF08-1\uFF09</option></select></label>" : "",
+      needLoop ? '  <label>\u53CD\u9988\u7B26\u53F7 <select data-awb="feedback"><option value="1"' + (this.params.feedback_sign === 1 ? " selected" : "") + '>\u8D1F\u53CD\u9988\uFF081\uFF09</option><option value="-1"' + (this.params.feedback_sign === -1 ? " selected" : "") + ">\u6B63\u53CD\u9988\uFF08-1\uFF09</option></select></label>" : "",
       "</div>"
     ].join("");
     this.navHost.querySelectorAll("[data-kind]").forEach((button) => {

@@ -335,7 +335,7 @@ export class AnalysisWorkbench extends WorkbenchActions {
       '  <label>阶跃 dt <input type="number" data-awb="step-dt" min="0.000000001" step="any" value="' + this.params.step_dt + '"></label>',
       '  <label>时长 <input type="number" data-awb="step-duration" min="0.000001" step="any" value="' + this.params.step_duration + '"></label>',
       needLoop ? '  <label>断环元件 <select data-awb="element">' + loopOptions + '</select></label>' : '',
-      needLoop ? '  <label>反馈符号 <select data-awb="feedback"><option value="1"' + (this.params.feedback_sign === 1 ? ' selected' : '') + '>正反馈（1）</option><option value="-1"' + (this.params.feedback_sign === -1 ? ' selected' : '') + '>负反馈（-1）</option></select></label>' : '',
+      needLoop ? '  <label>反馈符号 <select data-awb="feedback"><option value="1"' + (this.params.feedback_sign === 1 ? ' selected' : '') + '>负反馈（1）</option><option value="-1"' + (this.params.feedback_sign === -1 ? ' selected' : '') + '>正反馈（-1）</option></select></label>' : '',
       '</div>',
     ].join('');
     this.navHost.querySelectorAll('[data-kind]').forEach((button) => {

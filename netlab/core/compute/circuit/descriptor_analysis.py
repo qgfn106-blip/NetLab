@@ -815,12 +815,23 @@ def descriptor_transfer_function(
         "zeros": _complex_list(zeros),
     }
 
+
 def closed_loop_transfer_function(
     open_loop: dict[str, Any] | None,
     *,
     feedback_sign: float = 1.0,
 ) -> dict[str, Any] | None:
-    """由开环 G(s) 合成闭环 T(s)=G/(1±G) 的系数表示。"""
+    """由开环 G(s) 合成闭环 T(s)=G/(1+L)，L=feedback_sign*G。
+
+    feedback_sign=+1 表示单位负反馈（分母 1+G），-1 表示单位正反馈
+    （分母 1-G）。
+    """
+    try:
+        sign = float(feedback_sign)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError("feedback_sign 必须是 +1（负反馈）或 -1（正反馈）") from exc
+    if sign not in (-1.0, 1.0):
+        raise ValidationError("feedback_sign 必须是 +1（负反馈）或 -1（正反馈）")
     if not isinstance(open_loop, dict) or not open_loop.get("supported"):
         return None
     numerator_raw = open_loop.get("numerator_coeffs")
@@ -845,7 +856,7 @@ def closed_loop_transfer_function(
     if numerator.size == 0 or denominator.size == 0:
         return None
     closed_denominator = np.polyadd(
-        denominator, numerator if feedback_sign >= 0 else -numerator
+        denominator, numerator if sign > 0 else -numerator
     )
     if closed_denominator.size == 0:
         return None

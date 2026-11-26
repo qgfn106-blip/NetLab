@@ -114,6 +114,7 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-26 | fix(ci): allow README changelog token override |
 | 2026-11-26 | feat(tools): automate README recent updates |
 | 2026-11-26 | chore(evidence): regenerate D-5 shadow report for feedback polarity fixes |
 | 2026-11-26 | fix(workbench): require feedback polarity confirmation for Nyquist and step analyses |
@@ -133,7 +134,6 @@ python -m netlab.desktop
 | 2026-11-26 | fix(analysis): 修复 Nyquist 正反馈临界点与裕度基准并显式化运放断环近似 |
 | 2026-11-26 | docs: sync audit status to PR #75 merge 3817422 and add LM-05/06/07 plan |
 | 2026-11-26 | test(solver): 生成 D-5 影子对拍报告（PR #75） |
-| 2026-11-26 | docs: sign off G8 after all six CI checks passed |
 
 <!-- END LAST 20 UPDATES -->
 

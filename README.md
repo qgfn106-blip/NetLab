@@ -114,6 +114,9 @@ python -m netlab.desktop
 
 | 日期 | 更新内容 |
 |---|---|
+| 2026-11-28 | docs(model): document plugin SPI v2 native lifecycle gap |
+| 2026-11-28 | fix(analysis): require explicit feedback polarity in legacy endpoints |
+| 2026-11-28 | fix(model): decouple scene checkpoints from engine identity |
 | 2026-11-26 | fix(ci): allow README changelog token override |
 | 2026-11-26 | feat(tools): automate README recent updates |
 | 2026-11-26 | chore(evidence): regenerate D-5 shadow report for feedback polarity fixes |
@@ -131,9 +134,6 @@ python -m netlab.desktop
 | 2026-11-26 | fix(loop-analysis): unify signed loop gain and Nyquist critical point |
 | 2026-11-26 | docs: sync audit status to PR #76 merge 1596c370 |
 | 2026-11-26 | test(analysis): add D-5 shadow report for LM-05/06/07 compute changes |
-| 2026-11-26 | fix(analysis): 修复 Nyquist 正反馈临界点与裕度基准并显式化运放断环近似 |
-| 2026-11-26 | docs: sync audit status to PR #75 merge 3817422 and add LM-05/06/07 plan |
-| 2026-11-26 | test(solver): 生成 D-5 影子对拍报告（PR #75） |
 
 <!-- END LAST 20 UPDATES -->
 

@@ -72,6 +72,8 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
         self.solve_algebraic = False
         self.nodes: dict[str, NodeRecord] = {}
         self.edges: dict[str, EdgeRecord] = {}
+        #: 建模初值快照：运行态写入 record.data 后仍保留可持久化/可指纹化的 authored data。
+        self._authored_node_data: dict[str, dict[str, Any]] = {}
         # 功能块定义；BlockRuntime 的内部场景共享同一份定义表。
         self.blocks = BlockStore()
         # 功能块实例的运行时缓存：结构变化重建引擎时复用，内部 state 才不会丢。
@@ -202,9 +204,19 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
         self._touch()
         self._dirty = True
 
+    def model_fingerprint(self) -> str:
+        """当前场景静态模型的稳定指纹（不含运行态与修订号）。"""
+        from .model import Model
+
+        return Model.from_scene(self).fingerprint
+
     def capture_checkpoint(self) -> dict[str, Any]:
         engine = self.ensure_engine()
-        return {"engine": engine, "state": engine.capture_checkpoint()}
+        return {
+            "engine": engine,
+            "state": engine.capture_checkpoint(),
+            "model_fingerprint": self.model_fingerprint(),
+        }
 
     def rollback_last_step(self) -> None:
         """N-36：回滚最近一步的引擎事务，不再重建完整 Scene 深拷贝。"""
@@ -219,13 +231,20 @@ class Scene(_SceneChannelsMixin, _SceneIOMixin, _SceneEditMixin):
     def restore_checkpoint(self, checkpoint: dict[str, Any] | None) -> None:
         if not checkpoint:
             return
-        engine = self.ensure_engine()
         state = checkpoint.get("state")
-        if engine is checkpoint.get("engine") and state is not None:
-            engine.restore_checkpoint(state)
-            runtime = getattr(self._assembly, "runtime", None)
-            if runtime is not None:
-                self._sync_runtime_to_scene(runtime)
+        if state is None:
+            return
+        expected = checkpoint.get("model_fingerprint")
+        if expected is not None and expected != self.model_fingerprint():
+            raise ValidationError("检查点模型指纹不匹配，拒绝恢复")
+        engine = self.ensure_engine()
+        # 旧检查点没有模型指纹时，只能保守要求同一引擎实例。
+        if expected is None and engine is not checkpoint.get("engine"):
+            return
+        engine.restore_checkpoint(state)
+        runtime = getattr(self._assembly, "runtime", None)
+        if runtime is not None:
+            self._sync_runtime_to_scene(runtime)
 
     def _iter_source_params(self) -> list[dict[str, Any]]:
         """收集边源与器件节点源的参数（P0-09：器件节点也参与断点）。"""

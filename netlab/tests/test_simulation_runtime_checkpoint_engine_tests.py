@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from netlab.core.common.limits import ValidationError
 from netlab.core.compute.simulation import Simulation
 from netlab.core.model.blocks import BlockDef, BlockRuntime
 from netlab.core.model.scene import Scene
@@ -57,6 +58,46 @@ def test_precompute_failure_restores_same_circuit_engine_and_fields() -> None:
     assert list(sim._frame_times) == old_ft
     assert sim._last_sample_time == old_lst
     assert list(sim.recorder.frames) == old_frames
+
+
+def test_scene_restore_checkpoint_across_engine_rebuild() -> None:
+    scene = _rc_scene()
+    sim = Simulation(scene)
+    sim.config.dt = 1.0e-4
+    sim.step_once(10)
+    checkpoint = scene.capture_checkpoint()
+    engine_before = scene.ensure_engine()
+    before = scene.probes()
+    before_time = scene.clock.time
+
+    sim.step_once(10)
+    assert scene.clock.time != pytest.approx(before_time)
+    scene._dirty = True
+    engine_after = scene.ensure_engine()
+    assert engine_after is not engine_before
+
+    scene.restore_checkpoint(checkpoint)
+
+    assert scene.ensure_engine() is engine_after
+    assert repr(engine_after.capture_checkpoint()) == repr(checkpoint["state"])
+    assert scene.clock.time == pytest.approx(before_time)
+    after = scene.probes()
+    assert after.keys() == before.keys()
+    for key, value in before.items():
+        assert after[key] == pytest.approx(value)
+
+
+def test_scene_restore_checkpoint_rejects_model_change() -> None:
+    scene = _rc_scene()
+    sim = Simulation(scene)
+    sim.config.dt = 1.0e-4
+    sim.step_once(10)
+    checkpoint = scene.capture_checkpoint()
+    resistor = next(edge for edge in scene.edges.values() if edge.name == "R1")
+    resistor.params["R"] = 2000.0
+
+    with pytest.raises(ValidationError, match="模型指纹"):
+        scene.restore_checkpoint(checkpoint)
 
 
 def test_block_runtime_capture_restore_roundtrip() -> None:

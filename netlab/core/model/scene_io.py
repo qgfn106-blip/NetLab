@@ -59,6 +59,7 @@ class _SceneIOMixin:
         """
         node_map = None
         engine_initial = None
+        authored_initial = getattr(self, "_authored_node_data", None)
         if authored_data and self._engine is not None:
             node_map = getattr(self._engine, "node_map", None)
             # M-02-circuit：circuit 引擎无 node_map，改用引擎在求解前捕获的初值映射。
@@ -67,6 +68,10 @@ class _SceneIOMixin:
         for record in self.nodes.values():
             snap = record.snapshot(include_state=include_state)
             if authored_data:
+                if authored_initial is not None and record.id in authored_initial:
+                    snap["data"] = copy.deepcopy(authored_initial[record.id])
+                    nodes.append(snap)
+                    continue
                 node = node_map.get(record.id) if node_map else None
                 if node is not None and (
                     getattr(node, "compute", None) is not None
@@ -161,6 +166,10 @@ class _SceneIOMixin:
                 size=self._node_size(raw.get("size")),
                 appearance=normalize_appearance(raw.get("appearance")),
             )
+
+        self._authored_node_data = {
+            node_id: copy.deepcopy(record.data) for node_id, record in nodes.items()
+        }
 
         for index, raw in enumerate(raw_edges):
             if not isinstance(raw, dict):

@@ -46,6 +46,7 @@ def _body(**overrides):
         "element": "E1",
         "input_source": "V1",
         "output": "out",
+        "feedback_sign": 1.0,
         "f_start": 10.0,
         "f_stop": 100000.0,
         "points": 41,
@@ -151,3 +152,13 @@ def test_loop_endpoint_rejects_unknown_element(client) -> None:
     _load(client, _vcvs_amplifier())
     response = client.post("/api/analysis/loop", json=_body(element="R1"))
     assert response.status_code == 422, response.text
+
+
+@pytest.mark.parametrize("path", ["/api/analysis/loop", "/api/analysis/nyquist"])
+def test_legacy_analysis_endpoints_require_feedback_sign(client, path: str) -> None:
+    _load(client, _vcvs_amplifier())
+    body = _body()
+    body.pop("feedback_sign")
+    response = client.post(path, json=body)
+    assert response.status_code == 422, response.text
+    assert "feedback_sign" in response.text

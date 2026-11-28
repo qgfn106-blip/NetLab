@@ -79,6 +79,7 @@ class _SceneEditMixin:
             size=self._node_size(size),
         )
         self.nodes[identifier] = record
+        self._authored_node_data[identifier] = copy.deepcopy(data_clean)
         self._touch()
         return record
 
@@ -120,6 +121,7 @@ class _SceneEditMixin:
             if len(data_clean) > MAX_FIELDS:
                 raise LimitError(f"节点数据最多 {MAX_FIELDS} 个字段")
             record.data = data_clean
+            self._authored_node_data[node_id] = copy.deepcopy(data_clean)
         if "position" in payload:
             position = self._position(payload["position"])
             record.position = position
@@ -204,6 +206,7 @@ class _SceneEditMixin:
         for edge_id in removed_edges:
             del self.edges[edge_id]
         del self.nodes[node_id]
+        self._authored_node_data.pop(node_id, None)
         self._touch()
         return removed_edges
 

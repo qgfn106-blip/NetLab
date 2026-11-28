@@ -60,7 +60,8 @@ class AnalysisLoopRequest(BaseModel):
     loop_probe: dict[str, Any] | None = None
     input_source: str | None = None
     output: str | None = None
-    feedback_sign: Literal[1.0, -1.0] = 1.0
+    # 必须显式声明反馈极性，禁止旧接口静默按负反馈处理。
+    feedback_sign: Literal[1.0, -1.0]
     f_start: float = Field(default=1.0, gt=0.0)
     f_stop: float = Field(default=1_000_000.0, gt=0.0)
     points: int = Field(default=241, ge=2, le=2001)
